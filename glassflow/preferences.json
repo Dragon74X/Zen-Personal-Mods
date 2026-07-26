@@ -49,7 +49,7 @@
   {
     "type": "string",
     "property": "zzglass.buttons.oval-height",
-    "label": "Oval height multiplier *How far the hovered button stretches, as a multiple of its diameter. 1.0 keeps it circular, 1.3 is a soft oval, above about 1.8 looks like a capsule.*",
+    "label": "Oval height multiplier *How far the hovered button stretches, as a multiple of its diameter. 1.0 stays circular, 1.3 is a soft oval, above about 1.8 looks like a capsule.*",
     "defaultValue": "1.3",
     "placeholder": "1.3"
   },
@@ -61,8 +61,15 @@
   },
   {
     "type": "string",
+    "property": "zzglass.buttons.glyph-size",
+    "label": "Glyph size *How much of the button the mark fills, as a percentage. 76% is close to macOS. Above about 85% the mark starts touching the rim.*",
+    "defaultValue": "76%",
+    "placeholder": "76%"
+  },
+  {
+    "type": "string",
     "property": "zzglass.buttons.close-color",
-    "label": "Close colour *Purple by default: destructive, but softer than red. Any CSS colour works. Alpha below about 0.7 is what makes it read as glass rather than paint.*",
+    "label": "Close colour *Purple by default: destructive, but softer than red. Any CSS colour works. Alpha below about 0.7 is what makes it read as glass rather than paint, and hovering stacks a second pass of this same colour to deepen it.*",
     "defaultValue": "rgba(167, 139, 250, 0.55)",
     "placeholder": "rgba(167, 139, 250, 0.55)"
   },
@@ -103,7 +110,7 @@
   {
     "type": "checkbox",
     "property": "zzglass.tabs.enabled",
-    "label": "Enable glassy tinted tabs *Tints tabs with the container or workspace colour. Painted as a background-image so it stacks above Arc's tab colours instead of fighting them.*",
+    "label": "Enable glassy tinted tabs *Tints tabs with the container or workspace colour. Covers regular, pinned and Essentials tabs. Painted as a background-image so it stacks above Arc's tab colours instead of fighting them.*",
     "defaultValue": false
   },
   {
@@ -126,6 +133,12 @@
         "value": 2
       }
     ]
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.tabs.hide-arc-container-glow",
+    "label": "Hide Arc's container glow *Arc paints a blurred bar of container colour across the left half of every container tab. With Zen set to force a container per workspace, that lands on every tab. Glassflow tints the whole tab instead, so this is usually the extra colour you are seeing on the left. Only affects Arc 2.0.*",
+    "defaultValue": true
   },
   {
     "type": "string",
@@ -183,8 +196,14 @@
   },
   {
     "type": "checkbox",
+    "property": "zzglass.tabs.pending-reverse",
+    "label": "Reverse the gradient on unloaded tabs *Tabs that have not been loaded this session run their gradient the opposite way, so dormant tabs are readable at a glance without dimming them. Has no visible effect when the direction is set to flat.*",
+    "defaultValue": true
+  },
+  {
+    "type": "checkbox",
     "property": "zzglass.tabs.strip-gradient",
-    "label": "Gradient across the whole tab strip *A separate wash behind every tab, spanning the full strip rather than each tab individually. Uses the workspace colour, since container colour only exists per tab.*",
+    "label": "Gradient across the whole tab strip *A separate wash behind every tab, spanning the full strip rather than each tab individually. Also gives the frosted blur something with structure to work against. Uses the workspace colour, since container colour only exists per tab.*",
     "defaultValue": false
   },
   {
@@ -222,7 +241,7 @@
   {
     "type": "checkbox",
     "property": "zzglass.tabs.left-accent",
-    "label": "Accent bar on the selected tab *A 3px coloured bar down the left edge. The clearest at-a-glance marker if you prefer to keep tints subtle.*",
+    "label": "Accent bar on the selected tab *A 3px coloured bar down the left edge. The clearest at-a-glance marker if you prefer to keep tints subtle. Uses the same layer as Arc's container glow, so it replaces it.*",
     "defaultValue": false
   },
   {

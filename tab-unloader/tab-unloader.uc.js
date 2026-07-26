@@ -132,6 +132,11 @@
       budget = Math.min(budget, Math.max(0, loaded - floor));
     }
 
+    if (budget < eligible.length) {
+      note(`throttled: ${eligible.length} eligible but budget ${budget} ` +
+        `(cap ${cap || "none"}, floor ${floor || "none"}) -- raise 'Unload at most' to go faster`);
+    }
+
     let done = 0;
     for (const tab of eligible) {
       if (done >= budget) break;
@@ -146,7 +151,10 @@
     if (!bool("enabled", false)) { note("disabled"); return; }
     const every = Math.max(2, num("check-seconds", 60));
     timer = setInterval(sweep, every * 1000);
-    note(`running every ${every}s, idle threshold ${Math.max(5, num("idle-seconds", 1800))}s`);
+    note(`running every ${every}s, idle threshold ${Math.max(5, num("idle-seconds", 1800))}s, ` +
+      `cap ${num("max-per-sweep", 5)}/sweep, floor ${num("keep-loaded", 0)}`);
+    // Do not make the user wait a whole interval to see the first result.
+    setTimeout(sweep, 500);
   }
 
   const observer = {

@@ -189,12 +189,20 @@
         "value": 3
       },
       {
-        "label": "Diagonal",
+        "label": "Diagonal (down-right)",
         "value": 4
       },
       {
-        "label": "Reverse diagonal",
+        "label": "Diagonal (up-left)",
         "value": 5
+      },
+      {
+        "label": "Diagonal (up-right)",
+        "value": 6
+      },
+      {
+        "label": "Diagonal (down-left)",
+        "value": 7
       }
     ]
   },
@@ -318,12 +326,20 @@
         "value": 3
       },
       {
-        "label": "Diagonal",
+        "label": "Diagonal (down-right)",
         "value": 4
       },
       {
-        "label": "Reverse diagonal",
+        "label": "Diagonal (up-left)",
         "value": 5
+      },
+      {
+        "label": "Diagonal (up-right)",
+        "value": 6
+      },
+      {
+        "label": "Diagonal (down-left)",
+        "value": 7
       }
     ]
   },
@@ -447,12 +463,20 @@
         "value": 3
       },
       {
-        "label": "Diagonal",
+        "label": "Diagonal (down-right)",
         "value": 4
       },
       {
-        "label": "Reverse diagonal",
+        "label": "Diagonal (up-left)",
         "value": 5
+      },
+      {
+        "label": "Diagonal (up-right)",
+        "value": 6
+      },
+      {
+        "label": "Diagonal (down-left)",
+        "value": 7
       }
     ]
   },
@@ -576,12 +600,20 @@
         "value": 3
       },
       {
-        "label": "Diagonal",
+        "label": "Diagonal (down-right)",
         "value": 4
       },
       {
-        "label": "Reverse diagonal",
+        "label": "Diagonal (up-left)",
         "value": 5
+      },
+      {
+        "label": "Diagonal (up-right)",
+        "value": 6
+      },
+      {
+        "label": "Diagonal (down-left)",
+        "value": 7
       }
     ]
   },
@@ -752,12 +784,20 @@
         "value": 3
       },
       {
-        "label": "Diagonal",
+        "label": "Diagonal (down-right)",
         "value": 4
       },
       {
-        "label": "Reverse diagonal",
+        "label": "Diagonal (up-left)",
         "value": 5
+      },
+      {
+        "label": "Diagonal (up-right)",
+        "value": 6
+      },
+      {
+        "label": "Diagonal (down-left)",
+        "value": 7
       }
     ]
   },
@@ -807,10 +847,10 @@
   },
   {
     "type": "string",
-    "property": "zzglass.sidebar.opacity",
-    "label": "Sidebar opacity *Fades the tinted layer.*",
+    "property": "zzglass.sidebar.strength",
     "defaultValue": "1",
-    "placeholder": "1"
+    "placeholder": "1",
+    "label": "Fill strength *Scales the tint's own transparency. This is NOT element opacity: fading the element would fade your tabs and text with it, which is what the old Opacity setting did. 1 is full strength, 0.5 is half.*"
   },
   {
     "type": "dropdown",
@@ -836,12 +876,20 @@
         "value": 3
       },
       {
-        "label": "Diagonal",
+        "label": "Diagonal (down-right)",
         "value": 4
       },
       {
-        "label": "Reverse diagonal",
+        "label": "Diagonal (up-left)",
         "value": 5
+      },
+      {
+        "label": "Diagonal (up-right)",
+        "value": 6
+      },
+      {
+        "label": "Diagonal (down-left)",
+        "value": 7
       }
     ]
   },
@@ -860,7 +908,7 @@
   {
     "type": "checkbox",
     "property": "zzglass.sidebar.blur",
-    "label": "Frosted blur on the sidebar *A second blur pass on top of whatever Arc, Transparent Zen or DWMBlurGlass already apply. Stacking blurs rarely composes well.*",
+    "label": "Frosted blur on the sidebar *backdrop-filter can only blur pixels the browser itself painted. When the sidebar sits beside content there is nothing behind it, so this does nothing. It only has an effect where the sidebar overlays the page, i.e. compact mode hover. Desktop blur from DWMBlurGlass happens outside Gecko and cannot be sampled. For a frosted look that always works and costs nothing, raise Fill strength and turn on the sheen instead.*",
     "defaultValue": false
   },
   {
@@ -927,9 +975,9 @@
   {
     "type": "string",
     "property": "zzglass.buttons.glyph-size",
-    "label": "Glyph size *How much of the button the mark fills.*",
-    "defaultValue": "76%",
-    "placeholder": "76%"
+    "defaultValue": "0.76",
+    "placeholder": "0.76",
+    "label": "Glyph size *A multiple of the button diameter, not a percentage. Percentages scaled with the button's height, so the mark stretched and drifted off centre when the oval expanded. 0.76 is close to macOS.*"
   },
   {
     "type": "string",

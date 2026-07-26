@@ -35,7 +35,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzunload.max-per-sweep",
-    "label": "Unload at most this many at once *Stops a big batch unloading in one go, which can stutter.*",
+    "label": "Unload at most this many at once *Stops a big batch unloading in one go, which can stutter. This is the most common reason unloading feels slow: with 40 idle tabs, a cap of 5 and a 60 second check, clearing them takes 8 minutes. Raise it or set No limit if you want them gone promptly.*",
     "defaultValue": 5,
     "options": [
       {

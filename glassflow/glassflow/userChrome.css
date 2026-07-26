@@ -1,0 +1,542 @@
+/* ============================================================
+   Glassflow v3.1
+
+   Injected as a USER_SHEET, so !important here outranks author
+   !important from Arc, SuperPins and Advanced Tab Groups regardless of
+   specificity.
+
+   v3.1 fixes:
+     - Direction defaults are declared BEFORE the media-query overrides.
+       In 3.0 the default came last and silently won every time.
+     - End tint is an absolute percentage. 3.0 multiplied two
+       percentages in calc(), which is invalid CSS and made the whole
+       background-image invalid, so nothing rendered.
+     - Sidebar rules no longer require #navigator-toolbox as an ancestor.
+     - Glass can be fully colourless: blur without saturate/brightness.
+     - Folder styling removed, to be revisited.
+   ============================================================ */
+
+:root {
+  --zzg-tone: var(--zzglass-color-tone, 25%);
+  --zzg-custom: var(--zzglass-color-custom, #7c8cf8);
+  --zzg-second: var(--zzglass-color-secondary, #1b1b2b);
+  --zzg-fallback: var(--zen-primary-color, var(--zen-colors-primary, var(--zzg-custom)));
+  --zzg-round: var(--zzglass-tabs-roundness, 10px);
+  --zzg-glass: var(--zzglass-glass-intensity, 1);
+  --zzg-sheenamt: var(--zzglass-glass-sheen-strength, 1);
+  --zzg-sheen-dir: to bottom;
+  --zzg-texture: linear-gradient(rgb(0 0 0 / 0), rgb(0 0 0 / 0));
+
+  /* Achromatic by construction: white and black only, no hue. */
+  --zzg-sheen: linear-gradient(var(--zzg-sheen-dir),
+    rgb(255 255 255 / calc(0.20 * var(--zzg-glass) * var(--zzg-sheenamt))) 0%,
+    rgb(255 255 255 / calc(0.05 * var(--zzg-glass) * var(--zzg-sheenamt))) 45%,
+    rgb(255 255 255 / 0) 55%,
+    rgb(0 0 0 / calc(0.05 * var(--zzg-glass) * var(--zzg-sheenamt))) 100%);
+  --zzg-rim-top: rgb(255 255 255 / calc(0.42 * var(--zzg-glass)));
+  --zzg-rim-all: rgb(255 255 255 / calc(0.12 * var(--zzg-glass)));
+
+  /* Colourless by default: pure blur, no hue shift. */
+  --zzg-fx: ;
+}
+@media (not (-moz-pref("zzglass.glass.colorless"))) {
+  :root { --zzg-fx: saturate(180%) brightness(1.06) contrast(1.05); }
+}
+
+:root {
+  /* sidebar fill, assembled once so every target reuses it */
+  --zzg-sb-img: linear-gradient(var(--zzg-sdir),
+    color-mix(in srgb,
+      color-mix(in srgb, var(--zen-primary-color, #7c8cf8), black var(--zzg-tone))
+      var(--zzglass-sidebar-tint, 10%), transparent),
+    transparent 85%);
+}
+@media (-moz-pref("zzglass.sidebar.sheen")) {
+  :root {
+    --zzg-sb-img: var(--zzg-sheen), linear-gradient(var(--zzg-sdir),
+      color-mix(in srgb,
+        color-mix(in srgb, var(--zen-primary-color, #7c8cf8), black var(--zzg-tone))
+        var(--zzglass-sidebar-tint, 10%), transparent),
+      transparent 85%);
+  }
+}
+@media (-moz-pref("zzglass.color.fallback", 1)) { :root { --zzg-fallback: var(--zzg-custom); } }
+@media (-moz-pref("zzglass.color.fallback", 2)) { :root { --zzg-fallback: light-dark(#8a8a95, #6e6e78); } }
+
+@media (-moz-pref("zzglass.glass.sheen-direction", 1)) { :root { --zzg-sheen-dir: to top; } }
+@media (-moz-pref("zzglass.glass.sheen-direction", 2)) { :root { --zzg-sheen-dir: to right; } }
+@media (-moz-pref("zzglass.glass.sheen-direction", 3)) { :root { --zzg-sheen-dir: to left; } }
+@media (-moz-pref("zzglass.glass.sheen-direction", 4)) { :root { --zzg-sheen-dir: 135deg; } }
+
+/* Accent chain lives on the TAB: --identity-tab-color is set there,
+   not on :root, which is why container tinting failed before. */
+#navigator-toolbox .tabbrowser-tab {
+  --zzg-raw: var(--identity-tab-color, var(--zzg-fallback));
+  --zzg-accent: color-mix(in srgb, var(--zzg-raw), black var(--zzg-tone));
+}
+@media (-moz-pref("zzglass.color.source", 1)) {
+  #navigator-toolbox .tabbrowser-tab { --zzg-raw: var(--zen-primary-color, var(--zzg-fallback)); }
+}
+@media (-moz-pref("zzglass.color.source", 2)) {
+  #navigator-toolbox .tabbrowser-tab { --zzg-raw: var(--zzg-custom); }
+}
+@media (-moz-pref("zzglass.color.source", 3)) {
+  #navigator-toolbox .tabbrowser-tab { --zzg-raw: var(--tab-group-color, var(--zzg-fallback)); }
+}
+
+@media (-moz-pref("zzglass.tabs.texture", 1)) {
+  :root { --zzg-texture: repeating-linear-gradient(45deg, rgb(255 255 255 / 0.05) 0 2px, rgb(255 255 255 / 0) 2px 5px); }
+}
+@media (-moz-pref("zzglass.tabs.texture", 2)) {
+  :root { --zzg-texture: radial-gradient(rgb(255 255 255 / 0.07) 1px, rgb(255 255 255 / 0) 1px); }
+}
+@media (-moz-pref("zzglass.tabs.texture", 3)) {
+  :root { --zzg-texture: repeating-linear-gradient(0deg, rgb(255 255 255 / 0.045) 0 1px, rgb(255 255 255 / 0) 1px 4px); }
+}
+@media (-moz-pref("zzglass.tabs.texture", 4)) {
+  :root { --zzg-texture: repeating-linear-gradient(90deg, rgb(255 255 255 / 0.04) 0 1px, rgb(255 255 255 / 0) 1px 6px),
+    repeating-linear-gradient(0deg, rgb(255 255 255 / 0.04) 0 1px, rgb(255 255 255 / 0) 1px 6px); }
+}
+
+
+/* ---------- Selected tab ---------- */
+@media (-moz-pref("zzglass.selected.enabled")) {
+  /* defaults first, overrides after -- reversing this was the 3.0 bug */
+  #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) {
+    --zzg-a: color-mix(in srgb, var(--zzg-accent) var(--zzglass-selected-tint, 42%), transparent);
+    --zzg-b: transparent;
+    --zzg-spread: var(--zzglass-selected-spread, 100%);
+    --zzg-dir: to right;
+  }
+  @media (-moz-pref("zzglass.selected.direction", 1)) { #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-dir: to left; } }
+  @media (-moz-pref("zzglass.selected.direction", 2)) { #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-dir: to bottom; } }
+  @media (-moz-pref("zzglass.selected.direction", 3)) { #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-dir: to top; } }
+  @media (-moz-pref("zzglass.selected.direction", 4)) { #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-dir: 135deg; } }
+  @media (-moz-pref("zzglass.selected.direction", 5)) { #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-dir: 315deg; } }
+  @media (-moz-pref("zzglass.selected.end-mode", 1)) {
+    #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-b: color-mix(in srgb, var(--zzg-accent) var(--zzglass-selected-end-tint, 17%), transparent); }
+  }
+  @media (-moz-pref("zzglass.selected.end-mode", 2)) {
+    #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-b: color-mix(in srgb, var(--zzg-second) var(--zzglass-selected-end-tint, 17%), transparent); }
+  }
+  @media (-moz-pref("zzglass.selected.end-mode", 3)) { #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-b: var(--zzg-a); } }
+
+  #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-background, #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-stack .tab-background {
+    background-color: transparent !important;
+    background-repeat: repeat !important;
+    background-position: center center !important;
+    background-origin: border-box !important;
+    background-clip: border-box !important;
+    border-radius: var(--zzg-round) !important;
+    opacity: var(--zzglass-selected-opacity, 1) !important;
+    background-image: var(--zzg-texture),
+      linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)) !important;
+    transition: background-image 180ms ease-out, box-shadow 180ms ease-out, opacity 180ms ease-out !important;
+  }
+  @media (-moz-pref("zzglass.selected.sheen")) {
+    #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-background, #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-stack .tab-background { background-image: var(--zzg-texture), var(--zzg-sheen),
+      linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)) !important; }
+  }
+  @media (-moz-pref("zzglass.selected.rim")) {
+    #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-background, #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-stack .tab-background { box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important; }
+  }
+  @media (-moz-pref("zzglass.selected.glow")) {
+    #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-background, #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-stack .tab-background { box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all),
+      0 2px 12px color-mix(in srgb, var(--zzg-accent) 35%, transparent) !important; }
+  }
+  @media (-moz-pref("zzglass.selected.blur")) {
+    #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-background, #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-stack .tab-background { backdrop-filter: blur(var(--zzglass-selected-blur-radius, 20px)) var(--zzg-fx) !important; }
+  }
+}
+
+/* ---------- Unselected tab ---------- */
+@media (-moz-pref("zzglass.unselected.enabled")) {
+  /* defaults first, overrides after -- reversing this was the 3.0 bug */
+  #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) {
+    --zzg-a: color-mix(in srgb, var(--zzg-accent) var(--zzglass-unselected-tint, 12%), transparent);
+    --zzg-b: transparent;
+    --zzg-spread: var(--zzglass-unselected-spread, 100%);
+    --zzg-dir: to right;
+  }
+  @media (-moz-pref("zzglass.unselected.direction", 1)) { #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-dir: to left; } }
+  @media (-moz-pref("zzglass.unselected.direction", 2)) { #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-dir: to bottom; } }
+  @media (-moz-pref("zzglass.unselected.direction", 3)) { #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-dir: to top; } }
+  @media (-moz-pref("zzglass.unselected.direction", 4)) { #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-dir: 135deg; } }
+  @media (-moz-pref("zzglass.unselected.direction", 5)) { #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-dir: 315deg; } }
+  @media (-moz-pref("zzglass.unselected.end-mode", 1)) {
+    #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-b: color-mix(in srgb, var(--zzg-accent) var(--zzglass-unselected-end-tint, 4%), transparent); }
+  }
+  @media (-moz-pref("zzglass.unselected.end-mode", 2)) {
+    #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-b: color-mix(in srgb, var(--zzg-second) var(--zzglass-unselected-end-tint, 4%), transparent); }
+  }
+  @media (-moz-pref("zzglass.unselected.end-mode", 3)) { #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-b: var(--zzg-a); } }
+
+  #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-background, #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-stack .tab-background {
+    background-color: transparent !important;
+    background-repeat: repeat !important;
+    background-position: center center !important;
+    background-origin: border-box !important;
+    background-clip: border-box !important;
+    border-radius: var(--zzg-round) !important;
+    opacity: var(--zzglass-unselected-opacity, 1) !important;
+    background-image: var(--zzg-texture),
+      linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)) !important;
+    transition: background-image 180ms ease-out, box-shadow 180ms ease-out, opacity 180ms ease-out !important;
+  }
+  @media (-moz-pref("zzglass.unselected.sheen")) {
+    #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-background, #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-stack .tab-background { background-image: var(--zzg-texture), var(--zzg-sheen),
+      linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)) !important; }
+  }
+  @media (-moz-pref("zzglass.unselected.rim")) {
+    #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-background, #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-stack .tab-background { box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important; }
+  }
+  @media (-moz-pref("zzglass.unselected.glow")) {
+    #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-background, #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-stack .tab-background { box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all),
+      0 2px 12px color-mix(in srgb, var(--zzg-accent) 35%, transparent) !important; }
+  }
+  @media (-moz-pref("zzglass.unselected.blur")) {
+    #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-background, #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-stack .tab-background { backdrop-filter: blur(var(--zzglass-unselected-blur-radius, 20px)) var(--zzg-fx) !important; }
+  }
+}
+
+/* ---------- Hovered tab ---------- */
+@media (-moz-pref("zzglass.hover.enabled")) {
+  /* defaults first, overrides after -- reversing this was the 3.0 bug */
+  #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover {
+    --zzg-a: color-mix(in srgb, var(--zzg-accent) var(--zzglass-hover-tint, 24%), transparent);
+    --zzg-b: transparent;
+    --zzg-spread: var(--zzglass-hover-spread, 100%);
+    --zzg-dir: to right;
+  }
+  @media (-moz-pref("zzglass.hover.direction", 1)) { #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-dir: to left; } }
+  @media (-moz-pref("zzglass.hover.direction", 2)) { #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-dir: to bottom; } }
+  @media (-moz-pref("zzglass.hover.direction", 3)) { #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-dir: to top; } }
+  @media (-moz-pref("zzglass.hover.direction", 4)) { #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-dir: 135deg; } }
+  @media (-moz-pref("zzglass.hover.direction", 5)) { #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-dir: 315deg; } }
+  @media (-moz-pref("zzglass.hover.end-mode", 1)) {
+    #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-b: color-mix(in srgb, var(--zzg-accent) var(--zzglass-hover-end-tint, 9%), transparent); }
+  }
+  @media (-moz-pref("zzglass.hover.end-mode", 2)) {
+    #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-b: color-mix(in srgb, var(--zzg-second) var(--zzglass-hover-end-tint, 9%), transparent); }
+  }
+  @media (-moz-pref("zzglass.hover.end-mode", 3)) { #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-b: var(--zzg-a); } }
+
+  #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-background, #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-stack .tab-background {
+    background-color: transparent !important;
+    background-repeat: repeat !important;
+    background-position: center center !important;
+    background-origin: border-box !important;
+    background-clip: border-box !important;
+    border-radius: var(--zzg-round) !important;
+    opacity: var(--zzglass-hover-opacity, 1) !important;
+    background-image: var(--zzg-texture),
+      linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)) !important;
+    transition: background-image 180ms ease-out, box-shadow 180ms ease-out, opacity 180ms ease-out !important;
+  }
+  @media (-moz-pref("zzglass.hover.sheen")) {
+    #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-background, #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-stack .tab-background { background-image: var(--zzg-texture), var(--zzg-sheen),
+      linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)) !important; }
+  }
+  @media (-moz-pref("zzglass.hover.rim")) {
+    #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-background, #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-stack .tab-background { box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important; }
+  }
+  @media (-moz-pref("zzglass.hover.glow")) {
+    #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-background, #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-stack .tab-background { box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all),
+      0 2px 12px color-mix(in srgb, var(--zzg-accent) 35%, transparent) !important; }
+  }
+  @media (-moz-pref("zzglass.hover.blur")) {
+    #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-background, #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-stack .tab-background { backdrop-filter: blur(var(--zzglass-hover-blur-radius, 20px)) var(--zzg-fx) !important; }
+  }
+}
+
+/* ---------- Unloaded tab ---------- */
+@media (-moz-pref("zzglass.pending.enabled")) {
+  /* defaults first, overrides after -- reversing this was the 3.0 bug */
+  #navigator-toolbox .tabbrowser-tab[pending] {
+    --zzg-a: color-mix(in srgb, var(--zzg-accent) var(--zzglass-pending-tint, 7%), transparent);
+    --zzg-b: transparent;
+    --zzg-spread: var(--zzglass-pending-spread, 100%);
+    --zzg-dir: to left;
+  }
+  @media (-moz-pref("zzglass.pending.direction", 1)) { #navigator-toolbox .tabbrowser-tab[pending] { --zzg-dir: to left; } }
+  @media (-moz-pref("zzglass.pending.direction", 2)) { #navigator-toolbox .tabbrowser-tab[pending] { --zzg-dir: to bottom; } }
+  @media (-moz-pref("zzglass.pending.direction", 3)) { #navigator-toolbox .tabbrowser-tab[pending] { --zzg-dir: to top; } }
+  @media (-moz-pref("zzglass.pending.direction", 4)) { #navigator-toolbox .tabbrowser-tab[pending] { --zzg-dir: 135deg; } }
+  @media (-moz-pref("zzglass.pending.direction", 5)) { #navigator-toolbox .tabbrowser-tab[pending] { --zzg-dir: 315deg; } }
+  @media (-moz-pref("zzglass.pending.end-mode", 1)) {
+    #navigator-toolbox .tabbrowser-tab[pending] { --zzg-b: color-mix(in srgb, var(--zzg-accent) var(--zzglass-pending-end-tint, 2%), transparent); }
+  }
+  @media (-moz-pref("zzglass.pending.end-mode", 2)) {
+    #navigator-toolbox .tabbrowser-tab[pending] { --zzg-b: color-mix(in srgb, var(--zzg-second) var(--zzglass-pending-end-tint, 2%), transparent); }
+  }
+  @media (-moz-pref("zzglass.pending.end-mode", 3)) { #navigator-toolbox .tabbrowser-tab[pending] { --zzg-b: var(--zzg-a); } }
+
+  #navigator-toolbox .tabbrowser-tab[pending] .tab-background, #navigator-toolbox .tabbrowser-tab[pending] .tab-stack .tab-background {
+    background-color: transparent !important;
+    background-repeat: repeat !important;
+    background-position: center center !important;
+    background-origin: border-box !important;
+    background-clip: border-box !important;
+    border-radius: var(--zzg-round) !important;
+    opacity: var(--zzglass-pending-opacity, 0.62) !important;
+    background-image: var(--zzg-texture),
+      linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)) !important;
+    transition: background-image 180ms ease-out, box-shadow 180ms ease-out, opacity 180ms ease-out !important;
+  }
+  @media (-moz-pref("zzglass.pending.sheen")) {
+    #navigator-toolbox .tabbrowser-tab[pending] .tab-background, #navigator-toolbox .tabbrowser-tab[pending] .tab-stack .tab-background { background-image: var(--zzg-texture), var(--zzg-sheen),
+      linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)) !important; }
+  }
+  @media (-moz-pref("zzglass.pending.rim")) {
+    #navigator-toolbox .tabbrowser-tab[pending] .tab-background, #navigator-toolbox .tabbrowser-tab[pending] .tab-stack .tab-background { box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important; }
+  }
+  @media (-moz-pref("zzglass.pending.glow")) {
+    #navigator-toolbox .tabbrowser-tab[pending] .tab-background, #navigator-toolbox .tabbrowser-tab[pending] .tab-stack .tab-background { box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all),
+      0 2px 12px color-mix(in srgb, var(--zzg-accent) 35%, transparent) !important; }
+  }
+  @media (-moz-pref("zzglass.pending.blur")) {
+    #navigator-toolbox .tabbrowser-tab[pending] .tab-background, #navigator-toolbox .tabbrowser-tab[pending] .tab-stack .tab-background { backdrop-filter: blur(var(--zzglass-pending-blur-radius, 20px)) var(--zzg-fx) !important; }
+  }
+}
+
+/* ============================================================
+   TAB STRIP
+   ============================================================ */
+:root { --zzg-tdir: to bottom; --zzg-sdir: to bottom; }
+@media (-moz-pref("zzglass.strip.direction", 1)) { :root { --zzg-tdir: to left; } }
+@media (-moz-pref("zzglass.strip.direction", 2)) { :root { --zzg-tdir: to bottom; } }
+@media (-moz-pref("zzglass.strip.direction", 3)) { :root { --zzg-tdir: to top; } }
+@media (-moz-pref("zzglass.strip.direction", 4)) { :root { --zzg-tdir: 135deg; } }
+@media (-moz-pref("zzglass.strip.direction", 5)) { :root { --zzg-tdir: 315deg; } }
+@media (-moz-pref("zzglass.sidebar.direction", 1)) { :root { --zzg-sdir: to left; } }
+@media (-moz-pref("zzglass.sidebar.direction", 2)) { :root { --zzg-sdir: to bottom; } }
+@media (-moz-pref("zzglass.sidebar.direction", 3)) { :root { --zzg-sdir: to top; } }
+@media (-moz-pref("zzglass.sidebar.direction", 4)) { :root { --zzg-sdir: 135deg; } }
+@media (-moz-pref("zzglass.sidebar.direction", 5)) { :root { --zzg-sdir: 315deg; } }
+
+@media (-moz-pref("zzglass.strip.enabled")) {
+  #tabbrowser-tabs, #vertical-tabs, #vertical-pinned-tabs-container, .zen-essentials-container {
+    background-image: linear-gradient(var(--zzg-tdir),
+      color-mix(in srgb,
+        color-mix(in srgb, var(--zen-primary-color, #7c8cf8), black var(--zzg-tone))
+        var(--zzglass-strip-strength, 16%), transparent),
+      transparent 70%) !important;
+    background-repeat: no-repeat !important;
+    background-size: 100% 100% !important;
+  }
+}
+
+@media (-moz-pref("zzglass.tabs.hide-arc-container-glow")) {
+  #navigator-toolbox .tabbrowser-tab[usercontextid] .tab-background::after {
+    content: none !important; display: none !important; opacity: 0 !important; width: 0 !important;
+  }
+  #navigator-toolbox .tabbrowser-tab .tab-context-line { display: none !important; }
+}
+
+@media (-moz-pref("zzglass.tabs.left-accent")) {
+  #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background { position: relative !important; }
+  #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background::after {
+    content: "" !important; display: block !important; position: absolute !important;
+    left: 0 !important; right: auto !important; top: 20% !important; bottom: 20% !important;
+    width: 3px !important; height: auto !important; opacity: 1 !important; filter: none !important;
+    border-radius: 0 3px 3px 0 !important; background: var(--zzg-accent) !important;
+    z-index: 2 !important; pointer-events: none !important;
+  }
+}
+
+/* ============================================================
+   SIDEBAR
+   #zen-toolbar-background is Arc's compact pseudo-background and does
+   not exist in every layout, which is why targeting it alone did
+   nothing. The target is now selectable; --zzg-sb-sel names the group.
+   No #navigator-toolbox ancestor: USER_SHEET !important wins on cascade
+   origin, so specificity is not required.
+   ============================================================ */
+
+@media (-moz-pref("zzglass.sidebar.enabled")) {
+  @media (-moz-pref("zzglass.sidebar.target", 0)) {
+    #navigator-toolbox {
+      background-image: var(--zzg-sb-img) !important;
+      background-repeat: no-repeat !important;
+      background-size: 100% 100% !important;
+      opacity: var(--zzglass-sidebar-opacity, 1) !important;
+    }
+    @media (-moz-pref("zzglass.sidebar.rim")) {
+      #navigator-toolbox { box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important; }
+    }
+    @media (-moz-pref("zzglass.sidebar.blur")) {
+      #navigator-toolbox { backdrop-filter: blur(var(--zzglass-sidebar-blur-radius, 18px)) var(--zzg-fx) !important; }
+    }
+  }
+
+  @media (-moz-pref("zzglass.sidebar.target", 1)) {
+    #zen-toolbar-background, .zen-toolbar-background {
+      background-image: var(--zzg-sb-img) !important;
+      background-repeat: no-repeat !important;
+      background-size: 100% 100% !important;
+      opacity: var(--zzglass-sidebar-opacity, 1) !important;
+    }
+    @media (-moz-pref("zzglass.sidebar.rim")) {
+      #zen-toolbar-background, .zen-toolbar-background {
+        box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important;
+      }
+    }
+    @media (-moz-pref("zzglass.sidebar.blur")) {
+      #zen-toolbar-background, .zen-toolbar-background {
+        backdrop-filter: blur(var(--zzglass-sidebar-blur-radius, 18px)) var(--zzg-fx) !important;
+      }
+    }
+  }
+
+  @media (-moz-pref("zzglass.sidebar.target", 2)) {
+    #titlebar {
+      background-image: var(--zzg-sb-img) !important;
+      background-repeat: no-repeat !important;
+      background-size: 100% 100% !important;
+      opacity: var(--zzglass-sidebar-opacity, 1) !important;
+    }
+    @media (-moz-pref("zzglass.sidebar.rim")) {
+      #titlebar { box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important; }
+    }
+    @media (-moz-pref("zzglass.sidebar.blur")) {
+      #titlebar { backdrop-filter: blur(var(--zzglass-sidebar-blur-radius, 18px)) var(--zzg-fx) !important; }
+    }
+  }
+
+  @media (-moz-pref("zzglass.sidebar.target", 3)) {
+    #navigator-toolbox, #zen-toolbar-background, .zen-toolbar-background, #titlebar {
+      background-image: var(--zzg-sb-img) !important;
+      background-repeat: no-repeat !important;
+      background-size: 100% 100% !important;
+    }
+  }
+}
+
+/* ============================================================
+   WINDOW BUTTONS
+   ============================================================ */
+
+@media (-moz-pref("zzglass.buttons.enabled")) {
+  :root {
+    --zzg-btn-size: var(--zzglass-buttons-size, 13px);
+    --zzg-btn-gap: var(--zzglass-buttons-gap, 8px);
+    --zzg-btn-oval: var(--zzglass-buttons-oval-height, 1.3);
+    --zzg-glyph: var(--zzglass-buttons-glyph-size, 76%);
+    --zzg-btn-op: var(--zzglass-buttons-opacity, 1);
+    --zzg-close: var(--zzglass-buttons-close-color, rgba(128, 0, 215, 0.78));
+    --zzg-min: var(--zzglass-buttons-min-color, rgba(0, 96, 223, 0.78));
+    --zzg-max: var(--zzglass-buttons-max-color, rgba(0, 132, 93, 0.80));
+  }
+  .titlebar-buttonbox {
+    gap: var(--zzg-btn-gap) !important; align-items: center !important;
+    scale: 1 !important; margin: 0 !important; transform: none !important;
+  }
+  @media (-moz-pref("zzglass.buttons.side", 0)) {
+    .titlebar-buttonbox-container { order: 99 !important; margin-left: auto !important; margin-right: 8px !important; }
+    .titlebar-min { order: 1 !important; }
+    .titlebar-max, .titlebar-restore { order: 2 !important; }
+    .titlebar-close { order: 3 !important; }
+  }
+  @media (-moz-pref("zzglass.buttons.side", 1)) {
+    .titlebar-buttonbox-container { order: -1 !important; margin-left: 8px !important; margin-right: auto !important; }
+    .titlebar-close { order: 1 !important; }
+    .titlebar-min { order: 2 !important; }
+    .titlebar-max, .titlebar-restore { order: 3 !important; }
+  }
+  .titlebar-button {
+    appearance: none !important;
+    min-width: var(--zzg-btn-size) !important; width: var(--zzg-btn-size) !important;
+    min-height: var(--zzg-btn-size) !important; height: var(--zzg-btn-size) !important;
+    padding: 0 !important; margin: 0 !important; border-radius: 50% !important;
+    align-self: center !important; position: relative !important; scale: 1 !important;
+    content: none !important; opacity: var(--zzg-btn-op) !important;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.25) !important;
+    transition: height 150ms cubic-bezier(0.32, 1.2, 0.6, 1),
+      min-height 150ms cubic-bezier(0.32, 1.2, 0.6, 1),
+      border-radius 150ms ease-out, background-image 130ms ease-out, filter 130ms ease-out !important;
+  }
+  .titlebar-button > image { visibility: collapse !important; }
+  @media (-moz-pref("zzglass.buttons.sheen")) { .titlebar-button { background-image: var(--zzg-sheen) !important; } }
+  @media (-moz-pref("zzglass.buttons.rim")) {
+    .titlebar-button {
+      border: 1px solid rgb(255 255 255 / calc(0.35 * var(--zzg-glass))) !important;
+      box-shadow: inset 0 1px 1px rgb(255 255 255 / calc(0.55 * var(--zzg-glass))),
+        inset 0 -2px 3px rgb(0 0 0 / calc(0.18 * var(--zzg-glass))),
+        inset 0 0 6px rgb(255 255 255 / calc(0.12 * var(--zzg-glass))),
+        0 1px 3px rgb(0 0 0 / 0.25) !important;
+    }
+  }
+  @media (-moz-pref("zzglass.buttons.blur")) { .titlebar-button { backdrop-filter: blur(8px) var(--zzg-fx) !important; } }
+  @media (-moz-pref("zzglass.buttons.oval-hover")) {
+    .titlebar-button:hover {
+      height: calc(var(--zzg-btn-size) * var(--zzg-btn-oval)) !important;
+      min-height: calc(var(--zzg-btn-size) * var(--zzg-btn-oval)) !important;
+      border-radius: 50% / 42% !important;
+    }
+  }
+  @media (-moz-pref("zzglass.buttons.always-colored")) {
+    .titlebar-close { background-color: var(--zzg-close) !important; }
+    .titlebar-min { background-color: var(--zzg-min) !important; }
+    .titlebar-max, .titlebar-restore { background-color: var(--zzg-max) !important; }
+  }
+  @media (not (-moz-pref("zzglass.buttons.always-colored"))) {
+    .titlebar-button { background-color: light-dark(rgb(0 0 0 / 0.10), rgb(255 255 255 / 0.12)) !important; }
+    .titlebar-close:hover { background-color: var(--zzg-close) !important; }
+    .titlebar-min:hover { background-color: var(--zzg-min) !important; }
+    .titlebar-max:hover, .titlebar-restore:hover { background-color: var(--zzg-max) !important; }
+  }
+  .titlebar-close:hover { background-image: linear-gradient(var(--zzg-close), var(--zzg-close)), var(--zzg-sheen) !important; }
+  .titlebar-min:hover { background-image: linear-gradient(var(--zzg-min), var(--zzg-min)), var(--zzg-sheen) !important; }
+  .titlebar-max:hover, .titlebar-restore:hover { background-image: linear-gradient(var(--zzg-max), var(--zzg-max)), var(--zzg-sheen) !important; }
+  .titlebar-button:hover { filter: saturate(1.55) brightness(1.05) !important; opacity: 1 !important; }
+  .titlebar-button:hover:active { filter: saturate(1.9) brightness(1.12) !important; }
+  .titlebar-button:-moz-window-inactive {
+    background-color: light-dark(rgb(0 0 0 / 0.08), rgb(255 255 255 / 0.08)) !important;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18) !important;
+  }
+  @media (-moz-pref("zzglass.buttons.glyph-on-hover")) {
+    .titlebar-button::after {
+      content: "" !important; position: absolute !important; inset: 0 !important; opacity: 0 !important;
+      background-repeat: no-repeat !important; background-position: center center !important;
+      background-size: var(--zzg-glyph) var(--zzg-glyph) !important;
+      transition: opacity 120ms ease-out !important;
+    }
+    .titlebar-buttonbox:hover .titlebar-button::after { opacity: 1 !important; }
+    .titlebar-close::after { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cg stroke='%23000' stroke-opacity='0.62' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M1.6 1.6l6.8 6.8'/%3E%3Cpath d='M8.4 1.6l-6.8 6.8'/%3E%3C/g%3E%3C/svg%3E") !important; }
+    .titlebar-min::after { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1.2 5h7.6' stroke='%23000' stroke-opacity='0.62' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") !important; }
+    .titlebar-max::after { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cg fill='%23000' fill-opacity='0.62'%3E%3Cpath d='M1 1h5.2L1 6.2z'/%3E%3Cpath d='M9 9H3.8L9 3.8z'/%3E%3C/g%3E%3C/svg%3E") !important; }
+    .titlebar-restore::after { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cg fill='%23000' fill-opacity='0.62'%3E%3Cpath d='M5 1h4v4z'/%3E%3Cpath d='M5 9H1V5z'/%3E%3C/g%3E%3C/svg%3E") !important; }
+  }
+}
+
+/* ============================================================
+   DEBUG
+   ============================================================ */
+@media (-moz-pref("zzglass.debug.outline")) {
+  .tabbrowser-tab .tab-background { outline: 1px dashed magenta !important; outline-offset: -1px !important; }
+  .titlebar-button { outline: 1px dashed cyan !important; }
+  #navigator-toolbox { outline: 2px dashed orange !important; outline-offset: -2px !important; }
+  #zen-toolbar-background, .zen-toolbar-background { outline: 2px dashed gold !important; outline-offset: -4px !important; }
+  #titlebar { outline: 2px dashed deeppink !important; outline-offset: -6px !important; }
+}
+
+/* ============================================================
+   FOCUS FLICKER
+   Zen greys inactive windows (zen.view.grey-out-inactive-windows) and
+   light-dark() re-resolves on focus change. With transitions armed the
+   result animates every time the window gains or loses focus.
+   ============================================================ */
+
+@media (-moz-pref("zzglass.glass.no-focus-flicker")) {
+  .tabbrowser-tab .tab-background:-moz-window-inactive,
+  .titlebar-button:-moz-window-inactive,
+  #navigator-toolbox:-moz-window-inactive,
+  #zen-toolbar-background:-moz-window-inactive,
+  #titlebar:-moz-window-inactive {
+    transition: none !important;
+  }
+  .tabbrowser-tab .tab-background,
+  .titlebar-button {
+    will-change: auto !important;
+  }
+}

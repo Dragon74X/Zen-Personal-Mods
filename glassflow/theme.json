@@ -1,0 +1,22 @@
+{
+  "id": "zz-glassflow",
+  "name": "Glassflow",
+  "description": "Glassy workspace-tinted tabs and macOS-style traffic-light window buttons.",
+  "author": "USERNAME",
+  "version": "1.0.0",
+  "homepage": "https://github.com/USERNAME/REPO/tree/main/glassflow",
+  "readme": "https://raw.githubusercontent.com/USERNAME/REPO/main/glassflow/README.md",
+  "style": {
+    "chrome": "userChrome.css",
+    "content": ""
+  },
+  "preferences": "preferences.json",
+  "tags": [
+    "tabs",
+    "glass",
+    "titlebar"
+  ],
+  "fork": [
+    "zen"
+  ]
+}

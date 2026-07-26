@@ -1,0 +1,305 @@
+/* ============================================================
+   Glassflow — glassy workspace-tinted tabs + macOS traffic lights
+   Loads last (id "zz-glassflow" sorts after every other mod), and
+   Sine injects it as a USER_SHEET, so !important here outranks
+   author !important from Arc, SuperPins and Advanced Tab Groups.
+
+   Everything is behind a pref. With both master switches off this
+   file is inert.
+   ============================================================ */
+
+:root {
+  --zzg-btn-size: var(--zzglass-buttons-size, 13px);
+  --zzg-btn-gap: var(--zzglass-buttons-gap, 8px);
+  --zzg-close: var(--zzglass-buttons-close-color, rgba(167, 139, 250, 0.85));
+  --zzg-min: var(--zzglass-buttons-min-color, rgba(125, 176, 245, 0.85));
+  --zzg-max: var(--zzglass-buttons-max-color, rgba(126, 217, 163, 0.85));
+
+  --zzg-sel: var(--zzglass-tabs-selected-tint, 38%);
+  --zzg-unsel: var(--zzglass-tabs-unselected-tint, 10%);
+  --zzg-hov: var(--zzglass-tabs-hover-tint, 20%);
+  --zzg-blur: var(--zzglass-tabs-blur-radius, 14px);
+
+  /* Zen repaints --zen-primary-color per workspace. Fall back to the
+     accent colour so tabs still theme if workspace colours are unset. */
+  --zzg-accent: var(--zen-primary-color, var(--zen-colors-primary, #7c8cf8));
+}
+
+/* ============================================================
+   1. WINDOW BUTTONS
+   ============================================================ */
+
+@media (-moz-pref("zzglass.buttons.enabled")) {
+  .titlebar-buttonbox {
+    gap: var(--zzg-btn-gap) !important;
+    align-items: center !important;
+    scale: 1 !important;
+    margin: 0 !important;
+    transform: none !important;
+  }
+
+  /* Right end of the sidebar row. Zen's own
+     zen.view.experimental-force-window-controls-left also reorders this,
+     so we set order explicitly rather than relying on it. */
+  @media (-moz-pref("zzglass.buttons.side", 0)) {
+    .titlebar-buttonbox-container {
+      order: 99 !important;
+      margin-left: auto !important;
+      margin-right: 8px !important;
+    }
+    .titlebar-close { order: 3 !important; }
+    .titlebar-min { order: 1 !important; }
+    .titlebar-max,
+    .titlebar-restore { order: 2 !important; }
+  }
+
+  @media (-moz-pref("zzglass.buttons.side", 1)) {
+    .titlebar-buttonbox-container {
+      order: -1 !important;
+      margin-left: 8px !important;
+      margin-right: auto !important;
+    }
+    .titlebar-close { order: 1 !important; }
+    .titlebar-min { order: 2 !important; }
+    .titlebar-max,
+    .titlebar-restore { order: 3 !important; }
+  }
+
+  .titlebar-button {
+    appearance: none !important;
+    min-width: var(--zzg-btn-size) !important;
+    min-height: var(--zzg-btn-size) !important;
+    width: var(--zzg-btn-size) !important;
+    height: var(--zzg-btn-size) !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 50% !important;
+    align-self: center !important;
+    position: relative !important;
+    scale: 1 !important;
+    content: none !important;
+    overflow: hidden !important;
+    /* glass: translucent fill + inner rim + soft drop */
+    border: 1px solid rgba(255, 255, 255, 0.28) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.45),
+      inset 0 -1px 2px rgba(0, 0, 0, 0.12),
+      0 1px 2px rgba(0, 0, 0, 0.18) !important;
+    backdrop-filter: blur(6px) saturate(140%) !important;
+    transition:
+      background-color 140ms ease-out,
+      filter 140ms ease-out,
+      transform 140ms ease-out !important;
+  }
+
+  .titlebar-button > image {
+    visibility: collapse !important;
+  }
+
+  /* Resting colour */
+  @media (-moz-pref("zzglass.buttons.always-colored")) {
+    .titlebar-close { background-color: var(--zzg-close) !important; }
+    .titlebar-min { background-color: var(--zzg-min) !important; }
+    .titlebar-max,
+    .titlebar-restore { background-color: var(--zzg-max) !important; }
+  }
+
+  @media (not (-moz-pref("zzglass.buttons.always-colored"))) {
+    .titlebar-button {
+      background-color: light-dark(
+        rgba(0, 0, 0, 0.12),
+        rgba(255, 255, 255, 0.14)
+      ) !important;
+    }
+    .titlebar-close:hover { background-color: var(--zzg-close) !important; }
+    .titlebar-min:hover { background-color: var(--zzg-min) !important; }
+    .titlebar-max:hover,
+    .titlebar-restore:hover { background-color: var(--zzg-max) !important; }
+  }
+
+  .titlebar-button:hover {
+    filter: brightness(1.12) saturate(1.15) !important;
+  }
+  .titlebar-button:hover:active {
+    transform: scale(0.92) !important;
+    filter: brightness(0.9) !important;
+  }
+
+  /* Dim when the window loses focus, as macOS does */
+  .titlebar-button:-moz-window-inactive {
+    background-color: light-dark(
+      rgba(0, 0, 0, 0.10),
+      rgba(255, 255, 255, 0.10)
+    ) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+  }
+
+  /* Glyphs. Hand-written 12x12 SVG, dark stroke at 55% so it reads on
+     any of the pastel fills without a second colour pref. */
+  @media (-moz-pref("zzglass.buttons.glyph-on-hover")) {
+    .titlebar-button::after {
+      content: "" !important;
+      position: absolute !important;
+      inset: 0 !important;
+      opacity: 0 !important;
+      background-repeat: no-repeat !important;
+      background-position: center !important;
+      background-size: 100% 100% !important;
+      transition: opacity 120ms ease-out !important;
+    }
+
+    .titlebar-buttonbox:hover .titlebar-button::after {
+      opacity: 1 !important;
+    }
+
+    .titlebar-close::after {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cg stroke='%23000' stroke-opacity='0.55' stroke-width='1.4' stroke-linecap='round'%3E%3Cpath d='M4 4l4 4'/%3E%3Cpath d='M8 4l-4 4'/%3E%3C/g%3E%3C/svg%3E") !important;
+    }
+
+    .titlebar-min::after {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M3.5 6h5' stroke='%23000' stroke-opacity='0.55' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E") !important;
+    }
+
+    .titlebar-max::after {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cg fill='%23000' fill-opacity='0.55'%3E%3Cpath d='M3.2 3.2h4L3.2 7.2z'/%3E%3Cpath d='M8.8 8.8h-4l4-4z'/%3E%3C/g%3E%3C/svg%3E") !important;
+    }
+
+    .titlebar-restore::after {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cg fill='%23000' fill-opacity='0.55'%3E%3Cpath d='M6.6 2.6h2.8v2.8z'/%3E%3Cpath d='M5.4 9.4H2.6V6.6z'/%3E%3C/g%3E%3C/svg%3E") !important;
+    }
+  }
+}
+
+/* ============================================================
+   2. GLASSY TABS
+   Painted on .tab-background, which is the layer Zen, Arc and
+   SuperPins all use. ::before carries the tint so the element's own
+   background stays free for other mods' effects.
+   ============================================================ */
+
+@media (-moz-pref("zzglass.tabs.enabled")) {
+  #tabbrowser-tabs .tabbrowser-tab .tab-background,
+  #zen-essentials .tabbrowser-tab .tab-background {
+    position: relative !important;
+    background-color: transparent !important;
+    border-radius: var(--border-radius-medium, 8px) !important;
+    overflow: hidden !important;
+    transition:
+      box-shadow 180ms ease-out,
+      background-color 180ms ease-out !important;
+  }
+
+  .tabbrowser-tab .tab-background::before {
+    content: "" !important;
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 0 !important;
+    border-radius: inherit !important;
+    pointer-events: none !important;
+    transition:
+      opacity 180ms ease-out,
+      background 180ms ease-out !important;
+  }
+
+  /* --- unselected: quiet, still tinted --- */
+  .tabbrowser-tab:not([selected], [visuallyselected]) .tab-background::before {
+    background: color-mix(in srgb, var(--zzg-accent) var(--zzg-unsel), transparent) !important;
+  }
+
+  /* --- hover --- */
+  .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-background::before {
+    background: color-mix(in srgb, var(--zzg-accent) var(--zzg-hov), transparent) !important;
+  }
+
+  /* --- selected: gradient + rim + glow --- */
+  @media (-moz-pref("zzglass.tabs.gradient-direction", 0)) {
+    .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background::before {
+      background: linear-gradient(
+        to right,
+        color-mix(in srgb, var(--zzg-accent) var(--zzg-sel), transparent),
+        color-mix(in srgb, var(--zzg-accent) calc(var(--zzg-sel) * 0.45), transparent)
+      ) !important;
+    }
+  }
+  @media (-moz-pref("zzglass.tabs.gradient-direction", 1)) {
+    .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background::before {
+      background: linear-gradient(
+        to bottom,
+        color-mix(in srgb, var(--zzg-accent) var(--zzg-sel), transparent),
+        color-mix(in srgb, var(--zzg-accent) calc(var(--zzg-sel) * 0.45), transparent)
+      ) !important;
+    }
+  }
+  @media (-moz-pref("zzglass.tabs.gradient-direction", 2)) {
+    .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background::before {
+      background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--zzg-accent) var(--zzg-sel), transparent),
+        color-mix(in srgb, var(--zzg-accent) calc(var(--zzg-sel) * 0.4), transparent)
+      ) !important;
+    }
+  }
+  @media (-moz-pref("zzglass.tabs.gradient-direction", 3)) {
+    .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background::before {
+      background: color-mix(in srgb, var(--zzg-accent) var(--zzg-sel), transparent) !important;
+    }
+  }
+
+  @media (-moz-pref("zzglass.tabs.blur")) {
+    .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background {
+      backdrop-filter: blur(var(--zzg-blur)) saturate(150%) !important;
+    }
+  }
+
+  @media (-moz-pref("zzglass.tabs.rim")) {
+    .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background {
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.35),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.10) !important;
+    }
+  }
+
+  @media (-moz-pref("zzglass.tabs.selected-glow")) {
+    .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background {
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.35),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.10),
+        0 2px 10px color-mix(in srgb, var(--zzg-accent) 30%, transparent) !important;
+    }
+  }
+
+  @media (-moz-pref("zzglass.tabs.left-accent")) {
+    .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background::after {
+      content: "" !important;
+      position: absolute !important;
+      left: 0 !important;
+      top: 18% !important;
+      bottom: 18% !important;
+      width: 3px !important;
+      border-radius: 0 3px 3px 0 !important;
+      background: var(--zzg-accent) !important;
+      z-index: 1 !important;
+      pointer-events: none !important;
+    }
+  }
+
+  /* Keep tab text and favicon above the tint layer */
+  .tabbrowser-tab .tab-content {
+    position: relative !important;
+    z-index: 1 !important;
+  }
+}
+
+/* ============================================================
+   3. DEBUG
+   ============================================================ */
+
+@media (-moz-pref("zzglass.debug.outline")) {
+  .tabbrowser-tab .tab-background {
+    outline: 1px dashed magenta !important;
+    outline-offset: -1px !important;
+  }
+  .titlebar-button {
+    outline: 1px dashed cyan !important;
+  }
+}

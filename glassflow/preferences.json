@@ -1,0 +1,194 @@
+[
+  {
+    "type": "separator",
+    "label": "Glassflow",
+    "margin": "4px 0 2px 0",
+    "size": "20px"
+  },
+  {
+    "type": "separator",
+    "label": "Loads after every other mod, so anything enabled here overrides Arc, SuperPins and Advanced Tab Groups. Turn a section off to hand control back to them.",
+    "margin": "0 0 14px 0",
+    "size": "12px"
+  },
+  {
+    "type": "separator",
+    "label": "Window buttons",
+    "margin": "6px 0 10px 0"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.buttons.enabled",
+    "label": "Enable macOS-style traffic lights - turn OFF Arc's own 'macOS style buttons' to avoid two mods fighting",
+    "defaultValue": false
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.buttons.side",
+    "label": "Which end of the sidebar row the buttons sit on",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Right end (recommended  -  matches your request)",
+        "value": 0
+      },
+      {
+        "label": "Left end (true macOS placement)",
+        "value": 1
+      }
+    ]
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.buttons.always-colored",
+    "label": "Show colour at rest - off = grey until hovered, which is Arc's behaviour",
+    "defaultValue": true
+  },
+  {
+    "type": "string",
+    "property": "zzglass.buttons.close-color",
+    "label": "Close button colour - purple by default (destructive, but softer than red)",
+    "defaultValue": "rgba(167, 139, 250, 0.85)",
+    "placeholder": "rgba(167, 139, 250, 0.85)"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.buttons.min-color",
+    "label": "Minimise button colour - blue (recedes, matches 'send away')",
+    "defaultValue": "rgba(125, 176, 245, 0.85)",
+    "placeholder": "rgba(125, 176, 245, 0.85)"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.buttons.max-color",
+    "label": "Maximise button colour - green (grow, and the one macOS already uses)",
+    "defaultValue": "rgba(126, 217, 163, 0.85)",
+    "placeholder": "rgba(126, 217, 163, 0.85)"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.buttons.size",
+    "label": "Button diameter",
+    "defaultValue": "13px",
+    "placeholder": "13px  -  macOS is 12px, Arc uses 14px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.buttons.gap",
+    "label": "Gap between buttons",
+    "defaultValue": "8px",
+    "placeholder": "8px"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.buttons.glyph-on-hover",
+    "label": "Show the x, - and + glyphs on hover",
+    "defaultValue": true
+  },
+  {
+    "type": "separator",
+    "label": "Glassy tabs",
+    "margin": "18px 0 10px 0"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.tabs.enabled",
+    "label": "Enable glassy workspace-tinted tabs",
+    "defaultValue": false
+  },
+  {
+    "type": "separator",
+    "label": "Tint follows --zen-primary-color, which Zen recolours per workspace, so tabs shift colour as you switch spaces. Requires Settings -> Appearance -> workspace colours to be set.",
+    "margin": "0 0 10px 0",
+    "size": "12px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.tabs.selected-tint",
+    "label": "Selected tab - how much workspace colour (higher = more saturated)",
+    "defaultValue": "38%",
+    "placeholder": "38%  -  try 20% for subtle, 60% for bold"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.tabs.unselected-tint",
+    "label": "Unselected tab - how much workspace colour (keep well below the selected value or they blur together)",
+    "defaultValue": "10%",
+    "placeholder": "10%"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.tabs.hover-tint",
+    "label": "Hovered tab - how much workspace colour",
+    "defaultValue": "20%",
+    "placeholder": "20%"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.tabs.gradient-direction",
+    "label": "Gradient direction on the selected tab",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Left to right (reads as depth)",
+        "value": 0
+      },
+      {
+        "label": "Top to bottom (reads as sheen)",
+        "value": 1
+      },
+      {
+        "label": "Diagonal",
+        "value": 2
+      },
+      {
+        "label": "Flat, no gradient",
+        "value": 3
+      }
+    ]
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.tabs.blur",
+    "label": "Frosted blur behind tabs - the most expensive option here; turn off first if scrolling feels heavy",
+    "defaultValue": true
+  },
+  {
+    "type": "string",
+    "property": "zzglass.tabs.blur-radius",
+    "label": "Blur strength",
+    "defaultValue": "14px",
+    "placeholder": "14px"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.tabs.rim",
+    "label": "Glass rim - a 1px inner highlight along the top edge. This is what separates 'glassy' from 'just translucent'.",
+    "defaultValue": true
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.tabs.selected-glow",
+    "label": "Soft outer glow on the selected tab",
+    "defaultValue": true
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.tabs.left-accent",
+    "label": "Accent bar on the selected tab - the clearest at-a-glance marker if you keep tints subtle",
+    "defaultValue": false
+  },
+  {
+    "type": "separator",
+    "label": "Troubleshooting",
+    "margin": "18px 0 10px 0"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.debug.outline",
+    "label": "Outline every element Glassflow touches - turn on to see what is actually mine versus another mod's",
+    "defaultValue": false
+  }
+]

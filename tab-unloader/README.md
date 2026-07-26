@@ -1,4 +1,4 @@
-# Glass Unloader
+# Tab Unloader
 
 Time-based tab unloading for [Zen Browser](https://zen-browser.app/) via [Sine](https://github.com/CosmoCreeper/Sine).
 
@@ -56,9 +56,9 @@ The form-data check is the only non-trivial part, since it serialises tab state.
 Turn on **Log decisions**, then open the Browser Console (`Ctrl+Shift+J`):
 
 ```js
-GlassUnloader.status()    // every tab, its idle minutes, and why it was kept
-GlassUnloader.sweepNow()  // run a sweep immediately
-GlassUnloader.log()       // recent decisions
+TabUnloader.status()    // every tab, its idle seconds, and why it was kept
+TabUnloader.sweepNow()  // run a sweep immediately
+TabUnloader.log()       // recent decisions
 ```
 
 `status()` is the fastest way to answer "why is this tab still loaded" -- it returns the exact rule that matched.

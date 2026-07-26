@@ -1,6 +1,6 @@
 {
   "id": "zz-tab-unloader",
-  "name": "Glass Unloader",
+  "name": "Tab Unloader",
   "description": "Time-based tab unloading with per-category exclusions. Unloads, never closes.",
   "author": "Dragon74X",
   "version": "1.0.0",
@@ -12,7 +12,7 @@
   },
   "scripts": {
     "tab-unloader.uc.js": {
-      "name": "Glass Unloader",
+      "name": "Tab Unloader",
       "description": "Time-based tab unloading with exclusions.",
       "include": [
         "chrome://browser/content/browser.xhtml"

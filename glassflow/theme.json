@@ -1,9 +1,9 @@
 {
   "id": "zz-glassflow",
   "name": "Glassflow",
-  "description": "Modular glass theming for tabs, folders, sidebar and window buttons. Every section independently togglable.",
+  "description": "Per-state glass theming for tabs, folders, sidebar and window buttons. Every element category independently configurable.",
   "author": "Dragon74X",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "homepage": "https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/glassflow",
   "readme": "https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/main/glassflow/README.md",
   "style": {

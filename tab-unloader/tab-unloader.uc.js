@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name           Glass Unloader
+// @name           Tab Unloader
 // @description    Time-based tab unloading with explicit exclusions.
 // @include        chrome://browser/content/browser.xhtml
 // ==/UserScript==
@@ -24,7 +24,7 @@
     if (!getB("debug", false)) return;
     log.push(`${new Date().toLocaleTimeString()}  ${msg}`);
     if (log.length > 200) log.shift();
-    console.log("[GlassUnloader]", msg);
+    console.log("[TabUnloader]", msg);
   };
 
   // --- exclusion checks -----------------------------------------------------
@@ -64,8 +64,8 @@
     if (!tab.linkedBrowser) return "no browser";
 
     const idleMs = now - (tab.lastAccessed || now);
-    const idleMin = getI("idle-minutes", 30);
-    if (idleMs < idleMin * 60 * 1000) return "not idle long enough";
+    const idleSec = Math.max(5, parseFloat(getS("idle-seconds", "1800")) || 1800);
+    if (idleMs < idleSec * 1000) return "not idle long enough";
 
     if (getB("exclude-audio", true)) {
       if (tab.hasAttribute("soundplaying")) return "playing audio";
@@ -142,13 +142,13 @@
       note("disabled");
       return;
     }
-    const everySec = Math.max(15, getI("check-seconds", 60));
+    const everySec = Math.max(2, parseFloat(getS("check-seconds", "60")) || 60);
     timer = setInterval(sweep, everySec * 1000);
-    note(`scheduled every ${everySec}s, idle threshold ${getI("idle-minutes", 30)}min`);
+    note(`scheduled every ${everySec}s, idle threshold ${getS("idle-seconds", "1800")}s`);
   }
 
   const watched = [
-    "enabled", "check-seconds", "idle-minutes", "keep-loaded", "max-per-sweep",
+    "enabled", "check-seconds", "idle-seconds", "keep-loaded", "max-per-sweep",
     "exclude-audio", "exclude-recently-audible", "exclude-sharing", "exclude-pip",
     "exclude-essentials", "exclude-pinned", "exclude-glance", "exclude-split",
     "exclude-forms", "exclude-urls", "debug",
@@ -165,13 +165,13 @@
     reschedule();
 
     // Manual sweep, for testing without waiting for the interval.
-    window.GlassUnloader = {
+    window.TabUnloader = {
       sweepNow: sweep,
       status: () => {
         const now = Date.now();
         return Array.from(gBrowser.tabs).map((t) => ({
           title: t.label,
-          idleMin: Math.round((now - (t.lastAccessed || now)) / 60000),
+          idleSec: Math.round((now - (t.lastAccessed || now)) / 1000),
           verdict: whyKeep(t, now) ?? "ELIGIBLE",
         }));
       },

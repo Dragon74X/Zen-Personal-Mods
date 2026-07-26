@@ -18,74 +18,18 @@
     "defaultValue": false
   },
   {
-    "type": "dropdown",
-    "value": "number",
-    "property": "zzunload.idle-minutes",
-    "label": "Unload after this many minutes idle *How long a tab must go untouched before it becomes eligible. Measured from the tab's own lastAccessed timestamp, so switching to a tab resets it.*",
-    "defaultValue": 30,
-    "options": [
-      {
-        "label": "5 minutes",
-        "value": 5
-      },
-      {
-        "label": "10 minutes",
-        "value": 10
-      },
-      {
-        "label": "15 minutes",
-        "value": 15
-      },
-      {
-        "label": "30 minutes",
-        "value": 30
-      },
-      {
-        "label": "45 minutes",
-        "value": 45
-      },
-      {
-        "label": "1 hour",
-        "value": 60
-      },
-      {
-        "label": "2 hours",
-        "value": 120
-      },
-      {
-        "label": "4 hours",
-        "value": 240
-      },
-      {
-        "label": "8 hours",
-        "value": 480
-      }
-    ]
+    "type": "string",
+    "property": "zzunload.idle-seconds",
+    "label": "Unload after this many seconds idle *Typed, not a menu, so you can use short values while testing. 1800 is 30 minutes, 60 is one minute, 10 is fine for confirming it works. Minimum 5. Measured from the tab's lastAccessed timestamp, so switching to a tab resets it.*",
+    "defaultValue": "1800",
+    "placeholder": "1800"
   },
   {
-    "type": "dropdown",
-    "value": "number",
+    "type": "string",
     "property": "zzunload.check-seconds",
-    "label": "How often to check *Sweep interval. The sweep is a cheap attribute scan over open tabs, so a short interval costs little, but there is no reason to check more often than a fraction of the idle threshold.*",
-    "defaultValue": 60,
-    "options": [
-      {
-        "label": "Every 30 seconds",
-        "value": 30
-      },
-      {
-        "label": "Every minute",
-        "value": 60
-      },
-      {
-        "label": "Every 2 minutes",
-        "value": 120
-      },
-      {
-        "label": "Every 5 minutes",
-        "value": 300
-      }
-    ]
+    "label": "Check every this many seconds *Typed, so testing does not mean waiting. Minimum 2. The sweep is a cheap attribute scan, so a short interval costs little, but there is no point checking far more often than the idle threshold.*",
+    "defaultValue": "60",
+    "placeholder": "60"
   },
   {
     "type": "dropdown",

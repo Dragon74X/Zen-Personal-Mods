@@ -1,33 +1,33 @@
 [
   {
     "type": "separator",
-    "label": "Glass Unloader",
+    "label": "Tab Unloader",
     "size": "20px",
     "margin": "2px 0 12px 0"
   },
   {
     "type": "separator",
-    "label": "Schedule",
+    "label": "Timing",
     "size": "17px",
     "margin": "22px 0 10px 0"
   },
   {
     "type": "checkbox",
     "property": "zzunload.enabled",
-    "label": "Enable time-based unloading *Unloads idle tabs on a timer rather than waiting for memory pressure. Firefox's own unloader only fires when free memory drops below browser.low_commit_space_threshold_mb, which on a healthy machine is almost never. Nothing is ever closed -- this calls the same discard the tab context menu's Unload Tab uses.*",
+    "label": "Turn on automatic unloading *Frees the memory a tab is using after it sits untouched. The tab stays in your sidebar and reloads when you click it. Nothing is closed.*",
     "defaultValue": false
   },
   {
     "type": "string",
     "property": "zzunload.idle-seconds",
-    "label": "Unload after this many seconds idle *Typed, not a menu, so you can use short values while testing. 1800 is 30 minutes, 60 is one minute, 10 is fine for confirming it works. Minimum 5. Measured from the tab's lastAccessed timestamp, so switching to a tab resets it.*",
+    "label": "Unload after (seconds) *How long a tab sits untouched before it gets unloaded. 1800 is 30 minutes. Set it to 10 while testing, then put it back.*",
     "defaultValue": "1800",
     "placeholder": "1800"
   },
   {
     "type": "string",
     "property": "zzunload.check-seconds",
-    "label": "Check every this many seconds *Typed, so testing does not mean waiting. Minimum 2. The sweep is a cheap attribute scan, so a short interval costs little, but there is no point checking far more often than the idle threshold.*",
+    "label": "Check every (seconds) *How often to look for tabs to unload. 60 is fine for everyday use. Lower it while testing.*",
     "defaultValue": "60",
     "placeholder": "60"
   },
@@ -35,7 +35,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzunload.max-per-sweep",
-    "label": "Maximum tabs unloaded per sweep *Caps how many tabs are discarded at once. Unloading is cheap individually but a large burst can stutter. 0 removes the cap.*",
+    "label": "Unload at most this many at once *Stops a big batch unloading in one go, which can stutter.*",
     "defaultValue": 5,
     "options": [
       {
@@ -43,19 +43,19 @@
         "value": 0
       },
       {
-        "label": "1 at a time",
+        "label": "1",
         "value": 1
       },
       {
-        "label": "3 at a time",
+        "label": "3",
         "value": 3
       },
       {
-        "label": "5 at a time",
+        "label": "5",
         "value": 5
       },
       {
-        "label": "10 at a time",
+        "label": "10",
         "value": 10
       }
     ]
@@ -64,7 +64,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzunload.keep-loaded",
-    "label": "Always keep at least this many tabs loaded *A floor on loaded tabs regardless of idle time, so a long session never collapses to nothing. 0 disables the floor.*",
+    "label": "Always keep this many tabs loaded *A safety floor so a long session never ends up with everything unloaded.*",
     "defaultValue": 0,
     "options": [
       {
@@ -98,61 +98,61 @@
   {
     "type": "checkbox",
     "property": "zzunload.exclude-essentials",
-    "label": "Essentials *Zen keeps Essentials loaded deliberately -- they are the tabs you want instant. Turn this off to let them unload like any other tab.*",
+    "label": "Essentials *Your Essentials tabs stay loaded so they open instantly.*",
     "defaultValue": true
   },
   {
     "type": "checkbox",
     "property": "zzunload.exclude-pinned",
-    "label": "Pinned tabs *Applies to normally pinned tabs, separate from Essentials.*",
+    "label": "Pinned tabs *Separate from Essentials.*",
     "defaultValue": true
   },
   {
     "type": "checkbox",
     "property": "zzunload.exclude-audio",
-    "label": "Tabs playing audio or video *Checks the soundplaying attribute, the same signal the speaker icon uses. A paused video does not count as playing.*",
+    "label": "Anything playing sound *Music and video keep playing.*",
     "defaultValue": true
   },
   {
     "type": "checkbox",
-    "property": "zzunload.exclude-recently-audible",
-    "label": "Tabs asking for attention *Skips tabs flagged with the attention attribute, which Firefox sets for background tabs that have something to report.*",
+    "property": "zzunload.exclude-attention",
+    "label": "Tabs with a notification *Tabs Firefox has flagged as wanting your attention.*",
     "defaultValue": true
   },
   {
     "type": "checkbox",
     "property": "zzunload.exclude-forms",
-    "label": "Tabs with unsubmitted form data *Reads SessionStore's formdata for the tab. If the check itself fails the tab is kept, so an unreadable state never costs you typed input.*",
+    "label": "Tabs where you have typed something *Protects half-filled forms. Needs SessionStore; if it is unavailable the check is skipped rather than keeping every tab.*",
     "defaultValue": true
   },
   {
     "type": "checkbox",
     "property": "zzunload.exclude-sharing",
-    "label": "Tabs sharing camera, mic or screen *Unloading a tab mid-call drops the call.*",
+    "label": "Calls and screen sharing *Unloading these would drop the call.*",
     "defaultValue": true
   },
   {
     "type": "checkbox",
     "property": "zzunload.exclude-pip",
-    "label": "Tabs in picture-in-picture *Unloading a tab that owns a PiP window closes that window.*",
+    "label": "Picture-in-picture *Unloading closes the floating video window.*",
     "defaultValue": true
   },
   {
     "type": "checkbox",
     "property": "zzunload.exclude-glance",
-    "label": "Glance tabs *Zen's Glance overlay tabs.*",
+    "label": "Glance tabs *Zen's Glance overlay.*",
     "defaultValue": true
   },
   {
     "type": "checkbox",
     "property": "zzunload.exclude-split",
-    "label": "Split view tabs *Both halves of a split view are visible, so unloading either is disruptive.*",
+    "label": "Split view tabs *Both halves are on screen.*",
     "defaultValue": true
   },
   {
     "type": "string",
     "property": "zzunload.exclude-urls",
-    "label": "Never unload URLs containing *Comma-separated fragments matched against the full URL, for example: mail.google.com, localhost, docs.google. Empty matches nothing. Zen's own zen.tab-unloader.excluded-urls does not apply here.*",
+    "label": "Never unload sites containing *Comma separated, for example: mail.google.com, localhost. Leave empty to skip this.*",
     "defaultValue": "",
     "placeholder": ""
   },
@@ -165,7 +165,7 @@
   {
     "type": "checkbox",
     "property": "zzunload.debug",
-    "label": "Log decisions to the Browser Console *Writes each unload and sweep summary under [GlassUnloader]; open with Ctrl+Shift+J. Also available there: GlassUnloader.status() lists every tab with its idle time and the exact reason it was kept or is eligible, and GlassUnloader.sweepNow() runs a sweep immediately.*",
+    "label": "Log what it is doing *Prints each sweep to the Browser Console (Ctrl+Shift+J). Also gives you TabUnloader.status() for a per-tab list with the reason each one was kept, and TabUnloader.settings() to confirm the settings actually reached the script.*",
     "defaultValue": false
   }
 ]

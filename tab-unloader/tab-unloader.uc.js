@@ -4,158 +4,149 @@
 // @include        chrome://browser/content/browser.xhtml
 // ==/UserScript==
 
-// Uses Services.prefs directly rather than UC_API, so the script has no
-// dependency on the loader's API surface beyond running in browser scope.
-// Unloading is gBrowser.discardBrowser(tab) -- the same call the tab context
-// menu's "Unload Tab" uses. Nothing is ever closed.
-
 (() => {
   "use strict";
 
   const P = "zzunload.";
-  const getB = (k, d) => { try { return Services.prefs.getBoolPref(P + k, d); } catch { return d; } };
-  const getI = (k, d) => { try { return Services.prefs.getIntPref(P + k, d); } catch { return d; } };
-  const getS = (k, d) => { try { return Services.prefs.getStringPref(P + k, d); } catch { return d; } };
+
+  // Sine may store a pref as string or int depending on the control type,
+  // so every read is type-tolerant rather than assuming.
+  function num(key, dflt) {
+    try {
+      const full = P + key;
+      switch (Services.prefs.getPrefType(full)) {
+        case Services.prefs.PREF_INT: return Services.prefs.getIntPref(full);
+        case Services.prefs.PREF_STRING: {
+          const v = parseFloat(Services.prefs.getStringPref(full));
+          return Number.isFinite(v) ? v : dflt;
+        }
+        default: return dflt;
+      }
+    } catch { return dflt; }
+  }
+  const bool = (k, d) => { try { return Services.prefs.getBoolPref(P + k, d); } catch { return d; } };
+  const str  = (k, d) => { try { return Services.prefs.getStringPref(P + k, d); } catch { return d; } };
 
   let timer = null;
   let log = [];
+  let SS = null;          // SessionStore, resolved once
+  let ssWarned = false;
 
-  const note = (msg) => {
-    if (!getB("debug", false)) return;
+  function note(msg) {
     log.push(`${new Date().toLocaleTimeString()}  ${msg}`);
-    if (log.length > 200) log.shift();
-    console.log("[TabUnloader]", msg);
-  };
+    if (log.length > 300) log.shift();
+    if (bool("debug", false)) console.log("[TabUnloader]", msg);
+  }
 
-  // --- exclusion checks -----------------------------------------------------
-
-  function hasFormData(tab) {
-    // SessionStore keeps unsubmitted input under formdata. Absent key = clean.
+  function sessionStore() {
+    if (SS) return SS;
+    if (typeof SessionStore !== "undefined") { SS = SessionStore; return SS; }
     try {
-      const state = JSON.parse(SessionStore.getTabState(tab));
-      const entries = state?.formdata;
-      if (!entries) return false;
-      return Object.keys(entries).length > 0;
+      SS = ChromeUtils.importESModule(
+        "resource:///modules/sessionstore/SessionStore.sys.mjs"
+      ).SessionStore;
     } catch (e) {
-      // If we cannot tell, assume there is data and keep the tab.
-      return true;
+      if (!ssWarned) {
+        ssWarned = true;
+        note(`SessionStore unavailable (${e}); form-data check disabled`);
+      }
+      SS = null;
+    }
+    return SS;
+  }
+
+  // Returns true only when we positively found stored form data.
+  // If SessionStore is missing the check is skipped rather than treating
+  // every tab as dirty -- doing that kept every tab loaded in v1.0.
+  function hasFormData(tab) {
+    const ss = sessionStore();
+    if (!ss) return false;
+    try {
+      const state = JSON.parse(ss.getTabState(tab));
+      const fd = state && state.formdata;
+      return !!fd && Object.keys(fd).length > 0;
+    } catch {
+      return false;
     }
   }
 
   function urlExcluded(tab) {
-    const raw = getS("exclude-urls", "").trim();
+    const raw = str("exclude-urls", "").trim();
     if (!raw) return false;
     let url = "";
-    try { url = tab.linkedBrowser?.currentURI?.spec ?? ""; } catch { return true; }
-    return raw
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .some((frag) => url.includes(frag));
+    try { url = tab.linkedBrowser?.currentURI?.spec ?? ""; } catch { return false; }
+    return raw.split(",").map(s => s.trim()).filter(Boolean).some(f => url.includes(f));
   }
 
   function whyKeep(tab, now) {
     if (!tab || !tab.isConnected) return "gone";
-    if (tab.selected) return "active";
-    if (tab.hasAttribute("pending")) return "already unloaded";
     if (tab.closing) return "closing";
-
-    // Zen splits its window into multiple tabbrowsers; skip anything without one.
+    if (tab.selected) return "active tab";
+    if (tab.hasAttribute("pending")) return "already unloaded";
     if (!tab.linkedBrowser) return "no browser";
 
-    const idleMs = now - (tab.lastAccessed || now);
-    const idleSec = Math.max(5, parseFloat(getS("idle-seconds", "1800")) || 1800);
-    if (idleMs < idleSec * 1000) return "not idle long enough";
+    const idleSec = Math.max(5, num("idle-seconds", 1800));
+    const idleFor = (now - (tab.lastAccessed || now)) / 1000;
+    if (idleFor < idleSec) return `idle ${Math.round(idleFor)}s of ${idleSec}s`;
 
-    if (getB("exclude-audio", true)) {
-      if (tab.hasAttribute("soundplaying")) return "playing audio";
-      if (getB("exclude-recently-audible", true) && tab.hasAttribute("attention")) return "attention";
-    }
-    if (getB("exclude-sharing", true) && tab.hasAttribute("sharing")) return "sharing camera/mic/screen";
-    if (getB("exclude-pip", true) && tab.hasAttribute("pictureinpicture")) return "picture-in-picture";
-
-    if (getB("exclude-essentials", true) && tab.getAttribute("zen-essential") === "true")
-      return "essential";
-    if (getB("exclude-pinned", true) && tab.pinned) return "pinned";
-    if (getB("exclude-glance", true) && tab.hasAttribute("zen-glance-tab")) return "glance";
-    if (getB("exclude-split", true) && tab.hasAttribute("zen-split")) return "split view";
-
-    if (getB("exclude-forms", true) && hasFormData(tab)) return "unsubmitted form data";
+    if (bool("exclude-audio", true) && tab.hasAttribute("soundplaying")) return "playing audio";
+    if (bool("exclude-attention", true) && tab.hasAttribute("attention")) return "wants attention";
+    if (bool("exclude-sharing", true) && tab.hasAttribute("sharing")) return "sharing camera/mic/screen";
+    if (bool("exclude-pip", true) && tab.hasAttribute("pictureinpicture")) return "picture-in-picture";
+    if (bool("exclude-essentials", true) && tab.getAttribute("zen-essential") === "true") return "essential";
+    if (bool("exclude-pinned", true) && tab.pinned) return "pinned";
+    if (bool("exclude-glance", true) && tab.hasAttribute("zen-glance-tab")) return "glance";
+    if (bool("exclude-split", true) && tab.hasAttribute("zen-split")) return "split view";
+    if (bool("exclude-forms", true) && hasFormData(tab)) return "unsubmitted form data";
     if (urlExcluded(tab)) return "url excluded";
 
-    return null; // eligible
+    return null;
   }
 
-  // --- the sweep ------------------------------------------------------------
+  function allTabs() {
+    // gBrowser.tabs covers every workspace in this window; other windows
+    // have their own copy of this script.
+    try { return Array.from(gBrowser?.tabs ?? []); } catch { return []; }
+  }
 
   function sweep() {
-    if (!getB("enabled", false)) return;
-
+    if (!bool("enabled", false)) return;
     const now = Date.now();
-    const keepLoaded = getI("keep-loaded", 0);
-    const maxPerSweep = getI("max-per-sweep", 5);
+    const tabs = allTabs();
+    const eligible = tabs.filter(t => whyKeep(t, now) === null);
 
-    const tabs = Array.from(gBrowser?.tabs ?? []);
-    const eligible = [];
+    if (!eligible.length) { note(`sweep: 0 of ${tabs.length} eligible`); return; }
 
-    for (const tab of tabs) {
-      const reason = whyKeep(tab, now);
-      if (reason === null) eligible.push(tab);
-    }
-
-    if (!eligible.length) return;
-
-    // Oldest-idle first, so the least recently used go before the rest.
     eligible.sort((a, b) => (a.lastAccessed || 0) - (b.lastAccessed || 0));
 
-    let budget = maxPerSweep > 0 ? maxPerSweep : eligible.length;
+    const cap = num("max-per-sweep", 5);
+    let budget = cap > 0 ? cap : eligible.length;
 
-    if (keepLoaded > 0) {
-      const loaded = tabs.filter((t) => !t.hasAttribute("pending") && !t.closing).length;
-      const canDrop = Math.max(0, loaded - keepLoaded);
-      budget = Math.min(budget, canDrop);
+    const floor = num("keep-loaded", 0);
+    if (floor > 0) {
+      const loaded = tabs.filter(t => !t.hasAttribute("pending") && !t.closing).length;
+      budget = Math.min(budget, Math.max(0, loaded - floor));
     }
 
     let done = 0;
     for (const tab of eligible) {
       if (done >= budget) break;
-      try {
-        gBrowser.discardBrowser(tab);
-        done++;
-        note(`unloaded: ${tab.label}`);
-      } catch (e) {
-        note(`failed on ${tab.label}: ${e}`);
-      }
+      try { gBrowser.discardBrowser(tab); done++; note(`unloaded: ${tab.label}`); }
+      catch (e) { note(`failed on ${tab.label}: ${e}`); }
     }
-
-    if (done) note(`sweep unloaded ${done} of ${eligible.length} eligible`);
+    note(`sweep: unloaded ${done} of ${eligible.length} eligible, ${tabs.length} total`);
   }
-
-  // --- scheduling -----------------------------------------------------------
 
   function reschedule() {
-    if (timer) {
-      clearInterval(timer);
-      timer = null;
-    }
-    if (!getB("enabled", false)) {
-      note("disabled");
-      return;
-    }
-    const everySec = Math.max(2, parseFloat(getS("check-seconds", "60")) || 60);
-    timer = setInterval(sweep, everySec * 1000);
-    note(`scheduled every ${everySec}s, idle threshold ${getS("idle-seconds", "1800")}s`);
+    if (timer) { clearInterval(timer); timer = null; }
+    if (!bool("enabled", false)) { note("disabled"); return; }
+    const every = Math.max(2, num("check-seconds", 60));
+    timer = setInterval(sweep, every * 1000);
+    note(`running every ${every}s, idle threshold ${Math.max(5, num("idle-seconds", 1800))}s`);
   }
 
-  const watched = [
-    "enabled", "check-seconds", "idle-seconds", "keep-loaded", "max-per-sweep",
-    "exclude-audio", "exclude-recently-audible", "exclude-sharing", "exclude-pip",
-    "exclude-essentials", "exclude-pinned", "exclude-glance", "exclude-split",
-    "exclude-forms", "exclude-urls", "debug",
-  ];
-
   const observer = {
-    observe(_subject, _topic, data) {
+    observe(_s, _t, data) {
       if (data === P + "enabled" || data === P + "check-seconds") reschedule();
     },
   };
@@ -164,24 +155,28 @@
     Services.prefs.addObserver(P, observer);
     reschedule();
 
-    // Manual sweep, for testing without waiting for the interval.
     window.TabUnloader = {
       sweepNow: sweep,
-      status: () => {
+      status() {
         const now = Date.now();
-        return Array.from(gBrowser.tabs).map((t) => ({
+        return allTabs().map(t => ({
           title: t.label,
           idleSec: Math.round((now - (t.lastAccessed || now)) / 1000),
           verdict: whyKeep(t, now) ?? "ELIGIBLE",
         }));
       },
+      settings: () => ({
+        enabled: bool("enabled", false),
+        idleSeconds: num("idle-seconds", 1800),
+        checkSeconds: num("check-seconds", 60),
+        maxPerSweep: num("max-per-sweep", 5),
+        keepLoaded: num("keep-loaded", 0),
+        sessionStore: !!sessionStore(),
+        running: !!timer,
+      }),
       log: () => log.slice(),
     };
-
-    window.addEventListener("unload", () => {
-      if (timer) clearInterval(timer);
-      Services.prefs.removeObserver(P, observer);
-    }, { once: true });
+    note("loaded");
   }
 
   if (gBrowserInit?.delayedStartupFinished) {

@@ -24,7 +24,7 @@ Every sweep, each tab is checked in order and kept if any rule matches:
 |---|---|
 | Active tab | `tab.selected` |
 | Already unloaded | `pending` attribute |
-| Not idle long enough | `tab.lastAccessed` vs the idle threshold |
+| Not idle long enough | `tab.lastAccessed` vs the idle threshold in seconds |
 | Playing audio or video | `soundplaying` attribute |
 | Asking for attention | `attention` attribute |
 | Sharing camera, mic or screen | `sharing` attribute |
@@ -41,7 +41,7 @@ Every category is an independent toggle.
 
 ## Safety
 
-The form-data check fails closed: if `SessionStore` state cannot be read or parsed, the tab is kept. An unreadable state never costs you typed input.
+The form-data check needs `SessionStore`. If it is unavailable the check is **skipped** and logged once, rather than treating every tab as dirty. Treating it as dirty is what kept every tab loaded in 1.0.
 
 Each discard is wrapped individually, so one failure cannot abort the sweep.
 

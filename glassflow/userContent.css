@@ -1,0 +1,107 @@
+/* ============================================================
+   Glassflow — settings panel polish
+
+   Sine renders preference labels through utils.formatLabel(), which
+   escapes HTML and then converts a small markdown subset:
+     **bold** -> <b>   *italic* -> <i>   ~underline~ -> <u>
+   There is no description or tooltip field in preferences.json, so
+   Glassflow writes each explanation inside *asterisks*. That gives a
+   real <i> element to hook, which is collapsed into an info badge here
+   and revealed on hover.
+
+   Scoped to .sineItemPreferenceLabel, so it only affects Sine's mod
+   settings and nothing else on the page. It applies to every mod's
+   panel, which means Arc's italic hints get the same treatment.
+   ============================================================ */
+
+.sineItemPreferenceLabel {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  overflow: visible;
+}
+
+/* --- collapse the explanation into a badge --- */
+.sineItemPreferenceLabel > i {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  z-index: 20;
+
+  /* hidden until hover */
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity 120ms ease-out,
+    transform 120ms ease-out,
+    visibility 0s linear 120ms;
+
+  /* tooltip panel */
+  box-sizing: border-box;
+  width: max-content;
+  max-width: 380px;
+  padding: 9px 12px;
+  font-size: 12px;
+  font-style: normal;
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
+  border-radius: 9px;
+  background: light-dark(rgba(252, 252, 252, 0.96), rgba(38, 38, 42, 0.96));
+  color: light-dark(rgb(28, 28, 30), rgb(232, 232, 236));
+  border: 1px solid light-dark(rgba(0, 0, 0, 0.10), rgba(255, 255, 255, 0.14));
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.10),
+    0 8px 24px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(12px) saturate(160%);
+  pointer-events: none;
+}
+
+/* --- the info badge itself --- */
+.sineItemPreferenceLabel:has(> i)::after {
+  content: "i";
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  font-size: 10px;
+  font-weight: 700;
+  font-style: italic;
+  font-family: Georgia, "Times New Roman", serif;
+  line-height: 1;
+  border-radius: 50%;
+  cursor: help;
+  opacity: 0.55;
+  color: light-dark(rgb(60, 60, 66), rgb(226, 226, 232));
+  background: light-dark(rgba(0, 0, 0, 0.08), rgba(255, 255, 255, 0.14));
+  border: 1px solid light-dark(rgba(0, 0, 0, 0.10), rgba(255, 255, 255, 0.16));
+  transition: opacity 120ms ease-out, background 120ms ease-out;
+}
+
+.sineItemPreferenceLabel:has(> i):hover::after {
+  opacity: 1;
+  background: light-dark(rgba(0, 0, 0, 0.14), rgba(255, 255, 255, 0.22));
+}
+
+/* --- reveal on hover --- */
+.sineItemPreferenceLabel:hover > i {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0s, 0s, 0s;
+}
+
+/* Keep the tooltip on screen for controls near the bottom of the dialog. */
+.sineItemPreference:nth-last-child(-n + 3) .sineItemPreferenceLabel > i {
+  top: auto;
+  bottom: calc(100% + 8px);
+  transform: translateY(4px);
+}
+
+.sineItemPreference:nth-last-child(-n + 3) .sineItemPreferenceLabel:hover > i {
+  transform: translateY(0);
+}

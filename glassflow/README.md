@@ -30,6 +30,7 @@ Then open Glassflow's settings and enable the two master switches.
 | Diameter | `13px` | macOS uses 12px |
 | Gap | `8px` | |
 | Glyphs on hover | on | |
+| Vertical oval on hover | on | Buttons stretch taller when the group is hovered |
 
 Placement is set explicitly via `order`, so it does not depend on `zen.view.experimental-force-window-controls-left`.
 
@@ -73,6 +74,10 @@ Enable **Outline every element Glassflow touches**. Tabs get a magenta dashed ou
 For anything else, open the Browser Console with `Ctrl+Shift+J` and filter for `Sine`.
 
 ## Notes
+
+Tab tinting is painted as a `background-image` on `.tab-background` rather than on a pseudo-element. Zen and Arc both already use `.tab-background::before` and `::after`, so a layer built there is overridden by their opacity rules.
+
+Setting descriptions are collapsed into hover-revealed info badges. Sine has no tooltip field in `preferences.json`, so each explanation is written in `*italics*` — `formatLabel()` turns that into an `<i>` element, which `userContent.css` restyles as a badge. That styling applies to any mod whose labels use italics.
 
 Built against Zen 1.21.x with Sine 2.3.3. Uses the parenthesised `@media (-moz-pref("..."))` form throughout.
 

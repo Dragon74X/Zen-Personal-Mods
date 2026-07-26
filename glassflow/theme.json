@@ -3,12 +3,12 @@
   "name": "Glassflow",
   "description": "Glassy workspace-tinted tabs and macOS-style traffic-light window buttons.",
   "author": "USERNAME",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "homepage": "https://github.com/USERNAME/REPO/tree/main/glassflow",
   "readme": "https://raw.githubusercontent.com/USERNAME/REPO/main/glassflow/README.md",
   "style": {
     "chrome": "userChrome.css",
-    "content": ""
+    "content": "userContent.css"
   },
   "preferences": "preferences.json",
   "tags": [

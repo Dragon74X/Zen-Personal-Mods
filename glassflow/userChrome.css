@@ -43,6 +43,23 @@
   :root { --zzg-fx: saturate(180%) brightness(1.06) contrast(1.05); }
 }
 
+:root {
+  /* sidebar fill, assembled once so every target reuses it */
+  --zzg-sb-img: linear-gradient(var(--zzg-sdir),
+    color-mix(in srgb,
+      color-mix(in srgb, var(--zen-primary-color, #7c8cf8), black var(--zzg-tone))
+      var(--zzglass-sidebar-tint, 10%), transparent),
+    transparent 85%);
+}
+@media (-moz-pref("zzglass.sidebar.sheen")) {
+  :root {
+    --zzg-sb-img: var(--zzg-sheen), linear-gradient(var(--zzg-sdir),
+      color-mix(in srgb,
+        color-mix(in srgb, var(--zen-primary-color, #7c8cf8), black var(--zzg-tone))
+        var(--zzglass-sidebar-tint, 10%), transparent),
+      transparent 85%);
+  }
+}
 @media (-moz-pref("zzglass.color.fallback", 1)) { :root { --zzg-fallback: var(--zzg-custom); } }
 @media (-moz-pref("zzglass.color.fallback", 2)) { :root { --zzg-fallback: light-dark(#8a8a95, #6e6e78); } }
 
@@ -329,41 +346,68 @@
 
 /* ============================================================
    SIDEBAR
-   No #navigator-toolbox ancestor: the sidebar background is not
-   reliably inside it. USER_SHEET !important wins on cascade origin,
-   so specificity is not needed here.
+   #zen-toolbar-background is Arc's compact pseudo-background and does
+   not exist in every layout, which is why targeting it alone did
+   nothing. The target is now selectable; --zzg-sb-sel names the group.
+   No #navigator-toolbox ancestor: USER_SHEET !important wins on cascade
+   origin, so specificity is not required.
    ============================================================ */
 
 @media (-moz-pref("zzglass.sidebar.enabled")) {
-  #zen-toolbar-background,
-  .zen-toolbar-background,
-  #navigator-toolbox #zen-toolbar-background {
-    opacity: var(--zzglass-sidebar-opacity, 1) !important;
-    background-image: linear-gradient(var(--zzg-sdir),
-      color-mix(in srgb,
-        color-mix(in srgb, var(--zen-primary-color, #7c8cf8), black var(--zzg-tone))
-        var(--zzglass-sidebar-tint, 10%), transparent),
-      transparent 85%) !important;
-    background-repeat: no-repeat !important;
-    background-size: 100% 100% !important;
-  }
-  @media (-moz-pref("zzglass.sidebar.sheen")) {
-    #zen-toolbar-background, .zen-toolbar-background, #navigator-toolbox #zen-toolbar-background {
-      background-image: var(--zzg-sheen), linear-gradient(var(--zzg-sdir),
-        color-mix(in srgb,
-          color-mix(in srgb, var(--zen-primary-color, #7c8cf8), black var(--zzg-tone))
-          var(--zzglass-sidebar-tint, 10%), transparent),
-        transparent 85%) !important;
+  @media (-moz-pref("zzglass.sidebar.target", 0)) {
+    #navigator-toolbox {
+      background-image: var(--zzg-sb-img) !important;
+      background-repeat: no-repeat !important;
+      background-size: 100% 100% !important;
+      opacity: var(--zzglass-sidebar-opacity, 1) !important;
+    }
+    @media (-moz-pref("zzglass.sidebar.rim")) {
+      #navigator-toolbox { box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important; }
+    }
+    @media (-moz-pref("zzglass.sidebar.blur")) {
+      #navigator-toolbox { backdrop-filter: blur(var(--zzglass-sidebar-blur-radius, 18px)) var(--zzg-fx) !important; }
     }
   }
-  @media (-moz-pref("zzglass.sidebar.rim")) {
-    #zen-toolbar-background, .zen-toolbar-background, #navigator-toolbox #zen-toolbar-background {
-      box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important;
+
+  @media (-moz-pref("zzglass.sidebar.target", 1)) {
+    #zen-toolbar-background, .zen-toolbar-background {
+      background-image: var(--zzg-sb-img) !important;
+      background-repeat: no-repeat !important;
+      background-size: 100% 100% !important;
+      opacity: var(--zzglass-sidebar-opacity, 1) !important;
+    }
+    @media (-moz-pref("zzglass.sidebar.rim")) {
+      #zen-toolbar-background, .zen-toolbar-background {
+        box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important;
+      }
+    }
+    @media (-moz-pref("zzglass.sidebar.blur")) {
+      #zen-toolbar-background, .zen-toolbar-background {
+        backdrop-filter: blur(var(--zzglass-sidebar-blur-radius, 18px)) var(--zzg-fx) !important;
+      }
     }
   }
-  @media (-moz-pref("zzglass.sidebar.blur")) {
-    #zen-toolbar-background, .zen-toolbar-background, #navigator-toolbox #zen-toolbar-background {
-      backdrop-filter: blur(var(--zzglass-sidebar-blur-radius, 18px)) var(--zzg-fx) !important;
+
+  @media (-moz-pref("zzglass.sidebar.target", 2)) {
+    #titlebar {
+      background-image: var(--zzg-sb-img) !important;
+      background-repeat: no-repeat !important;
+      background-size: 100% 100% !important;
+      opacity: var(--zzglass-sidebar-opacity, 1) !important;
+    }
+    @media (-moz-pref("zzglass.sidebar.rim")) {
+      #titlebar { box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important; }
+    }
+    @media (-moz-pref("zzglass.sidebar.blur")) {
+      #titlebar { backdrop-filter: blur(var(--zzglass-sidebar-blur-radius, 18px)) var(--zzg-fx) !important; }
+    }
+  }
+
+  @media (-moz-pref("zzglass.sidebar.target", 3)) {
+    #navigator-toolbox, #zen-toolbar-background, .zen-toolbar-background, #titlebar {
+      background-image: var(--zzg-sb-img) !important;
+      background-repeat: no-repeat !important;
+      background-size: 100% 100% !important;
     }
   }
 }
@@ -379,9 +423,9 @@
     --zzg-btn-oval: var(--zzglass-buttons-oval-height, 1.3);
     --zzg-glyph: var(--zzglass-buttons-glyph-size, 76%);
     --zzg-btn-op: var(--zzglass-buttons-opacity, 1);
-    --zzg-close: var(--zzglass-buttons-close-color, rgba(139, 108, 232, 0.6));
-    --zzg-min: var(--zzglass-buttons-min-color, rgba(92, 148, 224, 0.6));
-    --zzg-max: var(--zzglass-buttons-max-color, rgba(94, 190, 138, 0.6));
+    --zzg-close: var(--zzglass-buttons-close-color, rgba(128, 0, 215, 0.78));
+    --zzg-min: var(--zzglass-buttons-min-color, rgba(0, 96, 223, 0.78));
+    --zzg-max: var(--zzglass-buttons-max-color, rgba(0, 132, 93, 0.80));
   }
   .titlebar-buttonbox {
     gap: var(--zzg-btn-gap) !important; align-items: center !important;
@@ -471,5 +515,28 @@
 @media (-moz-pref("zzglass.debug.outline")) {
   .tabbrowser-tab .tab-background { outline: 1px dashed magenta !important; outline-offset: -1px !important; }
   .titlebar-button { outline: 1px dashed cyan !important; }
-  #zen-toolbar-background { outline: 1px dashed orange !important; }
+  #navigator-toolbox { outline: 2px dashed orange !important; outline-offset: -2px !important; }
+  #zen-toolbar-background, .zen-toolbar-background { outline: 2px dashed gold !important; outline-offset: -4px !important; }
+  #titlebar { outline: 2px dashed deeppink !important; outline-offset: -6px !important; }
+}
+
+/* ============================================================
+   FOCUS FLICKER
+   Zen greys inactive windows (zen.view.grey-out-inactive-windows) and
+   light-dark() re-resolves on focus change. With transitions armed the
+   result animates every time the window gains or loses focus.
+   ============================================================ */
+
+@media (-moz-pref("zzglass.glass.no-focus-flicker")) {
+  .tabbrowser-tab .tab-background:-moz-window-inactive,
+  .titlebar-button:-moz-window-inactive,
+  #navigator-toolbox:-moz-window-inactive,
+  #zen-toolbar-background:-moz-window-inactive,
+  #titlebar:-moz-window-inactive {
+    transition: none !important;
+  }
+  .tabbrowser-tab .tab-background,
+  .titlebar-button {
+    will-change: auto !important;
+  }
 }

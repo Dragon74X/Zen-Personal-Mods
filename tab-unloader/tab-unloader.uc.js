@@ -11,18 +11,22 @@
 
   // Sine may store a pref as string or int depending on the control type,
   // so every read is type-tolerant rather than assuming.
+  // No getPrefType: Services.prefs.PREF_INT is an interface constant and is
+  // not guaranteed to be reachable on the branch object. If it resolves to
+  // undefined the switch falls through to the default and every value
+  // silently becomes the fallback -- which is why 1.1 behaved as if the
+  // idle threshold were 1800 no matter what was typed. Try both reads.
   function num(key, dflt) {
+    const full = P + key;
     try {
-      const full = P + key;
-      switch (Services.prefs.getPrefType(full)) {
-        case Services.prefs.PREF_INT: return Services.prefs.getIntPref(full);
-        case Services.prefs.PREF_STRING: {
-          const v = parseFloat(Services.prefs.getStringPref(full));
-          return Number.isFinite(v) ? v : dflt;
-        }
-        default: return dflt;
-      }
-    } catch { return dflt; }
+      const v = Services.prefs.getIntPref(full);
+      if (Number.isFinite(v)) return v;
+    } catch {}
+    try {
+      const v = parseFloat(Services.prefs.getStringPref(full));
+      if (Number.isFinite(v)) return v;
+    } catch {}
+    return dflt;
   }
   const bool = (k, d) => { try { return Services.prefs.getBoolPref(P + k, d); } catch { return d; } };
   const str  = (k, d) => { try { return Services.prefs.getStringPref(P + k, d); } catch { return d; } };

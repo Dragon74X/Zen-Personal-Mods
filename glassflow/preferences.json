@@ -134,6 +134,12 @@
     ]
   },
   {
+    "type": "checkbox",
+    "property": "zzglass.glass.no-focus-flicker",
+    "label": "Stop flicker on window focus *Zen greys out inactive windows and light-dark() colours re-resolve when focus changes. With transitions armed that animates every time you click away and back. This disables transitions only while the window is inactive.*",
+    "defaultValue": true
+  },
+  {
     "type": "separator",
     "label": "Selected tab",
     "size": "17px",
@@ -768,6 +774,31 @@
     "defaultValue": false
   },
   {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.sidebar.target",
+    "label": "Sidebar target *Which element gets the tint. Zen's layout differs between compact, collapsed and expanded, so if one target does nothing, try the next. Whole sidebar is the safest. Turn on the debug outlines to see which elements actually exist in your layout.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Whole sidebar (#navigator-toolbox)",
+        "value": 0
+      },
+      {
+        "label": "Compact background only (#zen-toolbar-background)",
+        "value": 1
+      },
+      {
+        "label": "Titlebar (#titlebar)",
+        "value": 2
+      },
+      {
+        "label": "All of them",
+        "value": 3
+      }
+    ]
+  },
+  {
     "type": "string",
     "property": "zzglass.sidebar.tint",
     "label": "Sidebar tint *How much workspace colour the sidebar carries.*",
@@ -928,23 +959,23 @@
   {
     "type": "string",
     "property": "zzglass.buttons.close-color",
-    "label": "Close colour *Alpha below about 0.7 reads as glass. Hover stacks a second pass to deepen the hue.*",
-    "defaultValue": "rgba(139, 108, 232, 0.6)",
-    "placeholder": "rgba(139, 108, 232, 0.6)"
+    "label": "Close colour *Proton purple-60, a jewel amethyst rather than a pastel. Any CSS colour works. Alpha near 0.78 keeps it readable as glass while staying saturated. Hover stacks a second pass to deepen it further.*",
+    "defaultValue": "rgba(128, 0, 215, 0.78)",
+    "placeholder": "rgba(128, 0, 215, 0.78)"
   },
   {
     "type": "string",
     "property": "zzglass.buttons.min-color",
-    "label": "Minimise colour *Keep alpha below about 0.7.*",
-    "defaultValue": "rgba(92, 148, 224, 0.6)",
-    "placeholder": "rgba(92, 148, 224, 0.6)"
+    "label": "Minimise colour *Proton blue-60, a sapphire tone. Keep alpha around 0.75 to 0.85: lower washes out, higher stops reading as glass.*",
+    "defaultValue": "rgba(0, 96, 223, 0.78)",
+    "placeholder": "rgba(0, 96, 223, 0.78)"
   },
   {
     "type": "string",
     "property": "zzglass.buttons.max-color",
-    "label": "Maximise colour *Keep alpha below about 0.7.*",
-    "defaultValue": "rgba(94, 190, 138, 0.6)",
-    "placeholder": "rgba(94, 190, 138, 0.6)"
+    "label": "Maximise colour *A deep emerald, replacing the pastel mint. Green is the one hue macOS already uses for zoom.*",
+    "defaultValue": "rgba(0, 132, 93, 0.80)",
+    "placeholder": "rgba(0, 132, 93, 0.80)"
   },
   {
     "type": "string",
@@ -969,7 +1000,7 @@
   {
     "type": "checkbox",
     "property": "zzglass.debug.outline",
-    "label": "Outline what Glassflow touches *Magenta on tabs, cyan on window buttons, orange on the sidebar. No outline means Glassflow is not matching that element.*",
+    "label": "Outline what Glassflow touches *Magenta on tabs, cyan on window buttons. For the sidebar: orange is the whole sidebar, gold is the compact background, pink is the titlebar. Whichever outlines actually appear are the elements that exist in your layout, so pick that one as the Sidebar target.*",
     "defaultValue": false
   }
 ]

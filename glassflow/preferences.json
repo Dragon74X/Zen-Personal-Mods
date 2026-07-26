@@ -21,7 +21,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzglass.buttons.side",
-    "label": "Position *Which end of the sidebar row the buttons sit on. Set explicitly, so this does not depend on zen.view.experimental-force-window-controls-left.*",
+    "label": "Position *Which end of the sidebar row the buttons sit on. Set explicitly, so it does not depend on zen.view.experimental-force-window-controls-left.*",
     "defaultValue": 0,
     "options": [
       {
@@ -37,46 +37,53 @@
   {
     "type": "checkbox",
     "property": "zzglass.buttons.always-colored",
-    "label": "Show colour at rest *On: buttons are always tinted. Off: neutral grey until you hover the group, which is how Arc behaves.*",
+    "label": "Show colour at rest *On: always tinted. Off: neutral grey until hovered, which is how Arc behaves.*",
     "defaultValue": true
   },
   {
     "type": "checkbox",
     "property": "zzglass.buttons.oval-hover",
-    "label": "Stretch into vertical ovals on hover *Buttons grow taller and lose their perfect circle when the group is hovered. Height animates, so nothing around them reflows.*",
+    "label": "Stretch into a vertical oval on hover *Only the button under the cursor stretches, not the whole group. Height animates, so nothing around it reflows.*",
     "defaultValue": true
+  },
+  {
+    "type": "string",
+    "property": "zzglass.buttons.oval-height",
+    "label": "Oval height multiplier *How far the hovered button stretches, as a multiple of its diameter. 1.0 keeps it circular, 1.3 is a soft oval, above about 1.8 looks like a capsule.*",
+    "defaultValue": "1.3",
+    "placeholder": "1.3"
   },
   {
     "type": "checkbox",
     "property": "zzglass.buttons.glyph-on-hover",
-    "label": "Show glyphs on hover *Fades in the close, minimise and maximise marks when the group is hovered.*",
+    "label": "Show glyphs on hover *Fades in the close, minimise and maximise marks. Triggered by hovering anywhere in the group, matching macOS, rather than per button.*",
     "defaultValue": true
   },
   {
     "type": "string",
     "property": "zzglass.buttons.close-color",
-    "label": "Close colour *Purple by default: destructive, but softer than red. Any CSS colour works. Alpha below 1 is what makes it read as glass rather than paint.*",
+    "label": "Close colour *Purple by default: destructive, but softer than red. Any CSS colour works. Alpha below about 0.7 is what makes it read as glass rather than paint.*",
     "defaultValue": "rgba(167, 139, 250, 0.55)",
     "placeholder": "rgba(167, 139, 250, 0.55)"
   },
   {
     "type": "string",
     "property": "zzglass.buttons.min-color",
-    "label": "Minimise colour *Blue by default, which reads as 'send away'. Keep the alpha below about 0.7 or the glass effect disappears.*",
+    "label": "Minimise colour *Blue by default, which reads as 'send away'. Keep alpha below about 0.7 or the glass effect disappears.*",
     "defaultValue": "rgba(125, 176, 245, 0.55)",
     "placeholder": "rgba(125, 176, 245, 0.55)"
   },
   {
     "type": "string",
     "property": "zzglass.buttons.max-color",
-    "label": "Maximise colour *Green by default, the one colour macOS already uses for zoom. Keep the alpha below about 0.7.*",
+    "label": "Maximise colour *Green by default, the colour macOS already uses for zoom. Keep alpha below about 0.7.*",
     "defaultValue": "rgba(126, 217, 163, 0.55)",
     "placeholder": "rgba(126, 217, 163, 0.55)"
   },
   {
     "type": "string",
     "property": "zzglass.buttons.size",
-    "label": "Diameter *Resting size. macOS uses 12px, Arc uses 14px. The hover oval is 1.55x this height.*",
+    "label": "Diameter *Resting size. macOS uses 12px, Arc uses 14px.*",
     "defaultValue": "13px",
     "placeholder": "13px"
   },
@@ -96,20 +103,41 @@
   {
     "type": "checkbox",
     "property": "zzglass.tabs.enabled",
-    "label": "Enable glassy workspace-tinted tabs *Tints tabs with the current workspace colour. Painted as a background-image so it stacks above Arc's tab colours instead of fighting them.*",
+    "label": "Enable glassy tinted tabs *Tints tabs with the container or workspace colour. Painted as a background-image so it stacks above Arc's tab colours instead of fighting them.*",
     "defaultValue": false
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.tabs.color-source",
+    "label": "Colour source *Container colour is per tab, so tabs in different containers read differently at a glance. Workspace colour is uniform and shifts when you switch spaces. Requires containers or workspace colours to actually be assigned.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Container colour (falls back to workspace)",
+        "value": 0
+      },
+      {
+        "label": "Workspace colour only",
+        "value": 1
+      },
+      {
+        "label": "Workspace colour (falls back to container)",
+        "value": 2
+      }
+    ]
   },
   {
     "type": "string",
     "property": "zzglass.tabs.selected-tint",
-    "label": "Selected tab tint *How much workspace colour the active tab carries. Keep this well above the unselected value or the two states stop being distinguishable at a glance. Try 20% for subtle, 60% for bold.*",
+    "label": "Selected tab tint *How much colour the active tab carries. Keep well above the unselected value or the two states stop being distinguishable at a glance. Try 20% for subtle, 60% for bold.*",
     "defaultValue": "38%",
     "placeholder": "38%"
   },
   {
     "type": "string",
     "property": "zzglass.tabs.unselected-tint",
-    "label": "Unselected tab tint *Background tabs. Above roughly 20% these start competing with the selected tab. If you want subtle tints everywhere, turn on the accent bar instead.*",
+    "label": "Unselected tab tint *Background tabs. Above roughly 20% these start competing with the selected tab. For subtle tints everywhere, use the accent bar instead.*",
     "defaultValue": "10%",
     "placeholder": "10%"
   },
@@ -124,7 +152,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzglass.tabs.gradient-direction",
-    "label": "Gradient direction *How the workspace colour fades across the selected tab. Left-to-right reads as depth, top-to-bottom as sheen.*",
+    "label": "Gradient direction *How the colour fades across the selected tab. Horizontal reads as depth, vertical as sheen. Reversed directions are useful when the sidebar sits on the right.*",
     "defaultValue": 0,
     "options": [
       {
@@ -132,8 +160,16 @@
         "value": 0
       },
       {
+        "label": "Right to left",
+        "value": 4
+      },
+      {
         "label": "Top to bottom",
         "value": 1
+      },
+      {
+        "label": "Bottom to top",
+        "value": 5
       },
       {
         "label": "Diagonal",
@@ -147,33 +183,46 @@
   },
   {
     "type": "checkbox",
+    "property": "zzglass.tabs.strip-gradient",
+    "label": "Gradient across the whole tab strip *A separate wash behind every tab, spanning the full strip rather than each tab individually. Uses the workspace colour, since container colour only exists per tab.*",
+    "defaultValue": false
+  },
+  {
+    "type": "string",
+    "property": "zzglass.tabs.strip-strength",
+    "label": "Strip gradient strength *How strong the full-strip wash is at its top. Only applies when the strip gradient is on.*",
+    "defaultValue": "16%",
+    "placeholder": "16%"
+  },
+  {
+    "type": "checkbox",
     "property": "zzglass.tabs.blur",
-    "label": "Frosted blur *A compositor pass per tab, and the most expensive option here. Turn this off first if scrolling feels heavy, or if you already run several transparency mods and tabs look muddy.*",
+    "label": "Frosted blur *Blurs whatever sits behind the tab. It can only blur what the browser itself painted, so over a flat sidebar there is little to work with and the effect stays subtle. A compositor pass per tab, so turn this off first if scrolling feels heavy.*",
     "defaultValue": true
   },
   {
     "type": "string",
     "property": "zzglass.tabs.blur-radius",
-    "label": "Blur strength *Only applies when frosted blur is on. Large values smear high-contrast content behind the tab into visible streaks.*",
-    "defaultValue": "14px",
-    "placeholder": "14px"
+    "label": "Blur strength *Only applies when frosted blur is on. Larger values smear high-contrast content behind the tab into visible streaks.*",
+    "defaultValue": "20px",
+    "placeholder": "20px"
   },
   {
     "type": "checkbox",
     "property": "zzglass.tabs.rim",
-    "label": "Glass rim *A 1px inner highlight along the top edge. This is the difference between 'glassy' and 'just translucent' -- translucency on its own tends to read as washed out.*",
+    "label": "Glass rim *A 1px inner highlight along the top edge. This is the difference between 'glassy' and 'just translucent' -- translucency alone tends to read as washed out.*",
     "defaultValue": true
   },
   {
     "type": "checkbox",
     "property": "zzglass.tabs.selected-glow",
-    "label": "Soft outer glow on the selected tab *Adds a workspace-tinted halo. Replaces the rim's shadow, so it includes the rim highlight when both are on.*",
+    "label": "Soft outer glow on the selected tab *Adds a tinted halo. Replaces the rim's shadow, so it includes the rim highlight when both are on.*",
     "defaultValue": true
   },
   {
     "type": "checkbox",
     "property": "zzglass.tabs.left-accent",
-    "label": "Accent bar on the selected tab *A 3px workspace-coloured bar down the left edge. The clearest at-a-glance marker if you prefer to keep tints subtle.*",
+    "label": "Accent bar on the selected tab *A 3px coloured bar down the left edge. The clearest at-a-glance marker if you prefer to keep tints subtle.*",
     "defaultValue": false
   },
   {

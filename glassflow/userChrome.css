@@ -1,20 +1,20 @@
 /* ============================================================
-   Glassflow v1.1
+   Glassflow v1.2
+
    Loads last (id "zz-glassflow" sorts after every other mod) and is
    injected as a USER_SHEET, so !important here outranks author
    !important from Arc, SuperPins and Advanced Tab Groups.
 
-   v1.1: tinting is painted with background-image directly on
-   .tab-background. Zen and Arc both already use .tab-background::before
-   and ::after, so a layer built there loses to their opacity rules.
-   background-image stacks above background-color and nothing else
-   claims it. Selectors also carry an id so they outrank Arc on
-   specificity, not only on source order.
+   Tinting is painted as background-image on .tab-background itself.
+   Zen and Arc both already drive .tab-background::before and ::after,
+   so a layer built there loses to their opacity rules. Selectors also
+   carry an id so they outrank Arc on specificity, not just source order.
    ============================================================ */
 
 :root {
   --zzg-btn-size: var(--zzglass-buttons-size, 13px);
   --zzg-btn-gap: var(--zzglass-buttons-gap, 8px);
+  --zzg-btn-oval: var(--zzglass-buttons-oval-height, 1.3);
   --zzg-close: var(--zzglass-buttons-close-color, rgba(167, 139, 250, 0.55));
   --zzg-min: var(--zzglass-buttons-min-color, rgba(125, 176, 245, 0.55));
   --zzg-max: var(--zzglass-buttons-max-color, rgba(126, 217, 163, 0.55));
@@ -22,12 +22,15 @@
   --zzg-sel: var(--zzglass-tabs-selected-tint, 38%);
   --zzg-unsel: var(--zzglass-tabs-unselected-tint, 10%);
   --zzg-hov: var(--zzglass-tabs-hover-tint, 20%);
-  --zzg-blur: var(--zzglass-tabs-blur-radius, 14px);
+  --zzg-blur: var(--zzglass-tabs-blur-radius, 20px);
+  --zzg-strip: var(--zzglass-tabs-strip-strength, 16%);
 
-  /* Zen repaints --zen-primary-color per workspace. */
-  --zzg-accent: var(--zen-primary-color, var(--zen-colors-primary, #7c8cf8));
+  /* Default: container colour, falling back to workspace colour. */
+  --zzg-accent: var(--identity-tab-color, var(--zen-primary-color, var(--zen-colors-primary, #7c8cf8)));
+  /* Strip gradient can only use the workspace colour: container colour
+     is per-tab and does not exist on the strip container. */
+  --zzg-strip-accent: var(--zen-primary-color, var(--zen-colors-primary, #7c8cf8));
 
-  /* Reusable glass sheen, layered over the tint. */
   --zzg-sheen: linear-gradient(
     to bottom,
     rgba(255, 255, 255, 0.22) 0%,
@@ -35,6 +38,18 @@
     rgba(255, 255, 255, 0) 55%,
     rgba(0, 0, 0, 0.05) 100%
   );
+}
+
+/* --- colour source --- */
+@media (-moz-pref("zzglass.tabs.color-source", 1)) {
+  :root {
+    --zzg-accent: var(--zen-primary-color, var(--zen-colors-primary, #7c8cf8));
+  }
+}
+@media (-moz-pref("zzglass.tabs.color-source", 2)) {
+  :root {
+    --zzg-accent: var(--zen-primary-color, var(--identity-tab-color, #7c8cf8));
+  }
 }
 
 /* ============================================================
@@ -85,7 +100,6 @@
     position: relative !important;
     scale: 1 !important;
     content: none !important;
-    /* glass: translucent fill + sheen + rim + depth */
     background-image: var(--zzg-sheen) !important;
     border: 1px solid rgba(255, 255, 255, 0.35) !important;
     box-shadow:
@@ -95,26 +109,27 @@
       0 1px 3px rgba(0, 0, 0, 0.25) !important;
     backdrop-filter: blur(8px) saturate(180%) !important;
     transition:
-      height 160ms cubic-bezier(0.34, 1.4, 0.64, 1),
-      min-height 160ms cubic-bezier(0.34, 1.4, 0.64, 1),
-      border-radius 160ms ease-out,
-      background-color 140ms ease-out,
-      filter 140ms ease-out !important;
+      height 150ms cubic-bezier(0.32, 1.2, 0.6, 1),
+      min-height 150ms cubic-bezier(0.32, 1.2, 0.6, 1),
+      border-radius 150ms ease-out,
+      background-image 130ms ease-out,
+      filter 130ms ease-out !important;
   }
 
   .titlebar-button > image {
     visibility: collapse !important;
   }
 
-  /* --- vertical oval on hover --- */
+  /* --- oval on hover: the hovered button only --- */
   @media (-moz-pref("zzglass.buttons.oval-hover")) {
-    .titlebar-buttonbox:hover .titlebar-button {
-      height: calc(var(--zzg-btn-size) * 1.55) !important;
-      min-height: calc(var(--zzg-btn-size) * 1.55) !important;
-      border-radius: 50% / 38% !important;
+    .titlebar-button:hover {
+      height: calc(var(--zzg-btn-size) * var(--zzg-btn-oval)) !important;
+      min-height: calc(var(--zzg-btn-size) * var(--zzg-btn-oval)) !important;
+      border-radius: 50% / 42% !important;
     }
   }
 
+  /* --- resting colour --- */
   @media (-moz-pref("zzglass.buttons.always-colored")) {
     .titlebar-close { background-color: var(--zzg-close) !important; }
     .titlebar-min { background-color: var(--zzg-min) !important; }
@@ -130,11 +145,29 @@
     .titlebar-max:hover, .titlebar-restore:hover { background-color: var(--zzg-max) !important; }
   }
 
+  /* --- hover intensifies the colour: a second pass of the same fill
+         raises effective alpha, plus a saturation lift. No darkening. --- */
+  .titlebar-close:hover {
+    background-image:
+      linear-gradient(var(--zzg-close), var(--zzg-close)),
+      var(--zzg-sheen) !important;
+  }
+  .titlebar-min:hover {
+    background-image:
+      linear-gradient(var(--zzg-min), var(--zzg-min)),
+      var(--zzg-sheen) !important;
+  }
+  .titlebar-max:hover, .titlebar-restore:hover {
+    background-image:
+      linear-gradient(var(--zzg-max), var(--zzg-max)),
+      var(--zzg-sheen) !important;
+  }
+
   .titlebar-button:hover {
-    filter: brightness(1.15) saturate(1.2) !important;
+    filter: saturate(1.55) brightness(1.05) !important;
   }
   .titlebar-button:hover:active {
-    filter: brightness(0.88) !important;
+    filter: saturate(1.9) brightness(1.12) !important;
   }
 
   .titlebar-button:-moz-window-inactive {
@@ -183,14 +216,16 @@
   #vertical-tabs .tabbrowser-tab .tab-background {
     background-color: transparent !important;
     background-repeat: no-repeat !important;
+    background-position: center center !important;
     background-size: 100% 100% !important;
+    background-origin: border-box !important;
+    background-clip: border-box !important;
     border-radius: var(--border-radius-medium, 8px) !important;
     transition:
       background-image 180ms ease-out,
       box-shadow 180ms ease-out !important;
   }
 
-  /* --- unselected --- */
   #tabbrowser-tabs .tabbrowser-tab:not([selected], [visuallyselected]) .tab-background,
   #zen-essentials .tabbrowser-tab:not([selected], [visuallyselected]) .tab-background,
   #vertical-tabs .tabbrowser-tab:not([selected], [visuallyselected]) .tab-background {
@@ -200,7 +235,6 @@
     ) !important;
   }
 
-  /* --- hover --- */
   #tabbrowser-tabs .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-background,
   #zen-essentials .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-background,
   #vertical-tabs .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-background {
@@ -210,59 +244,59 @@
     ) !important;
   }
 
-  /* --- selected: sheen layered over the workspace gradient --- */
+  /* --- selected: sheen over the tinted gradient --- */
   @media (-moz-pref("zzglass.tabs.gradient-direction", 0)) {
     #tabbrowser-tabs .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background,
     #zen-essentials .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background,
     #vertical-tabs .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background {
-      background-image:
-        var(--zzg-sheen),
-        linear-gradient(
-          to right,
-          color-mix(in srgb, var(--zzg-accent) var(--zzg-sel), transparent),
-          color-mix(in srgb, var(--zzg-accent) calc(var(--zzg-sel) * 0.4), transparent)
-        ) !important;
+      background-image: var(--zzg-sheen), linear-gradient(to right,
+        color-mix(in srgb, var(--zzg-accent) var(--zzg-sel), transparent),
+        color-mix(in srgb, var(--zzg-accent) calc(var(--zzg-sel) * 0.4), transparent)) !important;
     }
   }
-
   @media (-moz-pref("zzglass.tabs.gradient-direction", 1)) {
     #tabbrowser-tabs .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background,
     #zen-essentials .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background,
     #vertical-tabs .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background {
-      background-image:
-        var(--zzg-sheen),
-        linear-gradient(
-          to bottom,
-          color-mix(in srgb, var(--zzg-accent) var(--zzg-sel), transparent),
-          color-mix(in srgb, var(--zzg-accent) calc(var(--zzg-sel) * 0.4), transparent)
-        ) !important;
+      background-image: var(--zzg-sheen), linear-gradient(to bottom,
+        color-mix(in srgb, var(--zzg-accent) var(--zzg-sel), transparent),
+        color-mix(in srgb, var(--zzg-accent) calc(var(--zzg-sel) * 0.4), transparent)) !important;
     }
   }
-
   @media (-moz-pref("zzglass.tabs.gradient-direction", 2)) {
     #tabbrowser-tabs .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background,
     #zen-essentials .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background,
     #vertical-tabs .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background {
-      background-image:
-        var(--zzg-sheen),
-        linear-gradient(
-          135deg,
-          color-mix(in srgb, var(--zzg-accent) var(--zzg-sel), transparent),
-          color-mix(in srgb, var(--zzg-accent) calc(var(--zzg-sel) * 0.35), transparent)
-        ) !important;
+      background-image: var(--zzg-sheen), linear-gradient(135deg,
+        color-mix(in srgb, var(--zzg-accent) var(--zzg-sel), transparent),
+        color-mix(in srgb, var(--zzg-accent) calc(var(--zzg-sel) * 0.35), transparent)) !important;
     }
   }
-
   @media (-moz-pref("zzglass.tabs.gradient-direction", 3)) {
     #tabbrowser-tabs .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background,
     #zen-essentials .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background,
     #vertical-tabs .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background {
-      background-image:
-        var(--zzg-sheen),
-        linear-gradient(
-          color-mix(in srgb, var(--zzg-accent) var(--zzg-sel), transparent),
-          color-mix(in srgb, var(--zzg-accent) var(--zzg-sel), transparent)
-        ) !important;
+      background-image: var(--zzg-sheen), linear-gradient(
+        color-mix(in srgb, var(--zzg-accent) var(--zzg-sel), transparent),
+        color-mix(in srgb, var(--zzg-accent) var(--zzg-sel), transparent)) !important;
+    }
+  }
+  @media (-moz-pref("zzglass.tabs.gradient-direction", 4)) {
+    #tabbrowser-tabs .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background,
+    #zen-essentials .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background,
+    #vertical-tabs .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background {
+      background-image: var(--zzg-sheen), linear-gradient(to left,
+        color-mix(in srgb, var(--zzg-accent) var(--zzg-sel), transparent),
+        color-mix(in srgb, var(--zzg-accent) calc(var(--zzg-sel) * 0.4), transparent)) !important;
+    }
+  }
+  @media (-moz-pref("zzglass.tabs.gradient-direction", 5)) {
+    #tabbrowser-tabs .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background,
+    #zen-essentials .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background,
+    #vertical-tabs .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background {
+      background-image: var(--zzg-sheen), linear-gradient(to top,
+        color-mix(in srgb, var(--zzg-accent) var(--zzg-sel), transparent),
+        color-mix(in srgb, var(--zzg-accent) calc(var(--zzg-sel) * 0.4), transparent)) !important;
     }
   }
 
@@ -270,7 +304,11 @@
     #tabbrowser-tabs .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background,
     #zen-essentials .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background,
     #vertical-tabs .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background {
-      backdrop-filter: blur(var(--zzg-blur)) saturate(160%) !important;
+      backdrop-filter:
+        blur(var(--zzg-blur))
+        saturate(190%)
+        brightness(1.1)
+        contrast(1.06) !important;
     }
   }
 
@@ -295,7 +333,21 @@
     }
   }
 
-  /* Accent bar. Arc also uses ::after here, so this is forced. */
+  /* --- gradient across the whole tab strip --- */
+  @media (-moz-pref("zzglass.tabs.strip-gradient")) {
+    #tabbrowser-tabs,
+    #vertical-tabs,
+    #zen-essentials {
+      background-image: linear-gradient(
+        to bottom,
+        color-mix(in srgb, var(--zzg-strip-accent) var(--zzg-strip), transparent),
+        transparent 65%
+      ) !important;
+      background-repeat: no-repeat !important;
+      background-size: 100% 100% !important;
+    }
+  }
+
   @media (-moz-pref("zzglass.tabs.left-accent")) {
     #tabbrowser-tabs .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background,
     #vertical-tabs .tabbrowser-tab:is([selected], [visuallyselected]) .tab-background {

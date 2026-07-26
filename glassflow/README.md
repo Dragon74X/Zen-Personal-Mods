@@ -5,14 +5,14 @@ A [Zen Browser](https://zen-browser.app/) mod for [Sine](https://github.com/Cosm
 Two features, both **off by default**:
 
 - **macOS-style traffic lights** — round window buttons with soft glassy fills (purple close, blue minimise, green maximise), placeable at either end of the sidebar row.
-- **Glassy tabs** — workspace-tinted gradients on tabs, with separate tint levels for selected, hovered and unselected states so they stay distinguishable at a glance.
+- **Glassy tabs** — container- or workspace-tinted gradients on tabs, with separate tint levels for selected, hovered and unselected states so they stay distinguishable at a glance.
 
 ## Install
 
 Paste this folder's URL into Sine's install box, under Settings -> Mods:
 
 ```
-https://github.com/USERNAME/REPO/tree/main/glassflow
+https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/glassflow
 ```
 
 Then open Glassflow's settings and enable the two master switches.
@@ -53,9 +53,13 @@ Keep a real gap between the selected and unselected tints. Past roughly 20% on t
 
 **Glass rim** is the difference between "glassy" and "just translucent". Translucency alone tends to read as washed out.
 
-## Workspace tinting
+## Tinting
 
-Tab colour follows `--zen-primary-color`, which Zen recolours per workspace, so tabs shift as you switch spaces. If everything looks the same grey-blue, your workspaces have no colours assigned — set them under Settings -> Appearance. The fallback chain is `--zen-colors-primary`, then `#7c8cf8`.
+By default tabs follow `--identity-tab-color`, the container colour, so tabs in different containers read differently at a glance. **Colour source** can switch this to `--zen-primary-color`, the workspace colour, which is uniform and shifts as you change spaces.
+
+If everything looks the same grey-blue, neither is assigned — set container colours in Firefox's container settings, or workspace colours under Settings -> Appearance. The final fallback is `#7c8cf8`.
+
+**Gradient across the whole tab strip** is a separate wash behind every tab rather than per-tab. It always uses the workspace colour, since container colour only exists per tab.
 
 ## Compatibility
 
@@ -77,7 +81,7 @@ For anything else, open the Browser Console with `Ctrl+Shift+J` and filter for `
 
 Tab tinting is painted as a `background-image` on `.tab-background` rather than on a pseudo-element. Zen and Arc both already use `.tab-background::before` and `::after`, so a layer built there is overridden by their opacity rules.
 
-Setting descriptions are collapsed into hover-revealed info badges. Sine has no tooltip field in `preferences.json`, so each explanation is written in `*italics*` — `formatLabel()` turns that into an `<i>` element, which `userContent.css` restyles as a badge. That styling applies to any mod whose labels use italics.
+Setting descriptions are collapsed into hover-revealed info badges. Sine has no tooltip field in `preferences.json`, so each explanation is written in `*italics*` — `formatLabel()` turns that into an `<i>` element, which `userContent.css` restyles as a badge. Every rule is scoped to `[id^="zzglass-"]`, matching only this mod's preference rows, so other mods' settings panels are untouched.
 
 Built against Zen 1.21.x with Sine 2.3.3. Uses the parenthesised `@media (-moz-pref("..."))` form throughout.
 

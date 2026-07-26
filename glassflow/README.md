@@ -2,10 +2,14 @@
 
 A [Zen Browser](https://zen-browser.app/) mod for [Sine](https://github.com/CosmoCreeper/Sine).
 
-Two features, both **off by default**:
+Four independent sections, all **off by default**:
 
-- **macOS-style traffic lights** — round window buttons with soft glassy fills (purple close, blue minimise, green maximise), placeable at either end of the sidebar row.
-- **Glassy tabs** — container- or workspace-tinted gradients on tabs, with separate tint levels for selected, hovered and unselected states so they stay distinguishable at a glance.
+- **Window buttons** — macOS-style traffic lights — round window buttons with soft glassy fills (purple close, blue minimise, green maximise), placeable at either end of the sidebar row.
+- **Tabs** — container-, workspace-, folder- or custom-tinted gradients, with separate tint and opacity for selected, hovered, unselected and unloaded states.
+- **Folders** — group labels and bodies restyled to match, using each group's own colour.
+- **Sidebar** — tint, opacity, blur and rim.
+
+Every section has its own master switch and reads from one shared colour and glass pipeline. Turning a section off costs nothing, and nothing in one section depends on another.
 
 ## Install
 

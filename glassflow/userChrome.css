@@ -378,9 +378,6 @@
     @media (-moz-pref("zzglass.sidebar.rim")) {
       #navigator-toolbox { box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important; }
     }
-    @media (-moz-pref("zzglass.sidebar.blur")) {
-      #navigator-toolbox { backdrop-filter: blur(var(--zzglass-sidebar-blur-radius, 18px)) var(--zzg-fx) !important; }
-    }
   }
 
   @media (-moz-pref("zzglass.sidebar.target", 1)) {
@@ -394,11 +391,6 @@
         box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important;
       }
     }
-    @media (-moz-pref("zzglass.sidebar.blur")) {
-      #zen-toolbar-background, .zen-toolbar-background {
-        backdrop-filter: blur(var(--zzglass-sidebar-blur-radius, 18px)) var(--zzg-fx) !important;
-      }
-    }
   }
 
   @media (-moz-pref("zzglass.sidebar.target", 2)) {
@@ -409,9 +401,6 @@
     }
     @media (-moz-pref("zzglass.sidebar.rim")) {
       #titlebar { box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important; }
-    }
-    @media (-moz-pref("zzglass.sidebar.blur")) {
-      #titlebar { backdrop-filter: blur(var(--zzglass-sidebar-blur-radius, 18px)) var(--zzg-fx) !important; }
     }
   }
 
@@ -455,8 +444,13 @@
     .titlebar-min { order: 2 !important; }
     .titlebar-max, .titlebar-restore { order: 3 !important; }
   }
+  .titlebar-buttonbox-container { align-items: center !important; }
   .titlebar-button {
     appearance: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: hidden !important;
     min-width: var(--zzg-btn-size) !important; width: var(--zzg-btn-size) !important;
     min-height: var(--zzg-btn-size) !important; height: var(--zzg-btn-size) !important;
     padding: 0 !important; margin: 0 !important; border-radius: 50% !important;
@@ -497,21 +491,72 @@
     .titlebar-min:hover { background-color: var(--zzg-min) !important; }
     .titlebar-max:hover, .titlebar-restore:hover { background-color: var(--zzg-max) !important; }
   }
-  .titlebar-close:hover { background-image: linear-gradient(var(--zzg-close), var(--zzg-close)), var(--zzg-sheen) !important; }
-  .titlebar-min:hover { background-image: linear-gradient(var(--zzg-min), var(--zzg-min)), var(--zzg-sheen) !important; }
-  .titlebar-max:hover, .titlebar-restore:hover { background-image: linear-gradient(var(--zzg-max), var(--zzg-max)), var(--zzg-sheen) !important; }
-  .titlebar-button:hover { filter: saturate(1.55) brightness(1.05) !important; opacity: 1 !important; }
-  .titlebar-button:hover:active { filter: saturate(1.9) brightness(1.12) !important; }
-  .titlebar-button:-moz-window-inactive {
-    background-color: light-dark(rgb(0 0 0 / 0.08), rgb(255 255 255 / 0.08)) !important;
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18) !important;
+  /* Hover deepens by stacking the same fill again. Set the hover-* colours
+     to override with a different hue instead. */
+  .titlebar-close:hover {
+    background-image: linear-gradient(var(--zzglass-buttons-hover-close, var(--zzg-close)),
+      var(--zzglass-buttons-hover-close, var(--zzg-close))), var(--zzg-sheen) !important;
+  }
+  .titlebar-min:hover {
+    background-image: linear-gradient(var(--zzglass-buttons-hover-min, var(--zzg-min)),
+      var(--zzglass-buttons-hover-min, var(--zzg-min))), var(--zzg-sheen) !important;
+  }
+  .titlebar-max:hover, .titlebar-restore:hover {
+    background-image: linear-gradient(var(--zzglass-buttons-hover-max, var(--zzg-max)),
+      var(--zzglass-buttons-hover-max, var(--zzg-max))), var(--zzg-sheen) !important;
+  }
+  .titlebar-button:hover {
+    filter: saturate(var(--zzglass-buttons-hover-intensity, 1.55))
+      brightness(calc(1 + (var(--zzglass-buttons-hover-intensity, 1.55) - 1) * 0.09)) !important;
+    opacity: 1 !important;
+  }
+  .titlebar-button:hover:active {
+    filter: saturate(calc(var(--zzglass-buttons-hover-intensity, 1.55) * 1.22))
+      brightness(1.12) !important;
+  }
+  /* Arc colours its buttons on :is(:hover, :-moz-window-inactive) with the
+     stock traffic lights. These rules restate the chosen colours on the
+     inactive state so nothing leaks through. */
+  @media (-moz-pref("zzglass.buttons.inactive-mode", 0)) {
+    .titlebar-close:-moz-window-inactive { background-color: var(--zzg-close) !important; }
+    .titlebar-min:-moz-window-inactive { background-color: var(--zzg-min) !important; }
+    .titlebar-max:-moz-window-inactive,
+    .titlebar-restore:-moz-window-inactive { background-color: var(--zzg-max) !important; }
+    .titlebar-button:-moz-window-inactive { filter: saturate(0.75) brightness(0.94) !important; }
+  }
+  @media (-moz-pref("zzglass.buttons.inactive-mode", 1)) {
+    .titlebar-close:-moz-window-inactive { background-color: var(--zzg-close) !important; }
+    .titlebar-min:-moz-window-inactive { background-color: var(--zzg-min) !important; }
+    .titlebar-max:-moz-window-inactive,
+    .titlebar-restore:-moz-window-inactive { background-color: var(--zzg-max) !important; }
+    .titlebar-button:-moz-window-inactive { filter: none !important; }
+  }
+  @media (-moz-pref("zzglass.buttons.inactive-mode", 2)) {
+    .titlebar-close:-moz-window-inactive,
+    .titlebar-min:-moz-window-inactive,
+    .titlebar-max:-moz-window-inactive,
+    .titlebar-restore:-moz-window-inactive,
+    .titlebar-button:-moz-window-inactive {
+      background-color: light-dark(rgb(0 0 0 / 0.10), rgb(255 255 255 / 0.10)) !important;
+      background-image: var(--zzg-sheen) !important;
+      filter: none !important;
+    }
   }
   @media (-moz-pref("zzglass.buttons.glyph-on-hover")) {
+    /* Static flex child, not an absolutely positioned overlay. XUL boxes
+       do not reliably act as a containing block for an absolute ::after,
+       which is why the mark drifted toward a corner once the button grew. */
     .titlebar-button::after {
-      content: "" !important; position: absolute !important; inset: 0 !important; opacity: 0 !important;
-      background-repeat: no-repeat !important; background-position: center center !important;
-      background-size: calc(var(--zzg-btn-size) * var(--zzg-glyph))
-        calc(var(--zzg-btn-size) * var(--zzg-glyph)) !important;
+      content: "" !important;
+      position: static !important;
+      flex: 0 0 auto !important;
+      width: calc(var(--zzg-btn-size) * var(--zzg-glyph)) !important;
+      height: calc(var(--zzg-btn-size) * var(--zzg-glyph)) !important;
+      margin: auto !important;
+      opacity: 0 !important;
+      background-repeat: no-repeat !important;
+      background-position: center center !important;
+      background-size: 100% 100% !important;
       transition: opacity 120ms ease-out !important;
     }
     .titlebar-buttonbox:hover .titlebar-button::after { opacity: 1 !important; }
@@ -551,5 +596,22 @@
   .tabbrowser-tab .tab-background,
   .titlebar-button {
     will-change: auto !important;
+  }
+}
+
+/* ============================================================
+   UI FONT
+   Applies to browser chrome only. Deliberately does NOT set font-size,
+   so the Customize Font Size mod keeps ownership of sizing.
+   ============================================================ */
+
+@media (-moz-pref("zzglass.font.enabled")) {
+  :root {
+    font-family: var(--zzglass-font-family, system-ui) !important;
+  }
+  #navigator-toolbox, #navigator-toolbox * ,
+  .tabbrowser-tab, .tab-label, .tab-group-label,
+  #urlbar, #urlbar * , panel, menupopup, menuitem, toolbarbutton {
+    font-family: var(--zzglass-font-family, system-ui) !important;
   }
 }

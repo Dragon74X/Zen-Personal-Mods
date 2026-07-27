@@ -906,19 +906,6 @@
     "defaultValue": false
   },
   {
-    "type": "checkbox",
-    "property": "zzglass.sidebar.blur",
-    "label": "Frosted blur on the sidebar *backdrop-filter can only blur pixels the browser itself painted. When the sidebar sits beside content there is nothing behind it, so this does nothing. It only has an effect where the sidebar overlays the page, i.e. compact mode hover. Desktop blur from DWMBlurGlass happens outside Gecko and cannot be sampled. For a frosted look that always works and costs nothing, raise Fill strength and turn on the sheen instead.*",
-    "defaultValue": false
-  },
-  {
-    "type": "string",
-    "property": "zzglass.sidebar.blur-radius",
-    "label": "Sidebar blur strength *Only used when sidebar blur is on.*",
-    "defaultValue": "18px",
-    "placeholder": "18px"
-  },
-  {
     "type": "separator",
     "label": "Window buttons",
     "size": "17px",
@@ -1026,6 +1013,55 @@
     "placeholder": "rgba(0, 132, 93, 0.80)"
   },
   {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.buttons.inactive-mode",
+    "label": "When the window is not focused *Arc paints the stock red/yellow/green traffic lights on inactive windows, which is what was overriding your choices. All three options below restate your colours so Arc cannot leak through.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Keep my colours, slightly muted",
+        "value": 0
+      },
+      {
+        "label": "Keep my colours, unchanged",
+        "value": 1
+      },
+      {
+        "label": "Neutral grey",
+        "value": 2
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzglass.buttons.hover-intensity",
+    "label": "Hover intensity *How much the colour deepens on hover. 1 means no change, 1.55 is the default lift, above about 2.5 starts to look neon. Brightness follows this automatically so the hue deepens rather than washing out.*",
+    "defaultValue": "1.55",
+    "placeholder": "1.55"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.buttons.hover-close",
+    "label": "Hover colour, close *Leave empty to deepen the resting colour instead. Set a colour here only if you want hover to shift hue rather than intensity.*",
+    "defaultValue": "",
+    "placeholder": ""
+  },
+  {
+    "type": "string",
+    "property": "zzglass.buttons.hover-min",
+    "label": "Hover colour, minimise *Leave empty to deepen the resting colour.*",
+    "defaultValue": "",
+    "placeholder": ""
+  },
+  {
+    "type": "string",
+    "property": "zzglass.buttons.hover-max",
+    "label": "Hover colour, maximise *Leave empty to deepen the resting colour.*",
+    "defaultValue": "",
+    "placeholder": ""
+  },
+  {
     "type": "string",
     "property": "zzglass.buttons.size",
     "label": "Diameter *macOS uses 12px, Arc uses 14px.*",
@@ -1050,5 +1086,24 @@
     "property": "zzglass.debug.outline",
     "label": "Outline what Glassflow touches *Magenta on tabs, cyan on window buttons. For the sidebar: orange is the whole sidebar, gold is the compact background, pink is the titlebar. Whichever outlines actually appear are the elements that exist in your layout, so pick that one as the Sidebar target.*",
     "defaultValue": false
+  },
+  {
+    "type": "separator",
+    "label": "Interface font",
+    "size": "17px",
+    "margin": "24px 0 10px 0"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.font.enabled",
+    "label": "Set the interface font *Applies to browser chrome only, never to web pages. Font SIZE is deliberately left alone so the Customize Font Size mod keeps ownership of it.*",
+    "defaultValue": false
+  },
+  {
+    "type": "string",
+    "property": "zzglass.font.family",
+    "label": "Font family *Type the family name exactly as installed, for example: Inter, Segoe UI Variable, JetBrains Mono. Commas work as fallbacks: Inter, system-ui. A picker that lists your installed fonts is not possible from a stylesheet; CSS cannot enumerate fonts.*",
+    "defaultValue": "system-ui",
+    "placeholder": "system-ui"
   }
 ]

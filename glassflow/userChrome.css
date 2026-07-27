@@ -462,16 +462,18 @@
     align-items: center !important;
     justify-content: center !important;
     min-width: var(--zzg-btn-size) !important; width: var(--zzg-btn-size) !important;
-    min-height: calc(var(--zzg-btn-size) * var(--zzg-rest)) !important;
-    height: calc(var(--zzg-btn-size) * var(--zzg-rest)) !important;
+    min-height: var(--zzg-btn-size) !important;
+    height: var(--zzg-btn-size) !important;
     padding: 0 !important; margin: 0 !important;
-    border-radius: 50% / calc(50% / var(--zzg-rest)) !important;
-    align-self: center !important; position: relative !important; scale: 1 !important;
+    border-radius: 50% !important;
+    align-self: center !important; position: relative !important;
+    scale: 1 var(--zzg-rest) !important;
+    transform-origin: center center !important;
     content: none !important; opacity: var(--zzg-btn-op) !important;
     box-shadow: 0 1px 3px rgb(0 0 0 / 0.25) !important;
-    transition: height 150ms cubic-bezier(0.32, 1.2, 0.6, 1),
-      min-height 150ms cubic-bezier(0.32, 1.2, 0.6, 1),
-      border-radius 150ms ease-out, background-image 130ms ease-out, filter 130ms ease-out !important;
+    transition: scale 150ms cubic-bezier(0.32, 1.2, 0.6, 1),
+      background-color 130ms ease-out, background-image 130ms ease-out,
+      filter 130ms ease-out !important;
   }
   .titlebar-button > image { visibility: collapse !important; }
   @media (-moz-pref("zzglass.buttons.sheen")) { .titlebar-button { background-image: var(--zzg-sheen) !important; } }
@@ -486,11 +488,9 @@
   }
   @media (-moz-pref("zzglass.buttons.blur")) { .titlebar-button { backdrop-filter: blur(8px) var(--zzg-fx) !important; } }
   @media (-moz-pref("zzglass.buttons.oval-hover")) {
-    .titlebar-button:hover {
-      height: calc(var(--zzg-btn-size) * var(--zzg-btn-oval)) !important;
-      min-height: calc(var(--zzg-btn-size) * var(--zzg-btn-oval)) !important;
-      border-radius: 50% / calc(50% / var(--zzg-btn-oval)) !important;
-    }
+    .titlebar-button:hover { scale: 1 var(--zzg-btn-oval) !important; }
+    /* undo the parent's vertical stretch so the mark stays circular */
+    .titlebar-button:hover::after { scale: 1 calc(1 / var(--zzg-btn-oval)) !important; }
   }
   @media (-moz-pref("zzglass.buttons.always-colored")) {
     .titlebar-close { background-color: var(--zzg-close) !important; }
@@ -591,7 +591,9 @@
       background-repeat: no-repeat !important;
       background-position: center center !important;
       background-size: 100% 100% !important;
-      transition: opacity 120ms ease-out !important;
+      scale: 1 calc(1 / var(--zzg-rest)) !important;
+      transform-origin: center center !important;
+      transition: opacity 120ms ease-out, scale 150ms cubic-bezier(0.32, 1.2, 0.6, 1) !important;
     }
     .titlebar-buttonbox:hover .titlebar-button::after { opacity: 1 !important; }
     .titlebar-close::after { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cg stroke='%23000' stroke-opacity='0.62' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M1.6 1.6l6.8 6.8'/%3E%3Cpath d='M8.4 1.6l-6.8 6.8'/%3E%3C/g%3E%3C/svg%3E") !important; }

@@ -445,6 +445,16 @@
     .titlebar-max, .titlebar-restore { order: 3 !important; }
   }
   .titlebar-buttonbox-container { align-items: center !important; }
+
+  /* Firefox keeps both .titlebar-max and .titlebar-restore in the DOM and
+     hides one via display:none. Forcing display:flex on every button
+     unhid the spare, which is where the fourth circle came from. */
+  .titlebar-button[hidden],
+  :root[sizemode="maximized"] .titlebar-max,
+  :root[sizemode="fullscreen"] .titlebar-max,
+  :root:not([sizemode="maximized"]):not([sizemode="fullscreen"]) .titlebar-restore {
+    display: none !important;
+  }
   .titlebar-button {
     appearance: none !important;
     display: flex !important;
@@ -518,30 +528,24 @@
      stock traffic lights. These rules restate the chosen colours on the
      inactive state so nothing leaks through. */
   @media (-moz-pref("zzglass.buttons.inactive-mode", 0)) {
-    .titlebar-close:-moz-window-inactive { background-color: var(--zzg-close) !important; }
-    .titlebar-min:-moz-window-inactive { background-color: var(--zzg-min) !important; }
-    .titlebar-max:-moz-window-inactive,
-    .titlebar-restore:-moz-window-inactive { background-color: var(--zzg-max) !important; }
-    .titlebar-button:-moz-window-inactive { filter: saturate(0.75) brightness(0.94) !important; }
+    .titlebar-buttonbox .titlebar-close:not(:hover):-moz-window-inactive { background-color: var(--zzg-close) !important; filter: saturate(0.75) brightness(0.94) !important; }
+    .titlebar-buttonbox .titlebar-min:not(:hover):-moz-window-inactive { background-color: var(--zzg-min) !important; filter: saturate(0.75) brightness(0.94) !important; }
+    .titlebar-buttonbox .titlebar-max:not(:hover):-moz-window-inactive { background-color: var(--zzg-max) !important; filter: saturate(0.75) brightness(0.94) !important; }
+    .titlebar-buttonbox .titlebar-restore:not(:hover):-moz-window-inactive { background-color: var(--zzg-max) !important; filter: saturate(0.75) brightness(0.94) !important; }
   }
   @media (-moz-pref("zzglass.buttons.inactive-mode", 1)) {
-    .titlebar-close:-moz-window-inactive { background-color: var(--zzg-close) !important; }
-    .titlebar-min:-moz-window-inactive { background-color: var(--zzg-min) !important; }
-    .titlebar-max:-moz-window-inactive,
-    .titlebar-restore:-moz-window-inactive { background-color: var(--zzg-max) !important; }
-    .titlebar-button:-moz-window-inactive { filter: none !important; }
+    .titlebar-buttonbox .titlebar-close:not(:hover):-moz-window-inactive { background-color: var(--zzg-close) !important; filter: none !important; }
+    .titlebar-buttonbox .titlebar-min:not(:hover):-moz-window-inactive { background-color: var(--zzg-min) !important; filter: none !important; }
+    .titlebar-buttonbox .titlebar-max:not(:hover):-moz-window-inactive { background-color: var(--zzg-max) !important; filter: none !important; }
+    .titlebar-buttonbox .titlebar-restore:not(:hover):-moz-window-inactive { background-color: var(--zzg-max) !important; filter: none !important; }
   }
   @media (-moz-pref("zzglass.buttons.inactive-mode", 2)) {
-    .titlebar-close:-moz-window-inactive,
-    .titlebar-min:-moz-window-inactive,
-    .titlebar-max:-moz-window-inactive,
-    .titlebar-restore:-moz-window-inactive,
-    .titlebar-button:-moz-window-inactive {
-      background-color: light-dark(rgb(0 0 0 / 0.10), rgb(255 255 255 / 0.10)) !important;
-      background-image: var(--zzg-sheen) !important;
-      filter: none !important;
-    }
+    .titlebar-buttonbox .titlebar-close:not(:hover):-moz-window-inactive { background-color: light-dark(rgb(0 0 0 / 0.10), rgb(255 255 255 / 0.10)) !important; background-image: var(--zzg-sheen) !important; filter: none !important; }
+    .titlebar-buttonbox .titlebar-min:not(:hover):-moz-window-inactive { background-color: light-dark(rgb(0 0 0 / 0.10), rgb(255 255 255 / 0.10)) !important; background-image: var(--zzg-sheen) !important; filter: none !important; }
+    .titlebar-buttonbox .titlebar-max:not(:hover):-moz-window-inactive { background-color: light-dark(rgb(0 0 0 / 0.10), rgb(255 255 255 / 0.10)) !important; background-image: var(--zzg-sheen) !important; filter: none !important; }
+    .titlebar-buttonbox .titlebar-restore:not(:hover):-moz-window-inactive { background-color: light-dark(rgb(0 0 0 / 0.10), rgb(255 255 255 / 0.10)) !important; background-image: var(--zzg-sheen) !important; filter: none !important; }
   }
+
   @media (-moz-pref("zzglass.buttons.glyph-on-hover")) {
     /* Static flex child, not an absolutely positioned overlay. XUL boxes
        do not reliably act as a containing block for an absolute ::after,
@@ -599,19 +603,46 @@
   }
 }
 
+
 /* ============================================================
-   UI FONT
-   Applies to browser chrome only. Deliberately does NOT set font-size,
-   so the Customize Font Size mod keeps ownership of sizing.
+   INTERFACE FONT
+   Chrome only, never web content. Sets no font-size, so the
+   Customize Font Size mod keeps ownership of sizing.
    ============================================================ */
 
+:root { --zzg-font: var(--zzglass-font-family, system-ui); }
+@media (-moz-pref("zzglass.font.preset", 1)) { :root { --zzg-font: system-ui; } }
+@media (-moz-pref("zzglass.font.preset", 2)) { :root { --zzg-font: "Segoe UI Variable Text", "Segoe UI"; } }
+@media (-moz-pref("zzglass.font.preset", 3)) { :root { --zzg-font: "Inter"; } }
+@media (-moz-pref("zzglass.font.preset", 4)) { :root { --zzg-font: "SF Pro Text", "Helvetica Neue"; } }
+@media (-moz-pref("zzglass.font.preset", 5)) { :root { --zzg-font: "Roboto"; } }
+@media (-moz-pref("zzglass.font.preset", 6)) { :root { --zzg-font: "Noto Sans"; } }
+@media (-moz-pref("zzglass.font.preset", 7)) { :root { --zzg-font: "IBM Plex Sans"; } }
+@media (-moz-pref("zzglass.font.preset", 8)) { :root { --zzg-font: "JetBrains Mono"; } }
+@media (-moz-pref("zzglass.font.preset", 9)) { :root { --zzg-font: "Cascadia Code", Consolas; } }
+@media (-moz-pref("zzglass.font.preset", 10)) { :root { --zzg-font: Georgia, serif; } }
+
 @media (-moz-pref("zzglass.font.enabled")) {
-  :root {
-    font-family: var(--zzglass-font-family, system-ui) !important;
-  }
-  #navigator-toolbox, #navigator-toolbox * ,
-  .tabbrowser-tab, .tab-label, .tab-group-label,
-  #urlbar, #urlbar * , panel, menupopup, menuitem, toolbarbutton {
-    font-family: var(--zzglass-font-family, system-ui) !important;
+  :root,
+  #navigator-toolbox,
+  #navigator-toolbox *,
+  #titlebar,
+  #titlebar *,
+  .tabbrowser-tab,
+  .tabbrowser-tab *,
+  .tab-label,
+  .tab-label-container,
+  .tab-group-label,
+  .tab-group-label-container,
+  #urlbar,
+  #urlbar *,
+  #zen-sidebar-bottom-buttons,
+  #zen-sidebar-bottom-buttons *,
+  .zen-essentials-container,
+  .zen-essentials-container *,
+  panel, panel *,
+  menupopup, menupopup *,
+  menuitem, toolbarbutton, label, description {
+    font-family: var(--zzg-font) !important;
   }
 }

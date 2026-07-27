@@ -1096,13 +1096,66 @@
   {
     "type": "checkbox",
     "property": "zzglass.font.enabled",
-    "label": "Set the interface font *Applies to browser chrome only, never to web pages. Font SIZE is deliberately left alone so the Customize Font Size mod keeps ownership of it.*",
+    "label": "Set the interface font *Changes tab labels, menus and toolbar text. Never touches web pages. Font SIZE is left alone on purpose so the Customize Font Size mod keeps ownership of it. Remember to pick a font below, or nothing will look different.*",
     "defaultValue": false
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.font.preset",
+    "label": "Font *A curated list, not your installed fonts. A stylesheet cannot enumerate what is installed on your machine, so anything not listed goes in the box below. If a listed font is not installed it silently falls back.*",
+    "defaultValue": 1,
+    "options": [
+      {
+        "label": "Custom (use the box below)",
+        "value": 0
+      },
+      {
+        "label": "System default",
+        "value": 1
+      },
+      {
+        "label": "Segoe UI Variable",
+        "value": 2
+      },
+      {
+        "label": "Inter",
+        "value": 3
+      },
+      {
+        "label": "SF Pro / Helvetica Neue",
+        "value": 4
+      },
+      {
+        "label": "Roboto",
+        "value": 5
+      },
+      {
+        "label": "Noto Sans",
+        "value": 6
+      },
+      {
+        "label": "IBM Plex Sans",
+        "value": 7
+      },
+      {
+        "label": "JetBrains Mono",
+        "value": 8
+      },
+      {
+        "label": "Cascadia Code",
+        "value": 9
+      },
+      {
+        "label": "Georgia",
+        "value": 10
+      }
+    ]
   },
   {
     "type": "string",
     "property": "zzglass.font.family",
-    "label": "Font family *Type the family name exactly as installed, for example: Inter, Segoe UI Variable, JetBrains Mono. Commas work as fallbacks: Inter, system-ui. A picker that lists your installed fonts is not possible from a stylesheet; CSS cannot enumerate fonts.*",
+    "label": "Custom font family *Only used when Font is set to Custom. Type the family name exactly as installed, for example: Iosevka, Public Sans. Commas work as fallbacks. This is NOT the same as Firefox Settings > Fonts, which only affects web page text; this changes the browser interface, including tab labels.*",
     "defaultValue": "system-ui",
     "placeholder": "system-ui"
   }

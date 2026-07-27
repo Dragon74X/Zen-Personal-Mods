@@ -954,6 +954,13 @@
     "placeholder": "1.3"
   },
   {
+    "type": "string",
+    "property": "zzglass.buttons.rest-height",
+    "label": "Resting shape *Height as a multiple of the width, before any hover. 1.0 is a perfect circle, 1.15 is a subtle oval, 1.4 is clearly egg-shaped. The hover multiplier below stretches from whatever you set here.*",
+    "defaultValue": "1.15",
+    "placeholder": "1.15"
+  },
+  {
     "type": "checkbox",
     "property": "zzglass.buttons.glyph-on-hover",
     "label": "Show glyphs on hover *Triggered by hovering anywhere in the group, matching macOS.*",
@@ -961,10 +968,10 @@
   },
   {
     "type": "string",
-    "property": "zzglass.buttons.glyph-size",
-    "defaultValue": "0.76",
-    "placeholder": "0.76",
-    "label": "Glyph size *A multiple of the button diameter, not a percentage. Percentages scaled with the button's height, so the mark stretched and drifted off centre when the oval expanded. 0.76 is close to macOS.*"
+    "property": "zzglass.buttons.glyph-scale",
+    "label": "Glyph size *A fraction of the button's width. 0.62 is close to macOS. Renamed from the old percentage setting, because a stale percentage broke the sizing maths and made the marks vanish entirely.*",
+    "defaultValue": "0.62",
+    "placeholder": "0.62"
   },
   {
     "type": "string",
@@ -1034,11 +1041,32 @@
     ]
   },
   {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.buttons.hover-effect",
+    "label": "On hover *Arc paints the stock red, yellow and green on plain hover. All three options restate your own colours so Arc cannot show through. Keep colour is the default: hovering no longer changes the hue at all.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Keep my colour, no change",
+        "value": 0
+      },
+      {
+        "label": "Deepen my colour",
+        "value": 1
+      },
+      {
+        "label": "Use the hover colours below",
+        "value": 2
+      }
+    ]
+  },
+  {
     "type": "string",
     "property": "zzglass.buttons.hover-intensity",
-    "label": "Hover intensity *How much the colour deepens on hover. 1 means no change, 1.55 is the default lift, above about 2.5 starts to look neon. Brightness follows this automatically so the hue deepens rather than washing out.*",
-    "defaultValue": "1.55",
-    "placeholder": "1.55"
+    "label": "Hover intensity *1 means the colour does not change on hover at all, which is the default. Above 1 saturates further. This is separate from the hover fill below.*",
+    "defaultValue": "1",
+    "placeholder": "1"
   },
   {
     "type": "string",
@@ -1154,9 +1182,9 @@
   },
   {
     "type": "string",
-    "property": "zzglass.font.family",
-    "label": "Custom font family *Only used when Font is set to Custom. Type the family name exactly as installed, for example: Iosevka, Public Sans. Commas work as fallbacks. This is NOT the same as Firefox Settings > Fonts, which only affects web page text; this changes the browser interface, including tab labels.*",
-    "defaultValue": "system-ui",
-    "placeholder": "system-ui"
+    "property": "zzglass.font.custom",
+    "label": "Custom font family *Only used when Font is set to Custom. Type the family name exactly as installed, for example: Iosevka, Public Sans. Commas work as fallbacks. Not the same as Firefox Settings > Fonts, which only affects web page text.*",
+    "defaultValue": "",
+    "placeholder": ""
   }
 ]

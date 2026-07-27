@@ -422,7 +422,8 @@
     --zzg-btn-size: var(--zzglass-buttons-size, 13px);
     --zzg-btn-gap: var(--zzglass-buttons-gap, 8px);
     --zzg-btn-oval: var(--zzglass-buttons-oval-height, 1.3);
-    --zzg-glyph: var(--zzglass-buttons-glyph-size, 0.76);
+    --zzg-glyph: var(--zzglass-buttons-glyph-scale, 0.62);
+    --zzg-rest: var(--zzglass-buttons-rest-height, 1.15);
     --zzg-btn-op: var(--zzglass-buttons-opacity, 1);
     --zzg-close: var(--zzglass-buttons-close-color, rgba(128, 0, 215, 0.78));
     --zzg-min: var(--zzglass-buttons-min-color, rgba(0, 96, 223, 0.78));
@@ -460,7 +461,6 @@
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    overflow: hidden !important;
     min-width: var(--zzg-btn-size) !important; width: var(--zzg-btn-size) !important;
     min-height: var(--zzg-btn-size) !important; height: var(--zzg-btn-size) !important;
     padding: 0 !important; margin: 0 !important; border-radius: 50% !important;
@@ -487,7 +487,7 @@
     .titlebar-button:hover {
       height: calc(var(--zzg-btn-size) * var(--zzg-btn-oval)) !important;
       min-height: calc(var(--zzg-btn-size) * var(--zzg-btn-oval)) !important;
-      border-radius: 50% / 42% !important;
+      border-radius: 50% / 38% !important;
     }
   }
   @media (-moz-pref("zzglass.buttons.always-colored")) {
@@ -501,28 +501,50 @@
     .titlebar-min:hover { background-color: var(--zzg-min) !important; }
     .titlebar-max:hover, .titlebar-restore:hover { background-color: var(--zzg-max) !important; }
   }
-  /* Hover deepens by stacking the same fill again. Set the hover-* colours
-     to override with a different hue instead. */
-  .titlebar-close:hover {
-    background-image: linear-gradient(var(--zzglass-buttons-hover-close, var(--zzg-close)),
-      var(--zzglass-buttons-hover-close, var(--zzg-close))), var(--zzg-sheen) !important;
+  /* Arc sets background-color: #fdc92d / #28d33f / #fe6254 on plain :hover
+     at (0,2,0). Our fill was background-image only, so Arc's opaque colour
+     showed through the alpha. These restate background-color at (0,3,0). */
+  @media (-moz-pref("zzglass.buttons.hover-effect", 0)) {
+    .titlebar-buttonbox .titlebar-close:hover { background-color: var(--zzg-close) !important; }
+    .titlebar-buttonbox .titlebar-min:hover { background-color: var(--zzg-min) !important; }
+    .titlebar-buttonbox .titlebar-max:hover,
+    .titlebar-buttonbox .titlebar-restore:hover { background-color: var(--zzg-max) !important; }
   }
-  .titlebar-min:hover {
-    background-image: linear-gradient(var(--zzglass-buttons-hover-min, var(--zzg-min)),
-      var(--zzglass-buttons-hover-min, var(--zzg-min))), var(--zzg-sheen) !important;
+  @media (-moz-pref("zzglass.buttons.hover-effect", 1)) {
+    .titlebar-buttonbox .titlebar-close:hover {
+      background-color: var(--zzg-close) !important;
+      background-image: linear-gradient(var(--zzg-close), var(--zzg-close)), var(--zzg-sheen) !important;
+    }
+    .titlebar-buttonbox .titlebar-min:hover {
+      background-color: var(--zzg-min) !important;
+      background-image: linear-gradient(var(--zzg-min), var(--zzg-min)), var(--zzg-sheen) !important;
+    }
+    .titlebar-buttonbox .titlebar-max:hover,
+    .titlebar-buttonbox .titlebar-restore:hover {
+      background-color: var(--zzg-max) !important;
+      background-image: linear-gradient(var(--zzg-max), var(--zzg-max)), var(--zzg-sheen) !important;
+    }
   }
-  .titlebar-max:hover, .titlebar-restore:hover {
-    background-image: linear-gradient(var(--zzglass-buttons-hover-max, var(--zzg-max)),
-      var(--zzglass-buttons-hover-max, var(--zzg-max))), var(--zzg-sheen) !important;
+  @media (-moz-pref("zzglass.buttons.hover-effect", 2)) {
+    .titlebar-buttonbox .titlebar-close:hover {
+      background-color: var(--zzglass-buttons-hover-close, var(--zzg-close)) !important;
+    }
+    .titlebar-buttonbox .titlebar-min:hover {
+      background-color: var(--zzglass-buttons-hover-min, var(--zzg-min)) !important;
+    }
+    .titlebar-buttonbox .titlebar-max:hover,
+    .titlebar-buttonbox .titlebar-restore:hover {
+      background-color: var(--zzglass-buttons-hover-max, var(--zzg-max)) !important;
+    }
   }
+
   .titlebar-button:hover {
-    filter: saturate(var(--zzglass-buttons-hover-intensity, 1.55))
-      brightness(calc(1 + (var(--zzglass-buttons-hover-intensity, 1.55) - 1) * 0.09)) !important;
+    filter: saturate(var(--zzglass-buttons-hover-intensity, 1))
+      brightness(calc(1 + (var(--zzglass-buttons-hover-intensity, 1) - 1) * 0.09)) !important;
     opacity: 1 !important;
   }
   .titlebar-button:hover:active {
-    filter: saturate(calc(var(--zzglass-buttons-hover-intensity, 1.55) * 1.22))
-      brightness(1.12) !important;
+    filter: saturate(calc(var(--zzglass-buttons-hover-intensity, 1) * 1.15)) brightness(1.06) !important;
   }
   /* Arc colours its buttons on :is(:hover, :-moz-window-inactive) with the
      stock traffic lights. These rules restate the chosen colours on the
@@ -552,10 +574,16 @@
        which is why the mark drifted toward a corner once the button grew. */
     .titlebar-button::after {
       content: "" !important;
+      display: block !important;
       position: static !important;
       flex: 0 0 auto !important;
-      width: calc(var(--zzg-btn-size) * var(--zzg-glyph)) !important;
-      height: calc(var(--zzg-btn-size) * var(--zzg-glyph)) !important;
+      /* Sized from the button's own width via percentage + aspect-ratio, so
+         no calc() can be poisoned by a stale pref value. */
+      width: calc(100% * var(--zzg-glyph)) !important;
+      height: auto !important;
+      aspect-ratio: 1 / 1 !important;
+      min-width: 0 !important;
+      min-height: 0 !important;
       margin: auto !important;
       opacity: 0 !important;
       background-repeat: no-repeat !important;
@@ -610,7 +638,8 @@
    Customize Font Size mod keeps ownership of sizing.
    ============================================================ */
 
-:root { --zzg-font: var(--zzglass-font-family, system-ui); }
+:root { --zzg-font: var(--zzglass-font-custom, system-ui); }
+@media (-moz-pref("zzglass.font.preset", 0)) { :root { --zzg-font: var(--zzglass-font-custom, system-ui); } }
 @media (-moz-pref("zzglass.font.preset", 1)) { :root { --zzg-font: system-ui; } }
 @media (-moz-pref("zzglass.font.preset", 2)) { :root { --zzg-font: "Segoe UI Variable Text", "Segoe UI"; } }
 @media (-moz-pref("zzglass.font.preset", 3)) { :root { --zzg-font: "Inter"; } }

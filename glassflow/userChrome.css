@@ -433,27 +433,23 @@
     display: flex !important;
     flex-direction: row !important;
     align-items: center !important;
-    justify-content: center !important;
     gap: var(--zzg-btn-gap) !important;
     scale: 1 !important; margin: 0 !important; transform: none !important;
-    /* Fixed to the tallest state. min-height alone still let the row grow,
-       and a XUL box ignores align-items until display:flex is set, so a
-       taller sibling was pushing the others down. */
+    /* Fixed to the tallest state so a growing button cannot change the row's
+       height. XUL layout was removed in Firefox 112 and the front end is
+       real flexbox now, so align-items already worked; the height pin is
+       what stops siblings shifting. */
     height: calc(var(--zzg-btn-size) * max(var(--zzg-rest), var(--zzg-btn-oval))) !important;
     min-height: calc(var(--zzg-btn-size) * max(var(--zzg-rest), var(--zzg-btn-oval))) !important;
     max-height: calc(var(--zzg-btn-size) * max(var(--zzg-rest), var(--zzg-btn-oval))) !important;
   }
   @media (-moz-pref("zzglass.buttons.side", 0)) {
     .titlebar-buttonbox-container { order: 99 !important; margin-left: auto !important; margin-right: 8px !important; }
-    .titlebar-min { order: 1 !important; }
-    .titlebar-max, .titlebar-restore { order: 2 !important; }
-    .titlebar-close { order: 3 !important; }
+
   }
   @media (-moz-pref("zzglass.buttons.side", 1)) {
     .titlebar-buttonbox-container { order: -1 !important; margin-left: 8px !important; margin-right: auto !important; }
-    .titlebar-close { order: 1 !important; }
-    .titlebar-min { order: 2 !important; }
-    .titlebar-max, .titlebar-restore { order: 3 !important; }
+
   }
   .titlebar-buttonbox-container {
     display: flex !important;

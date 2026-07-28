@@ -956,7 +956,7 @@
   {
     "type": "string",
     "property": "zzglass.buttons.rest-height",
-    "label": "Resting shape *Height as a multiple of the width, before any hover. 1.0 is a perfect circle, 1.15 is a subtle oval, 1.4 is clearly egg-shaped. The hover multiplier below stretches from whatever you set here.*",
+    "label": "Resting shape *Height as a multiple of the width. 1.0 is a circle, 1.15 a subtle capsule, 1.4 clearly elongated. The corner curve stays fixed at half the button width, so taller values give flat sides with the same round caps rather than stretching into an ellipse.*",
     "defaultValue": "1.15",
     "placeholder": "1.15"
   },

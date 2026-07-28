@@ -429,6 +429,8 @@
     --zzg-min: var(--zzglass-buttons-min-color, rgba(0, 96, 223, 0.78));
     --zzg-max: var(--zzglass-buttons-max-color, rgba(0, 132, 93, 0.80));
   }
+  #zen-sidebar-top-buttons .titlebar-buttonbox,
+  #titlebar .titlebar-buttonbox,
   .titlebar-buttonbox {
     display: flex !important;
     flex-direction: row !important;
@@ -451,6 +453,7 @@
     .titlebar-buttonbox-container { order: -1 !important; margin-left: 8px !important; margin-right: auto !important; }
 
   }
+  #zen-sidebar-top-buttons .titlebar-buttonbox-container,
   .titlebar-buttonbox-container {
     display: flex !important;
     align-items: center !important;
@@ -657,14 +660,25 @@
 :root { --zzg-font: var(--zzglass-font-custom, system-ui); }
 @media (-moz-pref("zzglass.font.preset", 0)) { :root { --zzg-font: var(--zzglass-font-custom, system-ui); } }
 @media (-moz-pref("zzglass.font.preset", 1)) { :root { --zzg-font: system-ui; } }
-@media (-moz-pref("zzglass.font.preset", 2)) { :root { --zzg-font: "Segoe UI Variable Text", "Segoe UI"; } }
-@media (-moz-pref("zzglass.font.preset", 3)) { :root { --zzg-font: "Inter"; } }
-@media (-moz-pref("zzglass.font.preset", 4)) { :root { --zzg-font: "SF Pro Text", "Helvetica Neue"; } }
-@media (-moz-pref("zzglass.font.preset", 5)) { :root { --zzg-font: "Roboto"; } }
-@media (-moz-pref("zzglass.font.preset", 6)) { :root { --zzg-font: "Noto Sans"; } }
-@media (-moz-pref("zzglass.font.preset", 7)) { :root { --zzg-font: "IBM Plex Sans"; } }
-@media (-moz-pref("zzglass.font.preset", 8)) { :root { --zzg-font: "JetBrains Mono"; } }
-@media (-moz-pref("zzglass.font.preset", 9)) { :root { --zzg-font: "Cascadia Code", Consolas; } }
+@media (-moz-pref("zzglass.font.preset", 20)) { :root { --zzg-font: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui; } }
+@media (-moz-pref("zzglass.font.preset", 21)) { :root { --zzg-font: "Lexend", "Lexend Deca", system-ui; } }
+@media (-moz-pref("zzglass.font.preset", 22)) { :root { --zzg-font: "OpenDyslexic", "OpenDyslexic3", "Open Dyslexic", system-ui; } }
+@media (-moz-pref("zzglass.font.preset", 23)) { :root { --zzg-font: "Andika", "Andika New Basic", system-ui; } }
+@media (-moz-pref("zzglass.font.preset", 24)) { :root { --zzg-font: "Luciole", system-ui; } }
+@media (-moz-pref("zzglass.font.preset", 25)) { :root { --zzg-font: "Comic Sans MS", "Comic Neue", system-ui; } }
+@media (-moz-pref("zzglass.font.preset", 26)) { :root { --zzg-font: Verdana, Geneva, system-ui; } }
+@media (-moz-pref("zzglass.font.preset", 27)) { :root { --zzg-font: Tahoma, Geneva, system-ui; } }
+@media (-moz-pref("zzglass.font.preset", 28)) { :root { --zzg-font: "Century Gothic", "URW Gothic", system-ui; } }
+@media (-moz-pref("zzglass.font.preset", 29)) { :root { --zzg-font: "Trebuchet MS", system-ui; } }
+@media (-moz-pref("zzglass.font.preset", 30)) { :root { --zzg-font: "Open Sans", system-ui; } }
+@media (-moz-pref("zzglass.font.preset", 2)) { :root { --zzg-font: "Segoe UI Variable Text", "Segoe UI", system-ui; } }
+@media (-moz-pref("zzglass.font.preset", 3)) { :root { --zzg-font: "Inter", system-ui; } }
+@media (-moz-pref("zzglass.font.preset", 4)) { :root { --zzg-font: "SF Pro Text", "Helvetica Neue", system-ui; } }
+@media (-moz-pref("zzglass.font.preset", 5)) { :root { --zzg-font: "Roboto", system-ui; } }
+@media (-moz-pref("zzglass.font.preset", 6)) { :root { --zzg-font: "Noto Sans", system-ui; } }
+@media (-moz-pref("zzglass.font.preset", 7)) { :root { --zzg-font: "IBM Plex Sans", system-ui; } }
+@media (-moz-pref("zzglass.font.preset", 8)) { :root { --zzg-font: "JetBrains Mono", monospace; } }
+@media (-moz-pref("zzglass.font.preset", 9)) { :root { --zzg-font: "Cascadia Code", Consolas, monospace; } }
 @media (-moz-pref("zzglass.font.preset", 10)) { :root { --zzg-font: Georgia, serif; } }
 
 @media (-moz-pref("zzglass.font.enabled")) {
@@ -689,5 +703,8 @@
   menupopup, menupopup *,
   menuitem, toolbarbutton, label, description {
     font-family: var(--zzg-font) !important;
+    letter-spacing: var(--zzglass-font-letter-spacing, normal) !important;
+    word-spacing: var(--zzglass-font-word-spacing, normal) !important;
+    line-height: var(--zzglass-font-line-height, normal) !important;
   }
 }

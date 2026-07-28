@@ -1131,7 +1131,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzglass.font.preset",
-    "label": "Font *A curated list, not your installed fonts. A stylesheet cannot enumerate what is installed on your machine, so anything not listed goes in the box below. If a listed font is not installed it silently falls back.*",
+    "label": "Font *Entries marked for dyslexia or low vision follow the British Dyslexia Association style guide. The four marked 'ships with Windows' need no install. Atkinson Hyperlegible, Lexend, Andika and Open Sans are free from Google Fonts; OpenDyslexic from opendyslexic.org; Luciole from luciole-vision.com. If a font is not installed it silently falls back to the system one.*",
     "defaultValue": 1,
     "options": [
       {
@@ -1141,6 +1141,50 @@
       {
         "label": "System default",
         "value": 1
+      },
+      {
+        "label": "Atkinson Hyperlegible  -- low vision",
+        "value": 20
+      },
+      {
+        "label": "Lexend  -- reading proficiency",
+        "value": 21
+      },
+      {
+        "label": "OpenDyslexic  -- dyslexia",
+        "value": 22
+      },
+      {
+        "label": "Andika  -- literacy / early reading",
+        "value": 23
+      },
+      {
+        "label": "Luciole  -- low vision",
+        "value": 24
+      },
+      {
+        "label": "Comic Sans MS  -- dyslexia (ships with Windows)",
+        "value": 25
+      },
+      {
+        "label": "Verdana  -- dyslexia (ships with Windows)",
+        "value": 26
+      },
+      {
+        "label": "Tahoma  -- dyslexia (ships with Windows)",
+        "value": 27
+      },
+      {
+        "label": "Century Gothic  -- dyslexia",
+        "value": 28
+      },
+      {
+        "label": "Trebuchet MS  -- dyslexia (ships with Windows)",
+        "value": 29
+      },
+      {
+        "label": "Open Sans  -- dyslexia",
+        "value": 30
       },
       {
         "label": "Segoe UI Variable",
@@ -1186,5 +1230,26 @@
     "label": "Custom font family *Only used when Font is set to Custom. Type the family name exactly as installed, for example: Iosevka, Public Sans. Commas work as fallbacks. Not the same as Firefox Settings > Fonts, which only affects web page text.*",
     "defaultValue": "",
     "placeholder": ""
+  },
+  {
+    "type": "string",
+    "property": "zzglass.font.letter-spacing",
+    "label": "Letter spacing *Extra space between characters. The British Dyslexia Association recommends slightly increased tracking; 0.05em is a gentle lift, 0.12em is pronounced. Use 'normal' for none.*",
+    "defaultValue": "normal",
+    "placeholder": "normal"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.font.word-spacing",
+    "label": "Word spacing *Extra space between words. Roughly 0.16em is the usual accessibility suggestion. Use 'normal' for none.*",
+    "defaultValue": "normal",
+    "placeholder": "normal"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.font.line-height",
+    "label": "Line height *Mostly affects menus and multi-line labels rather than tab titles. 1.5 is the common accessibility recommendation. Use 'normal' for none.*",
+    "defaultValue": "normal",
+    "placeholder": "normal"
   }
 ]

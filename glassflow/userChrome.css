@@ -661,9 +661,11 @@
 @media (-moz-pref("zzglass.font.preset", 0)) { :root { --zzg-font: var(--zzglass-font-custom, system-ui); } }
 @media (-moz-pref("zzglass.font.preset", 1)) { :root { --zzg-font: system-ui; } }
 @media (-moz-pref("zzglass.font.preset", 20)) { :root { --zzg-font: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui; } }
-@media (-moz-pref("zzglass.font.preset", 21)) { :root { --zzg-font: "Lexend", "Lexend Deca", system-ui; } }
-@media (-moz-pref("zzglass.font.preset", 22)) { :root { --zzg-font: "OpenDyslexic", "OpenDyslexic3", "Open Dyslexic", system-ui; } }
-@media (-moz-pref("zzglass.font.preset", 23)) { :root { --zzg-font: "Andika", "Andika New Basic", system-ui; } }
+@media (-moz-pref("zzglass.font.preset", 31)) { :root { --zzg-font: "Atkinson Hyperlegible", system-ui; } }
+@media (-moz-pref("zzglass.font.preset", 32)) { :root { --zzg-font: "Atkinson Hyperlegible Mono", ui-monospace, monospace; } }
+@media (-moz-pref("zzglass.font.preset", 21)) { :root { --zzg-font: "Lexend", "Lexend Variable", "Lexend Deca", system-ui; } }
+@media (-moz-pref("zzglass.font.preset", 22)) { :root { --zzg-font: "OpenDyslexic Nerd Font", "OpenDyslexic", "OpenDyslexic3", "Open Dyslexic", system-ui; } }
+@media (-moz-pref("zzglass.font.preset", 23)) { :root { --zzg-font: "Andika", "Andika New Basic", "Andika Basic", system-ui; } }
 @media (-moz-pref("zzglass.font.preset", 24)) { :root { --zzg-font: "Luciole", system-ui; } }
 @media (-moz-pref("zzglass.font.preset", 25)) { :root { --zzg-font: "Comic Sans MS", "Comic Neue", system-ui; } }
 @media (-moz-pref("zzglass.font.preset", 26)) { :root { --zzg-font: Verdana, Geneva, system-ui; } }

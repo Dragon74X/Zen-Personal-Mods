@@ -1131,7 +1131,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzglass.font.preset",
-    "label": "Font *Entries marked for dyslexia or low vision follow the British Dyslexia Association style guide. The four marked 'ships with Windows' need no install. Atkinson Hyperlegible, Lexend, Andika and Open Sans are free from Google Fonts; OpenDyslexic from opendyslexic.org; Luciole from luciole-vision.com. If a font is not installed it silently falls back to the system one.*",
+    "label": "Font *Atkinson Hyperlegible Next is the current release and what the Braille Institute recommends: seven weights against the original's two, variable format, 150 languages, and a Mono cut. The extra weights matter here, because browser chrome uses several and the 2019 original forces the renderer to fake them. Entries marked for dyslexia follow the British Dyslexia Association style guide; the four marked 'ships with Windows' need no install. Free from Google Fonts, or brailleinstitute.org/freefont for Atkinson and opendyslexic.org for OpenDyslexic. An uninstalled font silently falls back to the system one.*",
     "defaultValue": 1,
     "options": [
       {
@@ -1143,8 +1143,16 @@
         "value": 1
       },
       {
-        "label": "Atkinson Hyperlegible  -- low vision",
+        "label": "Atkinson Hyperlegible Next  -- recommended",
         "value": 20
+      },
+      {
+        "label": "Atkinson Hyperlegible Mono  -- monospace",
+        "value": 32
+      },
+      {
+        "label": "Atkinson Hyperlegible (2019 original)",
+        "value": 31
       },
       {
         "label": "Lexend  -- reading proficiency",

@@ -430,10 +430,18 @@
     --zzg-max: var(--zzglass-buttons-max-color, rgba(0, 132, 93, 0.80));
   }
   .titlebar-buttonbox {
-    gap: var(--zzg-btn-gap) !important; align-items: center !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: var(--zzg-btn-gap) !important;
     scale: 1 !important; margin: 0 !important; transform: none !important;
-    /* pinned to the tallest state so hover growth never reflows the row */
+    /* Fixed to the tallest state. min-height alone still let the row grow,
+       and a XUL box ignores align-items until display:flex is set, so a
+       taller sibling was pushing the others down. */
+    height: calc(var(--zzg-btn-size) * max(var(--zzg-rest), var(--zzg-btn-oval))) !important;
     min-height: calc(var(--zzg-btn-size) * max(var(--zzg-rest), var(--zzg-btn-oval))) !important;
+    max-height: calc(var(--zzg-btn-size) * max(var(--zzg-rest), var(--zzg-btn-oval))) !important;
   }
   @media (-moz-pref("zzglass.buttons.side", 0)) {
     .titlebar-buttonbox-container { order: 99 !important; margin-left: auto !important; margin-right: 8px !important; }
@@ -447,7 +455,10 @@
     .titlebar-min { order: 2 !important; }
     .titlebar-max, .titlebar-restore { order: 3 !important; }
   }
-  .titlebar-buttonbox-container { align-items: center !important; }
+  .titlebar-buttonbox-container {
+    display: flex !important;
+    align-items: center !important;
+  }
 
   /* Firefox keeps both .titlebar-max and .titlebar-restore in the DOM and
      hides one via display:none. Forcing display:flex on every button
@@ -470,7 +481,9 @@
     height: calc(var(--zzg-btn-size) * var(--zzg-rest)) !important;
     min-height: calc(var(--zzg-btn-size) * var(--zzg-rest)) !important;
     border-radius: calc(var(--zzg-btn-size) / 2) !important;
-    align-self: center !important; position: relative !important;
+    align-self: center !important;
+    flex: 0 0 auto !important;
+    position: relative !important;
     scale: 1 !important;
     content: none !important; opacity: var(--zzg-btn-op) !important;
     box-shadow: 0 1px 3px rgb(0 0 0 / 0.25) !important;

@@ -444,7 +444,6 @@
     display: flex !important;
     flex-direction: row !important;
     align-items: center !important;
-    min-width: calc(var(--zzg-btn-size) * var(--zzg-width) * 3 + var(--zzg-btn-gap) * 2) !important;
     gap: var(--zzg-btn-gap) !important;
     scale: 1 !important; margin: 0 !important; transform: none !important;
     /* Fixed to the tallest state so a growing button cannot change the row's

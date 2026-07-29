@@ -23,6 +23,10 @@ Then open Glassflow's settings and enable the two master switches.
 
 ## Settings
 
+### Font size (replaces Customize Font Size)
+
+Covers the same four surfaces CFS does -- tab bar, workspace title, find bar, workspace icons -- plus folders, the URL bar, and menus. Turn CFS off once this is on; both set `font-size` on overlapping elements, and running both means whichever mod's stylesheet loads last silently wins.
+
 ### Window buttons
 
 | Setting | Default | Notes |
@@ -31,6 +35,9 @@ Then open Glassflow's settings and enable the two master switches.
 | Side | Right end | Left end is true macOS placement |
 | Show colour at rest | on | Off = grey until hovered |
 | Close / Minimise / Maximise colour | purple / blue / green | Any CSS colour value; alpha below 1 is what makes them glassy |
+| Resting shape (height) | `1.15` | Multiple of the diameter. 1.0 is a circle |
+| Resting width | `1` | Independent of height. Combine both for a capsule in either orientation |
+| Width on hover | `1` | Applied via a compositor transform, so it can never push neighbouring buttons |
 | Diameter | `13px` | macOS uses 12px |
 | Gap | `8px` | |
 | Glyphs on hover | on | |

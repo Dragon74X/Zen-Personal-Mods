@@ -140,12 +140,6 @@
     "defaultValue": true
   },
   {
-    "type": "checkbox",
-    "property": "zzglass.startup.no-transitions",
-    "label": "Snap into place at startup *Sine loads this mod's stylesheet from JavaScript, after the window has already drawn itself with Zen's defaults. Button and font sizes therefore arrive a moment late, and because those properties are animated, the correction slides visibly instead of just being there. This holds transitions off until startup settles, so it snaps once. It cannot remove the delay itself, only the animation of it.*",
-    "defaultValue": true
-  },
-  {
     "type": "separator",
     "label": "Selected tab",
     "size": "17px",
@@ -955,16 +949,9 @@
   {
     "type": "string",
     "property": "zzglass.buttons.oval-height",
-    "label": "Oval height on hover *A multiple of the diameter, applied on top of the Resting shape below. 1.3 with a resting height of 1.15 stretches further on hover; 1.0 cancels hover growth entirely.*",
+    "label": "Oval height multiplier *Multiple of the diameter. 1.3 is a soft oval.*",
     "defaultValue": "1.3",
     "placeholder": "1.3"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.buttons.rest-width",
-    "label": "Resting width *Width as a multiple of the button's diameter, independent of height. 1.0 is normal width, 1.4 is noticeably wider, below 1.0 narrows it. Combine with Resting shape (height) for a capsule in either orientation.*",
-    "defaultValue": "1",
-    "placeholder": "1"
   },
   {
     "type": "string",
@@ -972,13 +959,6 @@
     "label": "Resting shape *Height as a multiple of the width. 1.0 is a circle, 1.15 a subtle capsule, 1.4 clearly elongated. The corner curve stays fixed at half the button width, so taller values give flat sides with the same round caps rather than stretching into an ellipse.*",
     "defaultValue": "1.15",
     "placeholder": "1.15"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.buttons.hover-width",
-    "label": "Width on hover *A multiple of the diameter, applied via a compositor transform so it cannot push the other buttons sideways. 1 means hover does not change width, matching Resting width means no change either. Try 1.3 for a button that widens rather than lengthens on hover.*",
-    "defaultValue": "1",
-    "placeholder": "1"
   },
   {
     "type": "checkbox",
@@ -1144,7 +1124,7 @@
   {
     "type": "checkbox",
     "property": "zzglass.font.enabled",
-    "label": "Set the interface font *Changes tab labels, menus and toolbar text. Never touches web pages. This box only changes the typeface. Font SIZE is a separate switch below.*",
+    "label": "Set the interface font *Changes tab labels, menus and toolbar text. Never touches web pages. Font SIZE is left alone on purpose so the Customize Font Size mod keeps ownership of it. Remember to pick a font below, or nothing will look different.*",
     "defaultValue": false
   },
   {
@@ -1177,10 +1157,6 @@
       {
         "label": "Lexend  -- reading proficiency",
         "value": 21
-      },
-      {
-        "label": "Lexend Deca",
-        "value": 33
       },
       {
         "label": "OpenDyslexic  -- dyslexia",
@@ -1283,66 +1259,5 @@
     "label": "Line height *Mostly affects menus and multi-line labels rather than tab titles. 1.5 is the common accessibility recommendation. Use 'normal' for none.*",
     "defaultValue": "normal",
     "placeholder": "normal"
-  },
-  {
-    "type": "separator",
-    "label": "Interface font size",
-    "size": "17px",
-    "margin": "24px 0 10px 0"
-  },
-  {
-    "type": "checkbox",
-    "property": "zzglass.font.size.enabled",
-    "label": "Set interface font sizes *Replaces the Customize Font Size mod: same four surfaces it covered (tab bar, workspace title, find bar, workspace icons), plus folders, the URL bar and menus. Turn OFF Customize Font Size if you enable this -- both target font-size on overlapping elements, and running both means whichever loads last quietly wins, whichever mod that turns out to be.*",
-    "defaultValue": false
-  },
-  {
-    "type": "string",
-    "property": "zzglass.font.size.tabs",
-    "label": "Tab bar text size *Same element Customize Font Size calls 'Tabbar tabs'. Accepts em or px, for example 1.3em or 20px.*",
-    "defaultValue": "1.3em",
-    "placeholder": "1.3em"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.font.size.workspace-title",
-    "label": "Workspace title size *The current workspace's name, shown above the sidebar.*",
-    "defaultValue": "1.5em",
-    "placeholder": "1.5em"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.font.size.searchbar",
-    "label": "Find bar text size *The in-page search bar, Ctrl+F.*",
-    "defaultValue": "1.4em",
-    "placeholder": "1.4em"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.font.size.footer",
-    "label": "Workspace icon size *The workspace switcher icons at the bottom of the sidebar. CFS calls this an icon size but implements it as font-size, since the icons are glyphs; kept identical here for a clean replacement.*",
-    "defaultValue": "1.5em",
-    "placeholder": "1.5em"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.font.size.folders",
-    "label": "Folder label size *Tab group names. Not covered by Customize Font Size.*",
-    "defaultValue": "1.1em",
-    "placeholder": "1.1em"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.font.size.urlbar",
-    "label": "URL bar text size *Not covered by Customize Font Size.*",
-    "defaultValue": "1em",
-    "placeholder": "1em"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.font.size.menus",
-    "label": "Menu text size *Right-click menus and dropdown panels. Not covered by Customize Font Size.*",
-    "defaultValue": "1em",
-    "placeholder": "1em"
   }
 ]

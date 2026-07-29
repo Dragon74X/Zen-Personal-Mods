@@ -645,6 +645,35 @@
 }
 
 /* ============================================================
+   STARTUP
+
+   Sine injects this sheet from JS via windowUtils.loadSheet(), which runs
+   after the window has already painted with Zen's defaults. Anything here
+   that changes layout -- button size, font size -- therefore lands as a
+   second pass, and because those properties are also transitioned, the
+   correction ANIMATES rather than simply being there. That animation is
+   most of what reads as "jumping".
+
+   Firefox sets sessionrestored on the root once startup settles, so
+   transitions are held off until then. The reflow still happens; it just
+   snaps once instead of sliding into place.
+   ============================================================ */
+
+@media (-moz-pref("zzglass.startup.no-transitions")) {
+  :root:not([sessionrestored]) .titlebar-button,
+  :root:not([sessionrestored]) .titlebar-button::after,
+  :root:not([sessionrestored]) .titlebar-buttonbox,
+  :root:not([sessionrestored]) .tabbrowser-tab .tab-background,
+  :root:not([sessionrestored]) .tabbrowser-tab .tab-stack .tab-background,
+  :root:not([sessionrestored]) .tab-group-label-container,
+  :root:not([sessionrestored]) #zen-toolbar-background,
+  :root:not([sessionrestored]) #navigator-toolbox {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* ============================================================
    FOCUS FLICKER
    Zen greys inactive windows (zen.view.grey-out-inactive-windows) and
    light-dark() re-resolves on focus change. With transitions armed the

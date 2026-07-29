@@ -140,6 +140,12 @@
     "defaultValue": true
   },
   {
+    "type": "checkbox",
+    "property": "zzglass.startup.no-transitions",
+    "label": "Snap into place at startup *Sine loads this mod's stylesheet from JavaScript, after the window has already drawn itself with Zen's defaults. Button and font sizes therefore arrive a moment late, and because those properties are animated, the correction slides visibly instead of just being there. This holds transitions off until startup settles, so it snaps once. It cannot remove the delay itself, only the animation of it.*",
+    "defaultValue": true
+  },
+  {
     "type": "separator",
     "label": "Selected tab",
     "size": "17px",

@@ -60,7 +60,27 @@
     for (const r of rules()) {
       if (r.domains.some(d => host === d || host.endsWith("." + d))) return r.group;
     }
-    if (bool("auto-unmatched", false)) return baseDomain(host);
+    // Fully automatic: derive the folder path from the host itself, so a
+    // site you have never visited before still lands somewhere sensible
+    // without any rule existing for it.
+    if (bool("auto-unmatched", false)) {
+      const base = baseDomain(host);
+      const parent = titleCase(base);
+      if (!bool("auto-subdomains", true)) return parent;
+
+      // "docs.proton.me" with base "proton.me" leaves "docs".
+      // "www" is noise, not a meaningful subdomain.
+      let sub = host.length > base.length
+        ? host.slice(0, host.length - base.length - 1)
+        : "";
+      sub = sub.replace(/^www$/i, "").replace(/^www\./i, "");
+      if (!sub) return parent;
+
+      // a.b.example.com -> Example / B / A, outermost first
+      const depth = Math.max(1, num("auto-depth", 1));
+      const parts = sub.split(".").reverse().slice(0, depth).map(titleCase);
+      return [parent, ...parts].join(SEP());
+    }
     return null;
   }
 
@@ -254,19 +274,46 @@
     // arrives pinned. Whether it can be unpinned and STAY in the folder is
     // not documented anywhere, so this attempts it and reports the result
     // instead of assuming either way.
-    if (bool("unpin-in-folders", false)) {
-      try {
-        if (tab.pinned && typeof gBrowser.unpinTab === "function") {
-          gBrowser.unpinTab(tab);
-        }
-        const stillIn = !!(tab.closest && tab.closest("zen-folder"));
-        note(`unpin "${tab.label}": pinned=${tab.pinned} stillInFolder=${stillIn}` +
-             (!stillIn ? "  <-- unpinning ejected it; leave this option off" : ""));
-      } catch (e) {
-        note(`unpin failed on "${tab.label}": ${e}`);
-      }
-    }
+    if (bool("unpin-in-folders", false)) unpinAttempt(tab, target);
     return true;
+  }
+
+  // Zen folders sit in the pinned area by construction: setFolderIndentation
+  // returns early unless gZenPinnedTabManager.expandedSidebarMode is on, and
+  // gZenFolders subscribes to handleTabPin/handleTabUnpin. Two things are
+  // worth trying and neither is documented, so both are attempted and the
+  // outcome is reported rather than assumed.
+  function unpinAttempt(tab, folder) {
+    let folderResult = "not tried";
+    try {
+      if (folder && folder.pinned === true) {
+        folder.pinned = false;
+        folderResult = folder.pinned ? "refused" : "accepted";
+      } else {
+        folderResult = "already unpinned";
+      }
+    } catch (e) {
+      folderResult = `threw (${e})`;
+    }
+
+    let tabResult = "not tried";
+    let stillIn = true;
+    try {
+      if (tab.pinned && typeof gBrowser.unpinTab === "function") {
+        gBrowser.unpinTab(tab);
+        tabResult = tab.pinned ? "refused" : "accepted";
+      } else {
+        tabResult = "already unpinned";
+      }
+      stillIn = !!(tab.closest && tab.closest("zen-folder"));
+    } catch (e) {
+      tabResult = `threw (${e})`;
+    }
+
+    note(`unpin "${tab.label}": folder.pinned=${folderResult} ` +
+         `tab.unpin=${tabResult} stillInFolder=${stillIn}` +
+         (!stillIn ? "   <-- EJECTED: Zen requires folder members to be pinned" : ""));
+    return stillIn;
   }
 
   // ---- rule generation --------------------------------------------------
@@ -360,6 +407,18 @@
       suggestRules,
       groups: () => groups().map(g => g.label),
       // Reports whether folders can hold unpinned tabs on this build.
+      // Runs the unpin experiment on one folder tab and reports, without
+      // touching anything else. Use this before enabling it for real.
+      testUnpin() {
+        const f = allFolders()[0];
+        if (!f) return "no folders exist yet";
+        const tab = [...(f.allItemsRecursive ?? [])].find(t => gBrowser.isTab(t));
+        if (!tab) return `folder "${f.label}" has no tabs`;
+        const kept = unpinAttempt(tab, f);
+        return kept
+          ? "tab stayed in the folder unpinned -- safe to enable"
+          : "tab was ejected -- Zen folders require pinned members";
+      },
       pinReport() {
         return allFolders().map(f => ({
           label: f.label,

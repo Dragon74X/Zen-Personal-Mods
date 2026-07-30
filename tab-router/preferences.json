@@ -36,6 +36,12 @@
     "placeholder": " / "
   },
   {
+    "type": "checkbox",
+    "property": "zzrouter.unpin-in-folders",
+    "label": "Try to unpin tabs placed in folders *Zen folders live in the pinned area, so a tab filed into one arrives pinned. This attempts to unpin it afterwards. Whether the tab then stays in the folder is not documented, so the log reports pinned and stillInFolder for each attempt. If it says the tab was ejected, turn this back off. Leave it off until you have checked the log once.*",
+    "defaultValue": false
+  },
+  {
     "type": "string",
     "property": "zzrouter.rules",
     "label": "Rules *One per line, or separated by semicolons. Left of the > is a comma separated list of domains, right of it is the group name. Subdomains match automatically, so github.com also catches gist.github.com. First match wins, so put narrower rules first. You do not have to write these by hand: open the Browser Console and run TabRouter.suggestRules() to generate a block from the tabs you already have open, or TabRouter.suggestRules({subdomains:true}) to get a nested Parent / Child rule per subdomain. It copies to your clipboard and moves nothing.*",

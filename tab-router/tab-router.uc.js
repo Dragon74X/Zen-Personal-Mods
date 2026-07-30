@@ -92,13 +92,29 @@
       note("no API to move a tab into an existing group on this build");
       return false;
     }
-    if (!bool("create-groups", true)) return false;
+    if (!bool("create-groups", true)) {
+      note(`"${name}" does not exist and group creation is switched off`);
+      return false;
+    }
     if (typeof gBrowser.addTabGroup !== "function") {
       note("gBrowser.addTabGroup missing -- cannot create groups on this build");
       return false;
     }
-    gBrowser.addTabGroup([tab], { label: name });
-    return true;
+    try {
+      const made = gBrowser.addTabGroup([tab], { label: name });
+      if (!made) {
+        note(`addTabGroup("${name}") returned nothing -- group NOT created`);
+        return false;
+      }
+      // Zen routes some group creation through folders; report what we got
+      // rather than assuming it is a plain tab-group.
+      note(`created ${made.tagName || "?"} "${name}"` +
+           (made.pinned ? " (pinned)" : ""));
+      return true;
+    } catch (e) {
+      note(`addTabGroup("${name}") threw: ${e}`);
+      return false;
+    }
   }
 
   function skip(tab) {
@@ -231,6 +247,25 @@
     } catch (e) {
       note(`addTabs failed on "${target.label}": ${e}`);
     }
+
+    // Zen folders live in the pinned area: setFolderIndentation returns
+    // early unless gZenPinnedTabManager.expandedSidebarMode is on, and
+    // gZenFolders subscribes to tab pin/unpin. So a tab filed into a folder
+    // arrives pinned. Whether it can be unpinned and STAY in the folder is
+    // not documented anywhere, so this attempts it and reports the result
+    // instead of assuming either way.
+    if (bool("unpin-in-folders", false)) {
+      try {
+        if (tab.pinned && typeof gBrowser.unpinTab === "function") {
+          gBrowser.unpinTab(tab);
+        }
+        const stillIn = !!(tab.closest && tab.closest("zen-folder"));
+        note(`unpin "${tab.label}": pinned=${tab.pinned} stillInFolder=${stillIn}` +
+             (!stillIn ? "  <-- unpinning ejected it; leave this option off" : ""));
+      } catch (e) {
+        note(`unpin failed on "${tab.label}": ${e}`);
+      }
+    }
     return true;
   }
 
@@ -324,6 +359,16 @@
       // suggestRules({minTabs:2})             -> ignore one-off domains
       suggestRules,
       groups: () => groups().map(g => g.label),
+      // Reports whether folders can hold unpinned tabs on this build.
+      pinReport() {
+        return allFolders().map(f => ({
+          label: f.label,
+          folderPinned: f.pinned,
+          tabs: [...(f.allItemsRecursive ?? [])]
+            .filter(t => gBrowser.isTab(t))
+            .map(t => ({ title: t.label, pinned: t.pinned })),
+        }));
+      },
       folderTree() {
         const walk = (parent, depth) => allFolders()
           .filter(f => directParentFolder(f) === parent)

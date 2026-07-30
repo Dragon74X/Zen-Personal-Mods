@@ -1,0 +1,112 @@
+[
+  {
+    "type": "separator",
+    "label": "Tab Router",
+    "size": "20px",
+    "margin": "2px 0 12px 0"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzrouter.enabled",
+    "label": "Turn on routing *Moves tabs into tab groups automatically as you browse, using the rules below. Nothing moves until you write at least one rule.*",
+    "defaultValue": false
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzrouter.target",
+    "label": "Sort into *Zen folders are the native folders in your sidebar and they nest, so a rule named Google / Docs creates a Docs subfolder inside Google. Tab groups are the flatter Firefox primitive with no nesting, where the same rule just becomes a group literally called Google / Docs. Folders need Zen's gZenFolders, and it falls back to groups if that is missing rather than doing nothing.*",
+    "defaultValue": 1,
+    "options": [
+      {
+        "label": "Tab groups (flat)",
+        "value": 0
+      },
+      {
+        "label": "Zen folders (nested)",
+        "value": 1
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzrouter.folder-separator",
+    "label": "Subfolder separator *Splits a rule's group name into folder levels. With the default, Work / Email / Gmail creates three levels deep. Only used when sorting into Zen folders. Include the spaces if you want them.'/' with no spaces works too.'*",
+    "defaultValue": " / ",
+    "placeholder": " / "
+  },
+  {
+    "type": "string",
+    "property": "zzrouter.rules",
+    "label": "Rules *One per line, or separated by semicolons. Left of the > is a comma separated list of domains, right of it is the group name. Subdomains match automatically, so github.com also catches gist.github.com. First match wins, so put narrower rules first. You do not have to write these by hand: open the Browser Console and run TabRouter.suggestRules() to generate a block from the tabs you already have open, or TabRouter.suggestRules({subdomains:true}) to get a nested Parent / Child rule per subdomain. It copies to your clipboard and moves nothing.*",
+    "defaultValue": "github.com, gitlab.com > Dev ; youtube.com > Watch",
+    "placeholder": "github.com, gitlab.com > Dev ; youtube.com > Watch"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzrouter.auto-unmatched",
+    "label": "Group anything without a rule by its domain *Tabs no rule matches get a group named after their site. Convenient, but it creates a group for every site you visit, so most people leave this off and add rules as they go.*",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
+    "property": "zzrouter.create-groups",
+    "label": "Create groups that do not exist yet *Off means tabs are only moved into groups you already made by hand, and rules naming a missing group do nothing.*",
+    "defaultValue": true
+  },
+  {
+    "type": "separator",
+    "label": "Leave alone",
+    "size": "17px",
+    "margin": "22px 0 10px 0"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzrouter.skip-grouped",
+    "label": "Tabs already in a group *The important one. On, routing only ever touches loose tabs, so anything you filed by hand stays put. Turn it off only if you want rules to override your own sorting.*",
+    "defaultValue": true
+  },
+  {
+    "type": "checkbox",
+    "property": "zzrouter.skip-essentials",
+    "label": "Essentials *Essentials are pinned deliberately and are not loose tabs.*",
+    "defaultValue": true
+  },
+  {
+    "type": "checkbox",
+    "property": "zzrouter.skip-pinned",
+    "label": "Pinned tabs *Separate from Essentials.*",
+    "defaultValue": true
+  },
+  {
+    "type": "separator",
+    "label": "Timing",
+    "size": "17px",
+    "margin": "22px 0 10px 0"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzrouter.sort-on-startup",
+    "label": "Sort everything at startup *Runs one pass a few seconds after the window opens. Off by default, since a session restore moving dozens of tabs at once is jarring.*",
+    "defaultValue": false
+  },
+  {
+    "type": "string",
+    "property": "zzrouter.delay-ms",
+    "label": "Wait before routing (milliseconds) *How long to wait after a page loads before moving its tab. A short delay avoids chasing redirects, which would otherwise file a tab under the redirector instead of the destination.*",
+    "defaultValue": "400",
+    "placeholder": "400"
+  },
+  {
+    "type": "separator",
+    "label": "Troubleshooting",
+    "size": "17px",
+    "margin": "22px 0 10px 0"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzrouter.debug",
+    "label": "Log what it is doing *Prints to the Browser Console (Ctrl+Shift+J) under [TabRouter]. Also gives you TabRouter.preview(), which lists every tab with the group it would go to without moving anything, and TabRouter.sortAll() to run one pass on demand.*",
+    "defaultValue": false
+  }
+]

@@ -32,7 +32,15 @@
 
 /* Gradient controls, Glassflow-style. Direction 0 inherits Glassflow's
    own tab gradient direction so both move together. */
-:root { --zzgf-dir: var(--zzg-dir, 135deg); }
+:root {
+  --zzgf-dir: var(--zzg-dir, 135deg);
+  /* Connector geometry derives from thickness: a fixed-size elbow with a
+     thick border is a blob, not a curve. Radius grows with the line so the
+     sweep stays a sweep at any width. */
+  --zzgf-w: max(var(--zzgroup-guide-width, 1px), 1px);
+  --zzgf-r: max(10px, calc(var(--zzgf-w) * 3));
+  --zzgf-pad: calc(var(--zzgf-r) + 2px);
+}
 @media (-moz-pref("zzgroup.gradient-direction", 1)) { :root { --zzgf-dir: to bottom; } }
 @media (-moz-pref("zzgroup.gradient-direction", 2)) { :root { --zzgf-dir: to top; } }
 @media (-moz-pref("zzgroup.gradient-direction", 3)) { :root { --zzgf-dir: to right; } }
@@ -171,12 +179,14 @@
     left: 0;
     top: 0;
     bottom: 4px;
-    width: max(var(--zzgroup-guide-width, 1px), 1px);
+    width: var(--zzgf-w);
     border-radius: 99px;
+    /* Percentage stops: pixel stops cross over on short groups, which made
+       every group fade by a different amount. */
     background: linear-gradient(to bottom,
-      transparent 0,
-      color-mix(in srgb, var(--zzgf-accent) 40%, transparent) 10px,
-      color-mix(in srgb, var(--zzgf-accent) 40%, transparent) calc(100% - 14px),
+      transparent 0%,
+      color-mix(in srgb, var(--zzgf-accent) 40%, transparent) 10%,
+      color-mix(in srgb, var(--zzgf-accent) 40%, transparent) 88%,
       transparent 100%);
     pointer-events: none;
   }
@@ -191,7 +201,7 @@
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container {
     position: relative;
     margin-left: 7px !important;
-    padding-left: 12px !important;
+    padding-left: var(--zzgf-pad) !important;
   }
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container::before {
     content: "";
@@ -199,12 +209,12 @@
     left: 0;
     top: -2px;
     bottom: 8px;
-    width: max(var(--zzgroup-guide-width, 1px), 2px);
+    width: var(--zzgf-w);
     border-radius: 99px;
     background: linear-gradient(to bottom,
-      transparent 0,
-      color-mix(in srgb, var(--zzgf-accent) 45%, transparent) 14px,
-      color-mix(in srgb, var(--zzgf-accent) 45%, transparent) calc(100% - 18px),
+      transparent 0%,
+      color-mix(in srgb, var(--zzgf-accent) 45%, transparent) 8%,
+      color-mix(in srgb, var(--zzgf-accent) 45%, transparent) 90%,
       transparent 100%);
     pointer-events: none;
   }
@@ -214,15 +224,15 @@
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > :is(.tabbrowser-tab, tab-group)::after {
     content: "";
     position: absolute;
-    left: -11px;
-    top: calc(50% - 11px);
-    width: 10px;
-    height: 11px;
-    border-left: max(var(--zzgroup-guide-width, 1px), 1.5px) solid
+    left: calc(-1 * var(--zzgf-pad));
+    top: calc(50% - var(--zzgf-r));
+    width: var(--zzgf-pad);
+    height: var(--zzgf-r);
+    border-left: var(--zzgf-w) solid
       color-mix(in srgb, var(--zzgf-accent) 45%, transparent);
-    border-bottom: max(var(--zzgroup-guide-width, 1px), 1.5px) solid
+    border-bottom: var(--zzgf-w) solid
       color-mix(in srgb, var(--zzgf-accent) 45%, transparent);
-    border-bottom-left-radius: 10px;
+    border-bottom-left-radius: var(--zzgf-r);
     opacity: 0.7;
     transition: opacity 0.15s ease;
     pointer-events: none;
@@ -231,9 +241,11 @@
     opacity: 1;
   }
   /* Subgroup curves sweep into the header line, not the body middle. */
+  /* Subgroup curves sweep into the header line (~14px down), never
+     negative however thick the line gets. */
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
-    top: 4px;
-    height: 10px;
+    top: max(0px, calc(14px - var(--zzgf-r)));
+    height: min(var(--zzgf-r), 14px);
   }
 }
 
@@ -417,6 +429,20 @@
   }
   #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label {
     text-align: end !important;
+  }
+}
+
+/* ---- other mods' connectors --------------------------------------- */
+/* Advanced Tab Groups and Folder Tree Connectors draw their own group
+   lines; with Groupflow's connectors on, they double up. This strips
+   the borders and shadows they hang on group bodies. */
+@media (-moz-pref("zzgroup.hide-other-connectors")) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container,
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab {
+    border-left-color: transparent !important;
+    border-inline-start-width: 0 !important;
+    box-shadow: none !important;
+    outline: none !important;
   }
 }
 

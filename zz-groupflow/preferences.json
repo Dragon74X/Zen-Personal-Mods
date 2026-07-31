@@ -329,9 +329,15 @@
   {
     "type": "string",
     "property": "zzgroup.guide-width",
-    "label": "Connector line width *Used by the Line, Branches and Fill + Line styles.*",
-    "defaultValue": "1px",
-    "placeholder": "1px"
+    "label": "Connector thickness *All connector geometry scales from this: the curve radius grows with the line, so branches stay curves instead of turning into blobs when thick. 1 to 2px reads cleanest; above 4px the tree gets loud.*",
+    "defaultValue": "2px",
+    "placeholder": "2px"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.hide-other-connectors",
+    "label": "Hide other mods' group lines *Advanced Tab Groups and Zen Folder Tree Connectors draw their own lines down tab groups, which double up with Groupflow's. This strips the borders and shadows they hang on group bodies. If a stray line survives it is drawn some other way and needs identifying in the Browser Toolbox.*",
+    "defaultValue": true
   },
   {
     "type": "checkbox",

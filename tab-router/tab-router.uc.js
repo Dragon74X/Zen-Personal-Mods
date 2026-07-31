@@ -231,8 +231,10 @@
     const set = new Set();
     try { for (const g of gBrowser.tabGroups) set.add(g); } catch {}
     try { for (const g of document.querySelectorAll("tab-group")) set.add(g); } catch {}
-    // Zen folders subclass tab-group but live pinned; leave them alone.
-    return [...set].filter(g => g.tagName === "tab-group" && !g.isZenFolder);
+    // Zen folders subclass tab-group but live pinned; split-view wrappers
+    // are positional artifacts. Leave both alone.
+    return [...set].filter(g => g.tagName === "tab-group" && !g.isZenFolder &&
+                                !g.hasAttribute("split-view-group"));
   }
 
   const parentOf = (g) => g?.parentElement?.closest("tab-group") ?? null;
@@ -428,6 +430,7 @@
         return !!parent;
       }
       if (!g) { note(`addTabGroup("${name}") returned nothing`); return !!parent; }
+      g.setAttribute("data-zzrouter-created", Date.now());
       if (!parent && ws && !wsOf(g)) g.setAttribute("zen-workspace-id", ws);
       if (parent && parentOf(g) !== parent) {
         // ponytail: no repair attempt; report and keep the flat group
@@ -437,6 +440,85 @@
       parent = g;
     }
     return true;
+  }
+
+  // ---- ordering ----------------------------------------------------------
+  // Inside every group: loose tabs on top, subgroups below them. Groups and
+  // subgroups sorted alphabetically (default), by creation time, or left
+  // manual. Pure sibling reordering inside one container -- never crosses a
+  // group or workspace boundary, so it cannot ghost or refile anything.
+
+  function orderCmp(mode) {
+    return (a, b) => {
+      if (mode === 1) {
+        const ca = +(a.getAttribute("data-zzrouter-created") || 0);
+        const cb = +(b.getAttribute("data-zzrouter-created") || 0);
+        if (ca !== cb) return ca - cb;   // hand-made groups (no stamp) sort oldest
+      }
+      return (a.label || "").localeCompare(b.label || "", undefined, { sensitivity: "base" });
+    };
+  }
+
+  const domOrder = (els) => els.slice().sort((a, b) =>
+    (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) ? -1 : 1);
+
+  function mvEl(el, fn) {
+    try {
+      if (typeof gBrowser.zenHandleTabMove === "function") gBrowser.zenHandleTabMove(el, fn);
+      else fn();
+    } catch (e) { note(`order move failed on "${el.label ?? el.className}": ${e}`); }
+  }
+
+  // Reorders els among themselves at the position of their current block;
+  // loose siblings outside `els` keep their place.
+  function reorderBlock(parentNode, els, sorted) {
+    if (els.length < 2) return;
+    const next = domOrder(els).at(-1).nextSibling;
+    for (const el of sorted) mvEl(el, () => parentNode.insertBefore(el, next));
+  }
+
+  function applyOrder() {
+    const mode = num("sort-mode", 0);          // 0 alpha, 1 created, 2 manual
+    const tabsFirst = bool("tabs-first", true);
+    if (mode === 2 && !tabsFirst) return;
+    const cmp = orderCmp(mode);
+    const all = groups().filter(g => !g.pinned);
+
+    // Root-level groups, per containing section (keeps workspaces intact).
+    if (mode !== 2) {
+      const byParent = new Map();
+      for (const g of all) {
+        if (parentOf(g)) continue;
+        const p = g.parentElement;
+        if (!p) continue;
+        if (!byParent.has(p)) byParent.set(p, []);
+        byParent.get(p).push(g);
+      }
+      for (const [p, gs] of byParent) reorderBlock(p, gs, gs.slice().sort(cmp));
+    }
+
+    // Inside each group.
+    for (const g of all) {
+      const c = g.groupContainer ?? g.querySelector(".tab-group-container");
+      if (!c) continue;
+      const subs = [...c.children].filter(el => el.tagName === "tab-group");
+      if (!subs.length) continue;
+      const sorted = mode === 2 ? domOrder(subs) : subs.slice().sort(cmp);
+      if (tabsFirst) {
+        // Appending every subgroup to the container end leaves all loose
+        // tabs above them, in their existing order -- including tabs that
+        // were just filed below a subgroup.
+        for (const sg of sorted) mvEl(sg, () => c.appendChild(sg));
+      } else {
+        reorderBlock(c, subs, sorted);
+      }
+    }
+  }
+
+  let orderTimer = null;
+  function scheduleOrder() {
+    clearTimeout(orderTimer);
+    orderTimer = setTimeout(() => { try { applyOrder(); } catch (e) { note(`applyOrder: ${e}`); } }, 600);
   }
 
   function skip(tab) {
@@ -475,8 +557,10 @@
     const parts = targetPath(tab);
     if (!parts?.length) { note(`no rule for ${hostOf(tab) ?? tab.label}`); return; }
     try {
-      if (placeInPath(tab, parts))
+      if (placeInPath(tab, parts)) {
         note(`${why}: ${hostOf(tab)} -> ${parts.join(SEP())}`);
+        scheduleOrder();
+      }
     } catch (e) {
       note(`failed routing ${tab.label}: ${e}`);
     }
@@ -501,6 +585,7 @@
       if (tab.group !== before) n++;
     }
     note(`${why}: moved ${n}`);
+    if (n) scheduleOrder();
     return n;
   }
 
@@ -705,6 +790,8 @@
         } catch {}
         return r;
       },
+      // Re-sorts groups/subgroups and pushes loose tabs above subgroups now.
+      applyOrder,
       // Names learned automatically from tab titles (slug -> name).
       learned: () => Object.fromEntries(learnedMap()),
       forget(slug) {

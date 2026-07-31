@@ -130,6 +130,39 @@
   },
   {
     "type": "separator",
+    "label": "Sorting",
+    "size": "17px",
+    "margin": "22px 0 10px 0"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzrouter.sort-mode",
+    "label": "Order groups and subgroups *Applies to groups at every level, in every workspace, after each routing pass. Creation order uses a timestamp stamped on groups this mod creates; groups made by hand have none and sort first. Manual leaves your arrangement untouched.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Alphabetical",
+        "value": 0
+      },
+      {
+        "label": "By creation date",
+        "value": 1
+      },
+      {
+        "label": "Manual (no sorting)",
+        "value": 2
+      }
+    ]
+  },
+  {
+    "type": "checkbox",
+    "property": "zzrouter.tabs-first",
+    "label": "Loose tabs above subgroups *Inside a group, individual tabs sit on top and subgroups below them. A tab newly filed into the main group is lifted above the subgroups on the next pass. Works in every sort mode, including manual.*",
+    "defaultValue": true
+  },
+  {
+    "type": "separator",
     "label": "Leave alone",
     "size": "17px",
     "margin": "22px 0 10px 0"

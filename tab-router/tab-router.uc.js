@@ -711,6 +711,13 @@
   // route per tab, restarted on each change, means only the final URL is
   // ever processed.
   const pendingRoute = new WeakMap();
+  function queueRoute(tab, why) {
+    clearTimeout(pendingRoute.get(tab));
+    pendingRoute.set(tab, setTimeout(() => {
+      pendingRoute.delete(tab);
+      route(tab, why);
+    }, num("delay-ms", 400)));
+  }
   const progress = {
     onLocationChange(browser, _wp, _req, _loc, _flags) {
       // Same-document changes are NOT skipped: SPAs like YouTube and Nexus
@@ -718,14 +725,20 @@
       // harmless -- the debounce coalesces it and an unchanged target path
       // no-ops in placeInPath.
       const tab = gBrowser.getTabForBrowser(browser);
-      if (!tab) return;
-      clearTimeout(pendingRoute.get(tab));
-      pendingRoute.set(tab, setTimeout(() => {
-        pendingRoute.delete(tab);
-        route(tab, "navigate");
-      }, num("delay-ms", 400)));
+      if (tab) queueRoute(tab, "navigate");
     },
   };
+
+  // Second trigger for SPA navigation: sites like YouTube retitle the tab
+  // on every pushState, and TabAttrModified(label) reliably fires for that
+  // even when the same-document location change never reaches a tabs
+  // progress listener. Converges on the same per-tab debounce; a title
+  // change with an unchanged target path no-ops in placeInPath.
+  function onAttrModified(event) {
+    if (!event.detail?.changed?.includes("label")) return;
+    const tab = event.target;
+    if (tab?.linkedBrowser) queueRoute(tab, "retitle");
+  }
 
   function sweepAll(why = "sweep") {
     if (!bool("enabled", false)) return 0;
@@ -810,6 +823,7 @@
 
   function start() {
     gBrowser.addTabsProgressListener(progress);
+    gBrowser.tabContainer.addEventListener("TabAttrModified", onAttrModified);
     try { Services.prefs.addObserver(P, prefObserver); } catch {}
     // Groups made or removed by hand must invalidate the cache too.
     const groupEvents = ["TabGroupCreate", "TabGroupRemoved", "TabGroupUngroup", "TabGrouped", "TabUngrouped"];
@@ -963,6 +977,7 @@
 
     window.addEventListener("unload", () => {
       try { gBrowser.removeTabsProgressListener(progress); } catch {}
+      try { gBrowser.tabContainer.removeEventListener("TabAttrModified", onAttrModified); } catch {}
       try { Services.prefs.removeObserver(P, prefObserver); } catch {}
     }, { once: true });
   }

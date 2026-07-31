@@ -225,22 +225,41 @@
 }
 
 /* ---- per-item marks ------------------------------------------------ */
-/* A small mark on the rail aimed at each tab and each subgroup. Drawn on
-   the item's own ::after in the negative space left of it, so clipping
-   must be lifted -- Zen and the glass mods clip tabs for rounded corners,
-   and a clipped mark shows up as a stub.
+/* Marks are a filled box masked to a vector shape, NOT borders and
+   rotations. Rotated CSS borders alias badly and a narrow box cannot
+   curve -- its radius is capped by its own width, which is why a thin
+   half moon came out square. An SVG mask stays smooth at any size and
+   keeps round joins.
+
+   The shape mask and the gradient mask are two layers composited with
+   intersect, so a mark can be both a shape and a fade.
 
    Tabs and subgroups have independent shape prefs. marker-sub 0 means
-   "same as tabs"; 1 is none; 2 and up are the shapes offset by one. Each
-   shape is therefore emitted twice, once per selector. */
+   "same as tabs", 1 is none, 2 and up are the shapes offset by one. */
 
 :root {
-  --zzgf-m: var(--zzgroup-marker-size, 7px);
-  --zzgf-mask-dir: to bottom;
+  /* Size times scale: size sets the base, scale multiplies everything
+     including the stroke, since the stroke lives in the vector. */
+  --zzgf-m: calc(var(--zzgroup-marker-size, 7px) * var(--zzgroup-marker-scale, 1));
+  --zzgf-maskgrad: linear-gradient(black, black);
+}
+
+@media (-moz-pref("zzgroup.marker-gradient", 1)) {
+  :root { --zzgf-maskgrad: linear-gradient(to bottom, transparent 0%, black 50%, transparent 100%); }
+}
+@media (-moz-pref("zzgroup.marker-gradient", 2)) {
+  :root { --zzgf-maskgrad: linear-gradient(to right, black 25%, transparent 100%); }
+}
+@media (-moz-pref("zzgroup.marker-gradient", 3)) {
+  :root { --zzgf-maskgrad: linear-gradient(to left, black 25%, transparent 100%); }
 }
 @media (-moz-pref("zzgroup.marker", 1)), (-moz-pref("zzgroup.marker", 2)), (-moz-pref("zzgroup.marker", 3)), (-moz-pref("zzgroup.marker", 4)), (-moz-pref("zzgroup.marker", 5)), (-moz-pref("zzgroup.marker", 6)), (-moz-pref("zzgroup.marker-sub", 2)), (-moz-pref("zzgroup.marker-sub", 3)), (-moz-pref("zzgroup.marker-sub", 4)), (-moz-pref("zzgroup.marker-sub", 5)), (-moz-pref("zzgroup.marker-sub", 6)), (-moz-pref("zzgroup.marker-sub", 7)) {
+  /* Marks live in the negative space left of each row, so clipping has to
+     be lifted -- Zen and the glass mods clip tabs for rounded corners, and
+     a clipped mark shows up as a stub. */
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container,
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > :is(.tabbrowser-tab, tab-group) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > :is(.tabbrowser-tab, tab-group),
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container {
     overflow: visible !important;
     overflow-x: visible !important;
     overflow-y: visible !important;
@@ -248,234 +267,93 @@
     clip-path: none !important;
     overflow-clip-margin: 24px !important;
   }
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > :is(.tabbrowser-tab, tab-group) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab, #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container {
     position: relative;
     z-index: 0;
   }
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > :is(.tabbrowser-tab, tab-group)::after {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after, #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after {
     content: "";
     position: absolute;
     left: calc(-1 * var(--zzgf-pad) + var(--zzgf-w));
+    top: 50%;
     width: var(--zzgf-m);
-    height: var(--zzgf-m);
-    opacity: 0.75;
+    height: calc(var(--zzgf-m) * 2);
+    transform: translateY(-50%);
+    background: var(--zzgf-line);
+    mask-image: var(--zzgf-shape), var(--zzgf-maskgrad);
+    mask-composite: intersect;
+    mask-size: contain, 100% 100%;
+    mask-position: center;
+    mask-repeat: no-repeat;
+    opacity: 0.8;
     transition: opacity 0.15s ease;
     pointer-events: none;
   }
-  /* Tab marks centre on the row; subgroup marks aim at the header line. */
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { top: calc(50% - var(--zzgf-m) / 2); }
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after { top: calc(14px - var(--zzgf-m) / 2); }
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > :is(.tabbrowser-tab, tab-group):hover::after {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab:hover::after,
+  #navigator-toolbox tab-group > .tab-group-container > tab-group:hover > .tab-group-label-container::after {
     opacity: 1;
   }
 }
-/* Chevron: a soft > aimed at the item. */
+/* Chevron: a soft arrow aimed at the item. */
 @media (-moz-pref("zzgroup.marker", 1)) {
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after {
-    border-top: var(--zzgf-w) solid var(--zzgf-line);
-    border-right: var(--zzgf-w) solid var(--zzgf-line);
-    border-top-right-radius: calc(var(--zzgf-w) * 1.5);
-    transform: rotate(45deg);
-    width: calc(var(--zzgf-m) * 0.8);
-    height: calc(var(--zzgf-m) * 0.8);
-  }
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 24'%3E%3Cpath d='M4.5 7.5 L8.5 12 L4.5 16.5' fill='none' stroke='%2523000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
   @media (-moz-pref("zzgroup.marker-sub", 0)) {
-    #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
-    border-top: var(--zzgf-w) solid var(--zzgf-line);
-    border-right: var(--zzgf-w) solid var(--zzgf-line);
-    border-top-right-radius: calc(var(--zzgf-w) * 1.5);
-    transform: rotate(45deg);
-    width: calc(var(--zzgf-m) * 0.8);
-    height: calc(var(--zzgf-m) * 0.8);
-    }
+    #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 24'%3E%3Cpath d='M4.5 7.5 L8.5 12 L4.5 16.5' fill='none' stroke='%2523000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
   }
 }
 @media (-moz-pref("zzgroup.marker-sub", 2)) {
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
-    border-top: var(--zzgf-w) solid var(--zzgf-line);
-    border-right: var(--zzgf-w) solid var(--zzgf-line);
-    border-top-right-radius: calc(var(--zzgf-w) * 1.5);
-    transform: rotate(45deg);
-    width: calc(var(--zzgf-m) * 0.8);
-    height: calc(var(--zzgf-m) * 0.8);
-  }
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 24'%3E%3Cpath d='M4.5 7.5 L8.5 12 L4.5 16.5' fill='none' stroke='%2523000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
 }
 /* Brace: an open rounded sweep, the } feel. */
 @media (-moz-pref("zzgroup.marker", 2)) {
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after {
-    border-right: var(--zzgf-w) solid var(--zzgf-line);
-    border-radius: 0 100% 100% 0 / 0 50% 50% 0;
-    width: calc(var(--zzgf-m) * 0.7);
-    height: calc(var(--zzgf-m) * 1.6);
-  }
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 24'%3E%3Cpath d='M5 4 Q9.5 12 5 20' fill='none' stroke='%2523000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
   @media (-moz-pref("zzgroup.marker-sub", 0)) {
-    #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
-    border-right: var(--zzgf-w) solid var(--zzgf-line);
-    border-radius: 0 100% 100% 0 / 0 50% 50% 0;
-    width: calc(var(--zzgf-m) * 0.7);
-    height: calc(var(--zzgf-m) * 1.6);
-    }
+    #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 24'%3E%3Cpath d='M5 4 Q9.5 12 5 20' fill='none' stroke='%2523000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
   }
 }
 @media (-moz-pref("zzgroup.marker-sub", 3)) {
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
-    border-right: var(--zzgf-w) solid var(--zzgf-line);
-    border-radius: 0 100% 100% 0 / 0 50% 50% 0;
-    width: calc(var(--zzgf-m) * 0.7);
-    height: calc(var(--zzgf-m) * 1.6);
-  }
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 24'%3E%3Cpath d='M5 4 Q9.5 12 5 20' fill='none' stroke='%2523000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
 }
 /* Dot. */
 @media (-moz-pref("zzgroup.marker", 3)) {
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after {
-    background: var(--zzgf-line);
-    border-radius: 50%;
-    width: calc(var(--zzgf-w) * 2);
-    height: calc(var(--zzgf-w) * 2);
-  }
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 24'%3E%3Ccircle cx='6' cy='12' r='3.2' fill='%2523000'/%3E%3C/svg%3E"); }
   @media (-moz-pref("zzgroup.marker-sub", 0)) {
-    #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
-    background: var(--zzgf-line);
-    border-radius: 50%;
-    width: calc(var(--zzgf-w) * 2);
-    height: calc(var(--zzgf-w) * 2);
-    }
+    #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 24'%3E%3Ccircle cx='6' cy='12' r='3.2' fill='%2523000'/%3E%3C/svg%3E"); }
   }
 }
 @media (-moz-pref("zzgroup.marker-sub", 4)) {
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
-    background: var(--zzgf-line);
-    border-radius: 50%;
-    width: calc(var(--zzgf-w) * 2);
-    height: calc(var(--zzgf-w) * 2);
-  }
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 24'%3E%3Ccircle cx='6' cy='12' r='3.2' fill='%2523000'/%3E%3C/svg%3E"); }
 }
-/* Dash: a short pill reaching from the rail toward the item. */
+/* Dash: a rounded bar reaching from the rail toward the item. */
 @media (-moz-pref("zzgroup.marker", 4)) {
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after {
-    background: var(--zzgf-line);
-    border-radius: 99px;
-    width: var(--zzgf-m);
-    height: var(--zzgf-w);
-    --zzgf-mask-dir: to right;
-  }
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 24'%3E%3Cpath d='M2.5 12 L9.5 12' fill='none' stroke='%2523000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
   @media (-moz-pref("zzgroup.marker-sub", 0)) {
-    #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
-    background: var(--zzgf-line);
-    border-radius: 99px;
-    width: var(--zzgf-m);
-    height: var(--zzgf-w);
-    --zzgf-mask-dir: to right;
-    }
+    #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 24'%3E%3Cpath d='M2.5 12 L9.5 12' fill='none' stroke='%2523000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
   }
 }
 @media (-moz-pref("zzgroup.marker-sub", 5)) {
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
-    background: var(--zzgf-line);
-    border-radius: 99px;
-    width: var(--zzgf-m);
-    height: var(--zzgf-w);
-    --zzgf-mask-dir: to right;
-  }
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 24'%3E%3Cpath d='M2.5 12 L9.5 12' fill='none' stroke='%2523000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
 }
 /* Curve: a quarter-circle elbow sweeping off the rail. */
 @media (-moz-pref("zzgroup.marker", 5)) {
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after {
-    left: calc(-1 * var(--zzgf-pad));
-    border-left: var(--zzgf-w) solid var(--zzgf-line);
-    border-bottom: var(--zzgf-w) solid var(--zzgf-line);
-    border-bottom-left-radius: var(--zzgf-r);
-    width: var(--zzgf-pad);
-    height: var(--zzgf-r);
-    --zzgf-anchor: bottom;
-  }
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 24'%3E%3Cpath d='M2 3 L2 13 Q2 17 6 17 L10 17' fill='none' stroke='%2523000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
   @media (-moz-pref("zzgroup.marker-sub", 0)) {
-    #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
-    left: calc(-1 * var(--zzgf-pad));
-    border-left: var(--zzgf-w) solid var(--zzgf-line);
-    border-bottom: var(--zzgf-w) solid var(--zzgf-line);
-    border-bottom-left-radius: var(--zzgf-r);
-    width: var(--zzgf-pad);
-    height: var(--zzgf-r);
-    --zzgf-anchor: bottom;
-    }
+    #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 24'%3E%3Cpath d='M2 3 L2 13 Q2 17 6 17 L10 17' fill='none' stroke='%2523000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
   }
 }
 @media (-moz-pref("zzgroup.marker-sub", 6)) {
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
-    left: calc(-1 * var(--zzgf-pad));
-    border-left: var(--zzgf-w) solid var(--zzgf-line);
-    border-bottom: var(--zzgf-w) solid var(--zzgf-line);
-    border-bottom-left-radius: var(--zzgf-r);
-    width: var(--zzgf-pad);
-    height: var(--zzgf-r);
-    --zzgf-anchor: bottom;
-  }
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 24'%3E%3Cpath d='M2 3 L2 13 Q2 17 6 17 L10 17' fill='none' stroke='%2523000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
 }
-/* Half moon: a filled D, which reads as a solid brace at larger sizes. */
+/* Half moon: a filled D, a solid brace that holds its shape at any size. */
 @media (-moz-pref("zzgroup.marker", 6)) {
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after {
-    background: var(--zzgf-line);
-    border-radius: 0 999px 999px 0 / 0 50% 50% 0;
-    width: calc(var(--zzgf-m) * 0.55);
-    height: calc(var(--zzgf-m) * 1.7);
-  }
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 24'%3E%3Cpath d='M4 3 A9 9 0 0 1 4 21 Z' fill='%2523000'/%3E%3C/svg%3E"); }
   @media (-moz-pref("zzgroup.marker-sub", 0)) {
-    #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
-    background: var(--zzgf-line);
-    border-radius: 0 999px 999px 0 / 0 50% 50% 0;
-    width: calc(var(--zzgf-m) * 0.55);
-    height: calc(var(--zzgf-m) * 1.7);
-    }
+    #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 24'%3E%3Cpath d='M4 3 A9 9 0 0 1 4 21 Z' fill='%2523000'/%3E%3C/svg%3E"); }
   }
 }
 @media (-moz-pref("zzgroup.marker-sub", 7)) {
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
-    background: var(--zzgf-line);
-    border-radius: 0 999px 999px 0 / 0 50% 50% 0;
-    width: calc(var(--zzgf-m) * 0.55);
-    height: calc(var(--zzgf-m) * 1.7);
-  }
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 24'%3E%3Cpath d='M4 3 A9 9 0 0 1 4 21 Z' fill='%2523000'/%3E%3C/svg%3E"); }
 }
-/* Tall shapes and the elbow need their own vertical anchor so they still
-   point at the row centre and the subgroup header line. */
-@media (-moz-pref("zzgroup.marker", 2)), (-moz-pref("zzgroup.marker", 6)) {
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { top: calc(50% - var(--zzgf-m) * 0.85); }
-}
-@media (-moz-pref("zzgroup.marker-sub", 3)), (-moz-pref("zzgroup.marker-sub", 7)) {
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after { top: calc(14px - var(--zzgf-m) * 0.85); }
-}
-@media (-moz-pref("zzgroup.marker", 5)) {
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { top: calc(50% - var(--zzgf-r)); }
-}
-@media (-moz-pref("zzgroup.marker-sub", 6)) {
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
-    top: max(0px, calc(14px - var(--zzgf-r)));
-    height: min(var(--zzgf-r), 14px);
-  }
-}
-
-/* ---- mark gradient -------------------------------------------------- */
-/* A mask fades the rendered mark itself, so it works on border-drawn
-   shapes (chevron, brace, curve) as well as filled ones -- a background
-   gradient could not touch a border. Centre-out runs along the mark's
-   longest axis: vertical for most shapes, horizontal for the dash. */
-@media (-moz-pref("zzgroup.marker-gradient", 1)) {
-  #navigator-toolbox tab-group > .tab-group-container > :is(.tabbrowser-tab, tab-group)::after {
-    mask-image: linear-gradient(var(--zzgf-mask-dir), transparent 0%, black 50%, transparent 100%);
-  }
-}
-@media (-moz-pref("zzgroup.marker-gradient", 2)) {
-  #navigator-toolbox tab-group > .tab-group-container > :is(.tabbrowser-tab, tab-group)::after {
-    mask-image: linear-gradient(to right, black 30%, transparent 100%);
-  }
-}
-@media (-moz-pref("zzgroup.marker-gradient", 3)) {
-  #navigator-toolbox tab-group > .tab-group-container > :is(.tabbrowser-tab, tab-group)::after {
-    mask-image: linear-gradient(to left, black 30%, transparent 100%);
-  }
-}
-
 /* Fill: the group body sits on a faint accent card, so membership reads
    as containment rather than lines. */
 @media (-moz-pref("zzgroup.connector", 3)), (-moz-pref("zzgroup.connector", 4)) {

@@ -487,7 +487,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.marker-gradient",
-    "label": "Mark gradient *Fades the mark itself rather than its colour, so it works on outlined shapes as well as filled ones. Centre out runs along the mark's longest axis, solid in the middle and fading to both edges.*",
+    "label": "Mark gradient *Fades the mark itself rather than its colour, so outlined shapes fade as cleanly as filled ones. Centre out is solid in the middle and fades to both ends of the mark.*",
     "defaultValue": 0,
     "options": [
       {
@@ -511,9 +511,16 @@
   {
     "type": "string",
     "property": "zzgroup.marker-size",
-    "label": "Mark size *Dot and dash scale from line thickness instead, so they stay proportional.*",
+    "label": "Mark size *Base size of the mark in pixels. Marks are vector shapes, so they stay smooth at any size.*",
     "defaultValue": "7px",
     "placeholder": "7px"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.marker-scale",
+    "label": "Mark scale *Multiplies the mark size, stroke included -- 1.5 gives a half-again bigger mark with proportionally heavier lines. Use size for the base and scale to fine-tune without re-tuning anything else.*",
+    "defaultValue": "1",
+    "placeholder": "1"
   },
   {
     "type": "checkbox",

@@ -30,6 +30,16 @@
   --zzgf-rim-all: var(--zzg-rim-all, rgb(255 255 255 / 0.12));
 }
 
+/* Gradient controls, Glassflow-style. Direction 0 inherits Glassflow's
+   own tab gradient direction so both move together. */
+:root { --zzgf-dir: var(--zzg-dir, 135deg); }
+@media (-moz-pref("zzgroup.gradient-direction", 1)) { :root { --zzgf-dir: to bottom; } }
+@media (-moz-pref("zzgroup.gradient-direction", 2)) { :root { --zzgf-dir: to top; } }
+@media (-moz-pref("zzgroup.gradient-direction", 3)) { :root { --zzgf-dir: to right; } }
+@media (-moz-pref("zzgroup.gradient-direction", 4)) { :root { --zzgf-dir: to left; } }
+@media (-moz-pref("zzgroup.gradient-direction", 5)) { :root { --zzgf-dir: 135deg; } }
+@media (-moz-pref("zzgroup.gradient-direction", 6)) { :root { --zzgf-dir: 45deg; } }
+
 /* Accent: the group's own color chip first, then Glassflow's accent,
    then Zen's primary. Per group, so mixed-color groups each keep their
    identity -- same resolution order Glassflow uses for tabs. */
@@ -63,9 +73,9 @@
      !important throughout: ATG paints headers with !important, and
      normal declarations lose to that regardless of import order. */
   background-image:
-    linear-gradient(var(--zzg-dir, 135deg),
+    linear-gradient(var(--zzgf-dir),
       color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-header-tint, 25%), transparent) 0%,
-      transparent 50%) !important;
+      color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-end-tint, 0%), transparent) var(--zzgroup-spread, 50%)) !important;
   border-radius: var(--zzgf-round) !important;
   margin: 2px 0 !important;
   padding: 2px 6px !important;
@@ -76,9 +86,9 @@
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
     background-image:
       var(--zzgf-sheen),
-      linear-gradient(var(--zzg-dir, 135deg),
-        color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-header-tint, 25%), transparent) 0%,
-        transparent 50%) !important;
+      linear-gradient(var(--zzgf-dir),
+      color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-header-tint, 25%), transparent) 0%,
+      color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-end-tint, 0%), transparent) var(--zzgroup-spread, 50%)) !important;
   }
 }
 
@@ -125,9 +135,9 @@
 @media (-moz-pref("zzgroup.active.boost")) {
   #navigator-toolbox tab-group:not([split-view-group]):has(.tabbrowser-tab[selected]) > .tab-group-label-container {
     background-image:
-      linear-gradient(var(--zzg-dir, 135deg),
+      linear-gradient(var(--zzgf-dir),
         color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-active-tint, 42%), transparent) 0%,
-        transparent 50%) !important;
+        color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-end-tint, 0%), transparent) var(--zzgroup-spread, 50%)) !important;
   }
 }
 
@@ -151,22 +161,52 @@
 /* Line: an accent rail down the left of every group body. */
 @media (-moz-pref("zzgroup.connector", 1)), (-moz-pref("zzgroup.connector", 4)) {
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container {
-    border-left: var(--zzgroup-guide-width, 1px) solid
-      color-mix(in srgb, var(--zzgf-accent) 40%, transparent) !important;
+    position: relative;
     margin-left: 7px !important;
-    padding-left: 4px !important;
+    padding-left: 6px !important;
+  }
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 4px;
+    width: max(var(--zzgroup-guide-width, 1px), 1px);
+    border-radius: 99px;
+    background: linear-gradient(to bottom,
+      transparent 0,
+      color-mix(in srgb, var(--zzgf-accent) 40%, transparent) 10px,
+      color-mix(in srgb, var(--zzgf-accent) 40%, transparent) calc(100% - 14px),
+      transparent 100%);
+    pointer-events: none;
   }
 }
 
-/* Branches: the rail plus a horizontal stub reaching each direct item,
-   the classic tree elbow. Uses ::after on items to stay clear of other
-   mods' ::before usage on tabs. */
+/* Branches: soft and flowy rather than ruled. The rail is a gradient
+   strip that fades in at the top and out past the last item -- no hard
+   endpoints -- and each item gets a quarter-circle curve sweeping off
+   the rail into it, not a right-angle stub. ::after keeps clear of
+   other mods' ::before usage on tabs. */
 @media (-moz-pref("zzgroup.connector", 2)) {
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container {
-    border-left: var(--zzgroup-guide-width, 1px) solid
-      color-mix(in srgb, var(--zzgf-accent) 40%, transparent) !important;
+    position: relative;
     margin-left: 7px !important;
-    padding-left: 8px !important;
+    padding-left: 12px !important;
+  }
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: -2px;
+    bottom: 8px;
+    width: max(var(--zzgroup-guide-width, 1px), 2px);
+    border-radius: 99px;
+    background: linear-gradient(to bottom,
+      transparent 0,
+      color-mix(in srgb, var(--zzgf-accent) 45%, transparent) 14px,
+      color-mix(in srgb, var(--zzgf-accent) 45%, transparent) calc(100% - 18px),
+      transparent 100%);
+    pointer-events: none;
   }
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > :is(.tabbrowser-tab, tab-group) {
     position: relative;
@@ -174,16 +214,26 @@
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > :is(.tabbrowser-tab, tab-group)::after {
     content: "";
     position: absolute;
-    left: calc(-8px - var(--zzgroup-guide-width, 1px));
-    top: 50%;
-    width: 8px;
-    height: var(--zzgroup-guide-width, 1px);
-    background: color-mix(in srgb, var(--zzgf-accent) 40%, transparent);
+    left: -11px;
+    top: calc(50% - 11px);
+    width: 10px;
+    height: 11px;
+    border-left: max(var(--zzgroup-guide-width, 1px), 1.5px) solid
+      color-mix(in srgb, var(--zzgf-accent) 45%, transparent);
+    border-bottom: max(var(--zzgroup-guide-width, 1px), 1.5px) solid
+      color-mix(in srgb, var(--zzgf-accent) 45%, transparent);
+    border-bottom-left-radius: 10px;
+    opacity: 0.7;
+    transition: opacity 0.15s ease;
     pointer-events: none;
   }
-  /* Subgroup elbows point at the header, not the body middle. */
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > :is(.tabbrowser-tab, tab-group):hover::after {
+    opacity: 1;
+  }
+  /* Subgroup curves sweep into the header line, not the body middle. */
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
-    top: 14px;
+    top: 4px;
+    height: 10px;
   }
 }
 
@@ -191,7 +241,7 @@
    as containment rather than lines. */
 @media (-moz-pref("zzgroup.connector", 3)), (-moz-pref("zzgroup.connector", 4)) {
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container {
-    background: linear-gradient(var(--zzg-dir, 135deg),
+    background: linear-gradient(var(--zzgf-dir),
       color-mix(in srgb, var(--zzgf-accent) 8%, transparent) 0%,
       color-mix(in srgb, var(--zzgf-accent) 3%, transparent) 100%) !important;
     border-radius: calc(var(--zzgf-round) * 0.75) !important;
@@ -307,13 +357,41 @@
 }
 /* ATG appends its close button at the right; this moves it to the far
    left, before the favicon. */
+/* True left: the favicon (on the label) takes the first slot, where the
+   old icon chip sat; ATG's collapse marker moves to the right edge. */
+#navigator-toolbox tab-group .tab-group-label-container {
+  padding-inline-start: 6px !important;
+}
+#navigator-toolbox tab-group .tab-group-label-container > .tab-group-label {
+  order: 1;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+#navigator-toolbox tab-group .tab-group-label-container > .tab-group-icon-container {
+  order: 3 !important;
+}
+#navigator-toolbox tab-group .tab-group-label-container > .tab-close-button {
+  order: 4 !important;
+}
+
+/* Close on the left, hover-revealed: collapsed to nothing at rest, it
+   expands on header hover and the favicon + text slide over smoothly,
+   so the X is seen without permanently costing the left slot. */
 @media (-moz-pref("zzgroup.close-left")) {
   #navigator-toolbox tab-group .tab-group-label-container > .tab-close-button {
-    order: -2 !important;
-    margin-inline: 0 4px !important;
+    order: 0 !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    margin-inline: 0 !important;
+    padding: 0 !important;
+    opacity: 0;
+    overflow: hidden;
+    transition: width 0.15s ease, opacity 0.15s ease, margin 0.15s ease;
   }
-  #navigator-toolbox tab-group .tab-group-label-container > .tab-group-icon-container {
-    order: -1 !important;
+  #navigator-toolbox tab-group .tab-group-label-container:hover > .tab-close-button {
+    width: 14px !important;
+    margin-inline-end: 5px !important;
+    opacity: 1;
   }
 }
 

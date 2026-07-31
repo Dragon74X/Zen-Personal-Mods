@@ -53,6 +53,57 @@
     "placeholder": "25%"
   },
   {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.gradient-direction",
+    "label": "Gradient direction *Which way the header accent fades. Match Glassflow inherits its tab gradient direction live, so both move together when you change it there.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Match Glassflow",
+        "value": 0
+      },
+      {
+        "label": "Top to bottom",
+        "value": 1
+      },
+      {
+        "label": "Bottom to top",
+        "value": 2
+      },
+      {
+        "label": "Left to right",
+        "value": 3
+      },
+      {
+        "label": "Right to left",
+        "value": 4
+      },
+      {
+        "label": "Diagonal 135\u00b0",
+        "value": 5
+      },
+      {
+        "label": "Diagonal 45\u00b0",
+        "value": 6
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.spread",
+    "label": "Gradient spread *Where the fade ends, as a percentage of the header. 50% matches Glassflow's tabs; 100% fades across the whole header.*",
+    "defaultValue": "50%",
+    "placeholder": "50%"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.end-tint",
+    "label": "Gradient end tint *Accent strength at the far end of the fade. 0% fades to fully transparent, Glassflow's default; higher values leave a wash of color across the whole header.*",
+    "defaultValue": "0%",
+    "placeholder": "0%"
+  },
+  {
     "type": "string",
     "property": "zzgroup.header-roundness",
     "label": "Header roundness *Corner radius of the header pill. Set it to the same value as Glassflow's tab roundness to match; an empty value is not supported because Sine injects it as an empty variable, which invalidates the rule.*",

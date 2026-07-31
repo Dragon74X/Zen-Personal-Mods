@@ -409,7 +409,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.marker",
-    "label": "Marks on tabs *A small mark on the rail aimed at each tab. Chevron is a soft arrow; Brace is an open rounded sweep; Half moon is a filled D, which reads as a solid brace at larger sizes; Curve is a quarter-circle elbow reaching from the rail into the row.*",
+    "label": "Marks on tabs *A vector mark on the rail aimed at each tab. Half moon is a true semicircle, flat against the rail; Crescent is a longer, slenderer curve with pointed tips, closer to a brace than a circle.*",
     "defaultValue": 1,
     "options": [
       {
@@ -439,6 +439,34 @@
       {
         "label": "Half moon",
         "value": 6
+      },
+      {
+        "label": "Crescent",
+        "value": 7
+      },
+      {
+        "label": "Double chevron",
+        "value": 8
+      },
+      {
+        "label": "Triangle",
+        "value": 9
+      },
+      {
+        "label": "Diamond",
+        "value": 10
+      },
+      {
+        "label": "Bar",
+        "value": 11
+      },
+      {
+        "label": "Arrow",
+        "value": 12
+      },
+      {
+        "label": "Wave",
+        "value": 13
       }
     ]
   },
@@ -446,7 +474,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.marker-sub",
-    "label": "Marks on subgroups *Subgroups can carry a different mark from tabs -- a half moon for subgroups and a chevron for tabs reads the hierarchy at a glance. Subgroup marks aim at the header line rather than the middle of the body.*",
+    "label": "Marks on subgroups *Subgroups can carry a different mark from tabs -- a crescent for subgroups and a chevron for tabs reads the hierarchy at a glance. Subgroup marks hang off the header row, so they stay centred on it however many tabs the subgroup holds.*",
     "defaultValue": 0,
     "options": [
       {
@@ -480,6 +508,34 @@
       {
         "label": "Half moon",
         "value": 7
+      },
+      {
+        "label": "Crescent",
+        "value": 8
+      },
+      {
+        "label": "Double chevron",
+        "value": 9
+      },
+      {
+        "label": "Triangle",
+        "value": 10
+      },
+      {
+        "label": "Diamond",
+        "value": 11
+      },
+      {
+        "label": "Bar",
+        "value": 12
+      },
+      {
+        "label": "Arrow",
+        "value": 13
+      },
+      {
+        "label": "Wave",
+        "value": 14
       }
     ]
   },
@@ -487,7 +543,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.marker-gradient",
-    "label": "Mark gradient *Fades the mark itself rather than its colour, so outlined shapes fade as cleanly as filled ones. Centre out is solid in the middle and fades to both ends of the mark.*",
+    "label": "Mark shading *Solid is flat. Centre out, toward item and toward line fade the whole mark along one axis. Rounded shades ACROSS the stroke instead: densest along the middle of the line and falling off to both edges, everywhere along it -- so a horizontal dash fades toward its top and bottom, an upright bar toward its sides, and a chevron, curve or crescent follows its own angles and curves. Gives marks a rounded, three-dimensional look.*",
     "defaultValue": 0,
     "options": [
       {
@@ -505,6 +561,10 @@
       {
         "label": "Fade toward line",
         "value": 3
+      },
+      {
+        "label": "Rounded (3D)",
+        "value": 4
       }
     ]
   },

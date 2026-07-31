@@ -201,11 +201,12 @@
   }
 
   // ---- ejection ----------------------------------------------------------
-  // Firefox's group.ungroupTabs() DISSOLVES the whole group -- the tab list
-  // argument is ignored -- and on some Zen builds it does nothing at all.
-  // Moving the tab to the end of the strip leaves every ancestor group in
-  // one verified step, so that is tried first. Ancestors are recorded
-  // before the move so emptied ones can be cleaned up after.
+  // Verified against Zen 1.21 source (tabbrowser-js.patch):
+  //   gBrowser.ungroupTab(tab)  ->  tab.group.after(tab)
+  // pops exactly ONE level and leaves the tab adjacent to the group it left,
+  // so it never crosses a workspace boundary. Looping it walks the tab out
+  // of every ancestor, in place. (group.ungroupTabs() takes NO argument and
+  // dissolves the whole group -- last resort only.)
   function ancestorsOf(tab) {
     const out = [];
     let g = tab.group ?? null;
@@ -215,24 +216,13 @@
 
   function ejectAll(tab) {
     const left = ancestorsOf(tab);
-    if (!left.length) return left;
-
-    // 1) move to strip end: leaves all groups at once. Signature differs
-    //    across versions, so both forms are tried.
-    if (typeof gBrowser.moveTabTo === "function") {
-      const last = gBrowser.tabs.length - 1;
-      try { gBrowser.moveTabTo(tab, { tabIndex: last }); } catch {
-        try { gBrowser.moveTabTo(tab, last); } catch (e) { note(`moveTabTo threw: ${e}`); }
-      }
-      if (!tab.group) return left;
-    }
-
-    // 2) fallback: dissolve groups innermost-out. Side effect: siblings of
-    //    the tab spill out of each dissolved group too.
     for (let i = 0; i < 10 && tab.group; i++) {
       const g = tab.group;
-      try { g.ungroupTabs?.(); } catch (e) { note(`ungroupTabs threw on "${g.label}": ${e}`); break; }
-      if (tab.group === g) break;   // refused; give up
+      try {
+        if (typeof gBrowser.ungroupTab === "function") gBrowser.ungroupTab(tab);
+        else g.ungroupTabs?.();   // dissolves g entirely; siblings spill out
+      } catch (e) { note(`eject threw on "${g.label}": ${e}`); break; }
+      if (tab.group === g) { note(`eject made no progress on "${g.label}"`); break; }
     }
     return left;
   }
@@ -566,12 +556,13 @@
           chainBefore: before.join(" > ") || "(none)",
           groupTag: g?.tagName ?? null,
           api: {
-            moveTabTo: typeof gBrowser.moveTabTo,
-            moveTabToGroup: typeof gBrowser.moveTabToGroup,
+            ungroupTab: typeof gBrowser.ungroupTab,
+            moveTabToExistingGroup: typeof gBrowser.moveTabToExistingGroup,
             addTabGroup: typeof gBrowser.addTabGroup,
             removeTabGroup: typeof gBrowser.removeTabGroup,
-            ungroupTabs: typeof g?.ungroupTabs,
-            addTabs: typeof g?.addTabs,
+            // group-level; "(no group)" means run diag on a grouped tab
+            addTabs: g ? typeof g.addTabs : "(no group)",
+            ungroupTabs: g ? typeof g.ungroupTabs : "(no group)",
           },
         };
         if (before.length) {

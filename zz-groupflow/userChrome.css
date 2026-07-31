@@ -147,6 +147,17 @@
 @media (-moz-pref("zzgroup.label.weight", 2)) {
   #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label { font-weight: 700; }
 }
+@media (-moz-pref("zzgroup.label.italic")) {
+  #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label { font-style: italic; }
+}
+@media (-moz-pref("zzgroup.label.underline")) {
+  #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    text-decoration-color: color-mix(in srgb, var(--zzgf-accent) 60%, transparent);
+  }
+}
 @media (-moz-pref("zzgroup.label.uppercase")) {
   #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label {
     text-transform: uppercase;
@@ -213,14 +224,21 @@
   }
 }
 
-/* ---- per-item markers ---------------------------------------------- */
-/* A small mark on the rail aimed at each tab and subgroup. Drawn on the
-   item's own ::after, in the negative space left of it, so clipping must
-   be lifted -- Zen and the glass mods clip tabs for rounded corners, and
-   a clipped mark shows up as a stub. */
-@media (-moz-pref("zzgroup.marker", 1)), (-moz-pref("zzgroup.marker", 2)),
-       (-moz-pref("zzgroup.marker", 3)), (-moz-pref("zzgroup.marker", 4)),
-       (-moz-pref("zzgroup.marker", 5)) {
+/* ---- per-item marks ------------------------------------------------ */
+/* A small mark on the rail aimed at each tab and each subgroup. Drawn on
+   the item's own ::after in the negative space left of it, so clipping
+   must be lifted -- Zen and the glass mods clip tabs for rounded corners,
+   and a clipped mark shows up as a stub.
+
+   Tabs and subgroups have independent shape prefs. marker-sub 0 means
+   "same as tabs"; 1 is none; 2 and up are the shapes offset by one. Each
+   shape is therefore emitted twice, once per selector. */
+
+:root {
+  --zzgf-m: var(--zzgroup-marker-size, 7px);
+  --zzgf-mask-dir: to bottom;
+}
+@media (-moz-pref("zzgroup.marker", 1)), (-moz-pref("zzgroup.marker", 2)), (-moz-pref("zzgroup.marker", 3)), (-moz-pref("zzgroup.marker", 4)), (-moz-pref("zzgroup.marker", 5)), (-moz-pref("zzgroup.marker", 6)), (-moz-pref("zzgroup.marker-sub", 2)), (-moz-pref("zzgroup.marker-sub", 3)), (-moz-pref("zzgroup.marker-sub", 4)), (-moz-pref("zzgroup.marker-sub", 5)), (-moz-pref("zzgroup.marker-sub", 6)), (-moz-pref("zzgroup.marker-sub", 7)) {
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container,
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > :is(.tabbrowser-tab, tab-group) {
     overflow: visible !important;
@@ -238,27 +256,42 @@
     content: "";
     position: absolute;
     left: calc(-1 * var(--zzgf-pad) + var(--zzgf-w));
-    top: calc(50% - var(--zzgf-m) / 2);
     width: var(--zzgf-m);
     height: var(--zzgf-m);
     opacity: 0.75;
     transition: opacity 0.15s ease;
     pointer-events: none;
   }
-  /* Marks on subgroups aim at the header line, not the body middle. */
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
-    top: calc(14px - var(--zzgf-m) / 2);
-  }
+  /* Tab marks centre on the row; subgroup marks aim at the header line. */
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { top: calc(50% - var(--zzgf-m) / 2); }
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after { top: calc(14px - var(--zzgf-m) / 2); }
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > :is(.tabbrowser-tab, tab-group):hover::after {
     opacity: 1;
   }
 }
-
-:root { --zzgf-m: var(--zzgroup-marker-size, 7px); }
-
 /* Chevron: a soft > aimed at the item. */
 @media (-moz-pref("zzgroup.marker", 1)) {
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > :is(.tabbrowser-tab, tab-group)::after {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after {
+    border-top: var(--zzgf-w) solid var(--zzgf-line);
+    border-right: var(--zzgf-w) solid var(--zzgf-line);
+    border-top-right-radius: calc(var(--zzgf-w) * 1.5);
+    transform: rotate(45deg);
+    width: calc(var(--zzgf-m) * 0.8);
+    height: calc(var(--zzgf-m) * 0.8);
+  }
+  @media (-moz-pref("zzgroup.marker-sub", 0)) {
+    #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
+    border-top: var(--zzgf-w) solid var(--zzgf-line);
+    border-right: var(--zzgf-w) solid var(--zzgf-line);
+    border-top-right-radius: calc(var(--zzgf-w) * 1.5);
+    transform: rotate(45deg);
+    width: calc(var(--zzgf-m) * 0.8);
+    height: calc(var(--zzgf-m) * 0.8);
+    }
+  }
+}
+@media (-moz-pref("zzgroup.marker-sub", 2)) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
     border-top: var(--zzgf-w) solid var(--zzgf-line);
     border-right: var(--zzgf-w) solid var(--zzgf-line);
     border-top-right-radius: calc(var(--zzgf-w) * 1.5);
@@ -267,63 +300,179 @@
     height: calc(var(--zzgf-m) * 0.8);
   }
 }
-
-/* Brace: a rounded ) sweeping toward the item, the } feel. */
+/* Brace: an open rounded sweep, the } feel. */
 @media (-moz-pref("zzgroup.marker", 2)) {
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > :is(.tabbrowser-tab, tab-group)::after {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after {
     border-right: var(--zzgf-w) solid var(--zzgf-line);
     border-radius: 0 100% 100% 0 / 0 50% 50% 0;
     width: calc(var(--zzgf-m) * 0.7);
     height: calc(var(--zzgf-m) * 1.6);
-    top: calc(50% - var(--zzgf-m) * 0.8);
   }
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
-    top: calc(14px - var(--zzgf-m) * 0.8);
+  @media (-moz-pref("zzgroup.marker-sub", 0)) {
+    #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
+    border-right: var(--zzgf-w) solid var(--zzgf-line);
+    border-radius: 0 100% 100% 0 / 0 50% 50% 0;
+    width: calc(var(--zzgf-m) * 0.7);
+    height: calc(var(--zzgf-m) * 1.6);
+    }
   }
 }
-
+@media (-moz-pref("zzgroup.marker-sub", 3)) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
+    border-right: var(--zzgf-w) solid var(--zzgf-line);
+    border-radius: 0 100% 100% 0 / 0 50% 50% 0;
+    width: calc(var(--zzgf-m) * 0.7);
+    height: calc(var(--zzgf-m) * 1.6);
+  }
+}
 /* Dot. */
 @media (-moz-pref("zzgroup.marker", 3)) {
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > :is(.tabbrowser-tab, tab-group)::after {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after {
     background: var(--zzgf-line);
     border-radius: 50%;
     width: calc(var(--zzgf-w) * 2);
     height: calc(var(--zzgf-w) * 2);
-    top: calc(50% - var(--zzgf-w));
   }
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
-    top: calc(14px - var(--zzgf-w));
+  @media (-moz-pref("zzgroup.marker-sub", 0)) {
+    #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
+    background: var(--zzgf-line);
+    border-radius: 50%;
+    width: calc(var(--zzgf-w) * 2);
+    height: calc(var(--zzgf-w) * 2);
+    }
   }
 }
-
-/* Dash: a short pill reaching from the rail to the item. */
+@media (-moz-pref("zzgroup.marker-sub", 4)) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
+    background: var(--zzgf-line);
+    border-radius: 50%;
+    width: calc(var(--zzgf-w) * 2);
+    height: calc(var(--zzgf-w) * 2);
+  }
+}
+/* Dash: a short pill reaching from the rail toward the item. */
 @media (-moz-pref("zzgroup.marker", 4)) {
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > :is(.tabbrowser-tab, tab-group)::after {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after {
     background: var(--zzgf-line);
     border-radius: 99px;
     width: var(--zzgf-m);
     height: var(--zzgf-w);
-    top: calc(50% - var(--zzgf-w) / 2);
+    --zzgf-mask-dir: to right;
   }
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
-    top: calc(14px - var(--zzgf-w) / 2);
+  @media (-moz-pref("zzgroup.marker-sub", 0)) {
+    #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
+    background: var(--zzgf-line);
+    border-radius: 99px;
+    width: var(--zzgf-m);
+    height: var(--zzgf-w);
+    --zzgf-mask-dir: to right;
+    }
   }
 }
-
-/* Curve: quarter-circle elbow sweeping off the rail into the item. */
+@media (-moz-pref("zzgroup.marker-sub", 5)) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
+    background: var(--zzgf-line);
+    border-radius: 99px;
+    width: var(--zzgf-m);
+    height: var(--zzgf-w);
+    --zzgf-mask-dir: to right;
+  }
+}
+/* Curve: a quarter-circle elbow sweeping off the rail. */
 @media (-moz-pref("zzgroup.marker", 5)) {
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > :is(.tabbrowser-tab, tab-group)::after {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after {
     left: calc(-1 * var(--zzgf-pad));
     border-left: var(--zzgf-w) solid var(--zzgf-line);
     border-bottom: var(--zzgf-w) solid var(--zzgf-line);
     border-bottom-left-radius: var(--zzgf-r);
     width: var(--zzgf-pad);
     height: var(--zzgf-r);
-    top: calc(50% - var(--zzgf-r));
+    --zzgf-anchor: bottom;
   }
+  @media (-moz-pref("zzgroup.marker-sub", 0)) {
+    #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
+    left: calc(-1 * var(--zzgf-pad));
+    border-left: var(--zzgf-w) solid var(--zzgf-line);
+    border-bottom: var(--zzgf-w) solid var(--zzgf-line);
+    border-bottom-left-radius: var(--zzgf-r);
+    width: var(--zzgf-pad);
+    height: var(--zzgf-r);
+    --zzgf-anchor: bottom;
+    }
+  }
+}
+@media (-moz-pref("zzgroup.marker-sub", 6)) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
+    left: calc(-1 * var(--zzgf-pad));
+    border-left: var(--zzgf-w) solid var(--zzgf-line);
+    border-bottom: var(--zzgf-w) solid var(--zzgf-line);
+    border-bottom-left-radius: var(--zzgf-r);
+    width: var(--zzgf-pad);
+    height: var(--zzgf-r);
+    --zzgf-anchor: bottom;
+  }
+}
+/* Half moon: a filled D, which reads as a solid brace at larger sizes. */
+@media (-moz-pref("zzgroup.marker", 6)) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after {
+    background: var(--zzgf-line);
+    border-radius: 0 999px 999px 0 / 0 50% 50% 0;
+    width: calc(var(--zzgf-m) * 0.55);
+    height: calc(var(--zzgf-m) * 1.7);
+  }
+  @media (-moz-pref("zzgroup.marker-sub", 0)) {
+    #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
+    background: var(--zzgf-line);
+    border-radius: 0 999px 999px 0 / 0 50% 50% 0;
+    width: calc(var(--zzgf-m) * 0.55);
+    height: calc(var(--zzgf-m) * 1.7);
+    }
+  }
+}
+@media (-moz-pref("zzgroup.marker-sub", 7)) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
+    background: var(--zzgf-line);
+    border-radius: 0 999px 999px 0 / 0 50% 50% 0;
+    width: calc(var(--zzgf-m) * 0.55);
+    height: calc(var(--zzgf-m) * 1.7);
+  }
+}
+/* Tall shapes and the elbow need their own vertical anchor so they still
+   point at the row centre and the subgroup header line. */
+@media (-moz-pref("zzgroup.marker", 2)), (-moz-pref("zzgroup.marker", 6)) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { top: calc(50% - var(--zzgf-m) * 0.85); }
+}
+@media (-moz-pref("zzgroup.marker-sub", 3)), (-moz-pref("zzgroup.marker-sub", 7)) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after { top: calc(14px - var(--zzgf-m) * 0.85); }
+}
+@media (-moz-pref("zzgroup.marker", 5)) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { top: calc(50% - var(--zzgf-r)); }
+}
+@media (-moz-pref("zzgroup.marker-sub", 6)) {
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
     top: max(0px, calc(14px - var(--zzgf-r)));
     height: min(var(--zzgf-r), 14px);
+  }
+}
+
+/* ---- mark gradient -------------------------------------------------- */
+/* A mask fades the rendered mark itself, so it works on border-drawn
+   shapes (chevron, brace, curve) as well as filled ones -- a background
+   gradient could not touch a border. Centre-out runs along the mark's
+   longest axis: vertical for most shapes, horizontal for the dash. */
+@media (-moz-pref("zzgroup.marker-gradient", 1)) {
+  #navigator-toolbox tab-group > .tab-group-container > :is(.tabbrowser-tab, tab-group)::after {
+    mask-image: linear-gradient(var(--zzgf-mask-dir), transparent 0%, black 50%, transparent 100%);
+  }
+}
+@media (-moz-pref("zzgroup.marker-gradient", 2)) {
+  #navigator-toolbox tab-group > .tab-group-container > :is(.tabbrowser-tab, tab-group)::after {
+    mask-image: linear-gradient(to right, black 30%, transparent 100%);
+  }
+}
+@media (-moz-pref("zzgroup.marker-gradient", 3)) {
+  #navigator-toolbox tab-group > .tab-group-container > :is(.tabbrowser-tab, tab-group)::after {
+    mask-image: linear-gradient(to left, black 30%, transparent 100%);
   }
 }
 
@@ -485,6 +634,9 @@
   }
 }
 
+/* Alignment lives LAST on purpose: the favicon block above pins the
+   header to flex-start to put the icon in the old chip's slot, and at
+   equal specificity the later rule is the one that applies. */
 /* ---- label alignment ---------------------------------------------- */
 #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
   justify-content: flex-start !important;
@@ -518,9 +670,11 @@
   /* Advanced Tab Groups' group line lives on the container's ::after;
      this mod's rail is on ::before, so removing ::after removes only
      theirs. Both pseudos on the group element are unused here too. */
+  /* ::after on the group element is NOT touched: that is where this mod
+     draws subgroup marks. The probe showed ATG's line lives on the
+     container's ::after, which is what this removes. */
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container::after,
-  #navigator-toolbox tab-group:not([split-view-group])::before,
-  #navigator-toolbox tab-group:not([split-view-group])::after {
+  #navigator-toolbox tab-group:not([split-view-group])::before {
     content: none !important;
     display: none !important;
   }
@@ -535,5 +689,6 @@
     outline: none !important;
   }
 }
+
 
 } /* zzgroup.enabled */

@@ -248,6 +248,18 @@
   },
   {
     "type": "checkbox",
+    "property": "zzgroup.label.italic",
+    "label": "Italic labels",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.label.underline",
+    "label": "Underlined labels *Accent-coloured underline, offset from the text so it does not crowd descenders.*",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
     "property": "zzgroup.label.uppercase",
     "label": "Uppercase labels *Small-caps style section headers: uppercase, letter-spaced, slightly reduced size.*",
     "defaultValue": false
@@ -397,7 +409,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.marker",
-    "label": "Item marks *A small mark on the rail aimed at each tab and subgroup. Chevron is a soft arrow; Brace is a rounded sweep, the curly-brace feel; Curve is a quarter-circle elbow reaching from the rail into the item. Marks on subgroups aim at the header line rather than the middle of the body.*",
+    "label": "Marks on tabs *A small mark on the rail aimed at each tab. Chevron is a soft arrow; Brace is an open rounded sweep; Half moon is a filled D, which reads as a solid brace at larger sizes; Curve is a quarter-circle elbow reaching from the rail into the row.*",
     "defaultValue": 1,
     "options": [
       {
@@ -423,6 +435,76 @@
       {
         "label": "Curve",
         "value": 5
+      },
+      {
+        "label": "Half moon",
+        "value": 6
+      }
+    ]
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.marker-sub",
+    "label": "Marks on subgroups *Subgroups can carry a different mark from tabs -- a half moon for subgroups and a chevron for tabs reads the hierarchy at a glance. Subgroup marks aim at the header line rather than the middle of the body.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Same as tabs",
+        "value": 0
+      },
+      {
+        "label": "None",
+        "value": 1
+      },
+      {
+        "label": "Chevron",
+        "value": 2
+      },
+      {
+        "label": "Brace",
+        "value": 3
+      },
+      {
+        "label": "Dot",
+        "value": 4
+      },
+      {
+        "label": "Dash",
+        "value": 5
+      },
+      {
+        "label": "Curve",
+        "value": 6
+      },
+      {
+        "label": "Half moon",
+        "value": 7
+      }
+    ]
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.marker-gradient",
+    "label": "Mark gradient *Fades the mark itself rather than its colour, so it works on outlined shapes as well as filled ones. Centre out runs along the mark's longest axis, solid in the middle and fading to both edges.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Solid",
+        "value": 0
+      },
+      {
+        "label": "Centre out",
+        "value": 1
+      },
+      {
+        "label": "Fade toward item",
+        "value": 2
+      },
+      {
+        "label": "Fade toward line",
+        "value": 3
       }
     ]
   },

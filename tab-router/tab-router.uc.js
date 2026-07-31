@@ -121,7 +121,19 @@
       return false;
     }
     try {
-      const made = gBrowser.addTabGroup([tab], { label: name });
+      // Zen's addTabGroup dereferences insertBefore without a null guard:
+      //   addTabGroup@tabbrowser.js -> "can't access property before,
+      //   insertBefore is null"
+      // Firefox's own version tolerates null; Zen's does not. Passing the
+      // tab itself puts the new group where that tab already sits.
+      // Verified against a live profile: this exact shape returns a
+      // tab-group. isUserTriggered:false plus a blank tab returned null,
+      // so both are set the way that actually worked.
+      const made = gBrowser.addTabGroup([tab], {
+        label: name,
+        insertBefore: tab,
+        isUserTriggered: true,
+      });
       if (!made) {
         note(`addTabGroup("${name}") returned nothing -- group NOT created`);
         return false;
@@ -140,6 +152,10 @@
   function skip(tab) {
     if (!tab || !tab.isConnected || tab.closing) return "gone";
     if (tab.hasAttribute("zen-glance-tab")) return "glance";
+    // Zen's blank placeholder tabs cannot be grouped; addTabGroup returns
+    // null for them rather than throwing.
+    if (tab.hasAttribute("zen-empty-tab")) return "empty tab";
+    if (tab.hasAttribute("_forZenEmptyTab")) return "empty tab";
     if (tab.hasAttribute("zen-split")) return "split view";
     if (bool("skip-essentials", true) && tab.getAttribute("zen-essential") === "true") return "essential";
     if (bool("skip-pinned", true) && tab.pinned) return "pinned";

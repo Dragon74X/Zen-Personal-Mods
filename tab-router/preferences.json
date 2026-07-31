@@ -15,8 +15,8 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzrouter.target",
-    "label": "Sort into *Zen folders are the native folders in your sidebar and they nest, so a rule named Google / Docs creates a Docs subfolder inside Google. Tab groups are the flatter Firefox primitive with no nesting, where the same rule just becomes a group literally called Google / Docs. Folders need Zen's gZenFolders, and it falls back to groups if that is missing rather than doing nothing.*",
-    "defaultValue": 1,
+    "label": "Sort into *Tab groups are flat and never pinned. Zen folders nest, but gZenFolders.createFolder calls gBrowser.pinTab on every tab it is given and places the folder inside the pinned container -- there is no option to avoid that, so folders always pin their contents. Groups is the default for that reason. With groups, a rule named Google / Docs simply becomes a group with that name rather than a real subfolder.",
+    "defaultValue": 0,
     "options": [
       {
         "label": "Tab groups (flat)",

@@ -173,7 +173,12 @@
     margin-left: 7px !important;
     padding-left: 6px !important;
   }
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container::before {
+  /* Drawn on ::after, not ::before: an element has only ONE ::before, so
+     sharing it with another mod merges the two rules property by property
+     -- which is how a foreign line survives and a gradient comes out
+     half-applied. ::after is ours alone, leaving ::before free to be
+     neutralized wholesale below. */
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container::after {
     content: "";
     position: absolute;
     left: 0;
@@ -203,7 +208,7 @@
     margin-left: 7px !important;
     padding-left: var(--zzgf-pad) !important;
   }
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container::before {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container::after {
     content: "";
     position: absolute;
     left: 0;
@@ -457,10 +462,22 @@
    lines; with Groupflow's connectors on, they double up. This strips
    the borders and shadows they hang on group bodies. */
 @media (-moz-pref("zzgroup.hide-other-connectors")) {
+  /* Foreign pseudo-element lines. ::before on the container and both
+     pseudos on the group element are unused by this mod, so removing
+     them removes only other mods' drawing. */
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container::before,
+  #navigator-toolbox tab-group:not([split-view-group])::before,
+  #navigator-toolbox tab-group:not([split-view-group])::after {
+    content: none !important;
+    display: none !important;
+  }
+  /* Foreign borders and shadows on the bodies. */
+  #navigator-toolbox tab-group:not([split-view-group]),
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container,
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab {
-    border-left-color: transparent !important;
     border-inline-start-width: 0 !important;
+    border-inline-end-width: 0 !important;
+    border-left-color: transparent !important;
     box-shadow: none !important;
     outline: none !important;
   }

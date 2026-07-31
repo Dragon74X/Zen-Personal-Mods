@@ -82,6 +82,38 @@
     ]
   },
   {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzrouter.auto-path-depth",
+    "label": "Use URL path as subfolders *Subdomains cannot split a site that separates sections by path. nexusmods.com/games/cyberpunk2077 has NO subdomain -- www is stripped -- so every game lands in one folder no matter how deep subdomain nesting goes. This reads path segments instead. One level on that URL gives Nexusmods / Cyberpunk2077, since 'games' is filtered as a generic word.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Off",
+        "value": 0
+      },
+      {
+        "label": "One level",
+        "value": 1
+      },
+      {
+        "label": "Two levels",
+        "value": 2
+      },
+      {
+        "label": "Three levels",
+        "value": 3
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzrouter.auto-path-ignore",
+    "label": "Path words to ignore *Comma separated. Generic route words that would make useless folder names. Numeric segments and anything ending in a file extension are always dropped.*",
+    "defaultValue": "games,category,categories,c,p,en,en-us,www,index,home",
+    "placeholder": "games,category,categories,c,p,en,en-us,www,index,home"
+  },
+  {
     "type": "checkbox",
     "property": "zzrouter.create-groups",
     "label": "Create groups that do not exist yet *Off means tabs are only moved into groups you already made by hand, and rules naming a missing group do nothing.*",
@@ -97,6 +129,12 @@
     "type": "checkbox",
     "property": "zzrouter.skip-grouped",
     "label": "Tabs already in a group *The important one. On, routing only ever touches loose tabs, so anything you filed by hand stays put. Turn it off only if you want rules to override your own sorting.*",
+    "defaultValue": true
+  },
+  {
+    "type": "checkbox",
+    "property": "zzrouter.refile-mismatched",
+    "label": "Re-file tabs that drifted *A link opened from a grouped tab inherits that group even when it goes somewhere unrelated, which is why a stray domain stays stuck in the group it was opened from. With this on, a tab whose group no longer matches where it belongs gets moved. Only applies when tabs already in a group are otherwise skipped.*",
     "defaultValue": true
   },
   {

@@ -54,6 +54,28 @@
     catch { return host; }
   }
 
+  // Many sites separate sections by PATH, not subdomain:
+  //   nexusmods.com/games/cyberpunk2077   -> path
+  //   docs.proton.me                      -> subdomain
+  // www.nexusmods.com has no subdomain at all, so subdomain nesting can
+  // never split it. This reads path segments instead.
+  function pathParts(tab) {
+    const depth = num("auto-path-depth", 0);
+    if (depth < 1) return [];
+    let path = "";
+    try { path = tab.linkedBrowser?.currentURI?.filePath ?? ""; } catch { return []; }
+    const skipWords = new Set(
+      str("auto-path-ignore", "games,category,categories,c,p,en,en-us,www,index,home")
+        .split(",").map(s => s.trim().toLowerCase()).filter(Boolean));
+    const segs = path.split("/")
+      .map(s => decodeURIComponent(s).trim())
+      .filter(Boolean)
+      .filter(s => !skipWords.has(s.toLowerCase()))
+      // drop pure ids and file names, which make useless folder names
+      .filter(s => !/^\d+$/.test(s) && !/\.[a-z0-9]{2,4}$/i.test(s));
+    return segs.slice(0, depth).map(titleCase);
+  }
+
   function targetGroup(tab) {
     const host = hostOf(tab);
     if (!host) return null;
@@ -66,7 +88,10 @@
     if (bool("auto-unmatched", false)) {
       const base = baseDomain(host);
       const parent = titleCase(base);
-      if (!bool("auto-subdomains", true)) return parent;
+      if (!bool("auto-subdomains", true)) {
+        const p = pathParts(tab);
+        return p.length ? [parent, ...p].join(SEP()) : parent;
+      }
 
       // "docs.proton.me" with base "proton.me" leaves "docs".
       // "www" is noise, not a meaningful subdomain.
@@ -79,7 +104,7 @@
       // a.b.example.com -> Example / B / A, outermost first
       const depth = Math.max(1, num("auto-depth", 1));
       const parts = sub.split(".").reverse().slice(0, depth).map(titleCase);
-      return [parent, ...parts].join(SEP());
+      return [parent, ...parts, ...pathParts(tab)].join(SEP());
     }
     return null;
   }
@@ -103,6 +128,10 @@
   }
 
   function placeInGroup(tab, name) {
+    // Leaving a tab in its old group makes addTabs a no-op on some builds.
+    if (tab.group && (tab.group.label ?? "").trim().toLowerCase() !== name.trim().toLowerCase()) {
+      try { tab.group.ungroupTabs?.([tab]); } catch (e) { note(`ungroup failed: ${e}`); }
+    }
     const existing = findGroup(name);
     if (existing) {
       if (tab.group === existing) return false;
@@ -159,7 +188,17 @@
     if (tab.hasAttribute("zen-split")) return "split view";
     if (bool("skip-essentials", true) && tab.getAttribute("zen-essential") === "true") return "essential";
     if (bool("skip-pinned", true) && tab.pinned) return "pinned";
-    if (bool("skip-grouped", true) && tab.group) return "already in a group";
+    if (bool("skip-grouped", true) && tab.group) {
+      // A link opened from a grouped tab inherits that group, even when it
+      // goes somewhere unrelated. With this on, a tab whose group no longer
+      // matches where it belongs gets re-filed instead of being stranded.
+      if (bool("refile-mismatched", true)) {
+        const want = targetGroup(tab);
+        const have = (tab.group.label ?? "").trim().toLowerCase();
+        if (want && have && want.trim().toLowerCase() !== have) return null;
+      }
+      return "already in a group";
+    }
     return null;
   }
 

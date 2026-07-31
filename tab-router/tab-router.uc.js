@@ -484,9 +484,14 @@
     if (!url || !/^https?:/i.test(url)) return tab;
     let fresh = null;
     try {
+      // The navigating page's own principal, like Zen's routing redirect
+      // uses; null principal as the safe fallback. Never the system
+      // principal for a web URL.
+      const principal = tab.linkedBrowser?.contentPrincipal ||
+        Services.scriptSecurityManager.createNullPrincipal({});
       fresh = gBrowser.addTab(url, {
         userContextId: wantCtx,
-        triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal(),
+        triggeringPrincipal: principal,
         inBackground: !tab.selected,
         skipRoute: true,
       });
@@ -707,8 +712,11 @@
   // ever processed.
   const pendingRoute = new WeakMap();
   const progress = {
-    onLocationChange(browser, _wp, _req, _loc, flags) {
-      if (flags & Ci.nsIWebProgressListener.LOCATION_CHANGE_SAME_DOCUMENT) return;
+    onLocationChange(browser, _wp, _req, _loc, _flags) {
+      // Same-document changes are NOT skipped: SPAs like YouTube and Nexus
+      // navigate by pushState, which is exactly that. Hash/query churn is
+      // harmless -- the debounce coalesces it and an unchanged target path
+      // no-ops in placeInPath.
       const tab = gBrowser.getTabForBrowser(browser);
       if (!tab) return;
       clearTimeout(pendingRoute.get(tab));

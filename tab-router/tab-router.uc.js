@@ -372,28 +372,27 @@
       repaired.add(tab);                               // one shot at cleaning up
     }
 
-    // Workspace first: if the root group already exists somewhere, the tab
-    // goes to THAT workspace before any filing, via Zen's own
-    // moveTabToWorkspace. Filing across workspaces without it makes ghosts.
-    //
-    // Containers: Firefox containers are immutable per tab, and Zen itself
-    // only assigns them inside addTab(). So when the destination workspace
-    // has a different default container, the tab is REOPENED there -- the
-    // exact mechanism Zen's space-routing uses -- with skipRoute so Zen's
-    // own router does not bounce it.
+    // ---- destination resolution, systemic and in strict order ----------
+    // Workspace:  Zen space-routing rule  >  workspace already holding the
+    //             root group  >  the tab's current workspace.
+    // Container:  the routed workspace's default (a Zen route carries no
+    //             container of its own; per 1.21.4b source it IS the target
+    //             workspace's containerTabId)  >  what the tabs already in
+    //             the destination group use  >  workspace default  >  keep.
+    // Containers are immutable on a live tab, so a change means reopening
+    // through addTab (skipRoute on), exactly like Zen's own space routing.
+    const dest = resolveDestination(tab, parts);
     const tabWs = wsOf(tab) || window.gZenWorkspaces?.activeWorkspace;
-    const roots = rootGroupsNamed(parts[0]);
-    const rootHere = roots.find(g => !wsOf(g) || wsOf(g) === tabWs);
-    const rootElsewhere = !rootHere && roots.find(g => wsOf(g) && wsOf(g) !== tabWs);
-    if (rootElsewhere) {
-      const targetWs = wsOf(rootElsewhere);
+    const haveCtx = parseInt(tab.getAttribute("usercontextid") || "0", 10);
+
+    if (bool("follow-containers", true) && dest.ctx != null && dest.ctx !== haveCtx) {
+      const fresh = reopenInContainer(tab, dest.ctx, dest.ws);
+      if (fresh !== tab) { bustGroups(); return placeInPathTail(fresh, parts); }
+    }
+    if (dest.ws && dest.ws !== tabWs) {
       try {
-        if (bool("follow-containers", true)) {
-          const moved = reopenForWorkspace(tab, targetWs);
-          if (moved !== tab) { bustGroups(); return placeInPathTail(moved, parts); }
-        }
-        window.gZenWorkspaces.moveTabToWorkspace(tab, targetWs);
-        note(`moved "${tab.label}" to the workspace holding "${parts[0]}"`);
+        window.gZenWorkspaces.moveTabToWorkspace(tab, dest.ws);
+        note(`moved "${tab.label}" to ${dest.why}`);
       } catch (e) {
         note(`workspace move failed: ${e}; filing in current workspace instead`);
       }
@@ -401,13 +400,63 @@
     return placeInPathTail(tab, parts);
   }
 
-  // Reopens the tab in the destination workspace's default container when it
-  // differs; returns the tab to keep filing (new or original).
-  function reopenForWorkspace(tab, targetWs) {
-    const wsObj = window.gZenWorkspaces?.getWorkspaceFromId?.(targetWs);
-    const wantCtx = wsObj?.containerTabId ?? 0;
-    const haveCtx = parseInt(tab.getAttribute("usercontextid") || "0", 10);
-    if (wantCtx === haveCtx) return tab;
+  function resolveDestination(tab, parts) {
+    let ws = null, ctx = null, why = "";
+    // 1) Zen route for this URL (the "Add Route for Domain" rules).
+    try {
+      const url = tab.linkedBrowser?.currentURI?.spec;
+      const r = url && window.gZenSpaceRoutingManager?.routeUri?.(url, { fromExternal: false });
+      if (r && r !== "most-recent-space") {
+        const w = window.gZenWorkspaces?.getWorkspaceFromId?.(r);
+        if (w) {
+          ws = w.uuid ?? r;
+          if (typeof w.containerTabId === "number") ctx = w.containerTabId;
+          why = "the workspace named by a Zen route";
+        }
+      }
+    } catch (e) { note(`route lookup failed: ${e}`); }
+
+    // 2) Existing root group decides the workspace when no route did, and
+    //    its members' container is the next container fallback.
+    const tabWs = wsOf(tab) || window.gZenWorkspaces?.activeWorkspace;
+    const roots = rootGroupsNamed(parts[0]);
+    const root = (ws && roots.find(g => wsOf(g) === ws))
+              ?? roots.find(g => !wsOf(g) || wsOf(g) === tabWs)
+              ?? roots[0] ?? null;
+    if (!ws && root && wsOf(root) && wsOf(root) !== tabWs) {
+      ws = wsOf(root);
+      why = `the workspace holding "${parts[0]}"`;
+    }
+    if (ctx == null && root) ctx = majorityContext(root);
+
+    if (!ws) ws = tabWs;
+    // 3) Workspace default container.
+    if (ctx == null) {
+      try {
+        const w = window.gZenWorkspaces?.getWorkspaceFromId?.(ws);
+        if (typeof w?.containerTabId === "number") ctx = w.containerTabId;
+      } catch {}
+    }
+    return { ws, ctx, why };
+  }
+
+  // Most common usercontextid among the tabs already in the group. 0 is a
+  // real answer (no container) when the members say so; null only when the
+  // group is empty, which falls through to the workspace default.
+  function majorityContext(group) {
+    const counts = new Map();
+    for (const t of group.querySelectorAll(".tabbrowser-tab")) {
+      const c = parseInt(t.getAttribute("usercontextid") || "0", 10);
+      counts.set(c, (counts.get(c) || 0) + 1);
+    }
+    if (!counts.size) return null;
+    return [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+  }
+
+  // Reopens the tab with the given container (and workspace, when given);
+  // returns the tab to keep filing -- the fresh one, or the original on
+  // failure.
+  function reopenInContainer(tab, wantCtx, targetWs) {
     const url = (() => { try { return tab.linkedBrowser?.currentURI?.spec; } catch { return null; } })();
     if (!url || !/^https?:/i.test(url)) return tab;
     let fresh = null;
@@ -419,9 +468,11 @@
         skipRoute: true,
       });
     } catch (e) { note(`container reopen failed: ${e}`); return tab; }
-    try { window.gZenWorkspaces.moveTabToWorkspace(fresh, targetWs); } catch {}
+    try {
+      if (targetWs) window.gZenWorkspaces.moveTabToWorkspace(fresh, targetWs);
+    } catch {}
     try { gBrowser.removeTab(tab); } catch {}
-    note(`reopened "${url.slice(0, 60)}" in the destination workspace's container`);
+    note(`reopened "${url.slice(0, 60)}" in container ${wantCtx}`);
     return fresh;
   }
 

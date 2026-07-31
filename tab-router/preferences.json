@@ -164,7 +164,7 @@
   {
     "type": "checkbox",
     "property": "zzrouter.follow-containers",
-    "label": "Match the destination workspace's container *When filing moves a tab into a group in another workspace, and that workspace has a different default container, the tab is reopened there in the right container -- the same mechanism Zen's own space routing uses. Firefox cannot change a live tab's container, so the reopen reloads the page; back-history of that one tab is not carried over. Off keeps the original container, like Zen's Move to Space menu.*",
+    "label": "Follow Zen routes and containers *Destination is resolved in strict order on every filing move. Workspace: a matching Zen Space Routing rule (the Add Route for Domain entries) wins, then the workspace already holding the group, then the current one. Container: the routed workspace's default, then whatever the tabs already in the destination group use, then the workspace default, then unchanged. Firefox cannot change a live tab's container, so a container change reopens the tab -- the same mechanism Zen's own routing uses; that one tab's back-history is not carried over. Off: tabs keep their container, like Zen's Move to Space menu.*",
     "defaultValue": true
   },
   {

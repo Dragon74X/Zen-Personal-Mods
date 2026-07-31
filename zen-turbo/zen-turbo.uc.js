@@ -64,6 +64,24 @@
     media: [
       ["media.memory_cache_max_size", 65536],
     ],
+    // Forces GPU paths Mozilla blocklists conservatively. Only changes
+    // anything on hardware where they are OFF; on broken drivers it can
+    // glitch, and turning the pack off restores the profile exactly.
+    gfx: [
+      ["gfx.webrender.all", true],
+      ["gfx.canvas.accelerated", true],
+    ],
+    // MSD-physics smooth scrolling: a mass-spring-damper response curve
+    // instead of fixed-duration easing. Scrolling tracks the wheel with
+    // less lag and settles without the floaty tail.
+    scroll: [
+      ["general.smoothScroll.msdPhysics.enabled", true],
+      ["general.smoothScroll.msdPhysics.continuousMotionMaxDeltaMS", 12],
+      ["general.smoothScroll.msdPhysics.motionBeginSpringConstant", 600],
+      ["general.smoothScroll.msdPhysics.regularSpringConstant", 650],
+      ["general.smoothScroll.msdPhysics.slowdownMinDeltaMS", 25],
+      ["general.smoothScroll.msdPhysics.slowdownSpringConstant", 250],
+    ],
   };
 
   const SAVED = P + "saved-prefs";   // JSON: { prefName: {had:bool, v:value} }
@@ -206,15 +224,33 @@
   }
 
   // ---- wiring -------------------------------------------------------------
+  // ---- instant UI animations ---------------------------------------------
+  // Zen animates its UI (tabs, workspaces, folders) through its vendored
+  // Motion library, which exposes a global switch: with instantAnimations
+  // set, every animation jumps straight to its final frame. This is the
+  // real lever -- no zen.animations pref exists. In-memory, applies live,
+  // reverts live, touches nothing on web pages.
+  function syncInstantUI() {
+    const cfg = window.Motion?.MotionGlobalConfig;
+    if (!cfg) { note("Motion library not found; instant UI unavailable on this build"); return; }
+    const want = bool("instant-ui", false);
+    if (cfg.instantAnimations !== want) {
+      cfg.instantAnimations = want;
+      note(`instant UI animations ${want ? "on" : "off"}`);
+    }
+  }
+
   const prefObserver = {
     observe(_s, _t, data) {
       if (data.startsWith(P + "pack-")) syncPacks();
+      if (data === P + "instant-ui") syncInstantUI();
     },
   };
 
   function start() {
     Services.prefs.addObserver(P, prefObserver);
     syncPacks();
+    syncInstantUI();
 
     // mouseover fires on element boundaries only, not per pixel; with the
     // per-origin 60s throttle inside warm() this is effectively free.
@@ -230,6 +266,7 @@
         return {
           packs: Object.fromEntries(Object.keys(PACKS).map(k => [k, bool("pack-" + k, true)])),
           managedPrefs: Object.keys(saved),
+          instantUI: bool("instant-ui", false),
           hoverWarmup: bool("hover-warmup", true),
           startupWarmup: bool("startup-warmup", true),
           warmedThisSession: recentWarm.size,

@@ -19,16 +19,18 @@
 
   let log = [];
   const note = (m) => {
-    log.push(`${new Date().toLocaleTimeString()}  ${m}`);
+    log.push([Date.now(), m]);          // formatted lazily in log()
     if (log.length > 300) log.shift();
     if (bool("debug", false)) console.log("[TabRouter]", m);
   };
+  const formatLog = () =>
+    log.map(([t, m]) => `${new Date(t).toLocaleTimeString()}  ${m}`);
 
   // ---- caches ------------------------------------------------------------
   // Pref strings (rules, aliases, ignore words) were re-parsed on every tab
   // and every path segment. Parsed once, invalidated by a pref observer.
   const parsed = {};
-  const prefObserver = { observe() { for (const k of Object.keys(parsed)) delete parsed[k]; learnedCache = null; } };
+  const prefObserver = { observe() { for (const k of Object.keys(parsed)) delete parsed[k]; learnedCache = null; targetGen++; } };
   function cached(key, make) {
     if (!(key in parsed)) parsed[key] = make();
     return parsed[key];
@@ -124,6 +126,7 @@
     const t = titleNameFor(tab, slug);
     if (t) {
       learnedMap().set(slug, t);
+      targetGen++;                       // other tabs' cached paths may now differ
       saveLearned();
       note(`learned name: ${slug} = ${t}`);
       return t;
@@ -191,9 +194,28 @@
     return segs.slice(0, depth).map(s => segName(tab, s));
   }
 
+  // Retitle events repeat for an unchanged URL; the full computation
+  // (eTLD, rules, path parsing, alias/learned lookups) is cached per tab by
+  // URI spec. Invalidated by URL change per tab, and by any pref change.
+  const targetCache = new WeakMap();
+  let targetGen = 0;
+
+  function targetPath(tab) {
+    let spec = null;
+    try { spec = tab.linkedBrowser?.currentURI?.spec ?? null; } catch {}
+    if (spec) {
+      const hit = targetCache.get(tab);
+      if (hit && hit.spec === spec && hit.gen === targetGen) return hit.parts;
+      const parts = computeTargetPath(tab);
+      targetCache.set(tab, { spec, gen: targetGen, parts });
+      return parts;
+    }
+    return computeTargetPath(tab);
+  }
+
   // Returns the target as a PATH: ["Nexusmods", "Stalker 2"]. Each level is
   // a nested tab group. A flat name is just a one-element path.
-  function targetPath(tab) {
+  function computeTargetPath(tab) {
     const host = hostOf(tab);
     if (!host) return null;
     for (const r of rules()) {
@@ -712,6 +734,7 @@
   // ever processed.
   const pendingRoute = new WeakMap();
   function queueRoute(tab, why) {
+    if (!bool("enabled", false)) return;
     clearTimeout(pendingRoute.get(tab));
     pendingRoute.set(tab, setTimeout(() => {
       pendingRoute.delete(tab);
@@ -969,7 +992,7 @@
         saveLearned();
         return slug ? `forgot "${slug}"` : "forgot all learned names";
       },
-      log: () => log.slice(),
+      log: formatLog,
     };
 
     if (bool("sort-on-startup", false)) setTimeout(() => sweepAll("startup"), num("startup-delay-ms", 2500));

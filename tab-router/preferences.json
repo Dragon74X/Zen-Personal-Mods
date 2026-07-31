@@ -19,6 +19,31 @@
     "placeholder": " / "
   },
   {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzrouter.max-depth",
+    "label": "Nesting limit *Hard cap on how deep automatic filing goes, counting the top group as level one. Two gives domain plus one subgroup. A safety valve: with Unlimited the mod already refuses to build repeated back-and-forth nesting.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Unlimited",
+        "value": 0
+      },
+      {
+        "label": "One level (flat)",
+        "value": 1
+      },
+      {
+        "label": "Two levels",
+        "value": 2
+      },
+      {
+        "label": "Three levels",
+        "value": 3
+      }
+    ]
+  },
+  {
     "type": "string",
     "property": "zzrouter.rules",
     "label": "Rules *One per line, or separated by semicolons. Left of the > is a comma separated list of domains, right of it is the group name. Subdomains match automatically, so github.com also catches gist.github.com. First match wins, so put narrower rules first. You do not have to write these by hand: open the Browser Console and run TabRouter.suggestRules() to generate a block from the tabs you already have open, or TabRouter.suggestRules({subdomains:true}) to get a nested Parent / Child rule per subdomain. It copies to your clipboard and moves nothing.*",

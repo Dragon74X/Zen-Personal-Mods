@@ -200,34 +200,80 @@
     return [...set];
   }
 
-  // Ungroup pops ONE level; the tab stays inside its ancestor groups, so a
-  // root-level create would be born nested in the leftovers -- that was the
-  // 1.10.0 staircase bug (Youtube > Watch > Youtube > Watch ...). Eject from
-  // every level and return the groups left behind.
+  // ---- ejection ----------------------------------------------------------
+  // Firefox's group.ungroupTabs() DISSOLVES the whole group -- the tab list
+  // argument is ignored -- and on some Zen builds it does nothing at all.
+  // Moving the tab to the end of the strip leaves every ancestor group in
+  // one verified step, so that is tried first. Ancestors are recorded
+  // before the move so emptied ones can be cleaned up after.
+  function ancestorsOf(tab) {
+    const out = [];
+    let g = tab.group ?? null;
+    while (g && g.tagName === "tab-group") { out.push(g); g = parentOf(g); }
+    return out;
+  }
+
   function ejectAll(tab) {
-    const left = [];
+    const left = ancestorsOf(tab);
+    if (!left.length) return left;
+
+    // 1) move to strip end: leaves all groups at once. Signature differs
+    //    across versions, so both forms are tried.
+    if (typeof gBrowser.moveTabTo === "function") {
+      const last = gBrowser.tabs.length - 1;
+      try { gBrowser.moveTabTo(tab, { tabIndex: last }); } catch {
+        try { gBrowser.moveTabTo(tab, last); } catch (e) { note(`moveTabTo threw: ${e}`); }
+      }
+      if (!tab.group) return left;
+    }
+
+    // 2) fallback: dissolve groups innermost-out. Side effect: siblings of
+    //    the tab spill out of each dissolved group too.
     for (let i = 0; i < 10 && tab.group; i++) {
       const g = tab.group;
-      try { g.ungroupTabs?.([tab]); } catch (e) { note(`ungroup failed: ${e}`); break; }
-      if (tab.group === g) { note(`tab refused to leave "${g.label}"`); break; }
-      left.push(g);
+      try { g.ungroupTabs?.(); } catch (e) { note(`ungroupTabs threw on "${g.label}": ${e}`); break; }
+      if (tab.group === g) break;   // refused; give up
     }
     return left;
   }
 
+  const endsWithPath = (chain, want) =>
+    want.length && chain.length >= want.length && samePath(chain.slice(-want.length), want);
+
+  // One repair attempt per tab: if it is suffix-filed under junk and the
+  // junk cannot be ejected on this build, stop touching it instead of
+  // looping forever.
+  const repaired = new WeakSet();
+
   function placeInPath(tab, parts) {
     if (!parts?.length) return false;
-    if (samePath(chainOf(tab), parts)) return false;   // already filed right
+    const cap = num("max-depth", 0);
+    if (cap > 0) parts = parts.slice(0, cap);
+
+    const chain = chainOf(tab);
+    if (samePath(chain, parts)) return false;          // filed right
+    if (endsWithPath(chain, parts)) {                  // filed right, junk above
+      if (repaired.has(tab)) return false;
+      repaired.add(tab);                               // one shot at cleaning up
+    }
 
     const left = ejectAll(tab);
+
+    // THE loop-killer: never create groups while the tab still sits inside
+    // an old chain -- that is exactly what manufactured the staircase.
+    if (chainOf(tab).length) {
+      note(`eject FAILED for "${tab.label}" -- still in ` +
+           `${chainOf(tab).join(" > ")}; leaving it alone. Run TabRouter.diag() and report.`);
+      return false;
+    }
+
     const ok = walkPath(tab, parts);
 
-    // Groups the eject emptied out are residue (often 1.9's flat joined-label
-    // group, or 1.10.0's staircase). A group with no tab anywhere under it is
-    // dead weight; removing it while empty closes nothing.
+    // Groups the eject emptied are residue (1.9 flat joined-label groups,
+    // 1.10.x staircases). No tab anywhere under them = removing closes nothing.
     for (const g of left) {
       if (!g.isConnected) continue;
-      if (g.querySelector(".tabbrowser-tab")) continue;   // still holds tabs somewhere below
+      if (g.querySelector(".tabbrowser-tab")) continue;
       try { gBrowser.removeTabGroup(g); note(`removed empty group "${g.label}"`); }
       catch (e) { note(`could not remove empty "${g.label}": ${e}`); }
     }
@@ -296,7 +342,11 @@
       if (bool("refile-mismatched", true)) {
         const want = targetPath(tab);
         const have = chainOf(tab);
-        if (want?.length && have.length && !samePath(want, have)) return null;
+        if (want?.length && have.length && !samePath(want, have)) {
+          // Suffix-filed under junk gets exactly one repair attempt;
+          // placeInPath marks it and this stops routing it afterwards.
+          if (!endsWithPath(have, want) || !repaired.has(tab)) return null;
+        }
       }
       return "already in a group";
     }
@@ -503,6 +553,41 @@
           currentGroup: chainOf(t).join(SEP()) || null,
           wouldGo: skip(t) ? `skipped (${skip(t)})` : targetPath(t)?.join(SEP()),
         };
+      },
+      // Runs the eject experiment on the SELECTED tab and reports every
+      // fact needed to debug filing on this build. Copies to clipboard.
+      diag() {
+        const tab = gBrowser.selectedTab;
+        const before = chainOf(tab);
+        const g = tab.group;
+        const r = {
+          zen: Services.appinfo?.version,
+          tab: tab.label,
+          chainBefore: before.join(" > ") || "(none)",
+          groupTag: g?.tagName ?? null,
+          api: {
+            moveTabTo: typeof gBrowser.moveTabTo,
+            moveTabToGroup: typeof gBrowser.moveTabToGroup,
+            addTabGroup: typeof gBrowser.addTabGroup,
+            removeTabGroup: typeof gBrowser.removeTabGroup,
+            ungroupTabs: typeof g?.ungroupTabs,
+            addTabs: typeof g?.addTabs,
+          },
+        };
+        if (before.length) {
+          ejectAll(tab);
+          r.chainAfterEject = chainOf(tab).join(" > ") || "(none -- eject works)";
+        } else {
+          r.chainAfterEject = "(tab was not in a group; put it in one and rerun)";
+        }
+        const text = JSON.stringify(r, null, 2);
+        console.log(text);
+        try {
+          Cc["@mozilla.org/widget/clipboardhelper;1"]
+            .getService(Ci.nsIClipboardHelper).copyString(text);
+          console.log("(copied to clipboard)");
+        } catch {}
+        return r;
       },
       log: () => log.slice(),
     };

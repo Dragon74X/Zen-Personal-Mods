@@ -349,7 +349,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.line-gradient",
-    "label": "Line gradient *How the rail's colour is distributed. Soft ends fades in at the top and out at the bottom, so the line has no hard start or stop. All stops are percentages, so groups of any length fade identically.*",
+    "label": "Line gradient *How the rail's colour is distributed. Soft ends fades in at the top and out at the bottom, from the centre outward, so the line has no hard start or stop. Rounded shades across the rail's width instead, densest along its middle, so it reads as a tube rather than a flat strip. All stops are percentages, so groups of any length fade identically.*",
     "defaultValue": 1,
     "options": [
       {
@@ -369,8 +369,20 @@
         "value": 3
       },
       {
-        "label": "Accent to faint",
+        "label": "Fade rightward",
         "value": 4
+      },
+      {
+        "label": "Fade leftward",
+        "value": 5
+      },
+      {
+        "label": "Rounded (3D)",
+        "value": 6
+      },
+      {
+        "label": "Rounded + soft ends",
+        "value": 7
       }
     ]
   },
@@ -402,6 +414,10 @@
       {
         "label": "Flat",
         "value": 1
+      },
+      {
+        "label": "Slightly rounded",
+        "value": 2
       }
     ]
   },

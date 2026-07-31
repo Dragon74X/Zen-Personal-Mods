@@ -40,23 +40,15 @@
   --zzgf-w: max(var(--zzgroup-guide-width, 1px), 1px);
   --zzgf-fade: var(--zzgroup-line-fade, 12%);
   --zzgf-cap: 99px;
+  --zzgf-railmask: none;
   --zzgf-r: max(10px, calc(var(--zzgf-w) * 3));
-  --zzgf-pad: calc(var(--zzgf-r) + 2px);
+  /* Padding reserves room for the widest thing that must fit between the
+     rail and the row: the elbow radius or the mark. Without this a large
+     mark runs under the tab's own plate and looks cut off. */
+  --zzgf-pad: calc(max(10px, var(--zzgf-r), var(--zzgf-m)) + 4px);
 }
 @media (-moz-pref("zzgroup.line-cap", 1)) { :root { --zzgf-cap: 0; } }
-@media (-moz-pref("zzgroup.line-gradient", 0)) {
-  #navigator-toolbox tab-group:not([split-view-group]) {
-    --zzgf-grad: linear-gradient(var(--zzgf-line), var(--zzgf-line)); } }
-@media (-moz-pref("zzgroup.line-gradient", 2)) {
-  #navigator-toolbox tab-group:not([split-view-group]) {
-    --zzgf-grad: linear-gradient(to bottom, var(--zzgf-line) 0%, transparent 100%); } }
-@media (-moz-pref("zzgroup.line-gradient", 3)) {
-  #navigator-toolbox tab-group:not([split-view-group]) {
-    --zzgf-grad: linear-gradient(to bottom, transparent 0%, var(--zzgf-line) 100%); } }
-@media (-moz-pref("zzgroup.line-gradient", 4)) {
-  #navigator-toolbox tab-group:not([split-view-group]) {
-    --zzgf-grad: linear-gradient(to bottom, var(--zzgf-line) 0%,
-      color-mix(in srgb, var(--zzgf-accent) calc(var(--zzgroup-line-strength, 40%) * 0.25), transparent) 100%); } }
+@media (-moz-pref("zzgroup.line-cap", 2)) { :root { --zzgf-cap: calc(var(--zzgf-w) * 0.5); } }
 @media (-moz-pref("zzgroup.gradient-direction", 1)) { :root { --zzgf-dir: to bottom; } }
 @media (-moz-pref("zzgroup.gradient-direction", 2)) { :root { --zzgf-dir: to top; } }
 @media (-moz-pref("zzgroup.gradient-direction", 3)) { :root { --zzgf-dir: to right; } }
@@ -77,6 +69,45 @@
     transparent 0%, var(--zzgf-line) var(--zzgf-fade),
     var(--zzgf-line) calc(100% - var(--zzgf-fade)), transparent 100%);
 }
+
+/* Rail gradient variants. These MUST come after the base declaration
+   above: same selector, same specificity, so the later rule is the one
+   that applies -- when they sat before it, every option was silently
+   dead. Same trap as declaring an accent-dependent token on :root. */
+@media (-moz-pref("zzgroup.line-gradient", 0)) {
+  #navigator-toolbox tab-group:not([split-view-group]) {
+    --zzgf-grad: linear-gradient(var(--zzgf-line), var(--zzgf-line)); } }
+@media (-moz-pref("zzgroup.line-gradient", 2)) {
+  #navigator-toolbox tab-group:not([split-view-group]) {
+    --zzgf-grad: linear-gradient(to bottom, var(--zzgf-line) 0%, transparent 100%); } }
+@media (-moz-pref("zzgroup.line-gradient", 3)) {
+  #navigator-toolbox tab-group:not([split-view-group]) {
+    --zzgf-grad: linear-gradient(to bottom, transparent 0%, var(--zzgf-line) 100%); } }
+@media (-moz-pref("zzgroup.line-gradient", 4)) {
+  #navigator-toolbox tab-group:not([split-view-group]) {
+    --zzgf-grad: linear-gradient(to right, var(--zzgf-line) 0%, transparent 100%); } }
+@media (-moz-pref("zzgroup.line-gradient", 5)) {
+  #navigator-toolbox tab-group:not([split-view-group]) {
+    --zzgf-grad: linear-gradient(to left, var(--zzgf-line) 0%, transparent 100%); } }
+/* Rounded: shading runs ACROSS the rail's width, densest along its
+   middle, so the line reads as a tube rather than a flat strip. */
+@media (-moz-pref("zzgroup.line-gradient", 6)) {
+  #navigator-toolbox tab-group:not([split-view-group]) {
+    --zzgf-grad: linear-gradient(to right,
+      color-mix(in srgb, var(--zzgf-line) 25%, transparent) 0%,
+      var(--zzgf-line) 50%,
+      color-mix(in srgb, var(--zzgf-line) 25%, transparent) 100%); } }
+/* Rounded with soft ends: both at once. */
+@media (-moz-pref("zzgroup.line-gradient", 7)) {
+  #navigator-toolbox tab-group:not([split-view-group]) {
+    --zzgf-grad:
+      linear-gradient(to right,
+        color-mix(in srgb, var(--zzgf-line) 25%, transparent) 0%,
+        var(--zzgf-line) 50%,
+        color-mix(in srgb, var(--zzgf-line) 25%, transparent) 100%); 
+    --zzgf-railmask: linear-gradient(to bottom,
+      transparent 0%, black var(--zzgf-fade),
+      black calc(100% - var(--zzgf-fade)), transparent 100%); } }
 @media (-moz-pref("zzgroup.color-source", 1)) {
   #navigator-toolbox tab-group:not([split-view-group]) {
     --zzgf-raw: var(--zzg-accent, var(--zen-primary-color, #7c8cf8));
@@ -212,14 +243,18 @@
      sharing would merge the two rules property by property. Ours takes
      ::before, theirs is neutralized below. */
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 2px;
-    width: var(--zzgf-w);
-    border-radius: var(--zzgf-cap);
-    background: var(--zzgf-grad);
+    content: "" !important;
+    position: absolute !important;
+    left: 0 !important;
+    right: auto !important;
+    top: 2px !important;
+    bottom: 2px !important;
+    width: var(--zzgf-w) !important;
+    /* !important on the radius too: a square-ended rail means something
+       else in the stack is setting border-radius on this pseudo. */
+    border-radius: var(--zzgf-cap) !important;
+    background: var(--zzgf-grad) !important;
+    mask-image: var(--zzgf-railmask);
     pointer-events: none;
   }
 }
@@ -280,8 +315,12 @@
        the horizontal geometry was being overridden. */
     content: "" !important;
     position: absolute !important;
-    left: calc(-1 * var(--zzgf-pad) + var(--zzgf-w)) !important;
-    right: auto !important;
+    /* Anchored to the row's LEFT EDGE and laid out leftward, so the mark
+       sits entirely outside the row at any size and can never be painted
+       over by the tab's background plate. */
+    right: 100% !important;
+    left: auto !important;
+    margin-right: 2px !important;
     top: 50% !important;
     bottom: auto !important;
     width: var(--zzgf-m) !important;
@@ -291,6 +330,10 @@
     transform: translateY(-50%) !important;
     background: var(--zzgf-line) !important;
     border: none !important;
+    /* An unset shape must render nothing, not a bare rectangle: the base
+       rule covers tabs and subgroups together, so whichever one has no
+       shape selected would otherwise show the unmasked box. */
+    --zzgf-shape: linear-gradient(transparent, transparent);
     mask-image: var(--zzgf-shape), var(--zzgf-maskgrad);
     mask-composite: intersect;
     mask-size: contain, 100% 100%;

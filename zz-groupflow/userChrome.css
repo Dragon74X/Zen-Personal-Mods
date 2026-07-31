@@ -38,26 +38,25 @@
      thick border is a blob, not a curve. Radius grows with the line so the
      sweep stays a sweep at any width. */
   --zzgf-w: max(var(--zzgroup-guide-width, 1px), 1px);
-  /* Line colour and fade. Stops are percentages so a two-tab subgroup and
-     a twenty-tab group fade by the same proportion, not the same pixels. */
-  --zzgf-line: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-line-strength, 40%), transparent);
   --zzgf-fade: var(--zzgroup-line-fade, 12%);
   --zzgf-cap: 99px;
-  --zzgf-grad: linear-gradient(to bottom,
-    transparent 0%, var(--zzgf-line) var(--zzgf-fade),
-    var(--zzgf-line) calc(100% - var(--zzgf-fade)), transparent 100%);
   --zzgf-r: max(10px, calc(var(--zzgf-w) * 3));
   --zzgf-pad: calc(var(--zzgf-r) + 2px);
 }
 @media (-moz-pref("zzgroup.line-cap", 1)) { :root { --zzgf-cap: 0; } }
-@media (-moz-pref("zzgroup.line-gradient", 0)) { :root { --zzgf-grad: linear-gradient(var(--zzgf-line), var(--zzgf-line)); } }
+@media (-moz-pref("zzgroup.line-gradient", 0)) {
+  #navigator-toolbox tab-group:not([split-view-group]) {
+    --zzgf-grad: linear-gradient(var(--zzgf-line), var(--zzgf-line)); } }
 @media (-moz-pref("zzgroup.line-gradient", 2)) {
-  :root { --zzgf-grad: linear-gradient(to bottom, var(--zzgf-line) 0%, transparent 100%); } }
+  #navigator-toolbox tab-group:not([split-view-group]) {
+    --zzgf-grad: linear-gradient(to bottom, var(--zzgf-line) 0%, transparent 100%); } }
 @media (-moz-pref("zzgroup.line-gradient", 3)) {
-  :root { --zzgf-grad: linear-gradient(to bottom, transparent 0%, var(--zzgf-line) 100%); } }
+  #navigator-toolbox tab-group:not([split-view-group]) {
+    --zzgf-grad: linear-gradient(to bottom, transparent 0%, var(--zzgf-line) 100%); } }
 @media (-moz-pref("zzgroup.line-gradient", 4)) {
-  :root { --zzgf-grad: linear-gradient(to bottom, var(--zzgf-line) 0%,
-    color-mix(in srgb, var(--zzgf-accent) calc(var(--zzgroup-line-strength, 40%) * 0.25), transparent) 100%); } }
+  #navigator-toolbox tab-group:not([split-view-group]) {
+    --zzgf-grad: linear-gradient(to bottom, var(--zzgf-line) 0%,
+      color-mix(in srgb, var(--zzgf-accent) calc(var(--zzgroup-line-strength, 40%) * 0.25), transparent) 100%); } }
 @media (-moz-pref("zzgroup.gradient-direction", 1)) { :root { --zzgf-dir: to bottom; } }
 @media (-moz-pref("zzgroup.gradient-direction", 2)) { :root { --zzgf-dir: to top; } }
 @media (-moz-pref("zzgroup.gradient-direction", 3)) { :root { --zzgf-dir: to right; } }
@@ -71,6 +70,12 @@
 #navigator-toolbox tab-group:not([split-view-group]) {
   --zzgf-raw: var(--tab-group-color, var(--zzg-accent, var(--zen-primary-color, #7c8cf8)));
   --zzgf-accent: color-mix(in srgb, var(--zzgf-raw), black var(--zzg-tone, 25%));
+  --zzgf-line: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-line-strength, 40%), transparent);
+  /* Stops are percentages so a two-tab subgroup and a twenty-tab group
+     fade by the same proportion, not the same pixels. */
+  --zzgf-grad: linear-gradient(to bottom,
+    transparent 0%, var(--zzgf-line) var(--zzgf-fade),
+    var(--zzgf-line) calc(100% - var(--zzgf-fade)), transparent 100%);
 }
 @media (-moz-pref("zzgroup.color-source", 1)) {
   #navigator-toolbox tab-group:not([split-view-group]) {
@@ -213,7 +218,9 @@
    item's own ::after, in the negative space left of it, so clipping must
    be lifted -- Zen and the glass mods clip tabs for rounded corners, and
    a clipped mark shows up as a stub. */
-@media not (-moz-pref("zzgroup.marker", 0)) {
+@media (-moz-pref("zzgroup.marker", 1)), (-moz-pref("zzgroup.marker", 2)),
+       (-moz-pref("zzgroup.marker", 3)), (-moz-pref("zzgroup.marker", 4)),
+       (-moz-pref("zzgroup.marker", 5)) {
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container,
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > :is(.tabbrowser-tab, tab-group) {
     overflow: visible !important;

@@ -74,12 +74,15 @@
     }
   }
 
+  let urlFilters = null;   // parsed once; pref observer resets it
   function urlExcluded(tab) {
-    const raw = str("exclude-urls", "").trim();
-    if (!raw) return false;
+    if (urlFilters === null) {
+      urlFilters = str("exclude-urls", "").split(",").map(s => s.trim()).filter(Boolean);
+    }
+    if (!urlFilters.length) return false;
     let url = "";
     try { url = tab.linkedBrowser?.currentURI?.spec ?? ""; } catch { return false; }
-    return raw.split(",").map(s => s.trim()).filter(Boolean).some(f => url.includes(f));
+    return urlFilters.some(f => url.includes(f));
   }
 
   function whyKeep(tab, now) {
@@ -88,6 +91,8 @@
     if (tab.selected) return "active tab";
     if (tab.hasAttribute("pending")) return "already unloaded";
     if (!tab.linkedBrowser) return "no browser";
+    if (tab.hasAttribute("zen-empty-tab")) return "empty tab";
+    if (tab.hasAttribute("_forZenEmptyTab")) return "empty tab";
 
     const idleSec = Math.max(5, num("idle-seconds", 1800));
     const idleFor = (now - (tab.lastAccessed || now)) / 1000;
@@ -108,9 +113,16 @@
   }
 
   function allTabs() {
-    // gBrowser.tabs covers every workspace in this window; other windows
-    // have their own copy of this script.
-    try { return Array.from(gBrowser?.tabs ?? []); } catch { return []; }
+    // gBrowser.tabs does NOT cover other workspaces on Zen: measured on a
+    // real profile it reported 13 tabs while the document held 56
+    // .tabbrowser-tab elements. The DOM query sees every workspace in this
+    // window, open or not; union both, de-duplicated. Other windows run
+    // their own copy of this script (Sine injects per window), so they
+    // sweep themselves -- enumerating windows here would double-sweep.
+    const set = new Set();
+    try { for (const t of gBrowser?.tabs ?? []) set.add(t); } catch {}
+    try { for (const t of document.querySelectorAll(".tabbrowser-tab")) set.add(t); } catch {}
+    return [...set];
   }
 
   function sweep() {
@@ -159,6 +171,7 @@
 
   const observer = {
     observe(_s, _t, data) {
+      urlFilters = null;
       if (data === P + "enabled" || data === P + "check-seconds") reschedule();
     },
   };

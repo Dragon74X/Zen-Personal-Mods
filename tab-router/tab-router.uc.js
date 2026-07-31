@@ -259,6 +259,19 @@
 
   const parentOf = (g) => g?.parentElement?.closest("tab-group") ?? null;
   const wsOf = (el) => el?.getAttribute?.("zen-workspace-id") || null;
+  // DOM truth: which <zen-workspace id="{uuid}"> section actually holds the
+  // element. Groups made by hand carry no zen-workspace-id attribute, and
+  // treating that as "matches any workspace" was the ghost bug: filing
+  // pulled a tab's DOM into another workspace's section while the tab's
+  // attribute said otherwise. Attribute first, section second, and the
+  // attribute gets stamped from the section when missing.
+  function wsOfEl(el) {
+    const a = wsOf(el);
+    if (a) return a;
+    const sec = el?.closest?.("zen-workspace")?.id || null;
+    if (sec && el?.setAttribute) el.setAttribute("zen-workspace-id", sec);
+    return sec;
+  }
 
   // ROOT-level groups are workspace-scoped: a "Youtube" in another workspace
   // must not be matched when filing within this one (that is decided
@@ -268,7 +281,7 @@
     return groups().find(g =>
       (g.label ?? "").trim().toLowerCase() === want &&
       parentOf(g) === parent &&
-      (parent || !ws || !wsOf(g) || wsOf(g) === ws)) ?? null;
+      (parent || !ws || wsOfEl(g) === ws)) ?? null;
   }
 
   function rootGroupsNamed(name) {
@@ -283,7 +296,7 @@
   function healWorkspace(tab) {
     if (!tab.group) return;
     const root = ancestorsOf(tab).at(-1);
-    const gws = wsOf(root);
+    const gws = wsOfEl(root);
     if (gws && wsOf(tab) !== gws) {
       tab.setAttribute("zen-workspace-id", gws);
       try { gBrowser.tabContainer._invalidateCachedTabs(); } catch {}
@@ -401,17 +414,27 @@
   }
 
   function resolveDestination(tab, parts) {
-    let ws = null, ctx = null, why = "";
+    let ws = null, ctx = null, why = "", stay = false;
     // 1) Zen route for this URL (the "Add Route for Domain" rules).
+    //    routeUri() returns "most-recent-space" both for an explicit
+    //    stay-here rule AND for no rule at all, so the routes are matched
+    //    directly to tell them apart: an explicit stay-here rule pins
+    //    filing to the current workspace -- the group is created here
+    //    rather than chasing a same-named group in another workspace.
     try {
       const url = tab.linkedBrowser?.currentURI?.spec;
-      const r = url && window.gZenSpaceRoutingManager?.routeUri?.(url, { fromExternal: false });
-      if (r && r !== "most-recent-space") {
-        const w = window.gZenWorkspaces?.getWorkspaceFromId?.(r);
-        if (w) {
-          ws = w.uuid ?? r;
-          if (typeof w.containerTabId === "number") ctx = w.containerTabId;
-          why = "the workspace named by a Zen route";
+      const m = window.gZenSpaceRoutingManager;
+      if (url && m?.getAllRoutes && m?.isRouteMatching) {
+        for (const route of m.getAllRoutes()) {
+          if (!m.isRouteMatching(url, route)) continue;
+          if (route.openIn === "most-recent-space") { stay = true; break; }
+          const w = window.gZenWorkspaces?.getWorkspaceFromId?.(route.openIn);
+          if (w) {
+            ws = w.uuid ?? route.openIn;
+            if (typeof w.containerTabId === "number") ctx = w.containerTabId;
+            why = "the workspace named by a Zen route";
+          }
+          break;
         }
       }
     } catch (e) { note(`route lookup failed: ${e}`); }
@@ -420,11 +443,11 @@
     //    its members' container is the next container fallback.
     const tabWs = wsOf(tab) || window.gZenWorkspaces?.activeWorkspace;
     const roots = rootGroupsNamed(parts[0]);
-    const root = (ws && roots.find(g => wsOf(g) === ws))
-              ?? roots.find(g => !wsOf(g) || wsOf(g) === tabWs)
-              ?? roots[0] ?? null;
-    if (!ws && root && wsOf(root) && wsOf(root) !== tabWs) {
-      ws = wsOf(root);
+    const root = (ws && roots.find(g => wsOfEl(g) === ws))
+              ?? roots.find(g => wsOfEl(g) === tabWs)
+              ?? (stay ? null : roots[0] ?? null);
+    if (!ws && !stay && root && wsOfEl(root) !== tabWs) {
+      ws = wsOfEl(root);
       why = `the workspace holding "${parts[0]}"`;
     }
     if (ctx == null && root) ctx = majorityContext(root);

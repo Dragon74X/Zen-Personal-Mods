@@ -127,6 +127,13 @@
 
   function sweep() {
     if (!bool("enabled", false)) return;
+    // discardBrowser mid workspace-slide contributes to animation stutter;
+    // Zen marks the slide on :root. Skip this tick, the interval retries.
+    if (document.documentElement.hasAttribute("animating-background") ||
+        document.documentElement.hasAttribute("swipe-gesture")) {
+      note("sweep deferred: workspace animation in progress");
+      return;
+    }
     const now = Date.now();
     const tabs = allTabs();
     const eligible = tabs.filter(t => whyKeep(t, now) === null);

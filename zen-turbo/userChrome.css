@@ -1,0 +1,47 @@
+/* ============================================================
+   Zen Turbo -- workspace-switch smoothing
+
+   Zen marks the whole workspace slide with [animating-background]
+   on the root element (set/removed in ZenSpaceManager.mjs) and
+   trackpad swipes with [swipe-gesture]. While the tab strip
+   translates, every backdrop-filter under it re-samples and
+   re-blurs per frame, every transition invalidates per frame, and
+   any playing <video> in the sidebar recomposites per frame. With
+   Glassflow AND Transparent Zen stacked, that is two independent
+   blur systems live at once for the whole slide.
+
+   Everything below applies ONLY while the marker attribute exists:
+   suspended for ~the slide, restored the instant it ends. Resting
+   visuals are pixel-identical.
+
+   Specificity notes: all Sine mods share one user sheet, imports
+   ordered by mod id, so zz-glassflow and others import after
+   zen-turbo and would win !important ties at equal specificity.
+   :root IS #main-window in browser.xhtml, so the id + the repeated
+   attribute out-specifies the :not()-heavy tab rules in Glassflow,
+   Transparent Zen and Advanced Tab Groups without renaming this
+   mod. Ugly, boring, guaranteed.
+   ============================================================ */
+
+@media (-moz-pref("zzturbo.smooth-workspace-switch")) {
+  /* Kill every backdrop blur and transition in browser chrome for the
+     duration of the slide. The universal selector is fine here: it is
+     active for ~300ms and REMOVES work rather than adding it. */
+  #main-window[animating-background][animating-background][animating-background][animating-background][animating-background][animating-background][animating-background][animating-background]
+    #navigator-toolbox :is(*, *::before, *::after),
+  #main-window[swipe-gesture][swipe-gesture][swipe-gesture][swipe-gesture][swipe-gesture][swipe-gesture][swipe-gesture][swipe-gesture]
+    #navigator-toolbox :is(*, *::before, *::after) {
+    backdrop-filter: none !important;
+    transition: none !important;
+    animation-play-state: paused !important;
+  }
+
+  /* A live video preview (Zenslop) keeps compositing every frame of
+     the slide; parked but layout-stable while it runs. */
+  #main-window[animating-background][animating-background][animating-background][animating-background][animating-background][animating-background][animating-background][animating-background]
+    #navigator-toolbox video,
+  #main-window[swipe-gesture][swipe-gesture][swipe-gesture][swipe-gesture][swipe-gesture][swipe-gesture][swipe-gesture][swipe-gesture]
+    #navigator-toolbox video {
+    visibility: hidden !important;
+  }
+}

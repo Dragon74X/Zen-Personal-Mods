@@ -678,7 +678,17 @@
   let orderTimer = null;
   function scheduleOrder() {
     clearTimeout(orderTimer);
-    orderTimer = setTimeout(() => { try { applyOrder(); } catch (e) { note(`applyOrder: ${e}`); } }, num("order-delay-ms", 150));
+    orderTimer = setTimeout(() => {
+      // Re-sorting moves DOM nodes; doing that mid workspace-slide adds
+      // stutter to the animation. Zen marks the slide on :root, so wait it
+      // out and land the sort right after.
+      if (document.documentElement.hasAttribute("animating-background") ||
+          document.documentElement.hasAttribute("swipe-gesture")) {
+        scheduleOrder();
+        return;
+      }
+      try { applyOrder(); } catch (e) { note(`applyOrder: ${e}`); }
+    }, num("order-delay-ms", 150));
   }
 
   function skip(tab, precomputedParts) {

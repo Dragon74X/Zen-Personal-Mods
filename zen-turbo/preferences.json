@@ -37,6 +37,12 @@
   },
   {
     "type": "checkbox",
+    "property": "zzturbo.smooth-workspace-switch",
+    "label": "Smooth workspace switching *Suspends tab blur effects and transitions ONLY for the duration of the workspace slide animation, using the marker attribute Zen itself sets while it runs. Blurred tab backgrounds re-render their blur every frame while the strip moves, which is what makes switching feel framey with glass themes; parked, they cost little and come straight back the instant the slide ends. Resting visuals are pixel-identical.*",
+    "defaultValue": true
+  },
+  {
+    "type": "checkbox",
     "property": "zzturbo.instant-ui",
     "label": "Instant UI animations *Zen animates its interface -- tab open and close, workspace switches, folders -- through its bundled Motion library. This flips that library's global switch so every UI animation jumps straight to its final frame: the interface responds at input speed instead of animation speed. Applies and reverts live, and web pages are untouched. This is a look change by design; leave it off if you like the motion.*",
     "defaultValue": false

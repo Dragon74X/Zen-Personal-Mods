@@ -236,11 +236,37 @@
   }
 
   const parentOf = (g) => g?.parentElement?.closest("tab-group") ?? null;
+  const wsOf = (el) => el?.getAttribute?.("zen-workspace-id") || null;
 
-  function findChild(name, parent) {
+  // ROOT-level groups are workspace-scoped: a "Youtube" in another workspace
+  // must not be matched when filing within this one (that is decided
+  // earlier, by moving the tab). Nested levels are scoped by parent already.
+  function findChild(name, parent, ws) {
     const want = name.trim().toLowerCase();
     return groups().find(g =>
-      (g.label ?? "").trim().toLowerCase() === want && parentOf(g) === parent) ?? null;
+      (g.label ?? "").trim().toLowerCase() === want &&
+      parentOf(g) === parent &&
+      (parent || !ws || !wsOf(g) || wsOf(g) === ws)) ?? null;
+  }
+
+  function rootGroupsNamed(name) {
+    const want = name.trim().toLowerCase();
+    return groups().filter(g =>
+      !parentOf(g) && (g.label ?? "").trim().toLowerCase() === want);
+  }
+
+  // Ghost repair: a tab whose DOM sits inside a group in workspace B while
+  // its own zen-workspace-id still says A is invisible in both. The DOM is
+  // already right, so only the attribute needs fixing.
+  function healWorkspace(tab) {
+    if (!tab.group) return;
+    const root = ancestorsOf(tab).at(-1);
+    const gws = wsOf(root);
+    if (gws && wsOf(tab) !== gws) {
+      tab.setAttribute("zen-workspace-id", gws);
+      try { gBrowser.tabContainer._invalidateCachedTabs(); } catch {}
+      note(`healed workspace id on "${tab.label}" -> group's workspace`);
+    }
   }
 
   // ["Work", "Email"] for a tab inside Email inside Work.
@@ -315,10 +341,32 @@
     if (cap > 0) parts = parts.slice(0, cap);
 
     const chain = chainOf(tab);
-    if (startsWithPath(chain, parts)) return false;    // filed right (or deeper)
+    if (startsWithPath(chain, parts)) {                // filed right (or deeper)
+      healWorkspace(tab);
+      return false;
+    }
     if (endsWithPath(chain, parts)) {                  // filed right, junk above
       if (repaired.has(tab)) return false;
       repaired.add(tab);                               // one shot at cleaning up
+    }
+
+    // Workspace first: if the root group already exists somewhere, the tab
+    // goes to THAT workspace before any filing, via Zen's own
+    // moveTabToWorkspace (sets zen-workspace-id + section, same call the
+    // "Move to space" menu uses). Filing across workspaces without it makes
+    // ghosts: DOM in one workspace, attribute in another, visible in neither.
+    // The tab's container is left as-is, same as Zen's native move.
+    const tabWs = wsOf(tab) || window.gZenWorkspaces?.activeWorkspace;
+    const roots = rootGroupsNamed(parts[0]);
+    const rootHere = roots.find(g => !wsOf(g) || wsOf(g) === tabWs);
+    const rootElsewhere = !rootHere && roots.find(g => wsOf(g) && wsOf(g) !== tabWs);
+    if (rootElsewhere) {
+      try {
+        window.gZenWorkspaces.moveTabToWorkspace(tab, wsOf(rootElsewhere));
+        note(`moved "${tab.label}" to the workspace holding "${parts[0]}"`);
+      } catch (e) {
+        note(`workspace move failed: ${e}; filing in current workspace instead`);
+      }
     }
 
     const left = ejectAll(tab);
@@ -346,8 +394,9 @@
 
   function walkPath(tab, parts) {
     let parent = null;
+    const ws = wsOf(tab) || window.gZenWorkspaces?.activeWorkspace || null;
     for (const name of parts) {
-      let g = findChild(name, parent);
+      let g = findChild(name, parent, parent ? null : ws);
       if (g) {
         // Move the tab in at this level so the next creation nests here.
         if (tab.group !== g) {
@@ -379,6 +428,7 @@
         return !!parent;
       }
       if (!g) { note(`addTabGroup("${name}") returned nothing`); return !!parent; }
+      if (!parent && ws && !wsOf(g)) g.setAttribute("zen-workspace-id", ws);
       if (parent && parentOf(g) !== parent) {
         // ponytail: no repair attempt; report and keep the flat group
         note(`"${name}" was created but did NOT nest under "${parent.label}" on this build`);
@@ -400,6 +450,7 @@
     if (bool("skip-essentials", true) && tab.getAttribute("zen-essential") === "true") return "essential";
     if (bool("skip-pinned", true) && tab.pinned) return "pinned";
     if (bool("skip-grouped", true) && tab.group) {
+      healWorkspace(tab);   // ghost repair is safe and cheap; always do it
       // A link opened from a grouped tab inherits that group, even when it
       // goes somewhere unrelated. With this on, a tab whose group path no
       // longer matches where it belongs gets re-filed instead of stranded.

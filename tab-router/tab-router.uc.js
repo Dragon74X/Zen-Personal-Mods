@@ -24,6 +24,16 @@
     if (bool("debug", false)) console.log("[TabRouter]", m);
   };
 
+  // ---- caches ------------------------------------------------------------
+  // Pref strings (rules, aliases, ignore words) were re-parsed on every tab
+  // and every path segment. Parsed once, invalidated by a pref observer.
+  const parsed = {};
+  const prefObserver = { observe() { for (const k of Object.keys(parsed)) delete parsed[k]; learnedCache = null; } };
+  function cached(key, make) {
+    if (!(key in parsed)) parsed[key] = make();
+    return parsed[key];
+  }
+
   // Pref key kept as folder-separator so nobody's saved value is lost;
   // it now separates GROUP levels.
   const SEP = () => str("folder-separator", " / ");
@@ -36,15 +46,17 @@
   // to every name part: path slugs, subdomains and bare domain names alike,
   // so "nexusmods = Nexus Mods" works too.
   function aliasMap() {
-    const map = new Map();
-    for (const pair of str("auto-path-aliases", "").split(/[\n,]+/)) {
-      const i = pair.indexOf("=");
-      if (i < 0) continue;
-      const k = pair.slice(0, i).trim().toLowerCase();
-      const v = pair.slice(i + 1).trim();
-      if (k && v) map.set(k, v);
-    }
-    return map;
+    return cached("aliases", () => {
+      const map = new Map();
+      for (const pair of str("auto-path-aliases", "").split(/[\n,]+/)) {
+        const i = pair.indexOf("=");
+        if (i < 0) continue;
+        const k = pair.slice(0, i).trim().toLowerCase();
+        const v = pair.slice(i + 1).trim();
+        if (k && v) map.set(k, v);
+      }
+      return map;
+    });
   }
 
   function prettify(seg) {
@@ -125,7 +137,7 @@
   // the group name. A name containing the separator nests: "Work / Email"
   // is a subgroup Email inside a group Work. First matching rule wins.
   function rules() {
-    return str("rules", "")
+    return cached("rules", () => str("rules", "")
       .split(/[\n;]+/)
       .map(line => {
         const i = line.indexOf(">");
@@ -134,7 +146,7 @@
         const group = line.slice(i + 1).trim();
         return domains.length && group ? { domains, group } : null;
       })
-      .filter(Boolean);
+      .filter(Boolean));
   }
 
   function hostOf(tab) {
@@ -167,9 +179,9 @@
     if (depth < 1) return [];
     let path = "";
     try { path = tab.linkedBrowser?.currentURI?.filePath ?? ""; } catch { return []; }
-    const skipWords = new Set(
+    const skipWords = cached("skipwords", () => new Set(
       str("auto-path-ignore", "")
-        .split(",").map(s => s.trim().toLowerCase()).filter(Boolean));
+        .split(",").map(s => s.trim().toLowerCase()).filter(Boolean)));
     const segs = path.split("/")
       .map(s => decodeURIComponent(s).trim())
       .filter(Boolean)
@@ -227,14 +239,22 @@
   // group therefore produces a group INSIDE that group. 1.8.x tripped over
   // this; this version does it on purpose, one level at a time.
 
+  // groups() ran two document queries per call and is called several times
+  // per routed tab. Cached; invalidated by the group lifecycle events and by
+  // this mod's own mutations.
+  let groupsCache = null;
+  const bustGroups = () => { groupsCache = null; };
+
   function groups() {
+    if (groupsCache && groupsCache.every(g => g.isConnected)) return groupsCache;
     const set = new Set();
     try { for (const g of gBrowser.tabGroups) set.add(g); } catch {}
     try { for (const g of document.querySelectorAll("tab-group")) set.add(g); } catch {}
     // Zen folders subclass tab-group but live pinned; split-view wrappers
     // are positional artifacts. Leave both alone.
-    return [...set].filter(g => g.tagName === "tab-group" && !g.isZenFolder &&
-                                !g.hasAttribute("split-view-group"));
+    groupsCache = [...set].filter(g => g.tagName === "tab-group" && !g.isZenFolder &&
+                                       !g.hasAttribute("split-view-group"));
+    return groupsCache;
   }
 
   const parentOf = (g) => g?.parentElement?.closest("tab-group") ?? null;
@@ -354,23 +374,58 @@
 
     // Workspace first: if the root group already exists somewhere, the tab
     // goes to THAT workspace before any filing, via Zen's own
-    // moveTabToWorkspace (sets zen-workspace-id + section, same call the
-    // "Move to space" menu uses). Filing across workspaces without it makes
-    // ghosts: DOM in one workspace, attribute in another, visible in neither.
-    // The tab's container is left as-is, same as Zen's native move.
+    // moveTabToWorkspace. Filing across workspaces without it makes ghosts.
+    //
+    // Containers: Firefox containers are immutable per tab, and Zen itself
+    // only assigns them inside addTab(). So when the destination workspace
+    // has a different default container, the tab is REOPENED there -- the
+    // exact mechanism Zen's space-routing uses -- with skipRoute so Zen's
+    // own router does not bounce it.
     const tabWs = wsOf(tab) || window.gZenWorkspaces?.activeWorkspace;
     const roots = rootGroupsNamed(parts[0]);
     const rootHere = roots.find(g => !wsOf(g) || wsOf(g) === tabWs);
     const rootElsewhere = !rootHere && roots.find(g => wsOf(g) && wsOf(g) !== tabWs);
     if (rootElsewhere) {
+      const targetWs = wsOf(rootElsewhere);
       try {
-        window.gZenWorkspaces.moveTabToWorkspace(tab, wsOf(rootElsewhere));
+        if (bool("follow-containers", true)) {
+          const moved = reopenForWorkspace(tab, targetWs);
+          if (moved !== tab) { bustGroups(); return placeInPathTail(moved, parts); }
+        }
+        window.gZenWorkspaces.moveTabToWorkspace(tab, targetWs);
         note(`moved "${tab.label}" to the workspace holding "${parts[0]}"`);
       } catch (e) {
         note(`workspace move failed: ${e}; filing in current workspace instead`);
       }
     }
+    return placeInPathTail(tab, parts);
+  }
 
+  // Reopens the tab in the destination workspace's default container when it
+  // differs; returns the tab to keep filing (new or original).
+  function reopenForWorkspace(tab, targetWs) {
+    const wsObj = window.gZenWorkspaces?.getWorkspaceFromId?.(targetWs);
+    const wantCtx = wsObj?.containerTabId ?? 0;
+    const haveCtx = parseInt(tab.getAttribute("usercontextid") || "0", 10);
+    if (wantCtx === haveCtx) return tab;
+    const url = (() => { try { return tab.linkedBrowser?.currentURI?.spec; } catch { return null; } })();
+    if (!url || !/^https?:/i.test(url)) return tab;
+    let fresh = null;
+    try {
+      fresh = gBrowser.addTab(url, {
+        userContextId: wantCtx,
+        triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal(),
+        inBackground: !tab.selected,
+        skipRoute: true,
+      });
+    } catch (e) { note(`container reopen failed: ${e}`); return tab; }
+    try { window.gZenWorkspaces.moveTabToWorkspace(fresh, targetWs); } catch {}
+    try { gBrowser.removeTab(tab); } catch {}
+    note(`reopened "${url.slice(0, 60)}" in the destination workspace's container`);
+    return fresh;
+  }
+
+  function placeInPathTail(tab, parts) {
     const left = ejectAll(tab);
 
     // THE loop-killer: never create groups while the tab still sits inside
@@ -388,7 +443,7 @@
     for (const g of left) {
       if (!g.isConnected) continue;
       if (g.querySelector(".tabbrowser-tab")) continue;
-      try { gBrowser.removeTabGroup(g); note(`removed empty group "${g.label}"`); }
+      try { gBrowser.removeTabGroup(g); bustGroups(); note(`removed empty group "${g.label}"`); }
       catch (e) { note(`could not remove empty "${g.label}": ${e}`); }
     }
     return ok;
@@ -436,6 +491,7 @@
         // ponytail: no repair attempt; report and keep the flat group
         note(`"${name}" was created but did NOT nest under "${parent.label}" on this build`);
       }
+      bustGroups();
       note(`created group "${name}"${parent ? ` under "${parent.label}"` : ""}`);
       parent = g;
     }
@@ -471,8 +527,10 @@
 
   // Reorders els among themselves at the position of their current block;
   // loose siblings outside `els` keep their place.
+  const sameOrder = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+
   function reorderBlock(parentNode, els, sorted) {
-    if (els.length < 2) return;
+    if (els.length < 2 || sameOrder(domOrder(els), sorted)) return;
     const next = domOrder(els).at(-1).nextSibling;
     for (const el of sorted) mvEl(el, () => parentNode.insertBefore(el, next));
   }
@@ -507,8 +565,9 @@
       if (tabsFirst) {
         // Appending every subgroup to the container end leaves all loose
         // tabs above them, in their existing order -- including tabs that
-        // were just filed below a subgroup.
-        for (const sg of sorted) mvEl(sg, () => c.appendChild(sg));
+        // were just filed below a subgroup. Skipped when nothing would move.
+        const tail = [...c.children].slice(-subs.length);
+        if (!sameOrder(tail, sorted)) for (const sg of sorted) mvEl(sg, () => c.appendChild(sg));
       } else {
         reorderBlock(c, subs, sorted);
       }
@@ -518,10 +577,10 @@
   let orderTimer = null;
   function scheduleOrder() {
     clearTimeout(orderTimer);
-    orderTimer = setTimeout(() => { try { applyOrder(); } catch (e) { note(`applyOrder: ${e}`); } }, 600);
+    orderTimer = setTimeout(() => { try { applyOrder(); } catch (e) { note(`applyOrder: ${e}`); } }, num("order-delay-ms", 150));
   }
 
-  function skip(tab) {
+  function skip(tab, precomputedParts) {
     if (!tab || !tab.isConnected || tab.closing) return "gone";
     if (tab.hasAttribute("zen-glance-tab")) return "glance";
     // Zen's blank placeholder tabs cannot be grouped; addTabGroup returns
@@ -537,7 +596,7 @@
       // goes somewhere unrelated. With this on, a tab whose group path no
       // longer matches where it belongs gets re-filed instead of stranded.
       if (bool("refile-mismatched", true)) {
-        const want = targetPath(tab);
+        const want = precomputedParts !== undefined ? precomputedParts : targetPath(tab);
         const have = chainOf(tab);
         if (want?.length && have.length && !startsWithPath(have, want)) {
           // Suffix-filed under junk gets exactly one repair attempt;
@@ -552,13 +611,14 @@
 
   function route(tab, why) {
     if (!bool("enabled", false)) return;
-    const s = skip(tab);
+    const parts = targetPath(tab);          // computed once, reused by skip()
+    const s = skip(tab, parts);
     if (s) { note(`skip ${tab.label}: ${s}`); return; }
-    const parts = targetPath(tab);
     if (!parts?.length) { note(`no rule for ${hostOf(tab) ?? tab.label}`); return; }
+    const host = hostOf(tab);               // the tab may be reopened below
     try {
       if (placeInPath(tab, parts)) {
-        note(`${why}: ${hostOf(tab)} -> ${parts.join(SEP())}`);
+        note(`${why}: ${host} -> ${parts.join(SEP())}`);
         scheduleOrder();
       }
     } catch (e) {
@@ -568,11 +628,20 @@
 
   // ---- events ------------------------------------------------------------
   // Route on load rather than on open: a brand new tab has no URL yet.
+  // Redirect chains fire several location changes in a row; one pending
+  // route per tab, restarted on each change, means only the final URL is
+  // ever processed.
+  const pendingRoute = new WeakMap();
   const progress = {
     onLocationChange(browser, _wp, _req, _loc, flags) {
       if (flags & Ci.nsIWebProgressListener.LOCATION_CHANGE_SAME_DOCUMENT) return;
       const tab = gBrowser.getTabForBrowser(browser);
-      if (tab) setTimeout(() => route(tab, "navigate"), num("delay-ms", 400));
+      if (!tab) return;
+      clearTimeout(pendingRoute.get(tab));
+      pendingRoute.set(tab, setTimeout(() => {
+        pendingRoute.delete(tab);
+        route(tab, "navigate");
+      }, num("delay-ms", 400)));
     },
   };
 
@@ -659,6 +728,10 @@
 
   function start() {
     gBrowser.addTabsProgressListener(progress);
+    try { Services.prefs.addObserver(P, prefObserver); } catch {}
+    // Groups made or removed by hand must invalidate the cache too.
+    const groupEvents = ["TabGroupCreate", "TabGroupRemoved", "TabGroupUngroup", "TabGrouped", "TabUngrouped"];
+    for (const ev of groupEvents) window.addEventListener(ev, bustGroups, true);
 
     window.TabRouter = {
       sortAll: () => sweepAll("manual"),
@@ -803,11 +876,12 @@
       log: () => log.slice(),
     };
 
-    if (bool("sort-on-startup", false)) setTimeout(() => sweepAll("startup"), 2500);
+    if (bool("sort-on-startup", false)) setTimeout(() => sweepAll("startup"), num("startup-delay-ms", 2500));
     note("loaded");
 
     window.addEventListener("unload", () => {
       try { gBrowser.removeTabsProgressListener(progress); } catch {}
+      try { Services.prefs.removeObserver(P, prefObserver); } catch {}
     }, { once: true });
   }
 

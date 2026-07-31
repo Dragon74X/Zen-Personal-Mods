@@ -162,6 +162,12 @@
     "defaultValue": true
   },
   {
+    "type": "checkbox",
+    "property": "zzrouter.follow-containers",
+    "label": "Match the destination workspace's container *When filing moves a tab into a group in another workspace, and that workspace has a different default container, the tab is reopened there in the right container -- the same mechanism Zen's own space routing uses. Firefox cannot change a live tab's container, so the reopen reloads the page; back-history of that one tab is not carried over. Off keeps the original container, like Zen's Move to Space menu.*",
+    "defaultValue": true
+  },
+  {
     "type": "separator",
     "label": "Leave alone",
     "size": "17px",
@@ -209,6 +215,20 @@
     "label": "Wait before routing (milliseconds) *How long to wait after a page loads before moving its tab. A short delay avoids chasing redirects, which would otherwise file a tab under the redirector instead of the destination.*",
     "defaultValue": "400",
     "placeholder": "400"
+  },
+  {
+    "type": "string",
+    "property": "zzrouter.order-delay-ms",
+    "label": "Wait before re-sorting (milliseconds) *How long after the last routed tab before groups are re-ordered. Lower is snappier; one pass covers a whole burst of tabs either way.*",
+    "defaultValue": "150",
+    "placeholder": "150"
+  },
+  {
+    "type": "string",
+    "property": "zzrouter.startup-delay-ms",
+    "label": "Wait before the startup pass (milliseconds) *Only used when sorting at startup is on. Session restore needs a moment before tabs report real URLs.*",
+    "defaultValue": "2500",
+    "placeholder": "2500"
   },
   {
     "type": "separator",

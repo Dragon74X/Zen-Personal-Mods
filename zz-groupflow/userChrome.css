@@ -53,17 +53,22 @@
 #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
   /* Neutralize whatever ATG / Arc put here; we import after them, so
      these unqualified declarations win by source order. */
-  background: none;
-  box-shadow: none;
-  border: none;
-  outline: none;
+  background: none !important;
+  box-shadow: none !important;
+  border: none !important;
+  outline: none !important;
 
+  /* Glassflow's actual gradient shape: directional accent fading to
+     transparent at the midpoint, direction shared with its tabs.
+     !important throughout: ATG paints headers with !important, and
+     normal declarations lose to that regardless of import order. */
   background-image:
-    linear-gradient(color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-header-tint, 25%), transparent),
-                    color-mix(in srgb, var(--zzgf-accent) calc(var(--zzgroup-header-tint, 25%) * 0.6), transparent));
-  border-radius: var(--zzgf-round);
-  margin: 2px 0;
-  padding: 2px 6px;
+    linear-gradient(var(--zzg-dir, 135deg),
+      color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-header-tint, 25%), transparent) 0%,
+      transparent 50%) !important;
+  border-radius: var(--zzgf-round) !important;
+  margin: 2px 0 !important;
+  padding: 2px 6px !important;
   transition: background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -71,14 +76,15 @@
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
     background-image:
       var(--zzgf-sheen),
-      linear-gradient(color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-header-tint, 25%), transparent),
-                      color-mix(in srgb, var(--zzgf-accent) calc(var(--zzgroup-header-tint, 25%) * 0.6), transparent));
+      linear-gradient(var(--zzg-dir, 135deg),
+        color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-header-tint, 25%), transparent) 0%,
+        transparent 50%) !important;
   }
 }
 
 @media (-moz-pref("zzgroup.header.rim")) {
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
-    box-shadow: inset 0 1px 0 var(--zzgf-rim-top), inset 0 0 0 1px var(--zzgf-rim-all);
+    box-shadow: inset 0 1px 0 var(--zzgf-rim-top), inset 0 0 0 1px var(--zzgf-rim-all) !important;
   }
 }
 
@@ -119,8 +125,9 @@
 @media (-moz-pref("zzgroup.active.boost")) {
   #navigator-toolbox tab-group:not([split-view-group]):has(.tabbrowser-tab[selected]) > .tab-group-label-container {
     background-image:
-      linear-gradient(color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-active-tint, 42%), transparent),
-                      color-mix(in srgb, var(--zzgf-accent) calc(var(--zzgroup-active-tint, 42%) * 0.6), transparent));
+      linear-gradient(var(--zzg-dir, 135deg),
+        color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-active-tint, 42%), transparent) 0%,
+        transparent 50%) !important;
   }
 }
 
@@ -157,15 +164,14 @@
   }
 }
 
-/* ---- collapse, nesting-aware -------------------------------------- */
-/* Native collapse (clicking any group's label) predates nesting in
-   Firefox's CSS: it hides direct-child TABS only, so a collapsed
-   parent can leave subgroup headers dangling. Zen fixed this for
-   zen-folder (zen-folders.css) but never for plain groups; this is
-   the same rule for groups. The :not(:has([selected])) guard keeps
-   Firefox's native behavior of still showing the active tab when its
-   group collapses -- hiding the container outright would eat it. */
-#navigator-toolbox tab-group:not([split-view-group])[collapsed]:not(:has(.tabbrowser-tab[selected]))
+/* ---- collapse, structure-aware ------------------------------------ */
+/* Zen moved a group's tabs into a .tab-group-container div, so
+   Firefox's native "tab-group[collapsed] > tab" hiding matches
+   nothing; Zen wrote replacement CSS only for zen-folder, and ATG's
+   covers top-level groups only. This is the missing rule for plain
+   groups at every depth. Hiding outright is safe: Firefox's collapse
+   code itself moves the selection out of a collapsing group. */
+#navigator-toolbox tab-group:not([split-view-group])[collapsed]
   > .tab-group-container {
   display: none !important;
 }
@@ -181,6 +187,50 @@
     box-shadow: none !important;
     border-color: transparent !important;
     outline: none !important;
+  }
+}
+
+/* ---- favicon icon ------------------------------------------------- */
+/* groupflow.uc.js sets --zzgf-icon per group to a page-icon: URL for
+   the group's dominant domain. Sits at the left of the label, the
+   slot a collapse chevron or folder icon would occupy. */
+@media (-moz-pref("zzgroup.favicons")) {
+  #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label::before {
+    content: "" !important;
+    display: inline-block !important;
+    width: var(--zzgroup-icon-size, 14px);
+    height: var(--zzgroup-icon-size, 14px);
+    margin-inline-end: 6px;
+    vertical-align: -2px;
+    background-image: var(--zzgf-icon, none);
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+  }
+}
+
+/* ---- label alignment ---------------------------------------------- */
+#navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
+  justify-content: flex-start !important;
+  align-items: center !important;
+}
+#navigator-toolbox tab-group:not([split-view-group]) .tab-group-label {
+  text-align: start !important;
+}
+@media (-moz-pref("zzgroup.align", 1)) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
+    justify-content: center !important;
+  }
+  #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label {
+    text-align: center !important;
+  }
+}
+@media (-moz-pref("zzgroup.align", 2)) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
+    justify-content: flex-end !important;
+  }
+  #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label {
+    text-align: end !important;
   }
 }
 

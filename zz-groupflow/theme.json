@@ -3,7 +3,7 @@
   "name": "Groupflow",
   "description": "Per-state glass theming for tab groups and subgroups, in Glassflow's visual language. Inherits Glassflow's tokens live; overrides Advanced Tab Groups and Arc group chrome by load order.",
   "author": "Dragon74X",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "homepage": "https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/zz-groupflow",
   "readme": "https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/main/zz-groupflow/README.md",
   "style": {
@@ -18,5 +18,14 @@
   ],
   "fork": [
     "zen"
-  ]
+  ],
+  "scripts": {
+    "groupflow.uc.js": {
+      "name": "Groupflow",
+      "description": "Per-group favicon assignment.",
+      "include": [
+        "chrome://browser/content/browser.xhtml"
+      ]
+    }
+  }
 }

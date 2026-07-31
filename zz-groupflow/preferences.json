@@ -18,9 +18,18 @@
     "label": "Accent source *Where each group's accent color comes from. Group's own color is the chip you picked when creating the group, so mixed-color groups keep their identity; the other options unify everything under one accent.*",
     "defaultValue": 0,
     "options": [
-      { "label": "Group's own color", "value": 0 },
-      { "label": "Glassflow accent", "value": 1 },
-      { "label": "Custom color", "value": 2 }
+      {
+        "label": "Group's own color",
+        "value": 0
+      },
+      {
+        "label": "Glassflow accent",
+        "value": 1
+      },
+      {
+        "label": "Custom color",
+        "value": 2
+      }
     ]
   },
   {
@@ -82,15 +91,58 @@
     "margin": "22px 0 10px 0"
   },
   {
+    "type": "checkbox",
+    "property": "zzgroup.favicons",
+    "label": "Favicon as group icon *Each group and subgroup shows the favicon of its dominant member domain at the left of the label -- the slot a chevron or folder icon would occupy. Icons come from Firefox's local favicon store via the page-icon protocol, so no network requests are made. Refreshes when tabs join or leave a group, and once a minute for domains that changed by navigation.*",
+    "defaultValue": true
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.icon-size",
+    "label": "Icon size",
+    "defaultValue": "14px",
+    "placeholder": "14px"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.align",
+    "label": "Label alignment *Left puts text beside the favicon; center and right keep the favicon attached to the text as it moves.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Left",
+        "value": 0
+      },
+      {
+        "label": "Center",
+        "value": 1
+      },
+      {
+        "label": "Right",
+        "value": 2
+      }
+    ]
+  },
+  {
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.label.weight",
     "label": "Label weight",
     "defaultValue": 1,
     "options": [
-      { "label": "Regular", "value": 0 },
-      { "label": "Semibold", "value": 1 },
-      { "label": "Bold", "value": 2 }
+      {
+        "label": "Regular",
+        "value": 0
+      },
+      {
+        "label": "Semibold",
+        "value": 1
+      },
+      {
+        "label": "Bold",
+        "value": 2
+      }
     ]
   },
   {

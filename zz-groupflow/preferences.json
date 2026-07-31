@@ -1,0 +1,185 @@
+[
+  {
+    "type": "separator",
+    "label": "Groupflow",
+    "size": "20px",
+    "margin": "2px 0 12px 0"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.enabled",
+    "label": "Turn on group styling *Per-state glass theming for tab groups and subgroups, in Glassflow's visual language. Every Glassflow token -- roundness, accent tone, sheen recipe, rim strength, glass intensity -- is inherited live, so knobs turned there carry over here automatically. Zen folders are untouched.*",
+    "defaultValue": true
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.color-source",
+    "label": "Accent source *Where each group's accent color comes from. Group's own color is the chip you picked when creating the group, so mixed-color groups keep their identity; the other options unify everything under one accent.*",
+    "defaultValue": 0,
+    "options": [
+      { "label": "Group's own color", "value": 0 },
+      { "label": "Glassflow accent", "value": 1 },
+      { "label": "Custom color", "value": 2 }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.custom-color",
+    "label": "Custom accent *Only used when the accent source is Custom. Any CSS color.*",
+    "defaultValue": "#7c8cf8",
+    "placeholder": "#7c8cf8"
+  },
+  {
+    "type": "separator",
+    "label": "Header",
+    "size": "17px",
+    "margin": "22px 0 10px 0"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.header-tint",
+    "label": "Header tint *How strongly the accent fills the group header, as a percentage. Matches Glassflow's unselected tab default.*",
+    "defaultValue": "25%",
+    "placeholder": "25%"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.header-roundness",
+    "label": "Header roundness *Corner radius of the header pill. Empty inherits Glassflow's tab roundness, so changing it there changes it here.*",
+    "defaultValue": "",
+    "placeholder": "12px"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.header.sheen",
+    "label": "Sheen on headers *Glassflow's achromatic light-sweep across the header, using the same gradient recipe and strength, including its direction setting.*",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.header.rim",
+    "label": "Rim light on headers *A hairline top highlight and faint edge ring, from Glassflow's rim tokens, so its glass intensity slider scales this too.*",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.header.blur",
+    "label": "Glass blur on headers *Backdrop blur behind group headers. Headers are few, so this is far cheaper than per-tab blur, and Zen Turbo's workspace-switch smoothing suspends it during slides automatically.*",
+    "defaultValue": false
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.header-blur-radius",
+    "label": "Header blur radius *Only used when glass blur is on.*",
+    "defaultValue": "14px",
+    "placeholder": "14px"
+  },
+  {
+    "type": "separator",
+    "label": "Label text",
+    "size": "17px",
+    "margin": "22px 0 10px 0"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.label.weight",
+    "label": "Label weight",
+    "defaultValue": 1,
+    "options": [
+      { "label": "Regular", "value": 0 },
+      { "label": "Semibold", "value": 1 },
+      { "label": "Bold", "value": 2 }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.label-size",
+    "label": "Label size *Any CSS size. 1em follows the sidebar font, including Glassflow's font-size control when enabled there.*",
+    "defaultValue": "1em",
+    "placeholder": "1em"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.label.uppercase",
+    "label": "Uppercase labels *Small-caps style section headers: uppercase, letter-spaced, slightly reduced size.*",
+    "defaultValue": false
+  },
+  {
+    "type": "separator",
+    "label": "States",
+    "size": "17px",
+    "margin": "22px 0 10px 0"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.active.boost",
+    "label": "Highlight the active group *The group holding the selected tab gets a stronger tint, so where-you-are reads at a glance. Strength below.*",
+    "defaultValue": true
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.active-tint",
+    "label": "Active group tint *Matches Glassflow's selected-tab default.*",
+    "defaultValue": "42%",
+    "placeholder": "42%"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.collapsed.dim",
+    "label": "Dim collapsed groups *Collapsed headers fade and desaturate slightly, so open groups carry the visual weight.*",
+    "defaultValue": true
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.collapsed-opacity",
+    "label": "Collapsed opacity",
+    "defaultValue": "0.75",
+    "placeholder": "0.75"
+  },
+  {
+    "type": "separator",
+    "label": "Nesting",
+    "size": "17px",
+    "margin": "22px 0 10px 0"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.indent",
+    "label": "Subgroup indent *Extra left inset per nesting level.*",
+    "defaultValue": "10px",
+    "placeholder": "10px"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.guides",
+    "label": "Nesting guide lines *A faint accent-colored line down the left of each subgroup, marking what belongs to what. Groups only; folder tree connectors stay the Folder Tree Connectors mod's job.*",
+    "defaultValue": true
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.guide-width",
+    "label": "Guide line width",
+    "defaultValue": "1px",
+    "placeholder": "1px"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.depth-scale",
+    "label": "Smaller headers per depth *Subgroup headers step down slightly in size with each level, so depth reads at a glance without shouting.*",
+    "defaultValue": true
+  },
+  {
+    "type": "separator",
+    "label": "Overrides",
+    "size": "17px",
+    "margin": "22px 0 10px 0"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.neutralize-others",
+    "label": "Strip other mods' group chrome *Removes backgrounds, borders and shadows that Advanced Tab Groups or Arc paint on group bodies, leaving Groupflow's header treatment and Glassflow's tabs as the only styling. Groupflow loads after both, so their headers are overridden either way; turn this on only if their BODY styling visibly fights this mod's.*",
+    "defaultValue": false
+  }
+]

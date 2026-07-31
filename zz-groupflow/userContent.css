@@ -1,0 +1,108 @@
+/* ============================================================
+   Groupflow -- settings panel polish
+
+   SCOPE: only Groupflow's own preference rows.
+
+   Sine gives every preference element an id derived from its property
+   (buildPrefElement: prefEl.id = foundId.replace(/\./g, "-")), so
+   Groupflow's rows are #zzgroup-tabs-enabled, #zzgroup-buttons-size and
+   so on. Every rule below is gated on [id^="zzgroup-"], which cannot
+   match another mod's preferences. Separators have no property and so
+   no id, and are deliberately left alone.
+
+   Sine has no description or tooltip field in preferences.json.
+   utils.formatLabel() escapes HTML, then converts a small markdown
+   subset: **bold** -> <b>, *italic* -> <i>, ~underline~ -> <u>.
+   Groupflow writes each explanation in *asterisks*, which yields a real
+   <i> element to collapse into an info badge.
+   ============================================================ */
+
+[id^="zzgroup-"] .sineItemPreferenceLabel {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  overflow: visible;
+}
+
+/* --- the explanation, hidden until hover --- */
+[id^="zzgroup-"] .sineItemPreferenceLabel > i {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 7px);
+  z-index: 20;
+
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity 110ms ease-out,
+    transform 110ms ease-out,
+    visibility 0s linear 110ms;
+
+  box-sizing: border-box;
+  width: max-content;
+  max-width: 340px;
+  padding: 8px 11px;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
+  border-radius: 9px;
+  background: light-dark(rgba(252, 252, 252, 0.97), rgba(38, 38, 42, 0.97));
+  color: light-dark(rgb(28, 28, 30), rgb(232, 232, 236));
+  border: 1px solid light-dark(rgba(0, 0, 0, 0.10), rgba(255, 255, 255, 0.14));
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.10),
+    0 8px 22px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(12px) saturate(160%);
+  pointer-events: none;
+}
+
+/* --- the info badge --- */
+[id^="zzgroup-"] .sineItemPreferenceLabel:has(> i)::after {
+  content: "i";
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  font-size: 9px;
+  font-weight: 700;
+  font-style: italic;
+  font-family: Georgia, "Times New Roman", serif;
+  line-height: 1;
+  border-radius: 50%;
+  cursor: help;
+  opacity: 0.5;
+  color: light-dark(rgb(60, 60, 66), rgb(226, 226, 232));
+  background: light-dark(rgba(0, 0, 0, 0.07), rgba(255, 255, 255, 0.13));
+  border: 1px solid light-dark(rgba(0, 0, 0, 0.09), rgba(255, 255, 255, 0.15));
+  transition: opacity 110ms ease-out, background 110ms ease-out;
+}
+
+[id^="zzgroup-"] .sineItemPreferenceLabel:has(> i):hover::after {
+  opacity: 1;
+  background: light-dark(rgba(0, 0, 0, 0.13), rgba(255, 255, 255, 0.21));
+}
+
+[id^="zzgroup-"] .sineItemPreferenceLabel:hover > i {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0s, 0s, 0s;
+}
+
+/* Flip upward near the bottom of the dialog so tooltips stay on screen. */
+[id^="zzgroup-"]:nth-last-child(-n + 4) .sineItemPreferenceLabel > i {
+  top: auto;
+  bottom: calc(100% + 7px);
+  transform: translateY(4px);
+}
+
+[id^="zzgroup-"]:nth-last-child(-n + 4) .sineItemPreferenceLabel:hover > i {
+  transform: translateY(0);
+}

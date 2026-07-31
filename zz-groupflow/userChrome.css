@@ -1,0 +1,187 @@
+/* ============================================================
+   Groupflow v1.0 -- per-state glass theming for tab groups
+
+   Sibling to Glassflow: reuses its live tokens (--zzg-round,
+   --zzg-accent, --zzg-sheen, --zzg-rim-*, --zzg-fx) so every knob
+   turned in Glassflow propagates here automatically. Where Glassflow
+   is absent the fallbacks reproduce its defaults, so the mod stands
+   alone too.
+
+   The id zz-groupflow imports AFTER advanced-tab-groups, Arc-2.0 and
+   zz-glassflow in Sine's lexicographic order, so at equal specificity
+   plain source order wins here -- overrides need no !important
+   escalation unless the other mod used !important itself.
+
+   Scope: tab-group elements only. zen-folder is a different tag and
+   is deliberately untouched -- Folder Tree Connectors owns folders.
+   ============================================================ */
+
+@media (-moz-pref("zzgroup.enabled")) {
+
+:root {
+  /* Inherit Glassflow wholesale; each fallback IS Glassflow's default. */
+  --zzgf-round: var(--zzgroup-header-roundness, var(--zzg-round, 10px));
+  --zzgf-glass: var(--zzg-glass, 1);
+  --zzgf-fx: var(--zzg-fx, );
+  --zzgf-sheen: var(--zzg-sheen, linear-gradient(to bottom,
+      rgb(255 255 255 / 0.20) 0%, rgb(255 255 255 / 0.05) 45%,
+      rgb(255 255 255 / 0) 55%, rgb(0 0 0 / 0.05) 100%));
+  --zzgf-rim-top: var(--zzg-rim-top, rgb(255 255 255 / 0.42));
+  --zzgf-rim-all: var(--zzg-rim-all, rgb(255 255 255 / 0.12));
+}
+
+/* Accent: the group's own color chip first, then Glassflow's accent,
+   then Zen's primary. Per group, so mixed-color groups each keep their
+   identity -- same resolution order Glassflow uses for tabs. */
+#navigator-toolbox tab-group:not([split-view-group]) {
+  --zzgf-raw: var(--tab-group-color, var(--zzg-accent, var(--zen-primary-color, #7c8cf8)));
+  --zzgf-accent: color-mix(in srgb, var(--zzgf-raw), black var(--zzg-tone, 25%));
+}
+@media (-moz-pref("zzgroup.color-source", 1)) {
+  #navigator-toolbox tab-group:not([split-view-group]) {
+    --zzgf-raw: var(--zzg-accent, var(--zen-primary-color, #7c8cf8));
+  }
+}
+@media (-moz-pref("zzgroup.color-source", 2)) {
+  #navigator-toolbox tab-group:not([split-view-group]) {
+    --zzgf-raw: var(--zzgroup-custom-color, #7c8cf8);
+  }
+}
+
+/* ---- header ------------------------------------------------------- */
+
+#navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
+  /* Neutralize whatever ATG / Arc put here; we import after them, so
+     these unqualified declarations win by source order. */
+  background: none;
+  box-shadow: none;
+  border: none;
+  outline: none;
+
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-header-tint, 25%), transparent),
+                    color-mix(in srgb, var(--zzgf-accent) calc(var(--zzgroup-header-tint, 25%) * 0.6), transparent));
+  border-radius: var(--zzgf-round);
+  margin: 2px 0;
+  padding: 2px 6px;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+@media (-moz-pref("zzgroup.header.sheen")) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
+    background-image:
+      var(--zzgf-sheen),
+      linear-gradient(color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-header-tint, 25%), transparent),
+                      color-mix(in srgb, var(--zzgf-accent) calc(var(--zzgroup-header-tint, 25%) * 0.6), transparent));
+  }
+}
+
+@media (-moz-pref("zzgroup.header.rim")) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
+    box-shadow: inset 0 1px 0 var(--zzgf-rim-top), inset 0 0 0 1px var(--zzgf-rim-all);
+  }
+}
+
+@media (-moz-pref("zzgroup.header.blur")) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
+    backdrop-filter: blur(var(--zzgroup-header-blur-radius, 14px)) var(--zzgf-fx);
+  }
+}
+
+#navigator-toolbox tab-group:not([split-view-group]) .tab-group-label {
+  background: none;
+  color: var(--zzgroup-label-color, inherit);
+  font-size: var(--zzgroup-label-size, 1em);
+  font-weight: 600;
+  opacity: 0.95;
+}
+@media (-moz-pref("zzgroup.label.weight", 0)) {
+  #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label { font-weight: 400; }
+}
+@media (-moz-pref("zzgroup.label.weight", 2)) {
+  #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label { font-weight: 700; }
+}
+@media (-moz-pref("zzgroup.label.uppercase")) {
+  #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label {
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: calc(var(--zzgroup-label-size, 1em) * 0.85);
+  }
+}
+
+/* ---- states ------------------------------------------------------- */
+
+#navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container:hover {
+  background-color: color-mix(in srgb, var(--zzgf-accent) calc(var(--zzgroup-header-tint, 25%) * 0.5), transparent);
+}
+
+/* The group holding the selected tab. */
+@media (-moz-pref("zzgroup.active.boost")) {
+  #navigator-toolbox tab-group:not([split-view-group]):has(.tabbrowser-tab[selected]) > .tab-group-label-container {
+    background-image:
+      linear-gradient(color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-active-tint, 42%), transparent),
+                      color-mix(in srgb, var(--zzgf-accent) calc(var(--zzgroup-active-tint, 42%) * 0.6), transparent));
+  }
+}
+
+@media (-moz-pref("zzgroup.collapsed.dim")) {
+  #navigator-toolbox tab-group:not([split-view-group])[collapsed] > .tab-group-label-container {
+    opacity: var(--zzgroup-collapsed-opacity, 0.75);
+    filter: saturate(0.8);
+  }
+}
+
+/* ---- nesting ------------------------------------------------------ */
+
+#navigator-toolbox tab-group:not([split-view-group]) tab-group:not([split-view-group]) {
+  margin-left: var(--zzgroup-indent, 10px);
+}
+
+@media (-moz-pref("zzgroup.guides")) {
+  #navigator-toolbox tab-group:not([split-view-group]) tab-group:not([split-view-group]) {
+    border-left: var(--zzgroup-guide-width, 1px) solid
+      color-mix(in srgb, var(--zzgf-accent) 35%, transparent);
+    border-radius: 0;
+    padding-left: 4px;
+  }
+}
+
+/* Each nesting level slightly smaller header, so depth reads at a
+   glance without shouting. Two levels covered; deeper inherits. */
+@media (-moz-pref("zzgroup.depth-scale")) {
+  #navigator-toolbox tab-group tab-group > .tab-group-label-container .tab-group-label {
+    font-size: calc(var(--zzgroup-label-size, 1em) * 0.92);
+  }
+  #navigator-toolbox tab-group tab-group tab-group > .tab-group-label-container .tab-group-label {
+    font-size: calc(var(--zzgroup-label-size, 1em) * 0.85);
+  }
+}
+
+/* ---- collapse, nesting-aware -------------------------------------- */
+/* Native collapse (clicking any group's label) predates nesting in
+   Firefox's CSS: it hides direct-child TABS only, so a collapsed
+   parent can leave subgroup headers dangling. Zen fixed this for
+   zen-folder (zen-folders.css) but never for plain groups; this is
+   the same rule for groups. The :not(:has([selected])) guard keeps
+   Firefox's native behavior of still showing the active tab when its
+   group collapses -- hiding the container outright would eat it. */
+#navigator-toolbox tab-group:not([split-view-group])[collapsed]:not(:has(.tabbrowser-tab[selected]))
+  > .tab-group-container {
+  display: none !important;
+}
+
+/* ---- overrides ---------------------------------------------------- */
+/* ATG and Arc decorate the group body too; these strip the body back
+   to neutral so tabs inside style themselves (Glassflow's job). Off
+   by default: only needed if their group chrome fights this mod's. */
+@media (-moz-pref("zzgroup.neutralize-others")) {
+  #navigator-toolbox tab-group:not([split-view-group]),
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container {
+    background: none !important;
+    box-shadow: none !important;
+    border-color: transparent !important;
+    outline: none !important;
+  }
+}
+
+} /* zzgroup.enabled */

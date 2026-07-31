@@ -114,6 +114,13 @@
     "placeholder": "games,category,categories,c,p,en,en-us,www,index,home"
   },
   {
+    "type": "string",
+    "property": "zzrouter.auto-path-aliases",
+    "label": "Path name aliases *slug = Pretty Name, one per line or comma separated. A slug like baldursgate3 has no word boundaries, so no amount of cleverness recovers Baldur's Gate 3 from it -- that needs either a dictionary or the page title. Run TabRouter.suggestAliases() in the console: it reads your open tabs, pulls the human name out of each page title, and copies a ready-made list to your clipboard. Slugs that DO have separators, like crimson-desert or crimsonDesert, are cleaned up automatically and need no alias.*",
+    "defaultValue": "baldursgate3 = Baldur's Gate 3",
+    "placeholder": "baldursgate3 = Baldur's Gate 3"
+  },
+  {
     "type": "checkbox",
     "property": "zzrouter.create-groups",
     "label": "Create groups that do not exist yet *Off means tabs are only moved into groups you already made by hand, and rules naming a missing group do nothing.*",

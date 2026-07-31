@@ -73,7 +73,7 @@
       .filter(s => !skipWords.has(s.toLowerCase()))
       // drop pure ids and file names, which make useless folder names
       .filter(s => !/^\d+$/.test(s) && !/\.[a-z0-9]{2,4}$/i.test(s));
-    return segs.slice(0, depth).map(titleCase);
+    return segs.slice(0, depth).map(prettify);
   }
 
   function targetGroup(tab) {
@@ -386,6 +386,34 @@
     return s.split(/[-.]/)[0].replace(/^./, c => c.toUpperCase());
   }
 
+  // "baldursgate3" carries no word boundaries, so there is no reliable way
+  // to recover "Baldur's Gate 3" from the slug alone -- that needs either a
+  // dictionary or the page title. The alias map is the dependable answer;
+  // prettify only handles the cases where separators DO exist.
+  function aliasMap() {
+    const map = new Map();
+    for (const pair of str("auto-path-aliases", "").split(/[\n,]+/)) {
+      const i = pair.indexOf("=");
+      if (i < 0) continue;
+      const k = pair.slice(0, i).trim().toLowerCase();
+      const v = pair.slice(i + 1).trim();
+      if (k && v) map.set(k, v);
+    }
+    return map;
+  }
+
+  function prettify(seg) {
+    const alias = aliasMap().get(seg.trim().toLowerCase());
+    if (alias) return alias;
+    return seg
+      .replace(/[-_+]+/g, " ")                    // kebab and snake case
+      .replace(/([a-z])([A-Z])/g, "$1 $2")        // camelCase
+      .replace(/([a-zA-Z])(\d)/g, "$1 $2")        // trailing version numbers
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/\b\w/g, c => c.toUpperCase());
+  }
+
   function suggestRules(opts = {}) {
     const { minTabs = 1, subdomains = false, separator = " / " } = opts;
 
@@ -506,6 +534,67 @@
           currentGroup: t.group?.label ?? null,
           wouldGo: skip(t) ? `skipped (${skip(t)})` : targetGroup(t),
         };
+      },
+      // Reads open tabs and proposes slug=Pretty Name lines from their
+      // titles, which already contain the human name. Copies to clipboard.
+      suggestAliases() {
+        const seen = new Map();
+        for (const t of allTabs()) {
+          const host = hostOf(t);
+          if (!host) continue;
+          let path = "";
+          try { path = t.linkedBrowser?.currentURI?.filePath ?? ""; } catch { continue; }
+          const skipW = new Set(str("auto-path-ignore", "").split(",")
+            .map(s => s.trim().toLowerCase()).filter(Boolean));
+          const seg = path.split("/").map(s => decodeURIComponent(s).trim())
+            .filter(Boolean).filter(s => !skipW.has(s.toLowerCase()))
+            .filter(s => !/^\d+$/.test(s) && !/\.[a-z0-9]{2,4}$/i.test(s))[0];
+          if (!seg) continue;
+          const slug = seg.toLowerCase();
+          if (seen.has(slug)) continue;
+          // Page titles are usually "Thing - Site" or "Thing | Site".
+          // Take the first chunk and drop a trailing generic word.
+          let name = (t.label || "").split(/\s+[-|\u2013\u2014\u00b7]\s+/)[0].trim();
+          name = name.replace(/\s+(Mods|Mod|Wiki|Home|Official Site)$/i, "").trim();
+          if (!name || name.toLowerCase() === slug) continue;
+          seen.set(slug, name);
+        }
+        const text = [...seen].map(([k, v]) => `${k} = ${v}`).join("\n");
+        console.log("--- suggested aliases ---\n" + text +
+          "\n\nPaste into 'Path name aliases'. Edit freely: these come from page" +
+          "\ntitles, so a deep page may propose the wrong name for its section.");
+        try {
+          Cc["@mozilla.org/widget/clipboardhelper;1"]
+            .getService(Ci.nsIClipboardHelper).copyString(text);
+          console.log("(copied to clipboard)");
+        } catch {}
+        return text;
+      },
+
+      // Dumps the group/folder nesting as plain text, for sharing.
+      groupTree() {
+        const lines = [];
+        const all = [...(gBrowser.tabGroups || [])];
+        const parentOf = g => g.parentElement?.closest("tab-group, zen-folder") ?? null;
+        const walk = (parent, depth) => {
+          for (const g of all.filter(x => parentOf(x) === parent)) {
+            const kind = g.isZenFolder ? "folder" : "group";
+            const tabs = [...(g.allItemsRecursive ?? g.tabs ?? [])]
+              .filter(t => gBrowser.isTab?.(t)).length;
+            lines.push(`${"  ".repeat(depth)}- [${kind}] ${JSON.stringify(g.label)}` +
+                       ` level=${g.level ?? "?"} pinned=${g.pinned} tabs=${tabs}`);
+            walk(g, depth + 1);
+          }
+        };
+        walk(null, 0);
+        const text = lines.join("\n") || "(no groups or folders)";
+        console.log(text);
+        try {
+          Cc["@mozilla.org/widget/clipboardhelper;1"]
+            .getService(Ci.nsIClipboardHelper).copyString(text);
+          console.log("(copied to clipboard)");
+        } catch {}
+        return text;
       },
       folderTree() {
         const walk = (parent, depth) => allFolders()

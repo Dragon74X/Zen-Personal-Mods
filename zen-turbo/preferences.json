@@ -1,0 +1,76 @@
+[
+  {
+    "type": "separator",
+    "label": "Zen Turbo",
+    "size": "20px",
+    "margin": "2px 0 12px 0"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzturbo.pack-network",
+    "label": "Network tuning *More parallel connections per server (10 instead of 6), request pacing off (Firefox inserts small deliberate delays between request bursts; on a fast line they are pure latency), more speculative connections, and larger DNS and TLS-session caches so repeat visits skip lookups and handshakes. Every value is snapshotted before it is changed; turning this off restores your profile exactly, and any pref you later change by hand is left alone as yours.*",
+    "defaultValue": true
+  },
+  {
+    "type": "checkbox",
+    "property": "zzturbo.pack-predictor",
+    "label": "Predictor on https hover *Firefox's network predictor learns which connections a page will need. This extends it to act on link hover over https and to prefetch what it is confident about, so the click lands on work already done.*",
+    "defaultValue": true
+  },
+  {
+    "type": "checkbox",
+    "property": "zzturbo.pack-io-jank",
+    "label": "Less session-store disk churn *Session state is written to disk every 15 seconds by default, a periodic jank source on hard drives and busy systems. This halves the cadence to every 30 seconds. The trade: after a hard crash, up to 30 seconds of very recent tab changes are lost instead of 15. Zen's window sync is unaffected.*",
+    "defaultValue": true
+  },
+  {
+    "type": "checkbox",
+    "property": "zzturbo.pack-media",
+    "label": "Bigger in-memory media cache *64 MB of RAM for streamed media, so small seeks in video replay from memory instead of re-fetching from the network. Memory-for-network trade; turn off on low-RAM machines.*",
+    "defaultValue": true
+  },
+  {
+    "type": "separator",
+    "label": "Connection warmup",
+    "size": "17px",
+    "margin": "22px 0 10px 0"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzturbo.hover-warmup",
+    "label": "Warm connections on hover *Hovering an unloaded tab or a bookmark pre-opens the TCP and TLS connection to its site, in the right container, so DNS, handshake and certificate work happen during the hover instead of after the click. Pairs with Tab Unloader: unloaded tabs reload onto an already-open socket. Throttled to once per site per minute; loaded tabs cost nothing.*",
+    "defaultValue": true
+  },
+  {
+    "type": "checkbox",
+    "property": "zzturbo.startup-warmup",
+    "label": "Warm frequent sites at startup *The first visit of a session pays DNS and TLS cold. Shortly after startup this reads your most-visited sites from history (read-only, local) and pre-opens connections to them, spread out a quarter second apart. Your first real navigation of the day lands warm.*",
+    "defaultValue": true
+  },
+  {
+    "type": "string",
+    "property": "zzturbo.startup-warm-count",
+    "label": "How many sites to warm at startup *Top sites by visit frequency. Each warm connection is one open socket; more than a dozen is rarely useful.*",
+    "defaultValue": "6",
+    "placeholder": "6"
+  },
+  {
+    "type": "string",
+    "property": "zzturbo.startup-warm-delay-ms",
+    "label": "Startup warmup delay (milliseconds) *How long after the window is ready before warming begins, so it never competes with session restore for the network.*",
+    "defaultValue": "4000",
+    "placeholder": "4000"
+  },
+  {
+    "type": "separator",
+    "label": "Troubleshooting",
+    "size": "17px",
+    "margin": "22px 0 10px 0"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzturbo.debug",
+    "label": "Log what it is doing *Prints to the Browser Console (Ctrl+Shift+J) under [ZenTurbo]. ZenTurbo.status() lists active packs and every pref currently managed; ZenTurbo.log() shows recent activity including each warmed connection.*",
+    "defaultValue": false
+  }
+]

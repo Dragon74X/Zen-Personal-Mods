@@ -301,7 +301,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.connector",
-    "label": "Membership style *How tabs and subgroups are shown as belonging to their group. Line draws an accent rail down the left. Branches adds a horizontal elbow reaching each item, the classic tree. Fill sits the whole group body on a faint accent card so membership reads as containment. Fill + Line combines the card with the rail.*",
+    "label": "Membership style *How tabs and subgroups are shown as belonging to their group. Line draws a rail down the left; Line + marks adds the per-item mark chosen below; Fill sits the group body on a faint accent card; Fill + Line combines both. The rail's colour, gradient and cap are set below, and its fade stops are percentages, so a two-tab subgroup fades exactly like a twenty-tab group.*",
     "defaultValue": 1,
     "options": [
       {
@@ -313,7 +313,7 @@
         "value": 1
       },
       {
-        "label": "Branches",
+        "label": "Line + marks",
         "value": 2
       },
       {
@@ -329,9 +329,109 @@
   {
     "type": "string",
     "property": "zzgroup.guide-width",
-    "label": "Connector thickness *All connector geometry scales from this: the curve radius grows with the line, so branches stay curves instead of turning into blobs when thick. 1 to 2px reads cleanest; above 4px the tree gets loud.*",
+    "label": "Line thickness *Also sets the weight of the per-item marks and, for the curve mark, its radius. 1 to 2px reads cleanest.*",
     "defaultValue": "2px",
     "placeholder": "2px"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.line-gradient",
+    "label": "Line gradient *How the rail's colour is distributed. Soft ends fades in at the top and out at the bottom, so the line has no hard start or stop. All stops are percentages, so groups of any length fade identically.*",
+    "defaultValue": 1,
+    "options": [
+      {
+        "label": "Solid",
+        "value": 0
+      },
+      {
+        "label": "Soft ends",
+        "value": 1
+      },
+      {
+        "label": "Fade downward",
+        "value": 2
+      },
+      {
+        "label": "Fade upward",
+        "value": 3
+      },
+      {
+        "label": "Accent to faint",
+        "value": 4
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.line-strength",
+    "label": "Line strength *How much accent colour the rail carries, as a percentage. Lower is subtler.*",
+    "defaultValue": "40%",
+    "placeholder": "40%"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.line-fade",
+    "label": "Fade length *How much of each end fades out, as a percentage of the line's height. Used by Soft ends.*",
+    "defaultValue": "12%",
+    "placeholder": "12%"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.line-cap",
+    "label": "Line cap *Pill rounds both ends of the rail; Flat leaves them square.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Pill",
+        "value": 0
+      },
+      {
+        "label": "Flat",
+        "value": 1
+      }
+    ]
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.marker",
+    "label": "Item marks *A small mark on the rail aimed at each tab and subgroup. Chevron is a soft arrow; Brace is a rounded sweep, the curly-brace feel; Curve is a quarter-circle elbow reaching from the rail into the item. Marks on subgroups aim at the header line rather than the middle of the body.*",
+    "defaultValue": 1,
+    "options": [
+      {
+        "label": "None",
+        "value": 0
+      },
+      {
+        "label": "Chevron",
+        "value": 1
+      },
+      {
+        "label": "Brace",
+        "value": 2
+      },
+      {
+        "label": "Dot",
+        "value": 3
+      },
+      {
+        "label": "Dash",
+        "value": 4
+      },
+      {
+        "label": "Curve",
+        "value": 5
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.marker-size",
+    "label": "Mark size *Dot and dash scale from line thickness instead, so they stay proportional.*",
+    "defaultValue": "7px",
+    "placeholder": "7px"
   },
   {
     "type": "checkbox",

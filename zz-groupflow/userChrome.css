@@ -38,9 +38,26 @@
      thick border is a blob, not a curve. Radius grows with the line so the
      sweep stays a sweep at any width. */
   --zzgf-w: max(var(--zzgroup-guide-width, 1px), 1px);
+  /* Line colour and fade. Stops are percentages so a two-tab subgroup and
+     a twenty-tab group fade by the same proportion, not the same pixels. */
+  --zzgf-line: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-line-strength, 40%), transparent);
+  --zzgf-fade: var(--zzgroup-line-fade, 12%);
+  --zzgf-cap: 99px;
+  --zzgf-grad: linear-gradient(to bottom,
+    transparent 0%, var(--zzgf-line) var(--zzgf-fade),
+    var(--zzgf-line) calc(100% - var(--zzgf-fade)), transparent 100%);
   --zzgf-r: max(10px, calc(var(--zzgf-w) * 3));
   --zzgf-pad: calc(var(--zzgf-r) + 2px);
 }
+@media (-moz-pref("zzgroup.line-cap", 1)) { :root { --zzgf-cap: 0; } }
+@media (-moz-pref("zzgroup.line-gradient", 0)) { :root { --zzgf-grad: linear-gradient(var(--zzgf-line), var(--zzgf-line)); } }
+@media (-moz-pref("zzgroup.line-gradient", 2)) {
+  :root { --zzgf-grad: linear-gradient(to bottom, var(--zzgf-line) 0%, transparent 100%); } }
+@media (-moz-pref("zzgroup.line-gradient", 3)) {
+  :root { --zzgf-grad: linear-gradient(to bottom, transparent 0%, var(--zzgf-line) 100%); } }
+@media (-moz-pref("zzgroup.line-gradient", 4)) {
+  :root { --zzgf-grad: linear-gradient(to bottom, var(--zzgf-line) 0%,
+    color-mix(in srgb, var(--zzgf-accent) calc(var(--zzgroup-line-strength, 40%) * 0.25), transparent) 100%); } }
 @media (-moz-pref("zzgroup.gradient-direction", 1)) { :root { --zzgf-dir: to bottom; } }
 @media (-moz-pref("zzgroup.gradient-direction", 2)) { :root { --zzgf-dir: to top; } }
 @media (-moz-pref("zzgroup.gradient-direction", 3)) { :root { --zzgf-dir: to right; } }
@@ -167,11 +184,11 @@
    3 fill / 4 fill + line. */
 
 /* Line: an accent rail down the left of every group body. */
-@media (-moz-pref("zzgroup.connector", 1)), (-moz-pref("zzgroup.connector", 4)) {
+@media (-moz-pref("zzgroup.connector", 1)), (-moz-pref("zzgroup.connector", 2)), (-moz-pref("zzgroup.connector", 4)) {
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container {
     position: relative;
     margin-left: 7px !important;
-    padding-left: 6px !important;
+    padding-left: var(--zzgf-pad) !important;
   }
   /* Rail on ::before by design: Advanced Tab Groups draws its own group
      line on .tab-group-container::after (measured: 2px solid, full
@@ -183,91 +200,120 @@
     position: absolute;
     left: 0;
     top: 0;
-    bottom: 4px;
+    bottom: 2px;
     width: var(--zzgf-w);
-    border-radius: 99px;
-    /* Percentage stops: pixel stops cross over on short groups, which made
-       every group fade by a different amount. */
-    background: linear-gradient(to bottom,
-      transparent 0%,
-      color-mix(in srgb, var(--zzgf-accent) 40%, transparent) 10%,
-      color-mix(in srgb, var(--zzgf-accent) 40%, transparent) 88%,
-      transparent 100%);
+    border-radius: var(--zzgf-cap);
+    background: var(--zzgf-grad);
     pointer-events: none;
   }
 }
 
-/* Branches: soft and flowy rather than ruled. The rail is a gradient
-   strip that fades in at the top and out past the last item -- no hard
-   endpoints -- and each item gets a quarter-circle curve sweeping off
-   the rail into it, not a right-angle stub. ::after keeps clear of
-   other mods' ::before usage on tabs. */
-@media (-moz-pref("zzgroup.connector", 2)) {
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container {
-    position: relative;
-    margin-left: 7px !important;
-    padding-left: var(--zzgf-pad) !important;
-  }
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: -2px;
-    bottom: 8px;
-    width: var(--zzgf-w);
-    border-radius: 99px;
-    background: linear-gradient(to bottom,
-      transparent 0%,
-      color-mix(in srgb, var(--zzgf-accent) 45%, transparent) 8%,
-      color-mix(in srgb, var(--zzgf-accent) 45%, transparent) 90%,
-      transparent 100%);
-    pointer-events: none;
-  }
-  /* The elbow is drawn in negative space to the LEFT of each item, so any
-     clipping ancestor eats it and leaves only a stub -- which is exactly
-     what a clipped quarter-circle looks like. Zen, Firefox and the glass
-     mods all clip tabs at various times for rounded corners and blur, so
-     clipping is lifted explicitly for the rows that carry connectors. */
+/* ---- per-item markers ---------------------------------------------- */
+/* A small mark on the rail aimed at each tab and subgroup. Drawn on the
+   item's own ::after, in the negative space left of it, so clipping must
+   be lifted -- Zen and the glass mods clip tabs for rounded corners, and
+   a clipped mark shows up as a stub. */
+@media not (-moz-pref("zzgroup.marker", 0)) {
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container,
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > :is(.tabbrowser-tab, tab-group) {
-    /* Longhands, not just the shorthand: the clipper sets overflow-x and
-       overflow-y directly, and a longhand beats a shorthand that expands
-       to it regardless of !important on the shorthand. */
     overflow: visible !important;
     overflow-x: visible !important;
     overflow-y: visible !important;
     contain: none !important;
     clip-path: none !important;
-    /* Belt and braces: if anything still forces clip, this widens the clip
-       region so content may paint outside the box anyway. */
     overflow-clip-margin: 24px !important;
   }
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > :is(.tabbrowser-tab, tab-group) {
     position: relative;
-    z-index: 0;   /* keeps the curve from being painted under the tab plate */
+    z-index: 0;
   }
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > :is(.tabbrowser-tab, tab-group)::after {
     content: "";
     position: absolute;
-    left: calc(-1 * var(--zzgf-pad));
-    top: calc(50% - var(--zzgf-r));
-    width: var(--zzgf-pad);
-    height: var(--zzgf-r);
-    border-left: var(--zzgf-w) solid
-      color-mix(in srgb, var(--zzgf-accent) 45%, transparent);
-    border-bottom: var(--zzgf-w) solid
-      color-mix(in srgb, var(--zzgf-accent) 45%, transparent);
-    border-bottom-left-radius: var(--zzgf-r);
-    opacity: 0.7;
+    left: calc(-1 * var(--zzgf-pad) + var(--zzgf-w));
+    top: calc(50% - var(--zzgf-m) / 2);
+    width: var(--zzgf-m);
+    height: var(--zzgf-m);
+    opacity: 0.75;
     transition: opacity 0.15s ease;
     pointer-events: none;
+  }
+  /* Marks on subgroups aim at the header line, not the body middle. */
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
+    top: calc(14px - var(--zzgf-m) / 2);
   }
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > :is(.tabbrowser-tab, tab-group):hover::after {
     opacity: 1;
   }
-  /* Subgroup curves sweep into the header line, not the body middle. */
-  /* Subgroup curves sweep into the header line (~14px down), never
-     negative however thick the line gets. */
+}
+
+:root { --zzgf-m: var(--zzgroup-marker-size, 7px); }
+
+/* Chevron: a soft > aimed at the item. */
+@media (-moz-pref("zzgroup.marker", 1)) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > :is(.tabbrowser-tab, tab-group)::after {
+    border-top: var(--zzgf-w) solid var(--zzgf-line);
+    border-right: var(--zzgf-w) solid var(--zzgf-line);
+    border-top-right-radius: calc(var(--zzgf-w) * 1.5);
+    transform: rotate(45deg);
+    width: calc(var(--zzgf-m) * 0.8);
+    height: calc(var(--zzgf-m) * 0.8);
+  }
+}
+
+/* Brace: a rounded ) sweeping toward the item, the } feel. */
+@media (-moz-pref("zzgroup.marker", 2)) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > :is(.tabbrowser-tab, tab-group)::after {
+    border-right: var(--zzgf-w) solid var(--zzgf-line);
+    border-radius: 0 100% 100% 0 / 0 50% 50% 0;
+    width: calc(var(--zzgf-m) * 0.7);
+    height: calc(var(--zzgf-m) * 1.6);
+    top: calc(50% - var(--zzgf-m) * 0.8);
+  }
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
+    top: calc(14px - var(--zzgf-m) * 0.8);
+  }
+}
+
+/* Dot. */
+@media (-moz-pref("zzgroup.marker", 3)) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > :is(.tabbrowser-tab, tab-group)::after {
+    background: var(--zzgf-line);
+    border-radius: 50%;
+    width: calc(var(--zzgf-w) * 2);
+    height: calc(var(--zzgf-w) * 2);
+    top: calc(50% - var(--zzgf-w));
+  }
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
+    top: calc(14px - var(--zzgf-w));
+  }
+}
+
+/* Dash: a short pill reaching from the rail to the item. */
+@media (-moz-pref("zzgroup.marker", 4)) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > :is(.tabbrowser-tab, tab-group)::after {
+    background: var(--zzgf-line);
+    border-radius: 99px;
+    width: var(--zzgf-m);
+    height: var(--zzgf-w);
+    top: calc(50% - var(--zzgf-w) / 2);
+  }
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
+    top: calc(14px - var(--zzgf-w) / 2);
+  }
+}
+
+/* Curve: quarter-circle elbow sweeping off the rail into the item. */
+@media (-moz-pref("zzgroup.marker", 5)) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > :is(.tabbrowser-tab, tab-group)::after {
+    left: calc(-1 * var(--zzgf-pad));
+    border-left: var(--zzgf-w) solid var(--zzgf-line);
+    border-bottom: var(--zzgf-w) solid var(--zzgf-line);
+    border-bottom-left-radius: var(--zzgf-r);
+    width: var(--zzgf-pad);
+    height: var(--zzgf-r);
+    top: calc(50% - var(--zzgf-r));
+  }
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
     top: max(0px, calc(14px - var(--zzgf-r)));
     height: min(var(--zzgf-r), 14px);

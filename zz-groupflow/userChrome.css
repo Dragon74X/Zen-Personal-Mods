@@ -20,7 +20,7 @@
 
 :root {
   /* Inherit Glassflow wholesale; each fallback IS Glassflow's default. */
-  --zzgf-round: var(--zzgroup-header-roundness, var(--zzg-round, 10px));
+  --zzgf-round: var(--zzgroup-header-roundness, 12px);
   --zzgf-glass: var(--zzg-glass, 1);
   --zzgf-fx: var(--zzg-fx, );
   --zzgf-sheen: var(--zzg-sheen, linear-gradient(to bottom,
@@ -95,7 +95,7 @@
 }
 
 #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label {
-  background: none;
+  background: none !important;
   color: var(--zzgroup-label-color, inherit);
   font-size: var(--zzgroup-label-size, 1em);
   font-weight: 600;
@@ -144,12 +144,59 @@
   margin-left: var(--zzgroup-indent, 10px);
 }
 
-@media (-moz-pref("zzgroup.guides")) {
-  #navigator-toolbox tab-group:not([split-view-group]) tab-group:not([split-view-group]) {
+/* ---- connectors --------------------------------------------------- */
+/* How group membership is drawn. 0 none / 1 line / 2 branches /
+   3 fill / 4 fill + line. */
+
+/* Line: an accent rail down the left of every group body. */
+@media (-moz-pref("zzgroup.connector", 1)), (-moz-pref("zzgroup.connector", 4)) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container {
     border-left: var(--zzgroup-guide-width, 1px) solid
-      color-mix(in srgb, var(--zzgf-accent) 35%, transparent);
-    border-radius: 0;
-    padding-left: 4px;
+      color-mix(in srgb, var(--zzgf-accent) 40%, transparent) !important;
+    margin-left: 7px !important;
+    padding-left: 4px !important;
+  }
+}
+
+/* Branches: the rail plus a horizontal stub reaching each direct item,
+   the classic tree elbow. Uses ::after on items to stay clear of other
+   mods' ::before usage on tabs. */
+@media (-moz-pref("zzgroup.connector", 2)) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container {
+    border-left: var(--zzgroup-guide-width, 1px) solid
+      color-mix(in srgb, var(--zzgf-accent) 40%, transparent) !important;
+    margin-left: 7px !important;
+    padding-left: 8px !important;
+  }
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > :is(.tabbrowser-tab, tab-group) {
+    position: relative;
+  }
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > :is(.tabbrowser-tab, tab-group)::after {
+    content: "";
+    position: absolute;
+    left: calc(-8px - var(--zzgroup-guide-width, 1px));
+    top: 50%;
+    width: 8px;
+    height: var(--zzgroup-guide-width, 1px);
+    background: color-mix(in srgb, var(--zzgf-accent) 40%, transparent);
+    pointer-events: none;
+  }
+  /* Subgroup elbows point at the header, not the body middle. */
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > tab-group::after {
+    top: 14px;
+  }
+}
+
+/* Fill: the group body sits on a faint accent card, so membership reads
+   as containment rather than lines. */
+@media (-moz-pref("zzgroup.connector", 3)), (-moz-pref("zzgroup.connector", 4)) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container {
+    background: linear-gradient(var(--zzg-dir, 135deg),
+      color-mix(in srgb, var(--zzgf-accent) 8%, transparent) 0%,
+      color-mix(in srgb, var(--zzgf-accent) 3%, transparent) 100%) !important;
+    border-radius: calc(var(--zzgf-round) * 0.75) !important;
+    padding: 3px !important;
+    margin: 1px 0 3px !important;
   }
 }
 
@@ -195,9 +242,15 @@
    the group's dominant domain. Sits at the left of the label, the
    slot a collapse chevron or folder icon would occupy. */
 @media (-moz-pref("zzgroup.favicons")) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+  }
   #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label::before {
     content: "" !important;
     display: inline-block !important;
+    flex: 0 0 auto;
     width: var(--zzgroup-icon-size, 14px);
     height: var(--zzgroup-icon-size, 14px);
     margin-inline-end: 6px;
@@ -206,6 +259,61 @@
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
+    background-origin: content-box;
+  }
+  /* Backing plate: many favicons (GitHub's transparent cat) vanish on a
+     dark sidebar. A small plate behind the icon fixes readability for
+     every icon uniformly, locally -- no favicon service, no network. */
+  @media (-moz-pref("zzgroup.icon-plate", 1)) {
+    #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label::before {
+      background-color: rgb(255 255 255 / 0.92);
+      padding: 2px;
+      border-radius: 4px;
+    }
+  }
+  @media (-moz-pref("zzgroup.icon-plate", 2)) {
+    #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label::before {
+      background-color: rgb(20 20 24 / 0.85);
+      padding: 2px;
+      border-radius: 4px;
+    }
+  }
+  @media (-moz-pref("zzgroup.icon-plate", 3)) {
+    #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label::before {
+      background-color: light-dark(rgb(20 20 24 / 0.85), rgb(255 255 255 / 0.92));
+      padding: 2px;
+      border-radius: 4px;
+    }
+  }
+}
+
+/* ---- other mods' group icons -------------------------------------- */
+/* ATG's color/emoji chip (.tab-group-icon inside .tab-group-icon-
+   container); its .group-marker collapse toggle is kept. */
+@media (-moz-pref("zzgroup.hide-atg-icon")) {
+  #navigator-toolbox tab-group .tab-group-label-container .tab-group-icon-container .tab-group-icon {
+    display: none !important;
+  }
+}
+/* Zen/Firefox native color pill on the label is already stripped by the
+   hardened background above; this also kills any leftover swatch-like
+   decoration other themes put on the label itself. */
+@media (-moz-pref("zzgroup.hide-native-pill")) {
+  #navigator-toolbox tab-group .tab-group-label-container .tab-group-label {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+}
+/* ATG appends its close button at the right; this moves it to the far
+   left, before the favicon. */
+@media (-moz-pref("zzgroup.close-left")) {
+  #navigator-toolbox tab-group .tab-group-label-container > .tab-close-button {
+    order: -2 !important;
+    margin-inline: 0 4px !important;
+  }
+  #navigator-toolbox tab-group .tab-group-label-container > .tab-group-icon-container {
+    order: -1 !important;
   }
 }
 

@@ -55,8 +55,8 @@
   {
     "type": "string",
     "property": "zzgroup.header-roundness",
-    "label": "Header roundness *Corner radius of the header pill. Empty inherits Glassflow's tab roundness, so changing it there changes it here.*",
-    "defaultValue": "",
+    "label": "Header roundness *Corner radius of the header pill. Set it to the same value as Glassflow's tab roundness to match; an empty value is not supported because Sine injects it as an empty variable, which invalidates the rule.*",
+    "defaultValue": "12px",
     "placeholder": "12px"
   },
   {
@@ -85,6 +85,24 @@
     "placeholder": "14px"
   },
   {
+    "type": "checkbox",
+    "property": "zzgroup.hide-atg-icon",
+    "label": "Hide Advanced Tab Groups' icon chip *Removes ATG's color or emoji square from the header so the favicon is the only icon. ATG's collapse marker button is kept.*",
+    "defaultValue": true
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.hide-native-pill",
+    "label": "Hide native color decorations on the label *Strips the color pill Firefox and Zen paint on the label text, plus any swatch other themes such as Arc add there. The group's color still shows through Groupflow's accent gradient.*",
+    "defaultValue": true
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.close-left",
+    "label": "Close button on the left *Moves ATG's group close button to the far left of the header, before the favicon. Only does anything when ATG is installed.*",
+    "defaultValue": false
+  },
+  {
     "type": "separator",
     "label": "Label text",
     "size": "17px",
@@ -102,6 +120,31 @@
     "label": "Icon size",
     "defaultValue": "14px",
     "placeholder": "14px"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.icon-plate",
+    "label": "Icon backing plate *Many favicons are drawn for light pages -- GitHub's transparent cat disappears on a dark sidebar. A small plate behind the icon makes every favicon readable uniformly, locally, with no favicon service and no network. Auto follows your theme: light plate on dark, dark plate on light.*",
+    "defaultValue": 3,
+    "options": [
+      {
+        "label": "None",
+        "value": 0
+      },
+      {
+        "label": "Light",
+        "value": 1
+      },
+      {
+        "label": "Dark",
+        "value": 2
+      },
+      {
+        "label": "Auto",
+        "value": 3
+      }
+    ]
   },
   {
     "type": "dropdown",
@@ -204,15 +247,38 @@
     "placeholder": "10px"
   },
   {
-    "type": "checkbox",
-    "property": "zzgroup.guides",
-    "label": "Nesting guide lines *A faint accent-colored line down the left of each subgroup, marking what belongs to what. Groups only; folder tree connectors stay the Folder Tree Connectors mod's job.*",
-    "defaultValue": true
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.connector",
+    "label": "Membership style *How tabs and subgroups are shown as belonging to their group. Line draws an accent rail down the left. Branches adds a horizontal elbow reaching each item, the classic tree. Fill sits the whole group body on a faint accent card so membership reads as containment. Fill + Line combines the card with the rail.*",
+    "defaultValue": 1,
+    "options": [
+      {
+        "label": "None",
+        "value": 0
+      },
+      {
+        "label": "Line",
+        "value": 1
+      },
+      {
+        "label": "Branches",
+        "value": 2
+      },
+      {
+        "label": "Fill",
+        "value": 3
+      },
+      {
+        "label": "Fill + Line",
+        "value": 4
+      }
+    ]
   },
   {
     "type": "string",
     "property": "zzgroup.guide-width",
-    "label": "Guide line width",
+    "label": "Connector line width *Used by the Line, Branches and Fill + Line styles.*",
     "defaultValue": "1px",
     "placeholder": "1px"
   },

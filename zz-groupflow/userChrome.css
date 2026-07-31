@@ -287,6 +287,10 @@
     mask-position: center;
     mask-repeat: no-repeat;
     opacity: 0.85;
+    /* Above the tab's own plate: Zen and the glass mods widen
+       .tab-background past the tab's border box with a negative inset, so
+       without this it paints over the mark's inner edge and trims it. */
+    z-index: 5;
     transition: opacity 0.15s ease;
     pointer-events: none;
   }

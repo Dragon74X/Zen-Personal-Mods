@@ -67,6 +67,58 @@
     return prettify(base.split(".")[0]);
   }
 
+  // ---- learned names ------------------------------------------------------
+  // "dragonage" is a slug; the tab title "Dragon Age: Origins Mods - Nexus
+  // Mods" holds the human name. When a title chunk plausibly matches the
+  // slug it is learned once and persisted, so every later tab files under
+  // the good name with zero manual work. User aliases always win.
+  let learnedCache = null;
+  function learnedMap() {
+    if (learnedCache) return learnedCache;
+    try { learnedCache = new Map(Object.entries(JSON.parse(str("learned-names", "{}")))); }
+    catch { learnedCache = new Map(); }
+    return learnedCache;
+  }
+  function saveLearned() {
+    try {
+      Services.prefs.setStringPref(P + "learned-names",
+        JSON.stringify(Object.fromEntries([...learnedMap()].slice(-200))));
+    } catch {}
+  }
+
+  function titleNameFor(tab, slug) {
+    let t = tab.label || "";
+    if (!t || /^https?:/i.test(t) || t.includes("/")) return null;   // still loading
+    // Titles are usually "Thing - Site" or "Thing | Site".
+    let name = t.split(/\s+[-|\u2013\u2014\u00b7]\s+/)[0].trim();
+    name = name.replace(/\s+(Mods|Mod|Wiki|Home|Official Site)$/i, "").trim();
+    if (!name || name.length > 48) return null;
+    // Relatedness guard: a deep page's title names the PAGE, not the
+    // section. Only learn when title and slug visibly share a stem.
+    const a = name.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const b = slug.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (!a || !b) return null;
+    if (!(a.includes(b.slice(0, 5)) || b.includes(a.slice(0, 5)))) return null;
+    return name;
+  }
+
+  // alias > learned > learn-from-title-now > prettify
+  function segName(tab, seg) {
+    const slug = seg.trim().replace(/^@/, "").toLowerCase();
+    const a = aliasMap().get(slug);
+    if (a) return a;
+    const l = learnedMap().get(slug);
+    if (l) return l;
+    const t = titleNameFor(tab, slug);
+    if (t) {
+      learnedMap().set(slug, t);
+      saveLearned();
+      note(`learned name: ${slug} = ${t}`);
+      return t;
+    }
+    return prettify(seg.replace(/^@/, ""));
+  }
+
   // ---- rules -------------------------------------------------------------
   // One rule per line:  github.com, gitlab.com > Dev
   // Left side is a comma-separated list of domain fragments, right side is
@@ -103,21 +155,28 @@
   //   docs.proton.me                      -> subdomain
   // www.nexusmods.com has no subdomain at all, so subdomain nesting can
   // never split it. This reads path segments instead.
+  // Generic route words that make useless group names. Built in so search
+  // engines don't produce a "Search" subgroup; the pref ADDS to this list.
+  const BUILTIN_IGNORE = new Set(("search,results,watch,videos,video,shorts,feed," +
+    "browse,explore,channel,playlist,games,game,category,categories,c,p,en,en-us," +
+    "www,index,home,wiki,tag,tags,new,top,hot,trending,threads,posts,post,r,user,users")
+    .split(","));
+
   function pathParts(tab) {
     const depth = num("auto-path-depth", 0);
     if (depth < 1) return [];
     let path = "";
     try { path = tab.linkedBrowser?.currentURI?.filePath ?? ""; } catch { return []; }
     const skipWords = new Set(
-      str("auto-path-ignore", "games,category,categories,c,p,en,en-us,www,index,home")
+      str("auto-path-ignore", "")
         .split(",").map(s => s.trim().toLowerCase()).filter(Boolean));
     const segs = path.split("/")
       .map(s => decodeURIComponent(s).trim())
       .filter(Boolean)
-      .filter(s => !skipWords.has(s.toLowerCase()))
+      .filter(s => !BUILTIN_IGNORE.has(s.toLowerCase()) && !skipWords.has(s.toLowerCase()))
       // drop pure ids and file names, which make useless group names
       .filter(s => !/^\d+$/.test(s) && !/\.[a-z0-9]{2,4}$/i.test(s));
-    return segs.slice(0, depth).map(prettify);
+    return segs.slice(0, depth).map(s => segName(tab, s));
   }
 
   // Returns the target as a PATH: ["Nexusmods", "Stalker 2"]. Each level is
@@ -148,7 +207,15 @@
         }
       }
 
-      return [domainName(base), ...subParts, ...pathParts(tab)];
+      const all = [domainName(base), ...subParts, ...pathParts(tab)];
+      // Redundancy killer: search.brave.com/search must not become
+      // Brave > Search > Search. Any repeat of an earlier part is dropped.
+      const out = [];
+      for (const p of all) {
+        if (out.some(x => x.toLowerCase() === p.toLowerCase())) continue;
+        out.push(p);
+      }
+      return out;
     }
     return null;
   }
@@ -230,6 +297,13 @@
   const endsWithPath = (chain, want) =>
     want.length && chain.length >= want.length && samePath(chain.slice(-want.length), want);
 
+  // Want ["Youtube"], filed in ["Youtube", "XP To Level 3"]: the tab sits in
+  // a DEEPER subgroup of the right path, e.g. inherited from the creator
+  // page it was opened from. That is better organization, not drift --
+  // leave it. This is what keeps a creator's videos in the creator's group.
+  const startsWithPath = (chain, want) =>
+    want.length && chain.length >= want.length && samePath(chain.slice(0, want.length), want);
+
   // One repair attempt per tab: if it is suffix-filed under junk and the
   // junk cannot be ejected on this build, stop touching it instead of
   // looping forever.
@@ -241,7 +315,7 @@
     if (cap > 0) parts = parts.slice(0, cap);
 
     const chain = chainOf(tab);
-    if (samePath(chain, parts)) return false;          // filed right
+    if (startsWithPath(chain, parts)) return false;    // filed right (or deeper)
     if (endsWithPath(chain, parts)) {                  // filed right, junk above
       if (repaired.has(tab)) return false;
       repaired.add(tab);                               // one shot at cleaning up
@@ -332,7 +406,7 @@
       if (bool("refile-mismatched", true)) {
         const want = targetPath(tab);
         const have = chainOf(tab);
-        if (want?.length && have.length && !samePath(want, have)) {
+        if (want?.length && have.length && !startsWithPath(have, want)) {
           // Suffix-filed under junk gets exactly one repair attempt;
           // placeInPath marks it and this stops routing it afterwards.
           if (!endsWithPath(have, want) || !repaired.has(tab)) return null;
@@ -579,6 +653,14 @@
           console.log("(copied to clipboard)");
         } catch {}
         return r;
+      },
+      // Names learned automatically from tab titles (slug -> name).
+      learned: () => Object.fromEntries(learnedMap()),
+      forget(slug) {
+        if (slug) learnedMap().delete(slug.toLowerCase());
+        else learnedCache = new Map();
+        saveLearned();
+        return slug ? `forgot "${slug}"` : "forgot all learned names";
       },
       log: () => log.slice(),
     };

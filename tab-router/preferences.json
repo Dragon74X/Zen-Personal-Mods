@@ -111,14 +111,14 @@
   {
     "type": "string",
     "property": "zzrouter.auto-path-ignore",
-    "label": "Path words to ignore *Comma separated. Generic route words that would make useless group names. Numeric segments and anything ending in a file extension are always dropped.*",
-    "defaultValue": "games,category,categories,c,p,en,en-us,www,index,home",
-    "placeholder": "games,category,categories,c,p,en,en-us,www,index,home"
+    "label": "Extra path words to ignore *Comma separated, ADDED to a built-in list of generic route words (search, watch, videos, results, games, category and similar). Numeric segments and file names are always dropped.*",
+    "defaultValue": "",
+    "placeholder": "mods,collections"
   },
   {
     "type": "string",
     "property": "zzrouter.auto-path-aliases",
-    "label": "Path name aliases *slug = Pretty Name, one per line or comma separated. A slug like baldursgate3 has no word boundaries, so no amount of cleverness recovers Baldur's Gate 3 from it -- that needs either a dictionary or the page title. Run TabRouter.suggestAliases() in the console: it reads your open tabs, pulls the human name out of each page title, and copies a ready-made list to your clipboard. Slugs that DO have separators, like crimson-desert or crimsonDesert, are cleaned up automatically and need no alias.*",
+    "label": "Path name aliases *slug = Pretty Name, one per line or comma separated, and these always win. Mostly optional now: names are LEARNED automatically from tab titles when the title plausibly matches the slug, so nexusmods.com/games/dragonage files as Dragon Age: Origins once any page under it has loaded. TabRouter.learned() shows what has been picked up; TabRouter.forget('slug') or TabRouter.forget() drops bad ones. Slugs with separators, like crimson-desert, are cleaned up automatically either way.*",
     "defaultValue": "baldursgate3 = Baldur's Gate 3",
     "placeholder": "baldursgate3 = Baldur's Gate 3"
   },

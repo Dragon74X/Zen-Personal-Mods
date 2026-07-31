@@ -200,16 +200,41 @@
     return [...set];
   }
 
+  // Ungroup pops ONE level; the tab stays inside its ancestor groups, so a
+  // root-level create would be born nested in the leftovers -- that was the
+  // 1.10.0 staircase bug (Youtube > Watch > Youtube > Watch ...). Eject from
+  // every level and return the groups left behind.
+  function ejectAll(tab) {
+    const left = [];
+    for (let i = 0; i < 10 && tab.group; i++) {
+      const g = tab.group;
+      try { g.ungroupTabs?.([tab]); } catch (e) { note(`ungroup failed: ${e}`); break; }
+      if (tab.group === g) { note(`tab refused to leave "${g.label}"`); break; }
+      left.push(g);
+    }
+    return left;
+  }
+
   function placeInPath(tab, parts) {
     if (!parts?.length) return false;
     if (samePath(chainOf(tab), parts)) return false;   // already filed right
 
-    // Leaving a tab in its old group makes addTabs a no-op on some builds,
-    // and would also make the first created level nest under the OLD group.
-    if (tab.group) {
-      try { tab.group.ungroupTabs?.([tab]); } catch (e) { note(`ungroup failed: ${e}`); }
-    }
+    const left = ejectAll(tab);
+    const ok = walkPath(tab, parts);
 
+    // Groups the eject emptied out are residue (often 1.9's flat joined-label
+    // group, or 1.10.0's staircase). A group with no tab anywhere under it is
+    // dead weight; removing it while empty closes nothing.
+    for (const g of left) {
+      if (!g.isConnected) continue;
+      if (g.querySelector(".tabbrowser-tab")) continue;   // still holds tabs somewhere below
+      try { gBrowser.removeTabGroup(g); note(`removed empty group "${g.label}"`); }
+      catch (e) { note(`could not remove empty "${g.label}": ${e}`); }
+    }
+    return ok;
+  }
+
+  function walkPath(tab, parts) {
     let parent = null;
     for (const name of parts) {
       let g = findChild(name, parent);

@@ -88,23 +88,29 @@
     if (bool("auto-unmatched", false)) {
       const base = baseDomain(host);
       const parent = titleCase(base);
-      if (!bool("auto-subdomains", true)) {
-        const p = pathParts(tab);
-        return p.length ? [parent, ...p].join(SEP()) : parent;
+
+      // Subdomain levels, if any. www is noise, not a real subdomain, so a
+      // host like www.nexusmods.com contributes nothing here.
+      let subParts = [];
+      if (bool("auto-subdomains", true)) {
+        let sub = host.length > base.length
+          ? host.slice(0, host.length - base.length - 1)
+          : "";
+        sub = sub.replace(/^www$/i, "").replace(/^www\./i, "");
+        if (sub) {
+          const depth = Math.max(1, num("auto-depth", 1));
+          subParts = sub.split(".").reverse().slice(0, depth).map(titleCase);
+        }
       }
 
-      // "docs.proton.me" with base "proton.me" leaves "docs".
-      // "www" is noise, not a meaningful subdomain.
-      let sub = host.length > base.length
-        ? host.slice(0, host.length - base.length - 1)
-        : "";
-      sub = sub.replace(/^www$/i, "").replace(/^www\./i, "");
-      if (!sub) return parent;
+      // Path levels are computed independently. Until 1.8.1 an early return
+      // fired here whenever there was no subdomain, so path nesting could
+      // never apply to exactly the sites that need it most -- anything on
+      // www.example.com, which is most of the web.
+      const segs = pathParts(tab);
 
-      // a.b.example.com -> Example / B / A, outermost first
-      const depth = Math.max(1, num("auto-depth", 1));
-      const parts = sub.split(".").reverse().slice(0, depth).map(titleCase);
-      return [parent, ...parts, ...pathParts(tab)].join(SEP());
+      const all = [parent, ...subParts, ...segs];
+      return all.join(SEP());
     }
     return null;
   }
@@ -482,6 +488,24 @@
             .filter(t => gBrowser.isTab(t))
             .map(t => ({ title: t.label, pinned: t.pinned })),
         }));
+      },
+      // Shows how a host+path resolves, without moving anything.
+      explain(tabOrIndex) {
+        const t = typeof tabOrIndex === "number"
+          ? allTabs()[tabOrIndex] : (tabOrIndex || gBrowser.selectedTab);
+        if (!t) return "no tab";
+        let uri = "";
+        try { uri = t.linkedBrowser?.currentURI?.spec ?? ""; } catch {}
+        return {
+          title: t.label,
+          url: uri.slice(0, 90),
+          host: hostOf(t),
+          base: hostOf(t) ? baseDomain(hostOf(t)) : null,
+          pathDepthPref: num("auto-path-depth", 0),
+          pathSegments: pathParts(t),
+          currentGroup: t.group?.label ?? null,
+          wouldGo: skip(t) ? `skipped (${skip(t)})` : targetGroup(t),
+        };
       },
       folderTree() {
         const walk = (parent, depth) => allFolders()

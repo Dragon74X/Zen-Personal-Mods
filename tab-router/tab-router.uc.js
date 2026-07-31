@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Tab Router
-// @description    Sorts tabs into tab groups by domain, using your rules.
+// @description    Sorts tabs into nested tab groups by domain, using your rules.
 // @include        chrome://browser/content/browser.xhtml
 // ==/UserScript==
 
@@ -24,10 +24,54 @@
     if (bool("debug", false)) console.log("[TabRouter]", m);
   };
 
+  // Pref key kept as folder-separator so nobody's saved value is lost;
+  // it now separates GROUP levels.
+  const SEP = () => str("folder-separator", " / ");
+
+  // ---- naming ------------------------------------------------------------
+  // "baldursgate3" carries no word boundaries, so there is no reliable way
+  // to recover "Baldur's Gate 3" from the slug alone -- that needs either a
+  // dictionary or the page title. The alias map is the dependable answer;
+  // prettify only handles the cases where separators DO exist. Aliases apply
+  // to every name part: path slugs, subdomains and bare domain names alike,
+  // so "nexusmods = Nexus Mods" works too.
+  function aliasMap() {
+    const map = new Map();
+    for (const pair of str("auto-path-aliases", "").split(/[\n,]+/)) {
+      const i = pair.indexOf("=");
+      if (i < 0) continue;
+      const k = pair.slice(0, i).trim().toLowerCase();
+      const v = pair.slice(i + 1).trim();
+      if (k && v) map.set(k, v);
+    }
+    return map;
+  }
+
+  function prettify(seg) {
+    const alias = aliasMap().get(seg.trim().toLowerCase());
+    if (alias) return alias;
+    return seg
+      .replace(/[-_+]+/g, " ")                    // kebab and snake case
+      .replace(/([a-z])([A-Z])/g, "$1 $2")        // camelCase
+      .replace(/([a-zA-Z])(\d)/g, "$1 $2")        // trailing version numbers
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  // nexusmods.com -> Nexusmods, crimson-desert.gg -> Crimson Desert.
+  // Alias the whole base domain if you want something else entirely.
+  function domainName(base) {
+    const alias = aliasMap().get(base.trim().toLowerCase());
+    if (alias) return alias;
+    return prettify(base.split(".")[0]);
+  }
+
   // ---- rules -------------------------------------------------------------
   // One rule per line:  github.com, gitlab.com > Dev
   // Left side is a comma-separated list of domain fragments, right side is
-  // the group name. First matching rule wins, so order is precedence.
+  // the group name. A name containing the separator nests: "Work / Email"
+  // is a subgroup Email inside a group Work. First matching rule wins.
   function rules() {
     return str("rules", "")
       .split(/[\n;]+/)
@@ -71,23 +115,24 @@
       .map(s => decodeURIComponent(s).trim())
       .filter(Boolean)
       .filter(s => !skipWords.has(s.toLowerCase()))
-      // drop pure ids and file names, which make useless folder names
+      // drop pure ids and file names, which make useless group names
       .filter(s => !/^\d+$/.test(s) && !/\.[a-z0-9]{2,4}$/i.test(s));
     return segs.slice(0, depth).map(prettify);
   }
 
-  function targetGroup(tab) {
+  // Returns the target as a PATH: ["Nexusmods", "Stalker 2"]. Each level is
+  // a nested tab group. A flat name is just a one-element path.
+  function targetPath(tab) {
     const host = hostOf(tab);
     if (!host) return null;
     for (const r of rules()) {
-      if (r.domains.some(d => host === d || host.endsWith("." + d))) return r.group;
+      if (r.domains.some(d => host === d || host.endsWith("." + d)))
+        return r.group.split(SEP()).map(s => s.trim()).filter(Boolean);
     }
-    // Fully automatic: derive the folder path from the host itself, so a
-    // site you have never visited before still lands somewhere sensible
-    // without any rule existing for it.
+    // Fully automatic: derive the path from the host itself, so a site you
+    // have never visited still lands somewhere sensible without a rule.
     if (bool("auto-unmatched", false)) {
       const base = baseDomain(host);
-      const parent = titleCase(base);
 
       // Subdomain levels, if any. www is noise, not a real subdomain, so a
       // host like www.nexusmods.com contributes nothing here.
@@ -99,29 +144,51 @@
         sub = sub.replace(/^www$/i, "").replace(/^www\./i, "");
         if (sub) {
           const depth = Math.max(1, num("auto-depth", 1));
-          subParts = sub.split(".").reverse().slice(0, depth).map(titleCase);
+          subParts = sub.split(".").reverse().slice(0, depth).map(prettify);
         }
       }
 
-      // Path levels are computed independently. Until 1.8.1 an early return
-      // fired here whenever there was no subdomain, so path nesting could
-      // never apply to exactly the sites that need it most -- anything on
-      // www.example.com, which is most of the web.
-      const segs = pathParts(tab);
-
-      const all = [parent, ...subParts, ...segs];
-      return all.join(SEP());
+      return [domainName(base), ...subParts, ...pathParts(tab)];
     }
     return null;
   }
 
-  // ---- group handling ----------------------------------------------------
+  // ---- groups, nested ----------------------------------------------------
+  // Nesting mechanism, learned the hard way in 1.8.x when subgroups showed
+  // up by accident: gBrowser.addTabGroup(..., { insertBefore: tab }) births
+  // the group at the tab's DOM position. A tab already sitting inside a
+  // group therefore produces a group INSIDE that group. 1.8.x tripped over
+  // this; this version does it on purpose, one level at a time.
+
   function groups() {
-    try { return gBrowser.tabGroups.filter(g => g.tagName === "tab-group"); }
-    catch { return []; }
+    const set = new Set();
+    try { for (const g of gBrowser.tabGroups) set.add(g); } catch {}
+    try { for (const g of document.querySelectorAll("tab-group")) set.add(g); } catch {}
+    // Zen folders subclass tab-group but live pinned; leave them alone.
+    return [...set].filter(g => g.tagName === "tab-group" && !g.isZenFolder);
   }
-  const findGroup = (name) =>
-    groups().find(g => (g.label ?? "").trim().toLowerCase() === name.trim().toLowerCase());
+
+  const parentOf = (g) => g?.parentElement?.closest("tab-group") ?? null;
+
+  function findChild(name, parent) {
+    const want = name.trim().toLowerCase();
+    return groups().find(g =>
+      (g.label ?? "").trim().toLowerCase() === want && parentOf(g) === parent) ?? null;
+  }
+
+  // ["Work", "Email"] for a tab inside Email inside Work.
+  function chainOf(tab) {
+    const out = [];
+    let g = tab.group ?? null;
+    while (g && g.tagName === "tab-group") {
+      out.unshift((g.label ?? "").trim());
+      g = parentOf(g);
+    }
+    return out;
+  }
+
+  const samePath = (a, b) =>
+    a.length === b.length && a.every((s, i) => s.toLowerCase() === b[i].toLowerCase());
 
   // gBrowser.tabs does not cover everything in Zen: on a real profile it
   // reported 13 while the document held 56 .tabbrowser-tab elements, 25 of
@@ -133,55 +200,58 @@
     return [...set];
   }
 
-  function placeInGroup(tab, name) {
-    // Leaving a tab in its old group makes addTabs a no-op on some builds.
-    if (tab.group && (tab.group.label ?? "").trim().toLowerCase() !== name.trim().toLowerCase()) {
+  function placeInPath(tab, parts) {
+    if (!parts?.length) return false;
+    if (samePath(chainOf(tab), parts)) return false;   // already filed right
+
+    // Leaving a tab in its old group makes addTabs a no-op on some builds,
+    // and would also make the first created level nest under the OLD group.
+    if (tab.group) {
       try { tab.group.ungroupTabs?.([tab]); } catch (e) { note(`ungroup failed: ${e}`); }
     }
-    const existing = findGroup(name);
-    if (existing) {
-      if (tab.group === existing) return false;
-      if (typeof existing.addTabs === "function") { existing.addTabs([tab]); return true; }
-      // gBrowser.moveTabToGroup does not exist on Firefox 153 / Zen, so this
-      // is the end of the line rather than a silent failure.
-      note("no API to move a tab into an existing group on this build");
-      return false;
-    }
-    if (!bool("create-groups", true)) {
-      note(`"${name}" does not exist and group creation is switched off`);
-      return false;
-    }
-    if (typeof gBrowser.addTabGroup !== "function") {
-      note("gBrowser.addTabGroup missing -- cannot create groups on this build");
-      return false;
-    }
-    try {
-      // Zen's addTabGroup dereferences insertBefore without a null guard:
-      //   addTabGroup@tabbrowser.js -> "can't access property before,
-      //   insertBefore is null"
-      // Firefox's own version tolerates null; Zen's does not. Passing the
-      // tab itself puts the new group where that tab already sits.
-      // Verified against a live profile: this exact shape returns a
-      // tab-group. isUserTriggered:false plus a blank tab returned null,
-      // so both are set the way that actually worked.
-      const made = gBrowser.addTabGroup([tab], {
-        label: name,
-        insertBefore: tab,
-        isUserTriggered: true,
-      });
-      if (!made) {
-        note(`addTabGroup("${name}") returned nothing -- group NOT created`);
-        return false;
+
+    let parent = null;
+    for (const name of parts) {
+      let g = findChild(name, parent);
+      if (g) {
+        // Move the tab in at this level so the next creation nests here.
+        if (tab.group !== g) {
+          try { g.addTabs?.([tab]); } catch (e) { note(`addTabs failed on "${g.label}": ${e}`); return !!parent; }
+        }
+        parent = g;
+        continue;
       }
-      // Zen routes some group creation through folders; report what we got
-      // rather than assuming it is a plain tab-group.
-      note(`created ${made.tagName || "?"} "${name}"` +
-           (made.pinned ? " (pinned)" : ""));
-      return true;
-    } catch (e) {
-      note(`addTabGroup("${name}") threw: ${e}`);
-      return false;
+      if (!bool("create-groups", true)) {
+        note(`"${name}" does not exist and group creation is switched off`);
+        return !!parent;
+      }
+      if (typeof gBrowser.addTabGroup !== "function") {
+        note("gBrowser.addTabGroup missing -- cannot create groups on this build");
+        return !!parent;
+      }
+      try {
+        // Zen's addTabGroup dereferences insertBefore without a null guard,
+        // so the tab itself is passed: the group is born where the tab sits.
+        // If the tab sits inside `parent`, the new group is born nested --
+        // that IS the subgroup mechanism.
+        g = gBrowser.addTabGroup([tab], {
+          label: name,
+          insertBefore: tab,
+          isUserTriggered: true,
+        });
+      } catch (e) {
+        note(`addTabGroup("${name}") threw: ${e}`);
+        return !!parent;
+      }
+      if (!g) { note(`addTabGroup("${name}") returned nothing`); return !!parent; }
+      if (parent && parentOf(g) !== parent) {
+        // ponytail: no repair attempt; report and keep the flat group
+        note(`"${name}" was created but did NOT nest under "${parent.label}" on this build`);
+      }
+      note(`created group "${name}"${parent ? ` under "${parent.label}"` : ""}`);
+      parent = g;
     }
+    return true;
   }
 
   function skip(tab) {
@@ -196,12 +266,12 @@
     if (bool("skip-pinned", true) && tab.pinned) return "pinned";
     if (bool("skip-grouped", true) && tab.group) {
       // A link opened from a grouped tab inherits that group, even when it
-      // goes somewhere unrelated. With this on, a tab whose group no longer
-      // matches where it belongs gets re-filed instead of being stranded.
+      // goes somewhere unrelated. With this on, a tab whose group path no
+      // longer matches where it belongs gets re-filed instead of stranded.
       if (bool("refile-mismatched", true)) {
-        const want = targetGroup(tab);
-        const have = (tab.group.label ?? "").trim().toLowerCase();
-        if (want && have && want.trim().toLowerCase() !== have) return null;
+        const want = targetPath(tab);
+        const have = chainOf(tab);
+        if (want?.length && have.length && !samePath(want, have)) return null;
       }
       return "already in a group";
     }
@@ -212,12 +282,11 @@
     if (!bool("enabled", false)) return;
     const s = skip(tab);
     if (s) { note(`skip ${tab.label}: ${s}`); return; }
-    const name = targetGroup(tab);
-    if (!name) { note(`no rule for ${hostOf(tab) ?? tab.label}`); return; }
+    const parts = targetPath(tab);
+    if (!parts?.length) { note(`no rule for ${hostOf(tab) ?? tab.label}`); return; }
     try {
-      const useFolders = num("target", 0) === 1;
-      const ok = useFolders ? placeInFolder(tab, name) : placeInGroup(tab, name);
-      if (ok) note(`${why}: ${hostOf(tab)} -> ${name}${useFolders ? " (folder)" : " (group)"}`);
+      if (placeInPath(tab, parts))
+        note(`${why}: ${hostOf(tab)} -> ${parts.join(SEP())}`);
     } catch (e) {
       note(`failed routing ${tab.label}: ${e}`);
     }
@@ -245,177 +314,14 @@
     return n;
   }
 
-  // ---- Zen folders ------------------------------------------------------
-  // Folders are native Zen (window.gZenFolders), not an Advanced Tab Groups
-  // construct -- ATG only converts between groups and folders. The
-  // zen-folder element exposes createSubfolder, addTabs, label, level and
-  // allItemsRecursive, so folders genuinely nest and a rule naming
-  // "Google / Docs" can become a real subfolder rather than a flat label.
-
-  const SEP = () => str("folder-separator", " / ");
-
-  function foldersAvailable() {
-    return !!window.gZenFolders && typeof window.gZenFolders.createFolder === "function";
-  }
-
-  function allFolders() {
-    return [...document.querySelectorAll("zen-folder")];
-  }
-
-  function directParentFolder(el) {
-    return el.parentElement?.closest("zen-folder") ?? null;
-  }
-
-  function findFolder(label, parent) {
-    const want = label.trim().toLowerCase();
-    return allFolders().find(f =>
-      (f.label ?? "").trim().toLowerCase() === want &&
-      directParentFolder(f) === parent) ?? null;
-  }
-
-  // Walks a path like ["Google","Docs"], creating what is missing, and
-  // returns the deepest folder. The tab is passed in at every level so no
-  // folder is ever created empty -- ATG's own code bails on an empty tab
-  // list, so an empty create is not a safe assumption.
-  function ensureFolderPath(parts, tab) {
-    let parent = null;
-    for (const raw of parts) {
-      const name = raw.trim();
-      if (!name) continue;
-      let folder = findFolder(name, parent);
-      if (!folder) {
-        try {
-          if (!parent) {
-            folder = window.gZenFolders.createFolder([tab], {
-              label: name,
-              renameFolder: false,
-              workspaceId: window.gZenWorkspaces?.activeWorkspace,
-            });
-          } else if (typeof parent.createSubfolder === "function") {
-            folder = parent.createSubfolder([tab], {
-              label: name,
-              renameFolder: false,
-            });
-          } else {
-            note(`createSubfolder missing on "${parent.label}"; cannot nest`);
-            return parent;
-          }
-        } catch (e) {
-          note(`folder create failed at "${name}": ${e}`);
-          return parent;
-        }
-        if (!folder) { note(`folder create returned nothing at "${name}"`); return parent; }
-      }
-      parent = folder;
-    }
-    return parent;
-  }
-
-  function placeInFolder(tab, name) {
-    if (!foldersAvailable()) {
-      note("gZenFolders unavailable; falling back to tab groups");
-      return placeInGroup(tab, name);
-    }
-    const parts = name.split(SEP()).map(s => s.trim()).filter(Boolean);
-    if (!parts.length) return false;
-    const target = ensureFolderPath(parts, tab);
-    if (!target) return false;
-    // ensureFolderPath seeds each level with the tab, so if the deepest
-    // folder already existed the tab still needs adding explicitly.
-    try {
-      const already = [...(target.allItemsRecursive ?? [])].includes(tab);
-      if (!already && typeof target.addTabs === "function") target.addTabs([tab]);
-    } catch (e) {
-      note(`addTabs failed on "${target.label}": ${e}`);
-    }
-
-    // Zen folders live in the pinned area: setFolderIndentation returns
-    // early unless gZenPinnedTabManager.expandedSidebarMode is on, and
-    // gZenFolders subscribes to tab pin/unpin. So a tab filed into a folder
-    // arrives pinned. Whether it can be unpinned and STAY in the folder is
-    // not documented anywhere, so this attempts it and reports the result
-    // instead of assuming either way.
-    if (bool("unpin-in-folders", false)) unpinAttempt(tab, target);
-    return true;
-  }
-
-  // Zen folders sit in the pinned area by construction: setFolderIndentation
-  // returns early unless gZenPinnedTabManager.expandedSidebarMode is on, and
-  // gZenFolders subscribes to handleTabPin/handleTabUnpin. Two things are
-  // worth trying and neither is documented, so both are attempted and the
-  // outcome is reported rather than assumed.
-  function unpinAttempt(tab, folder) {
-    let folderResult = "not tried";
-    try {
-      if (folder && folder.pinned === true) {
-        folder.pinned = false;
-        folderResult = folder.pinned ? "refused" : "accepted";
-      } else {
-        folderResult = "already unpinned";
-      }
-    } catch (e) {
-      folderResult = `threw (${e})`;
-    }
-
-    let tabResult = "not tried";
-    let stillIn = true;
-    try {
-      if (tab.pinned && typeof gBrowser.unpinTab === "function") {
-        gBrowser.unpinTab(tab);
-        tabResult = tab.pinned ? "refused" : "accepted";
-      } else {
-        tabResult = "already unpinned";
-      }
-      stillIn = !!(tab.closest && tab.closest("zen-folder"));
-    } catch (e) {
-      tabResult = `threw (${e})`;
-    }
-
-    note(`unpin "${tab.label}": folder.pinned=${folderResult} ` +
-         `tab.unpin=${tabResult} stillInFolder=${stillIn}` +
-         (!stillIn ? "   <-- EJECTED: Zen requires folder members to be pinned" : ""));
-    return stillIn;
-  }
-
-  // ---- rule generation --------------------------------------------------
+  // ---- rule generation ---------------------------------------------------
   // Reads the tabs you actually have open and writes the rules block for
   // you. Output is text to paste into the Rules box, deliberately -- it is
   // a starting point to edit, not something applied behind your back.
 
-  function titleCase(s) {
-    return s.split(/[-.]/)[0].replace(/^./, c => c.toUpperCase());
-  }
-
-  // "baldursgate3" carries no word boundaries, so there is no reliable way
-  // to recover "Baldur's Gate 3" from the slug alone -- that needs either a
-  // dictionary or the page title. The alias map is the dependable answer;
-  // prettify only handles the cases where separators DO exist.
-  function aliasMap() {
-    const map = new Map();
-    for (const pair of str("auto-path-aliases", "").split(/[\n,]+/)) {
-      const i = pair.indexOf("=");
-      if (i < 0) continue;
-      const k = pair.slice(0, i).trim().toLowerCase();
-      const v = pair.slice(i + 1).trim();
-      if (k && v) map.set(k, v);
-    }
-    return map;
-  }
-
-  function prettify(seg) {
-    const alias = aliasMap().get(seg.trim().toLowerCase());
-    if (alias) return alias;
-    return seg
-      .replace(/[-_+]+/g, " ")                    // kebab and snake case
-      .replace(/([a-z])([A-Z])/g, "$1 $2")        // camelCase
-      .replace(/([a-zA-Z])(\d)/g, "$1 $2")        // trailing version numbers
-      .replace(/\s+/g, " ")
-      .trim()
-      .replace(/\b\w/g, c => c.toUpperCase());
-  }
-
   function suggestRules(opts = {}) {
-    const { minTabs = 1, subdomains = false, separator = " / " } = opts;
+    const { minTabs = 1, subdomains = false } = opts;
+    const separator = opts.separator ?? SEP();
 
     // base domain -> Map(host -> count)
     const tree = new Map();
@@ -441,7 +347,7 @@
     for (const [base, hosts] of ordered) {
       const total = [...hosts.values()].reduce((x, y) => x + y, 0);
       if (total < minTabs) { skipped.push(`${base} (${total})`); continue; }
-      const parent = titleCase(base);
+      const parent = domainName(base);
 
       if (!subdomains) {
         lines.push(`${base} > ${parent}`);
@@ -456,8 +362,8 @@
 
       for (const [host, n] of subs) {
         const leaf = host.slice(0, host.length - base.length - 1)
-                         .split(".").reverse().map(titleCase).join(separator);
-        lines.push(`${host} > ${parent}${separator}${leaf}`.padEnd(0) +
+                         .split(".").reverse().map(prettify).join(separator);
+        lines.push(`${host} > ${parent}${separator}${leaf}` +
                    `   ${"#"} ${n} tab${n === 1 ? "" : "s"}`);
       }
       lines.push(`${base} > ${parent}`);
@@ -485,56 +391,18 @@
         return allTabs().map(t => ({
           title: t.label,
           host: hostOf(t) ?? "-",
-          currentGroup: t.group?.label ?? "-",
-          wouldGo: skip(t) ? `skipped (${skip(t)})` : (targetGroup(t) ?? "no rule"),
+          currentGroup: chainOf(t).join(SEP()) || "-",
+          wouldGo: skip(t) ? `skipped (${skip(t)})`
+                           : (targetPath(t)?.join(SEP()) ?? "no rule"),
         }));
       },
       rules,
       // suggestRules()                        -> one rule per domain
-      // suggestRules({subdomains:true})       -> plus a rule per subdomain
+      // suggestRules({subdomains:true})       -> plus a nested rule per subdomain
       // suggestRules({minTabs:2})             -> ignore one-off domains
       suggestRules,
-      groups: () => groups().map(g => g.label),
-      // Reports whether folders can hold unpinned tabs on this build.
-      // Runs the unpin experiment on one folder tab and reports, without
-      // touching anything else. Use this before enabling it for real.
-      testUnpin() {
-        const f = allFolders()[0];
-        if (!f) return "no folders exist yet";
-        const tab = [...(f.allItemsRecursive ?? [])].find(t => gBrowser.isTab(t));
-        if (!tab) return `folder "${f.label}" has no tabs`;
-        const kept = unpinAttempt(tab, f);
-        return kept
-          ? "tab stayed in the folder unpinned -- safe to enable"
-          : "tab was ejected -- Zen folders require pinned members";
-      },
-      pinReport() {
-        return allFolders().map(f => ({
-          label: f.label,
-          folderPinned: f.pinned,
-          tabs: [...(f.allItemsRecursive ?? [])]
-            .filter(t => gBrowser.isTab(t))
-            .map(t => ({ title: t.label, pinned: t.pinned })),
-        }));
-      },
-      // Shows how a host+path resolves, without moving anything.
-      explain(tabOrIndex) {
-        const t = typeof tabOrIndex === "number"
-          ? allTabs()[tabOrIndex] : (tabOrIndex || gBrowser.selectedTab);
-        if (!t) return "no tab";
-        let uri = "";
-        try { uri = t.linkedBrowser?.currentURI?.spec ?? ""; } catch {}
-        return {
-          title: t.label,
-          url: uri.slice(0, 90),
-          host: hostOf(t),
-          base: hostOf(t) ? baseDomain(hostOf(t)) : null,
-          pathDepthPref: num("auto-path-depth", 0),
-          pathSegments: pathParts(t),
-          currentGroup: t.group?.label ?? null,
-          wouldGo: skip(t) ? `skipped (${skip(t)})` : targetGroup(t),
-        };
-      },
+      groups: () => groups().map(g => chainOf({ group: g }).join(SEP())),
+
       // Reads open tabs and proposes slug=Pretty Name lines from their
       // titles, which already contain the human name. Copies to clipboard.
       suggestAliases() {
@@ -571,23 +439,19 @@
         return text;
       },
 
-      // Dumps the group/folder nesting as plain text, for sharing.
+      // Dumps the group nesting as plain text, for sharing.
       groupTree() {
         const lines = [];
-        const all = [...(gBrowser.tabGroups || [])];
-        const parentOf = g => g.parentElement?.closest("tab-group, zen-folder") ?? null;
+        const all = groups();
         const walk = (parent, depth) => {
           for (const g of all.filter(x => parentOf(x) === parent)) {
-            const kind = g.isZenFolder ? "folder" : "group";
-            const tabs = [...(g.allItemsRecursive ?? g.tabs ?? [])]
-              .filter(t => gBrowser.isTab?.(t)).length;
-            lines.push(`${"  ".repeat(depth)}- [${kind}] ${JSON.stringify(g.label)}` +
-                       ` level=${g.level ?? "?"} pinned=${g.pinned} tabs=${tabs}`);
+            const tabs = [...(g.tabs ?? [])].filter(t => gBrowser.isTab?.(t)).length;
+            lines.push(`${"  ".repeat(depth)}- ${JSON.stringify(g.label)} tabs=${tabs}`);
             walk(g, depth + 1);
           }
         };
         walk(null, 0);
-        const text = lines.join("\n") || "(no groups or folders)";
+        const text = lines.join("\n") || "(no groups)";
         console.log(text);
         try {
           Cc["@mozilla.org/widget/clipboardhelper;1"]
@@ -596,20 +460,24 @@
         } catch {}
         return text;
       },
-      folderTree() {
-        const walk = (parent, depth) => allFolders()
-          .filter(f => directParentFolder(f) === parent)
-          .map(f => ({ label: f.label, depth,
-                       level: f.level,
-                       children: walk(f, depth + 1) }));
-        return { api: foldersAvailable(), tree: walk(null, 0) };
-      },
-      folders: () => {
-        // Folders are a Zen native feature (window.gZenFolders), separate
-        // from the native tab groups this mod currently files into.
-        const f = [...document.querySelectorAll("zen-folder")];
-        return { api: !!window.gZenFolders, count: f.length,
-                 labels: f.map(x => x.label) };
+
+      // Shows how a host+path resolves, without moving anything.
+      explain(tabOrIndex) {
+        const t = typeof tabOrIndex === "number"
+          ? allTabs()[tabOrIndex] : (tabOrIndex || gBrowser.selectedTab);
+        if (!t) return "no tab";
+        let uri = "";
+        try { uri = t.linkedBrowser?.currentURI?.spec ?? ""; } catch {}
+        return {
+          title: t.label,
+          url: uri.slice(0, 90),
+          host: hostOf(t),
+          base: hostOf(t) ? baseDomain(hostOf(t)) : null,
+          pathDepthPref: num("auto-path-depth", 0),
+          pathSegments: pathParts(t),
+          currentGroup: chainOf(t).join(SEP()) || null,
+          wouldGo: skip(t) ? `skipped (${skip(t)})` : targetPath(t)?.join(SEP()),
+        };
       },
       log: () => log.slice(),
     };

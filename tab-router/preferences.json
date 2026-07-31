@@ -12,34 +12,11 @@
     "defaultValue": false
   },
   {
-    "type": "dropdown",
-    "value": "number",
-    "property": "zzrouter.target",
-    "label": "Sort into *Tab groups are flat and never pinned. Zen folders nest, but gZenFolders.createFolder calls gBrowser.pinTab on every tab it is given and places the folder inside the pinned container -- there is no option to avoid that, so folders always pin their contents. Groups is the default for that reason. With groups, a rule named Google / Docs simply becomes a group with that name rather than a real subfolder.",
-    "defaultValue": 0,
-    "options": [
-      {
-        "label": "Tab groups (flat)",
-        "value": 0
-      },
-      {
-        "label": "Zen folders (nested)",
-        "value": 1
-      }
-    ]
-  },
-  {
     "type": "string",
     "property": "zzrouter.folder-separator",
-    "label": "Subfolder separator *Splits a rule's group name into folder levels. With the default, Work / Email / Gmail creates three levels deep. Only used when sorting into Zen folders. Include the spaces if you want them.'/' with no spaces works too.'*",
+    "label": "Subgroup separator *Splits a group name into nesting levels. With the default, Work / Email / Gmail creates a group three levels deep -- real nested tab groups, never pinned. Include the spaces if you want them; '/' with no spaces works too.*",
     "defaultValue": " / ",
     "placeholder": " / "
-  },
-  {
-    "type": "checkbox",
-    "property": "zzrouter.unpin-in-folders",
-    "label": "Try to unpin tabs placed in folders *Zen folders live in the pinned area, so tabs filed into one arrive pinned. This tries two things: setting the folder itself to unpinned, and unpinning the tab. Neither is documented. Run TabRouter.testUnpin() in the console FIRST -- it runs the experiment on a single tab and tells you plainly whether the tab stayed in the folder or was ejected. Only turn this on if it says the tab stayed.*",
-    "defaultValue": false
   },
   {
     "type": "string",
@@ -51,13 +28,13 @@
   {
     "type": "checkbox",
     "property": "zzrouter.auto-unmatched",
-    "label": "Sort everything automatically *Derives the folder name from the site itself, so a page from somewhere you have never been still gets filed without any rule existing for it. Rules still win where they match, so use them to override the automatic name. This is the switch that makes the mod work with no setup.*",
+    "label": "Sort everything automatically *Derives the group name from the site itself, so a page from somewhere you have never been still gets filed without any rule existing for it. Rules still win where they match, so use them to override the automatic name. This is the switch that makes the mod work with no setup.*",
     "defaultValue": true
   },
   {
     "type": "checkbox",
     "property": "zzrouter.auto-subdomains",
-    "label": "Use subdomains as subfolders *docs.proton.me becomes Proton / Docs rather than just Proton. www is ignored, since it is noise rather than a real subdomain. Only meaningful when sorting into Zen folders; with tab groups the whole path becomes one flat name.*",
+    "label": "Use subdomains as subgroups *docs.proton.me becomes a Docs subgroup nested inside Proton, rather than just Proton. www is ignored, since it is noise rather than a real subdomain.*",
     "defaultValue": true
   },
   {
@@ -85,7 +62,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzrouter.auto-path-depth",
-    "label": "Use URL path as subfolders *Subdomains cannot split a site that separates sections by path. nexusmods.com/games/cyberpunk2077 has NO subdomain -- www is stripped -- so every game lands in one folder no matter how deep subdomain nesting goes. This reads path segments instead. One level on that URL gives Nexusmods / Cyberpunk2077, since 'games' is filtered as a generic word.*",
+    "label": "Use URL path as subgroups *Subdomains cannot split a site that separates sections by path. nexusmods.com/games/cyberpunk2077 has NO subdomain -- www is stripped -- so every game lands in one group no matter how deep subdomain nesting goes. This reads path segments instead. One level on that URL gives a Cyberpunk 2077 subgroup inside Nexusmods, since 'games' is filtered as a generic word.*",
     "defaultValue": 0,
     "options": [
       {
@@ -109,7 +86,7 @@
   {
     "type": "string",
     "property": "zzrouter.auto-path-ignore",
-    "label": "Path words to ignore *Comma separated. Generic route words that would make useless folder names. Numeric segments and anything ending in a file extension are always dropped.*",
+    "label": "Path words to ignore *Comma separated. Generic route words that would make useless group names. Numeric segments and anything ending in a file extension are always dropped.*",
     "defaultValue": "games,category,categories,c,p,en,en-us,www,index,home",
     "placeholder": "games,category,categories,c,p,en,en-us,www,index,home"
   },

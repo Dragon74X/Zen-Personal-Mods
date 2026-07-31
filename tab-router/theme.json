@@ -1,9 +1,9 @@
 {
   "id": "zz-tab-router",
   "name": "Tab Router",
-  "description": "Sorts tabs into nested Zen folders, or flat tab groups, using your rules.",
+  "description": "Sorts tabs into nested tab groups (groups and subgroups) by domain and path, using your rules.",
   "author": "Dragon74X",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "homepage": "https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/tab-router",
   "readme": "https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/main/tab-router/README.md",
   "style": {

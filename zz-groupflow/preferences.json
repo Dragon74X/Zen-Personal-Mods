@@ -349,7 +349,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.line-gradient",
-    "label": "Line gradient *How the rail's colour is distributed. Soft ends fades in at the top and out at the bottom, from the centre outward, so the line has no hard start or stop. Rounded shades across the rail's width instead, densest along its middle, so it reads as a tube rather than a flat strip. All stops are percentages, so groups of any length fade identically.*",
+    "label": "Line gradient *How the rail's colour is distributed. Soft ends fades in and out at the ends, from the centre outward. Rounded shades across the rail's width, densest along its middle, so it reads as a tube. Fades along the rail's length are applied as a mask, which means the sheen, rim and glow below fade with the line rather than hanging past it. All stops are percentages, so groups of any length fade identically.*",
     "defaultValue": 1,
     "options": [
       {
@@ -420,6 +420,50 @@
         "value": 2
       }
     ]
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.line.sheen",
+    "label": "Sheen on the line *A specular highlight across the rail's width, the same treatment Glassflow puts on the window buttons. Scales with Glassflow's glass intensity.*",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.line.rim",
+    "label": "Rim light on the line *A bright inner edge on one side and a soft dark edge on the other, so the rail reads as a raised glass bar rather than a painted stripe.*",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.line.glow",
+    "label": "Glow around the line *An accent-coloured halo. Follows the rail's shape exactly, including its fade, since it is drawn as a drop shadow of the rendered line.*",
+    "defaultValue": false
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.line-glow-radius",
+    "label": "Glow radius",
+    "defaultValue": "4px",
+    "placeholder": "4px"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.line.shadow",
+    "label": "Drop shadow under the line *Lifts the rail off the sidebar, matching Glassflow's buttons.*",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.line.blur",
+    "label": "Glass blur behind the line *Only visible when the rail is partly transparent -- lower the line strength to see it. Cheap here: the rail is a few pixels wide.*",
+    "defaultValue": false
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.line-opacity",
+    "label": "Line opacity *Applies to the whole rail including its sheen, rim and glow.*",
+    "defaultValue": "1",
+    "placeholder": "1"
   },
   {
     "type": "dropdown",

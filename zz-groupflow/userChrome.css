@@ -117,6 +117,19 @@
       var(--zzgf-line) 50%,
       color-mix(in srgb, var(--zzgf-line) 22%, transparent) 100%); } }
 
+/* Match the tab gradient: the rail carries the SAME recipe as the group
+   header and Glassflow's tabs -- same direction, tint, spread and end
+   tint -- so the line reads as an extension of the pill rather than a
+   separate stripe. Declared after the variants above so it wins. */
+@media (-moz-pref("zzgroup.line.match-tab")) {
+  #navigator-toolbox tab-group:not([split-view-group]) {
+    --zzgf-grad: linear-gradient(var(--zzgf-dir),
+      color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-header-tint, 25%), transparent) 0%,
+      color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-end-tint, 0%), transparent)
+        var(--zzgroup-spread, 50%));
+  }
+}
+
 @media (-moz-pref("zzgroup.color-source", 1)) {
   #navigator-toolbox tab-group:not([split-view-group]) {
     --zzgf-raw: var(--zzg-accent, var(--zen-primary-color, #7c8cf8));
@@ -242,7 +255,8 @@
    3 fill / 4 fill + line. */
 
 /* Line: an accent rail down the left of every group body. */
-@media (-moz-pref("zzgroup.connector", 1)), (-moz-pref("zzgroup.connector", 2)), (-moz-pref("zzgroup.connector", 4)) {
+@media (-moz-pref("zzgroup.connector", 1)), (-moz-pref("zzgroup.connector", 2)),
+       (-moz-pref("zzgroup.connector", 4)), (-moz-pref("zzgroup.connector", 5)) {
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container {
     position: relative;
     margin-left: 7px !important;
@@ -894,6 +908,31 @@
   }
   #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label {
     text-align: end !important;
+  }
+}
+
+/* ---- flowing ------------------------------------------------------- */
+/* The rail runs UP behind the header pill instead of starting below it,
+   and the body carries a fill continuing the header's gradient, so the
+   group reads as one shape flowing from the pill down past its tabs.
+   z-index -1 keeps the overlap tucked behind the pill; the container is
+   given its own stacking context so that negative index cannot escape
+   behind the sidebar itself. */
+@media (-moz-pref("zzgroup.connector", 5)) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container {
+    isolation: isolate;
+    background: linear-gradient(var(--zzgf-dir),
+      color-mix(in srgb, var(--zzgf-accent)
+        calc(var(--zzgroup-flow-fill, 12%)), transparent) 0%,
+      transparent var(--zzgroup-flow-reach, 65%)) !important;
+    border-radius: 0 0 calc(var(--zzgf-round) * 0.8) calc(var(--zzgf-round) * 0.8) !important;
+    padding-bottom: 2px !important;
+  }
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container::before {
+    top: calc(-1 * var(--zzgroup-flow-overlap, 12px)) !important;
+    /* square at the top where it meets the pill, rounded where it ends */
+    border-radius: 0 0 var(--zzgf-cap) var(--zzgf-cap) !important;
+    z-index: -1;
   }
 }
 

@@ -313,7 +313,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.connector",
-    "label": "Membership style *How tabs and subgroups are shown as belonging to their group. Line draws a rail down the left; Line + marks adds the per-item mark chosen below; Fill sits the group body on a faint accent card; Fill + Line combines both. The rail's colour, gradient and cap are set below, and its fade stops are percentages, so a two-tab subgroup fades exactly like a twenty-tab group.*",
+    "label": "Membership style *How tabs and subgroups are shown as belonging to their group. Line draws a rail down the left; Line + marks adds the per-item mark chosen below; Fill sits the group body on a faint accent card. Flowing runs the rail up behind the group header and fills the body with a continuation of the header's gradient, so the group reads as one shape flowing out of the pill rather than a pill with a stripe beside it.*",
     "defaultValue": 1,
     "options": [
       {
@@ -335,8 +335,39 @@
       {
         "label": "Fill + Line",
         "value": 4
+      },
+      {
+        "label": "Flowing",
+        "value": 5
       }
     ]
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.line.match-tab",
+    "label": "Match the tab gradient *The rail carries the same recipe as the group header and Glassflow's tabs -- same direction, tint, spread and end tint -- so it reads as an extension of the pill rather than a separate stripe. Works with any membership style, and pairs naturally with Flowing.*",
+    "defaultValue": false
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.flow-overlap",
+    "label": "Flow overlap *How far the rail runs up behind the header pill, in pixels. Larger values make the line appear to grow out of the pill itself. Used by the Flowing style.*",
+    "defaultValue": "12px",
+    "placeholder": "12px"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.flow-fill",
+    "label": "Flow fill strength *Accent strength of the body fill where it meets the header, as a percentage. Used by the Flowing style.*",
+    "defaultValue": "12%",
+    "placeholder": "12%"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.flow-reach",
+    "label": "Flow fill reach *How far down the body the fill persists before fading out, as a percentage of the group's height.*",
+    "defaultValue": "65%",
+    "placeholder": "65%"
   },
   {
     "type": "string",

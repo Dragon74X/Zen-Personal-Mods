@@ -782,3 +782,78 @@
     line-height: var(--zzglass-font-line-height, normal) !important;
   }
 }
+
+
+/* ============================================================
+   Tab edges -- granular rim control (v3.12)
+
+   Added without editing a single existing rule. Every per-state rim in
+   this file already resolves --zzg-rim-top and --zzg-rim-all, and custom
+   properties resolve on the element the rule matches, so redefining those
+   two tokens ON a state's own selector retunes that state's rim and
+   nothing else. Existing behaviour is unchanged unless the master switch
+   below is on, and the defaults reproduce the current look exactly.
+   ============================================================ */
+
+@media (-moz-pref("zzglass.edges.enabled")) {
+  /* Per-state strengths. The multipliers keep --zzg-glass in the chain,
+     so the glass intensity slider still scales everything. */
+  #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-background {
+    --zzg-rim-top: rgb(255 255 255 / calc(0.42 * var(--zzglass-edges-selected-top, 1) * var(--zzg-glass)));
+    --zzg-rim-all: rgb(255 255 255 / calc(0.12 * var(--zzglass-edges-selected-ring, 1) * var(--zzg-glass)));
+  }
+  #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-background {
+    --zzg-rim-top: rgb(255 255 255 / calc(0.42 * var(--zzglass-edges-unselected-top, 1) * var(--zzg-glass)));
+    --zzg-rim-all: rgb(255 255 255 / calc(0.12 * var(--zzglass-edges-unselected-ring, 1) * var(--zzg-glass)));
+  }
+  #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-background {
+    --zzg-rim-top: rgb(255 255 255 / calc(0.42 * var(--zzglass-edges-hover-top, 1) * var(--zzg-glass)));
+    --zzg-rim-all: rgb(255 255 255 / calc(0.12 * var(--zzglass-edges-hover-ring, 1) * var(--zzg-glass)));
+  }
+  #navigator-toolbox .tabbrowser-tab[pending] .tab-background {
+    --zzg-rim-top: rgb(255 255 255 / calc(0.42 * var(--zzglass-edges-pending-top, 1) * var(--zzg-glass)));
+    --zzg-rim-all: rgb(255 255 255 / calc(0.12 * var(--zzglass-edges-pending-ring, 1) * var(--zzg-glass)));
+  }
+}
+
+/* Geometry: which edge is lit, how thick, how far the light travels.
+   A separate switch from the strengths above, because this one replaces
+   the box-shadow rather than retuning it -- keeping them apart means the
+   strengths stay usable on their own with no change in shape. */
+@media (-moz-pref("zzglass.edges.geometry")) {
+  #navigator-toolbox .tabbrowser-tab .tab-background {
+    box-shadow:
+      inset var(--zzglass-edges-x, 0px) var(--zzglass-edges-y, 1px) 0 var(--zzg-rim-top),
+      inset 0 0 0 var(--zzglass-edges-width, 1px) var(--zzg-rim-all) !important;
+  }
+}
+
+/* Rim fade. An inset shadow rings the box at even strength, which fights
+   a gradient that fades, so the fading version is drawn as an overlay
+   masked along the same axis. ::after on .tab-background is in use by
+   this file already, so the overlay goes on the tab's .tab-stack, which
+   is not. */
+@media (-moz-pref("zzglass.edges.fade")) {
+  #navigator-toolbox .tabbrowser-tab .tab-background { box-shadow: none !important; }
+  #navigator-toolbox .tabbrowser-tab .tab-stack { position: relative; }
+  #navigator-toolbox .tabbrowser-tab .tab-stack::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: var(--zzg-round, 10px);
+    box-shadow:
+      inset var(--zzglass-edges-x, 0px) var(--zzglass-edges-y, 1px) 0 var(--zzg-rim-top),
+      inset 0 0 0 var(--zzglass-edges-width, 1px) var(--zzg-rim-all);
+    mask-image: linear-gradient(var(--zzg-edge-dir, var(--zzg-dir, 135deg)),
+      black 0%, transparent var(--zzglass-edges-reach, 60%));
+    pointer-events: none;
+    z-index: 2;
+  }
+}
+/* Fade axis, independent of the tab gradient when you want it to be. */
+@media (-moz-pref("zzglass.edges.axis", 1)) { :root { --zzg-edge-dir: to bottom; } }
+@media (-moz-pref("zzglass.edges.axis", 2)) { :root { --zzg-edge-dir: to top; } }
+@media (-moz-pref("zzglass.edges.axis", 3)) { :root { --zzg-edge-dir: to right; } }
+@media (-moz-pref("zzglass.edges.axis", 4)) { :root { --zzg-edge-dir: to left; } }
+@media (-moz-pref("zzglass.edges.axis", 5)) { :root { --zzg-edge-dir: 135deg; } }
+@media (-moz-pref("zzglass.edges.axis", 6)) { :root { --zzg-edge-dir: 45deg; } }

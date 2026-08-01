@@ -1092,21 +1092,21 @@
     "type": "string",
     "property": "zzglass.buttons.hover-close",
     "label": "Hover colour, close *Leave empty to deepen the resting colour instead. Set a colour here only if you want hover to shift hue rather than intensity.*",
-    "defaultValue": "",
+    "defaultValue": "var(--zzg-close)",
     "placeholder": ""
   },
   {
     "type": "string",
     "property": "zzglass.buttons.hover-min",
     "label": "Hover colour, minimise *Leave empty to deepen the resting colour.*",
-    "defaultValue": "",
+    "defaultValue": "var(--zzg-min)",
     "placeholder": ""
   },
   {
     "type": "string",
     "property": "zzglass.buttons.hover-max",
     "label": "Hover colour, maximise *Leave empty to deepen the resting colour.*",
-    "defaultValue": "",
+    "defaultValue": "var(--zzg-max)",
     "placeholder": ""
   },
   {
@@ -1260,7 +1260,7 @@
     "type": "string",
     "property": "zzglass.font.custom",
     "label": "Custom font family *Only used when Font is set to Custom. Type the family name exactly as installed, for example: Iosevka, Public Sans. Commas work as fallbacks. Not the same as Firefox Settings > Fonts, which only affects web page text.*",
-    "defaultValue": "",
+    "defaultValue": "system-ui",
     "placeholder": ""
   },
   {
@@ -1344,5 +1344,150 @@
     "label": "Menu text size *Right-click menus and dropdown panels. Not covered by Customize Font Size.*",
     "defaultValue": "1em",
     "placeholder": "1em"
+  },
+  {
+    "type": "separator",
+    "label": "Tab edges",
+    "size": "17px",
+    "margin": "22px 0 10px 0"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.edges.enabled",
+    "label": "Per-state edge strength *Unlocks separate rim strengths for selected, unselected, hovered and unloaded tabs. Each value is a multiplier on the existing look, so 1 is exactly what you have now and nothing changes until you move one. Glass intensity still scales all of them.*",
+    "defaultValue": false
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.selected-top",
+    "label": "Selected: top highlight *Multiplier. 1 is the current strength.*",
+    "defaultValue": "1",
+    "placeholder": "1"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.selected-ring",
+    "label": "Selected: edge ring *Multiplier for the faint ring around the whole tab.*",
+    "defaultValue": "1",
+    "placeholder": "1"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.unselected-top",
+    "label": "Unselected: top highlight",
+    "defaultValue": "1",
+    "placeholder": "1"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.unselected-ring",
+    "label": "Unselected: edge ring",
+    "defaultValue": "1",
+    "placeholder": "1"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.hover-top",
+    "label": "Hover: top highlight",
+    "defaultValue": "1",
+    "placeholder": "1"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.hover-ring",
+    "label": "Hover: edge ring",
+    "defaultValue": "1",
+    "placeholder": "1"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.pending-top",
+    "label": "Unloaded: top highlight",
+    "defaultValue": "1",
+    "placeholder": "1"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.pending-ring",
+    "label": "Unloaded: edge ring",
+    "defaultValue": "1",
+    "placeholder": "1"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.edges.geometry",
+    "label": "Custom edge geometry *Chooses which edge carries the light and how thick the ring is, rather than the fixed one-pixel top highlight. Separate from the strengths above so those stay usable on their own without changing the shape.*",
+    "defaultValue": false
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.x",
+    "label": "Highlight offset across *Positive moves the lit edge right, negative left. 0 with a vertical offset gives the usual top highlight.*",
+    "defaultValue": "0px",
+    "placeholder": "0px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.y",
+    "label": "Highlight offset down *Positive lights the top edge, negative the bottom.*",
+    "defaultValue": "1px",
+    "placeholder": "1px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.width",
+    "label": "Edge ring thickness",
+    "defaultValue": "1px",
+    "placeholder": "1px"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.edges.fade",
+    "label": "Fade the edge light *An inset shadow rings a tab at even strength, which fights a gradient that fades. This redraws the rim as an overlay that fades along an axis, so the lit edge is bright where the tab's colour is and gone where it has faded. Takes over from the plain rim while it is on.*",
+    "defaultValue": false
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.edges.axis",
+    "label": "Edge fade axis *Which way the edge light fades. Match tab gradient follows whatever direction the tabs already use.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Match tab gradient",
+        "value": 0
+      },
+      {
+        "label": "Top to bottom",
+        "value": 1
+      },
+      {
+        "label": "Bottom to top",
+        "value": 2
+      },
+      {
+        "label": "Left to right",
+        "value": 3
+      },
+      {
+        "label": "Right to left",
+        "value": 4
+      },
+      {
+        "label": "Diagonal 135\u00b0",
+        "value": 5
+      },
+      {
+        "label": "Diagonal 45\u00b0",
+        "value": 6
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.reach",
+    "label": "Edge fade reach *How far the light travels before fading out, as a percentage.*",
+    "defaultValue": "60%",
+    "placeholder": "60%"
   }
 ]

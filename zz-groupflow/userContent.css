@@ -210,3 +210,7 @@
 @media not (-moz-pref("zzgroup.depth-scale")) {
   #zzgroup-depth-step { display: none !important; }
 }
+
+@media (-moz-pref("zzgroup.match-glassflow-edges")) {
+  #zzgroup-rim-reach { display: none !important; }
+}

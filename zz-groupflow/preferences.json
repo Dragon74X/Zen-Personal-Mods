@@ -131,6 +131,12 @@
   },
   {
     "type": "checkbox",
+    "property": "zzgroup.match-glassflow-edges",
+    "label": "Follow Glassflow's edge fade *Takes the fade axis and reach from Glassflow's Tab edges section, so group headers and tabs light and fade on the same axis. Its per-state rim strengths already reach this mod on their own; only the axis and reach need adopting. Off by default, since a different axis for groups is a fair choice.*",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
     "property": "zzgroup.header.blur",
     "label": "Glass blur on headers *Backdrop blur behind group headers. Headers are few, so this is far cheaper than per-tab blur, and Zen Turbo's workspace-switch smoothing suspends it during slides automatically.*",
     "defaultValue": false

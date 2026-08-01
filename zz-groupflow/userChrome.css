@@ -54,6 +54,34 @@
      marks are on, and further for the curve, which needs its radius. */
   --zzgf-pad: calc(var(--zzgf-w) + var(--zzgroup-row-gap, 6px));
 }
+/* Rim and sheen axis. An edge light only reads correctly if it runs along
+   the same axis as the gradient it belongs to: with a top-to-bottom
+   gradient the lit edge belongs at the top, not the left. A is the lit
+   side, B the shaded one, and both track Gradient direction. */
+:root { --zzgf-rimA: to right; --zzgf-rimB: to left; }
+@media (-moz-pref("zzgroup.gradient-direction", 1)) { :root { --zzgf-rimA: to bottom; --zzgf-rimB: to top; } }
+@media (-moz-pref("zzgroup.gradient-direction", 2)) { :root { --zzgf-rimA: to top; --zzgf-rimB: to bottom; } }
+@media (-moz-pref("zzgroup.gradient-direction", 3)) { :root { --zzgf-rimA: to right; --zzgf-rimB: to left; } }
+@media (-moz-pref("zzgroup.gradient-direction", 4)) { :root { --zzgf-rimA: to left; --zzgf-rimB: to right; } }
+@media (-moz-pref("zzgroup.gradient-direction", 5)) { :root { --zzgf-rimA: 135deg; --zzgf-rimB: -45deg; } }
+@media (-moz-pref("zzgroup.gradient-direction", 6)) { :root { --zzgf-rimA: 45deg; --zzgf-rimB: 225deg; } }
+
+/* Follow Glassflow's edge settings. Its per-state rim strengths live on
+   the tab elements themselves, so they reach this mod automatically
+   through --zzg-rim-top and --zzg-rim-all; only its fade AXIS and REACH
+   need adopting, since those are its own tokens. Opt-in, because a
+   deliberately different group axis is a legitimate choice. */
+@media (-moz-pref("zzgroup.match-glassflow-edges")) {
+  :root {
+    --zzgf-rimA: var(--zzg-edge-dir, var(--zzg-dir, 135deg));
+    --zzgf-rimB: var(--zzg-edge-dir, var(--zzg-dir, 135deg));
+  }
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container::before {
+    mask-image: linear-gradient(var(--zzg-edge-dir, var(--zzg-dir, 135deg)),
+      black 0%, transparent var(--zzglass-edges-reach, 60%));
+  }
+}
+
 @media (-moz-pref("zzgroup.line-cap", 1)) { :root { --zzgf-cap: 0; } }
 @media (-moz-pref("zzgroup.line-cap", 2)) { :root { --zzgf-cap: calc(var(--zzgf-w) * 0.5); } }
 @media (-moz-pref("zzgroup.gradient-direction", 1)) { :root { --zzgf-dir: to bottom; } }
@@ -82,7 +110,7 @@
     transparent 0%, black var(--zzgf-fade),
     black calc(100% - var(--zzgf-fade)), transparent 100%);
   /* Specular highlight, running across the width like a lit tube. */
-  --zzgf-barsheen: linear-gradient(to right,
+  --zzgf-barsheen: linear-gradient(var(--zzgf-rimA),
     rgb(255 255 255 / calc(0.38 * var(--zzgf-glass))) 0%,
     rgb(255 255 255 / calc(0.10 * var(--zzgf-glass))) 42%,
     transparent 70%);
@@ -232,7 +260,7 @@
 #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label {
   background: none !important;
   color: var(--zzgroup-label-color, inherit);
-  font-size: var(--zzgroup-label-size, 1em);
+  font-size: var(--zzgroup-label-size, 1em) !important;
   font-weight: 600;
   opacity: 0.95;
 }
@@ -353,10 +381,10 @@
   @media (-moz-pref("zzgroup.line.rim")) {
     #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container::before {
       background-image:
-        linear-gradient(to right,
+        linear-gradient(var(--zzgf-rimA),
           rgb(255 255 255 / calc(0.5 * var(--zzgf-glass))) 0%,
           transparent 45%),
-        linear-gradient(to left,
+        linear-gradient(var(--zzgf-rimB),
           rgb(0 0 0 / calc(0.25 * var(--zzgf-glass))) 0%,
           transparent 40%),
         var(--zzgf-grad) !important;
@@ -366,7 +394,7 @@
     #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container::before {
       background-image:
         var(--zzgf-barsheen),
-        linear-gradient(to left,
+        linear-gradient(var(--zzgf-rimB),
           rgb(0 0 0 / calc(0.25 * var(--zzgf-glass))) 0%,
           transparent 40%),
         var(--zzgf-grad) !important;

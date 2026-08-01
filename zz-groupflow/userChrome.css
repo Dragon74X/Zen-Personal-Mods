@@ -346,6 +346,43 @@
   --zzgf-maskgrad: linear-gradient(black, black);
 }
 
+/* ---- mark glass ---------------------------------------------------- */
+/* The same vocabulary as the bar. The sheen is a background layer, so the
+   shape mask clips it to the silhouette; glow and shadow are drop-shadows
+   of the RENDERED shape, so they trace a crescent or chevron along its
+   outline instead of boxing it. Glow and shadow share the filter
+   property, so the both-on case is stated explicitly. */
+@media (-moz-pref("zzgroup.marker.sheen")) {
+  #navigator-toolbox tab-group > .tab-group-container > .tabbrowser-tab::after,
+  #navigator-toolbox tab-group > .tab-group-container > tab-group > .tab-group-label-container::after {
+    background-image: linear-gradient(to bottom right,
+      rgb(255 255 255 / calc(0.45 * var(--zzgf-glass))) 0%,
+      rgb(255 255 255 / calc(0.10 * var(--zzgf-glass))) 45%,
+      transparent 70%) !important;
+  }
+}
+@media (-moz-pref("zzgroup.marker.glow")) {
+  #navigator-toolbox tab-group > .tab-group-container > .tabbrowser-tab::after,
+  #navigator-toolbox tab-group > .tab-group-container > tab-group > .tab-group-label-container::after {
+    filter: drop-shadow(0 0 var(--zzgroup-marker-glow-radius, 3px)
+      color-mix(in srgb, var(--zzgf-accent) 60%, transparent)) !important;
+  }
+}
+@media (-moz-pref("zzgroup.marker.shadow")) {
+  #navigator-toolbox tab-group > .tab-group-container > .tabbrowser-tab::after,
+  #navigator-toolbox tab-group > .tab-group-container > tab-group > .tab-group-label-container::after {
+    filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.35)) !important;
+  }
+}
+@media (-moz-pref("zzgroup.marker.glow")) and (-moz-pref("zzgroup.marker.shadow")) {
+  #navigator-toolbox tab-group > .tab-group-container > .tabbrowser-tab::after,
+  #navigator-toolbox tab-group > .tab-group-container > tab-group > .tab-group-label-container::after {
+    filter: drop-shadow(0 0 var(--zzgroup-marker-glow-radius, 3px)
+              color-mix(in srgb, var(--zzgf-accent) 60%, transparent))
+            drop-shadow(0 1px 2px rgb(0 0 0 / 0.35)) !important;
+  }
+}
+
 @media (-moz-pref("zzgroup.marker-gradient", 1)) {
   :root { --zzgf-maskgrad: linear-gradient(to bottom, transparent 0%, black 50%, transparent 100%); }
 }

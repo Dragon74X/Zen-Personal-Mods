@@ -369,6 +369,33 @@
     "defaultValue": false
   },
   {
+    "type": "checkbox",
+    "property": "zzgroup.flow-seamless",
+    "label": "Seamless junction *Blends the header's last stretch to a known colour and starts the rail on that same colour, so there is no visible seam where the line leaves the pill. It steers only the final few percent of the header, so gradient direction, spread and end tint all still do what you set them to. Turn off to drive the rail entirely from the Line gradient options instead.*",
+    "defaultValue": true
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.junction-tint",
+    "label": "Junction tint *Accent strength where the header meets the rail, as a percentage. This is the colour both sides share, so it is what makes the line visible -- raise it for a stronger connection.*",
+    "defaultValue": "25%",
+    "placeholder": "25%"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.junction-blend",
+    "label": "Junction blend *How much of the header's height eases into the junction colour. Small values keep your header gradient almost untouched; large values let it drift toward the junction earlier.*",
+    "defaultValue": "45%",
+    "placeholder": "45%"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.flow-end-tint",
+    "label": "Flow end tint *Accent strength at the far end of the rail. Above zero the line stays visible all the way down; zero fades it out entirely.*",
+    "defaultValue": "8%",
+    "placeholder": "8%"
+  },
+  {
     "type": "string",
     "property": "zzgroup.flow-tail",
     "label": "Flow tail *How far short of the last row the rail stops, so it settles softly instead of running to a hard end.*",

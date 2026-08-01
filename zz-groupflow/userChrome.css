@@ -1089,35 +1089,21 @@
 }
 
 /* ---- flowing ------------------------------------------------------- */
-/* Continuity is structural here, not a knob, because each of these alone
-   reintroduces a visible start point: a mismatched left edge, a separate
-   gradient origin, a fade at the top, or a rounded corner where the line
-   leaves. The header's gradient is forced vertical for this style so its
-   bottom edge is a KNOWN colour -- that is the only way the rail can
-   begin on exactly the colour the pill ends on without measuring it. */
+/* Geometry only. Nothing here dictates colour, so gradient direction,
+   spread, end tint, line gradient and match-tab all keep working. */
 @media (-moz-pref("zzgroup.connector", 5)) {
   #navigator-toolbox tab-group:not([split-view-group]) {
-    --zzgf-junction: color-mix(in srgb, var(--zzgf-accent)
-      var(--zzgroup-end-tint, 0%), transparent);
-    --zzgf-grad: linear-gradient(to bottom, var(--zzgf-junction) 0%,
-      color-mix(in srgb, var(--zzgf-accent) 0%, transparent) 100%);
-    /* Bottom-only fade: fading the top would draw the edge this style
-       exists to hide. */
+    /* Bottom-only fade: fading the top would draw the very edge this
+       style exists to hide. */
     --zzgf-railmask: linear-gradient(to bottom,
       black 0%, black calc(100% - var(--zzgf-fade)), transparent 100%);
   }
-
-  /* Header: vertical gradient ending on the junction colour, and only the
-     corner the line leaves through is squared -- the rest stay rounded. */
+  /* Only the corner the line leaves through is squared; every other
+     corner keeps its roundness, and other styles are untouched. */
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
-    background-image: linear-gradient(to bottom,
-      color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-header-tint, 25%), transparent) 0%,
-      var(--zzgf-junction) 100%) !important;
     border-bottom-left-radius: 0 !important;
     margin-bottom: 0 !important;
   }
-
-  /* Body: no fill of its own, aligned to the pill's left edge. */
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container {
     isolation: isolate;
     background: none !important;
@@ -1125,9 +1111,6 @@
     margin-top: 0 !important;
     padding-left: calc(var(--zzgf-pad) + 7px) !important;
   }
-
-  /* Rail: begins exactly at the header's bottom edge, square there,
-     rounded where it settles. */
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container::before {
     left: 0 !important;
     top: 0 !important;
@@ -1135,11 +1118,59 @@
     border-radius: 0 0 var(--zzgf-cap) var(--zzgf-cap) !important;
     z-index: 0;
   }
+}
 
-  /* One glass surface down the left side, pill and rail together. */
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container,
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container::before {
-    backdrop-filter: blur(var(--zzgroup-header-blur-radius, 14px)) var(--zzgf-fx);
+/* Seamless junction, opt-out. Rather than forcing the header's gradient
+   to run vertically -- which locked out direction and spread -- a thin
+   overlay blends the header's LAST stretch to a known colour, and the
+   rail begins on that same colour. The header keeps whatever gradient
+   you set; only its final few percent are steered. */
+@media (-moz-pref("zzgroup.connector", 5)) and (-moz-pref("zzgroup.flow-seamless")) {
+  #navigator-toolbox tab-group:not([split-view-group]) {
+    --zzgf-junction: color-mix(in srgb, var(--zzgf-accent)
+      var(--zzgroup-junction-tint, 25%), transparent);
+    --zzgf-grad: linear-gradient(to bottom, var(--zzgf-junction) 0%,
+      color-mix(in srgb, var(--zzgf-accent)
+        var(--zzgroup-flow-end-tint, 8%), transparent) 100%);
+  }
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
+    background-image:
+      linear-gradient(to bottom, transparent
+        calc(100% - var(--zzgroup-junction-blend, 45%)), var(--zzgf-junction) 100%),
+      linear-gradient(var(--zzgf-dir),
+        color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-header-tint, 25%), transparent) 0%,
+        color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-end-tint, 0%), transparent)
+          var(--zzgroup-spread, 50%)) !important;
+  }
+}
+
+/* Glass continuing up the left side. The rail's sheen and rim stop at the
+   header, so the same treatments are drawn on the header's left band --
+   the width of the rail's own band -- and the two read as one lit edge
+   rather than a pill above a separately-lit strip. */
+@media (-moz-pref("zzgroup.connector", 5)) and (-moz-pref("zzgroup.line.rim")) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
+    box-shadow: inset 1px 0 0 rgb(255 255 255 / calc(0.5 * var(--zzgf-glass))) !important;
+  }
+}
+@media (-moz-pref("zzgroup.connector", 5)) and (-moz-pref("zzgroup.line.sheen")) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
+    background-image:
+      var(--zzgf-barsheen),
+      linear-gradient(to bottom, transparent
+        calc(100% - var(--zzgroup-junction-blend, 45%)), var(--zzgf-junction) 100%),
+      linear-gradient(var(--zzgf-dir),
+        color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-header-tint, 25%), transparent) 0%,
+        color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-end-tint, 0%), transparent)
+          var(--zzgroup-spread, 50%)) !important;
+    background-size: var(--zzgroup-curve-amplitude, 16px) 100%, auto, auto !important;
+    background-repeat: no-repeat, repeat, repeat !important;
+    background-position: left top, left top, left top !important;
+  }
+}
+@media (-moz-pref("zzgroup.connector", 5)) and (-moz-pref("zzgroup.line.blur")) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
+    backdrop-filter: blur(8px) var(--zzgf-fx);
   }
 }
 

@@ -106,3 +106,100 @@
 [id^="zzgroup-"]:nth-last-child(-n + 4) .sineItemPreferenceLabel:hover > i {
   transform: translateY(0);
 }
+
+/* ============================================================
+   Only what applies. Sine's preferences.json has no conditional
+   visibility field -- only disabledOn, which is per operating system --
+   so rows are hidden here instead, keyed on the pref that governs them.
+   If a build does not evaluate -moz-pref in this sheet, every rule below
+   simply never matches and all rows stay visible: no functionality is
+   behind this, only tidiness.
+   ============================================================ */
+
+@media not (-moz-pref("zzgroup.connector", 5)) {
+  #zzgroup-flow-seamless,
+  #zzgroup-junction-tint,
+  #zzgroup-junction-blend,
+  #zzgroup-flow-end-tint,
+  #zzgroup-flow-tail { display: none !important; }
+}
+
+@media (-moz-pref("zzgroup.line-shape", 0)) {
+  #zzgroup-curve-weight,
+  #zzgroup-curve-amplitude { display: none !important; }
+}
+
+@media (-moz-pref("zzgroup.row-inset-auto")) {
+  #zzgroup-row-inset { display: none !important; }
+}
+
+@media not (-moz-pref("zzgroup.color-source", 2)) {
+  #zzgroup-custom-color { display: none !important; }
+}
+
+@media not (-moz-pref("zzgroup.header.blur")) {
+  #zzgroup-header-blur-radius { display: none !important; }
+}
+
+@media not (-moz-pref("zzgroup.favicons")) {
+  #zzgroup-icon-size,
+  #zzgroup-icon-plate { display: none !important; }
+}
+
+@media not (-moz-pref("zzgroup.active.boost")) {
+  #zzgroup-active-tint { display: none !important; }
+}
+
+@media not (-moz-pref("zzgroup.collapsed.dim")) {
+  #zzgroup-collapsed-opacity { display: none !important; }
+}
+
+@media not (-moz-pref("zzgroup.line.glow")) {
+  #zzgroup-line-glow-radius { display: none !important; }
+}
+
+@media not (-moz-pref("zzgroup.marker.glow")) {
+  #zzgroup-marker-glow-radius { display: none !important; }
+}
+
+@media (-moz-pref("zzgroup.marker", 0)) and (-moz-pref("zzgroup.marker-sub", 0)) {
+  #zzgroup-marker-gradient,
+  #zzgroup-marker-sheen,
+  #zzgroup-marker-glow,
+  #zzgroup-marker-glow-radius,
+  #zzgroup-marker-shadow,
+  #zzgroup-marker-opacity,
+  #zzgroup-marker-size,
+  #zzgroup-marker-scale { display: none !important; }
+}
+
+@media (-moz-pref("zzgroup.marker", 0)) and (-moz-pref("zzgroup.marker-sub", 1)) {
+  #zzgroup-marker-gradient,
+  #zzgroup-marker-sheen,
+  #zzgroup-marker-glow,
+  #zzgroup-marker-glow-radius,
+  #zzgroup-marker-shadow,
+  #zzgroup-marker-opacity,
+  #zzgroup-marker-size,
+  #zzgroup-marker-scale { display: none !important; }
+}
+
+@media (-moz-pref("zzgroup.connector", 0)) {
+  #zzgroup-line-shape,
+  #zzgroup-curve-weight,
+  #zzgroup-curve-amplitude,
+  #zzgroup-guide-width,
+  #zzgroup-line-gradient,
+  #zzgroup-line-strength,
+  #zzgroup-line-fade,
+  #zzgroup-line-cap,
+  #zzgroup-line-sheen,
+  #zzgroup-line-rim,
+  #zzgroup-line-glow,
+  #zzgroup-line-glow-radius,
+  #zzgroup-line-shadow,
+  #zzgroup-line-blur,
+  #zzgroup-line-opacity,
+  #zzgroup-line-continuous,
+  #zzgroup-line-match-tab { display: none !important; }
+}

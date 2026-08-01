@@ -38,10 +38,11 @@
      thick border is a blob, not a curve. Radius grows with the line so the
      sweep stays a sweep at any width. */
   --zzgf-w: max(var(--zzgroup-guide-width, 1px), 1px);
-  --zzgf-fade: var(--zzgroup-line-fade, 12%);
+  /* Clamped: past 50% the two fade stops cross and the line erases itself. */
+  --zzgf-fade: min(var(--zzgroup-line-fade, 12%), 45%);
   --zzgf-glass: var(--zzg-glass, 1);
   --zzgf-cap: 99px;
-  --zzgf-railmask: none;
+  --zzgf-railmask: linear-gradient(black, black); /* opaque: 'none' would intersect to nothing */
   --zzgf-r: max(10px, calc(var(--zzgf-w) * 3));
   /* Padding reserves room for the widest thing that must fit between the
      rail and the row: the elbow radius or the mark. Without this a large
@@ -93,7 +94,7 @@
    and glow fade with the line instead of hanging past it; shading ACROSS
    its width stays a background gradient. */
 @media (-moz-pref("zzgroup.line-gradient", 0)) {
-  #navigator-toolbox tab-group:not([split-view-group]) { --zzgf-railmask: none; } }
+  #navigator-toolbox tab-group:not([split-view-group]) { --zzgf-railmask: linear-gradient(black, black); /* opaque: 'none' would intersect to nothing */ } }
 @media (-moz-pref("zzgroup.line-gradient", 2)) {
   #navigator-toolbox tab-group:not([split-view-group]) {
     --zzgf-railmask: linear-gradient(to bottom, black 0%, transparent 100%); } }
@@ -102,15 +103,15 @@
     --zzgf-railmask: linear-gradient(to bottom, transparent 0%, black 100%); } }
 @media (-moz-pref("zzgroup.line-gradient", 4)) {
   #navigator-toolbox tab-group:not([split-view-group]) {
-    --zzgf-railmask: none;
+    --zzgf-railmask: linear-gradient(black, black); /* opaque: 'none' would intersect to nothing */
     --zzgf-grad: linear-gradient(to right, var(--zzgf-line) 0%, transparent 100%); } }
 @media (-moz-pref("zzgroup.line-gradient", 5)) {
   #navigator-toolbox tab-group:not([split-view-group]) {
-    --zzgf-railmask: none;
+    --zzgf-railmask: linear-gradient(black, black); /* opaque: 'none' would intersect to nothing */
     --zzgf-grad: linear-gradient(to left, var(--zzgf-line) 0%, transparent 100%); } }
 @media (-moz-pref("zzgroup.line-gradient", 6)) {
   #navigator-toolbox tab-group:not([split-view-group]) {
-    --zzgf-railmask: none;
+    --zzgf-railmask: linear-gradient(black, black); /* opaque: 'none' would intersect to nothing */
     --zzgf-grad: linear-gradient(to right,
       color-mix(in srgb, var(--zzgf-line) 22%, transparent) 0%,
       var(--zzgf-line) 50%,

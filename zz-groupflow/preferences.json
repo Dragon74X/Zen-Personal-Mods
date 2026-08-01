@@ -305,7 +305,7 @@
   {
     "type": "string",
     "property": "zzgroup.indent",
-    "label": "Subgroup indent *Extra left inset per nesting level.*",
+    "label": "Subgroup indent *Extra left inset per nesting level. Applied over Advanced Tab Groups' and Zen's own nested-group margins.*",
     "defaultValue": "10px",
     "placeholder": "10px"
   },
@@ -396,7 +396,7 @@
   {
     "type": "string",
     "property": "zzgroup.line-fade",
-    "label": "Fade length *How much of each end fades out, as a percentage of the line's height. Used by Soft ends.*",
+    "label": "Fade length *How much of each end fades out, as a percentage of the rail's height. Used only by the fade options in Line gradient -- with Solid or the across-width options it has no effect.*",
     "defaultValue": "12%",
     "placeholder": "12%"
   },
@@ -627,6 +627,38 @@
         "value": 4
       }
     ]
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.marker.sheen",
+    "label": "Sheen on marks *A diagonal highlight inside the mark, clipped to its silhouette, matching the treatment on the bar and on Glassflow's buttons.*",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.marker.glow",
+    "label": "Glow around marks *An accent halo tracing the mark's exact outline -- crescents and chevrons glow along their curve rather than in a box, since it is a shadow of the rendered shape.*",
+    "defaultValue": false
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.marker-glow-radius",
+    "label": "Mark glow radius",
+    "defaultValue": "3px",
+    "placeholder": "3px"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.marker.shadow",
+    "label": "Drop shadow under marks *Follows the mark's outline, so it lifts the shape rather than a rectangle.*",
+    "defaultValue": false
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.marker-opacity",
+    "label": "Mark opacity *Applies to the whole mark including its sheen and glow.*",
+    "defaultValue": "0.85",
+    "placeholder": "0.85"
   },
   {
     "type": "string",

@@ -83,8 +83,10 @@
 }
 
 /* Rail variants. These MUST come after the base declarations above:
-   same selector, same specificity, so the later rule wins -- when they
-   sat before it, every option was silently dead. */
+   same selector, same specificity, so the later rule is the one that
+   applies. Fades along the rail's LENGTH are masks, so the sheen, rim
+   and glow fade with the line instead of hanging past it; shading ACROSS
+   its width stays a background gradient. */
 @media (-moz-pref("zzgroup.line-gradient", 0)) {
   #navigator-toolbox tab-group:not([split-view-group]) { --zzgf-railmask: none; } }
 @media (-moz-pref("zzgroup.line-gradient", 2)) {
@@ -101,85 +103,20 @@
   #navigator-toolbox tab-group:not([split-view-group]) {
     --zzgf-railmask: none;
     --zzgf-grad: linear-gradient(to left, var(--zzgf-line) 0%, transparent 100%); } }
-/* Rounded: shading across the width, densest along the middle, so the
-   rail reads as a tube rather than a flat strip. */
 @media (-moz-pref("zzgroup.line-gradient", 6)) {
   #navigator-toolbox tab-group:not([split-view-group]) {
     --zzgf-railmask: none;
     --zzgf-grad: linear-gradient(to right,
-      color-mix(in srgb, var(--zzgf-line) 25%, transparent) 0%,
+      color-mix(in srgb, var(--zzgf-line) 22%, transparent) 0%,
       var(--zzgf-line) 50%,
-      color-mix(in srgb, var(--zzgf-line) 25%, transparent) 100%); } }
+      color-mix(in srgb, var(--zzgf-line) 22%, transparent) 100%); } }
 @media (-moz-pref("zzgroup.line-gradient", 7)) {
   #navigator-toolbox tab-group:not([split-view-group]) {
     --zzgf-grad: linear-gradient(to right,
-      color-mix(in srgb, var(--zzgf-line) 25%, transparent) 0%,
+      color-mix(in srgb, var(--zzgf-line) 22%, transparent) 0%,
       var(--zzgf-line) 50%,
-      color-mix(in srgb, var(--zzgf-line) 25%, transparent) 100%); } }
+      color-mix(in srgb, var(--zzgf-line) 22%, transparent) 100%); } }
 
-/* Accent: the group's own color chip first, then Glassflow's accent,
-   then Zen's primary. Per group, so mixed-color groups each keep their
-   identity -- same resolution order Glassflow uses for tabs. */
-#navigator-toolbox tab-group:not([split-view-group]) {
-  --zzgf-raw: var(--tab-group-color, var(--zzg-accent, var(--zen-primary-color, #7c8cf8)));
-  --zzgf-accent: color-mix(in srgb, var(--zzgf-raw), black var(--zzg-tone, 25%));
-  --zzgf-line: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-line-strength, 40%), transparent);
-  /* Stops are percentages so a two-tab subgroup and a twenty-tab group
-     fade by the same proportion, not the same pixels. */
-  /* Colour ACROSS the rail's width. */
-  --zzgf-grad: linear-gradient(var(--zzgf-line), var(--zzgf-line));
-  /* Fade ALONG its length, as a mask: masks apply to the element's whole
-     rendering, so sheen, rim and glow fade with the line instead of
-     staying flat where the fill has gone. Stops are percentages, so a
-     two-tab subgroup fades exactly like a twenty-tab group. */
-  --zzgf-railmask: linear-gradient(to bottom,
-    transparent 0%, black var(--zzgf-fade),
-    black calc(100% - var(--zzgf-fade)), transparent 100%);
-  /* Specular highlight, running across the width like a lit tube. */
-  --zzgf-barsheen: linear-gradient(to right,
-    rgb(255 255 255 / calc(0.38 * var(--zzgf-glass))) 0%,
-    rgb(255 255 255 / calc(0.10 * var(--zzgf-glass))) 42%,
-    transparent 70%);
-}
-
-/* Rail gradient variants. These MUST come after the base declaration
-   above: same selector, same specificity, so the later rule is the one
-   that applies -- when they sat before it, every option was silently
-   dead. Same trap as declaring an accent-dependent token on :root. */
-@media (-moz-pref("zzgroup.line-gradient", 0)) {
-  #navigator-toolbox tab-group:not([split-view-group]) {
-    --zzgf-grad: linear-gradient(var(--zzgf-line), var(--zzgf-line)); } }
-@media (-moz-pref("zzgroup.line-gradient", 2)) {
-  #navigator-toolbox tab-group:not([split-view-group]) {
-    --zzgf-grad: linear-gradient(to bottom, var(--zzgf-line) 0%, transparent 100%); } }
-@media (-moz-pref("zzgroup.line-gradient", 3)) {
-  #navigator-toolbox tab-group:not([split-view-group]) {
-    --zzgf-grad: linear-gradient(to bottom, transparent 0%, var(--zzgf-line) 100%); } }
-@media (-moz-pref("zzgroup.line-gradient", 4)) {
-  #navigator-toolbox tab-group:not([split-view-group]) {
-    --zzgf-grad: linear-gradient(to right, var(--zzgf-line) 0%, transparent 100%); } }
-@media (-moz-pref("zzgroup.line-gradient", 5)) {
-  #navigator-toolbox tab-group:not([split-view-group]) {
-    --zzgf-grad: linear-gradient(to left, var(--zzgf-line) 0%, transparent 100%); } }
-/* Rounded: shading runs ACROSS the rail's width, densest along its
-   middle, so the line reads as a tube rather than a flat strip. */
-@media (-moz-pref("zzgroup.line-gradient", 6)) {
-  #navigator-toolbox tab-group:not([split-view-group]) {
-    --zzgf-grad: linear-gradient(to right,
-      color-mix(in srgb, var(--zzgf-line) 25%, transparent) 0%,
-      var(--zzgf-line) 50%,
-      color-mix(in srgb, var(--zzgf-line) 25%, transparent) 100%); } }
-/* Rounded with soft ends: both at once. */
-@media (-moz-pref("zzgroup.line-gradient", 7)) {
-  #navigator-toolbox tab-group:not([split-view-group]) {
-    --zzgf-grad:
-      linear-gradient(to right,
-        color-mix(in srgb, var(--zzgf-line) 25%, transparent) 0%,
-        var(--zzgf-line) 50%,
-        color-mix(in srgb, var(--zzgf-line) 25%, transparent) 100%); 
-    --zzgf-railmask: linear-gradient(to bottom,
-      transparent 0%, black var(--zzgf-fade),
-      black calc(100% - var(--zzgf-fade)), transparent 100%); } }
 @media (-moz-pref("zzgroup.color-source", 1)) {
   #navigator-toolbox tab-group:not([split-view-group]) {
     --zzgf-raw: var(--zzg-accent, var(--zen-primary-color, #7c8cf8));
@@ -295,7 +232,10 @@
 /* ---- nesting ------------------------------------------------------ */
 
 #navigator-toolbox tab-group:not([split-view-group]) tab-group:not([split-view-group]) {
-  margin-left: var(--zzgroup-indent, 10px);
+  /* !important: Advanced Tab Groups and Zen both set margins on nested
+     groups, so an unqualified value here never applied. */
+  margin-left: var(--zzgroup-indent, 10px) !important;
+  margin-inline-start: var(--zzgroup-indent, 10px) !important;
 }
 
 /* ---- connectors --------------------------------------------------- */
@@ -340,11 +280,30 @@
       background-image: var(--zzgf-barsheen), var(--zzgf-grad) !important;
     }
   }
+  /* Rim as background layers rather than inset shadows: a 1px inset
+     shadow on a few-pixels-wide pill lands on fractional device pixels
+     and reads as a stair-stepped edge. Gradient layers are resolved
+     inside the same rounded box and stay smooth. */
   @media (-moz-pref("zzgroup.line.rim")) {
     #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container::before {
-      box-shadow:
-        inset 1px 0 0 rgb(255 255 255 / calc(0.45 * var(--zzgf-glass))),
-        inset -1px 0 1px rgb(0 0 0 / calc(0.22 * var(--zzgf-glass))) !important;
+      background-image:
+        linear-gradient(to right,
+          rgb(255 255 255 / calc(0.5 * var(--zzgf-glass))) 0%,
+          transparent 45%),
+        linear-gradient(to left,
+          rgb(0 0 0 / calc(0.25 * var(--zzgf-glass))) 0%,
+          transparent 40%),
+        var(--zzgf-grad) !important;
+    }
+  }
+  @media (-moz-pref("zzgroup.line.rim")) and (-moz-pref("zzgroup.line.sheen")) {
+    #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container::before {
+      background-image:
+        var(--zzgf-barsheen),
+        linear-gradient(to left,
+          rgb(0 0 0 / calc(0.25 * var(--zzgf-glass))) 0%,
+          transparent 40%),
+        var(--zzgf-grad) !important;
     }
   }
   @media (-moz-pref("zzgroup.line.glow")) {
@@ -353,15 +312,7 @@
         color-mix(in srgb, var(--zzgf-accent) 55%, transparent));
     }
   }
-  @media (-moz-pref("zzgroup.line.rim")) and (-moz-pref("zzgroup.line.shadow")) {
-    #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container::before {
-      box-shadow:
-        inset 1px 0 0 rgb(255 255 255 / calc(0.45 * var(--zzgf-glass))),
-        inset -1px 0 1px rgb(0 0 0 / calc(0.22 * var(--zzgf-glass))),
-        0 1px 3px rgb(0 0 0 / 0.28) !important;
-    }
-  }
-  @media (-moz-pref("zzgroup.line.shadow")) and (not (-moz-pref("zzgroup.line.rim"))) {
+  @media (-moz-pref("zzgroup.line.shadow")) {
     #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container::before {
       box-shadow: 0 1px 3px rgb(0 0 0 / 0.28) !important;
     }
@@ -453,7 +404,7 @@
     mask-size: contain, 100% 100%;
     mask-position: center;
     mask-repeat: no-repeat;
-    opacity: 0.85;
+    opacity: var(--zzgroup-marker-opacity, 0.85);
     /* Above the tab's own plate: Zen and the glass mods widen
        .tab-background past the tab's border box with a negative inset, so
        without this it paints over the mark's inner edge and trims it. */

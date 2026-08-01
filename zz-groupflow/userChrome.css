@@ -46,6 +46,10 @@
   /* Padding reserves room for the widest thing that must fit between the
      rail and the row: the elbow radius or the mark. Without this a large
      mark runs under the tab's own plate and looks cut off. */
+  /* Room between the rail and each row. Derived from the largest thing
+     that must fit there (elbow radius or mark), so marks never run under
+     a tab -- but overridable, since a thick line inflates the radius and
+     pushes rows further in than some people want. */
   --zzgf-pad: calc(max(10px, var(--zzgf-r), var(--zzgf-m)) + 4px);
 }
 @media (-moz-pref("zzgroup.line-cap", 1)) { :root { --zzgf-cap: 0; } }
@@ -128,6 +132,12 @@
       color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-end-tint, 0%), transparent)
         var(--zzgroup-spread, 50%));
   }
+}
+
+/* Explicit row inset, when set, replaces the derived value. Declared
+   after the base so it wins. */
+@media not (-moz-pref("zzgroup.row-inset-auto")) {
+  :root { --zzgf-pad: var(--zzgroup-row-inset, 14px); }
 }
 
 @media (-moz-pref("zzgroup.color-source", 1)) {
@@ -883,41 +893,12 @@
   }
 }
 
-/* Alignment lives LAST on purpose: the favicon block above pins the
-   header to flex-start to put the icon in the old chip's slot, and at
-   equal specificity the later rule is the one that applies. */
-/* ---- label alignment ---------------------------------------------- */
-#navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
-  justify-content: flex-start !important;
-  align-items: center !important;
-}
-#navigator-toolbox tab-group:not([split-view-group]) .tab-group-label {
-  text-align: start !important;
-}
-@media (-moz-pref("zzgroup.align", 1)) {
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
-    justify-content: center !important;
-  }
-  #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label {
-    text-align: center !important;
-  }
-}
-@media (-moz-pref("zzgroup.align", 2)) {
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
-    justify-content: flex-end !important;
-  }
-  #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label {
-    text-align: end !important;
-  }
-}
-
 /* ---- flowing ------------------------------------------------------- */
 /* The rail runs UP behind the header pill instead of starting below it,
    and the body carries a fill continuing the header's gradient, so the
    group reads as one shape flowing from the pill down past its tabs.
-   z-index -1 keeps the overlap tucked behind the pill; the container is
-   given its own stacking context so that negative index cannot escape
-   behind the sidebar itself. */
+   z-index -1 tucks the overlap behind the pill; the container gets its
+   own stacking context so that negative index cannot escape further. */
 @media (-moz-pref("zzgroup.connector", 5)) {
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container {
     isolation: isolate;
@@ -930,29 +911,22 @@
   }
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container::before {
     top: calc(-1 * var(--zzgroup-flow-overlap, 12px)) !important;
-    /* square at the top where it meets the pill, rounded where it ends */
     border-radius: 0 0 var(--zzgf-cap) var(--zzgf-cap) !important;
     z-index: -1;
   }
 }
 
 /* ---- other mods' connectors --------------------------------------- */
-/* Advanced Tab Groups and Folder Tree Connectors draw their own group
-   lines; with Groupflow's connectors on, they double up. This strips
-   the borders and shadows they hang on group bodies. */
+/* Advanced Tab Groups draws its group line on the container's ::after
+   (measured: 2px solid, full height, left -2px). This mod's rail is on
+   ::before and its subgroup marks hang off the header, so removing the
+   container's ::after takes theirs and leaves ours intact. */
 @media (-moz-pref("zzgroup.hide-other-connectors")) {
-  /* Advanced Tab Groups' group line lives on the container's ::after;
-     this mod's rail is on ::before, so removing ::after removes only
-     theirs. Both pseudos on the group element are unused here too. */
-  /* ::after on the group element is NOT touched: that is where this mod
-     draws subgroup marks. The probe showed ATG's line lives on the
-     container's ::after, which is what this removes. */
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container::after,
   #navigator-toolbox tab-group:not([split-view-group])::before {
     content: none !important;
     display: none !important;
   }
-  /* Foreign borders and shadows on the bodies. */
   #navigator-toolbox tab-group:not([split-view-group]),
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container,
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab {
@@ -964,5 +938,32 @@
   }
 }
 
+/* Alignment lives LAST on purpose: the favicon block above pins the
+   header to flex-start to seat the icon in the old chip's slot, and at
+   equal specificity the later rule is the one that applies.
+
+   The label is itself display:flex and flex-grow:1 (measured: it fills
+   the whole header), so justify-content on the HEADER has no free space
+   to distribute and text-align does not position a flex child. The
+   label's OWN justify-content is what moves the text. */
+#navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
+  justify-content: flex-start !important;
+}
+#navigator-toolbox tab-group:not([split-view-group]) .tab-group-label {
+  justify-content: flex-start !important;
+  text-align: start !important;
+}
+@media (-moz-pref("zzgroup.align", 1)) {
+  #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label {
+    justify-content: center !important;
+    text-align: center !important;
+  }
+}
+@media (-moz-pref("zzgroup.align", 2)) {
+  #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label {
+    justify-content: flex-end !important;
+    text-align: end !important;
+  }
+}
 
 } /* zzgroup.enabled */

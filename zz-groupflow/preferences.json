@@ -305,9 +305,22 @@
   {
     "type": "string",
     "property": "zzgroup.indent",
-    "label": "Subgroup indent *Extra left inset per nesting level. Applied over Advanced Tab Groups' and Zen's own nested-group margins.*",
+    "label": "Subgroup indent *How far a subgroup sits in from its parent, applied to the subgroup's header and body. This does not control the gap between the rail and the rows -- that is Row inset below.*",
     "defaultValue": "10px",
     "placeholder": "10px"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.row-inset-auto",
+    "label": "Automatic row inset *How far tabs and subgroups sit from the rail is normally derived from the connector geometry, so marks always have room and never run under a tab. A thick line inflates that reservation, so turn this off to set the distance yourself.*",
+    "defaultValue": true
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.row-inset",
+    "label": "Row inset *Distance from the rail to each row, used only when automatic row inset is off. Too small and large marks will be overlapped by the tabs.*",
+    "defaultValue": "14px",
+    "placeholder": "14px"
   },
   {
     "type": "dropdown",

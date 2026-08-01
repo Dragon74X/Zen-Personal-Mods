@@ -59,16 +59,25 @@
   let timer = null;
   const schedule = () => { clearTimeout(timer); timer = setTimeout(refreshAll, 500); };
 
+  const EVENTS = ["TabGroupCreate", "TabGrouped", "TabUngrouped",
+                  "TabGroupRemoved", "SSTabRestored"];
+
   function start() {
-    for (const ev of ["TabGroupCreate", "TabGrouped", "TabUngrouped", "TabGroupRemoved", "SSTabRestored"])
-      window.addEventListener(ev, schedule, true);
+    for (const ev of EVENTS) window.addEventListener(ev, schedule, true);
     // Domain of an existing member can change by navigation; a light
     // periodic pass covers that without watching every location change.
     const interval = setInterval(() => { if (bool("favicons", true)) refreshAll(); }, 60000);
-    setTimeout(refreshAll, 2000);
+    const boot = setTimeout(refreshAll, 2000);
 
+    // This script is injected per window and lives as long as the window
+    // does, so every registration has to be released here or it leaks
+    // across window open/close cycles. The capture flag must match the
+    // one used to add, or removeEventListener silently does nothing.
     window.addEventListener("unload", () => {
-      clearTimeout(timer); clearInterval(interval);
+      for (const ev of EVENTS) window.removeEventListener(ev, schedule, true);
+      clearTimeout(timer);
+      clearTimeout(boot);
+      clearInterval(interval);
     }, { once: true });
   }
 

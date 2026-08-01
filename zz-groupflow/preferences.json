@@ -454,6 +454,89 @@
   {
     "type": "dropdown",
     "value": "number",
+    "property": "zzgroup.line-shape",
+    "label": "Line shape *The rail's silhouette. S curve leans across as it descends; Serpentine waves out and back; Lituus curves hard at the top and flattens downward, the way a lituus spiral tightens; Tapering narrows as it falls. Colour, gradient and glass options all still apply -- only the shape changes.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Straight",
+        "value": 0
+      },
+      {
+        "label": "S curve",
+        "value": 1
+      },
+      {
+        "label": "Serpentine",
+        "value": 2
+      },
+      {
+        "label": "Double serpentine",
+        "value": 3
+      },
+      {
+        "label": "Lituus spiral",
+        "value": 4
+      },
+      {
+        "label": "Bow",
+        "value": 5
+      },
+      {
+        "label": "Tapering",
+        "value": 6
+      },
+      {
+        "label": "Tapering lituus",
+        "value": 7
+      }
+    ]
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.curve-weight",
+    "label": "Curve weight *Thickness of the curved shapes. Its own control rather than being taken from Line thickness, so amplitude and weight stay independent.*",
+    "defaultValue": 1,
+    "options": [
+      {
+        "label": "Hairline",
+        "value": 0
+      },
+      {
+        "label": "Thin",
+        "value": 1
+      },
+      {
+        "label": "Medium",
+        "value": 2
+      },
+      {
+        "label": "Thick",
+        "value": 3
+      },
+      {
+        "label": "Heavy",
+        "value": 4
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.curve-amplitude",
+    "label": "Curve amplitude *How far the curve swings sideways. Also the width of the band the rail occupies, so raise Row gap alongside it if rows start to crowd the curve.*",
+    "defaultValue": "16px",
+    "placeholder": "16px"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.line-continuous",
+    "label": "Continuous through subgroups *Only the outermost group draws a rail, so a single unbroken curve runs the full height of the group and past every subgroup inside it, instead of each level restarting its own.*",
+    "defaultValue": false
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
     "property": "zzgroup.line-cap",
     "label": "Line cap *Pill rounds both ends of the rail; Flat leaves them square.*",
     "defaultValue": 0,
@@ -578,6 +661,18 @@
       {
         "label": "Wave",
         "value": 13
+      },
+      {
+        "label": "Lituus spiral",
+        "value": 14
+      },
+      {
+        "label": "Coil",
+        "value": 15
+      },
+      {
+        "label": "Serpentine",
+        "value": 16
       }
     ]
   },
@@ -647,6 +742,18 @@
       {
         "label": "Wave",
         "value": 14
+      },
+      {
+        "label": "Lituus spiral",
+        "value": 15
+      },
+      {
+        "label": "Coil",
+        "value": 16
+      },
+      {
+        "label": "Serpentine",
+        "value": 17
       }
     ]
   },

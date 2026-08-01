@@ -203,3 +203,10 @@
   #zzgroup-line-continuous,
   #zzgroup-line-match-tab { display: none !important; }
 }
+
+@media not (-moz-pref("zzgroup.header.rim")) {
+  #zzgroup-rim-reach { display: none !important; }
+}
+@media not (-moz-pref("zzgroup.depth-scale")) {
+  #zzgroup-depth-step { display: none !important; }
+}

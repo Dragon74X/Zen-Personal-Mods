@@ -123,6 +123,13 @@
     "defaultValue": false
   },
   {
+    "type": "string",
+    "property": "zzgroup.rim-reach",
+    "label": "Rim fade reach *How far the rim light travels before fading out, as a percentage. Follows the header's gradient direction, so the lit edge is bright where the accent is and gone where it has faded. Leave it matching Gradient spread for the two to fade together.*",
+    "defaultValue": "50%",
+    "placeholder": "50%"
+  },
+  {
     "type": "checkbox",
     "property": "zzgroup.header.blur",
     "label": "Glass blur on headers *Backdrop blur behind group headers. Headers are few, so this is far cheaper than per-tab blur, and Zen Turbo's workspace-switch smoothing suspends it during slides automatically.*",
@@ -856,6 +863,13 @@
     "property": "zzgroup.depth-scale",
     "label": "Smaller headers per depth *Subgroup headers step down slightly in size with each level, so depth reads at a glance without shouting.*",
     "defaultValue": true
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.depth-step",
+    "label": "Depth step *How much smaller each nesting level's label gets, as a multiplier. 0.92 is a gentle step; 0.8 is pronounced; 1 is no change. Applied once more per level, so a third-level label is the step cubed.*",
+    "defaultValue": "0.92",
+    "placeholder": "0.92"
   },
   {
     "type": "separator",

@@ -201,9 +201,25 @@
   }
 }
 
+/* Rim on an overlay rather than an inset shadow on the pill itself: a
+   shadow rings the whole box at even strength, which fights a gradient
+   that fades. The overlay carries the same fade as the background, so
+   the lit edge is bright where the accent is and gone where it is not.
+   ::before is free here -- subgroup marks use this element's ::after. */
 @media (-moz-pref("zzgroup.header.rim")) {
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
-    box-shadow: inset 0 1px 0 var(--zzgf-rim-top), inset 0 0 0 1px var(--zzgf-rim-all) !important;
+    position: relative;
+  }
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container::before {
+    content: "" !important;
+    position: absolute !important;
+    inset: 0 !important;
+    border-radius: inherit !important;
+    box-shadow: inset 0 1px 0 var(--zzgf-rim-top), inset 0 0 0 1px var(--zzgf-rim-all);
+    mask-image: linear-gradient(var(--zzgf-dir), black 0%,
+      transparent var(--zzgroup-rim-reach, var(--zzgroup-spread, 50%)));
+    pointer-events: none;
+    z-index: 1;
   }
 }
 
@@ -796,12 +812,21 @@
 
 /* Each nesting level slightly smaller header, so depth reads at a
    glance without shouting. Two levels covered; deeper inherits. */
+/* Each nesting level steps the label down by the same factor. !important
+   because Zen sets the label's font-size with it, which is why the plain
+   declarations here did nothing. CSS has no exponent, so the factor is
+   simply multiplied once more per level. */
 @media (-moz-pref("zzgroup.depth-scale")) {
   #navigator-toolbox tab-group tab-group > .tab-group-label-container .tab-group-label {
-    font-size: calc(var(--zzgroup-label-size, 1em) * 0.92);
+    font-size: calc(var(--zzgroup-label-size, 1em) * var(--zzgroup-depth-step, 0.92)) !important;
   }
   #navigator-toolbox tab-group tab-group tab-group > .tab-group-label-container .tab-group-label {
-    font-size: calc(var(--zzgroup-label-size, 1em) * 0.85);
+    font-size: calc(var(--zzgroup-label-size, 1em) * var(--zzgroup-depth-step, 0.92)
+                    * var(--zzgroup-depth-step, 0.92)) !important;
+  }
+  #navigator-toolbox tab-group tab-group tab-group tab-group > .tab-group-label-container .tab-group-label {
+    font-size: calc(var(--zzgroup-label-size, 1em) * var(--zzgroup-depth-step, 0.92)
+                    * var(--zzgroup-depth-step, 0.92) * var(--zzgroup-depth-step, 0.92)) !important;
   }
 }
 

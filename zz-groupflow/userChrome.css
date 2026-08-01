@@ -1089,25 +1089,64 @@
 }
 
 /* ---- flowing ------------------------------------------------------- */
-/* The rail runs UP behind the header pill instead of starting below it,
-   and the body carries a fill continuing the header's gradient, so the
-   group reads as one shape flowing from the pill down past its tabs.
-   z-index -1 tucks the overlap behind the pill; the container gets its
-   own stacking context so that negative index cannot escape further. */
+/* Continuity is enforced here rather than left to the other knobs,
+   because four separate things each produce a visible "start point":
+     1. the rail sat 7px right of the pill, so its edge did not line up;
+     2. it had its own gradient origin, so colours did not meet;
+     3. the length fade faded its TOP, which IS a visible beginning;
+     4. a pill cap on the pill's bottom-left corner closed the shape off.
+   All four are handled below, so the rail leaves the header as one
+   continuous edge whatever else is switched on. */
 @media (-moz-pref("zzgroup.connector", 5)) {
+  #navigator-toolbox tab-group:not([split-view-group]) {
+    /* Same recipe as the header, so the colour at the junction is the
+       colour the header ends on -- no seam to see. Declared here, after
+       the gradient variants, so it wins for this style. */
+    --zzgf-grad: linear-gradient(to bottom,
+      color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-header-tint, 25%), transparent) 0%,
+      color-mix(in srgb, var(--zzgf-accent)
+        calc(var(--zzgroup-header-tint, 25%) * 0.35), transparent) 100%);
+    /* Fade the BOTTOM only. Fading the top would draw the very edge the
+       whole style exists to hide. */
+    --zzgf-railmask: linear-gradient(to bottom,
+      black 0%, black calc(100% - var(--zzgf-fade)), transparent 100%);
+  }
+
+  /* The corner the rail leaves through is squared, so the pill and the
+     rail read as one outline instead of two rounded shapes touching. */
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
+    border-bottom-left-radius: 0 !important;
+  }
+
+  /* Body aligned to the pill's left edge, so the rail continues that
+     exact edge. Rows keep their spacing via padding instead. */
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container {
     isolation: isolate;
+    margin-left: 0 !important;
+    padding-left: calc(var(--zzgf-pad) + 7px) !important;
     background: linear-gradient(var(--zzgf-dir),
-      color-mix(in srgb, var(--zzgf-accent)
-        calc(var(--zzgroup-flow-fill, 12%)), transparent) 0%,
+      color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-flow-fill, 0%), transparent) 0%,
       transparent var(--zzgroup-flow-reach, 65%)) !important;
     border-radius: 0 0 calc(var(--zzgf-round) * 0.8) calc(var(--zzgf-round) * 0.8) !important;
-    padding-bottom: 2px !important;
   }
+
+  /* Rail: starts up inside the pill, square where it leaves it, rounded
+     where it ends. */
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container::before {
+    left: 0 !important;
     top: calc(-1 * var(--zzgroup-flow-overlap, 12px)) !important;
+    bottom: var(--zzgroup-flow-tail, 6px) !important;
     border-radius: 0 0 var(--zzgf-cap) var(--zzgf-cap) !important;
-    z-index: -1;
+    z-index: 0;
+  }
+
+  /* Glass layers must not re-introduce an edge. The blur and the rim run
+     the full length including the part behind the pill, so the left side
+     of the group reads as one continuous glass surface rather than a
+     pill with a separately-lit strip under it. */
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container,
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container::before {
+    backdrop-filter: blur(var(--zzgroup-header-blur-radius, 14px)) var(--zzgf-fx);
   }
 }
 

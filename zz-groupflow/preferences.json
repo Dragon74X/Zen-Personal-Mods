@@ -371,16 +371,16 @@
   {
     "type": "string",
     "property": "zzgroup.flow-overlap",
-    "label": "Flow overlap *How far the rail runs up behind the header pill, in pixels. Larger values make the line appear to grow out of the pill itself. Used by the Flowing style.*",
+    "label": "Flow overlap *How far the rail runs up inside the header pill. It only has to be deep enough that the junction sits under the pill; more is harmless.*",
     "defaultValue": "12px",
     "placeholder": "12px"
   },
   {
     "type": "string",
     "property": "zzgroup.flow-fill",
-    "label": "Flow fill strength *Accent strength of the body fill where it meets the header, as a percentage. Used by the Flowing style.*",
-    "defaultValue": "12%",
-    "placeholder": "12%"
+    "label": "Flow fill strength *Optional wash across the group body where it meets the header. Off by default -- the continuity comes from the rail leaving the pill, not from filling the body.*",
+    "defaultValue": "0%",
+    "placeholder": "0%"
   },
   {
     "type": "string",
@@ -388,6 +388,13 @@
     "label": "Flow fill reach *How far down the body the fill persists before fading out, as a percentage of the group's height.*",
     "defaultValue": "65%",
     "placeholder": "65%"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.flow-tail",
+    "label": "Flow tail *How far short of the last row the rail stops, so it settles softly instead of running to a hard end.*",
+    "defaultValue": "6px",
+    "placeholder": "6px"
   },
   {
     "type": "string",

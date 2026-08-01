@@ -312,7 +312,7 @@
   {
     "type": "checkbox",
     "property": "zzgroup.row-inset-auto",
-    "label": "Automatic row inset *How far tabs and subgroups sit from the rail is normally derived from the connector geometry, so marks always have room and never run under a tab. A thick line inflates that reservation, so turn this off to set the distance yourself.*",
+    "label": "Automatic row inset *Works out the distance from the rail to each row from what is actually enabled: the line thickness alone when there are no marks, widened for marks, and widened again for the curve mark, which needs its full radius. Turn off to set the distance yourself.*",
     "defaultValue": true
   },
   {
@@ -321,6 +321,13 @@
     "label": "Row inset *Distance from the rail to each row, used only when automatic row inset is off. Too small and large marks will be overlapped by the tabs.*",
     "defaultValue": "14px",
     "placeholder": "14px"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.row-gap",
+    "label": "Row gap *Breathing room between the rail and each row, on top of whatever the line and any marks need. This is what to nudge for spacing; the mod works out the rest from what you actually have switched on.*",
+    "defaultValue": "6px",
+    "placeholder": "6px"
   },
   {
     "type": "dropdown",

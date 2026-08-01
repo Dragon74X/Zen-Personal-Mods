@@ -46,11 +46,12 @@
   /* Padding reserves room for the widest thing that must fit between the
      rail and the row: the elbow radius or the mark. Without this a large
      mark runs under the tab's own plate and looks cut off. */
-  /* Room between the rail and each row. Derived from the largest thing
-     that must fit there (elbow radius or mark), so marks never run under
-     a tab -- but overridable, since a thick line inflates the radius and
-     pushes rows further in than some people want. */
-  --zzgf-pad: calc(max(10px, var(--zzgf-r), var(--zzgf-m)) + 4px);
+  /* Room between the rail and each row. Reserves space only for what is
+     actually switched on: with no marks this is just the line plus a
+     gap, so a thick line no longer pushes rows halfway across the
+     sidebar for an elbow that was never selected. Widened below when
+     marks are on, and further for the curve, which needs its radius. */
+  --zzgf-pad: calc(var(--zzgf-w) + var(--zzgroup-row-gap, 6px));
 }
 @media (-moz-pref("zzgroup.line-cap", 1)) { :root { --zzgf-cap: 0; } }
 @media (-moz-pref("zzgroup.line-cap", 2)) { :root { --zzgf-cap: calc(var(--zzgf-w) * 0.5); } }
@@ -134,8 +135,22 @@
   }
 }
 
-/* Explicit row inset, when set, replaces the derived value. Declared
-   after the base so it wins. */
+/* Marks need room to sit in without being overlapped by a row. */
+@media (-moz-pref("zzgroup.marker", 1)), (-moz-pref("zzgroup.marker", 2)), (-moz-pref("zzgroup.marker", 3)), (-moz-pref("zzgroup.marker", 4)), (-moz-pref("zzgroup.marker", 5)), (-moz-pref("zzgroup.marker", 6)), (-moz-pref("zzgroup.marker", 7)), (-moz-pref("zzgroup.marker", 8)), (-moz-pref("zzgroup.marker", 9)), (-moz-pref("zzgroup.marker", 10)), (-moz-pref("zzgroup.marker", 11)), (-moz-pref("zzgroup.marker", 12)), (-moz-pref("zzgroup.marker", 13)), (-moz-pref("zzgroup.marker-sub", 2)), (-moz-pref("zzgroup.marker-sub", 3)), (-moz-pref("zzgroup.marker-sub", 4)), (-moz-pref("zzgroup.marker-sub", 5)), (-moz-pref("zzgroup.marker-sub", 6)), (-moz-pref("zzgroup.marker-sub", 7)), (-moz-pref("zzgroup.marker-sub", 8)), (-moz-pref("zzgroup.marker-sub", 9)), (-moz-pref("zzgroup.marker-sub", 10)), (-moz-pref("zzgroup.marker-sub", 11)), (-moz-pref("zzgroup.marker-sub", 12)), (-moz-pref("zzgroup.marker-sub", 13)), (-moz-pref("zzgroup.marker-sub", 14)) {
+  :root {
+    --zzgf-pad: calc(max(var(--zzgf-w), var(--zzgf-m)) + var(--zzgroup-row-gap, 6px));
+  }
+}
+/* The curve mark is drawn as a quarter circle, so it needs its radius. */
+@media (-moz-pref("zzgroup.marker", 5)), (-moz-pref("zzgroup.marker-sub", 6)) {
+  :root {
+    --zzgf-pad: calc(max(var(--zzgf-r), var(--zzgf-m)) + var(--zzgroup-row-gap, 6px));
+  }
+}
+
+/* Explicit row inset replaces every derived value above, so it must be
+   the LAST word on --zzgf-pad: same selector, same specificity, later
+   rule wins. */
 @media not (-moz-pref("zzgroup.row-inset-auto")) {
   :root { --zzgf-pad: var(--zzgroup-row-inset, 14px); }
 }

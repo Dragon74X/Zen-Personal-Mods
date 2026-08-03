@@ -97,6 +97,12 @@
   },
   {
     "type": "checkbox",
+    "property": "zzunload.exclude-workspace-anchor",
+    "label": "Keep the last tab you used in each workspace *Switching workspaces leaves that tab selected in the workspace you left, so it stays loaded and switching back is instant instead of waiting for a reload. It protects that specific tab, not the position: close it and nothing inherits the exemption, and the protection moves only when you select a different tab in that workspace. TabUnloader.anchors() lists what is currently held.*",
+    "defaultValue": true
+  },
+  {
+    "type": "checkbox",
     "property": "zzunload.exclude-essentials",
     "label": "Essentials *Your Essentials tabs stay loaded so they open instantly.*",
     "defaultValue": true

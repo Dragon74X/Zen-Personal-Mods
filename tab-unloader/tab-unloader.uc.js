@@ -85,6 +85,39 @@
     return urlFilters.some(f => url.includes(f));
   }
 
+  // ---- last tab per workspace --------------------------------------------
+  // Switching workspaces leaves the tab you were on selected in ITS
+  // workspace, so remembering the last tab selected in each workspace is
+  // exactly "the one you switched away from". Recorded on TabSelect, and
+  // dropped on TabClose so a closed tab cannot pass its protection on --
+  // the anchor is a specific tab, never a slot that something else fills.
+  const anchors = new Map();   // workspace id -> tab
+
+  const workspaceOf = (tab) =>
+    tab?.getAttribute?.("zen-workspace-id") ||
+    tab?.closest?.("zen-workspace")?.id || null;
+
+  function onTabSelect(event) {
+    const tab = event.target;
+    const ws = workspaceOf(tab);
+    if (ws) anchors.set(ws, tab);
+  }
+
+  function onTabClose(event) {
+    const tab = event.target;
+    for (const [ws, held] of anchors) {
+      if (held === tab) anchors.delete(ws);
+    }
+  }
+
+  function isWorkspaceAnchor(tab) {
+    const ws = workspaceOf(tab);
+    if (!ws) return false;
+    const held = anchors.get(ws);
+    if (held && !held.isConnected) { anchors.delete(ws); return false; }
+    return held === tab;
+  }
+
   function whyKeep(tab, now) {
     if (!tab || !tab.isConnected) return "gone";
     if (tab.closing) return "closing";
@@ -98,6 +131,8 @@
     const idleFor = (now - (tab.lastAccessed || now)) / 1000;
     if (idleFor < idleSec) return `idle ${Math.round(idleFor)}s of ${idleSec}s`;
 
+    if (bool("exclude-workspace-anchor", true) && isWorkspaceAnchor(tab))
+      return "last tab in its workspace";
     if (bool("exclude-audio", true) && tab.hasAttribute("soundplaying")) return "playing audio";
     if (bool("exclude-attention", true) && tab.hasAttribute("attention")) return "wants attention";
     if (bool("exclude-sharing", true) && tab.hasAttribute("sharing")) return "sharing camera/mic/screen";
@@ -185,6 +220,11 @@
 
   function start() {
     Services.prefs.addObserver(P, observer);
+    // Seed from the tab that is already selected, so the current
+    // workspace is protected before any switch happens.
+    try { if (gBrowser.selectedTab) onTabSelect({ target: gBrowser.selectedTab }); } catch {}
+    gBrowser.tabContainer.addEventListener("TabSelect", onTabSelect);
+    gBrowser.tabContainer.addEventListener("TabClose", onTabClose);
     reschedule();
 
     window.TabUnloader = {
@@ -197,6 +237,9 @@
           verdict: whyKeep(t, now) ?? "ELIGIBLE",
         }));
       },
+      // Which tab is currently protected in each workspace.
+      anchors: () => Object.fromEntries(
+        [...anchors].map(([ws, t]) => [ws, t?.label ?? "(gone)"])),
       settings: () => ({
         enabled: bool("enabled", false),
         idleSeconds: num("idle-seconds", 1800),
@@ -209,6 +252,13 @@
       log: () => log.slice(),
     };
     note("loaded");
+
+    window.addEventListener("unload", () => {
+      try { Services.prefs.removeObserver(P, observer); } catch {}
+      try { gBrowser.tabContainer.removeEventListener("TabSelect", onTabSelect); } catch {}
+      try { gBrowser.tabContainer.removeEventListener("TabClose", onTabClose); } catch {}
+      try { clearTimeout(timer); clearInterval(timer); } catch {}
+    }, { once: true });
   }
 
   if (gBrowserInit?.delayedStartupFinished) {

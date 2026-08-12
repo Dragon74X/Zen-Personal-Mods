@@ -330,14 +330,14 @@
   {
     "type": "checkbox",
     "property": "zzglass.edges.selected-fade",
-    "label": "Fade the rim *The rim is an even outline, which fights a tint that fades. With this on the selected tab's rim fades along the axis below, so it is bright where the glass is strongest and gone where it has faded.*",
+    "label": "Fade the rim *Paints the selected tab's rim as part of the tab's own surface instead of a flat outline, so it fades along the axis below -- bright where the glass is strongest, gone where it has faded. Colour, thickness, ring width and highlight edge all still apply.*",
     "defaultValue": false
   },
   {
     "type": "dropdown",
     "value": "number",
     "property": "zzglass.edges.selected-axis",
-    "label": "Rim fade axis *Which way the selected tab's rim fades. Match tab gradient follows the tint direction set above.*",
+    "label": "Rim fade axis *Which way the selected tab's rim fades. Match tab gradient uses the same direction as that tab's own tint, so the rim and the fill fade together.*",
     "defaultValue": 0,
     "options": [
       {
@@ -581,14 +581,14 @@
   {
     "type": "checkbox",
     "property": "zzglass.edges.unselected-fade",
-    "label": "Fade the rim *The rim is an even outline, which fights a tint that fades. With this on the unselected tab's rim fades along the axis below, so it is bright where the glass is strongest and gone where it has faded.*",
+    "label": "Fade the rim *Paints the unselected tab's rim as part of the tab's own surface instead of a flat outline, so it fades along the axis below -- bright where the glass is strongest, gone where it has faded. Colour, thickness, ring width and highlight edge all still apply.*",
     "defaultValue": false
   },
   {
     "type": "dropdown",
     "value": "number",
     "property": "zzglass.edges.unselected-axis",
-    "label": "Rim fade axis *Which way the unselected tab's rim fades. Match tab gradient follows the tint direction set above.*",
+    "label": "Rim fade axis *Which way the unselected tab's rim fades. Match tab gradient uses the same direction as that tab's own tint, so the rim and the fill fade together.*",
     "defaultValue": 0,
     "options": [
       {
@@ -832,14 +832,14 @@
   {
     "type": "checkbox",
     "property": "zzglass.edges.hover-fade",
-    "label": "Fade the rim *The rim is an even outline, which fights a tint that fades. With this on the hovered tab's rim fades along the axis below, so it is bright where the glass is strongest and gone where it has faded.*",
+    "label": "Fade the rim *Paints the hovered tab's rim as part of the tab's own surface instead of a flat outline, so it fades along the axis below -- bright where the glass is strongest, gone where it has faded. Colour, thickness, ring width and highlight edge all still apply.*",
     "defaultValue": false
   },
   {
     "type": "dropdown",
     "value": "number",
     "property": "zzglass.edges.hover-axis",
-    "label": "Rim fade axis *Which way the hovered tab's rim fades. Match tab gradient follows the tint direction set above.*",
+    "label": "Rim fade axis *Which way the hovered tab's rim fades. Match tab gradient uses the same direction as that tab's own tint, so the rim and the fill fade together.*",
     "defaultValue": 0,
     "options": [
       {
@@ -1083,14 +1083,14 @@
   {
     "type": "checkbox",
     "property": "zzglass.edges.pending-fade",
-    "label": "Fade the rim *The rim is an even outline, which fights a tint that fades. With this on the unloaded tab's rim fades along the axis below, so it is bright where the glass is strongest and gone where it has faded.*",
+    "label": "Fade the rim *Paints the unloaded tab's rim as part of the tab's own surface instead of a flat outline, so it fades along the axis below -- bright where the glass is strongest, gone where it has faded. Colour, thickness, ring width and highlight edge all still apply.*",
     "defaultValue": false
   },
   {
     "type": "dropdown",
     "value": "number",
     "property": "zzglass.edges.pending-axis",
-    "label": "Rim fade axis *Which way the unloaded tab's rim fades. Match tab gradient follows the tint direction set above.*",
+    "label": "Rim fade axis *Which way the unloaded tab's rim fades. Match tab gradient uses the same direction as that tab's own tint, so the rim and the fill fade together.*",
     "defaultValue": 0,
     "options": [
       {

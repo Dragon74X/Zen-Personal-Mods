@@ -214,3 +214,8 @@
 @media (-moz-pref("zzgroup.match-glassflow-edges")) {
   #zzgroup-rim-reach { display: none !important; }
 }
+
+@media not (-moz-pref("zzgroup.header.rim")) {
+  #zzgroup-rim-thickness,
+  #zzgroup-rim-ring-width { display: none !important; }
+}

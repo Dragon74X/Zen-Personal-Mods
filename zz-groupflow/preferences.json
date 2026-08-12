@@ -130,6 +130,20 @@
     "placeholder": "50%"
   },
   {
+    "type": "string",
+    "property": "zzgroup.rim-thickness",
+    "label": "Rim highlight thickness *How thick the bright line along the header's top edge is.*",
+    "defaultValue": "1px",
+    "placeholder": "1px"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.rim-ring-width",
+    "label": "Rim ring thickness *How thick the faint outline around the whole header is. This is the header's border area, so a large value insets the tint by the same amount.*",
+    "defaultValue": "1px",
+    "placeholder": "1px"
+  },
+  {
     "type": "checkbox",
     "property": "zzgroup.match-glassflow-edges",
     "label": "Follow Glassflow's edge fade *Takes the fade axis and reach from Glassflow's Tab edges section, so group headers and tabs light and fade on the same axis. Its per-state rim strengths already reach this mod on their own; only the axis and reach need adopting. Off by default, since a different axis for groups is a fair choice.*",

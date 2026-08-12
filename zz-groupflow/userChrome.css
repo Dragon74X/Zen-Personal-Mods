@@ -76,9 +76,18 @@
     --zzgf-rimA: var(--zzg-edge-dir, var(--zzg-dir, 135deg));
     --zzgf-rimB: var(--zzg-edge-dir, var(--zzg-dir, 135deg));
   }
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container::before {
-    mask-image: linear-gradient(var(--zzg-edge-dir, var(--zzg-dir, 135deg)),
-      black 0%, transparent var(--zzglass-edges-reach, 60%));
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
+    background-image:
+      linear-gradient(var(--zzgf-dir),
+        color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-header-tint, 25%), transparent) 0%,
+        color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-end-tint, 0%), transparent)
+          var(--zzgroup-spread, 50%)),
+      linear-gradient(var(--zzg-edge-dir, var(--zzg-dir, 135deg)), var(--zzgf-rim-top) 0%, transparent var(--zzglass-edges-reach, 60%)),
+      linear-gradient(var(--zzg-edge-dir, var(--zzg-dir, 135deg)), var(--zzgf-rim-all) 0%, transparent var(--zzglass-edges-reach, 60%)) !important;
+    background-size: auto, 100% var(--zzgroup-rim-thickness, 1px), auto !important;
+    background-position: center center, top, center center !important;
+    background-repeat: repeat, no-repeat, repeat !important;
+    background-clip: padding-box, border-box, border-box !important;
   }
 }
 
@@ -236,19 +245,25 @@
    the lit edge is bright where the accent is and gone where it is not.
    ::before is free here -- subgroup marks use this element's ::after. */
 @media (-moz-pref("zzgroup.header.rim")) {
+  /* The rim is painted BY THE HEADER, not by an element laid over it. A
+     box-shadow cannot hold a gradient, so the rim becomes part of the
+     header's own background: a ring layer clipped to the border box, with
+     the tint layers clipped to the padding box above it. The visible ring
+     IS the header's border area, so the gradient fades the rim itself. */
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
-    position: relative;
-  }
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container::before {
-    content: "" !important;
-    position: absolute !important;
-    inset: 0 !important;
-    border-radius: inherit !important;
-    box-shadow: inset 0 1px 0 var(--zzgf-rim-top), inset 0 0 0 1px var(--zzgf-rim-all);
-    mask-image: linear-gradient(var(--zzgf-dir), black 0%,
-      transparent var(--zzgroup-rim-reach, var(--zzgroup-spread, 50%)));
-    pointer-events: none;
-    z-index: 1;
+    border: var(--zzgroup-rim-ring-width, 1px) solid transparent !important;
+    background-origin: border-box !important;
+    background-image:
+      linear-gradient(var(--zzgf-dir),
+        color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-header-tint, 25%), transparent) 0%,
+        color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-end-tint, 0%), transparent)
+          var(--zzgroup-spread, 50%)),
+      linear-gradient(var(--zzgf-dir), var(--zzgf-rim-top) 0%, transparent var(--zzgroup-rim-reach, var(--zzgroup-spread, 50%))),
+      linear-gradient(var(--zzgf-dir), var(--zzgf-rim-all) 0%, transparent var(--zzgroup-rim-reach, var(--zzgroup-spread, 50%))) !important;
+    background-size: auto, 100% var(--zzgroup-rim-thickness, 1px), auto !important;
+    background-position: center center, top, center center !important;
+    background-repeat: repeat, no-repeat, repeat !important;
+    background-clip: padding-box, border-box, border-box !important;
   }
 }
 

@@ -264,25 +264,6 @@
     "defaultValue": true
   },
   {
-    "type": "checkbox",
-    "property": "zzglass.selected.glow",
-    "label": "Outer glow *A soft tinted halo. Replaces the rim shadow, so it includes the rim when both are on.*",
-    "defaultValue": false
-  },
-  {
-    "type": "checkbox",
-    "property": "zzglass.selected.blur",
-    "label": "Frosted blur *One compositor pass per tab in this state. The most expensive option here.*",
-    "defaultValue": true
-  },
-  {
-    "type": "string",
-    "property": "zzglass.selected.blur-radius",
-    "label": "Blur strength *Only used when frosted blur is on for this state.*",
-    "defaultValue": "20px",
-    "placeholder": "20px"
-  },
-  {
     "type": "string",
     "property": "zzglass.edges.selected-top",
     "label": "Rim top highlight *Multiplier on the bright line along the selected tab's top edge. 1 is the current strength, 0 removes just that line and keeps the ring.*",
@@ -395,6 +376,25 @@
     "label": "Rim fade reach *How far the selected tab's rim travels before fading out, as a percentage.*",
     "defaultValue": "60%",
     "placeholder": "60%"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.selected.glow",
+    "label": "Outer glow *A soft tinted halo. Replaces the rim shadow, so it includes the rim when both are on.*",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.selected.blur",
+    "label": "Frosted blur *One compositor pass per tab in this state. The most expensive option here.*",
+    "defaultValue": true
+  },
+  {
+    "type": "string",
+    "property": "zzglass.selected.blur-radius",
+    "label": "Blur strength *Only used when frosted blur is on for this state.*",
+    "defaultValue": "20px",
+    "placeholder": "20px"
   },
   {
     "type": "separator",
@@ -515,25 +515,6 @@
     "defaultValue": false
   },
   {
-    "type": "checkbox",
-    "property": "zzglass.unselected.glow",
-    "label": "Outer glow *A soft tinted halo. Replaces the rim shadow, so it includes the rim when both are on.*",
-    "defaultValue": false
-  },
-  {
-    "type": "checkbox",
-    "property": "zzglass.unselected.blur",
-    "label": "Frosted blur *One compositor pass per tab in this state. The most expensive option here.*",
-    "defaultValue": false
-  },
-  {
-    "type": "string",
-    "property": "zzglass.unselected.blur-radius",
-    "label": "Blur strength *Only used when frosted blur is on for this state.*",
-    "defaultValue": "20px",
-    "placeholder": "20px"
-  },
-  {
     "type": "string",
     "property": "zzglass.edges.unselected-top",
     "label": "Rim top highlight *Multiplier on the bright line along the unselected tab's top edge. 1 is the current strength, 0 removes just that line and keeps the ring.*",
@@ -646,6 +627,25 @@
     "label": "Rim fade reach *How far the unselected tab's rim travels before fading out, as a percentage.*",
     "defaultValue": "60%",
     "placeholder": "60%"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.unselected.glow",
+    "label": "Outer glow *A soft tinted halo. Replaces the rim shadow, so it includes the rim when both are on.*",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.unselected.blur",
+    "label": "Frosted blur *One compositor pass per tab in this state. The most expensive option here.*",
+    "defaultValue": false
+  },
+  {
+    "type": "string",
+    "property": "zzglass.unselected.blur-radius",
+    "label": "Blur strength *Only used when frosted blur is on for this state.*",
+    "defaultValue": "20px",
+    "placeholder": "20px"
   },
   {
     "type": "separator",
@@ -766,25 +766,6 @@
     "defaultValue": false
   },
   {
-    "type": "checkbox",
-    "property": "zzglass.hover.glow",
-    "label": "Outer glow *A soft tinted halo. Replaces the rim shadow, so it includes the rim when both are on.*",
-    "defaultValue": false
-  },
-  {
-    "type": "checkbox",
-    "property": "zzglass.hover.blur",
-    "label": "Frosted blur *One compositor pass per tab in this state. The most expensive option here.*",
-    "defaultValue": false
-  },
-  {
-    "type": "string",
-    "property": "zzglass.hover.blur-radius",
-    "label": "Blur strength *Only used when frosted blur is on for this state.*",
-    "defaultValue": "20px",
-    "placeholder": "20px"
-  },
-  {
     "type": "string",
     "property": "zzglass.edges.hover-top",
     "label": "Rim top highlight *Multiplier on the bright line along the hovered tab's top edge. 1 is the current strength, 0 removes just that line and keeps the ring.*",
@@ -897,6 +878,25 @@
     "label": "Rim fade reach *How far the hovered tab's rim travels before fading out, as a percentage.*",
     "defaultValue": "60%",
     "placeholder": "60%"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.hover.glow",
+    "label": "Outer glow *A soft tinted halo. Replaces the rim shadow, so it includes the rim when both are on.*",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.hover.blur",
+    "label": "Frosted blur *One compositor pass per tab in this state. The most expensive option here.*",
+    "defaultValue": false
+  },
+  {
+    "type": "string",
+    "property": "zzglass.hover.blur-radius",
+    "label": "Blur strength *Only used when frosted blur is on for this state.*",
+    "defaultValue": "20px",
+    "placeholder": "20px"
   },
   {
     "type": "separator",
@@ -1017,25 +1017,6 @@
     "defaultValue": false
   },
   {
-    "type": "checkbox",
-    "property": "zzglass.pending.glow",
-    "label": "Outer glow *A soft tinted halo. Replaces the rim shadow, so it includes the rim when both are on.*",
-    "defaultValue": false
-  },
-  {
-    "type": "checkbox",
-    "property": "zzglass.pending.blur",
-    "label": "Frosted blur *One compositor pass per tab in this state. The most expensive option here.*",
-    "defaultValue": false
-  },
-  {
-    "type": "string",
-    "property": "zzglass.pending.blur-radius",
-    "label": "Blur strength *Only used when frosted blur is on for this state.*",
-    "defaultValue": "20px",
-    "placeholder": "20px"
-  },
-  {
     "type": "string",
     "property": "zzglass.edges.pending-top",
     "label": "Rim top highlight *Multiplier on the bright line along the unloaded tab's top edge. 1 is the current strength, 0 removes just that line and keeps the ring.*",
@@ -1148,6 +1129,25 @@
     "label": "Rim fade reach *How far the unloaded tab's rim travels before fading out, as a percentage.*",
     "defaultValue": "60%",
     "placeholder": "60%"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.pending.glow",
+    "label": "Outer glow *A soft tinted halo. Replaces the rim shadow, so it includes the rim when both are on.*",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.pending.blur",
+    "label": "Frosted blur *One compositor pass per tab in this state. The most expensive option here.*",
+    "defaultValue": false
+  },
+  {
+    "type": "string",
+    "property": "zzglass.pending.blur-radius",
+    "label": "Blur strength *Only used when frosted blur is on for this state.*",
+    "defaultValue": "20px",
+    "placeholder": "20px"
   },
   {
     "type": "separator",

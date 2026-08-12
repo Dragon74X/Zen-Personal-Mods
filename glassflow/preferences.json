@@ -285,28 +285,78 @@
   {
     "type": "string",
     "property": "zzglass.edges.selected-top",
-    "label": "Edge highlight strength *Multiplier on this state's lit edge. 1 is the current strength, 0 removes it. Needs this state's Rim light switched on, since it retunes the shadow that draws.*",
+    "label": "Rim top highlight *Multiplier on the bright line along the selected tab's top edge. 1 is the current strength, 0 removes just that line and keeps the ring.*",
     "defaultValue": "1",
     "placeholder": "1"
   },
   {
     "type": "string",
     "property": "zzglass.edges.selected-ring",
-    "label": "Edge ring strength *Multiplier on the faint ring around the tab in this state.*",
+    "label": "Rim ring *Multiplier on the faint outline around the whole selected tab.*",
     "defaultValue": "1",
     "placeholder": "1"
   },
   {
+    "type": "string",
+    "property": "zzglass.edges.selected-color",
+    "label": "Rim colour *The colour of the selected tab's rim itself. White is the glass default; any CSS colour works, and the strength rows above scale its alpha rather than replacing it. Try the accent colour for a tinted rim.*",
+    "defaultValue": "white",
+    "placeholder": "white"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.edges.selected-edge",
+    "label": "Rim highlight edge *Which side of the selected tab carries the bright line. Ring only drops the line and keeps the outline.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Top",
+        "value": 0
+      },
+      {
+        "label": "Bottom",
+        "value": 1
+      },
+      {
+        "label": "Left",
+        "value": 2
+      },
+      {
+        "label": "Right",
+        "value": 3
+      },
+      {
+        "label": "Ring only",
+        "value": 4
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.selected-thickness",
+    "label": "Rim highlight thickness *How thick the selected tab's bright line is. Above about 3px it reads as a band rather than a highlight.*",
+    "defaultValue": "1px",
+    "placeholder": "1px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.selected-ring-width",
+    "label": "Rim ring thickness *How thick the outline around the selected tab is.*",
+    "defaultValue": "1px",
+    "placeholder": "1px"
+  },
+  {
     "type": "checkbox",
     "property": "zzglass.edges.selected-fade",
-    "label": "Fade the edge light *An even ring fights a gradient that fades. With this on, this state's edge fades along the axis below, so it is bright where the tab's colour is and gone where it has faded.*",
+    "label": "Fade the rim *The rim is an even outline, which fights a tint that fades. With this on the selected tab's rim fades along the axis below, so it is bright where the glass is strongest and gone where it has faded.*",
     "defaultValue": false
   },
   {
     "type": "dropdown",
     "value": "number",
     "property": "zzglass.edges.selected-axis",
-    "label": "Fade axis *Which way this state's edge light fades. Match tab gradient follows the direction the tabs already use.*",
+    "label": "Rim fade axis *Which way the selected tab's rim fades. Match tab gradient follows the tint direction set above.*",
     "defaultValue": 0,
     "options": [
       {
@@ -342,7 +392,7 @@
   {
     "type": "string",
     "property": "zzglass.edges.selected-reach",
-    "label": "Fade reach *How far the light travels before fading out, as a percentage.*",
+    "label": "Rim fade reach *How far the selected tab's rim travels before fading out, as a percentage.*",
     "defaultValue": "60%",
     "placeholder": "60%"
   },
@@ -486,28 +536,78 @@
   {
     "type": "string",
     "property": "zzglass.edges.unselected-top",
-    "label": "Edge highlight strength *Multiplier on this state's lit edge. 1 is the current strength, 0 removes it. Needs this state's Rim light switched on, since it retunes the shadow that draws.*",
+    "label": "Rim top highlight *Multiplier on the bright line along the unselected tab's top edge. 1 is the current strength, 0 removes just that line and keeps the ring.*",
     "defaultValue": "1",
     "placeholder": "1"
   },
   {
     "type": "string",
     "property": "zzglass.edges.unselected-ring",
-    "label": "Edge ring strength *Multiplier on the faint ring around the tab in this state.*",
+    "label": "Rim ring *Multiplier on the faint outline around the whole unselected tab.*",
     "defaultValue": "1",
     "placeholder": "1"
   },
   {
+    "type": "string",
+    "property": "zzglass.edges.unselected-color",
+    "label": "Rim colour *The colour of the unselected tab's rim itself. White is the glass default; any CSS colour works, and the strength rows above scale its alpha rather than replacing it. Try the accent colour for a tinted rim.*",
+    "defaultValue": "white",
+    "placeholder": "white"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.edges.unselected-edge",
+    "label": "Rim highlight edge *Which side of the unselected tab carries the bright line. Ring only drops the line and keeps the outline.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Top",
+        "value": 0
+      },
+      {
+        "label": "Bottom",
+        "value": 1
+      },
+      {
+        "label": "Left",
+        "value": 2
+      },
+      {
+        "label": "Right",
+        "value": 3
+      },
+      {
+        "label": "Ring only",
+        "value": 4
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.unselected-thickness",
+    "label": "Rim highlight thickness *How thick the unselected tab's bright line is. Above about 3px it reads as a band rather than a highlight.*",
+    "defaultValue": "1px",
+    "placeholder": "1px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.unselected-ring-width",
+    "label": "Rim ring thickness *How thick the outline around the unselected tab is.*",
+    "defaultValue": "1px",
+    "placeholder": "1px"
+  },
+  {
     "type": "checkbox",
     "property": "zzglass.edges.unselected-fade",
-    "label": "Fade the edge light *An even ring fights a gradient that fades. With this on, this state's edge fades along the axis below, so it is bright where the tab's colour is and gone where it has faded.*",
+    "label": "Fade the rim *The rim is an even outline, which fights a tint that fades. With this on the unselected tab's rim fades along the axis below, so it is bright where the glass is strongest and gone where it has faded.*",
     "defaultValue": false
   },
   {
     "type": "dropdown",
     "value": "number",
     "property": "zzglass.edges.unselected-axis",
-    "label": "Fade axis *Which way this state's edge light fades. Match tab gradient follows the direction the tabs already use.*",
+    "label": "Rim fade axis *Which way the unselected tab's rim fades. Match tab gradient follows the tint direction set above.*",
     "defaultValue": 0,
     "options": [
       {
@@ -543,7 +643,7 @@
   {
     "type": "string",
     "property": "zzglass.edges.unselected-reach",
-    "label": "Fade reach *How far the light travels before fading out, as a percentage.*",
+    "label": "Rim fade reach *How far the unselected tab's rim travels before fading out, as a percentage.*",
     "defaultValue": "60%",
     "placeholder": "60%"
   },
@@ -687,28 +787,78 @@
   {
     "type": "string",
     "property": "zzglass.edges.hover-top",
-    "label": "Edge highlight strength *Multiplier on this state's lit edge. 1 is the current strength, 0 removes it. Needs this state's Rim light switched on, since it retunes the shadow that draws.*",
+    "label": "Rim top highlight *Multiplier on the bright line along the hovered tab's top edge. 1 is the current strength, 0 removes just that line and keeps the ring.*",
     "defaultValue": "1",
     "placeholder": "1"
   },
   {
     "type": "string",
     "property": "zzglass.edges.hover-ring",
-    "label": "Edge ring strength *Multiplier on the faint ring around the tab in this state.*",
+    "label": "Rim ring *Multiplier on the faint outline around the whole hovered tab.*",
     "defaultValue": "1",
     "placeholder": "1"
   },
   {
+    "type": "string",
+    "property": "zzglass.edges.hover-color",
+    "label": "Rim colour *The colour of the hovered tab's rim itself. White is the glass default; any CSS colour works, and the strength rows above scale its alpha rather than replacing it. Try the accent colour for a tinted rim.*",
+    "defaultValue": "white",
+    "placeholder": "white"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.edges.hover-edge",
+    "label": "Rim highlight edge *Which side of the hovered tab carries the bright line. Ring only drops the line and keeps the outline.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Top",
+        "value": 0
+      },
+      {
+        "label": "Bottom",
+        "value": 1
+      },
+      {
+        "label": "Left",
+        "value": 2
+      },
+      {
+        "label": "Right",
+        "value": 3
+      },
+      {
+        "label": "Ring only",
+        "value": 4
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.hover-thickness",
+    "label": "Rim highlight thickness *How thick the hovered tab's bright line is. Above about 3px it reads as a band rather than a highlight.*",
+    "defaultValue": "1px",
+    "placeholder": "1px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.hover-ring-width",
+    "label": "Rim ring thickness *How thick the outline around the hovered tab is.*",
+    "defaultValue": "1px",
+    "placeholder": "1px"
+  },
+  {
     "type": "checkbox",
     "property": "zzglass.edges.hover-fade",
-    "label": "Fade the edge light *An even ring fights a gradient that fades. With this on, this state's edge fades along the axis below, so it is bright where the tab's colour is and gone where it has faded.*",
+    "label": "Fade the rim *The rim is an even outline, which fights a tint that fades. With this on the hovered tab's rim fades along the axis below, so it is bright where the glass is strongest and gone where it has faded.*",
     "defaultValue": false
   },
   {
     "type": "dropdown",
     "value": "number",
     "property": "zzglass.edges.hover-axis",
-    "label": "Fade axis *Which way this state's edge light fades. Match tab gradient follows the direction the tabs already use.*",
+    "label": "Rim fade axis *Which way the hovered tab's rim fades. Match tab gradient follows the tint direction set above.*",
     "defaultValue": 0,
     "options": [
       {
@@ -744,7 +894,7 @@
   {
     "type": "string",
     "property": "zzglass.edges.hover-reach",
-    "label": "Fade reach *How far the light travels before fading out, as a percentage.*",
+    "label": "Rim fade reach *How far the hovered tab's rim travels before fading out, as a percentage.*",
     "defaultValue": "60%",
     "placeholder": "60%"
   },
@@ -888,28 +1038,78 @@
   {
     "type": "string",
     "property": "zzglass.edges.pending-top",
-    "label": "Edge highlight strength *Multiplier on this state's lit edge. 1 is the current strength, 0 removes it. Needs this state's Rim light switched on, since it retunes the shadow that draws.*",
+    "label": "Rim top highlight *Multiplier on the bright line along the unloaded tab's top edge. 1 is the current strength, 0 removes just that line and keeps the ring.*",
     "defaultValue": "1",
     "placeholder": "1"
   },
   {
     "type": "string",
     "property": "zzglass.edges.pending-ring",
-    "label": "Edge ring strength *Multiplier on the faint ring around the tab in this state.*",
+    "label": "Rim ring *Multiplier on the faint outline around the whole unloaded tab.*",
     "defaultValue": "1",
     "placeholder": "1"
   },
   {
+    "type": "string",
+    "property": "zzglass.edges.pending-color",
+    "label": "Rim colour *The colour of the unloaded tab's rim itself. White is the glass default; any CSS colour works, and the strength rows above scale its alpha rather than replacing it. Try the accent colour for a tinted rim.*",
+    "defaultValue": "white",
+    "placeholder": "white"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.edges.pending-edge",
+    "label": "Rim highlight edge *Which side of the unloaded tab carries the bright line. Ring only drops the line and keeps the outline.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Top",
+        "value": 0
+      },
+      {
+        "label": "Bottom",
+        "value": 1
+      },
+      {
+        "label": "Left",
+        "value": 2
+      },
+      {
+        "label": "Right",
+        "value": 3
+      },
+      {
+        "label": "Ring only",
+        "value": 4
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.pending-thickness",
+    "label": "Rim highlight thickness *How thick the unloaded tab's bright line is. Above about 3px it reads as a band rather than a highlight.*",
+    "defaultValue": "1px",
+    "placeholder": "1px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.pending-ring-width",
+    "label": "Rim ring thickness *How thick the outline around the unloaded tab is.*",
+    "defaultValue": "1px",
+    "placeholder": "1px"
+  },
+  {
     "type": "checkbox",
     "property": "zzglass.edges.pending-fade",
-    "label": "Fade the edge light *An even ring fights a gradient that fades. With this on, this state's edge fades along the axis below, so it is bright where the tab's colour is and gone where it has faded.*",
+    "label": "Fade the rim *The rim is an even outline, which fights a tint that fades. With this on the unloaded tab's rim fades along the axis below, so it is bright where the glass is strongest and gone where it has faded.*",
     "defaultValue": false
   },
   {
     "type": "dropdown",
     "value": "number",
     "property": "zzglass.edges.pending-axis",
-    "label": "Fade axis *Which way this state's edge light fades. Match tab gradient follows the direction the tabs already use.*",
+    "label": "Rim fade axis *Which way the unloaded tab's rim fades. Match tab gradient follows the tint direction set above.*",
     "defaultValue": 0,
     "options": [
       {
@@ -945,7 +1145,7 @@
   {
     "type": "string",
     "property": "zzglass.edges.pending-reach",
-    "label": "Fade reach *How far the light travels before fading out, as a percentage.*",
+    "label": "Rim fade reach *How far the unloaded tab's rim travels before fading out, as a percentage.*",
     "defaultValue": "60%",
     "placeholder": "60%"
   },
@@ -958,7 +1158,7 @@
   {
     "type": "checkbox",
     "property": "zzglass.edges.enabled",
-    "label": "Custom tab edges *Unlocks the edge highlight, ring and fade rows in each tab state section above. Every value is a multiplier or an option on the existing look, so nothing changes until you move one.*",
+    "label": "Detailed rim control *Adds strength, fade and axis rows to each tab state's Rim light above. Every value is a multiplier or an option on the rim you already have, so nothing changes until you move one.*",
     "defaultValue": false
   },
   {

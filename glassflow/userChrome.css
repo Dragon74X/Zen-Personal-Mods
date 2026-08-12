@@ -802,20 +802,172 @@
 
 @media (-moz-pref("zzglass.edges.enabled")) {
   #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) {
-    --zzg-rim-top: rgb(255 255 255 / calc(0.42 * var(--zzglass-edges-selected-top, 1) * var(--zzg-glass)));
-    --zzg-rim-all: rgb(255 255 255 / calc(0.12 * var(--zzglass-edges-selected-ring, 1) * var(--zzg-glass)));
+    /* The rim's own colour, not just its brightness: white is the glass
+       default, but any colour works, and the strength multipliers scale
+       its alpha rather than replacing it. */
+    --zzg-rim-top: color-mix(in srgb,
+      var(--zzglass-edges-selected-color, white)
+      calc(42% * var(--zzglass-edges-selected-top, 1) * var(--zzg-glass)), transparent);
+    --zzg-rim-all: color-mix(in srgb,
+      var(--zzglass-edges-selected-color, white)
+      calc(12% * var(--zzglass-edges-selected-ring, 1) * var(--zzg-glass)), transparent);
+    --zzg-rim-t: var(--zzglass-edges-selected-thickness, 1px);
+    --zzg-rim-w: var(--zzglass-edges-selected-ring-width, 1px);
   }
   #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) {
-    --zzg-rim-top: rgb(255 255 255 / calc(0.42 * var(--zzglass-edges-unselected-top, 1) * var(--zzg-glass)));
-    --zzg-rim-all: rgb(255 255 255 / calc(0.12 * var(--zzglass-edges-unselected-ring, 1) * var(--zzg-glass)));
+    /* The rim's own colour, not just its brightness: white is the glass
+       default, but any colour works, and the strength multipliers scale
+       its alpha rather than replacing it. */
+    --zzg-rim-top: color-mix(in srgb,
+      var(--zzglass-edges-unselected-color, white)
+      calc(42% * var(--zzglass-edges-unselected-top, 1) * var(--zzg-glass)), transparent);
+    --zzg-rim-all: color-mix(in srgb,
+      var(--zzglass-edges-unselected-color, white)
+      calc(12% * var(--zzglass-edges-unselected-ring, 1) * var(--zzg-glass)), transparent);
+    --zzg-rim-t: var(--zzglass-edges-unselected-thickness, 1px);
+    --zzg-rim-w: var(--zzglass-edges-unselected-ring-width, 1px);
   }
   #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover {
-    --zzg-rim-top: rgb(255 255 255 / calc(0.42 * var(--zzglass-edges-hover-top, 1) * var(--zzg-glass)));
-    --zzg-rim-all: rgb(255 255 255 / calc(0.12 * var(--zzglass-edges-hover-ring, 1) * var(--zzg-glass)));
+    /* The rim's own colour, not just its brightness: white is the glass
+       default, but any colour works, and the strength multipliers scale
+       its alpha rather than replacing it. */
+    --zzg-rim-top: color-mix(in srgb,
+      var(--zzglass-edges-hover-color, white)
+      calc(42% * var(--zzglass-edges-hover-top, 1) * var(--zzg-glass)), transparent);
+    --zzg-rim-all: color-mix(in srgb,
+      var(--zzglass-edges-hover-color, white)
+      calc(12% * var(--zzglass-edges-hover-ring, 1) * var(--zzg-glass)), transparent);
+    --zzg-rim-t: var(--zzglass-edges-hover-thickness, 1px);
+    --zzg-rim-w: var(--zzglass-edges-hover-ring-width, 1px);
   }
   #navigator-toolbox .tabbrowser-tab[pending] {
-    --zzg-rim-top: rgb(255 255 255 / calc(0.42 * var(--zzglass-edges-pending-top, 1) * var(--zzg-glass)));
-    --zzg-rim-all: rgb(255 255 255 / calc(0.12 * var(--zzglass-edges-pending-ring, 1) * var(--zzg-glass)));
+    /* The rim's own colour, not just its brightness: white is the glass
+       default, but any colour works, and the strength multipliers scale
+       its alpha rather than replacing it. */
+    --zzg-rim-top: color-mix(in srgb,
+      var(--zzglass-edges-pending-color, white)
+      calc(42% * var(--zzglass-edges-pending-top, 1) * var(--zzg-glass)), transparent);
+    --zzg-rim-all: color-mix(in srgb,
+      var(--zzglass-edges-pending-color, white)
+      calc(12% * var(--zzglass-edges-pending-ring, 1) * var(--zzg-glass)), transparent);
+    --zzg-rim-t: var(--zzglass-edges-pending-thickness, 1px);
+    --zzg-rim-w: var(--zzglass-edges-pending-ring-width, 1px);
+  }
+}
+@media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.selected.rim")) and (-moz-pref("zzglass.edges.selected-edge", 0)) {
+  #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-background {
+    box-shadow: inset 0 var(--zzg-rim-t) 0 var(--zzg-rim-top),
+                inset 0 0 0 var(--zzg-rim-w) var(--zzg-rim-all) !important;
+  }
+}
+@media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.selected.rim")) and (-moz-pref("zzglass.edges.selected-edge", 1)) {
+  #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-background {
+    box-shadow: inset 0 calc(-1 * var(--zzg-rim-t)) 0 var(--zzg-rim-top),
+                inset 0 0 0 var(--zzg-rim-w) var(--zzg-rim-all) !important;
+  }
+}
+@media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.selected.rim")) and (-moz-pref("zzglass.edges.selected-edge", 2)) {
+  #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-background {
+    box-shadow: inset var(--zzg-rim-t) 0 0 var(--zzg-rim-top),
+                inset 0 0 0 var(--zzg-rim-w) var(--zzg-rim-all) !important;
+  }
+}
+@media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.selected.rim")) and (-moz-pref("zzglass.edges.selected-edge", 3)) {
+  #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-background {
+    box-shadow: inset calc(-1 * var(--zzg-rim-t)) 0 0 var(--zzg-rim-top),
+                inset 0 0 0 var(--zzg-rim-w) var(--zzg-rim-all) !important;
+  }
+}
+@media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.selected.rim")) and (-moz-pref("zzglass.edges.selected-edge", 4)) {
+  #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-background {
+    box-shadow: inset 0 0 0 var(--zzg-rim-w) var(--zzg-rim-all) !important;
+  }
+}
+@media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.unselected.rim")) and (-moz-pref("zzglass.edges.unselected-edge", 0)) {
+  #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-background {
+    box-shadow: inset 0 var(--zzg-rim-t) 0 var(--zzg-rim-top),
+                inset 0 0 0 var(--zzg-rim-w) var(--zzg-rim-all) !important;
+  }
+}
+@media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.unselected.rim")) and (-moz-pref("zzglass.edges.unselected-edge", 1)) {
+  #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-background {
+    box-shadow: inset 0 calc(-1 * var(--zzg-rim-t)) 0 var(--zzg-rim-top),
+                inset 0 0 0 var(--zzg-rim-w) var(--zzg-rim-all) !important;
+  }
+}
+@media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.unselected.rim")) and (-moz-pref("zzglass.edges.unselected-edge", 2)) {
+  #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-background {
+    box-shadow: inset var(--zzg-rim-t) 0 0 var(--zzg-rim-top),
+                inset 0 0 0 var(--zzg-rim-w) var(--zzg-rim-all) !important;
+  }
+}
+@media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.unselected.rim")) and (-moz-pref("zzglass.edges.unselected-edge", 3)) {
+  #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-background {
+    box-shadow: inset calc(-1 * var(--zzg-rim-t)) 0 0 var(--zzg-rim-top),
+                inset 0 0 0 var(--zzg-rim-w) var(--zzg-rim-all) !important;
+  }
+}
+@media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.unselected.rim")) and (-moz-pref("zzglass.edges.unselected-edge", 4)) {
+  #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-background {
+    box-shadow: inset 0 0 0 var(--zzg-rim-w) var(--zzg-rim-all) !important;
+  }
+}
+@media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.hover.rim")) and (-moz-pref("zzglass.edges.hover-edge", 0)) {
+  #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-background {
+    box-shadow: inset 0 var(--zzg-rim-t) 0 var(--zzg-rim-top),
+                inset 0 0 0 var(--zzg-rim-w) var(--zzg-rim-all) !important;
+  }
+}
+@media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.hover.rim")) and (-moz-pref("zzglass.edges.hover-edge", 1)) {
+  #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-background {
+    box-shadow: inset 0 calc(-1 * var(--zzg-rim-t)) 0 var(--zzg-rim-top),
+                inset 0 0 0 var(--zzg-rim-w) var(--zzg-rim-all) !important;
+  }
+}
+@media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.hover.rim")) and (-moz-pref("zzglass.edges.hover-edge", 2)) {
+  #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-background {
+    box-shadow: inset var(--zzg-rim-t) 0 0 var(--zzg-rim-top),
+                inset 0 0 0 var(--zzg-rim-w) var(--zzg-rim-all) !important;
+  }
+}
+@media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.hover.rim")) and (-moz-pref("zzglass.edges.hover-edge", 3)) {
+  #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-background {
+    box-shadow: inset calc(-1 * var(--zzg-rim-t)) 0 0 var(--zzg-rim-top),
+                inset 0 0 0 var(--zzg-rim-w) var(--zzg-rim-all) !important;
+  }
+}
+@media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.hover.rim")) and (-moz-pref("zzglass.edges.hover-edge", 4)) {
+  #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-background {
+    box-shadow: inset 0 0 0 var(--zzg-rim-w) var(--zzg-rim-all) !important;
+  }
+}
+@media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.pending.rim")) and (-moz-pref("zzglass.edges.pending-edge", 0)) {
+  #navigator-toolbox .tabbrowser-tab[pending] .tab-background {
+    box-shadow: inset 0 var(--zzg-rim-t) 0 var(--zzg-rim-top),
+                inset 0 0 0 var(--zzg-rim-w) var(--zzg-rim-all) !important;
+  }
+}
+@media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.pending.rim")) and (-moz-pref("zzglass.edges.pending-edge", 1)) {
+  #navigator-toolbox .tabbrowser-tab[pending] .tab-background {
+    box-shadow: inset 0 calc(-1 * var(--zzg-rim-t)) 0 var(--zzg-rim-top),
+                inset 0 0 0 var(--zzg-rim-w) var(--zzg-rim-all) !important;
+  }
+}
+@media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.pending.rim")) and (-moz-pref("zzglass.edges.pending-edge", 2)) {
+  #navigator-toolbox .tabbrowser-tab[pending] .tab-background {
+    box-shadow: inset var(--zzg-rim-t) 0 0 var(--zzg-rim-top),
+                inset 0 0 0 var(--zzg-rim-w) var(--zzg-rim-all) !important;
+  }
+}
+@media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.pending.rim")) and (-moz-pref("zzglass.edges.pending-edge", 3)) {
+  #navigator-toolbox .tabbrowser-tab[pending] .tab-background {
+    box-shadow: inset calc(-1 * var(--zzg-rim-t)) 0 0 var(--zzg-rim-top),
+                inset 0 0 0 var(--zzg-rim-w) var(--zzg-rim-all) !important;
+  }
+}
+@media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.pending.rim")) and (-moz-pref("zzglass.edges.pending-edge", 4)) {
+  #navigator-toolbox .tabbrowser-tab[pending] .tab-background {
+    box-shadow: inset 0 0 0 var(--zzg-rim-w) var(--zzg-rim-all) !important;
   }
 }
 

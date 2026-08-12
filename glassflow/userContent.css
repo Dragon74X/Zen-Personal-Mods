@@ -107,52 +107,258 @@
   transform: translateY(0);
 }
 
-/* Edge rows depend on the state's own Rim light: they retune the shadow
-   that rule draws, so with rim off there is nothing to tune. */
-@media not (-moz-pref("zzglass.selected.rim")) {
-  #zzglass-edges-selected-top,
-  #zzglass-edges-selected-ring,
-  #zzglass-edges-selected-fade,
+/* ============================================================
+   Only what applies.
+
+   Sine's preferences.json has no conditional-visibility field, so rows are
+   hidden here, keyed on the pref that governs them. Generated from
+   preferences.json, so a renamed pref cannot leave a stale rule behind.
+   ============================================================ */
+@media not (-moz-pref("zzglass.selected.enabled")) {
   #zzglass-edges-selected-axis,
-  #zzglass-edges-selected-reach { display: none !important; }
+  #zzglass-edges-selected-color,
+  #zzglass-edges-selected-edge,
+  #zzglass-edges-selected-fade,
+  #zzglass-edges-selected-reach,
+  #zzglass-edges-selected-ring,
+  #zzglass-edges-selected-ring-width,
+  #zzglass-edges-selected-thickness,
+  #zzglass-edges-selected-top,
+  #zzglass-selected-blur,
+  #zzglass-selected-blur-radius,
+  #zzglass-selected-direction,
+  #zzglass-selected-end-mode,
+  #zzglass-selected-end-tint,
+  #zzglass-selected-glow,
+  #zzglass-selected-opacity,
+  #zzglass-selected-rim,
+  #zzglass-selected-sheen,
+  #zzglass-selected-spread,
+  #zzglass-selected-tint { display: none !important; }
+}
+@media not (-moz-pref("zzglass.selected.blur")) {
+  #zzglass-selected-blur-radius { display: none !important; }
+}
+@media not (-moz-pref("zzglass.selected.rim")) {
+  #zzglass-edges-selected-axis,
+  #zzglass-edges-selected-color,
+  #zzglass-edges-selected-edge,
+  #zzglass-edges-selected-fade,
+  #zzglass-edges-selected-reach,
+  #zzglass-edges-selected-ring,
+  #zzglass-edges-selected-ring-width,
+  #zzglass-edges-selected-thickness,
+  #zzglass-edges-selected-top { display: none !important; }
 }
 @media not (-moz-pref("zzglass.edges.selected-fade")) {
   #zzglass-edges-selected-axis,
   #zzglass-edges-selected-reach { display: none !important; }
 }
-@media not (-moz-pref("zzglass.unselected.rim")) {
-  #zzglass-edges-unselected-top,
-  #zzglass-edges-unselected-ring,
-  #zzglass-edges-unselected-fade,
+@media (-moz-pref("zzglass.edges.selected-edge", 4)) {
+  #zzglass-edges-selected-thickness,
+  #zzglass-edges-selected-top { display: none !important; }
+}
+@media (-moz-pref("zzglass.selected.end-mode", 0)) {
+  #zzglass-selected-end-tint { display: none !important; }
+}
+@media not (-moz-pref("zzglass.unselected.enabled")) {
   #zzglass-edges-unselected-axis,
-  #zzglass-edges-unselected-reach { display: none !important; }
+  #zzglass-edges-unselected-color,
+  #zzglass-edges-unselected-edge,
+  #zzglass-edges-unselected-fade,
+  #zzglass-edges-unselected-reach,
+  #zzglass-edges-unselected-ring,
+  #zzglass-edges-unselected-ring-width,
+  #zzglass-edges-unselected-thickness,
+  #zzglass-edges-unselected-top,
+  #zzglass-unselected-blur,
+  #zzglass-unselected-blur-radius,
+  #zzglass-unselected-direction,
+  #zzglass-unselected-end-mode,
+  #zzglass-unselected-end-tint,
+  #zzglass-unselected-glow,
+  #zzglass-unselected-opacity,
+  #zzglass-unselected-rim,
+  #zzglass-unselected-sheen,
+  #zzglass-unselected-spread,
+  #zzglass-unselected-tint { display: none !important; }
+}
+@media not (-moz-pref("zzglass.unselected.blur")) {
+  #zzglass-unselected-blur-radius { display: none !important; }
+}
+@media not (-moz-pref("zzglass.unselected.rim")) {
+  #zzglass-edges-unselected-axis,
+  #zzglass-edges-unselected-color,
+  #zzglass-edges-unselected-edge,
+  #zzglass-edges-unselected-fade,
+  #zzglass-edges-unselected-reach,
+  #zzglass-edges-unselected-ring,
+  #zzglass-edges-unselected-ring-width,
+  #zzglass-edges-unselected-thickness,
+  #zzglass-edges-unselected-top { display: none !important; }
 }
 @media not (-moz-pref("zzglass.edges.unselected-fade")) {
   #zzglass-edges-unselected-axis,
   #zzglass-edges-unselected-reach { display: none !important; }
 }
-@media not (-moz-pref("zzglass.hover.rim")) {
-  #zzglass-edges-hover-top,
-  #zzglass-edges-hover-ring,
-  #zzglass-edges-hover-fade,
+@media (-moz-pref("zzglass.edges.unselected-edge", 4)) {
+  #zzglass-edges-unselected-thickness,
+  #zzglass-edges-unselected-top { display: none !important; }
+}
+@media (-moz-pref("zzglass.unselected.end-mode", 0)) {
+  #zzglass-unselected-end-tint { display: none !important; }
+}
+@media not (-moz-pref("zzglass.hover.enabled")) {
   #zzglass-edges-hover-axis,
-  #zzglass-edges-hover-reach { display: none !important; }
+  #zzglass-edges-hover-color,
+  #zzglass-edges-hover-edge,
+  #zzglass-edges-hover-fade,
+  #zzglass-edges-hover-reach,
+  #zzglass-edges-hover-ring,
+  #zzglass-edges-hover-ring-width,
+  #zzglass-edges-hover-thickness,
+  #zzglass-edges-hover-top,
+  #zzglass-hover-blur,
+  #zzglass-hover-blur-radius,
+  #zzglass-hover-direction,
+  #zzglass-hover-end-mode,
+  #zzglass-hover-end-tint,
+  #zzglass-hover-glow,
+  #zzglass-hover-opacity,
+  #zzglass-hover-rim,
+  #zzglass-hover-sheen,
+  #zzglass-hover-spread,
+  #zzglass-hover-tint { display: none !important; }
+}
+@media not (-moz-pref("zzglass.hover.blur")) {
+  #zzglass-hover-blur-radius { display: none !important; }
+}
+@media not (-moz-pref("zzglass.hover.rim")) {
+  #zzglass-edges-hover-axis,
+  #zzglass-edges-hover-color,
+  #zzglass-edges-hover-edge,
+  #zzglass-edges-hover-fade,
+  #zzglass-edges-hover-reach,
+  #zzglass-edges-hover-ring,
+  #zzglass-edges-hover-ring-width,
+  #zzglass-edges-hover-thickness,
+  #zzglass-edges-hover-top { display: none !important; }
 }
 @media not (-moz-pref("zzglass.edges.hover-fade")) {
   #zzglass-edges-hover-axis,
   #zzglass-edges-hover-reach { display: none !important; }
 }
-@media not (-moz-pref("zzglass.pending.rim")) {
-  #zzglass-edges-pending-top,
-  #zzglass-edges-pending-ring,
-  #zzglass-edges-pending-fade,
+@media (-moz-pref("zzglass.edges.hover-edge", 4)) {
+  #zzglass-edges-hover-thickness,
+  #zzglass-edges-hover-top { display: none !important; }
+}
+@media (-moz-pref("zzglass.hover.end-mode", 0)) {
+  #zzglass-hover-end-tint { display: none !important; }
+}
+@media not (-moz-pref("zzglass.pending.enabled")) {
   #zzglass-edges-pending-axis,
-  #zzglass-edges-pending-reach { display: none !important; }
+  #zzglass-edges-pending-color,
+  #zzglass-edges-pending-edge,
+  #zzglass-edges-pending-fade,
+  #zzglass-edges-pending-reach,
+  #zzglass-edges-pending-ring,
+  #zzglass-edges-pending-ring-width,
+  #zzglass-edges-pending-thickness,
+  #zzglass-edges-pending-top,
+  #zzglass-pending-blur,
+  #zzglass-pending-blur-radius,
+  #zzglass-pending-direction,
+  #zzglass-pending-end-mode,
+  #zzglass-pending-end-tint,
+  #zzglass-pending-glow,
+  #zzglass-pending-opacity,
+  #zzglass-pending-rim,
+  #zzglass-pending-sheen,
+  #zzglass-pending-spread,
+  #zzglass-pending-tint { display: none !important; }
+}
+@media not (-moz-pref("zzglass.pending.blur")) {
+  #zzglass-pending-blur-radius { display: none !important; }
+}
+@media not (-moz-pref("zzglass.pending.rim")) {
+  #zzglass-edges-pending-axis,
+  #zzglass-edges-pending-color,
+  #zzglass-edges-pending-edge,
+  #zzglass-edges-pending-fade,
+  #zzglass-edges-pending-reach,
+  #zzglass-edges-pending-ring,
+  #zzglass-edges-pending-ring-width,
+  #zzglass-edges-pending-thickness,
+  #zzglass-edges-pending-top { display: none !important; }
 }
 @media not (-moz-pref("zzglass.edges.pending-fade")) {
   #zzglass-edges-pending-axis,
   #zzglass-edges-pending-reach { display: none !important; }
 }
+@media (-moz-pref("zzglass.edges.pending-edge", 4)) {
+  #zzglass-edges-pending-thickness,
+  #zzglass-edges-pending-top { display: none !important; }
+}
+@media (-moz-pref("zzglass.pending.end-mode", 0)) {
+  #zzglass-pending-end-tint { display: none !important; }
+}
 @media not (-moz-pref("zzglass.edges.enabled")) {
-  [id^="zzglass-edges-"] { display: none !important; }
+  #zzglass-edges-hover-axis,
+  #zzglass-edges-hover-color,
+  #zzglass-edges-hover-edge,
+  #zzglass-edges-hover-fade,
+  #zzglass-edges-hover-reach,
+  #zzglass-edges-hover-ring,
+  #zzglass-edges-hover-ring-width,
+  #zzglass-edges-hover-thickness,
+  #zzglass-edges-hover-top,
+  #zzglass-edges-pending-axis,
+  #zzglass-edges-pending-color,
+  #zzglass-edges-pending-edge,
+  #zzglass-edges-pending-fade,
+  #zzglass-edges-pending-reach,
+  #zzglass-edges-pending-ring,
+  #zzglass-edges-pending-ring-width,
+  #zzglass-edges-pending-thickness,
+  #zzglass-edges-pending-top,
+  #zzglass-edges-selected-axis,
+  #zzglass-edges-selected-color,
+  #zzglass-edges-selected-edge,
+  #zzglass-edges-selected-fade,
+  #zzglass-edges-selected-reach,
+  #zzglass-edges-selected-ring,
+  #zzglass-edges-selected-ring-width,
+  #zzglass-edges-selected-thickness,
+  #zzglass-edges-selected-top,
+  #zzglass-edges-unselected-axis,
+  #zzglass-edges-unselected-color,
+  #zzglass-edges-unselected-edge,
+  #zzglass-edges-unselected-fade,
+  #zzglass-edges-unselected-reach,
+  #zzglass-edges-unselected-ring,
+  #zzglass-edges-unselected-ring-width,
+  #zzglass-edges-unselected-thickness,
+  #zzglass-edges-unselected-top { display: none !important; }
+}
+@media not (-moz-pref("zzglass.font.enabled")) {
+  #zzglass-font-custom,
+  #zzglass-font-letter-spacing,
+  #zzglass-font-line-height,
+  #zzglass-font-preset,
+  #zzglass-font-word-spacing { display: none !important; }
+}
+@media not (-moz-pref("zzglass.font.size.enabled")) {
+  #zzglass-font-size-folders,
+  #zzglass-font-size-footer,
+  #zzglass-font-size-menus,
+  #zzglass-font-size-searchbar,
+  #zzglass-font-size-tabs,
+  #zzglass-font-size-urlbar,
+  #zzglass-font-size-workspace-title { display: none !important; }
+}
+@media not (-moz-pref("zzglass.font.preset", 0)) {
+  #zzglass-font-custom { display: none !important; }
+}
+@media not (-moz-pref("zzglass.color.source", 2)) {
+  #zzglass-color-custom { display: none !important; }
 }

@@ -46,9 +46,47 @@
   /* Colourless by default: pure blur, no hue shift. */
   --zzg-fx: ;
 }
+
+:root {
+  /* ---- base values for every gated token ----------------------------
+     Each of these was previously set ONLY inside a pref media query. Sine
+     does not inject pref variables until something triggers a rebuild
+     (measured on a live profile: absent on every launch), and a media
+     query keyed on an absent pref does not match -- so the token stayed
+     undefined, its var() had no fallback, and the whole declaration was
+     invalid at computed-value time. That is why the sidebar had no
+     background until a mod reload: --zzg-sdir was undefined, so the
+     gradient and then --zzg-sb-img were invalid.
+
+     These defaults reproduce the shipped look exactly; a matching media
+     query still overrides any of them. ------------------------------- */
+  --zzg-sdir: to right;          /* sidebar gradient direction */
+  --zzg-dir: 135deg;             /* tab gradient direction */
+  --zzg-spread: 50%;             /* tab gradient spread */
+  --zzg-a: var(--zzg-fallback);  /* gradient stop A */
+  --zzg-b: transparent;          /* gradient stop B */
+  --zzg-rim-t: 1px;              /* rim highlight thickness */
+  --zzg-rim-w: 1px;              /* rim ring thickness */
+  --zzg-edge-dir-selected: var(--zzg-dir);
+  --zzg-edge-dir-unselected: var(--zzg-dir);
+  --zzg-edge-dir-hover: var(--zzg-dir);
+  --zzg-edge-dir-pending: var(--zzg-dir);
+  --zzg-btn-size: 12px;
+  --zzg-btn-gap: 8px;
+  --zzg-btn-op: 1;
+  --zzg-btn-oval: 50%;
+  --zzg-close: rgba(128, 0, 215, 0.78);
+  --zzg-min: rgba(0, 96, 223, 0.78);
+  --zzg-max: rgba(0, 132, 93, 0.80);
+  --zzg-rest: transparent;
+  --zzg-glyph: transparent;
+  --zzg-width: 100%;
+  --zzg-width-hover: 100%;
+}
 @media (not (-moz-pref("zzglass.glass.colorless"))) {
   :root { --zzg-fx: saturate(180%) brightness(1.06) contrast(1.05); }
 }
+
 
 :root {
   /* sidebar fill, assembled once so every target reuses it */

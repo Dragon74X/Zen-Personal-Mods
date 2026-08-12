@@ -98,6 +98,7 @@
   --zzgf-raw: var(--tab-group-color, var(--zzg-accent, var(--zen-primary-color, #7c8cf8)));
   --zzgf-accent: color-mix(in srgb, var(--zzgf-raw), black var(--zzg-tone, 25%));
   --zzgf-line: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-line-strength, 40%), transparent);
+  --zzgf-junction: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-junction-tint, 25%), transparent);
   /* Stops are percentages so a two-tab subgroup and a twenty-tab group
      fade by the same proportion, not the same pixels. */
   /* Colour ACROSS the rail's width. */
@@ -437,6 +438,14 @@
   /* Size times scale: scale multiplies everything, stroke included,
      because the stroke lives inside the vector. */
   --zzgf-m: calc(var(--zzgroup-marker-size, 7px) * var(--zzgroup-marker-scale, 1));
+  /* Base values for tokens otherwise set only inside value-comparing
+     media queries. Those variants are mutually exclusive, so if none
+     matches -- which is the case whenever the governing pref has not been
+     written yet -- the token stays undefined and every var() on it with no
+     fallback invalidates its whole declaration. Transparent sentinels
+     render nothing rather than erasing the element. */
+  --zzgf-shape: linear-gradient(transparent, transparent);
+  --zzgf-railshape: linear-gradient(black, black);
   --zzgf-maskgrad: linear-gradient(black, black);
 }
 

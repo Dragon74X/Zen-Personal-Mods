@@ -141,6 +141,62 @@
 }
 
 
+
+/* ---- fill stack as a token -----------------------------------------
+   Mirrors exactly what the base rules paint, so the faded-rim path can
+   append a ring layer without re-declaring -- and therefore without
+   overriding the state's own gradient or forcing sheen on. */
+:root { --zzg-fill: var(--zzg-texture),
+  linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)); }
+@media (-moz-pref("zzglass.selected.sheen")) {
+  #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) {
+    --zzg-fill: var(--zzg-texture), var(--zzg-sheen),
+      linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread));
+  }
+}
+@media not (-moz-pref("zzglass.selected.sheen")) {
+  #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) {
+    --zzg-fill: var(--zzg-texture),
+      linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread));
+  }
+}
+@media (-moz-pref("zzglass.unselected.sheen")) {
+  #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) {
+    --zzg-fill: var(--zzg-texture), var(--zzg-sheen),
+      linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread));
+  }
+}
+@media not (-moz-pref("zzglass.unselected.sheen")) {
+  #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) {
+    --zzg-fill: var(--zzg-texture),
+      linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread));
+  }
+}
+@media (-moz-pref("zzglass.hover.sheen")) {
+  #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover {
+    --zzg-fill: var(--zzg-texture), var(--zzg-sheen),
+      linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread));
+  }
+}
+@media not (-moz-pref("zzglass.hover.sheen")) {
+  #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover {
+    --zzg-fill: var(--zzg-texture),
+      linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread));
+  }
+}
+@media (-moz-pref("zzglass.pending.sheen")) {
+  #navigator-toolbox .tabbrowser-tab[pending] {
+    --zzg-fill: var(--zzg-texture), var(--zzg-sheen),
+      linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread));
+  }
+}
+@media not (-moz-pref("zzglass.pending.sheen")) {
+  #navigator-toolbox .tabbrowser-tab[pending] {
+    --zzg-fill: var(--zzg-texture),
+      linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread));
+  }
+}
+
 /* ---------- Selected tab ---------- */
 @media (-moz-pref("zzglass.selected.enabled")) {
   /* defaults first, overrides after -- reversing this was the 3.0 bug */
@@ -1020,44 +1076,44 @@
     box-shadow: none !important;
     border: var(--zzg-rim-w) solid transparent !important;
     background-origin: border-box !important;
-    background-clip: padding-box, padding-box, padding-box, border-box !important;
-    background-image: var(--zzg-texture), var(--zzg-sheen), linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)), linear-gradient(var(--zzg-edge-dir-selected, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-selected-reach, 60%)) !important;
+    background-clip: padding-box, border-box !important;
+    background-image: var(--zzg-fill), linear-gradient(var(--zzg-edge-dir-selected, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-selected-reach, 60%)) !important;
   }
 }
 @media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.selected.rim")) and (-moz-pref("zzglass.edges.selected-fade")) and (-moz-pref("zzglass.edges.selected-edge", 0)) {
   #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-background, #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-stack .tab-background {
-    background-clip: padding-box, padding-box, padding-box, border-box, border-box !important;
-    background-image: var(--zzg-texture), var(--zzg-sheen), linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)), linear-gradient(var(--zzg-edge-dir-selected, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-selected-reach, 60%)), linear-gradient(var(--zzg-edge-dir-selected, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-selected-reach, 60%)) !important;
-    background-size: auto, auto, auto, 100% var(--zzg-rim-t), auto !important;
-    background-position: center center, center center, center center, top, center center !important;
-    background-repeat: repeat, repeat, repeat, no-repeat, repeat !important;
+    background-clip: padding-box, border-box, border-box !important;
+    background-image: var(--zzg-fill), linear-gradient(var(--zzg-edge-dir-selected, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-selected-reach, 60%)), linear-gradient(var(--zzg-edge-dir-selected, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-selected-reach, 60%)) !important;
+    background-size: auto, 100% var(--zzg-rim-t), auto !important;
+    background-position: center center, top, center center !important;
+    background-repeat: repeat, no-repeat, repeat !important;
   }
 }
 @media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.selected.rim")) and (-moz-pref("zzglass.edges.selected-fade")) and (-moz-pref("zzglass.edges.selected-edge", 1)) {
   #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-background, #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-stack .tab-background {
-    background-clip: padding-box, padding-box, padding-box, border-box, border-box !important;
-    background-image: var(--zzg-texture), var(--zzg-sheen), linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)), linear-gradient(var(--zzg-edge-dir-selected, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-selected-reach, 60%)), linear-gradient(var(--zzg-edge-dir-selected, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-selected-reach, 60%)) !important;
-    background-size: auto, auto, auto, 100% var(--zzg-rim-t), auto !important;
-    background-position: center center, center center, center center, bottom, center center !important;
-    background-repeat: repeat, repeat, repeat, no-repeat, repeat !important;
+    background-clip: padding-box, border-box, border-box !important;
+    background-image: var(--zzg-fill), linear-gradient(var(--zzg-edge-dir-selected, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-selected-reach, 60%)), linear-gradient(var(--zzg-edge-dir-selected, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-selected-reach, 60%)) !important;
+    background-size: auto, 100% var(--zzg-rim-t), auto !important;
+    background-position: center center, bottom, center center !important;
+    background-repeat: repeat, no-repeat, repeat !important;
   }
 }
 @media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.selected.rim")) and (-moz-pref("zzglass.edges.selected-fade")) and (-moz-pref("zzglass.edges.selected-edge", 2)) {
   #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-background, #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-stack .tab-background {
-    background-clip: padding-box, padding-box, padding-box, border-box, border-box !important;
-    background-image: var(--zzg-texture), var(--zzg-sheen), linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)), linear-gradient(var(--zzg-edge-dir-selected, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-selected-reach, 60%)), linear-gradient(var(--zzg-edge-dir-selected, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-selected-reach, 60%)) !important;
-    background-size: auto, auto, auto, var(--zzg-rim-t) 100%, auto !important;
-    background-position: center center, center center, center center, left, center center !important;
-    background-repeat: repeat, repeat, repeat, no-repeat, repeat !important;
+    background-clip: padding-box, border-box, border-box !important;
+    background-image: var(--zzg-fill), linear-gradient(var(--zzg-edge-dir-selected, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-selected-reach, 60%)), linear-gradient(var(--zzg-edge-dir-selected, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-selected-reach, 60%)) !important;
+    background-size: auto, var(--zzg-rim-t) 100%, auto !important;
+    background-position: center center, left, center center !important;
+    background-repeat: repeat, no-repeat, repeat !important;
   }
 }
 @media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.selected.rim")) and (-moz-pref("zzglass.edges.selected-fade")) and (-moz-pref("zzglass.edges.selected-edge", 3)) {
   #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-background, #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-stack .tab-background {
-    background-clip: padding-box, padding-box, padding-box, border-box, border-box !important;
-    background-image: var(--zzg-texture), var(--zzg-sheen), linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)), linear-gradient(var(--zzg-edge-dir-selected, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-selected-reach, 60%)), linear-gradient(var(--zzg-edge-dir-selected, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-selected-reach, 60%)) !important;
-    background-size: auto, auto, auto, var(--zzg-rim-t) 100%, auto !important;
-    background-position: center center, center center, center center, right, center center !important;
-    background-repeat: repeat, repeat, repeat, no-repeat, repeat !important;
+    background-clip: padding-box, border-box, border-box !important;
+    background-image: var(--zzg-fill), linear-gradient(var(--zzg-edge-dir-selected, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-selected-reach, 60%)), linear-gradient(var(--zzg-edge-dir-selected, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-selected-reach, 60%)) !important;
+    background-size: auto, var(--zzg-rim-t) 100%, auto !important;
+    background-position: center center, right, center center !important;
+    background-repeat: repeat, no-repeat, repeat !important;
   }
 }
 @media (-moz-pref("zzglass.edges.selected-axis", 1)) { :root { --zzg-edge-dir-selected: to bottom; } }
@@ -1078,44 +1134,44 @@
     box-shadow: none !important;
     border: var(--zzg-rim-w) solid transparent !important;
     background-origin: border-box !important;
-    background-clip: padding-box, padding-box, padding-box, border-box !important;
-    background-image: var(--zzg-texture), var(--zzg-sheen), linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)), linear-gradient(var(--zzg-edge-dir-unselected, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-unselected-reach, 60%)) !important;
+    background-clip: padding-box, border-box !important;
+    background-image: var(--zzg-fill), linear-gradient(var(--zzg-edge-dir-unselected, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-unselected-reach, 60%)) !important;
   }
 }
 @media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.unselected.rim")) and (-moz-pref("zzglass.edges.unselected-fade")) and (-moz-pref("zzglass.edges.unselected-edge", 0)) {
   #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-background, #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-stack .tab-background {
-    background-clip: padding-box, padding-box, padding-box, border-box, border-box !important;
-    background-image: var(--zzg-texture), var(--zzg-sheen), linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)), linear-gradient(var(--zzg-edge-dir-unselected, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-unselected-reach, 60%)), linear-gradient(var(--zzg-edge-dir-unselected, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-unselected-reach, 60%)) !important;
-    background-size: auto, auto, auto, 100% var(--zzg-rim-t), auto !important;
-    background-position: center center, center center, center center, top, center center !important;
-    background-repeat: repeat, repeat, repeat, no-repeat, repeat !important;
+    background-clip: padding-box, border-box, border-box !important;
+    background-image: var(--zzg-fill), linear-gradient(var(--zzg-edge-dir-unselected, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-unselected-reach, 60%)), linear-gradient(var(--zzg-edge-dir-unselected, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-unselected-reach, 60%)) !important;
+    background-size: auto, 100% var(--zzg-rim-t), auto !important;
+    background-position: center center, top, center center !important;
+    background-repeat: repeat, no-repeat, repeat !important;
   }
 }
 @media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.unselected.rim")) and (-moz-pref("zzglass.edges.unselected-fade")) and (-moz-pref("zzglass.edges.unselected-edge", 1)) {
   #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-background, #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-stack .tab-background {
-    background-clip: padding-box, padding-box, padding-box, border-box, border-box !important;
-    background-image: var(--zzg-texture), var(--zzg-sheen), linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)), linear-gradient(var(--zzg-edge-dir-unselected, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-unselected-reach, 60%)), linear-gradient(var(--zzg-edge-dir-unselected, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-unselected-reach, 60%)) !important;
-    background-size: auto, auto, auto, 100% var(--zzg-rim-t), auto !important;
-    background-position: center center, center center, center center, bottom, center center !important;
-    background-repeat: repeat, repeat, repeat, no-repeat, repeat !important;
+    background-clip: padding-box, border-box, border-box !important;
+    background-image: var(--zzg-fill), linear-gradient(var(--zzg-edge-dir-unselected, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-unselected-reach, 60%)), linear-gradient(var(--zzg-edge-dir-unselected, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-unselected-reach, 60%)) !important;
+    background-size: auto, 100% var(--zzg-rim-t), auto !important;
+    background-position: center center, bottom, center center !important;
+    background-repeat: repeat, no-repeat, repeat !important;
   }
 }
 @media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.unselected.rim")) and (-moz-pref("zzglass.edges.unselected-fade")) and (-moz-pref("zzglass.edges.unselected-edge", 2)) {
   #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-background, #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-stack .tab-background {
-    background-clip: padding-box, padding-box, padding-box, border-box, border-box !important;
-    background-image: var(--zzg-texture), var(--zzg-sheen), linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)), linear-gradient(var(--zzg-edge-dir-unselected, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-unselected-reach, 60%)), linear-gradient(var(--zzg-edge-dir-unselected, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-unselected-reach, 60%)) !important;
-    background-size: auto, auto, auto, var(--zzg-rim-t) 100%, auto !important;
-    background-position: center center, center center, center center, left, center center !important;
-    background-repeat: repeat, repeat, repeat, no-repeat, repeat !important;
+    background-clip: padding-box, border-box, border-box !important;
+    background-image: var(--zzg-fill), linear-gradient(var(--zzg-edge-dir-unselected, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-unselected-reach, 60%)), linear-gradient(var(--zzg-edge-dir-unselected, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-unselected-reach, 60%)) !important;
+    background-size: auto, var(--zzg-rim-t) 100%, auto !important;
+    background-position: center center, left, center center !important;
+    background-repeat: repeat, no-repeat, repeat !important;
   }
 }
 @media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.unselected.rim")) and (-moz-pref("zzglass.edges.unselected-fade")) and (-moz-pref("zzglass.edges.unselected-edge", 3)) {
   #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-background, #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-stack .tab-background {
-    background-clip: padding-box, padding-box, padding-box, border-box, border-box !important;
-    background-image: var(--zzg-texture), var(--zzg-sheen), linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)), linear-gradient(var(--zzg-edge-dir-unselected, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-unselected-reach, 60%)), linear-gradient(var(--zzg-edge-dir-unselected, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-unselected-reach, 60%)) !important;
-    background-size: auto, auto, auto, var(--zzg-rim-t) 100%, auto !important;
-    background-position: center center, center center, center center, right, center center !important;
-    background-repeat: repeat, repeat, repeat, no-repeat, repeat !important;
+    background-clip: padding-box, border-box, border-box !important;
+    background-image: var(--zzg-fill), linear-gradient(var(--zzg-edge-dir-unselected, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-unselected-reach, 60%)), linear-gradient(var(--zzg-edge-dir-unselected, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-unselected-reach, 60%)) !important;
+    background-size: auto, var(--zzg-rim-t) 100%, auto !important;
+    background-position: center center, right, center center !important;
+    background-repeat: repeat, no-repeat, repeat !important;
   }
 }
 @media (-moz-pref("zzglass.edges.unselected-axis", 1)) { :root { --zzg-edge-dir-unselected: to bottom; } }
@@ -1136,44 +1192,44 @@
     box-shadow: none !important;
     border: var(--zzg-rim-w) solid transparent !important;
     background-origin: border-box !important;
-    background-clip: padding-box, padding-box, padding-box, border-box !important;
-    background-image: var(--zzg-texture), var(--zzg-sheen), linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)), linear-gradient(var(--zzg-edge-dir-hover, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-hover-reach, 60%)) !important;
+    background-clip: padding-box, border-box !important;
+    background-image: var(--zzg-fill), linear-gradient(var(--zzg-edge-dir-hover, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-hover-reach, 60%)) !important;
   }
 }
 @media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.hover.rim")) and (-moz-pref("zzglass.edges.hover-fade")) and (-moz-pref("zzglass.edges.hover-edge", 0)) {
   #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-background, #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-stack .tab-background {
-    background-clip: padding-box, padding-box, padding-box, border-box, border-box !important;
-    background-image: var(--zzg-texture), var(--zzg-sheen), linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)), linear-gradient(var(--zzg-edge-dir-hover, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-hover-reach, 60%)), linear-gradient(var(--zzg-edge-dir-hover, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-hover-reach, 60%)) !important;
-    background-size: auto, auto, auto, 100% var(--zzg-rim-t), auto !important;
-    background-position: center center, center center, center center, top, center center !important;
-    background-repeat: repeat, repeat, repeat, no-repeat, repeat !important;
+    background-clip: padding-box, border-box, border-box !important;
+    background-image: var(--zzg-fill), linear-gradient(var(--zzg-edge-dir-hover, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-hover-reach, 60%)), linear-gradient(var(--zzg-edge-dir-hover, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-hover-reach, 60%)) !important;
+    background-size: auto, 100% var(--zzg-rim-t), auto !important;
+    background-position: center center, top, center center !important;
+    background-repeat: repeat, no-repeat, repeat !important;
   }
 }
 @media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.hover.rim")) and (-moz-pref("zzglass.edges.hover-fade")) and (-moz-pref("zzglass.edges.hover-edge", 1)) {
   #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-background, #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-stack .tab-background {
-    background-clip: padding-box, padding-box, padding-box, border-box, border-box !important;
-    background-image: var(--zzg-texture), var(--zzg-sheen), linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)), linear-gradient(var(--zzg-edge-dir-hover, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-hover-reach, 60%)), linear-gradient(var(--zzg-edge-dir-hover, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-hover-reach, 60%)) !important;
-    background-size: auto, auto, auto, 100% var(--zzg-rim-t), auto !important;
-    background-position: center center, center center, center center, bottom, center center !important;
-    background-repeat: repeat, repeat, repeat, no-repeat, repeat !important;
+    background-clip: padding-box, border-box, border-box !important;
+    background-image: var(--zzg-fill), linear-gradient(var(--zzg-edge-dir-hover, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-hover-reach, 60%)), linear-gradient(var(--zzg-edge-dir-hover, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-hover-reach, 60%)) !important;
+    background-size: auto, 100% var(--zzg-rim-t), auto !important;
+    background-position: center center, bottom, center center !important;
+    background-repeat: repeat, no-repeat, repeat !important;
   }
 }
 @media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.hover.rim")) and (-moz-pref("zzglass.edges.hover-fade")) and (-moz-pref("zzglass.edges.hover-edge", 2)) {
   #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-background, #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-stack .tab-background {
-    background-clip: padding-box, padding-box, padding-box, border-box, border-box !important;
-    background-image: var(--zzg-texture), var(--zzg-sheen), linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)), linear-gradient(var(--zzg-edge-dir-hover, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-hover-reach, 60%)), linear-gradient(var(--zzg-edge-dir-hover, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-hover-reach, 60%)) !important;
-    background-size: auto, auto, auto, var(--zzg-rim-t) 100%, auto !important;
-    background-position: center center, center center, center center, left, center center !important;
-    background-repeat: repeat, repeat, repeat, no-repeat, repeat !important;
+    background-clip: padding-box, border-box, border-box !important;
+    background-image: var(--zzg-fill), linear-gradient(var(--zzg-edge-dir-hover, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-hover-reach, 60%)), linear-gradient(var(--zzg-edge-dir-hover, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-hover-reach, 60%)) !important;
+    background-size: auto, var(--zzg-rim-t) 100%, auto !important;
+    background-position: center center, left, center center !important;
+    background-repeat: repeat, no-repeat, repeat !important;
   }
 }
 @media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.hover.rim")) and (-moz-pref("zzglass.edges.hover-fade")) and (-moz-pref("zzglass.edges.hover-edge", 3)) {
   #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-background, #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-stack .tab-background {
-    background-clip: padding-box, padding-box, padding-box, border-box, border-box !important;
-    background-image: var(--zzg-texture), var(--zzg-sheen), linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)), linear-gradient(var(--zzg-edge-dir-hover, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-hover-reach, 60%)), linear-gradient(var(--zzg-edge-dir-hover, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-hover-reach, 60%)) !important;
-    background-size: auto, auto, auto, var(--zzg-rim-t) 100%, auto !important;
-    background-position: center center, center center, center center, right, center center !important;
-    background-repeat: repeat, repeat, repeat, no-repeat, repeat !important;
+    background-clip: padding-box, border-box, border-box !important;
+    background-image: var(--zzg-fill), linear-gradient(var(--zzg-edge-dir-hover, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-hover-reach, 60%)), linear-gradient(var(--zzg-edge-dir-hover, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-hover-reach, 60%)) !important;
+    background-size: auto, var(--zzg-rim-t) 100%, auto !important;
+    background-position: center center, right, center center !important;
+    background-repeat: repeat, no-repeat, repeat !important;
   }
 }
 @media (-moz-pref("zzglass.edges.hover-axis", 1)) { :root { --zzg-edge-dir-hover: to bottom; } }
@@ -1194,44 +1250,44 @@
     box-shadow: none !important;
     border: var(--zzg-rim-w) solid transparent !important;
     background-origin: border-box !important;
-    background-clip: padding-box, padding-box, padding-box, border-box !important;
-    background-image: var(--zzg-texture), var(--zzg-sheen), linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)), linear-gradient(var(--zzg-edge-dir-pending, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-pending-reach, 60%)) !important;
+    background-clip: padding-box, border-box !important;
+    background-image: var(--zzg-fill), linear-gradient(var(--zzg-edge-dir-pending, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-pending-reach, 60%)) !important;
   }
 }
 @media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.pending.rim")) and (-moz-pref("zzglass.edges.pending-fade")) and (-moz-pref("zzglass.edges.pending-edge", 0)) {
   #navigator-toolbox .tabbrowser-tab[pending] .tab-background, #navigator-toolbox .tabbrowser-tab[pending] .tab-stack .tab-background {
-    background-clip: padding-box, padding-box, padding-box, border-box, border-box !important;
-    background-image: var(--zzg-texture), var(--zzg-sheen), linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)), linear-gradient(var(--zzg-edge-dir-pending, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-pending-reach, 60%)), linear-gradient(var(--zzg-edge-dir-pending, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-pending-reach, 60%)) !important;
-    background-size: auto, auto, auto, 100% var(--zzg-rim-t), auto !important;
-    background-position: center center, center center, center center, top, center center !important;
-    background-repeat: repeat, repeat, repeat, no-repeat, repeat !important;
+    background-clip: padding-box, border-box, border-box !important;
+    background-image: var(--zzg-fill), linear-gradient(var(--zzg-edge-dir-pending, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-pending-reach, 60%)), linear-gradient(var(--zzg-edge-dir-pending, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-pending-reach, 60%)) !important;
+    background-size: auto, 100% var(--zzg-rim-t), auto !important;
+    background-position: center center, top, center center !important;
+    background-repeat: repeat, no-repeat, repeat !important;
   }
 }
 @media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.pending.rim")) and (-moz-pref("zzglass.edges.pending-fade")) and (-moz-pref("zzglass.edges.pending-edge", 1)) {
   #navigator-toolbox .tabbrowser-tab[pending] .tab-background, #navigator-toolbox .tabbrowser-tab[pending] .tab-stack .tab-background {
-    background-clip: padding-box, padding-box, padding-box, border-box, border-box !important;
-    background-image: var(--zzg-texture), var(--zzg-sheen), linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)), linear-gradient(var(--zzg-edge-dir-pending, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-pending-reach, 60%)), linear-gradient(var(--zzg-edge-dir-pending, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-pending-reach, 60%)) !important;
-    background-size: auto, auto, auto, 100% var(--zzg-rim-t), auto !important;
-    background-position: center center, center center, center center, bottom, center center !important;
-    background-repeat: repeat, repeat, repeat, no-repeat, repeat !important;
+    background-clip: padding-box, border-box, border-box !important;
+    background-image: var(--zzg-fill), linear-gradient(var(--zzg-edge-dir-pending, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-pending-reach, 60%)), linear-gradient(var(--zzg-edge-dir-pending, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-pending-reach, 60%)) !important;
+    background-size: auto, 100% var(--zzg-rim-t), auto !important;
+    background-position: center center, bottom, center center !important;
+    background-repeat: repeat, no-repeat, repeat !important;
   }
 }
 @media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.pending.rim")) and (-moz-pref("zzglass.edges.pending-fade")) and (-moz-pref("zzglass.edges.pending-edge", 2)) {
   #navigator-toolbox .tabbrowser-tab[pending] .tab-background, #navigator-toolbox .tabbrowser-tab[pending] .tab-stack .tab-background {
-    background-clip: padding-box, padding-box, padding-box, border-box, border-box !important;
-    background-image: var(--zzg-texture), var(--zzg-sheen), linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)), linear-gradient(var(--zzg-edge-dir-pending, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-pending-reach, 60%)), linear-gradient(var(--zzg-edge-dir-pending, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-pending-reach, 60%)) !important;
-    background-size: auto, auto, auto, var(--zzg-rim-t) 100%, auto !important;
-    background-position: center center, center center, center center, left, center center !important;
-    background-repeat: repeat, repeat, repeat, no-repeat, repeat !important;
+    background-clip: padding-box, border-box, border-box !important;
+    background-image: var(--zzg-fill), linear-gradient(var(--zzg-edge-dir-pending, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-pending-reach, 60%)), linear-gradient(var(--zzg-edge-dir-pending, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-pending-reach, 60%)) !important;
+    background-size: auto, var(--zzg-rim-t) 100%, auto !important;
+    background-position: center center, left, center center !important;
+    background-repeat: repeat, no-repeat, repeat !important;
   }
 }
 @media (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.pending.rim")) and (-moz-pref("zzglass.edges.pending-fade")) and (-moz-pref("zzglass.edges.pending-edge", 3)) {
   #navigator-toolbox .tabbrowser-tab[pending] .tab-background, #navigator-toolbox .tabbrowser-tab[pending] .tab-stack .tab-background {
-    background-clip: padding-box, padding-box, padding-box, border-box, border-box !important;
-    background-image: var(--zzg-texture), var(--zzg-sheen), linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)), linear-gradient(var(--zzg-edge-dir-pending, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-pending-reach, 60%)), linear-gradient(var(--zzg-edge-dir-pending, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-pending-reach, 60%)) !important;
-    background-size: auto, auto, auto, var(--zzg-rim-t) 100%, auto !important;
-    background-position: center center, center center, center center, right, center center !important;
-    background-repeat: repeat, repeat, repeat, no-repeat, repeat !important;
+    background-clip: padding-box, border-box, border-box !important;
+    background-image: var(--zzg-fill), linear-gradient(var(--zzg-edge-dir-pending, var(--zzg-dir)), var(--zzg-rim-top) 0%, transparent var(--zzglass-edges-pending-reach, 60%)), linear-gradient(var(--zzg-edge-dir-pending, var(--zzg-dir)), var(--zzg-rim-all) 0%, transparent var(--zzglass-edges-pending-reach, 60%)) !important;
+    background-size: auto, var(--zzg-rim-t) 100%, auto !important;
+    background-position: center center, right, center center !important;
+    background-repeat: repeat, no-repeat, repeat !important;
   }
 }
 @media (-moz-pref("zzglass.edges.pending-axis", 1)) { :root { --zzg-edge-dir-pending: to bottom; } }

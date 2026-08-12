@@ -10,11 +10,28 @@
   const P = "zzturbo.";
   const bool = (k, d) => { try { return Services.prefs.getBoolPref(P + k, d); } catch { return d; } };
   const str  = (k, d) => { try { return Services.prefs.getStringPref(P + k, d); } catch { return d; } };
-  function num(k, d) {
-    try { const v = Services.prefs.getIntPref(P + k); if (Number.isFinite(v)) return v; } catch {}
-    try { const v = parseFloat(Services.prefs.getStringPref(P + k)); if (Number.isFinite(v)) return v; } catch {}
+  // Types are CHECKED, never guessed by attempting reads. Calling
+  // getIntPref on a string pref (or getStringPref on a bool) throws
+  // NS_ERROR_UNEXPECTED, and Firefox logs every one even when it is
+  // caught -- and num() runs per tab per sweep, so that logs continuously.
+  function prefNum(full, d) {
+    const S = Services.prefs;
+    let t;
+    try { t = S.getPrefType(full); } catch { return d; }
+    try {
+      if (t === S.PREF_INT) {
+        const v = S.getIntPref(full);
+        return Number.isFinite(v) ? v : d;
+      }
+      if (t === S.PREF_STRING) {
+        const v = parseFloat(S.getStringPref(full));
+        return Number.isFinite(v) ? v : d;
+      }
+    } catch {}
     return d;
   }
+
+  function num(k, d) { return prefNum(P + k, d); }
 
   let log = [];
   const note = (m) => {

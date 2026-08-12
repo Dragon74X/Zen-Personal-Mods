@@ -26,29 +26,45 @@
     const root = document.documentElement;
     for (const leaf of names) {
       const full = PREFIX + leaf;
-      let value = null;
-      // getPrefType constants are not reliable on a branch object, so the
-      // type is discovered by attempting each read.
-      try { value = Services.prefs.getStringPref(full); } catch {}
-      if (value === null) {
-        try { value = String(Services.prefs.getIntPref(full)); } catch {}
-      }
-      if (value === null || value === "") continue;   // empty would invalidate
-      root.style.setProperty("--" + (PREFIX + leaf).replace(/\./g, "-").replace(/-$/, ""), value);
+      const value = readPrefValue(full);
+      if (value === null) continue;
+      try {
+        root.style.setProperty("--" + full.replace(/\./g, "-"), value);
+      } catch {}
     }
+  }
+
+  // The type is CHECKED, never guessed by attempting reads: calling
+  // getStringPref on a boolean throws NS_ERROR_UNEXPECTED, and Firefox logs
+  // every one of those even when it is caught -- which floods the console
+  // with "failed to read pref" for every boolean in the branch. Booleans are
+  // skipped entirely; they are read with -moz-pref(), never as variables.
+  function readPrefValue(full) {
+    const P = Services.prefs;
+    let type;
+    try { type = P.getPrefType(full); } catch { return null; }
+    try {
+      if (type === P.PREF_STRING) {
+        const v = P.getStringPref(full);
+        return v === "" ? null : v;     // empty would invalidate a declaration
+      }
+      if (type === P.PREF_INT) return String(P.getIntPref(full));
+    } catch {}
+    return null;                        // booleans and unknown types
   }
 
   const prefVarObserver = {
     observe(_s, _t, data) {
       if (!data || !data.startsWith(PREFIX)) return;
-      let value = null;
-      try { value = Services.prefs.getStringPref(data); } catch {}
-      if (value === null) { try { value = String(Services.prefs.getIntPref(data)); } catch {} }
       const name = "--" + data.replace(/\./g, "-");
-      if (value === null || value === "") document.documentElement.style.removeProperty(name);
-      else document.documentElement.style.setProperty(name, value);
+      const value = readPrefValue(data);
+      try {
+        if (value === null) document.documentElement.style.removeProperty(name);
+        else document.documentElement.style.setProperty(name, value);
+      } catch {}
     },
   };
+
 
   function start() {
     injectPrefVars();

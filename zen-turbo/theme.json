@@ -3,7 +3,7 @@
   "name": "Zen Turbo",
   "description": "Real, reversible performance tuning: network pref packs, hover connection warmup, startup warmup of your frequent sites. No snake oil.",
   "author": "Dragon74X",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "homepage": "https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/zen-turbo",
   "readme": "https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/main/zen-turbo/README.md",
   "style": {

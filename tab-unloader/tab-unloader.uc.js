@@ -16,18 +16,28 @@
   // undefined the switch falls through to the default and every value
   // silently becomes the fallback -- which is why 1.1 behaved as if the
   // idle threshold were 1800 no matter what was typed. Try both reads.
-  function num(key, dflt) {
-    const full = P + key;
+  // Types are CHECKED, never guessed by attempting reads. Calling
+  // getIntPref on a string pref (or getStringPref on a bool) throws
+  // NS_ERROR_UNEXPECTED, and Firefox logs every one even when it is
+  // caught -- and num() runs per tab per sweep, so that logs continuously.
+  function prefNum(full, d) {
+    const S = Services.prefs;
+    let t;
+    try { t = S.getPrefType(full); } catch { return d; }
     try {
-      const v = Services.prefs.getIntPref(full);
-      if (Number.isFinite(v)) return v;
+      if (t === S.PREF_INT) {
+        const v = S.getIntPref(full);
+        return Number.isFinite(v) ? v : d;
+      }
+      if (t === S.PREF_STRING) {
+        const v = parseFloat(S.getStringPref(full));
+        return Number.isFinite(v) ? v : d;
+      }
     } catch {}
-    try {
-      const v = parseFloat(Services.prefs.getStringPref(full));
-      if (Number.isFinite(v)) return v;
-    } catch {}
-    return dflt;
+    return d;
   }
+
+  function num(key, dflt) { return prefNum(P + key, dflt); }
   const bool = (k, d) => { try { return Services.prefs.getBoolPref(P + k, d); } catch { return d; } };
   const str  = (k, d) => { try { return Services.prefs.getStringPref(P + k, d); } catch { return d; } };
 

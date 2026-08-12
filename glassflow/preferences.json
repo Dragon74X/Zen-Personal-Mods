@@ -1489,5 +1489,123 @@
     "label": "Edge fade reach *How far the light travels before fading out, as a percentage.*",
     "defaultValue": "60%",
     "placeholder": "60%"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.edges.per-state",
+    "label": "Per-state edge geometry and fade *Unlocks separate offset, ring width and fade reach for each tab state, so a selected tab's edge can be lit and faded differently from an unloaded one. Any value left blank keeps the global setting above.*",
+    "defaultValue": false
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.selected-x",
+    "label": "Selected: highlight offset across",
+    "defaultValue": "0px",
+    "placeholder": "0px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.selected-y",
+    "label": "Selected: highlight offset down",
+    "defaultValue": "1px",
+    "placeholder": "1px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.selected-width",
+    "label": "Selected: ring thickness",
+    "defaultValue": "1px",
+    "placeholder": "1px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.selected-reach",
+    "label": "Selected: fade reach *How far this state's edge light travels before fading out.*",
+    "defaultValue": "60%",
+    "placeholder": "60%"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.unselected-x",
+    "label": "Unselected: highlight offset across",
+    "defaultValue": "0px",
+    "placeholder": "0px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.unselected-y",
+    "label": "Unselected: highlight offset down",
+    "defaultValue": "1px",
+    "placeholder": "1px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.unselected-width",
+    "label": "Unselected: ring thickness",
+    "defaultValue": "1px",
+    "placeholder": "1px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.unselected-reach",
+    "label": "Unselected: fade reach *How far this state's edge light travels before fading out.*",
+    "defaultValue": "60%",
+    "placeholder": "60%"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.hover-x",
+    "label": "Hover: highlight offset across",
+    "defaultValue": "0px",
+    "placeholder": "0px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.hover-y",
+    "label": "Hover: highlight offset down",
+    "defaultValue": "1px",
+    "placeholder": "1px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.hover-width",
+    "label": "Hover: ring thickness",
+    "defaultValue": "1px",
+    "placeholder": "1px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.hover-reach",
+    "label": "Hover: fade reach *How far this state's edge light travels before fading out.*",
+    "defaultValue": "60%",
+    "placeholder": "60%"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.pending-x",
+    "label": "Unloaded: highlight offset across",
+    "defaultValue": "0px",
+    "placeholder": "0px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.pending-y",
+    "label": "Unloaded: highlight offset down",
+    "defaultValue": "1px",
+    "placeholder": "1px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.pending-width",
+    "label": "Unloaded: ring thickness",
+    "defaultValue": "1px",
+    "placeholder": "1px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.pending-reach",
+    "label": "Unloaded: fade reach *How far this state's edge light travels before fading out.*",
+    "defaultValue": "60%",
+    "placeholder": "60%"
   }
 ]

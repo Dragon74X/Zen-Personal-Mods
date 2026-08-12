@@ -823,8 +823,9 @@
 @media (-moz-pref("zzglass.edges.geometry")) {
   #navigator-toolbox .tabbrowser-tab .tab-background {
     box-shadow:
-      inset var(--zzglass-edges-x, 0px) var(--zzglass-edges-y, 1px) 0 var(--zzg-rim-top),
-      inset 0 0 0 var(--zzglass-edges-width, 1px) var(--zzg-rim-all) !important;
+      inset var(--zzg-edge-x, var(--zzglass-edges-x, 0px))
+            var(--zzg-edge-y, var(--zzglass-edges-y, 1px)) 0 var(--zzg-rim-top),
+      inset 0 0 0 var(--zzg-edge-w, var(--zzglass-edges-width, 1px)) var(--zzg-rim-all) !important;
   }
 }
 
@@ -835,17 +836,35 @@
    is not. */
 @media (-moz-pref("zzglass.edges.fade")) {
   #navigator-toolbox .tabbrowser-tab .tab-background { box-shadow: none !important; }
-  #navigator-toolbox .tabbrowser-tab .tab-stack { position: relative; }
+  #navigator-toolbox .tabbrowser-tab .tab-stack {
+    position: relative;
+    /* The per-state tokens are declared on .tab-background, which is a
+       sibling subtree, so they are re-derived here from the tab's own
+       state rather than inherited. */
+  }
+  #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-stack {
+    --zzg-edge-reach: var(--zzglass-edges-selected-reach, var(--zzglass-edges-reach, 60%));
+  }
+  #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-stack {
+    --zzg-edge-reach: var(--zzglass-edges-unselected-reach, var(--zzglass-edges-reach, 60%));
+  }
+  #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-stack {
+    --zzg-edge-reach: var(--zzglass-edges-hover-reach, var(--zzglass-edges-reach, 60%));
+  }
+  #navigator-toolbox .tabbrowser-tab[pending] .tab-stack {
+    --zzg-edge-reach: var(--zzglass-edges-pending-reach, var(--zzglass-edges-reach, 60%));
+  }
   #navigator-toolbox .tabbrowser-tab .tab-stack::after {
     content: "";
     position: absolute;
     inset: 0;
     border-radius: var(--zzg-round, 10px);
     box-shadow:
-      inset var(--zzglass-edges-x, 0px) var(--zzglass-edges-y, 1px) 0 var(--zzg-rim-top),
-      inset 0 0 0 var(--zzglass-edges-width, 1px) var(--zzg-rim-all);
+      inset var(--zzg-edge-x, var(--zzglass-edges-x, 0px))
+            var(--zzg-edge-y, var(--zzglass-edges-y, 1px)) 0 var(--zzg-rim-top),
+      inset 0 0 0 var(--zzg-edge-w, var(--zzglass-edges-width, 1px)) var(--zzg-rim-all);
     mask-image: linear-gradient(var(--zzg-edge-dir, var(--zzg-dir, 135deg)),
-      black 0%, transparent var(--zzglass-edges-reach, 60%));
+      black 0%, transparent var(--zzg-edge-reach, var(--zzglass-edges-reach, 60%)));
     pointer-events: none;
     z-index: 2;
   }
@@ -857,3 +876,36 @@
 @media (-moz-pref("zzglass.edges.axis", 4)) { :root { --zzg-edge-dir: to left; } }
 @media (-moz-pref("zzglass.edges.axis", 5)) { :root { --zzg-edge-dir: 135deg; } }
 @media (-moz-pref("zzglass.edges.axis", 6)) { :root { --zzg-edge-dir: 45deg; } }
+
+
+/* Per-state edge geometry and fade. The strengths above already retune each
+   state's rim through --zzg-rim-*; these add the same per-state control over
+   the light's OFFSET, RING WIDTH and FADE REACH, so an edge can fade
+   differently on a selected tab than on an unloaded one. Tokens are declared
+   on the very same state selectors, so no new element is touched and any
+   value left at its default keeps the global setting. */
+@media (-moz-pref("zzglass.edges.per-state")) {  #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-background {
+    --zzg-edge-x: var(--zzglass-edges-selected-x, var(--zzglass-edges-x, 0px));
+    --zzg-edge-y: var(--zzglass-edges-selected-y, var(--zzglass-edges-y, 1px));
+    --zzg-edge-w: var(--zzglass-edges-selected-width, var(--zzglass-edges-width, 1px));
+    --zzg-edge-reach: var(--zzglass-edges-selected-reach, var(--zzglass-edges-reach, 60%));
+  }
+  #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-background {
+    --zzg-edge-x: var(--zzglass-edges-unselected-x, var(--zzglass-edges-x, 0px));
+    --zzg-edge-y: var(--zzglass-edges-unselected-y, var(--zzglass-edges-y, 1px));
+    --zzg-edge-w: var(--zzglass-edges-unselected-width, var(--zzglass-edges-width, 1px));
+    --zzg-edge-reach: var(--zzglass-edges-unselected-reach, var(--zzglass-edges-reach, 60%));
+  }
+  #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-background {
+    --zzg-edge-x: var(--zzglass-edges-hover-x, var(--zzglass-edges-x, 0px));
+    --zzg-edge-y: var(--zzglass-edges-hover-y, var(--zzglass-edges-y, 1px));
+    --zzg-edge-w: var(--zzglass-edges-hover-width, var(--zzglass-edges-width, 1px));
+    --zzg-edge-reach: var(--zzglass-edges-hover-reach, var(--zzglass-edges-reach, 60%));
+  }
+  #navigator-toolbox .tabbrowser-tab[pending] .tab-background {
+    --zzg-edge-x: var(--zzglass-edges-pending-x, var(--zzglass-edges-x, 0px));
+    --zzg-edge-y: var(--zzglass-edges-pending-y, var(--zzglass-edges-y, 1px));
+    --zzg-edge-w: var(--zzglass-edges-pending-width, var(--zzglass-edges-width, 1px));
+    --zzg-edge-reach: var(--zzglass-edges-pending-reach, var(--zzglass-edges-reach, 60%));
+  }
+}

@@ -106,3 +106,53 @@
 [id^="zzglass-"]:nth-last-child(-n + 4) .sineItemPreferenceLabel:hover > i {
   transform: translateY(0);
 }
+
+/* Edge rows depend on the state's own Rim light: they retune the shadow
+   that rule draws, so with rim off there is nothing to tune. */
+@media not (-moz-pref("zzglass.selected.rim")) {
+  #zzglass-edges-selected-top,
+  #zzglass-edges-selected-ring,
+  #zzglass-edges-selected-fade,
+  #zzglass-edges-selected-axis,
+  #zzglass-edges-selected-reach { display: none !important; }
+}
+@media not (-moz-pref("zzglass.edges.selected-fade")) {
+  #zzglass-edges-selected-axis,
+  #zzglass-edges-selected-reach { display: none !important; }
+}
+@media not (-moz-pref("zzglass.unselected.rim")) {
+  #zzglass-edges-unselected-top,
+  #zzglass-edges-unselected-ring,
+  #zzglass-edges-unselected-fade,
+  #zzglass-edges-unselected-axis,
+  #zzglass-edges-unselected-reach { display: none !important; }
+}
+@media not (-moz-pref("zzglass.edges.unselected-fade")) {
+  #zzglass-edges-unselected-axis,
+  #zzglass-edges-unselected-reach { display: none !important; }
+}
+@media not (-moz-pref("zzglass.hover.rim")) {
+  #zzglass-edges-hover-top,
+  #zzglass-edges-hover-ring,
+  #zzglass-edges-hover-fade,
+  #zzglass-edges-hover-axis,
+  #zzglass-edges-hover-reach { display: none !important; }
+}
+@media not (-moz-pref("zzglass.edges.hover-fade")) {
+  #zzglass-edges-hover-axis,
+  #zzglass-edges-hover-reach { display: none !important; }
+}
+@media not (-moz-pref("zzglass.pending.rim")) {
+  #zzglass-edges-pending-top,
+  #zzglass-edges-pending-ring,
+  #zzglass-edges-pending-fade,
+  #zzglass-edges-pending-axis,
+  #zzglass-edges-pending-reach { display: none !important; }
+}
+@media not (-moz-pref("zzglass.edges.pending-fade")) {
+  #zzglass-edges-pending-axis,
+  #zzglass-edges-pending-reach { display: none !important; }
+}
+@media not (-moz-pref("zzglass.edges.enabled")) {
+  [id^="zzglass-edges-"] { display: none !important; }
+}

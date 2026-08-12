@@ -285,14 +285,14 @@
   {
     "type": "string",
     "property": "zzglass.edges.selected-top",
-    "label": "Top highlight *Multiplier on the lit edge. 1 is the current strength, 0 removes it.*",
+    "label": "Edge highlight strength *Multiplier on this state's lit edge. 1 is the current strength, 0 removes it. Needs this state's Rim light switched on, since it retunes the shadow that draws.*",
     "defaultValue": "1",
     "placeholder": "1"
   },
   {
     "type": "string",
     "property": "zzglass.edges.selected-ring",
-    "label": "Edge ring *Multiplier on the faint ring around the tab.*",
+    "label": "Edge ring strength *Multiplier on the faint ring around the tab in this state.*",
     "defaultValue": "1",
     "placeholder": "1"
   },
@@ -486,14 +486,14 @@
   {
     "type": "string",
     "property": "zzglass.edges.unselected-top",
-    "label": "Top highlight *Multiplier on the lit edge. 1 is the current strength, 0 removes it.*",
+    "label": "Edge highlight strength *Multiplier on this state's lit edge. 1 is the current strength, 0 removes it. Needs this state's Rim light switched on, since it retunes the shadow that draws.*",
     "defaultValue": "1",
     "placeholder": "1"
   },
   {
     "type": "string",
     "property": "zzglass.edges.unselected-ring",
-    "label": "Edge ring *Multiplier on the faint ring around the tab.*",
+    "label": "Edge ring strength *Multiplier on the faint ring around the tab in this state.*",
     "defaultValue": "1",
     "placeholder": "1"
   },
@@ -687,14 +687,14 @@
   {
     "type": "string",
     "property": "zzglass.edges.hover-top",
-    "label": "Top highlight *Multiplier on the lit edge. 1 is the current strength, 0 removes it.*",
+    "label": "Edge highlight strength *Multiplier on this state's lit edge. 1 is the current strength, 0 removes it. Needs this state's Rim light switched on, since it retunes the shadow that draws.*",
     "defaultValue": "1",
     "placeholder": "1"
   },
   {
     "type": "string",
     "property": "zzglass.edges.hover-ring",
-    "label": "Edge ring *Multiplier on the faint ring around the tab.*",
+    "label": "Edge ring strength *Multiplier on the faint ring around the tab in this state.*",
     "defaultValue": "1",
     "placeholder": "1"
   },
@@ -888,14 +888,14 @@
   {
     "type": "string",
     "property": "zzglass.edges.pending-top",
-    "label": "Top highlight *Multiplier on the lit edge. 1 is the current strength, 0 removes it.*",
+    "label": "Edge highlight strength *Multiplier on this state's lit edge. 1 is the current strength, 0 removes it. Needs this state's Rim light switched on, since it retunes the shadow that draws.*",
     "defaultValue": "1",
     "placeholder": "1"
   },
   {
     "type": "string",
     "property": "zzglass.edges.pending-ring",
-    "label": "Edge ring *Multiplier on the faint ring around the tab.*",
+    "label": "Edge ring strength *Multiplier on the faint ring around the tab in this state.*",
     "defaultValue": "1",
     "placeholder": "1"
   },

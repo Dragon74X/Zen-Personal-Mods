@@ -801,19 +801,19 @@
    ============================================================ */
 
 @media (-moz-pref("zzglass.edges.enabled")) {
-  #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-background {
+  #navigator-toolbox .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) {
     --zzg-rim-top: rgb(255 255 255 / calc(0.42 * var(--zzglass-edges-selected-top, 1) * var(--zzg-glass)));
     --zzg-rim-all: rgb(255 255 255 / calc(0.12 * var(--zzglass-edges-selected-ring, 1) * var(--zzg-glass)));
   }
-  #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-background {
+  #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) {
     --zzg-rim-top: rgb(255 255 255 / calc(0.42 * var(--zzglass-edges-unselected-top, 1) * var(--zzg-glass)));
     --zzg-rim-all: rgb(255 255 255 / calc(0.12 * var(--zzglass-edges-unselected-ring, 1) * var(--zzg-glass)));
   }
-  #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-background {
+  #navigator-toolbox .tabbrowser-tab:not([selected], [visuallyselected]):hover {
     --zzg-rim-top: rgb(255 255 255 / calc(0.42 * var(--zzglass-edges-hover-top, 1) * var(--zzg-glass)));
     --zzg-rim-all: rgb(255 255 255 / calc(0.12 * var(--zzglass-edges-hover-ring, 1) * var(--zzg-glass)));
   }
-  #navigator-toolbox .tabbrowser-tab[pending] .tab-background {
+  #navigator-toolbox .tabbrowser-tab[pending] {
     --zzg-rim-top: rgb(255 255 255 / calc(0.42 * var(--zzglass-edges-pending-top, 1) * var(--zzg-glass)));
     --zzg-rim-all: rgb(255 255 255 / calc(0.12 * var(--zzglass-edges-pending-ring, 1) * var(--zzg-glass)));
   }

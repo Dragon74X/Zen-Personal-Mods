@@ -283,6 +283,70 @@
     "placeholder": "20px"
   },
   {
+    "type": "string",
+    "property": "zzglass.edges.selected-top",
+    "label": "Top highlight *Multiplier on the lit edge. 1 is the current strength, 0 removes it.*",
+    "defaultValue": "1",
+    "placeholder": "1"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.selected-ring",
+    "label": "Edge ring *Multiplier on the faint ring around the tab.*",
+    "defaultValue": "1",
+    "placeholder": "1"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.edges.selected-fade",
+    "label": "Fade the edge light *An even ring fights a gradient that fades. With this on, this state's edge fades along the axis below, so it is bright where the tab's colour is and gone where it has faded.*",
+    "defaultValue": false
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.edges.selected-axis",
+    "label": "Fade axis *Which way this state's edge light fades. Match tab gradient follows the direction the tabs already use.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Match tab gradient",
+        "value": 0
+      },
+      {
+        "label": "Top to bottom",
+        "value": 1
+      },
+      {
+        "label": "Bottom to top",
+        "value": 2
+      },
+      {
+        "label": "Left to right",
+        "value": 3
+      },
+      {
+        "label": "Right to left",
+        "value": 4
+      },
+      {
+        "label": "Diagonal 135\u00b0",
+        "value": 5
+      },
+      {
+        "label": "Diagonal 45\u00b0",
+        "value": 6
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.selected-reach",
+    "label": "Fade reach *How far the light travels before fading out, as a percentage.*",
+    "defaultValue": "60%",
+    "placeholder": "60%"
+  },
+  {
     "type": "separator",
     "label": "Unselected tab",
     "size": "17px",
@@ -418,6 +482,70 @@
     "label": "Blur strength *Only used when frosted blur is on for this state.*",
     "defaultValue": "20px",
     "placeholder": "20px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.unselected-top",
+    "label": "Top highlight *Multiplier on the lit edge. 1 is the current strength, 0 removes it.*",
+    "defaultValue": "1",
+    "placeholder": "1"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.unselected-ring",
+    "label": "Edge ring *Multiplier on the faint ring around the tab.*",
+    "defaultValue": "1",
+    "placeholder": "1"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.edges.unselected-fade",
+    "label": "Fade the edge light *An even ring fights a gradient that fades. With this on, this state's edge fades along the axis below, so it is bright where the tab's colour is and gone where it has faded.*",
+    "defaultValue": false
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.edges.unselected-axis",
+    "label": "Fade axis *Which way this state's edge light fades. Match tab gradient follows the direction the tabs already use.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Match tab gradient",
+        "value": 0
+      },
+      {
+        "label": "Top to bottom",
+        "value": 1
+      },
+      {
+        "label": "Bottom to top",
+        "value": 2
+      },
+      {
+        "label": "Left to right",
+        "value": 3
+      },
+      {
+        "label": "Right to left",
+        "value": 4
+      },
+      {
+        "label": "Diagonal 135\u00b0",
+        "value": 5
+      },
+      {
+        "label": "Diagonal 45\u00b0",
+        "value": 6
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.unselected-reach",
+    "label": "Fade reach *How far the light travels before fading out, as a percentage.*",
+    "defaultValue": "60%",
+    "placeholder": "60%"
   },
   {
     "type": "separator",
@@ -557,6 +685,70 @@
     "placeholder": "20px"
   },
   {
+    "type": "string",
+    "property": "zzglass.edges.hover-top",
+    "label": "Top highlight *Multiplier on the lit edge. 1 is the current strength, 0 removes it.*",
+    "defaultValue": "1",
+    "placeholder": "1"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.hover-ring",
+    "label": "Edge ring *Multiplier on the faint ring around the tab.*",
+    "defaultValue": "1",
+    "placeholder": "1"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.edges.hover-fade",
+    "label": "Fade the edge light *An even ring fights a gradient that fades. With this on, this state's edge fades along the axis below, so it is bright where the tab's colour is and gone where it has faded.*",
+    "defaultValue": false
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.edges.hover-axis",
+    "label": "Fade axis *Which way this state's edge light fades. Match tab gradient follows the direction the tabs already use.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Match tab gradient",
+        "value": 0
+      },
+      {
+        "label": "Top to bottom",
+        "value": 1
+      },
+      {
+        "label": "Bottom to top",
+        "value": 2
+      },
+      {
+        "label": "Left to right",
+        "value": 3
+      },
+      {
+        "label": "Right to left",
+        "value": 4
+      },
+      {
+        "label": "Diagonal 135\u00b0",
+        "value": 5
+      },
+      {
+        "label": "Diagonal 45\u00b0",
+        "value": 6
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.hover-reach",
+    "label": "Fade reach *How far the light travels before fading out, as a percentage.*",
+    "defaultValue": "60%",
+    "placeholder": "60%"
+  },
+  {
     "type": "separator",
     "label": "Unloaded tab",
     "size": "17px",
@@ -694,10 +886,80 @@
     "placeholder": "20px"
   },
   {
+    "type": "string",
+    "property": "zzglass.edges.pending-top",
+    "label": "Top highlight *Multiplier on the lit edge. 1 is the current strength, 0 removes it.*",
+    "defaultValue": "1",
+    "placeholder": "1"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.pending-ring",
+    "label": "Edge ring *Multiplier on the faint ring around the tab.*",
+    "defaultValue": "1",
+    "placeholder": "1"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.edges.pending-fade",
+    "label": "Fade the edge light *An even ring fights a gradient that fades. With this on, this state's edge fades along the axis below, so it is bright where the tab's colour is and gone where it has faded.*",
+    "defaultValue": false
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.edges.pending-axis",
+    "label": "Fade axis *Which way this state's edge light fades. Match tab gradient follows the direction the tabs already use.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Match tab gradient",
+        "value": 0
+      },
+      {
+        "label": "Top to bottom",
+        "value": 1
+      },
+      {
+        "label": "Bottom to top",
+        "value": 2
+      },
+      {
+        "label": "Left to right",
+        "value": 3
+      },
+      {
+        "label": "Right to left",
+        "value": 4
+      },
+      {
+        "label": "Diagonal 135\u00b0",
+        "value": 5
+      },
+      {
+        "label": "Diagonal 45\u00b0",
+        "value": 6
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzglass.edges.pending-reach",
+    "label": "Fade reach *How far the light travels before fading out, as a percentage.*",
+    "defaultValue": "60%",
+    "placeholder": "60%"
+  },
+  {
     "type": "separator",
     "label": "Tabs, shared",
     "size": "17px",
     "margin": "24px 0 10px 0"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.edges.enabled",
+    "label": "Custom tab edges *Unlocks the edge highlight, ring and fade rows in each tab state section above. Every value is a multiplier or an option on the existing look, so nothing changes until you move one.*",
+    "defaultValue": false
   },
   {
     "type": "string",
@@ -1344,297 +1606,5 @@
     "label": "Menu text size *Right-click menus and dropdown panels. Not covered by Customize Font Size.*",
     "defaultValue": "1em",
     "placeholder": "1em"
-  },
-  {
-    "type": "separator",
-    "label": "Tab edges",
-    "size": "17px",
-    "margin": "22px 0 10px 0"
-  },
-  {
-    "type": "checkbox",
-    "property": "zzglass.edges.enabled",
-    "label": "Custom tab edges *Unlocks the per-state sections below. Every value is a multiplier or an option on the existing look, so nothing changes until you move one.*",
-    "defaultValue": false
-  },
-  {
-    "type": "separator",
-    "label": "Selected tab",
-    "size": "15px",
-    "margin": "16px 0 8px 0"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.edges.selected-top",
-    "label": "Top highlight *Multiplier on the lit edge. 1 is the current strength, 0 removes it.*",
-    "defaultValue": "1",
-    "placeholder": "1"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.edges.selected-ring",
-    "label": "Edge ring *Multiplier on the faint ring around the tab.*",
-    "defaultValue": "1",
-    "placeholder": "1"
-  },
-  {
-    "type": "checkbox",
-    "property": "zzglass.edges.selected-fade",
-    "label": "Fade the edge light *An even ring fights a gradient that fades. With this on, this state's edge fades along the axis below, so it is bright where the tab's colour is and gone where it has faded.*",
-    "defaultValue": false
-  },
-  {
-    "type": "dropdown",
-    "value": "number",
-    "property": "zzglass.edges.selected-axis",
-    "label": "Fade axis *Which way this state's edge light fades. Match tab gradient follows the direction the tabs already use.*",
-    "defaultValue": 0,
-    "options": [
-      {
-        "label": "Match tab gradient",
-        "value": 0
-      },
-      {
-        "label": "Top to bottom",
-        "value": 1
-      },
-      {
-        "label": "Bottom to top",
-        "value": 2
-      },
-      {
-        "label": "Left to right",
-        "value": 3
-      },
-      {
-        "label": "Right to left",
-        "value": 4
-      },
-      {
-        "label": "Diagonal 135\u00b0",
-        "value": 5
-      },
-      {
-        "label": "Diagonal 45\u00b0",
-        "value": 6
-      }
-    ]
-  },
-  {
-    "type": "string",
-    "property": "zzglass.edges.selected-reach",
-    "label": "Fade reach *How far the light travels before fading out, as a percentage.*",
-    "defaultValue": "60%",
-    "placeholder": "60%"
-  },
-  {
-    "type": "separator",
-    "label": "Unselected tabs",
-    "size": "15px",
-    "margin": "16px 0 8px 0"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.edges.unselected-top",
-    "label": "Top highlight *Multiplier on the lit edge. 1 is the current strength, 0 removes it.*",
-    "defaultValue": "1",
-    "placeholder": "1"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.edges.unselected-ring",
-    "label": "Edge ring *Multiplier on the faint ring around the tab.*",
-    "defaultValue": "1",
-    "placeholder": "1"
-  },
-  {
-    "type": "checkbox",
-    "property": "zzglass.edges.unselected-fade",
-    "label": "Fade the edge light *An even ring fights a gradient that fades. With this on, this state's edge fades along the axis below, so it is bright where the tab's colour is and gone where it has faded.*",
-    "defaultValue": false
-  },
-  {
-    "type": "dropdown",
-    "value": "number",
-    "property": "zzglass.edges.unselected-axis",
-    "label": "Fade axis *Which way this state's edge light fades. Match tab gradient follows the direction the tabs already use.*",
-    "defaultValue": 0,
-    "options": [
-      {
-        "label": "Match tab gradient",
-        "value": 0
-      },
-      {
-        "label": "Top to bottom",
-        "value": 1
-      },
-      {
-        "label": "Bottom to top",
-        "value": 2
-      },
-      {
-        "label": "Left to right",
-        "value": 3
-      },
-      {
-        "label": "Right to left",
-        "value": 4
-      },
-      {
-        "label": "Diagonal 135\u00b0",
-        "value": 5
-      },
-      {
-        "label": "Diagonal 45\u00b0",
-        "value": 6
-      }
-    ]
-  },
-  {
-    "type": "string",
-    "property": "zzglass.edges.unselected-reach",
-    "label": "Fade reach *How far the light travels before fading out, as a percentage.*",
-    "defaultValue": "60%",
-    "placeholder": "60%"
-  },
-  {
-    "type": "separator",
-    "label": "Hovered tab",
-    "size": "15px",
-    "margin": "16px 0 8px 0"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.edges.hover-top",
-    "label": "Top highlight *Multiplier on the lit edge. 1 is the current strength, 0 removes it.*",
-    "defaultValue": "1",
-    "placeholder": "1"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.edges.hover-ring",
-    "label": "Edge ring *Multiplier on the faint ring around the tab.*",
-    "defaultValue": "1",
-    "placeholder": "1"
-  },
-  {
-    "type": "checkbox",
-    "property": "zzglass.edges.hover-fade",
-    "label": "Fade the edge light *An even ring fights a gradient that fades. With this on, this state's edge fades along the axis below, so it is bright where the tab's colour is and gone where it has faded.*",
-    "defaultValue": false
-  },
-  {
-    "type": "dropdown",
-    "value": "number",
-    "property": "zzglass.edges.hover-axis",
-    "label": "Fade axis *Which way this state's edge light fades. Match tab gradient follows the direction the tabs already use.*",
-    "defaultValue": 0,
-    "options": [
-      {
-        "label": "Match tab gradient",
-        "value": 0
-      },
-      {
-        "label": "Top to bottom",
-        "value": 1
-      },
-      {
-        "label": "Bottom to top",
-        "value": 2
-      },
-      {
-        "label": "Left to right",
-        "value": 3
-      },
-      {
-        "label": "Right to left",
-        "value": 4
-      },
-      {
-        "label": "Diagonal 135\u00b0",
-        "value": 5
-      },
-      {
-        "label": "Diagonal 45\u00b0",
-        "value": 6
-      }
-    ]
-  },
-  {
-    "type": "string",
-    "property": "zzglass.edges.hover-reach",
-    "label": "Fade reach *How far the light travels before fading out, as a percentage.*",
-    "defaultValue": "60%",
-    "placeholder": "60%"
-  },
-  {
-    "type": "separator",
-    "label": "Unloaded tabs",
-    "size": "15px",
-    "margin": "16px 0 8px 0"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.edges.pending-top",
-    "label": "Top highlight *Multiplier on the lit edge. 1 is the current strength, 0 removes it.*",
-    "defaultValue": "1",
-    "placeholder": "1"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.edges.pending-ring",
-    "label": "Edge ring *Multiplier on the faint ring around the tab.*",
-    "defaultValue": "1",
-    "placeholder": "1"
-  },
-  {
-    "type": "checkbox",
-    "property": "zzglass.edges.pending-fade",
-    "label": "Fade the edge light *An even ring fights a gradient that fades. With this on, this state's edge fades along the axis below, so it is bright where the tab's colour is and gone where it has faded.*",
-    "defaultValue": false
-  },
-  {
-    "type": "dropdown",
-    "value": "number",
-    "property": "zzglass.edges.pending-axis",
-    "label": "Fade axis *Which way this state's edge light fades. Match tab gradient follows the direction the tabs already use.*",
-    "defaultValue": 0,
-    "options": [
-      {
-        "label": "Match tab gradient",
-        "value": 0
-      },
-      {
-        "label": "Top to bottom",
-        "value": 1
-      },
-      {
-        "label": "Bottom to top",
-        "value": 2
-      },
-      {
-        "label": "Left to right",
-        "value": 3
-      },
-      {
-        "label": "Right to left",
-        "value": 4
-      },
-      {
-        "label": "Diagonal 135\u00b0",
-        "value": 5
-      },
-      {
-        "label": "Diagonal 45\u00b0",
-        "value": 6
-      }
-    ]
-  },
-  {
-    "type": "string",
-    "property": "zzglass.edges.pending-reach",
-    "label": "Fade reach *How far the light travels before fading out, as a percentage.*",
-    "defaultValue": "60%",
-    "placeholder": "60%"
   }
 ]

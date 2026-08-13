@@ -1,0 +1,906 @@
+[
+  {
+    "type": "separator",
+    "label": "Groupflow",
+    "size": "20px",
+    "margin": "2px 0 12px 0"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.enabled",
+    "label": "Turn on group styling *Per-state glass theming for tab groups and subgroups, in Glassflow's visual language. Every Glassflow token -- roundness, accent tone, sheen recipe, rim strength, glass intensity -- is inherited live, so knobs turned there carry over here automatically. Zen folders are untouched.*",
+    "defaultValue": true
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.color-source",
+    "label": "Accent source *Where each group's accent color comes from. Group's own color is the chip you picked when creating the group, so mixed-color groups keep their identity; the other options unify everything under one accent.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Group's own color",
+        "value": 0
+      },
+      {
+        "label": "Glassflow accent",
+        "value": 1
+      },
+      {
+        "label": "Custom color",
+        "value": 2
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.custom-color",
+    "label": "Custom accent *Only used when the accent source is Custom. Any CSS color.*",
+    "defaultValue": "#7c8cf8",
+    "placeholder": "#7c8cf8"
+  },
+  {
+    "type": "separator",
+    "label": "Header",
+    "size": "17px",
+    "margin": "22px 0 10px 0"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.header-tint",
+    "label": "Header tint *How strongly the accent fills the group header, as a percentage. Matches Glassflow's unselected tab default.*",
+    "defaultValue": "25%",
+    "placeholder": "25%"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.gradient-direction",
+    "label": "Gradient direction *Which way the header accent fades. Match Glassflow inherits its tab gradient direction live, so both move together when you change it there.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Match Glassflow",
+        "value": 0
+      },
+      {
+        "label": "Top to bottom",
+        "value": 1
+      },
+      {
+        "label": "Bottom to top",
+        "value": 2
+      },
+      {
+        "label": "Left to right",
+        "value": 3
+      },
+      {
+        "label": "Right to left",
+        "value": 4
+      },
+      {
+        "label": "Diagonal 135\u00b0",
+        "value": 5
+      },
+      {
+        "label": "Diagonal 45\u00b0",
+        "value": 6
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.spread",
+    "label": "Gradient spread *Where the fade ends, as a percentage of the header. 50% matches Glassflow's tabs; 100% fades across the whole header.*",
+    "defaultValue": "50%",
+    "placeholder": "50%"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.end-tint",
+    "label": "Gradient end tint *Accent strength at the far end of the fade. 0% fades to fully transparent, Glassflow's default; higher values leave a wash of color across the whole header.*",
+    "defaultValue": "0%",
+    "placeholder": "0%"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.header-roundness",
+    "label": "Header roundness *Corner radius of the header pill. Set it to the same value as Glassflow's tab roundness to match; an empty value is not supported because Sine injects it as an empty variable, which invalidates the rule.*",
+    "defaultValue": "12px",
+    "placeholder": "12px"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.header.sheen",
+    "label": "Sheen on headers *Glassflow's achromatic light-sweep across the header, using the same gradient recipe and strength, including its direction setting.*",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.header.rim",
+    "label": "Rim light on headers *A hairline top highlight and faint edge ring, from Glassflow's rim tokens, so its glass intensity slider scales this too.*",
+    "defaultValue": false
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.rim-reach",
+    "label": "Rim fade reach *How far the rim light travels before fading out, as a percentage. Follows the header's gradient direction, so the lit edge is bright where the accent is and gone where it has faded. Leave it matching Gradient spread for the two to fade together.*",
+    "defaultValue": "50%",
+    "placeholder": "50%"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.rim-thickness",
+    "label": "Rim highlight thickness *How thick the bright line along the header's top edge is.*",
+    "defaultValue": "1px",
+    "placeholder": "1px"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.rim-ring-width",
+    "label": "Rim ring thickness *How thick the faint outline around the whole header is. This is the header's border area, so a large value insets the tint by the same amount.*",
+    "defaultValue": "1px",
+    "placeholder": "1px"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.match-glassflow-edges",
+    "label": "Follow Glassflow's edge fade *Takes the fade axis and reach from Glassflow's Tab edges section, so group headers and tabs light and fade on the same axis. Its per-state rim strengths already reach this mod on their own; only the axis and reach need adopting. Off by default, since a different axis for groups is a fair choice.*",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.header.blur",
+    "label": "Glass blur on headers *Backdrop blur behind group headers. Headers are few, so this is far cheaper than per-tab blur, and Zen Turbo's workspace-switch smoothing suspends it during slides automatically.*",
+    "defaultValue": false
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.header-blur-radius",
+    "label": "Header blur radius *Only used when glass blur is on.*",
+    "defaultValue": "14px",
+    "placeholder": "14px"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.hide-atg-icon",
+    "label": "Hide Advanced Tab Groups' icon chip *Removes ATG's color or emoji square from the header so the favicon is the only icon. ATG's collapse marker button is kept.*",
+    "defaultValue": true
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.hide-native-pill",
+    "label": "Hide native color decorations on the label *Strips the color pill Firefox and Zen paint on the label text, plus any swatch other themes such as Arc add there. The group's color still shows through Groupflow's accent gradient.*",
+    "defaultValue": true
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.close-left",
+    "label": "Close button on the left *Moves ATG's group close button to the far left of the header, before the favicon. Only does anything when ATG is installed.*",
+    "defaultValue": false
+  },
+  {
+    "type": "separator",
+    "label": "Label text",
+    "size": "17px",
+    "margin": "22px 0 10px 0"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.favicons",
+    "label": "Favicon as group icon *Each group and subgroup shows the favicon of its dominant member domain at the left of the label -- the slot a chevron or folder icon would occupy. Icons come from Firefox's local favicon store via the page-icon protocol, so no network requests are made. Refreshes when tabs join or leave a group, and once a minute for domains that changed by navigation.*",
+    "defaultValue": true
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.icon-size",
+    "label": "Icon size",
+    "defaultValue": "14px",
+    "placeholder": "14px"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.icon-plate",
+    "label": "Icon backing plate *Many favicons are drawn for light pages -- GitHub's transparent cat disappears on a dark sidebar. A small plate behind the icon makes every favicon readable uniformly, locally, with no favicon service and no network. Auto follows your theme: light plate on dark, dark plate on light.*",
+    "defaultValue": 3,
+    "options": [
+      {
+        "label": "None",
+        "value": 0
+      },
+      {
+        "label": "Light",
+        "value": 1
+      },
+      {
+        "label": "Dark",
+        "value": 2
+      },
+      {
+        "label": "Auto",
+        "value": 3
+      }
+    ]
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.align",
+    "label": "Label alignment *Left puts text beside the favicon; center and right keep the favicon attached to the text as it moves.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Left",
+        "value": 0
+      },
+      {
+        "label": "Center",
+        "value": 1
+      },
+      {
+        "label": "Right",
+        "value": 2
+      }
+    ]
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.label.weight",
+    "label": "Label weight",
+    "defaultValue": 1,
+    "options": [
+      {
+        "label": "Regular",
+        "value": 0
+      },
+      {
+        "label": "Semibold",
+        "value": 1
+      },
+      {
+        "label": "Bold",
+        "value": 2
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.label-size",
+    "label": "Label size *Any CSS size. 1em follows the sidebar font, including Glassflow's font-size control when enabled there.*",
+    "defaultValue": "1em",
+    "placeholder": "1em"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.label.italic",
+    "label": "Italic labels",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.label.underline",
+    "label": "Underlined labels *Accent-coloured underline, offset from the text so it does not crowd descenders.*",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.label.uppercase",
+    "label": "Uppercase labels *Small-caps style section headers: uppercase, letter-spaced, slightly reduced size.*",
+    "defaultValue": false
+  },
+  {
+    "type": "separator",
+    "label": "States",
+    "size": "17px",
+    "margin": "22px 0 10px 0"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.active.boost",
+    "label": "Highlight the active group *The group holding the selected tab gets a stronger tint, so where-you-are reads at a glance. Strength below.*",
+    "defaultValue": true
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.active-tint",
+    "label": "Active group tint *Matches Glassflow's selected-tab default.*",
+    "defaultValue": "42%",
+    "placeholder": "42%"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.collapsed.dim",
+    "label": "Dim collapsed groups *Collapsed headers fade and desaturate slightly, so open groups carry the visual weight.*",
+    "defaultValue": true
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.collapsed-opacity",
+    "label": "Collapsed opacity",
+    "defaultValue": "0.75",
+    "placeholder": "0.75"
+  },
+  {
+    "type": "separator",
+    "label": "Nesting",
+    "size": "17px",
+    "margin": "22px 0 10px 0"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.indent",
+    "label": "Subgroup indent *How far a subgroup sits in from its parent, applied to the subgroup's header and body. This does not control the gap between the rail and the rows -- that is Row inset below.*",
+    "defaultValue": "10px",
+    "placeholder": "10px"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.row-inset-auto",
+    "label": "Automatic row inset *Works out the distance from the rail to each row from what is actually enabled: the line thickness alone when there are no marks, widened for marks, and widened again for the curve mark, which needs its full radius. Turn off to set the distance yourself.*",
+    "defaultValue": true
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.row-inset",
+    "label": "Row inset *Distance from the rail to each row, used only when automatic row inset is off. Too small and large marks will be overlapped by the tabs.*",
+    "defaultValue": "14px",
+    "placeholder": "14px"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.row-gap",
+    "label": "Row gap *Breathing room between the rail and each row, on top of whatever the line and any marks need. This is what to nudge for spacing; the mod works out the rest from what you actually have switched on.*",
+    "defaultValue": "6px",
+    "placeholder": "6px"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.connector",
+    "label": "Membership style *How tabs and subgroups are shown as belonging to their group. Line draws a rail down the left; Line + marks adds the per-item mark chosen below; Fill sits the group body on a faint accent card. Flowing runs the rail up behind the group header and fills the body with a continuation of the header's gradient, so the group reads as one shape flowing out of the pill rather than a pill with a stripe beside it.*",
+    "defaultValue": 1,
+    "options": [
+      {
+        "label": "None",
+        "value": 0
+      },
+      {
+        "label": "Line",
+        "value": 1
+      },
+      {
+        "label": "Line + marks",
+        "value": 2
+      },
+      {
+        "label": "Fill",
+        "value": 3
+      },
+      {
+        "label": "Fill + Line",
+        "value": 4
+      },
+      {
+        "label": "Flowing",
+        "value": 5
+      }
+    ]
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.line.match-tab",
+    "label": "Match the tab gradient *The rail carries the same recipe as the group header and Glassflow's tabs -- same direction, tint, spread and end tint -- so it reads as an extension of the pill rather than a separate stripe. Works with any membership style, and pairs naturally with Flowing.*",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.flow-seamless",
+    "label": "Seamless junction *Blends the header's last stretch to a known colour and starts the rail on that same colour, so there is no visible seam where the line leaves the pill. It steers only the final few percent of the header, so gradient direction, spread and end tint all still do what you set them to. Turn off to drive the rail entirely from the Line gradient options instead.*",
+    "defaultValue": true
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.junction-tint",
+    "label": "Junction tint *Accent strength where the header meets the rail, as a percentage. This is the colour both sides share, so it is what makes the line visible -- raise it for a stronger connection.*",
+    "defaultValue": "25%",
+    "placeholder": "25%"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.junction-blend",
+    "label": "Junction blend *How much of the header's height eases into the junction colour. Small values keep your header gradient almost untouched; large values let it drift toward the junction earlier.*",
+    "defaultValue": "45%",
+    "placeholder": "45%"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.flow-end-tint",
+    "label": "Flow end tint *Accent strength at the far end of the rail. Above zero the line stays visible all the way down; zero fades it out entirely.*",
+    "defaultValue": "8%",
+    "placeholder": "8%"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.flow-tail",
+    "label": "Flow tail *How far short of the last row the rail stops, so it settles softly instead of running to a hard end.*",
+    "defaultValue": "6px",
+    "placeholder": "6px"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.guide-width",
+    "label": "Line thickness *Also sets the weight of the per-item marks and, for the curve mark, its radius. 1 to 2px reads cleanest.*",
+    "defaultValue": "2px",
+    "placeholder": "2px"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.line-gradient",
+    "label": "Line gradient *How the rail's colour is distributed. Soft ends fades in and out at the ends, from the centre outward. Rounded shades across the rail's width, densest along its middle, so it reads as a tube. Fades along the rail's length are applied as a mask, which means the sheen, rim and glow below fade with the line rather than hanging past it. All stops are percentages, so groups of any length fade identically.*",
+    "defaultValue": 1,
+    "options": [
+      {
+        "label": "Solid",
+        "value": 0
+      },
+      {
+        "label": "Soft ends",
+        "value": 1
+      },
+      {
+        "label": "Fade downward",
+        "value": 2
+      },
+      {
+        "label": "Fade upward",
+        "value": 3
+      },
+      {
+        "label": "Fade rightward",
+        "value": 4
+      },
+      {
+        "label": "Fade leftward",
+        "value": 5
+      },
+      {
+        "label": "Rounded (3D)",
+        "value": 6
+      },
+      {
+        "label": "Rounded + soft ends",
+        "value": 7
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.line-strength",
+    "label": "Line strength *How much accent colour the rail carries, as a percentage. Lower is subtler.*",
+    "defaultValue": "40%",
+    "placeholder": "40%"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.line-fade",
+    "label": "Fade length *How much of each end fades out, as a percentage of the rail's height. Used only by the fade options in Line gradient -- with Solid or the across-width options it has no effect.*",
+    "defaultValue": "12%",
+    "placeholder": "12%"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.line-shape",
+    "label": "Line shape *The rail's silhouette. With Flowing, whichever shape you pick is flared where it meets the header, so it grows out of the pill on both sides rather than starting at an edge. Straight is flared too.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Straight",
+        "value": 0
+      },
+      {
+        "label": "S curve",
+        "value": 1
+      },
+      {
+        "label": "Serpentine",
+        "value": 2
+      },
+      {
+        "label": "Double serpentine",
+        "value": 3
+      },
+      {
+        "label": "Lituus spiral",
+        "value": 4
+      },
+      {
+        "label": "Bow",
+        "value": 5
+      },
+      {
+        "label": "Tapering",
+        "value": 6
+      },
+      {
+        "label": "Tapering lituus",
+        "value": 7
+      }
+    ]
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.curve-weight",
+    "label": "Curve weight *Thickness of the curved shapes. Its own control rather than being taken from Line thickness, so amplitude and weight stay independent.*",
+    "defaultValue": 1,
+    "options": [
+      {
+        "label": "Hairline",
+        "value": 0
+      },
+      {
+        "label": "Thin",
+        "value": 1
+      },
+      {
+        "label": "Medium",
+        "value": 2
+      },
+      {
+        "label": "Thick",
+        "value": 3
+      },
+      {
+        "label": "Heavy",
+        "value": 4
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.curve-amplitude",
+    "label": "Curve amplitude *How far the curve swings sideways. Also the width of the band the rail occupies, so raise Row gap alongside it if rows start to crowd the curve.*",
+    "defaultValue": "16px",
+    "placeholder": "16px"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.line-continuous",
+    "label": "Continuous through subgroups *Only the outermost group draws a rail, so a single unbroken curve runs the full height of the group and past every subgroup inside it, instead of each level restarting its own.*",
+    "defaultValue": false
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.line-cap",
+    "label": "Line cap *Pill rounds both ends of the rail; Flat leaves them square.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Pill",
+        "value": 0
+      },
+      {
+        "label": "Flat",
+        "value": 1
+      },
+      {
+        "label": "Slightly rounded",
+        "value": 2
+      }
+    ]
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.line.sheen",
+    "label": "Sheen on the line *A specular highlight across the rail's width, the same treatment Glassflow puts on the window buttons. Scales with Glassflow's glass intensity.*",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.line.rim",
+    "label": "Rim light on the line *A bright inner edge on one side and a soft dark edge on the other, so the rail reads as a raised glass bar rather than a painted stripe.*",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.line.glow",
+    "label": "Glow around the line *An accent-coloured halo. Follows the rail's shape exactly, including its fade, since it is drawn as a drop shadow of the rendered line.*",
+    "defaultValue": false
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.line-glow-radius",
+    "label": "Glow radius",
+    "defaultValue": "4px",
+    "placeholder": "4px"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.line.shadow",
+    "label": "Drop shadow under the line *Lifts the rail off the sidebar, matching Glassflow's buttons.*",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.line.blur",
+    "label": "Glass blur behind the line *Only visible when the rail is partly transparent -- lower the line strength to see it. Cheap here: the rail is a few pixels wide.*",
+    "defaultValue": false
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.line-opacity",
+    "label": "Line opacity *Applies to the whole rail including its sheen, rim and glow.*",
+    "defaultValue": "1",
+    "placeholder": "1"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.marker",
+    "label": "Marks on tabs *A vector mark on the rail aimed at each tab. Half moon is a true semicircle, flat against the rail; Crescent is a longer, slenderer curve with pointed tips, closer to a brace than a circle.*",
+    "defaultValue": 1,
+    "options": [
+      {
+        "label": "None",
+        "value": 0
+      },
+      {
+        "label": "Chevron",
+        "value": 1
+      },
+      {
+        "label": "Brace",
+        "value": 2
+      },
+      {
+        "label": "Dot",
+        "value": 3
+      },
+      {
+        "label": "Dash",
+        "value": 4
+      },
+      {
+        "label": "Curve",
+        "value": 5
+      },
+      {
+        "label": "Half moon",
+        "value": 6
+      },
+      {
+        "label": "Crescent",
+        "value": 7
+      },
+      {
+        "label": "Double chevron",
+        "value": 8
+      },
+      {
+        "label": "Triangle",
+        "value": 9
+      },
+      {
+        "label": "Diamond",
+        "value": 10
+      },
+      {
+        "label": "Bar",
+        "value": 11
+      },
+      {
+        "label": "Arrow",
+        "value": 12
+      },
+      {
+        "label": "Wave",
+        "value": 13
+      },
+      {
+        "label": "Lituus spiral",
+        "value": 14
+      },
+      {
+        "label": "Coil",
+        "value": 15
+      },
+      {
+        "label": "Serpentine",
+        "value": 16
+      }
+    ]
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.marker-sub",
+    "label": "Marks on subgroups *Subgroups can carry a different mark from tabs -- a crescent for subgroups and a chevron for tabs reads the hierarchy at a glance. Subgroup marks hang off the header row, so they stay centred on it however many tabs the subgroup holds.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Same as tabs",
+        "value": 0
+      },
+      {
+        "label": "None",
+        "value": 1
+      },
+      {
+        "label": "Chevron",
+        "value": 2
+      },
+      {
+        "label": "Brace",
+        "value": 3
+      },
+      {
+        "label": "Dot",
+        "value": 4
+      },
+      {
+        "label": "Dash",
+        "value": 5
+      },
+      {
+        "label": "Curve",
+        "value": 6
+      },
+      {
+        "label": "Half moon",
+        "value": 7
+      },
+      {
+        "label": "Crescent",
+        "value": 8
+      },
+      {
+        "label": "Double chevron",
+        "value": 9
+      },
+      {
+        "label": "Triangle",
+        "value": 10
+      },
+      {
+        "label": "Diamond",
+        "value": 11
+      },
+      {
+        "label": "Bar",
+        "value": 12
+      },
+      {
+        "label": "Arrow",
+        "value": 13
+      },
+      {
+        "label": "Wave",
+        "value": 14
+      },
+      {
+        "label": "Lituus spiral",
+        "value": 15
+      },
+      {
+        "label": "Coil",
+        "value": 16
+      },
+      {
+        "label": "Serpentine",
+        "value": 17
+      }
+    ]
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.marker-gradient",
+    "label": "Mark shading *Solid is flat. Centre out, toward item and toward line fade the whole mark along one axis. Rounded shades ACROSS the stroke instead: densest along the middle of the line and falling off to both edges, everywhere along it -- so a horizontal dash fades toward its top and bottom, an upright bar toward its sides, and a chevron, curve or crescent follows its own angles and curves. Gives marks a rounded, three-dimensional look.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Solid",
+        "value": 0
+      },
+      {
+        "label": "Centre out",
+        "value": 1
+      },
+      {
+        "label": "Fade toward item",
+        "value": 2
+      },
+      {
+        "label": "Fade toward line",
+        "value": 3
+      },
+      {
+        "label": "Rounded (3D)",
+        "value": 4
+      }
+    ]
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.marker.sheen",
+    "label": "Sheen on marks *A diagonal highlight inside the mark, clipped to its silhouette, matching the treatment on the bar and on Glassflow's buttons.*",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.marker.glow",
+    "label": "Glow around marks *An accent halo tracing the mark's exact outline -- crescents and chevrons glow along their curve rather than in a box, since it is a shadow of the rendered shape.*",
+    "defaultValue": false
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.marker-glow-radius",
+    "label": "Mark glow radius",
+    "defaultValue": "3px",
+    "placeholder": "3px"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.marker.shadow",
+    "label": "Drop shadow under marks *Follows the mark's outline, so it lifts the shape rather than a rectangle.*",
+    "defaultValue": false
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.marker-opacity",
+    "label": "Mark opacity *Applies to the whole mark including its sheen and glow.*",
+    "defaultValue": "0.85",
+    "placeholder": "0.85"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.marker-size",
+    "label": "Mark size *Base size of the mark in pixels. Marks are vector shapes, so they stay smooth at any size.*",
+    "defaultValue": "7px",
+    "placeholder": "7px"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.marker-scale",
+    "label": "Mark scale *Multiplies the mark size, stroke included -- 1.5 gives a half-again bigger mark with proportionally heavier lines. Use size for the base and scale to fine-tune without re-tuning anything else.*",
+    "defaultValue": "1",
+    "placeholder": "1"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.hide-other-connectors",
+    "label": "Hide other mods' group lines *Advanced Tab Groups and Zen Folder Tree Connectors draw their own lines down tab groups, which double up with Groupflow's. This strips the borders and shadows they hang on group bodies. If a stray line survives it is drawn some other way and needs identifying in the Browser Toolbox.*",
+    "defaultValue": true
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.depth-scale",
+    "label": "Smaller headers per depth *Subgroup headers step down slightly in size with each level, so depth reads at a glance without shouting.*",
+    "defaultValue": true
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.depth-step",
+    "label": "Depth step *How much smaller each nesting level's label gets, as a multiplier. 0.92 is a gentle step; 0.8 is pronounced; 1 is no change. Applied once more per level, so a third-level label is the step cubed.*",
+    "defaultValue": "0.92",
+    "placeholder": "0.92"
+  },
+  {
+    "type": "separator",
+    "label": "Overrides",
+    "size": "17px",
+    "margin": "22px 0 10px 0"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.neutralize-others",
+    "label": "Strip other mods' group chrome *Removes backgrounds, borders and shadows that Advanced Tab Groups or Arc paint on group bodies, leaving Groupflow's header treatment and Glassflow's tabs as the only styling. Groupflow loads after both, so their headers are overridden either way; turn this on only if their BODY styling visibly fights this mod's.*",
+    "defaultValue": false
+  }
+]

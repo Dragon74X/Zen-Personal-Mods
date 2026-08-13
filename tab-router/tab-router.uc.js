@@ -196,6 +196,16 @@
   function pathParts(tab) {
     const depth = num("auto-path-depth", 0);
     if (depth < 1) return [];
+    // Path subgroups are opt-in per site. Deriving them from any URL made
+    // sense on YouTube, where the first path segment is a creator handle,
+    // and nonsense nearly everywhere else -- shops, docs and forums put
+    // section names, ids and slugs there, so every site grew subgroups
+    // nobody asked for. Only the domains listed here get them.
+    const allow = cached("pathdomains", () => str("auto-path-domains", "")
+      .split(",").map(s => s.trim().toLowerCase()).filter(Boolean));
+    if (!allow.length) return [];
+    const host = hostOf(tab);
+    if (!host || !allow.some(d => host === d || host.endsWith("." + d))) return [];
     let path = "";
     try { path = tab.linkedBrowser?.currentURI?.filePath ?? ""; } catch { return []; }
     const skipWords = cached("skipwords", () => new Set(

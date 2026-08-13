@@ -110,6 +110,13 @@
   },
   {
     "type": "string",
+    "property": "zzrouter.auto-path-domains",
+    "label": "Sites that get path subgroups *Comma separated. Only these domains split into subgroups by URL path -- youtube.com gives a subgroup per creator, because its first path segment is a handle. Most sites put section names, ids or slugs there instead, so leaving them out avoids subgroups nobody asked for. Empty means no site does it.*",
+    "defaultValue": "youtube.com",
+    "placeholder": "youtube.com"
+  },
+  {
+    "type": "string",
     "property": "zzrouter.auto-path-ignore",
     "label": "Extra path words to ignore *Comma separated, ADDED to a built-in list of generic route words (search, watch, videos, results, games, category and similar). Numeric segments and file names are always dropped.*",
     "defaultValue": "",

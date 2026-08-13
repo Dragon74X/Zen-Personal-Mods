@@ -112,14 +112,11 @@
 
    Sine's preferences.json has no conditional-visibility field, so rows are
    hidden here, keyed on the pref that governs them. Generated from
-   preferences.json, so a renamed pref cannot leave a stale rule behind.
+   preferences.json, so a removed pref cannot leave a stale rule behind.
    ============================================================ */
 @media not (-moz-pref("zzglass.selected.enabled")) {
-  #zzglass-edges-selected-axis,
   #zzglass-edges-selected-color,
   #zzglass-edges-selected-edge,
-  #zzglass-edges-selected-fade,
-  #zzglass-edges-selected-reach,
   #zzglass-edges-selected-ring,
   #zzglass-edges-selected-ring-width,
   #zzglass-edges-selected-thickness,
@@ -140,19 +137,12 @@
   #zzglass-selected-blur-radius { display: none !important; }
 }
 @media not (-moz-pref("zzglass.selected.rim")) {
-  #zzglass-edges-selected-axis,
   #zzglass-edges-selected-color,
   #zzglass-edges-selected-edge,
-  #zzglass-edges-selected-fade,
-  #zzglass-edges-selected-reach,
   #zzglass-edges-selected-ring,
   #zzglass-edges-selected-ring-width,
   #zzglass-edges-selected-thickness,
   #zzglass-edges-selected-top { display: none !important; }
-}
-@media not (-moz-pref("zzglass.edges.selected-fade")) {
-  #zzglass-edges-selected-axis,
-  #zzglass-edges-selected-reach { display: none !important; }
 }
 @media (-moz-pref("zzglass.edges.selected-edge", 4)) {
   #zzglass-edges-selected-thickness,
@@ -162,11 +152,8 @@
   #zzglass-selected-end-tint { display: none !important; }
 }
 @media not (-moz-pref("zzglass.unselected.enabled")) {
-  #zzglass-edges-unselected-axis,
   #zzglass-edges-unselected-color,
   #zzglass-edges-unselected-edge,
-  #zzglass-edges-unselected-fade,
-  #zzglass-edges-unselected-reach,
   #zzglass-edges-unselected-ring,
   #zzglass-edges-unselected-ring-width,
   #zzglass-edges-unselected-thickness,
@@ -187,19 +174,12 @@
   #zzglass-unselected-blur-radius { display: none !important; }
 }
 @media not (-moz-pref("zzglass.unselected.rim")) {
-  #zzglass-edges-unselected-axis,
   #zzglass-edges-unselected-color,
   #zzglass-edges-unselected-edge,
-  #zzglass-edges-unselected-fade,
-  #zzglass-edges-unselected-reach,
   #zzglass-edges-unselected-ring,
   #zzglass-edges-unselected-ring-width,
   #zzglass-edges-unselected-thickness,
   #zzglass-edges-unselected-top { display: none !important; }
-}
-@media not (-moz-pref("zzglass.edges.unselected-fade")) {
-  #zzglass-edges-unselected-axis,
-  #zzglass-edges-unselected-reach { display: none !important; }
 }
 @media (-moz-pref("zzglass.edges.unselected-edge", 4)) {
   #zzglass-edges-unselected-thickness,
@@ -209,11 +189,8 @@
   #zzglass-unselected-end-tint { display: none !important; }
 }
 @media not (-moz-pref("zzglass.hover.enabled")) {
-  #zzglass-edges-hover-axis,
   #zzglass-edges-hover-color,
   #zzglass-edges-hover-edge,
-  #zzglass-edges-hover-fade,
-  #zzglass-edges-hover-reach,
   #zzglass-edges-hover-ring,
   #zzglass-edges-hover-ring-width,
   #zzglass-edges-hover-thickness,
@@ -234,19 +211,12 @@
   #zzglass-hover-blur-radius { display: none !important; }
 }
 @media not (-moz-pref("zzglass.hover.rim")) {
-  #zzglass-edges-hover-axis,
   #zzglass-edges-hover-color,
   #zzglass-edges-hover-edge,
-  #zzglass-edges-hover-fade,
-  #zzglass-edges-hover-reach,
   #zzglass-edges-hover-ring,
   #zzglass-edges-hover-ring-width,
   #zzglass-edges-hover-thickness,
   #zzglass-edges-hover-top { display: none !important; }
-}
-@media not (-moz-pref("zzglass.edges.hover-fade")) {
-  #zzglass-edges-hover-axis,
-  #zzglass-edges-hover-reach { display: none !important; }
 }
 @media (-moz-pref("zzglass.edges.hover-edge", 4)) {
   #zzglass-edges-hover-thickness,
@@ -256,11 +226,8 @@
   #zzglass-hover-end-tint { display: none !important; }
 }
 @media not (-moz-pref("zzglass.pending.enabled")) {
-  #zzglass-edges-pending-axis,
   #zzglass-edges-pending-color,
   #zzglass-edges-pending-edge,
-  #zzglass-edges-pending-fade,
-  #zzglass-edges-pending-reach,
   #zzglass-edges-pending-ring,
   #zzglass-edges-pending-ring-width,
   #zzglass-edges-pending-thickness,
@@ -281,19 +248,12 @@
   #zzglass-pending-blur-radius { display: none !important; }
 }
 @media not (-moz-pref("zzglass.pending.rim")) {
-  #zzglass-edges-pending-axis,
   #zzglass-edges-pending-color,
   #zzglass-edges-pending-edge,
-  #zzglass-edges-pending-fade,
-  #zzglass-edges-pending-reach,
   #zzglass-edges-pending-ring,
   #zzglass-edges-pending-ring-width,
   #zzglass-edges-pending-thickness,
   #zzglass-edges-pending-top { display: none !important; }
-}
-@media not (-moz-pref("zzglass.edges.pending-fade")) {
-  #zzglass-edges-pending-axis,
-  #zzglass-edges-pending-reach { display: none !important; }
 }
 @media (-moz-pref("zzglass.edges.pending-edge", 4)) {
   #zzglass-edges-pending-thickness,
@@ -303,38 +263,26 @@
   #zzglass-pending-end-tint { display: none !important; }
 }
 @media not (-moz-pref("zzglass.edges.enabled")) {
-  #zzglass-edges-hover-axis,
   #zzglass-edges-hover-color,
   #zzglass-edges-hover-edge,
-  #zzglass-edges-hover-fade,
-  #zzglass-edges-hover-reach,
   #zzglass-edges-hover-ring,
   #zzglass-edges-hover-ring-width,
   #zzglass-edges-hover-thickness,
   #zzglass-edges-hover-top,
-  #zzglass-edges-pending-axis,
   #zzglass-edges-pending-color,
   #zzglass-edges-pending-edge,
-  #zzglass-edges-pending-fade,
-  #zzglass-edges-pending-reach,
   #zzglass-edges-pending-ring,
   #zzglass-edges-pending-ring-width,
   #zzglass-edges-pending-thickness,
   #zzglass-edges-pending-top,
-  #zzglass-edges-selected-axis,
   #zzglass-edges-selected-color,
   #zzglass-edges-selected-edge,
-  #zzglass-edges-selected-fade,
-  #zzglass-edges-selected-reach,
   #zzglass-edges-selected-ring,
   #zzglass-edges-selected-ring-width,
   #zzglass-edges-selected-thickness,
   #zzglass-edges-selected-top,
-  #zzglass-edges-unselected-axis,
   #zzglass-edges-unselected-color,
   #zzglass-edges-unselected-edge,
-  #zzglass-edges-unselected-fade,
-  #zzglass-edges-unselected-reach,
   #zzglass-edges-unselected-ring,
   #zzglass-edges-unselected-ring-width,
   #zzglass-edges-unselected-thickness,

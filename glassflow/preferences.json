@@ -1174,6 +1174,53 @@
     "defaultValue": false
   },
   {
+    "type": "checkbox",
+    "property": "zzglass.sidebar.blur",
+    "label": "Compact sidebar glass *Blurs and tints the floating sidebar in compact mode, replacing Arc's version of the same feature -- turn Arc's compact sidebar section off if you use this. Note that browser chrome cannot blur a web page once it has finished loading; that is a platform limit, not a setting, so the tint below is what carries the effect on most pages and the blur adds to it where the backdrop allows.*",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.sidebar.blur-compact-only",
+    "label": "Only in compact mode *Compact mode is where the sidebar floats over the page. Turn this off to keep the glass while docked as well.*",
+    "defaultValue": true
+  },
+  {
+    "type": "string",
+    "property": "zzglass.sidebar.blur-tint",
+    "label": "Sidebar tint strength *Accent strength of the layer over the page, as a percentage. This is the half of the effect that always works, so raise it if the blur alone looks too clear.*",
+    "defaultValue": "22%",
+    "placeholder": "22%"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.sidebar.blur-radius",
+    "label": "Sidebar blur radius *Arc uses 25px. Higher smears more; lower keeps shapes legible.*",
+    "defaultValue": "25px",
+    "placeholder": "25px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.sidebar.blur-contrast",
+    "label": "Sidebar blur contrast *1 leaves it alone. Above 1 deepens what shows through, below 1 flattens it.*",
+    "defaultValue": "1",
+    "placeholder": "1"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.sidebar.blur-saturate",
+    "label": "Sidebar blur saturation *1 leaves it alone. Raise it for the colour-rich frosted look, lower toward 0 for grey glass.*",
+    "defaultValue": "1",
+    "placeholder": "1"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.sidebar.blur-radius-corner",
+    "label": "Sidebar corner radius *Rounding of the floating sidebar panel.*",
+    "defaultValue": "12px",
+    "placeholder": "12px"
+  },
+  {
     "type": "separator",
     "label": "Window buttons",
     "size": "17px",

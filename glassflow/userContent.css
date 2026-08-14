@@ -310,3 +310,12 @@
 @media not (-moz-pref("zzglass.color.source", 2)) {
   #zzglass-color-custom { display: none !important; }
 }
+
+@media not (-moz-pref("zzglass.sidebar.blur")) {
+  #zzglass-sidebar-blur-compact-only,
+  #zzglass-sidebar-blur-tint,
+  #zzglass-sidebar-blur-radius,
+  #zzglass-sidebar-blur-contrast,
+  #zzglass-sidebar-blur-saturate,
+  #zzglass-sidebar-blur-radius-corner { display: none !important; }
+}

@@ -1030,3 +1030,51 @@
 
 
 
+
+/* ============================================================
+   Compact sidebar glass (v3.24)
+
+   Targets #zen-toolbar-background, the element that actually paints the
+   sidebar's surface -- not #navigator-toolbox, which is its container.
+   Arc sets `backdrop-filter: none !important` on it unconditionally and
+   then re-enables blur only when zen.view.compact.hide-tabbar is on and
+   the toolbox is not animating. This mod imports after Arc, so at equal
+   specificity these rules win, and Arc's compact sidebar section can be
+   left off entirely.
+
+   KNOWN LIMIT, from Arc's own bug reports (#54, #43, #59): chrome
+   backdrop-filter cannot sample web content once the content process has
+   composited it. That is why the sidebar "blurs while the page is
+   loading, then goes transparent when it finishes", and why opening any
+   extension sidebar makes the blur reappear -- both cases put a
+   parent-process surface back into the backdrop root. Blur of the page
+   itself is therefore not reliable on any build; the tint below is, and
+   is what carries the doubled-opacity look when the blur has nothing to
+   work on.
+   ============================================================ */
+
+@media (-moz-pref("zzglass.sidebar.blur")) {
+  #zen-toolbar-background {
+    background-color: color-mix(in srgb, var(--zzg-accent)
+      var(--zzglass-sidebar-blur-tint, 22%), transparent) !important;
+    border-radius: var(--zzglass-sidebar-blur-radius-corner, 12px) !important;
+    backdrop-filter:
+      blur(var(--zzglass-sidebar-blur-radius, 25px))
+      contrast(var(--zzglass-sidebar-blur-contrast, 1))
+      saturate(var(--zzglass-sidebar-blur-saturate, 1)) !important;
+    outline: none !important;
+  }
+  /* Arc drops the blur while the toolbox animates, which reads as a
+     flicker on every sidebar transition. Holding it through the
+     animation is steadier, so it is not conditioned on [animate]. */
+}
+
+@media (-moz-pref("zzglass.sidebar.blur")) and (-moz-pref("zzglass.sidebar.blur-compact-only")) {
+  #zen-toolbar-background { backdrop-filter: none !important; }
+  :root[zen-compact-mode="true"] #zen-toolbar-background {
+    backdrop-filter:
+      blur(var(--zzglass-sidebar-blur-radius, 25px))
+      contrast(var(--zzglass-sidebar-blur-contrast, 1))
+      saturate(var(--zzglass-sidebar-blur-saturate, 1)) !important;
+  }
+}

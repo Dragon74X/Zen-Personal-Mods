@@ -319,3 +319,99 @@
   #zzglass-sidebar-blur-saturate,
   #zzglass-sidebar-blur-radius-corner { display: none !important; }
 }
+
+
+/* ============================================================
+   Under-sidebar page blur (v3.25)
+
+   DISCLOSURE -- this is a different mechanism, not a change to the
+   chrome-side glass. Browser chrome cannot blur a web page: once the
+   content process composites the page, a backdrop-filter in chrome has
+   nothing in its backdrop root, which is why Arc's compact sidebar
+   "blurs while loading, then goes clear" (their issues #54, #43, #59).
+
+   So the blur is placed INSIDE the page instead. This paints a fixed
+   strip down the page's own left edge, in the content process, where
+   backdrop-filter does work on page pixels. The sidebar then floats over
+   an already-blurred region, which is what makes the text under it go
+   soft.
+
+   Consequences, stated plainly:
+     - the strip exists on every page, whether or not the sidebar is
+       over it, because content CSS cannot see chrome state;
+     - its width is a number you set, not the sidebar's real width, for
+       the same reason;
+     - it is pointer-events:none, so it never intercepts clicks.
+   ============================================================ */
+
+@-moz-document url-prefix(http://), url-prefix(https://) {
+  @media (-moz-pref("zzglass.sidebar.page-blur")) and (not (-moz-pref("zzglass.sidebar.page-follow"))) {
+    html::before {
+      content: "" !important;
+      position: fixed !important;
+      /* Offsets, because the strip spans the whole viewport while the
+         sidebar starts below the titlebar -- without these the blur
+         shows above the sidebar's top edge. */
+      top: var(--zzglass-sidebar-page-blur-top, 0px) !important;
+      bottom: var(--zzglass-sidebar-page-blur-bottom, 0px) !important;
+      inset-inline-start: var(--zzglass-sidebar-page-blur-inset, 0px) !important;
+      width: var(--zzglass-sidebar-page-blur-width, 260px) !important;
+      border-radius: var(--zzglass-sidebar-page-blur-corner, 0px) !important;
+      backdrop-filter: blur(var(--zzglass-sidebar-page-blur-radius, 20px)) !important;
+      /* Feathered edges so the strip does not end in a visible seam
+         where it meets unblurred page. */
+      mask-image: linear-gradient(to bottom, transparent 0,
+          black var(--zzglass-sidebar-page-blur-feather, 0px),
+          black calc(100% - var(--zzglass-sidebar-page-blur-feather, 0px)), transparent 100%),
+        linear-gradient(to right, black calc(100% - var(--zzglass-sidebar-page-blur-feather, 0px)),
+          transparent 100%) !important;
+      mask-composite: intersect !important;
+      pointer-events: none !important;
+      z-index: 2147483647 !important;
+    }
+  }
+  /* Right-hand sidebar layouts. */
+  @media (-moz-pref("zzglass.sidebar.page-blur")) and (not (-moz-pref("zzglass.sidebar.page-follow"))) and (-moz-pref("zzglass.sidebar.page-blur-side", 1)) {
+    html::before {
+      inset-inline-start: auto !important;
+      inset-inline-end: var(--zzglass-sidebar-page-blur-inset, 0px) !important;
+      mask-image: linear-gradient(to bottom, transparent 0,
+          black var(--zzglass-sidebar-page-blur-feather, 0px),
+          black calc(100% - var(--zzglass-sidebar-page-blur-feather, 0px)), transparent 100%),
+        linear-gradient(to left, black calc(100% - var(--zzglass-sidebar-page-blur-feather, 0px)),
+          transparent 100%) !important;
+    }
+  }
+}
+
+@media not (-moz-pref("zzglass.sidebar.page-blur")) {
+  #zzglass-sidebar-page-blur-width,
+  #zzglass-sidebar-page-blur-radius,
+  #zzglass-sidebar-page-blur-side,
+  #zzglass-sidebar-page-blur-top,
+  #zzglass-sidebar-page-blur-bottom,
+  #zzglass-sidebar-page-blur-inset,
+  #zzglass-sidebar-page-blur-corner,
+  #zzglass-sidebar-page-blur-feather { display: none !important; }
+}
+
+@media not (-moz-pref("zzglass.sidebar.page-follow")) {
+  #zzglass-sidebar-page-follow-always,
+  #zzglass-sidebar-page-follow-radius,
+  #zzglass-sidebar-page-follow-saturate,
+  #zzglass-sidebar-page-follow-speed { display: none !important; }
+}
+
+/* The follow blur supersedes the strip: with it on, the strip's rules are
+   switched off above, so its rows would be controls that do nothing. */
+@media (-moz-pref("zzglass.sidebar.page-follow")) {
+  #zzglass-sidebar-page-blur,
+  #zzglass-sidebar-page-blur-width,
+  #zzglass-sidebar-page-blur-radius,
+  #zzglass-sidebar-page-blur-side,
+  #zzglass-sidebar-page-blur-top,
+  #zzglass-sidebar-page-blur-bottom,
+  #zzglass-sidebar-page-blur-inset,
+  #zzglass-sidebar-page-blur-corner,
+  #zzglass-sidebar-page-blur-feather { display: none !important; }
+}

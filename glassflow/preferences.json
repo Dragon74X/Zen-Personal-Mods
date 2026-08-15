@@ -1221,6 +1221,111 @@
     "placeholder": "12px"
   },
   {
+    "type": "checkbox",
+    "property": "zzglass.sidebar.page-follow",
+    "label": "Blur the page when the sidebar shows *Follows the sidebar exactly, with nothing to measure or line up, because it runs in the browser where the sidebar's state is known. It blurs the whole page rather than a strip -- a filter cannot be clipped to one region -- so it reads as the page receding while the sidebar is up. Turning this on disables the strip method below.*",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.sidebar.page-follow-always",
+    "label": "Also when not in compact mode *A docked sidebar never covers the page, so this is purely a look: the page softens whenever the sidebar is hovered.*",
+    "defaultValue": false
+  },
+  {
+    "type": "string",
+    "property": "zzglass.sidebar.page-follow-radius",
+    "label": "Page blur radius *Small values read as depth; large values make the page unreadable while the sidebar is open, which some people want and some hate.*",
+    "defaultValue": "6px",
+    "placeholder": "6px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.sidebar.page-follow-saturate",
+    "label": "Page saturation while blurred *1 leaves colour alone; below 1 drains it as the page recedes.*",
+    "defaultValue": "1",
+    "placeholder": "1"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.sidebar.page-follow-speed",
+    "label": "Blur fade speed *How quickly the page softens and clears as the sidebar comes and goes.*",
+    "defaultValue": "160ms",
+    "placeholder": "160ms"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.sidebar.page-blur",
+    "label": "Blur a strip of the page *The older of the two page-blur methods, and the one that needs lining up by hand: it blurs a fixed strip down the page's own edge, so its position and size are numbers you set rather than the sidebar's real bounds. Switched off automatically while the sidebar-following blur above is on, since that one does the same job without measurements.*",
+    "defaultValue": false
+  },
+  {
+    "type": "string",
+    "property": "zzglass.sidebar.page-blur-width",
+    "label": "Blurred strip width *Match this to your sidebar's width. Too wide and you will see blurred page beyond the sidebar's edge; too narrow and text peeks out sharp underneath it.*",
+    "defaultValue": "260px",
+    "placeholder": "260px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.sidebar.page-blur-radius",
+    "label": "Blurred strip radius *How soft the page goes under the sidebar.*",
+    "defaultValue": "20px",
+    "placeholder": "20px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.sidebar.page-blur-top",
+    "label": "Strip top offset *How far down the strip starts. The sidebar begins below the titlebar, so without an offset the blur shows above the sidebar's top edge.*",
+    "defaultValue": "0px",
+    "placeholder": "38px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.sidebar.page-blur-bottom",
+    "label": "Strip bottom offset *How far up from the bottom the strip ends.*",
+    "defaultValue": "0px",
+    "placeholder": "0px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.sidebar.page-blur-inset",
+    "label": "Strip edge offset *How far in from the window edge the strip starts, for sidebars that float with a margin around them.*",
+    "defaultValue": "0px",
+    "placeholder": "0px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.sidebar.page-blur-corner",
+    "label": "Strip corner radius *Round the strip to match the sidebar's own corners.*",
+    "defaultValue": "0px",
+    "placeholder": "12px"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.sidebar.page-blur-feather",
+    "label": "Strip edge feather *Fades the strip out at its edges instead of ending in a hard line. Useful when the strip does not exactly match the sidebar -- a few pixels of feather hides the mismatch.*",
+    "defaultValue": "0px",
+    "placeholder": "8px"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.sidebar.page-blur-side",
+    "label": "Which edge *Match your sidebar's side.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Left",
+        "value": 0
+      },
+      {
+        "label": "Right",
+        "value": 1
+      }
+    ]
+  },
+  {
     "type": "separator",
     "label": "Window buttons",
     "size": "17px",

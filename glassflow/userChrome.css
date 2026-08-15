@@ -1078,3 +1078,51 @@
       saturate(var(--zzglass-sidebar-blur-saturate, 1)) !important;
   }
 }
+
+
+/* ============================================================
+   Page blur that follows the sidebar (v3.26)
+
+   The page strip in userContent.css cannot see the browser, so its
+   bounds have to be typed in and it never quite matches. This does the
+   opposite: it blurs the page from CHROME, where the sidebar's state IS
+   known, so it turns on and off exactly with the sidebar and needs no
+   measurements at all.
+
+   The mechanism is `filter` on the content container, not
+   `backdrop-filter` on the sidebar -- a filter applies to the rendered
+   content layer, which is why Arc's loading animation can blur a page
+   this way while its sidebar blur cannot. The whole page is blurred
+   rather than a strip, because a filter cannot be clipped to a region
+   of another element.
+
+   Reveal states are Zen's own: hover, user-shown, empty tab, popups,
+   moving a tab, or compact mode being explicitly active.
+   ============================================================ */
+
+@media (-moz-pref("zzglass.sidebar.page-follow")) {
+  .browserSidebarContainer {
+    transition: filter var(--zzglass-sidebar-page-follow-speed, 160ms) ease-out;
+  }
+  :root[zen-compact-mode="true"] #navigator-toolbox:is(
+    [zen-has-hover], [zen-user-show], [zen-has-empty-tab],
+    [flash-popup], [has-popup-menu], [movingtab], [zen-compact-mode-active]
+  ) ~ #zen-appcontent-wrapper .browserSidebarContainer,
+  :root[zen-compact-mode="true"] #navigator-toolbox:is(
+    [zen-has-hover], [zen-user-show], [zen-has-empty-tab],
+    [flash-popup], [has-popup-menu], [movingtab], [zen-compact-mode-active]
+  ) ~ * .browserSidebarContainer {
+    filter: blur(var(--zzglass-sidebar-page-follow-radius, 6px))
+            saturate(var(--zzglass-sidebar-page-follow-saturate, 1)) !important;
+  }
+}
+/* Docked sidebars never overlap the page, so following makes no sense
+   there; this covers people who keep compact off but still want the
+   page to soften whenever the sidebar is interacted with. */
+@media (-moz-pref("zzglass.sidebar.page-follow")) and (-moz-pref("zzglass.sidebar.page-follow-always")) {
+  #navigator-toolbox:hover ~ #zen-appcontent-wrapper .browserSidebarContainer,
+  #navigator-toolbox:hover ~ * .browserSidebarContainer {
+    filter: blur(var(--zzglass-sidebar-page-follow-radius, 6px))
+            saturate(var(--zzglass-sidebar-page-follow-saturate, 1)) !important;
+  }
+}

@@ -14,30 +14,38 @@ https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/tab-unloader
 
 Requires `sine.allow-unsafe-js` set to `true` in `about:config`. Sine only runs scripts from mods it did not install from its own store unless that flag is on.
 
-Enable **Time-based unloading** in the mod's settings. Nothing happens until you do.
+Enable **Turn on automatic unloading** in the mod's settings. Nothing happens until you do -- no timer is even scheduled while it is off.
 
 ## How it decides
 
 Every sweep, each tab is checked in order and kept if any rule matches:
 
-| Kept because | Signal |
-|---|---|
-| Active tab | `tab.selected` |
-| Already unloaded | `pending` attribute |
-| Not idle long enough | `tab.lastAccessed` vs the idle threshold in seconds |
-| Playing audio or video | `soundplaying` attribute |
-| Asking for attention | `attention` attribute |
-| Sharing camera, mic or screen | `sharing` attribute |
-| Picture-in-picture | `pictureinpicture` attribute |
-| Essential | `zen-essential="true"` |
-| Pinned | `tab.pinned` |
-| Glance or split view | `zen-glance-tab`, `zen-split` |
-| Unsubmitted form data | `SessionStore.getTabState().formdata` |
-| URL matches your exclusion list | substring match |
+| Kept because | Signal | Toggle |
+|---|---|---|
+| Active tab | `tab.selected` | always |
+| Already unloaded | `pending` attribute | always |
+| Closing, or has no browser | `tab.closing`, no `linkedBrowser` | always |
+| Zen's blank placeholder tab | `zen-empty-tab`, `_forZenEmptyTab` | always |
+| Not idle long enough | `tab.lastAccessed` vs the idle threshold in seconds | always |
+| Last tab you used in its workspace | recorded on `TabSelect`, per workspace | on |
+| Playing audio or video | `soundplaying` attribute | on |
+| Asking for attention | `attention` attribute | on |
+| Sharing camera, mic or screen | `sharing` attribute | on |
+| Picture-in-picture | `pictureinpicture` attribute | on |
+| Essential | `zen-essential="true"` | on |
+| Pinned | `tab.pinned` | on |
+| Glance | `zen-glance-tab` | on |
+| Split view | `zen-split` | on |
+| Unsubmitted form data | `SessionStore.getTabState().formdata` | on |
+| URL matches your exclusion list | substring match | list is empty by default |
 
 Whatever survives is sorted oldest-idle-first and discarded up to the per-sweep cap, respecting the minimum-loaded floor.
 
-Every category is an independent toggle.
+Every toggleable category is independent, and all of them default to on.
+
+**Last tab per workspace** is worth understanding, because it is the one rule that is not a plain attribute check. Switching workspaces leaves the tab you were on still selected in *its* workspace, so the tab last selected in each workspace is exactly "the one you switched away from" -- and coming back to a workspace to find it blank is the thing this prevents. The anchor is a specific tab, dropped when that tab closes, so a closed tab never passes its protection on to whatever takes its place. `TabUnloader.anchors()` shows the current one per workspace.
+
+Sweeps are skipped entirely while a workspace slide or trackpad swipe is in progress -- `discardBrowser` mid-animation contributes to stutter, and the next tick picks it up.
 
 ## Safety
 
@@ -53,15 +61,17 @@ The form-data check is the only non-trivial part, since it serialises tab state.
 
 ## Inspecting it
 
-Turn on **Log decisions**, then open the Browser Console (`Ctrl+Shift+J`):
+Turn on **Log what it is doing**, then open the Browser Console (`Ctrl+Shift+J`):
 
 ```js
 TabUnloader.status()    // every tab, its idle seconds, and why it was kept
 TabUnloader.sweepNow()  // run a sweep immediately
+TabUnloader.anchors()   // the protected tab in each workspace
+TabUnloader.settings()  // the values actually in effect, and whether the timer is running
 TabUnloader.log()       // recent decisions
 ```
 
-`status()` is the fastest way to answer "why is this tab still loaded" -- it returns the exact rule that matched.
+`status()` is the fastest way to answer "why is this tab still loaded" -- it returns the exact rule that matched. `settings()` answers the other half: whether the sweep timer is actually running, and what the thresholds parsed to.
 
 `about:unloads` is Firefox's own view of unload candidates and is useful alongside this.
 

@@ -1034,10 +1034,17 @@
     if (bool("sort-on-startup", false)) setTimeout(() => sweepAll("startup"), num("startup-delay-ms", 2500));
     note("loaded");
 
+    // This script is injected per window and lives as long as the window
+    // does, so every registration above has to be released here or it leaks
+    // across window open/close cycles. The capture flag must match the one
+    // used to add, or removeEventListener silently does nothing.
     window.addEventListener("unload", () => {
       try { gBrowser.removeTabsProgressListener(progress); } catch {}
       try { gBrowser.tabContainer.removeEventListener("TabAttrModified", onAttrModified); } catch {}
       try { Services.prefs.removeObserver(P, prefObserver); } catch {}
+      for (const ev of groupEvents) {
+        try { window.removeEventListener(ev, bustGroups, true); } catch {}
+      }
     }, { once: true });
   }
 

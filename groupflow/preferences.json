@@ -274,6 +274,13 @@
     "placeholder": "1em"
   },
   {
+    "type": "string",
+    "property": "zzgroup.label.color",
+    "label": "Label colour *Any CSS colour value, for example `#e8e8ec`, `white` or `color-mix(in srgb, var(--zzgf-accent) 70%, white)`. Leave it as `inherit` to keep whatever colour the group already uses -- Zen's own per-group colour, or another mod's. This only paints the text; the header fill is set under Header above.*",
+    "defaultValue": "inherit",
+    "placeholder": "inherit"
+  },
+  {
     "type": "checkbox",
     "property": "zzgroup.label.italic",
     "label": "Italic labels",

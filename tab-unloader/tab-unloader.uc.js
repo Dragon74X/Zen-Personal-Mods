@@ -41,7 +41,8 @@
   const bool = (k, d) => { try { return Services.prefs.getBoolPref(P + k, d); } catch { return d; } };
   const str  = (k, d) => { try { return Services.prefs.getStringPref(P + k, d); } catch { return d; } };
 
-  let timer = null;
+  let timer = null;        // setInterval handle for the sweep loop
+  let kick  = null;        // setTimeout handle for the first sweep after a reschedule
   let log = [];
   let SS = null;          // SessionStore, resolved once
   let ssWarned = false;
@@ -212,13 +213,16 @@
 
   function reschedule() {
     if (timer) { clearInterval(timer); timer = null; }
+    // A pending first sweep from a previous reschedule must be dropped too,
+    // or toggling settings quickly queues one sweep per toggle.
+    if (kick) { clearTimeout(kick); kick = null; }
     if (!bool("enabled", false)) { note("disabled"); return; }
     const every = Math.max(2, num("check-seconds", 60));
     timer = setInterval(sweep, every * 1000);
     note(`running every ${every}s, idle threshold ${Math.max(5, num("idle-seconds", 1800))}s, ` +
       `cap ${num("max-per-sweep", 5)}/sweep, floor ${num("keep-loaded", 0)}`);
     // Do not make the user wait a whole interval to see the first result.
-    setTimeout(sweep, 500);
+    kick = setTimeout(() => { kick = null; sweep(); }, 500);
   }
 
   const observer = {
@@ -267,7 +271,8 @@
       try { Services.prefs.removeObserver(P, observer); } catch {}
       try { gBrowser.tabContainer.removeEventListener("TabSelect", onTabSelect); } catch {}
       try { gBrowser.tabContainer.removeEventListener("TabClose", onTabClose); } catch {}
-      try { clearTimeout(timer); clearInterval(timer); } catch {}
+      try { clearInterval(timer); timer = null; } catch {}
+      try { clearTimeout(kick); kick = null; } catch {}
     }, { once: true });
   }
 

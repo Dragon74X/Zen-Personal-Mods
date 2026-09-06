@@ -230,9 +230,21 @@ them read as circles and capsules at all.
 *Round (classic)*. To keep the squircles but stop them reading as squares, set
 **Radius compensation** to *Auto* instead.
 
-`corner-shape` is gated in Firefox behind `layout.css.corner-shape.enabled`.
-Where it is unsupported, every declaration here is ignored and nothing breaks —
-which is also the global off switch if you want the pre-1.22b browser back.
+**Turn squircles off browser-wide** is the blunt version of all of the above:
+it disables the platform feature the whole system is built on
+(`layout.css.corner-shape.enabled`), so every corner in the browser — menus,
+panels, dialogs, the URL bar — goes back to a plain rounded corner, exactly as
+before 1.22b. It also removes a little per-paint work, since a superellipse
+corner is a custom rasterized path rather than the fast rounded-rect path.
+
+That is a browser pref rather than CSS, so `glassflow.uc.js` sets it. Your
+value is snapshotted first and restored exactly when you switch it back off,
+including "no user value at all"; change it by hand afterwards and it is
+treated as yours and left alone. One window owns the write, since the pref is
+global.
+
+Where `corner-shape` is unsupported entirely, every declaration in this
+section is ignored and nothing breaks.
 
 ## Compatibility
 

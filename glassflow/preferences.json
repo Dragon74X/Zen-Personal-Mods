@@ -3118,6 +3118,12 @@
     "margin": "22px 0 10px 0"
   },
   {
+    "type": "checkbox",
+    "property": "zzglass.corner.disable-platform",
+    "label": "Turn squircles off browser-wide *The settings above reshape Glassflow's own surfaces. This one turns Zen's squircle system off everywhere -- menus, panels, dialogs, the URL bar, everything -- by disabling the platform feature it is built on (`layout.css.corner-shape.enabled`). Every corner in the browser goes back to a plain rounded corner, exactly as it was before Zen 1.22b. It also removes a little per-paint work, since a superellipse corner is a custom rasterized path rather than the fast rounded-rectangle path. Your setting is snapshotted before it is changed and restored exactly when you switch this back off; if you change the pref by hand afterwards it is treated as yours and left alone.*",
+    "defaultValue": false
+  },
+  {
     "type": "dropdown",
     "property": "zzglass.corner.mode",
     "label": "Corner shape *Zen 1.22b reshapes every corner in the browser with CSS `corner-shape: superellipse()` -- 1.3 on most platforms, 2.3 on Windows. `squircle` is superellipse(2), so Windows sits past it, heading toward square. That rule targets the universal selector, so it reshapes this mod's tabs and buttons too, and a radius you tuned before 1.22b now reads square. Follow Zen mirrors whatever Zen is using and changes nothing. Round (classic) is superellipse(1) and restores exactly how these surfaces looked before 1.22b. Applies only to Glassflow's own surfaces; the rest of the browser keeps Zen's shape.*",

@@ -9,6 +9,15 @@
 
   const PREFIX = "zzglass.";
 
+  // Zen 1.22b's squircles are gated behind this platform pref. It is a browser
+  // pref rather than CSS, so the stylesheet cannot reach it -- but it is an
+  // appearance control, so it belongs here with Corner shape rather than in a
+  // performance mod. Declared up here because readPrefValue() below skips the
+  // snapshot key, and a const referenced before its declaration line would sit
+  // in the temporal dead zone if anything ever moved the call order.
+  const CS = "layout.css.corner-shape.enabled";
+  const CS_SAVED = PREFIX + "corner.platform-saved";
+
   // ---- pref variables at startup -----------------------------------------
   // Sine injects string and number prefs as CSS variables, but not until
   // something (the settings page, a mod reload) triggers it -- measured on a
@@ -41,6 +50,9 @@
   // skipped entirely; they are read with -moz-pref(), never as variables.
   function readPrefValue(full) {
     const P = Services.prefs;
+    // Bookkeeping, not a style value: this holds JSON and has no business
+    // being written into a CSS custom property.
+    if (full === CS_SAVED) return null;
     let type;
     try { type = P.getPrefType(full); } catch { return null; }
     try {
@@ -53,9 +65,56 @@
     return null;                        // booleans and unknown types
   }
 
+  // ---- browser-wide squircle switch --------------------------------------
+  // Zen 1.22b draws every corner in the chrome with corner-shape:
+  // superellipse(), gated behind the platform pref below. That is a browser
+  // pref rather than CSS, so the stylesheet cannot reach it -- but it is an
+  // appearance control, so it belongs here with the rest of Corner shape and
+  // not in a performance mod.
+  //
+  // Snapshotted before it is touched and restored EXACTLY when switched back
+  // off, including "no user value at all". If the pref no longer matches what
+  // this mod set, the user changed it by hand and it is left alone.
+  // One window owns this; the pref is global and every window runs this script.
+  const isMainAppWindow = () =>
+    Services.wm.getMostRecentWindow("navigator:browser") === window;
+
+  function syncPlatformSquircles() {
+    if (!isMainAppWindow()) return;
+    const P = Services.prefs;
+    let want = false;
+    try { want = P.getBoolPref(PREFIX + "corner.disable-platform", false); } catch {}
+
+    let saved = null;
+    try { saved = JSON.parse(P.getStringPref(CS_SAVED, "null")); } catch {}
+
+    if (want) {
+      if (saved) return;                       // already ours
+      const snap = P.prefHasUserValue(CS)
+        ? { had: true, v: P.getBoolPref(CS, true) }
+        : { had: false };
+      try {
+        P.setStringPref(CS_SAVED, JSON.stringify(snap));
+        P.setBoolPref(CS, false);
+      } catch {}
+      return;
+    }
+
+    if (!saved) return;                        // nothing of ours to undo
+    try {
+      // Changed by hand since we set it: it is theirs now, leave it.
+      if (P.getBoolPref(CS, false) === false) {
+        if (saved.had) P.setBoolPref(CS, saved.v);
+        else P.clearUserPref(CS);
+      }
+    } catch {}
+    try { P.clearUserPref(CS_SAVED); } catch {}
+  }
+
   const prefVarObserver = {
     observe(_s, _t, data) {
       if (!data || !data.startsWith(PREFIX)) return;
+      if (data === PREFIX + "corner.disable-platform") { syncPlatformSquircles(); return; }
       const name = "--" + data.replace(/\./g, "-");
       const value = readPrefValue(data);
       try {
@@ -68,6 +127,7 @@
 
   function start() {
     injectPrefVars();
+    syncPlatformSquircles();
     Services.prefs.addObserver(PREFIX, prefVarObserver);
     window.addEventListener("unload", () => {
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}

@@ -60,6 +60,12 @@
     "defaultValue": false
   },
   {
+    "type": "checkbox",
+    "property": "zzturbo.pack-squircles",
+    "label": "Turn off squircle corner rendering *Zen 1.22b draws every corner in the browser with CSS `corner-shape: superellipse()`, applied to the universal selector -- so each corner is a custom rasterized path instead of the fast rounded-rectangle path, on every element, every paint. This turns the platform feature off, returning the whole browser to plain rounded corners. It is the only pack here that changes how things LOOK as well as how fast they draw, which is why it is off by default; it is also the global escape hatch if you would rather not have the 1.22b shape at all. Snapshotted and fully restored when turned off, like every other pack. For per-surface control that keeps the squircles elsewhere, use Glassflow's Corner shape settings instead.*",
+    "defaultValue": false
+  },
+  {
     "type": "separator",
     "label": "Connection warmup",
     "size": "17px",
@@ -82,14 +88,30 @@
     "property": "zzturbo.startup-warm-count",
     "label": "How many sites to warm at startup *Top sites by visit frequency. Each warm connection is one open socket; more than a dozen is rarely useful.*",
     "defaultValue": "6",
-    "placeholder": "6"
+    "placeholder": "6",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzturbo.startup-warmup",
+          "value": true
+        }
+      }
+    ]
   },
   {
     "type": "string",
     "property": "zzturbo.startup-warm-delay-ms",
     "label": "Startup warmup delay (milliseconds) *How long after the window is ready before warming begins, so it never competes with session restore for the network.*",
     "defaultValue": "4000",
-    "placeholder": "4000"
+    "placeholder": "4000",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzturbo.startup-warmup",
+          "value": true
+        }
+      }
+    ]
   },
   {
     "type": "separator",

@@ -393,6 +393,7 @@
     /* !important on the radius too: a square-ended rail means something
        else in the stack is setting border-radius on this pseudo. */
     border-radius: var(--zzgf-cap) !important;
+    corner-shape: round;   /* cap is a pill; never a superellipse */
     background: var(--zzgf-grad) !important;
     mask-image: var(--zzgf-railmask);
     opacity: var(--zzgroup-line-opacity, 1);
@@ -1213,6 +1214,7 @@
     top: 0 !important;
     bottom: var(--zzgroup-flow-tail, 6px) !important;
     border-radius: 0 0 var(--zzgf-cap) var(--zzgf-cap) !important;
+    corner-shape: round;   /* cap is a pill; never a superellipse */
     z-index: 0;
   }
 }

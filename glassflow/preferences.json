@@ -1539,6 +1539,198 @@
   },
   {
     "type": "separator",
+    "label": "Corner shape",
+    "size": "17px",
+    "margin": "22px 0 10px 0"
+  },
+  {
+    "type": "dropdown",
+    "property": "zzglass.corner.mode",
+    "label": "Corner shape *Zen 1.22b reshapes every corner in the browser with CSS `corner-shape: superellipse()` -- 1.3 on most platforms, 2.3 on Windows. `squircle` is superellipse(2), so Windows sits past it, heading toward square. That rule targets the universal selector, so it reshapes this mod's tabs and buttons too, and a radius you tuned before 1.22b now reads square. Follow Zen mirrors whatever Zen is using and changes nothing. Round (classic) is superellipse(1) and restores exactly how these surfaces looked before 1.22b. Applies only to Glassflow's own surfaces; the rest of the browser keeps Zen's shape.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow Zen",
+        "value": 0
+      },
+      {
+        "label": "Round (classic)",
+        "value": 1
+      },
+      {
+        "label": "Squircle",
+        "value": 2
+      },
+      {
+        "label": "Custom superellipse",
+        "value": 3
+      },
+      {
+        "label": "Square",
+        "value": 4
+      },
+      {
+        "label": "Bevel",
+        "value": 5
+      },
+      {
+        "label": "Notch",
+        "value": 6
+      },
+      {
+        "label": "Scoop",
+        "value": 7
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzglass.corner.value",
+    "label": "Custom superellipse value *Used by every Custom superellipse option. 1 is a plain round corner, 2 is a squircle, higher goes squarer (Zen uses 2.3 on Windows), and negative values scoop the corner inward. `infinity` is a hard square.*",
+    "defaultValue": "2.3",
+    "placeholder": "2.3"
+  },
+  {
+    "type": "dropdown",
+    "property": "zzglass.corner.radius-mode",
+    "label": "Radius compensation *A superellipse corner eats its radius differently from a circular one, so a radius tuned before Zen 1.22b reads tighter now. This scales every radius this mod sets, so you do not re-type each one. Auto uses the same factor Zen applies to its own corners, and it is per-platform, so Windows gets more than everywhere else without you typing a number. Turn this on first if tabs look square at a radius that used to look right; only reach for Custom if Auto overshoots.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Off -- leave my radii alone",
+        "value": 0
+      },
+      {
+        "label": "Auto -- follow Zen's squircle value",
+        "value": 1
+      },
+      {
+        "label": "Custom",
+        "value": 2
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzglass.corner.radius-scale",
+    "label": "Custom radius multiplier *Only used when Radius compensation is set to Custom. 1 leaves radii alone; Zen compensates its own surfaces by roughly 2.1.*",
+    "defaultValue": "1.5",
+    "placeholder": "1.5"
+  },
+  {
+    "type": "dropdown",
+    "property": "zzglass.corner.tabs",
+    "label": "Corner shape, tabs *Overrides the shape above for tab backgrounds only.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the setting above",
+        "value": 0
+      },
+      {
+        "label": "Round (classic)",
+        "value": 1
+      },
+      {
+        "label": "Squircle",
+        "value": 2
+      },
+      {
+        "label": "Custom superellipse",
+        "value": 3
+      },
+      {
+        "label": "Square",
+        "value": 4
+      }
+    ]
+  },
+  {
+    "type": "dropdown",
+    "property": "zzglass.corner.essentials",
+    "label": "Corner shape, Essentials *Overrides the shape above for Essentials cards only. They are far larger than a tab, so the same corner reads very differently on them.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the setting above",
+        "value": 0
+      },
+      {
+        "label": "Round (classic)",
+        "value": 1
+      },
+      {
+        "label": "Squircle",
+        "value": 2
+      },
+      {
+        "label": "Custom superellipse",
+        "value": 3
+      },
+      {
+        "label": "Square",
+        "value": 4
+      }
+    ]
+  },
+  {
+    "type": "dropdown",
+    "property": "zzglass.corner.buttons",
+    "label": "Corner shape, window buttons *Overrides the shape above for the traffic lights. Round is what makes them read as circles and capsules -- a superellipse at the same radius squares them off, which is the most visible place Zen 1.22b changed their look.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the setting above",
+        "value": 0
+      },
+      {
+        "label": "Round (classic)",
+        "value": 1
+      },
+      {
+        "label": "Squircle",
+        "value": 2
+      },
+      {
+        "label": "Custom superellipse",
+        "value": 3
+      },
+      {
+        "label": "Square",
+        "value": 4
+      }
+    ]
+  },
+  {
+    "type": "dropdown",
+    "property": "zzglass.corner.sidebar",
+    "label": "Corner shape, sidebar *Overrides the shape above for the compact sidebar's rounded corner.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the setting above",
+        "value": 0
+      },
+      {
+        "label": "Round (classic)",
+        "value": 1
+      },
+      {
+        "label": "Squircle",
+        "value": 2
+      },
+      {
+        "label": "Custom superellipse",
+        "value": 3
+      },
+      {
+        "label": "Square",
+        "value": 4
+      }
+    ]
+  },
+  {
+    "type": "separator",
     "label": "Troubleshooting",
     "size": "17px",
     "margin": "24px 0 10px 0"

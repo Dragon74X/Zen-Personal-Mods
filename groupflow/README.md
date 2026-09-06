@@ -86,6 +86,21 @@ strengths already reach this mod on their own — only the axis and reach need
 adopting, and a different axis for groups is a fair choice, which is why it is
 opt-in.
 
+## Corner shape (Zen 1.22b squircles)
+
+Zen 1.22b applies `corner-shape: superellipse(var(--zen-squircle-value))` to the
+universal selector — 1.3 on most platforms, 2.3 on Windows — so group headers
+are reshaped along with everything else, and a roundness tuned before 1.22b
+reads squarer at the same number.
+
+**Corner shape** defaults to *Follow Zen* and changes nothing; *Round (classic)*
+restores the pre-1.22b look. **Radius compensation** set to *Auto* keeps the
+squircle but scales the header roundness by Zen's own per-platform factor.
+
+Set both to match Glassflow's, or headers and tabs will disagree — this is the
+one place the two mods do not inherit from each other automatically, because
+header roundness has always been its own value.
+
 ## Performance
 
 Headers are few, so even the optional header blur is far cheaper than

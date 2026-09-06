@@ -471,6 +471,9 @@
     left: 0 !important; right: auto !important; top: 20% !important; bottom: 20% !important;
     width: 3px !important; height: auto !important; opacity: 1 !important; filter: none !important;
     border-radius: 0 3px 3px 0 !important; background: var(--zzg-accent) !important;
+    /* A deliberate pill, not a styling choice: Zen excludes its own
+       pill/circle elements from squircles for the same reason. */
+    corner-shape: round;
     z-index: 2 !important; pointer-events: none !important;
   }
 }
@@ -879,8 +882,8 @@
   .tab-group-label-container,
   #urlbar,
   #urlbar *,
-  #zen-sidebar-bottom-buttons,
-  #zen-sidebar-bottom-buttons *,
+  #zen-sidebar-foot-buttons,
+  #zen-sidebar-foot-buttons *,
   .zen-essentials-container,
   .zen-essentials-container *,
   panel, panel *,

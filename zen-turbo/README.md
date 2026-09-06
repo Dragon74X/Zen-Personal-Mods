@@ -24,6 +24,12 @@ later change by hand is recognized as yours and never touched again.
 | Bigger in-memory media cache | on | 64 MB, so small seeks in video replay from memory instead of re-fetching |
 | Physics-based smooth scrolling | on | MSD-physics scroll response instead of fixed-duration easing: tracks the wheel with less lag, settles without the floaty tail |
 | Force GPU rendering paths | off | WebRender and accelerated canvas on hardware where Mozilla's blocklist keeps them off conservatively |
+| Turn off squircle corner rendering | off | Zen 1.22b draws every corner with `corner-shape: superellipse()` on the universal selector -- a custom rasterized path per corner per paint, instead of the fast rounded-rect path. Turning the platform feature off returns the browser to plain rounded corners |
+
+The squircle pack is the only one that changes how things *look* as well as
+how fast they draw, which is why it is off by default. For per-surface control
+that keeps squircles everywhere else, use Glassflow's **Corner shape** settings
+instead of this.
 
 **Hover warmup** -- hovering an unloaded tab or a bookmark pre-opens TCP+TLS
 to its site, in the right container, so the click lands on a warm socket.

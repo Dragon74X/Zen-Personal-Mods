@@ -22,14 +22,30 @@
     "property": "zzunload.idle-seconds",
     "label": "Unload after (seconds) *How long a tab sits untouched before it gets unloaded. 1800 is 30 minutes. Set it to 10 while testing, then put it back.*",
     "defaultValue": "1800",
-    "placeholder": "1800"
+    "placeholder": "1800",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzunload.enabled",
+          "value": true
+        }
+      }
+    ]
   },
   {
     "type": "string",
     "property": "zzunload.check-seconds",
     "label": "Check every (seconds) *How often to look for tabs to unload. 60 is fine for everyday use. Lower it while testing.*",
     "defaultValue": "60",
-    "placeholder": "60"
+    "placeholder": "60",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzunload.enabled",
+          "value": true
+        }
+      }
+    ]
   },
   {
     "type": "dropdown",
@@ -57,6 +73,14 @@
       {
         "label": "10",
         "value": 10
+      }
+    ],
+    "conditions": [
+      {
+        "if": {
+          "property": "zzunload.enabled",
+          "value": true
+        }
       }
     ]
   },
@@ -87,6 +111,14 @@
         "label": "20 tabs",
         "value": 20
       }
+    ],
+    "conditions": [
+      {
+        "if": {
+          "property": "zzunload.enabled",
+          "value": true
+        }
+      }
     ]
   },
   {
@@ -99,68 +131,156 @@
     "type": "checkbox",
     "property": "zzunload.exclude-workspace-anchor",
     "label": "Keep the last tab you used in each workspace *Switching workspaces leaves that tab selected in the workspace you left, so it stays loaded and switching back is instant instead of waiting for a reload. It protects that specific tab, not the position: close it and nothing inherits the exemption, and the protection moves only when you select a different tab in that workspace. TabUnloader.anchors() lists what is currently held.*",
-    "defaultValue": true
+    "defaultValue": true,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzunload.enabled",
+          "value": true
+        }
+      }
+    ]
   },
   {
     "type": "checkbox",
     "property": "zzunload.exclude-essentials",
     "label": "Essentials *Your Essentials tabs stay loaded so they open instantly.*",
-    "defaultValue": true
+    "defaultValue": true,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzunload.enabled",
+          "value": true
+        }
+      }
+    ]
   },
   {
     "type": "checkbox",
     "property": "zzunload.exclude-pinned",
     "label": "Pinned tabs *Separate from Essentials.*",
-    "defaultValue": true
+    "defaultValue": true,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzunload.enabled",
+          "value": true
+        }
+      }
+    ]
   },
   {
     "type": "checkbox",
     "property": "zzunload.exclude-audio",
     "label": "Anything playing sound *Music and video keep playing.*",
-    "defaultValue": true
+    "defaultValue": true,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzunload.enabled",
+          "value": true
+        }
+      }
+    ]
   },
   {
     "type": "checkbox",
     "property": "zzunload.exclude-attention",
     "label": "Tabs with a notification *Tabs Firefox has flagged as wanting your attention.*",
-    "defaultValue": true
+    "defaultValue": true,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzunload.enabled",
+          "value": true
+        }
+      }
+    ]
   },
   {
     "type": "checkbox",
     "property": "zzunload.exclude-forms",
     "label": "Tabs where you have typed something *Protects half-filled forms. Needs SessionStore; if it is unavailable the check is skipped rather than keeping every tab.*",
-    "defaultValue": true
+    "defaultValue": true,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzunload.enabled",
+          "value": true
+        }
+      }
+    ]
   },
   {
     "type": "checkbox",
     "property": "zzunload.exclude-sharing",
     "label": "Calls and screen sharing *Unloading these would drop the call.*",
-    "defaultValue": true
+    "defaultValue": true,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzunload.enabled",
+          "value": true
+        }
+      }
+    ]
   },
   {
     "type": "checkbox",
     "property": "zzunload.exclude-pip",
     "label": "Picture-in-picture *Unloading closes the floating video window.*",
-    "defaultValue": true
+    "defaultValue": true,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzunload.enabled",
+          "value": true
+        }
+      }
+    ]
   },
   {
     "type": "checkbox",
     "property": "zzunload.exclude-glance",
     "label": "Glance tabs *Zen's Glance overlay.*",
-    "defaultValue": true
+    "defaultValue": true,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzunload.enabled",
+          "value": true
+        }
+      }
+    ]
   },
   {
     "type": "checkbox",
     "property": "zzunload.exclude-split",
     "label": "Split view tabs *Both halves are on screen.*",
-    "defaultValue": true
+    "defaultValue": true,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzunload.enabled",
+          "value": true
+        }
+      }
+    ]
   },
   {
     "type": "string",
     "property": "zzunload.exclude-urls",
     "label": "Never unload sites containing *Comma separated, for example: mail.google.com, localhost. Leave empty to skip this.*",
     "defaultValue": "",
-    "placeholder": ""
+    "placeholder": "",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzunload.enabled",
+          "value": true
+        }
+      }
+    ]
   },
   {
     "type": "separator",
@@ -172,6 +292,14 @@
     "type": "checkbox",
     "property": "zzunload.debug",
     "label": "Log what it is doing *Prints each sweep to the Browser Console (Ctrl+Shift+J). Also gives you TabUnloader.status() for a per-tab list with the reason each one was kept, and TabUnloader.settings() to confirm the settings actually reached the script.*",
-    "defaultValue": false
+    "defaultValue": false,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzunload.enabled",
+          "value": true
+        }
+      }
+    ]
   }
 ]

@@ -99,7 +99,23 @@
       ["general.smoothScroll.msdPhysics.slowdownMinDeltaMS", 25],
       ["general.smoothScroll.msdPhysics.slowdownSpringConstant", 250],
     ],
+    // Zen 1.22b draws every corner in the chrome with
+    // corner-shape: superellipse(), applied to the UNIVERSAL selector. That
+    // makes each corner a custom rasterized path instead of the fast
+    // rounded-rect path, on every element, every paint. Turning the platform
+    // feature off returns the whole browser to plain rounded corners: a real
+    // reduction in per-paint work, and the global escape hatch if you dislike
+    // the 1.22b shape. Off by default -- it is a visible look change.
+    squircles: [
+      ["layout.css.corner-shape.enabled", false],
+    ],
   };
+
+  // Packs default ON when the pref has not been written yet, EXCEPT these.
+  // Without this, a pack whose preferences.json default is false would still
+  // apply on a profile where Sine has not yet written the pref -- which is
+  // what the plain `bool(..., true)` below used to do to the gfx pack.
+  const PACK_DEFAULTS = { gfx: false, squircles: false };
 
   const SAVED = P + "saved-prefs";   // JSON: { prefName: {had:bool, v:value} }
 
@@ -164,7 +180,7 @@
   function syncPacks() {
     if (!isMainAppWindow()) return;
     for (const packName of Object.keys(PACKS)) {
-      if (bool("pack-" + packName, true)) applyPack(packName);
+      if (bool("pack-" + packName, PACK_DEFAULTS[packName] ?? true)) applyPack(packName);
       else revertPack(packName);
     }
   }
@@ -281,7 +297,8 @@
       status() {
         const saved = readSaved();
         return {
-          packs: Object.fromEntries(Object.keys(PACKS).map(k => [k, bool("pack-" + k, true)])),
+          packs: Object.fromEntries(Object.keys(PACKS).map(
+            k => [k, bool("pack-" + k, PACK_DEFAULTS[k] ?? true)])),
           managedPrefs: Object.keys(saved),
           instantUI: bool("instant-ui", false),
           hoverWarmup: bool("hover-warmup", true),

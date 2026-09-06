@@ -192,6 +192,48 @@ Turn Customize Font Size off once this is on. Both set `font-size` on
 overlapping elements, and running both means whichever stylesheet loads last
 silently wins.
 
+## Corner shape (Zen 1.22b squircles)
+
+Zen 1.22b reshapes every corner in the browser with CSS `corner-shape:
+superellipse()`, through a rule on the **universal selector** — so it reshapes
+this mod's surfaces too, whether or not they were designed for it:
+
+```css
+--zen-squircle-value: 1.3;                                  /* most platforms */
+@media (-moz-platform: windows) { --zen-squircle-value: 2.3; }   /* Windows   */
+*:not(.no-squircles) { corner-shape: superellipse(var(--zen-squircle-value)); }
+```
+
+`squircle` is `superellipse(2)`, so **Windows sits past it**, heading toward
+square. A superellipse consumes its radius differently from a circular corner,
+so a radius tuned before 1.22b reads noticeably squarer now at the same number.
+That is not the mod losing its styling — the radius is still applying exactly
+as set, it is the corner *shape* underneath that moved.
+
+Two independent levers, both applying only to Glassflow's own surfaces — the
+rest of the browser keeps Zen's shape:
+
+| Setting | Default | Notes |
+|---|---|---|
+| Corner shape | Follow Zen | Mirrors Zen's value, so nothing changes out of the box. **Round (classic)** is `superellipse(1)` and restores exactly how these surfaces looked before 1.22b |
+| Custom superellipse value | `2.3` | 1 round, 2 squircle, higher squarer, negative scoops inward, `infinity` hard square |
+| Radius compensation | Off | **Auto** follows Zen's own per-platform squircle value — the same factor Zen applies to its native radii |
+| Custom radius multiplier | `1.5` | Only used when compensation is Custom |
+| Corner shape, tabs / Essentials / window buttons / sidebar | Follow the setting above | Per-surface override |
+
+The per-surface knobs matter because the same corner reads differently at
+different sizes: an Essentials card is far larger than a tab, and the window
+buttons are the most visible place the change lands — `Round` is what makes
+them read as circles and capsules at all.
+
+**Quickest fix if 1.22b squared everything off:** set **Corner shape** to
+*Round (classic)*. To keep the squircles but stop them reading as squares, set
+**Radius compensation** to *Auto* instead.
+
+`corner-shape` is gated in Firefox behind `layout.css.corner-shape.enabled`.
+Where it is unsupported, every declaration here is ignored and nothing breaks —
+which is also the global off switch if you want the pre-1.22b browser back.
+
 ## Compatibility
 
 **Arc 2.0** — turn off its *macOS style buttons* (`arc-macos-style-buttons`)
@@ -244,7 +286,7 @@ page, a mod reload) triggers it, so without the script the sheet runs on its
 fallbacks until the first reload. Booleans are skipped — those are read with
 `-moz-pref()`, never as variables.
 
-Built against Zen 1.21.x with Sine 2.3.3. Uses the parenthesised
+Built against Zen 1.22b (Firefox 155) with Sine 2.3.4c2. Uses the parenthesised
 `@media (-moz-pref("..."))` form throughout.
 
 ## License

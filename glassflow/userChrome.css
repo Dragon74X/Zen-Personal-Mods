@@ -28,7 +28,21 @@
   --zzg-custom: var(--zzglass-color-custom, #7c8cf8);
   --zzg-second: var(--zzglass-color-secondary, #1b1b2b);
   --zzg-fallback: var(--zen-primary-color, var(--zen-colors-primary, var(--zzg-custom)));
-  --zzg-round: var(--zzglass-tabs-roundness, 10px);
+  /* Zen 1.22b applies corner-shape: superellipse(--zen-squircle-value) to
+     *:not(.no-squircles), so every surface this mod paints is reshaped by it
+     -- 1.3 on most platforms, 2.3 on Windows (past `squircle`, which is
+     superellipse(2)). A superellipse corner consumes its radius differently
+     from a circular one, so a radius tuned before 1.22b reads square now.
+     Two levers: --zzg-corner picks the shape, radius-scale compensates the
+     size. The default MIRRORS Zen's own value, so out of the box nothing
+     changes; the 1 fallback is a plain round corner on pre-1.22b builds. */
+  --zzg-corner: superellipse(var(--zen-squircle-value, 1));
+  --zzg-corner-tabs: var(--zzg-corner);
+  --zzg-corner-ess: var(--zzg-corner);
+  --zzg-corner-btn: var(--zzg-corner);
+  --zzg-corner-side: var(--zzg-corner);
+  --zzg-rscale: 1;
+  --zzg-round: calc(var(--zzglass-tabs-roundness, 10px) * var(--zzg-rscale));
   --zzg-glass: var(--zzglass-glass-intensity, 1);
   --zzg-sheenamt: var(--zzglass-glass-sheen-strength, 1);
   --zzg-sheen-dir: to bottom;
@@ -171,6 +185,7 @@
     background-origin: border-box !important;
     background-clip: border-box !important;
     border-radius: var(--zzg-round) !important;
+    corner-shape: var(--zzg-corner-tabs);
     opacity: var(--zzglass-selected-opacity, 1) !important;
     background-image: var(--zzg-texture),
       linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)) !important;
@@ -224,6 +239,7 @@
     background-origin: border-box !important;
     background-clip: border-box !important;
     border-radius: var(--zzg-round) !important;
+    corner-shape: var(--zzg-corner-tabs);
     opacity: var(--zzglass-unselected-opacity, 1) !important;
     background-image: var(--zzg-texture),
       linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)) !important;
@@ -277,6 +293,7 @@
     background-origin: border-box !important;
     background-clip: border-box !important;
     border-radius: var(--zzg-round) !important;
+    corner-shape: var(--zzg-corner-tabs);
     opacity: var(--zzglass-hover-opacity, 1) !important;
     background-image: var(--zzg-texture),
       linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)) !important;
@@ -330,6 +347,7 @@
     background-origin: border-box !important;
     background-clip: border-box !important;
     border-radius: var(--zzg-round) !important;
+    corner-shape: var(--zzg-corner-tabs);
     opacity: var(--zzglass-pending-opacity, 0.62) !important;
     background-image: var(--zzg-texture),
       linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)) !important;
@@ -371,6 +389,61 @@
 @media (-moz-pref("zzglass.sidebar.direction", 5)) { :root { --zzg-sdir: 315deg; } }
 @media (-moz-pref("zzglass.sidebar.direction", 6)) { :root { --zzg-sdir: 45deg; } }
 @media (-moz-pref("zzglass.sidebar.direction", 7)) { :root { --zzg-sdir: 225deg; } }
+
+
+/* Essentials are .tabbrowser-tabs, so the state rules above already gave
+   them --zzg-corner-tabs. This re-points them at their own knob: an
+   Essentials card is far larger than a tab, and the same corner reads very
+   differently at that size. */
+#navigator-toolbox .tabbrowser-tab[zen-essential="true"] .tab-background,
+#navigator-toolbox .tabbrowser-tab[zen-essential="true"] .tab-stack .tab-background {
+  corner-shape: var(--zzg-corner-ess);
+}
+
+/* ============================================================
+   CORNER SHAPE  (Zen 1.22b squircles)
+
+   Mode 0 is "follow Zen" and sets nothing, so Zen's universal rule stands.
+   Every other mode overrides it on THIS mod's surfaces only. Zen's rule is
+   *:not(.no-squircles) -- specificity (0,1,0) -- so our id-anchored
+   selectors win without needing !important, and Sine's USER_SHEET origin
+   wins any tie regardless. corner-shape is gated in Firefox behind
+   layout.css.corner-shape.enabled; where it is unsupported every
+   declaration below is simply ignored, which is why none of this needs a
+   feature query.
+   ============================================================ */
+/* Radius compensation. Auto follows Zen's own squircle value, which is the
+   same factor Zen applies to its native radii -- and it is per-platform, so
+   Windows (2.3) gets more compensation than everywhere else (1.3) without
+   anyone typing a number. */
+@media (-moz-pref("zzglass.corner.radius-mode", 1)) { :root { --zzg-rscale: var(--zen-squircle-value, 1); } }
+@media (-moz-pref("zzglass.corner.radius-mode", 2)) { :root { --zzg-rscale: var(--zzglass-corner-radius-scale, 1); } }
+
+@media (-moz-pref("zzglass.corner.mode", 1)) { :root { --zzg-corner: round; } }
+@media (-moz-pref("zzglass.corner.mode", 2)) { :root { --zzg-corner: squircle; } }
+@media (-moz-pref("zzglass.corner.mode", 3)) { :root { --zzg-corner: superellipse(var(--zzglass-corner-value, 2.3)); } }
+@media (-moz-pref("zzglass.corner.mode", 4)) { :root { --zzg-corner: square; } }
+@media (-moz-pref("zzglass.corner.mode", 5)) { :root { --zzg-corner: bevel; } }
+@media (-moz-pref("zzglass.corner.mode", 6)) { :root { --zzg-corner: notch; } }
+@media (-moz-pref("zzglass.corner.mode", 7)) { :root { --zzg-corner: scoop; } }
+
+/* Per-surface overrides. 0 = follow the setting above. */
+@media (-moz-pref("zzglass.corner.tabs", 1)) { :root { --zzg-corner-tabs: round; } }
+@media (-moz-pref("zzglass.corner.tabs", 2)) { :root { --zzg-corner-tabs: squircle; } }
+@media (-moz-pref("zzglass.corner.tabs", 3)) { :root { --zzg-corner-tabs: superellipse(var(--zzglass-corner-value, 2.3)); } }
+@media (-moz-pref("zzglass.corner.tabs", 4)) { :root { --zzg-corner-tabs: square; } }
+@media (-moz-pref("zzglass.corner.essentials", 1)) { :root { --zzg-corner-ess: round; } }
+@media (-moz-pref("zzglass.corner.essentials", 2)) { :root { --zzg-corner-ess: squircle; } }
+@media (-moz-pref("zzglass.corner.essentials", 3)) { :root { --zzg-corner-ess: superellipse(var(--zzglass-corner-value, 2.3)); } }
+@media (-moz-pref("zzglass.corner.essentials", 4)) { :root { --zzg-corner-ess: square; } }
+@media (-moz-pref("zzglass.corner.buttons", 1)) { :root { --zzg-corner-btn: round; } }
+@media (-moz-pref("zzglass.corner.buttons", 2)) { :root { --zzg-corner-btn: squircle; } }
+@media (-moz-pref("zzglass.corner.buttons", 3)) { :root { --zzg-corner-btn: superellipse(var(--zzglass-corner-value, 2.3)); } }
+@media (-moz-pref("zzglass.corner.buttons", 4)) { :root { --zzg-corner-btn: square; } }
+@media (-moz-pref("zzglass.corner.sidebar", 1)) { :root { --zzg-corner-side: round; } }
+@media (-moz-pref("zzglass.corner.sidebar", 2)) { :root { --zzg-corner-side: squircle; } }
+@media (-moz-pref("zzglass.corner.sidebar", 3)) { :root { --zzg-corner-side: superellipse(var(--zzglass-corner-value, 2.3)); } }
+@media (-moz-pref("zzglass.corner.sidebar", 4)) { :root { --zzg-corner-side: square; } }
 
 @media (-moz-pref("zzglass.strip.enabled")) {
   #tabbrowser-tabs, #vertical-tabs, #vertical-pinned-tabs-container, .zen-essentials-container {
@@ -526,6 +599,7 @@
     height: calc(var(--zzg-btn-size) * var(--zzg-rest)) !important;
     min-height: calc(var(--zzg-btn-size) * var(--zzg-rest)) !important;
     border-radius: calc(var(--zzg-btn-size) * min(var(--zzg-width), var(--zzg-rest)) / 2) !important;
+    corner-shape: var(--zzg-corner-btn);
     align-self: center !important;
     flex: 0 0 auto !important;
     position: relative !important;
@@ -1058,6 +1132,7 @@
     background-color: color-mix(in srgb, var(--zzg-accent)
       var(--zzglass-sidebar-blur-tint, 22%), transparent) !important;
     border-radius: var(--zzglass-sidebar-blur-radius-corner, 12px) !important;
+    corner-shape: var(--zzg-corner-side);
     backdrop-filter:
       blur(var(--zzglass-sidebar-blur-radius, 25px))
       contrast(var(--zzglass-sidebar-blur-contrast, 1))

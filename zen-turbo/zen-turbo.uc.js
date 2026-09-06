@@ -99,23 +99,15 @@
       ["general.smoothScroll.msdPhysics.slowdownMinDeltaMS", 25],
       ["general.smoothScroll.msdPhysics.slowdownSpringConstant", 250],
     ],
-    // Zen 1.22b draws every corner in the chrome with
-    // corner-shape: superellipse(), applied to the UNIVERSAL selector. That
-    // makes each corner a custom rasterized path instead of the fast
-    // rounded-rect path, on every element, every paint. Turning the platform
-    // feature off returns the whole browser to plain rounded corners: a real
-    // reduction in per-paint work, and the global escape hatch if you dislike
-    // the 1.22b shape. Off by default -- it is a visible look change.
-    squircles: [
-      ["layout.css.corner-shape.enabled", false],
-    ],
   };
 
   // Packs default ON when the pref has not been written yet, EXCEPT these.
   // Without this, a pack whose preferences.json default is false would still
   // apply on a profile where Sine has not yet written the pref -- which is
   // what the plain `bool(..., true)` below used to do to the gfx pack.
-  const PACK_DEFAULTS = { gfx: false, squircles: false };
+  // Appearance belongs to the styling mods, so nothing that only changes how
+  // the browser LOOKS gets a pack here.
+  const PACK_DEFAULTS = { gfx: false };
 
   const SAVED = P + "saved-prefs";   // JSON: { prefName: {had:bool, v:value} }
 
@@ -177,8 +169,34 @@
     note(`pack off: ${packName} (restored)`);
   }
 
+  // A pack that no longer exists can still own prefs in the snapshot written by
+  // an earlier version. The squircle pack, which moved to Glassflow where
+  // appearance belongs, is exactly that case: 1.3.0 shipped it, so a profile
+  // that enabled it holds layout.css.corner-shape.enabled = false plus a
+  // snapshot entry, and with the pack gone nothing would ever revert it. Give
+  // back anything the current packs no longer claim.
+  function reclaimOrphans() {
+    const saved = readSaved();
+    const owned = new Set();
+    for (const list of Object.values(PACKS)) for (const [name] of list) owned.add(name);
+    let changed = false;
+    for (const name of Object.keys(saved)) {
+      if (owned.has(name)) continue;
+      const s = saved[name];
+      try {
+        if (s?.had) setAny(name, s.v);
+        else Services.prefs.clearUserPref(name);
+        note(`reclaimed ${name}: no pack owns it any more, profile value restored`);
+      } catch (e) { note(`reclaim ${name} failed: ${e}`); }
+      delete saved[name];
+      changed = true;
+    }
+    if (changed) writeSaved(saved);
+  }
+
   function syncPacks() {
     if (!isMainAppWindow()) return;
+    reclaimOrphans();
     for (const packName of Object.keys(PACKS)) {
       if (bool("pack-" + packName, PACK_DEFAULTS[packName] ?? true)) applyPack(packName);
       else revertPack(packName);

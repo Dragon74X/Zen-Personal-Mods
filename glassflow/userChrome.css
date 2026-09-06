@@ -396,7 +396,17 @@
    Essentials card is far larger than a tab, and the same corner reads very
    differently at that size. */
 #navigator-toolbox .tabbrowser-tab[zen-essential="true"] .tab-background,
-#navigator-toolbox .tabbrowser-tab[zen-essential="true"] .tab-stack .tab-background {
+#navigator-toolbox .tabbrowser-tab[zen-essential="true"] .tab-stack .tab-background,
+/* Zen paints a SELECTED Essential's visible card on .tab-background's ::before
+   and ::after, each carrying its own corner-shape (vertical-tabs.css, under
+   zen.theme.essentials-favicon-bg). corner-shape applies per element and per
+   pseudo -- a pseudo does not take the parent's -- so without these two
+   selectors this setting would miss the surface you actually see on the
+   selected card. That block is also NOT behind
+   layout.css.corner-shape.enabled, so the browser-wide switch cannot reach
+   it live either; these rules can, because they are ours and win on origin. */
+#navigator-toolbox .tabbrowser-tab[zen-essential="true"] .tab-background::before,
+#navigator-toolbox .tabbrowser-tab[zen-essential="true"] .tab-background::after {
   corner-shape: var(--zzg-corner-ess);
 }
 

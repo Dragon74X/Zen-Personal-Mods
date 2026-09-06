@@ -233,9 +233,22 @@ them read as circles and capsules at all.
 **Turn squircles off browser-wide** is the blunt version of all of the above:
 it disables the platform feature the whole system is built on
 (`layout.css.corner-shape.enabled`), so every corner in the browser — menus,
-panels, dialogs, the URL bar — goes back to a plain rounded corner, exactly as
-before 1.22b. It also removes a little per-paint work, since a superellipse
-corner is a custom rasterized path rather than the fast rounded-rect path.
+panels, dialogs, the URL bar — goes back to a plain rounded corner.
+
+**It needs a restart**, and the reason is worth knowing, because it explains
+why flipping that pref by hand looks like it does almost nothing. Exactly one
+of Zen's rules is behind that pref — the universal
+`*:not(.no-squircles)` one in `zen-theme.css`. That drops live. But Zen's
+other `corner-shape` declarations, including the ones painting selected
+Essentials cards on `.tab-background::before` and `::after`, sit behind
+`zen.theme.essentials-favicon-bg` instead. Those are already parsed, and they
+keep applying until the browser restarts and the stylesheets are parsed again.
+
+The per-surface settings above need no restart. They take effect immediately
+because they override Zen on this mod's own surfaces rather than trying to
+switch the feature off underneath it — including on those Essentials
+pseudo-elements, which the browser-wide switch cannot reach live at all.
+Prefer them unless you genuinely want the whole browser changed.
 
 That is a browser pref rather than CSS, so `glassflow.uc.js` sets it. Your
 value is snapshotted first and restored exactly when you switch it back off,
@@ -245,6 +258,14 @@ global.
 
 Where `corner-shape` is unsupported entirely, every declaration in this
 section is ignored and nothing breaks.
+
+## Animation
+
+**Instant UI animations** (off by default) flips the global switch on Zen's
+bundled Motion library, so every UI animation — tab open and close, workspace
+switches, folders — jumps straight to its final frame and the interface
+responds at input speed. There is no `zen.animations` pref; this is the real
+lever. In-memory, applies and reverts live, and web pages are untouched.
 
 ## Compatibility
 

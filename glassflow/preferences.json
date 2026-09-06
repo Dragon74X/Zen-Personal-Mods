@@ -3120,7 +3120,7 @@
   {
     "type": "checkbox",
     "property": "zzglass.corner.disable-platform",
-    "label": "Turn squircles off browser-wide *The settings above reshape Glassflow's own surfaces. This one turns Zen's squircle system off everywhere -- menus, panels, dialogs, the URL bar, everything -- by disabling the platform feature it is built on (`layout.css.corner-shape.enabled`). Every corner in the browser goes back to a plain rounded corner, exactly as it was before Zen 1.22b. It also removes a little per-paint work, since a superellipse corner is a custom rasterized path rather than the fast rounded-rectangle path. Your setting is snapshotted before it is changed and restored exactly when you switch this back off; if you change the pref by hand afterwards it is treated as yours and left alone.*",
+    "label": "Turn squircles off browser-wide (needs a restart) *Disables the platform feature Zen's squircles are built on (`layout.css.corner-shape.enabled`), so every corner in the browser -- menus, panels, dialogs, the URL bar -- goes back to a plain rounded corner. **A restart is required for this to fully take effect**, and this is why: only ONE of Zen's rules is behind that pref, the universal one, which does drop the moment you flip it. Zen's other corner-shape declarations, including the ones painting selected Essentials cards, are behind a different pref entirely and were already parsed -- they keep applying until the browser restarts and the stylesheets are parsed again. So flipping this alone looks like it did almost nothing. The Corner shape settings above need no restart and take effect immediately, because they override Zen on this mod's own surfaces rather than trying to switch the feature off underneath it -- use those unless you specifically want the whole browser changed. Your value is snapshotted before it is changed and restored exactly when you switch this back off.*",
     "defaultValue": false
   },
   {
@@ -3349,6 +3349,18 @@
         "value": 4
       }
     ]
+  },
+  {
+    "type": "separator",
+    "label": "Animation",
+    "size": "17px",
+    "margin": "22px 0 10px 0"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.instant-ui",
+    "label": "Instant UI animations *Zen animates its interface -- tab open and close, workspace switches, folders -- through its bundled Motion library. This flips that library's global switch so every UI animation jumps straight to its final frame: the interface responds at input speed instead of animation speed. Applies and reverts live, and web pages are untouched. This is a look change by design; leave it off if you like the motion.*",
+    "defaultValue": false
   },
   {
     "type": "separator",

@@ -25,9 +25,10 @@ later change by hand is recognized as yours and never touched again.
 | Physics-based smooth scrolling | on | MSD-physics scroll response instead of fixed-duration easing: tracks the wheel with less lag, settles without the floaty tail |
 | Force GPU rendering paths | off | WebRender and accelerated canvas on hardware where Mozilla's blocklist keeps them off conservatively |
 
-Nothing here changes how the browser *looks*. Appearance belongs to the
-styling mods: corner shapes, including turning Zen 1.22b's squircles off
-browser-wide, live in [Glassflow](../glassflow)'s **Corner shape** section.
+Nothing here changes how the browser *looks* -- the line is look versus feel.
+Scroll physics stays because it changes how scrolling *responds*, not how
+anything is drawn. Appearance belongs to the styling mods: corner shapes and
+instant UI animations both live in [Glassflow](../glassflow).
 
 **Hover warmup** -- hovering an unloaded tab or a bookmark pre-opens TCP+TLS
 to its site, in the right container, so the click lands on a warm socket.
@@ -39,14 +40,6 @@ from local history, read-only) get connections pre-opened, spread a quarter
 second apart to avoid a burst. The first navigation of the day lands warm.
 Six sites by default, after a 4 second delay so it never competes with session
 restore.
-
-**Instant UI animations** (off by default) -- Zen animates its interface
-through its bundled Motion library, which exposes a global switch. With this
-on, every UI animation jumps straight to its final frame, so the interface
-responds at input speed instead of animation speed. In-memory, applies and
-reverts live, and web pages are untouched. There is no `zen.animations` pref;
-this is the real lever. It is a look change by design -- leave it off if you
-like the motion.
 
 **Smooth workspace switching** (on by default) -- pure CSS, no script. Zen
 marks a workspace slide with `[animating-background]` on the root element, and

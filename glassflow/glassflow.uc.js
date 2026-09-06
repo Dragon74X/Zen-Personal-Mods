@@ -111,10 +111,26 @@
     try { P.clearUserPref(CS_SAVED); } catch {}
   }
 
+  // ---- instant UI animations ---------------------------------------------
+  // Zen animates its interface through its vendored Motion library, which
+  // exposes a global switch: with instantAnimations set, every animation jumps
+  // straight to its final frame. This is the real lever -- no zen.animations
+  // pref exists. It is a LOOK change, which is why it lives here and not in a
+  // performance mod. In-memory, applies live, reverts live, touches nothing on
+  // web pages.
+  function syncInstantUI() {
+    const cfg = window.Motion?.MotionGlobalConfig;
+    if (!cfg) return;                      // not on this build; nothing to do
+    let want = false;
+    try { want = Services.prefs.getBoolPref(PREFIX + "instant-ui", false); } catch {}
+    if (cfg.instantAnimations !== want) cfg.instantAnimations = want;
+  }
+
   const prefVarObserver = {
     observe(_s, _t, data) {
       if (!data || !data.startsWith(PREFIX)) return;
       if (data === PREFIX + "corner.disable-platform") { syncPlatformSquircles(); return; }
+      if (data === PREFIX + "instant-ui") { syncInstantUI(); return; }
       const name = "--" + data.replace(/\./g, "-");
       const value = readPrefValue(data);
       try {
@@ -128,6 +144,7 @@
   function start() {
     injectPrefVars();
     syncPlatformSquircles();
+    syncInstantUI();
     Services.prefs.addObserver(PREFIX, prefVarObserver);
     window.addEventListener("unload", () => {
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}

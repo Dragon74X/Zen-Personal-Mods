@@ -146,9 +146,18 @@
     syncPlatformSquircles();
     syncInstantUI();
     Services.prefs.addObserver(PREFIX, prefVarObserver);
-    window.addEventListener("unload", () => {
+    const cleanup = () => {
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}
-    }, { once: true });
+    };
+    window.addEventListener("unload", cleanup, { once: true });
+    // Sine hot-reloads a mod's script when the mod updates, but ONLY if the
+    // script registered an unload callback through Sine's own API. Without one,
+    // manager.sys.mjs triggerUnloadListener() finds a null callback, reports
+    // "still loaded", and the NEW script is never injected -- so an update
+    // silently does nothing until the browser restarts, leaving stale code (or
+    // none) in the running window. The DOM unload event below does not satisfy
+    // that protocol: it only fires when the window itself closes.
+    try { window.addUnloadListener?.(cleanup); } catch {}
   }
 
   if (gBrowserInit?.delayedStartupFinished) start();

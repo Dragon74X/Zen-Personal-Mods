@@ -142,7 +142,6 @@
 
 
   function start() {
-    injectPrefVars();
     syncPlatformSquircles();
     syncInstantUI();
     Services.prefs.addObserver(PREFIX, prefVarObserver);
@@ -159,6 +158,15 @@
     // that protocol: it only fires when the window itself closes.
     try { window.addUnloadListener?.(cleanup); } catch {}
   }
+
+  // Written the moment this script is injected, not from start(). These
+  // variables need only Services.prefs and the document element -- never
+  // gBrowser -- and browser-delayed-startup-finished, which start() waits for,
+  // fires well AFTER first paint. Deferring meant every window opened painting
+  // the CSS fallbacks (10px roundness, the default tints) and then snapping to
+  // the configured values. Doing it here is what actually makes the comment
+  // above true.
+  try { injectPrefVars(); } catch {}
 
   if (gBrowserInit?.delayedStartupFinished) start();
   else {

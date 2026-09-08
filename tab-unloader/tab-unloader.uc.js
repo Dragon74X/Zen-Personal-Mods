@@ -380,6 +380,50 @@
     instance.retire = cleanup;
   }
 
+
+  // ---- declared defaults --------------------------------------------------
+  // Sine does not write the defaults declared in preferences.json into the
+  // profile. manager.sys.mjs says so outright: "TODO: Apply default
+  // preferences." So an unset pref reads as whatever the READER falls back
+  // to, and the readers disagree with each other.
+  //
+  // This script asks bool("favicons", true). Sine's settings panel, deciding
+  // whether to show a row conditioned on that same pref, asks
+  // getBoolPref("zzgroup.favicons", false). Both are reasonable in isolation
+  // and together they produce a mod behaving as if a setting is on while
+  // every row it governs is hidden as if it were off. A -moz-pref() media
+  // query in the stylesheet is a third reader with its own answer.
+  //
+  // Writing each declared default once, and only when the pref has never
+  // been set, removes the disagreement for all three at once. Nothing that
+  // was already chosen is touched.
+  const MOD_ID = "zz-tab-unloader";
+  async function seedDefaults() {
+    let declared;
+    try {
+      const res = await fetch(`chrome://sine/content/${MOD_ID}/preferences.json`);
+      const json = await res.json();
+      declared = Array.isArray(json) ? json : (json.preferences ?? []);
+    } catch { return false; }
+
+    const S = Services.prefs;
+    let wrote = 0;
+    for (const pref of declared) {
+      const name = pref?.property;
+      const value = pref?.defaultValue;
+      if (!name || !name.startsWith(P) || value === undefined || value === null) continue;
+      try {
+        if (S.getPrefType(name) !== S.PREF_INVALID) continue;   // already chosen
+        if (typeof value === "boolean") S.setBoolPref(name, value);
+        else if (typeof value === "number") S.setIntPref(name, value);
+        else if (typeof value === "string") S.setStringPref(name, value);
+        else continue;
+        wrote++;
+      } catch {}
+    }
+    return wrote > 0;
+  }
+
   // ---- startup ------------------------------------------------------------
   // browser-delayed-startup-finished is a ONE-SHOT notification, and waiting
   // on it alone is not safe. Sine does not always inject through its
@@ -407,6 +451,10 @@
     }
     if (waitTimer) { clearInterval(waitTimer); waitTimer = null; }
   };
+
+  // Seed before starting where possible. start() reads prefs immediately, so
+  // a mod that starts first would run one session on the wrong fallbacks.
+  seedDefaults().catch(() => {});
 
   const startOnce = () => {
     // A newer copy of this script may have claimed the window while this one

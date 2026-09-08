@@ -110,9 +110,15 @@
 /* ============================================================
    Only what applies.
 
-   Sine's preferences.json has no conditional-visibility field, so rows are
-   hidden here, keyed on the pref that governs them. Generated from
-   preferences.json, so a removed pref cannot leave a stale rule behind.
+   Sine does have a native conditional-visibility field (`conditions` in
+   preferences.json, evaluated by preferences.sys.mjs). Rows are hidden here
+   anyway, on purpose: Sine evaluates a condition by reading the governing
+   pref with a getter chosen from the JSON value's type -- getIntPref for a
+   number -- and an untrapped getIntPref on a pref that is stored as a string
+   throws, which aborts the panel build for the whole mod. A media query
+   cannot fail that way: if a rule never matches, the row simply stays
+   visible. Generated from preferences.json, so a removed pref cannot leave a
+   stale rule behind.
    ============================================================ */
 @media not (-moz-pref("zzglass.selected.enabled")) {
   #zzglass-edges-selected-color,

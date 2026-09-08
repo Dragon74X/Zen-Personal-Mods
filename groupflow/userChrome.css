@@ -20,7 +20,7 @@
 
 :root {
   /* Inherit Glassflow wholesale; each fallback IS Glassflow's default. */
-  /* Zen 1.22b reshapes every corner via corner-shape: superellipse() !important; see
+  /* Zen 1.22b reshapes every corner via corner-shape: superellipse(); see
      Glassflow's CORNER SHAPE block. Default mirrors Zen, so nothing changes
      out of the box; the 1 fallback is a plain round corner on older builds. */
   --zzgf-corner: superellipse(var(--zen-squircle-value, 1));

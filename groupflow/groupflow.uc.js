@@ -52,6 +52,30 @@ const PREFIX = "zzgroup.";
     return null;
   }
 
+  // Sine only stores a dropdown as a number when the pref declares
+  // value: "number"; without it, convertValueType() hands back the raw string
+  // from the menulist. The corner dropdowns shipped without that key, so the
+  // moment one was CHANGED its pref flipped from int to string -- and
+  // @media (-moz-pref("name", 1)) never matches a string, so every corner
+  // setting silently stopped applying while still reading correctly in the
+  // settings panel. The declarations are fixed; these values were already
+  // written, and a pref keeps its type until it is cleared.
+  const NUMERIC_PREFS = ["corner.mode", "corner.radius-source", "corner.radius-mode"];
+
+  function repairNumericPrefs() {
+    const P = Services.prefs;
+    for (const key of NUMERIC_PREFS) {
+      const full = PREFIX + key;
+      try {
+        if (P.getPrefType(full) !== P.PREF_STRING) continue;
+        const raw = P.getStringPref(full, "").trim();
+        if (!/^-?\d+$/.test(raw)) continue;   // not a dropdown index; leave it
+        P.clearUserPref(full);                // type is fixed until cleared
+        P.setIntPref(full, parseInt(raw, 10));
+      } catch {}
+    }
+  }
+
   const prefVarObserver = {
     observe(_s, _t, data) {
       if (!data || !data.startsWith(PREFIX)) return;
@@ -158,6 +182,7 @@ const PREFIX = "zzgroup.";
   // the CSS fallbacks (10px roundness, the default tints) and then snapping to
   // the configured values. Doing it here is what actually makes the comment
   // above true.
+  try { repairNumericPrefs(); } catch {}
   try { injectPrefVars(); } catch {}
 
   if (gBrowserInit?.delayedStartupFinished) start();

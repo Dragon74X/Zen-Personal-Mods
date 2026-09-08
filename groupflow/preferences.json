@@ -383,7 +383,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.icon-source",
-    "label": "Icon source *Site favicon is one picture per domain, so every subgroup under a mod site or a store draws the same thing. Page image uses what the page itself advertises -- its og:image -- which Firefox already saved to your history while the page loaded, so reading it is a local database lookup rather than a scrape. It gives game art on Nexus and Steam pages and a channel avatar on a YouTube channel page, but on a YouTube watch page it is the video thumbnail, not the creator. Falls back to the favicon whenever no image was stored, and the favicon is drawn first either way so a group is never blank while the lookup runs. Displaying an image does load it, normally from cache since you visited the page it came from.*",
+    "label": "Icon source *Site favicon is one picture per domain, so every subgroup under a mod site or a store draws the same thing. Page image uses what the page itself advertises -- its og:image -- which Firefox already saved to your history while the page loaded, so reading it is a local database lookup rather than a scrape. Subject image goes one better for named subgroups: it looks through your own history for the page on that same site that is ABOUT the subgroup's name -- a YouTube channel page for a creator, a Nexus game page for a game, a profile page for an author -- and uses that page's image. That is how a creator subgroup gets the creator's own avatar. It matches only pages you have actually visited; anything unmatched falls back to the page image and then the favicon, and the favicon is drawn first either way so a group is never blank. No site is special-cased and nothing is fetched. Displaying an image does load it, normally from cache.*",
     "defaultValue": 0,
     "options": [
       {
@@ -393,6 +393,10 @@
       {
         "label": "Page image, favicon fallback",
         "value": 1
+      },
+      {
+        "label": "Subject image, then page image, then favicon",
+        "value": 2
       }
     ],
     "conditions": [

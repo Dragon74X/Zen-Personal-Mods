@@ -93,6 +93,44 @@ Page images are wide banners, so they are cropped to the centre and the backing
 plate is dropped — a photo does not need one. Displaying an image does load it,
 normally from cache, since it came from a page you visited.
 
+### Automatic: the subject's own page
+
+*Subject image* is the one that gives a creator subgroup the creator's avatar,
+and it is not YouTube-specific — no site is special-cased anywhere in it.
+
+The observation is simple. A subgroup is named after its subject, and somewhere
+in your history there is usually a page **about** that subject on that same
+site. Firefox stored that page's `og:image` when you visited it. So the picture
+already exists locally; it just has to be found.
+
+| Subgroup | Page matched in your history | Image |
+|---|---|---|
+| *Youtube / Rick Astley* | `youtube.com` page titled "Rick Astley" | the channel avatar |
+| *Nexusmods / Crimson Desert* | `nexusmods.com` page titled "Crimson Desert…" | the game art |
+| *Github / someone* | `github.com` page titled "someone…" | the profile image |
+
+The lookup is a query against your own Places database — the host reversed to
+hit the index Firefox already keeps, then a title match in JS, because a page
+title is the subject plus the site (`Rick Astley - YouTube`,
+`Crimson Desert | Nexus Mods`). Nothing is fetched and no service is asked.
+
+It matches **only pages you have actually visited**. A creator whose page you
+have never opened falls back to the page image, and then to the favicon — the
+favicon is drawn first regardless, so a group is never blank while the query
+runs. "Looked, found nothing" is remembered too, so an unmatched name is not
+re-queried on every refresh.
+
+```js
+Groupflow.explain()          // which group has which icon, and from where
+Groupflow.icons()            // site|name -> image, everything matched so far
+Groupflow.forgetIcons()      // empty it and recompute
+Groupflow.refresh()          // recompute now
+```
+
+That cache pairs a site with something named on it, drawn from your history. It
+lives in `zzgroup.icon-cache`, is capped at 300 entries oldest-out, and
+`forgetIcons()` clears it.
+
 ### Naming an icon yourself
 
 The dominant-domain rule is right for *Nexusmods* and useless below it: every

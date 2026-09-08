@@ -36,7 +36,7 @@ Every sweep, each tab is checked in order and kept if any rule matches:
 | Pinned | `tab.pinned` | on |
 | Glance | `zen-glance-tab` | on |
 | Split view | `zen-split` | on |
-| Unsubmitted form data | a real field entry in `SessionStore.getTabState().formdata` | on |
+| Unsubmitted form data | a real field entry in `SessionStore.getTabState().formdata`, unless the site is exempted | on |
 | URL matches your exclusion list | substring match | list is empty by default |
 
 Whatever survives is sorted oldest-idle-first and discarded up to the per-sweep cap, respecting the minimum-loaded floor.
@@ -50,6 +50,14 @@ Sweeps are skipped entirely while a workspace slide or trackpad swipe is in prog
 ## Safety
 
 The form-data check needs `SessionStore`. If it is unavailable the check is **skipped** and logged once, rather than treating every tab as dirty. Treating it as dirty is what kept every tab loaded in 1.0.
+
+Even read precisely, the rule cannot tell a half-written comment from a search
+box still holding last week's query -- the browser records both as a real field
+entry, and both then pin the tab for good. YouTube is the usual offender: search
+once and its search box keeps that text for the life of the tab, so the tab
+never becomes eligible again. **Sites where typed text does not count** exempts
+a site from this rule alone; it defaults to `youtube.com` for exactly that
+reason, and every other protection still applies to those tabs.
 
 It also has to read that record precisely. A formdata record is `{ id, xpath, children, url }`, and `url` is stamped on whenever anything is recorded at all -- purely so the data can be checked against the page it came from before being restored. Counting the record's keys therefore reads "SessionStore looked at this page" as "the user typed something", which keeps such a tab loaded forever; YouTube's search box qualifies on sight. Only real field entries count: `id` and `xpath` hold them, and `children` holds one record per frame, so a draft inside an iframe still protects the tab.
 

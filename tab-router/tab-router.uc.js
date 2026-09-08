@@ -354,6 +354,11 @@
   // the base group into the creator's. Re-armed by the next routing pass if
   // the metadata still is not there.
   const awaitingMeta = new WeakSet();
+  // Bounded: roughly half a minute of looking, then this tab is left alone.
+  // A page that has not registered a media session by then is not going to.
+  const metaRetry = new WeakMap();
+  const MAX_META_TRIES = 12;
+
   function watchForCreator(tab) {
     // Gated on the same two conditions as the read. Without this the
     // listener was attached for every tab even with the feature switched
@@ -362,7 +367,22 @@
     if (awaitingMeta.has(tab)) return;
     let controller = null;
     try { controller = tab.linkedBrowser?.browsingContext?.mediaController; } catch {}
-    if (!controller) return;
+    if (!controller) {
+      // No session yet. Giving up here is what made this look broken: a tab
+      // opened in the background never plays audio, so soundplaying never
+      // fires, and the first routing pass runs before the player has
+      // registered anything, so there is no controller to listen to either.
+      // Nothing would ever route that tab again and it sat in the base group
+      // for good. Re-check on a bounded schedule instead.
+      const tries = metaRetry.get(tab) | 0;
+      if (tries >= MAX_META_TRIES) return;
+      metaRetry.set(tab, tries + 1);
+      setTimeout(() => {
+        if (tab.isConnected && !tab.closing) queueRoute(tab, "creator-retry");
+      }, Math.max(500, num("creator-retry-ms", 2500)));
+      return;
+    }
+    metaRetry.delete(tab);
     awaitingMeta.add(tab);
     const onMeta = () => {
       awaitingMeta.delete(tab);
@@ -1243,7 +1263,7 @@
         } catch {}
 
         const r = {
-          version: "1.20.1",
+          version: "1.21.0",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The

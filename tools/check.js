@@ -54,6 +54,14 @@
                     "zz-zen-turbo":"__zzturboInstance" }[id]];
     out.injected = gen ? `yes (generation ${gen.generation})` : "no marker -- old version or never injected";
 
+    // The version actually on disk. Settings that exist in the repository but
+    // not here mean Sine has not pulled the update -- which looks exactly like
+    // a broken feature, and is the first thing to rule out.
+    try {
+      const t = await fetch(`chrome://sine/content/${id}/theme.json`);
+      out.installedVersion = (await t.json())?.version ?? "(none)";
+    } catch (e) { out.installedVersion = "could not read theme.json: " + e; }
+
     let prefs = null;
     try {
       const res = await fetch(`chrome://sine/content/${id}/preferences.json`);
@@ -98,6 +106,20 @@
         }
       }
     }
+    // Named explicitly: if one of these is absent the installed copy predates
+    // the feature, and no amount of looking in the panel will find it.
+    const EXPECT = {
+      "zz-groupflow": ["zzgroup.icon-source", "zzgroup.icon-rules"],
+      "zz-tab-router": ["zzrouter.media-subgroups", "zzrouter.media-domains"],
+    }[id];
+    if (EXPECT) {
+      const have = new Set(prefs.map((x) => x?.property).filter(Boolean));
+      const absent = EXPECT.filter((n) => !have.has(n));
+      out.featureSettings = absent.length
+        ? `MISSING from the installed copy: ${absent.join(", ")}`
+        : "present";
+    }
+
     out.prefsChecked = checked;
     out.prefsNeverSet = `${unset} of ${checked} still on their declared default`;
     if (!out.problems.length) out.problems = "none -- every stored pref matches its declared type";

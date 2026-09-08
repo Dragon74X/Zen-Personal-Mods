@@ -462,7 +462,17 @@
     if (started || window[INSTANCE_KEY] !== instance) return;
     started = true;
     stopWaiting();
-    start();
+    // Contained on purpose. Sine's window-open loop calls
+    // loadSubScriptWithOptions for each mod in turn and does NOT wrap it, so a
+    // throw that escapes this script propagates into that loop and every mod
+    // queued after it is silently never injected. That is not hypothetical:
+    // one missing function in Glassflow -- the first mod loaded -- left Tab
+    // Router, Tab Unloader and Zen Turbo uninjected, which read as three
+    // unrelated mods breaking at once. A broken mod should break only itself,
+    // and should say so rather than failing quietly.
+    try { start(); } catch (e) {
+      console.error("[TabUnloader] failed to start:", e);
+    }
   };
 
   // Read through the window first, then the bare global. A sub-script loaded

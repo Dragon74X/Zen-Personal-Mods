@@ -140,6 +140,25 @@
     try { P.clearUserPref(CS_SAVED); } catch {}
   }
 
+  // ---- instant UI animations ---------------------------------------------
+  // Zen animates its interface through its vendored Motion library, which
+  // exposes a global switch: with instantAnimations set, every animation jumps
+  // straight to its final frame. This is the real lever -- no zen.animations
+  // pref exists. It is a LOOK change, which is why it lives here and not in a
+  // performance mod. In-memory, applies live, reverts live, touches nothing on
+  // web pages.
+  //
+  // Restored: cd192ee deleted this body while leaving both call sites, so
+  // start() threw ReferenceError on every window from then on. See the note
+  // on startOnce() for why that took the other four mods down with it.
+  function syncInstantUI() {
+    const cfg = window.Motion?.MotionGlobalConfig;
+    if (!cfg) return;                      // not on this build; nothing to do
+    let want = false;
+    try { want = Services.prefs.getBoolPref(PREFIX + "instant-ui", false); } catch {}
+    if (cfg.instantAnimations !== want) cfg.instantAnimations = want;
+  }
+
   const prefVarObserver = {
     observe(_s, _t, data) {
       if (!data || !data.startsWith(PREFIX)) return;
@@ -276,7 +295,17 @@
     if (started || window[INSTANCE_KEY] !== instance) return;
     started = true;
     stopWaiting();
-    start();
+    // Contained on purpose. Sine's window-open loop calls
+    // loadSubScriptWithOptions for each mod in turn and does NOT wrap it, so a
+    // throw that escapes this script propagates into that loop and every mod
+    // queued after it is silently never injected. That is not hypothetical:
+    // one missing function in Glassflow -- the first mod loaded -- left Tab
+    // Router, Tab Unloader and Zen Turbo uninjected, which read as three
+    // unrelated mods breaking at once. A broken mod should break only itself,
+    // and should say so rather than failing quietly.
+    try { start(); } catch (e) {
+      console.error("[Glassflow] failed to start:", e);
+    }
   };
 
   // Read through the window first, then the bare global. A sub-script loaded

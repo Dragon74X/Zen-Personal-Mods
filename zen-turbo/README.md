@@ -47,6 +47,14 @@ the little status panel showing a link's target -- so this wraps that, and it
 fires on every link hover there is. The container used is the hovered tab's,
 since that is where the link would open.
 
+**Warming waits for a deliberate hover.** The pointer has to rest on a link,
+tab or bookmark for 200ms (configurable) before its connection is opened, so
+sweeping across a page of links or down the tab strip warms nothing. That
+threshold is the only real economy available here, because a socket once
+opened is Firefox's to close -- there is no API to cancel a speculative
+connection, so one you never click sits in the pool until keep-alive reaps it.
+Not opening it is the whole game.
+
 **How long a warmed socket lasts:** it becomes an ordinary idle persistent
 connection the moment it opens, so Firefox reaps it on
 `network.http.keep-alive.timeout` -- **115 seconds** by default, and Zen does

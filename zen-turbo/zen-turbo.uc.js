@@ -282,13 +282,13 @@
       try { uri = tab.linkedBrowser?.currentURI; } catch {}
       if (uri) {
         const ctx = parseInt(tab.getAttribute("usercontextid") || "0", 10);
-        warm(uri, ctx);
+        warmAfterDwell(uri, ctx);
       }
       return;
     }
     const bm = t?.closest?.(".bookmark-item");
     const url = bm?._placesNode?.uri;
-    if (url) warm(url);
+    if (url) warmAfterDwell(url, 0);
   }
 
   // ---- startup warmup -----------------------------------------------------
@@ -330,6 +330,21 @@
   // tab it was clicked from, and warming the wrong container pool would warm a
   // connection the real request never uses.
   let overLinkOriginal = null;
+  let dwellTimer = null;
+
+  // A socket, once opened, is Firefox's to close: there is no API to cancel a
+  // speculative connection, so an unclicked one sits in the pool for the full
+  // keep-alive. The fix is therefore not to open it for a hover that was never
+  // going to convert. Sweeping the pointer across a page of links, or down the
+  // tab strip, warms nothing; resting on one does. This is the whole reason
+  // the cost of link warming stays bounded.
+  function warmAfterDwell(url, ctx) {
+    clearTimeout(dwellTimer);
+    dwellTimer = null;
+    if (!url) return;                    // pointer left the link
+    const delay = Math.max(0, num("hover-dwell-ms", 200));
+    dwellTimer = setTimeout(() => { dwellTimer = null; warm(url, ctx); }, delay);
+  }
 
   function hookOverLink() {
     const XBW = window.XULBrowserWindow;
@@ -338,10 +353,11 @@
     XBW.setOverLink = function (url, anchorElt) {
       try {
         // setOverLink("") fires when the pointer leaves a link; nothing to do.
-        if (url && bool("hover-warmup", true) && bool("hover-links", true)) {
+        if (bool("hover-warmup", true) && bool("hover-links", true)) {
           let ctx = 0;
           try { ctx = parseInt(gBrowser.selectedTab?.getAttribute("usercontextid") || "0", 10); } catch {}
-          warm(url, ctx);
+          // "" arrives when the pointer leaves a link, which cancels a pending warm.
+          warmAfterDwell(url, ctx);
         }
       } catch {}
       return overLinkOriginal.call(this, url, anchorElt);
@@ -423,6 +439,7 @@
       try { Services.prefs.removeObserver(P, prefObserver); } catch {}
       try { document.removeEventListener("mouseover", onHover); } catch {}
       try { unhookOverLink(); } catch {}
+      try { clearTimeout(dwellTimer); dwellTimer = null; } catch {}
       try { gBrowser.removeTabsProgressListener(navListener); } catch {}
     };
     window.addEventListener("unload", cleanup, { once: true });

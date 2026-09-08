@@ -74,6 +74,21 @@
     ]
   },
   {
+    "type": "string",
+    "property": "zzturbo.hover-dwell-ms",
+    "label": "Hover before warming (milliseconds) *How long the pointer has to rest on something before its connection is opened. This is what keeps hover warming cheap: sweeping across a page of links, or down the tab strip, warms nothing, while pausing on one warms it. It matters because a socket, once opened, is Firefox's to close -- there is no way to cancel a speculative connection, so one you never click sits in the pool until keep-alive reaps it 115 seconds later. Not opening it is the only real economy. 0 warms instantly and is wasteful; 200 catches deliberate hovers without a perceptible delay; raise it if you tend to read with the pointer resting on links.*",
+    "defaultValue": "200",
+    "placeholder": "200",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzturbo.hover-warmup",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
     "type": "checkbox",
     "property": "zzturbo.startup-warmup",
     "label": "Warm frequent sites at startup *The first visit of a session pays DNS and TLS cold. Shortly after startup this reads your most-visited sites from history (read-only, local) and pre-opens connections to them, spread out a quarter second apart. Your first real navigation of the day lands warm.*",

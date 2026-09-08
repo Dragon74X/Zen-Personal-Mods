@@ -20,7 +20,7 @@
 
 :root {
   /* Inherit Glassflow wholesale; each fallback IS Glassflow's default. */
-  /* Zen 1.22b reshapes every corner via corner-shape: superellipse(); see
+  /* Zen 1.22b reshapes every corner via corner-shape: superellipse() !important; see
      Glassflow's CORNER SHAPE block. Default mirrors Zen, so nothing changes
      out of the box; the 1 fallback is a plain round corner on older builds. */
   --zzgf-corner: superellipse(var(--zen-squircle-value, 1));
@@ -230,7 +230,7 @@
       color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-header-tint, 25%), transparent) 0%,
       color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-end-tint, 0%), transparent) var(--zzgroup-spread, 50%)) !important;
   border-radius: var(--zzgf-round) !important;
-  corner-shape: var(--zzgf-corner);
+  corner-shape: var(--zzgf-corner) !important;
   margin: 2px 0 !important;
   padding: 2px 6px !important;
   transition: background-color 0.15s ease, box-shadow 0.15s ease;
@@ -395,7 +395,7 @@
     /* !important on the radius too: a square-ended rail means something
        else in the stack is setting border-radius on this pseudo. */
     border-radius: var(--zzgf-cap) !important;
-    corner-shape: round;   /* cap is a pill; never a superellipse */
+    corner-shape: round !important;   /* cap is a pill; never a superellipse */
     background: var(--zzgf-grad) !important;
     mask-image: var(--zzgf-railmask);
     opacity: var(--zzgroup-line-opacity, 1);
@@ -878,7 +878,7 @@
       color-mix(in srgb, var(--zzgf-accent) 8%, transparent) 0%,
       color-mix(in srgb, var(--zzgf-accent) 3%, transparent) 100%) !important;
     border-radius: calc(var(--zzgf-round) * 0.75) !important;
-    corner-shape: var(--zzgf-corner);
+    corner-shape: var(--zzgf-corner) !important;
     padding: 3px !important;
     margin: 1px 0 3px !important;
   }
@@ -1216,7 +1216,7 @@
     top: 0 !important;
     bottom: var(--zzgroup-flow-tail, 6px) !important;
     border-radius: 0 0 var(--zzgf-cap) var(--zzgf-cap) !important;
-    corner-shape: round;   /* cap is a pill; never a superellipse */
+    corner-shape: round !important;   /* cap is a pill; never a superellipse */
     z-index: 0;
   }
 }

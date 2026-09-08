@@ -9,12 +9,11 @@
 
   const PREFIX = "zzglass.";
 
-  // Zen 1.22b's squircles are gated behind this platform pref. It is a browser
-  // pref rather than CSS, so the stylesheet cannot reach it -- but it is an
-  // appearance control, so it belongs here with Corner shape rather than in a
-  // performance mod. Declared up here because readPrefValue() below skips the
-  // snapshot key, and a const referenced before its declaration line would sit
-  // in the temporal dead zone if anything ever moved the call order.
+  // An earlier version turned squircles off by writing
+  // layout.css.corner-shape.enabled. That pref gates corner-shape at parse
+  // time, so it only took effect after a restart -- the switch now does the
+  // same job live from CSS instead. These two are kept solely to give back a
+  // profile the old code changed; see reclaimPlatformPref() below.
   const CS = "layout.css.corner-shape.enabled";
   const CS_SAVED = PREFIX + "corner.platform-saved";
 
@@ -79,57 +78,26 @@
   const isMainAppWindow = () =>
     Services.wm.getMostRecentWindow("navigator:browser") === window;
 
-  function syncPlatformSquircles() {
+  // One-shot cleanup for profiles touched by the old pref-writing switch.
+  // Without it, anyone who used that switch keeps corner-shape disabled at the
+  // platform level for good, with an orphaned snapshot and nothing left in the
+  // mod that would ever put it back.
+  function reclaimPlatformPref() {
     if (!isMainAppWindow()) return;
     const P = Services.prefs;
-    let want = false;
-    try { want = P.getBoolPref(PREFIX + "corner.disable-platform", false); } catch {}
-
     let saved = null;
     try { saved = JSON.parse(P.getStringPref(CS_SAVED, "null")); } catch {}
-
-    if (want) {
-      if (saved) return;                       // already ours
-      const snap = P.prefHasUserValue(CS)
-        ? { had: true, v: P.getBoolPref(CS, true) }
-        : { had: false };
-      try {
-        P.setStringPref(CS_SAVED, JSON.stringify(snap));
-        P.setBoolPref(CS, false);
-      } catch {}
-      return;
-    }
-
-    if (!saved) return;                        // nothing of ours to undo
+    if (!saved) return;
     try {
-      // Changed by hand since we set it: it is theirs now, leave it.
-      if (P.getBoolPref(CS, false) === false) {
-        if (saved.had) P.setBoolPref(CS, saved.v);
-        else P.clearUserPref(CS);
-      }
+      if (saved.had) P.setBoolPref(CS, saved.v);
+      else P.clearUserPref(CS);
     } catch {}
     try { P.clearUserPref(CS_SAVED); } catch {}
-  }
-
-  // ---- instant UI animations ---------------------------------------------
-  // Zen animates its interface through its vendored Motion library, which
-  // exposes a global switch: with instantAnimations set, every animation jumps
-  // straight to its final frame. This is the real lever -- no zen.animations
-  // pref exists. It is a LOOK change, which is why it lives here and not in a
-  // performance mod. In-memory, applies live, reverts live, touches nothing on
-  // web pages.
-  function syncInstantUI() {
-    const cfg = window.Motion?.MotionGlobalConfig;
-    if (!cfg) return;                      // not on this build; nothing to do
-    let want = false;
-    try { want = Services.prefs.getBoolPref(PREFIX + "instant-ui", false); } catch {}
-    if (cfg.instantAnimations !== want) cfg.instantAnimations = want;
   }
 
   const prefVarObserver = {
     observe(_s, _t, data) {
       if (!data || !data.startsWith(PREFIX)) return;
-      if (data === PREFIX + "corner.disable-platform") { syncPlatformSquircles(); return; }
       if (data === PREFIX + "instant-ui") { syncInstantUI(); return; }
       const name = "--" + data.replace(/\./g, "-");
       const value = readPrefValue(data);
@@ -142,7 +110,7 @@
 
 
   function start() {
-    syncPlatformSquircles();
+    reclaimPlatformPref();
     syncInstantUI();
     Services.prefs.addObserver(PREFIX, prefVarObserver);
     const cleanup = () => {

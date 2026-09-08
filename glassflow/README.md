@@ -239,31 +239,23 @@ them read as circles and capsules at all.
 *Round (classic)*. To keep the squircles but stop them reading as squares, set
 **Radius compensation** to *Auto* instead.
 
-**Turn squircles off browser-wide** is the blunt version of all of the above:
-it disables the platform feature the whole system is built on
-(`layout.css.corner-shape.enabled`), so every corner in the browser — menus,
-panels, dialogs, the URL bar — goes back to a plain rounded corner.
+**Turn squircles off browser-wide** rounds every corner in the rest of the
+chrome — menus, panels, dialogs, the URL bar — leaving nothing squircled except
+what the settings above govern, which keep working independently of it.
 
-**It needs a restart**, and the reason is worth knowing, because it explains
-why flipping that pref by hand looks like it does almost nothing. Exactly one
-of Zen's rules is behind that pref — the universal
-`*:not(.no-squircles)` one in `zen-theme.css`. That drops live. But Zen's
-other `corner-shape` declarations, including the ones painting selected
-Essentials cards on `.tab-background::before` and `::after`, sit behind
-`zen.theme.essentials-favicon-bg` instead. Those are already parsed, and they
-keep applying until the browser restarts and the stylesheets are parsed again.
+**It applies instantly, with no restart**, because it does not touch
+`layout.css.corner-shape.enabled`. That pref is the obvious route and it is a
+trap: it gates `corner-shape` when stylesheets are *parsed*, so flipping it
+leaves every already-parsed declaration in place until the browser restarts —
+verified in practice, not just in theory. Instead this out-cascades Zen. Sine
+injects this mod as a `USER_SHEET`, and user-origin `!important` outranks the
+author-origin declarations Zen's sheets carry, so a `-moz-pref()` media query —
+which is live — flips the whole chrome the moment you tick the box. Nothing in
+your profile is modified either way.
 
-The per-surface settings above need no restart. They take effect immediately
-because they override Zen on this mod's own surfaces rather than trying to
-switch the feature off underneath it — including on those Essentials
-pseudo-elements, which the browser-wide switch cannot reach live at all.
-Prefer them unless you genuinely want the whole browser changed.
-
-That is a browser pref rather than CSS, so `glassflow.uc.js` sets it. Your
-value is snapshotted first and restored exactly when you switch it back off,
-including "no user value at all"; change it by hand afterwards and it is
-treated as yours and left alone. One window owns the write, since the pref is
-global.
+`corner-shape` applies per element *and* per pseudo-element, and a pseudo never
+inherits its parent's, so the rule covers `*`, `*::before` and `*::after` to
+reach what Zen paints on Essentials cards.
 
 Where `corner-shape` is unsupported entirely, every declaration in this
 section is ignored and nothing breaks.

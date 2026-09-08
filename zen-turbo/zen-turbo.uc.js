@@ -126,9 +126,28 @@
     else b.setStringPref(name, String(v));
   }
 
+  // A pref this browser does not have is not a tuning opportunity, it is a
+  // dead entry: Firefox renames and removes prefs, and setting one it no
+  // longer reads silently creates a user pref that does nothing forever, while
+  // status() still reports the pack as managing it. That is exactly the snake
+  // oil this mod promises not to be, so it is checked rather than assumed.
+  const prefExists = (name) => {
+    try { return Services.prefs.getPrefType(name) !== Services.prefs.PREF_INVALID; }
+    catch { return false; }
+  };
+
+  const unknown = new Set();
+
   function applyPack(packName) {
     const saved = readSaved();
     for (const [name, v] of PACKS[packName]) {
+      if (!prefExists(name)) {
+        if (!unknown.has(name)) {
+          unknown.add(name);
+          note(`skipped ${name}: not a pref on this build (Firefox ${Services.appinfo?.platformVersion})`);
+        }
+        continue;
+      }
       if (getAny(name) === v) continue;              // already there
       if (!(name in saved)) {
         saved[name] = Services.prefs.prefHasUserValue(name)
@@ -289,6 +308,9 @@
           packs: Object.fromEntries(Object.keys(PACKS).map(
             k => [k, bool("pack-" + k, PACK_DEFAULTS[k] ?? true)])),
           managedPrefs: Object.keys(saved),
+          // Prefs this build does not have. Anything listed here is dead
+          // weight in a pack and should be removed from the mod.
+          unknownPrefs: [...unknown],
           hoverWarmup: bool("hover-warmup", true),
           startupWarmup: bool("startup-warmup", true),
           warmedThisSession: recentWarm.size,

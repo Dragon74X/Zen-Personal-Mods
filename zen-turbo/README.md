@@ -76,6 +76,14 @@ ZenTurbo.warm("https://example.com")   // warm one origin by hand
 machine" -- the GPU pack in particular changes nothing on hardware where those
 paths already run, and shows up as an empty list there.
 
+`status().unknownPrefs` is the other half, and it is the no-snake-oil promise
+made mechanical. Firefox renames and removes prefs between versions. Setting
+one it no longer reads does not fail -- it quietly creates a user pref that
+does nothing, forever, while the mod goes on claiming to manage it. So every
+pref is checked for existence before it is touched, skipped if this build does
+not have it, and listed here. Anything that appears in that list is dead weight
+and should come out of the mod.
+
 Turn on **Log what it is doing** to have the same activity printed to the
 Browser Console (`Ctrl+Shift+J`) under `[ZenTurbo]` as it happens.
 

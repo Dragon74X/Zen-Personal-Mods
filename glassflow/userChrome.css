@@ -35,7 +35,7 @@
      from a circular one, so a radius tuned before 1.22b reads square now.
      Two levers: --zzg-corner picks the shape, radius-scale compensates the
      size. The default MIRRORS Zen's own value, so out of the box nothing
-     changes; the 1 fallback is a plain round corner on pre-1.22b builds. */
+     changes !important; the 1 fallback is a plain round corner on pre-1.22b builds. */
   --zzg-corner: superellipse(var(--zen-squircle-value, 1));
   --zzg-corner-tabs: var(--zzg-corner);
   --zzg-corner-ess: var(--zzg-corner);
@@ -191,7 +191,7 @@
     background-origin: border-box !important;
     background-clip: border-box !important;
     border-radius: var(--zzg-round) !important;
-    corner-shape: var(--zzg-corner-tabs);
+    corner-shape: var(--zzg-corner-tabs) !important;
     opacity: var(--zzglass-selected-opacity, 1) !important;
     background-image: var(--zzg-texture),
       linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)) !important;
@@ -245,7 +245,7 @@
     background-origin: border-box !important;
     background-clip: border-box !important;
     border-radius: var(--zzg-round) !important;
-    corner-shape: var(--zzg-corner-tabs);
+    corner-shape: var(--zzg-corner-tabs) !important;
     opacity: var(--zzglass-unselected-opacity, 1) !important;
     background-image: var(--zzg-texture),
       linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)) !important;
@@ -299,7 +299,7 @@
     background-origin: border-box !important;
     background-clip: border-box !important;
     border-radius: var(--zzg-round) !important;
-    corner-shape: var(--zzg-corner-tabs);
+    corner-shape: var(--zzg-corner-tabs) !important;
     opacity: var(--zzglass-hover-opacity, 1) !important;
     background-image: var(--zzg-texture),
       linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)) !important;
@@ -353,7 +353,7 @@
     background-origin: border-box !important;
     background-clip: border-box !important;
     border-radius: var(--zzg-round) !important;
-    corner-shape: var(--zzg-corner-tabs);
+    corner-shape: var(--zzg-corner-tabs) !important;
     opacity: var(--zzglass-pending-opacity, 0.62) !important;
     background-image: var(--zzg-texture),
       linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)) !important;
@@ -413,7 +413,7 @@
    it live either; these rules can, because they are ours and win on origin. */
 #navigator-toolbox .tabbrowser-tab[zen-essential="true"] .tab-background::before,
 #navigator-toolbox .tabbrowser-tab[zen-essential="true"] .tab-background::after {
-  corner-shape: var(--zzg-corner-ess);
+  corner-shape: var(--zzg-corner-ess) !important;
 }
 
 /* ============================================================
@@ -443,6 +443,28 @@
 @media (-moz-pref("zzglass.corner.mode", 5)) { :root { --zzg-corner: bevel; } }
 @media (-moz-pref("zzglass.corner.mode", 6)) { :root { --zzg-corner: notch; } }
 @media (-moz-pref("zzglass.corner.mode", 7)) { :root { --zzg-corner: scoop; } }
+
+/* Browser-wide squircle kill, without a restart.
+
+   layout.css.corner-shape.enabled gates corner-shape at PARSE time, so
+   flipping it leaves every already-parsed declaration in place and only takes
+   effect after the browser reparses its stylesheets at startup -- confirmed in
+   practice, not just in theory. This does the same job by out-cascading Zen
+   instead of disabling the feature: Sine injects this sheet as a USER_SHEET,
+   and user-origin !important outranks the author-origin declarations Zen's own
+   sheets carry. A -moz-pref() media query is live, so it applies and reverts
+   the instant the checkbox changes.
+
+   corner-shape applies per element AND per pseudo -- a pseudo never takes its
+   parent's -- so all three selectors are needed to reach what Zen paints on
+   ::before and ::after.
+
+   Every corner-shape rule this mod sets is !important and id-anchored, so the
+   per-surface settings above still win here: this governs the rest of the
+   chrome, they govern our own surfaces. */
+@media (-moz-pref("zzglass.corner.disable-platform")) {
+  *, *::before, *::after { corner-shape: round !important; }
+}
 
 /* Per-surface overrides. 0 = follow the setting above. */
 @media (-moz-pref("zzglass.corner.tabs", 1)) { :root { --zzg-corner-tabs: round; } }
@@ -490,7 +512,7 @@
     border-radius: 0 3px 3px 0 !important; background: var(--zzg-accent) !important;
     /* A deliberate pill, not a styling choice: Zen excludes its own
        pill/circle elements from squircles for the same reason. */
-    corner-shape: round;
+    corner-shape: round !important;
     z-index: 2 !important; pointer-events: none !important;
   }
 }
@@ -619,7 +641,7 @@
     height: calc(var(--zzg-btn-size) * var(--zzg-rest)) !important;
     min-height: calc(var(--zzg-btn-size) * var(--zzg-rest)) !important;
     border-radius: calc(var(--zzg-btn-size) * min(var(--zzg-width), var(--zzg-rest)) / 2) !important;
-    corner-shape: var(--zzg-corner-btn);
+    corner-shape: var(--zzg-corner-btn) !important;
     align-self: center !important;
     flex: 0 0 auto !important;
     position: relative !important;
@@ -1152,7 +1174,7 @@
     background-color: color-mix(in srgb, var(--zzg-accent)
       var(--zzglass-sidebar-blur-tint, 22%), transparent) !important;
     border-radius: var(--zzglass-sidebar-blur-radius-corner, 12px) !important;
-    corner-shape: var(--zzg-corner-side);
+    corner-shape: var(--zzg-corner-side) !important;
     backdrop-filter:
       blur(var(--zzglass-sidebar-blur-radius, 25px))
       contrast(var(--zzglass-sidebar-blur-contrast, 1))

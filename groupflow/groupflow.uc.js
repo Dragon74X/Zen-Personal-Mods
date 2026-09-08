@@ -251,6 +251,113 @@ const PREFIX = "zzgroup.";
     } catch { return null; }
   };
 
+  // ---- subject images -----------------------------------------------------
+  // A creator subgroup is named after the creator, and somewhere in history
+  // there is usually a page ABOUT that creator on that same site -- a YouTube
+  // channel page, a Nexus game page, a GitHub profile. Firefox stored that
+  // page's og:image when it was visited, so the picture already exists
+  // locally. Finding it is a query against the user's own Places database:
+  // no network, no service, and nothing that works only for one site.
+  //
+  //   Youtube / Rick Astley    -> youtube.com page titled "Rick Astley"
+  //   Nexusmods / Crimson Desert -> nexusmods.com page titled "Crimson Desert..."
+  //
+  // Only pages already visited can match. A creator whose page has never been
+  // opened keeps the ordinary icon rather than causing a fetch.
+
+  // Places indexes hosts reversed with a trailing dot, so youtube.com is
+  // stored as "moc.ebutuoy." and www.youtube.com as "moc.ebutuoy.www.".
+  // A prefix LIKE on that hits the index and matches both, without matching
+  // a different domain that merely ends the same way.
+  const revHostPrefix = (host) => host.split("").reverse().join("") + ".";
+
+  const baseHost = (host) => {
+    try { return Services.eTLD.getBaseDomain(Services.io.newURI("https://" + host)); }
+    catch { return host; }
+  };
+
+  // "Rick Astley - YouTube", "Crimson Desert | Nexus Mods", "user · GitHub":
+  // a page title is the subject plus the site. Split on the usual separators
+  // and accept the name matching any part, which is the same shape Tab
+  // Router already relies on for learning names from titles.
+  function titleNames(title) {
+    return String(title)
+      .split(/\s+[-|\u2013\u2014\u00b7:]+\s+|\s*::\s*/)
+      .map((x) => x.trim().toLowerCase())
+      .filter(Boolean);
+  }
+
+  let subjectCache = null;
+  function subjectMap() {
+    if (subjectCache) return subjectCache;
+    try { subjectCache = new Map(Object.entries(JSON.parse(str("icon-cache", "{}")))); }
+    catch { subjectCache = new Map(); }
+    return subjectCache;
+  }
+  function saveSubjects() {
+    try {
+      // Bounded and oldest-out. Each entry pairs a site with something named
+      // on it, drawn from history, so it is kept small and stays clearable.
+      Services.prefs.setStringPref(PREFIX + "icon-cache",
+        JSON.stringify(Object.fromEntries([...subjectMap()].slice(-300))));
+    } catch {}
+  }
+
+  const inFlight = new Set();
+
+  async function subjectImage(name, host) {
+    const key = `${baseHost(host)}|${name.trim().toLowerCase()}`;
+    if (subjectMap().has(key)) return subjectMap().get(key) || null;
+    if (inFlight.has(key)) return null;
+    inFlight.add(key);
+
+    let found = "";
+    try {
+      const { PlacesUtils } = ChromeUtils.importESModule(
+        "resource://gre/modules/PlacesUtils.sys.mjs");
+      const db = await PlacesUtils.promiseDBConnection();
+      const rows = await db.execute(
+        `SELECT title, preview_image_url FROM moz_places
+          WHERE rev_host LIKE :rev
+            AND preview_image_url NOT NULL
+            AND title NOT NULL
+          ORDER BY frecency DESC LIMIT 300`,
+        { rev: revHostPrefix(baseHost(host)) + "%" });
+
+      const want = name.trim().toLowerCase();
+      for (const row of rows) {
+        const title = row.getResultByName("title");
+        if (!titleNames(title).includes(want)) continue;
+        const img = row.getResultByName("preview_image_url");
+        if (typeof img === "string" && /^https?:/i.test(img) && !/["'()\\]/.test(img)) {
+          found = img;
+          break;
+        }
+      }
+    } catch {}
+
+    // An empty string is remembered too: it means "looked, found nothing",
+    // which stops every refresh re-running the same query.
+    subjectMap().set(key, found);
+    saveSubjects();
+    inFlight.delete(key);
+    return found || null;
+  }
+
+  function upgradeToSubjectImage(g, host, fallbackTab) {
+    const name = (g.label ?? "").trim();
+    if (!name) return;
+    subjectImage(name, host).then((img) => {
+      if (!g.isConnected) return;
+      if (img) {
+        g.setAttribute("zzgf-icon-fit", "cover");
+        g.style.setProperty("--zzgf-icon", `url("${img}")`);
+      } else if (fallbackTab) {
+        upgradeToPageImage(g, fallbackTab);       // the member page's own image
+      }
+    }).catch(() => {});
+  }
+
   // Upgrade in place. The favicon is already painted by the time this
   // resolves, so a group is never blank while the lookup runs, and a group
   // with no stored image simply keeps the favicon.
@@ -294,10 +401,12 @@ const PREFIX = "zzgroup.";
     // favicon store -- no network fetch happens here.
     g.style.setProperty("--zzgf-icon", `url("page-icon:https://${host}/")`);
 
-    // Then try to better it with the page's own image, if that is switched on.
-    if (num("icon-source", 0) === 1) {
+    // Then try to better it, depending on the source chosen.
+    const mode = num("icon-source", 0);
+    if (mode >= 1) {
       const pick = members(g).find((t) => hostOf(t) === host);
-      if (pick) upgradeToPageImage(g, pick);
+      if (mode === 2) upgradeToSubjectImage(g, host, pick);
+      else if (pick) upgradeToPageImage(g, pick);
     }
   }
 
@@ -339,6 +448,35 @@ const PREFIX = "zzgroup.";
   function start() {
     Services.prefs.addObserver(PREFIX, prefVarObserver);
     for (const ev of EVENTS) window.addEventListener(ev, schedule, true);
+
+    window.Groupflow = {
+      // Recompute every group icon now.
+      refresh: refreshAll,
+      // site|name -> image, everything matched out of history so far. An
+      // empty value means "looked, found nothing" and is cached on purpose.
+      icons: () => Object.fromEntries(subjectMap()),
+      forgetIcons(key) {
+        if (key) subjectMap().delete(key);
+        else subjectCache = new Map();
+        saveSubjects();
+        refreshAll();
+        return key ? `forgot "${key}"` : "forgot every matched icon";
+      },
+      // Which group would get which icon, and from where. Reads only.
+      explain() {
+        const out = [];
+        for (const g of document.querySelectorAll("tab-group")) {
+          if (g.isZenFolder || g.hasAttribute("split-view-group")) continue;
+          out.push({
+            group: (g.label ?? "").trim(),
+            icon: g.style.getPropertyValue("--zzgf-icon") || "(none)",
+            from: g.getAttribute("zzgf-icon-fit") === "cover" ? "image" : "favicon",
+          });
+        }
+        console.log(out);
+        return out;
+      },
+    };
     const boot = setTimeout(refreshAll, 2000);
 
     // This script is injected per window and lives as long as the window
@@ -346,6 +484,7 @@ const PREFIX = "zzgroup.";
     // across window open/close cycles. The capture flag must match the
     // one used to add, or removeEventListener silently does nothing.
     const cleanup = () => {
+      try { delete window.Groupflow; } catch {}
       for (const ev of EVENTS) window.removeEventListener(ev, schedule, true);
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}
       clearTimeout(timer);

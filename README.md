@@ -48,3 +48,8 @@ in this window, whether each pref holds the type its declaration calls for, and
 which settings rows are hidden because the pref their condition names has never
 been written. Paste it into the Browser Console (Ctrl+Shift+J); it reads only
 and copies its report to the clipboard.
+
+## Shelved features
+
+`docs/SHELVED.md` records work that was removed on purpose -- what it did, why it
+was pulled, and the commits to restore it from.

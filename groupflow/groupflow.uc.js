@@ -195,194 +195,7 @@ const PREFIX = "zzgroup.";
   // Dominant base host among the group's DIRECT tabs; subgroups compute
   // their own, so "Youtube > Creator" shows youtube's icon on the parent
   // and (usually the same) icon on the child from its own members.
-  // ---- page images --------------------------------------------------------
-  // A site's favicon is the same for every page on it, which is why every
-  // game under Nexusmods draws the same picture. The page's own og:image is
-  // the distinguishing one -- and Firefox already has it. ContentMetaHandler
-  // reads og:image while a page loads and writes it to moz_places via
-  // PlacesUtils.history.update, so it is sitting in the profile for every
-  // page already visited. Reading it costs a local database lookup, not a
-  // scrape and not a request to the site.
-  //
-  // What it yields is the PAGE's image, which is not always the author's:
-  // a Nexus or Steam game page gives the game art, a YouTube channel page
-  // gives the channel avatar, but a YouTube watch page gives the video
-  // thumbnail rather than the creator. The setting says so.
-  //
-  // Rendering the result does load that image, from cache in the normal case
-  // since the page it came from was visited.
-  let places = null;
-  function history() {
-    if (places === null) {
-      try {
-        places = ChromeUtils.importESModule(
-          "resource://gre/modules/PlacesUtils.sys.mjs").PlacesUtils.history;
-      } catch { places = false; }
-    }
-    return places || null;
-  }
-
-  // Bounded, and never invalidated: a page's og:image effectively does not
-  // change, and a wrong entry costs one stale icon, not correctness.
-  const pageImages = new Map();
-
-  async function pageImageFor(url) {
-    if (!url) return null;
-    if (pageImages.has(url)) return pageImages.get(url);
-    let img = null;
-    try {
-      const info = await history()?.fetch(url, { includeMeta: true });
-      const raw = info?.previewImageURL;
-      // previewImageURL comes back as an nsIURI-ish object or a string
-      // depending on the build; take the spec either way, and refuse
-      // anything that would escape the url() it is about to sit inside.
-      const spec = typeof raw === "string" ? raw : raw?.href ?? raw?.spec ?? null;
-      if (spec && /^https?:/i.test(spec) && !/["'()\\]/.test(spec)) img = spec;
-    } catch {}
-    if (pageImages.size > 500) pageImages.clear();
-    pageImages.set(url, img);
-    return img;
-  }
-
-  const urlOf = (tab) => {
-    try {
-      const uri = tab.linkedBrowser?.currentURI;
-      return uri && /^https?$/.test(uri.scheme) ? uri.spec : null;
-    } catch { return null; }
-  };
-
-  // ---- subject images -----------------------------------------------------
-  // A creator subgroup is named after the creator, and somewhere in history
-  // there is usually a page ABOUT that creator on that same site -- a YouTube
-  // channel page, a Nexus game page, a GitHub profile. Firefox stored that
-  // page's og:image when it was visited, so the picture already exists
-  // locally. Finding it is a query against the user's own Places database:
-  // no network, no service, and nothing that works only for one site.
-  //
-  //   Youtube / Rick Astley    -> youtube.com page titled "Rick Astley"
-  //   Nexusmods / Crimson Desert -> nexusmods.com page titled "Crimson Desert..."
-  //
-  // Only pages already visited can match. A creator whose page has never been
-  // opened keeps the ordinary icon rather than causing a fetch.
-
-  // Places indexes hosts reversed with a trailing dot, so youtube.com is
-  // stored as "moc.ebutuoy." and www.youtube.com as "moc.ebutuoy.www.".
-  // A prefix LIKE on that hits the index and matches both, without matching
-  // a different domain that merely ends the same way.
-  const revHostPrefix = (host) => host.split("").reverse().join("") + ".";
-
-  const baseHost = (host) => {
-    try { return Services.eTLD.getBaseDomain(Services.io.newURI("https://" + host)); }
-    catch { return host; }
-  };
-
-  // "Rick Astley - YouTube", "Crimson Desert | Nexus Mods", "user · GitHub":
-  // a page title is the subject plus the site. Split on the usual separators
-  // and accept the name matching any part, which is the same shape Tab
-  // Router already relies on for learning names from titles.
-  function titleNames(title) {
-    return String(title)
-      .split(/\s+[-|\u2013\u2014\u00b7:]+\s+|\s*::\s*/)
-      .map((x) => x.trim().toLowerCase())
-      .filter(Boolean);
-  }
-
-  let subjectCache = null;
-  function subjectMap() {
-    if (subjectCache) return subjectCache;
-    try { subjectCache = new Map(Object.entries(JSON.parse(str("icon-cache", "{}")))); }
-    catch { subjectCache = new Map(); }
-    return subjectCache;
-  }
-  function saveSubjects() {
-    try {
-      // Bounded and oldest-out. Each entry pairs a site with something named
-      // on it, drawn from history, so it is kept small and stays clearable.
-      Services.prefs.setStringPref(PREFIX + "icon-cache",
-        JSON.stringify(Object.fromEntries([...subjectMap()].slice(-300))));
-    } catch {}
-  }
-
-  const inFlight = new Set();
-
-  async function subjectImage(name, host) {
-    const key = `${baseHost(host)}|${name.trim().toLowerCase()}`;
-    if (subjectMap().has(key)) return subjectMap().get(key) || null;
-    if (inFlight.has(key)) return null;
-    inFlight.add(key);
-
-    let found = "";
-    try {
-      const { PlacesUtils } = ChromeUtils.importESModule(
-        "resource://gre/modules/PlacesUtils.sys.mjs");
-      const db = await PlacesUtils.promiseDBConnection();
-      const rows = await db.execute(
-        `SELECT title, preview_image_url FROM moz_places
-          WHERE rev_host LIKE :rev
-            AND preview_image_url NOT NULL
-            AND title NOT NULL
-          ORDER BY frecency DESC LIMIT 300`,
-        { rev: revHostPrefix(baseHost(host)) + "%" });
-
-      const want = name.trim().toLowerCase();
-      for (const row of rows) {
-        const title = row.getResultByName("title");
-        if (!titleNames(title).includes(want)) continue;
-        const img = row.getResultByName("preview_image_url");
-        if (typeof img === "string" && /^https?:/i.test(img) && !/["'()\\]/.test(img)) {
-          found = img;
-          break;
-        }
-      }
-    } catch {}
-
-    // An empty string is remembered too: it means "looked, found nothing",
-    // which stops every refresh re-running the same query.
-    subjectMap().set(key, found);
-    saveSubjects();
-    inFlight.delete(key);
-    return found || null;
-  }
-
-  function upgradeToSubjectImage(g, host, fallbackTab) {
-    const name = (g.label ?? "").trim();
-    if (!name) return;
-
-    // The site-level group IS the site. "Youtube" sitting above the creator
-    // subgroups should keep youtube.com's favicon -- that is what identifies
-    // it -- rather than borrow the image of whatever page happens to be
-    // titled "Youtube". Only a group named after something ON the site gets a
-    // subject image, which is exactly the level where the favicon stops
-    // telling them apart.
-    if (normName(name) === normName(baseHost(host).split(".")[0])) return;
-    subjectImage(name, host).then((img) => {
-      if (!g.isConnected) return;
-      if (img) {
-        g.setAttribute("zzgf-icon-fit", "cover");
-        g.style.setProperty("--zzgf-icon", `url("${img}")`);
-      } else if (fallbackTab) {
-        upgradeToPageImage(g, fallbackTab);       // the member page's own image
-      }
-    }).catch(() => {});
-  }
-
-  // Upgrade in place. The favicon is already painted by the time this
-  // resolves, so a group is never blank while the lookup runs, and a group
-  // with no stored image simply keeps the favicon.
-  function upgradeToPageImage(g, tab) {
-    const url = urlOf(tab);
-    if (!url) return;
-    pageImageFor(url).then((img) => {
-      if (!img || !g.isConnected) return;
-      // A page image is a wide banner, not a square glyph. Cropping to the
-      // centre reads better at icon size than letterboxing it.
-      g.setAttribute("zzgf-icon-fit", "cover");
-      g.style.setProperty("--zzgf-icon", `url("${img}")`);
-    }).catch(() => {});
-  }
-
   function refreshGroup(g) {
-    g.removeAttribute("zzgf-icon-fit");
     const ruled = ruledIcon(g);
     if (ruled) { g.style.setProperty("--zzgf-icon", `url("${ruled}")`); return; }
     const counts = new Map();
@@ -408,25 +221,6 @@ const PREFIX = "zzgroup.";
     // page-icon: is Firefox's own favicon protocol, served from the local
     // favicon store -- no network fetch happens here.
     g.style.setProperty("--zzgf-icon", `url("page-icon:https://${host}/")`);
-
-    // Then try to better it, depending on the source chosen.
-    const mode = num("icon-source", 0);
-    if (mode >= 1) {
-      const pick = members(g).find((t) => hostOf(t) === host);
-      if (mode === 2) upgradeToSubjectImage(g, host, pick);
-      else if (pick) upgradeToPageImage(g, pick);
-    }
-  }
-
-  // Direct tabs, else the tabs of the first subgroup -- the same widening the
-  // favicon count does, so both pick their icon from the same members.
-  function members(g) {
-    const direct = [...(g.groupContainer?.children ?? [])].filter((el) => el.matches?.("tab"));
-    if (direct.length) return direct;
-    for (const el of g.groupContainer?.children ?? []) {
-      if (gBrowser.isTabGroup?.(el) && el.tabs?.length) return [...el.tabs];
-    }
-    return [];
   }
 
   function refreshAll() {
@@ -460,16 +254,6 @@ const PREFIX = "zzgroup.";
     window.Groupflow = {
       // Recompute every group icon now.
       refresh: refreshAll,
-      // site|name -> image, everything matched out of history so far. An
-      // empty value means "looked, found nothing" and is cached on purpose.
-      icons: () => Object.fromEntries(subjectMap()),
-      forgetIcons(key) {
-        if (key) subjectMap().delete(key);
-        else subjectCache = new Map();
-        saveSubjects();
-        refreshAll();
-        return key ? `forgot "${key}"` : "forgot every matched icon";
-      },
       // Which group would get which icon, and from where. Reads only.
       explain() {
         const out = [];
@@ -478,7 +262,6 @@ const PREFIX = "zzgroup.";
           out.push({
             group: (g.label ?? "").trim(),
             icon: g.style.getPropertyValue("--zzgf-icon") || "(none)",
-            from: g.getAttribute("zzgf-icon-fit") === "cover" ? "image" : "favicon",
           });
         }
         console.log(out);
@@ -578,6 +361,13 @@ const PREFIX = "zzgroup.";
   // so a profile that already has its prefs pays nothing.
   seedDefaults().then((wrote) => { if (wrote) injectPrefVars(); }).catch(() => {});
 
+
+  // ---- retired feature cleanup --------------------------------------------
+  // Automatic image lookup is gone, and its cache was built out of browsing: site-and-subject pairs matched out of history.
+  // Leaving that sitting in prefs.js after the feature that justified it has
+  // been removed is not acceptable, so it is cleared once. Harmless when the
+  // pref was never written.
+  try { Services.prefs.clearUserPref("zzgroup.icon-cache"); } catch {}
 
   // ---- startup ------------------------------------------------------------
   // browser-delayed-startup-finished is a ONE-SHOT notification, and waiting

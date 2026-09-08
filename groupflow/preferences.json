@@ -380,42 +380,6 @@
     ]
   },
   {
-    "type": "dropdown",
-    "value": "number",
-    "property": "zzgroup.icon-source",
-    "label": "Icon source *Site favicon is one picture per domain, so every subgroup under a mod site or a store draws the same thing. Page image uses what the page itself advertises -- its og:image -- which Firefox already saved to your history while the page loaded, so reading it is a local database lookup rather than a scrape. Subject image goes one better for named subgroups: it looks through your own history for the page on that same site that is ABOUT the subgroup's name -- a YouTube channel page for a creator, a Nexus game page for a game, a profile page for an author -- and uses that page's image. That is how a creator subgroup gets the creator's own avatar. It matches only pages you have actually visited; anything unmatched falls back to the page image and then the favicon, and the favicon is drawn first either way so a group is never blank. No site is special-cased and nothing is fetched. Displaying an image does load it, normally from cache.*",
-    "defaultValue": 0,
-    "options": [
-      {
-        "label": "Site favicon",
-        "value": 0
-      },
-      {
-        "label": "Page image, favicon fallback",
-        "value": 1
-      },
-      {
-        "label": "Subject image, then page image, then favicon",
-        "value": 2
-      }
-    ],
-    "conditions": [
-      {
-        "if": {
-          "property": "zzgroup.enabled",
-          "value": true
-        }
-      },
-      {
-        "if": {
-          "property": "zzgroup.favicons",
-          "value": true
-        }
-      }
-    ],
-    "operator": "AND"
-  },
-  {
     "type": "string",
     "property": "zzgroup.icon-rules",
     "label": "Icon rules *One per line, or separated by semicolons. Left of the = is the group name, right of it is the icon. Names match the subgroup on its own (crimson desert) or its full path (youtube / crimson desert), case does not matter, and a rule beats the automatic favicon. On the right, a bare domain means that site's favicon from Firefox's local store, with no network request; anything with a scheme is used as written, so file:/// points at your own image and data: embeds one. An https: address does fetch. Useful because every game on a mod site shares that site's favicon, so subgroups under it all look identical until you name them.*",

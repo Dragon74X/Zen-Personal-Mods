@@ -253,145 +253,15 @@
     if (spec) {
       const hit = targetCache.get(tab);
       if (hit && hit.spec === spec && hit.gen === targetGen) return hit.parts;
-      const parts = withCreator(tab, computeTargetPath(tab));
-      // Only cache a settled answer. A path still missing its creator must be
-      // recomputed on the next pass, or the tab would stay in the base group
-      // for as long as the URL is unchanged -- which on a watch page is
-      // the whole time it is open.
-      if (!mediaDomain(tab) || parts?.some(p => p === creatorMap().get(mediaKey(tab)))) {
-        targetCache.set(tab, { spec, gen: targetGen, parts });
-      }
+      const parts = computeTargetPath(tab);
+      targetCache.set(tab, { spec, gen: targetGen, parts });
       return parts;
     }
-    return withCreator(tab, computeTargetPath(tab));
+    return computeTargetPath(tab);
   }
 
   // Returns the target as a PATH: ["Nexusmods", "Stalker 2"]. Each level is
   // a nested tab group. A flat name is just a one-element path.
-  // ---- media creators -----------------------------------------------------
-  // A YouTube watch URL names the video and not the channel, so path routing
-  // cannot split watch tabs by creator: /watch is a route word and the
-  // creator appears nowhere in the URL. The page hands the name over anyway.
-  // A site playing media publishes a MediaSession, and Firefox exposes that
-  // to chrome as browsingContext.mediaController; metadata.artist is the
-  // channel. Nothing is fetched and no service is asked -- the page being
-  // watched supplied it, which is why this costs nothing and leaks nothing.
-  //
-  // It is not instant. The session registers when the player initialises, so
-  // the first routing pass files the tab under the base path and a later one
-  // moves it under the creator, the same way a retitle already re-routes.
-  // And a tab Tab Unloader discards loses its controller entirely, which is
-  // the reason the answer is remembered rather than re-read.
-
-  // Cache key. Watch URLs carry timestamps and tracking parameters that would
-  // otherwise fragment one video into many entries, so YouTube is keyed by
-  // its video id and everything else by path.
-  function mediaKey(tab) {
-    try {
-      const uri = tab.linkedBrowser?.currentURI;
-      if (!uri || !/^https?$/.test(uri.scheme)) return null;
-      const host = uri.host.toLowerCase();
-      if (/(^|\.)youtube\.com$/.test(host) || host === "youtu.be") {
-        const v = new URLSearchParams(uri.query || "").get("v");
-        if (v) return "yt:" + v;
-        if (host === "youtu.be") return "yt:" + uri.filePath.replace(/^\//, "");
-      }
-      return host + uri.filePath;
-    } catch { return null; }
-  }
-
-  let creatorCache = null;
-  function creatorMap() {
-    if (creatorCache) return creatorCache;
-    try { creatorCache = new Map(Object.entries(JSON.parse(str("creators", "{}")))); }
-    catch { creatorCache = new Map(); }
-    return creatorCache;
-  }
-  function saveCreators() {
-    try {
-      // Bounded, and oldest-out. This is a record of what has been watched,
-      // so it is kept small on purpose and Forget creators empties it.
-      Services.prefs.setStringPref(P + "creators",
-        JSON.stringify(Object.fromEntries([...creatorMap()].slice(-300))));
-    } catch {}
-  }
-
-  const mediaHosts = () => cached("mediahosts", () =>
-    str("media-domains", "youtube.com").split(",")
-      .map(s => s.trim().toLowerCase()).filter(Boolean));
-
-  function mediaDomain(tab) {
-    const host = hostOf(tab);
-    return !!host && mediaHosts().some(d => host === d || host.endsWith("." + d));
-  }
-
-  // Live read, cached on success. Returns null when the player has not
-  // registered its session yet -- the caller files without a creator and the
-  // listener below re-routes when it arrives.
-  function creatorOf(tab) {
-    if (!bool("media-subgroups", false) || !mediaDomain(tab)) return null;
-    const key = mediaKey(tab);
-    if (!key) return null;
-
-    const known = creatorMap().get(key);
-    if (known) return known;
-
-    let artist = null;
-    try {
-      artist = tab.linkedBrowser?.browsingContext?.mediaController
-        ?.getMetadata()?.artist ?? null;
-    } catch {}
-    artist = (artist || "").trim();
-    if (!artist || artist.length > 80) return null;
-
-    creatorMap().set(key, artist);
-    saveCreators();
-    note(`creator for ${key}: ${artist}`);
-    return artist;
-  }
-
-  // One-shot: when the session appears, route the tab again so it moves from
-  // the base group into the creator's. Re-armed by the next routing pass if
-  // the metadata still is not there.
-  const awaitingMeta = new WeakSet();
-  // Bounded: roughly half a minute of looking, then this tab is left alone.
-  // A page that has not registered a media session by then is not going to.
-  const metaRetry = new WeakMap();
-  const MAX_META_TRIES = 12;
-
-  function watchForCreator(tab) {
-    // Gated on the same two conditions as the read. Without this the
-    // listener was attached for every tab even with the feature switched
-    // off, which is work and a registration nobody asked for.
-    if (!bool("media-subgroups", false) || !mediaDomain(tab)) return;
-    if (awaitingMeta.has(tab)) return;
-    let controller = null;
-    try { controller = tab.linkedBrowser?.browsingContext?.mediaController; } catch {}
-    if (!controller) {
-      // No session yet. Giving up here is what made this look broken: a tab
-      // opened in the background never plays audio, so soundplaying never
-      // fires, and the first routing pass runs before the player has
-      // registered anything, so there is no controller to listen to either.
-      // Nothing would ever route that tab again and it sat in the base group
-      // for good. Re-check on a bounded schedule instead.
-      const tries = metaRetry.get(tab) | 0;
-      if (tries >= MAX_META_TRIES) return;
-      metaRetry.set(tab, tries + 1);
-      setTimeout(() => {
-        if (tab.isConnected && !tab.closing) queueRoute(tab, "creator-retry");
-      }, Math.max(500, num("creator-retry-ms", 2500)));
-      return;
-    }
-    metaRetry.delete(tab);
-    awaitingMeta.add(tab);
-    const onMeta = () => {
-      awaitingMeta.delete(tab);
-      queueRoute(tab, "creator");
-    };
-    try { controller.addEventListener("metadatachange", onMeta, { once: true }); }
-    catch { awaitingMeta.delete(tab); }
-  }
-
   function computeTargetPath(tab) {
     const host = hostOf(tab);
     if (!host) return null;
@@ -429,18 +299,6 @@
       return out;
     }
     return null;
-  }
-
-  // Wraps the path computation so a creator subgroup applies to a rule-made
-  // path and an automatic one alike: youtube.com > Watch becomes
-  // Watch / Rick Astley, and the automatic Youtube becomes Youtube / Rick
-  // Astley. A tab whose creator is not known yet simply keeps the base path.
-  function withCreator(tab, parts) {
-    if (!parts?.length) return parts;
-    const who = creatorOf(tab);
-    if (!who) { watchForCreator(tab); return parts; }
-    if (parts.some(p => p.toLowerCase() === who.toLowerCase())) return parts;
-    return [...parts, who];
   }
 
   // ---- groups, nested ----------------------------------------------------
@@ -969,11 +827,7 @@
   // progress listener. Converges on the same per-tab debounce; a title
   // change with an unchanged target path no-ops in placeInPath.
   function onAttrModified(event) {
-    const changed = event.detail?.changed;
-    // soundplaying flips when the player actually starts, which is about when
-    // the MediaSession registers -- a second chance at the creator for a tab
-    // whose title never changes again.
-    if (!changed?.includes("label") && !changed?.includes("soundplaying")) return;
+    if (!event.detail?.changed?.includes("label")) return;
     const tab = event.target;
     if (tab?.linkedBrowser) queueRoute(tab, "retitle");
   }
@@ -1211,17 +1065,6 @@
         saveLearned();
         return slug ? `forgot "${slug}"` : "forgot all learned names";
       },
-      // Creator names taken from each page's own MediaSession (key -> name).
-      // This is a record of what has been watched, so it is worth knowing it
-      // exists and worth being able to empty it.
-      creators: () => Object.fromEntries(creatorMap()),
-      forgetCreators(key) {
-        if (key) creatorMap().delete(key);
-        else creatorCache = new Map();
-        saveCreators();
-        targetGen++;                       // recompute paths without it
-        return key ? `forgot "${key}"` : "forgot every remembered creator";
-      },
       log: formatLog,
 
       // Non-destructive counterpart to diag(), which ejects the selected tab
@@ -1263,7 +1106,7 @@
         } catch {}
 
         const r = {
-          version: "1.21.0",
+          version: "1.22.0",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The
@@ -1275,9 +1118,6 @@
           // navigation would be dead while a manual sortAll() still worked.
           navigationListenerAttached: listenerAttached,
           groupsCached: groupsCache ? groupsCache.length : "(cold)",
-          // Deliberately a count, not the contents: status() gets pasted into
-          // bug reports, and the names are a viewing history.
-          creatorsRemembered: creatorMap().size,
           tabs: allTabs().length,
           tabsWithATarget: withTarget,
           skipped: reasons,
@@ -1376,6 +1216,13 @@
     }
     return wrote > 0;
   }
+
+  // ---- retired feature cleanup --------------------------------------------
+  // Creator subgrouping is gone, and its cache was built out of browsing: a record of which video belonged to which channel.
+  // Leaving that sitting in prefs.js after the feature that justified it has
+  // been removed is not acceptable, so it is cleared once. Harmless when the
+  // pref was never written.
+  try { Services.prefs.clearUserPref("zzrouter.creators"); } catch {}
 
   // ---- startup ------------------------------------------------------------
   // browser-delayed-startup-finished is a ONE-SHOT notification, and waiting

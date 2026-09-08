@@ -954,17 +954,6 @@
     background-position: center;
     background-origin: content-box;
   }
-  /* A page image (og:image) is a wide banner, not a square glyph. Letterboxed
-     into an icon slot it becomes an unreadable strip, so crop to the centre
-     instead -- and drop the backing plate, which exists for transparent
-     favicons and only eats space under a photo. The script sets this
-     attribute only when it actually swaps in a page image. */
-  #navigator-toolbox tab-group[zzgf-icon-fit="cover"] .tab-group-label::before {
-    background-size: cover !important;
-    background-color: transparent !important;
-    padding: 0 !important;
-    border-radius: 3px;
-  }
   /* Backing plate: many favicons (GitHub's transparent cat) vanish on a
      dark sidebar. A small plate behind the icon fixes readability for
      every icon uniformly, locally -- no favicon service, no network. */

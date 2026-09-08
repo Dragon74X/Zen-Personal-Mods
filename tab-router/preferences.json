@@ -208,42 +208,6 @@
     "operator": "AND"
   },
   {
-    "type": "checkbox",
-    "property": "zzrouter.media-subgroups",
-    "label": "Subgroup by creator *A YouTube watch address names the video, never the channel, so path rules cannot split watch tabs by creator. The page itself publishes the name: any site playing media registers a MediaSession, and its artist field is the channel. Nothing is fetched and no service is asked -- the page you are already watching hands it over. It arrives when the player starts rather than when the tab opens, so a tab files under its base group first and moves under the creator a moment later. Answers are remembered so a tab that gets unloaded does not lose its group.*",
-    "defaultValue": false,
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.enabled",
-          "value": true
-        }
-      }
-    ]
-  },
-  {
-    "type": "string",
-    "property": "zzrouter.media-domains",
-    "label": "Creator domains *Comma separated. Only these sites are asked for a creator name. Subdomains match automatically.*",
-    "defaultValue": "youtube.com",
-    "placeholder": "youtube.com",
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.enabled",
-          "value": true
-        }
-      },
-      {
-        "if": {
-          "property": "zzrouter.media-subgroups",
-          "value": true
-        }
-      }
-    ],
-    "operator": "AND"
-  },
-  {
     "type": "string",
     "property": "zzrouter.auto-path-ignore",
     "label": "Extra path words to ignore *Comma separated, ADDED to a built-in list of generic route words (search, watch, videos, results, games, category and similar). Numeric segments and file names are always dropped.*",

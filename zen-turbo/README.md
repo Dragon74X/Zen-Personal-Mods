@@ -36,10 +36,23 @@ mod never touched. So the pack was a no-op wherever Zen applies those
 defaults, and on macOS, where Zen deliberately excludes them, it overrode that
 choice. Zen's tuning is better than what this mod was duplicating.
 
-**Hover warmup** -- hovering an unloaded tab or a bookmark pre-opens TCP+TLS
-to its site, in the right container, so the click lands on a warm socket.
-Pairs with Tab Unloader: unloaded tabs reload without paying DNS, handshake,
-or certificate time. Throttled to once per site per minute.
+**Hover warmup** -- hovering an unloaded tab, a bookmark, or a link on a page
+pre-opens TCP+TLS to its site, in the right container, so the click lands on a
+warm socket. Pairs with Tab Unloader: unloaded tabs reload without paying DNS,
+handshake, or certificate time.
+
+Link hovers need a different hook, because a chrome script cannot see mouse
+events inside a page. Firefox already computes the answer -- it is what fills
+the little status panel showing a link's target -- so this wraps that, and it
+fires on every link hover there is. The container used is the hovered tab's,
+since that is where the link would open.
+
+**How long a warmed socket lasts:** it becomes an ordinary idle persistent
+connection the moment it opens, so Firefox reaps it on
+`network.http.keep-alive.timeout` -- **115 seconds** by default, and Zen does
+not override it. Hover a link, wait two minutes, and the work is gone. Warming
+is re-thottled against that same number rather than a fixed interval, so an
+origin is never re-warmed while its socket is still alive.
 
 **Startup warmup** -- shortly after startup, your most-visited sites (read
 from local history, read-only) get connections pre-opened, spread a quarter
@@ -68,9 +81,17 @@ connections, unloaded tabs, and busy disks it is real and repeatable.
 
 ```js
 ZenTurbo.status()   // active packs, every pref currently managed, warm count
+ZenTurbo.stats()    // did the warming actually help? hit rate, and by origin
 ZenTurbo.log()      // recent activity, including each warmed connection
 ZenTurbo.warm("https://example.com")   // warm one origin by hand
 ```
+
+`stats()` is the one that keeps this mod honest. It counts every connection
+opened ahead of time, then checks each navigation: did a real request land on
+that socket before the 115-second keep-alive reaped it? A low `hitRate` means
+the warming is aimed at the wrong things and is costing sockets for nothing --
+which is a reason to turn it off, and exactly the kind of finding "it feels
+faster" would hide. `byOrigin` shows where the waste is.
 
 `status().managedPrefs` is the answer to "is this pack doing anything on my
 machine" -- the GPU pack in particular changes nothing on hardware where those

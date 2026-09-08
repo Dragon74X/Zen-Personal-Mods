@@ -97,6 +97,23 @@
     }
   }
 
+  // Sites where stored form text should not pin a tab. The form rule cannot
+  // tell a half-written comment from a search box still holding last week's
+  // query -- SessionStore records both as a real field entry, so both keep the
+  // tab loaded forever. YouTube is the canonical case: search once and its
+  // search_query input holds that text for the life of the tab.
+  let formIgnore = null;
+  function formExempt(tab) {
+    if (formIgnore === null) {
+      formIgnore = str("forms-ignore-urls", "").split(",")
+        .map(s => s.trim()).filter(Boolean);
+    }
+    if (!formIgnore.length) return false;
+    let url = "";
+    try { url = tab.linkedBrowser?.currentURI?.spec ?? ""; } catch { return false; }
+    return formIgnore.some(f => url.includes(f));
+  }
+
   let urlFilters = null;   // parsed once; pref observer resets it
   function urlExcluded(tab) {
     if (urlFilters === null) {
@@ -164,7 +181,8 @@
     if (bool("exclude-pinned", true) && tab.pinned) return "pinned";
     if (bool("exclude-glance", true) && tab.hasAttribute("zen-glance-tab")) return "glance";
     if (bool("exclude-split", true) && tab.hasAttribute("zen-split")) return "split view";
-    if (bool("exclude-forms", true) && hasFormData(tab)) return "unsubmitted form data";
+    if (bool("exclude-forms", true) && !formExempt(tab) && hasFormData(tab))
+      return "unsubmitted form data";
     if (urlExcluded(tab)) return "url excluded";
 
     return null;
@@ -257,6 +275,7 @@
   const observer = {
     observe(_s, _t, data) {
       urlFilters = null;
+      formIgnore = null;
       if (data === P + "enabled" || data === P + "check-seconds") reschedule();
     },
   };

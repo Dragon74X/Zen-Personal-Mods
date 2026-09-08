@@ -27,6 +27,14 @@ Two things it had to handle, both solved:
   answers were remembered, keyed by video id so a `&t=` timestamp could not
   fragment one video into many entries.
 
+Confirmed on the user's build (Zen 1.22b): on a playing tab the read returns
+the channel name. On a controller that is not active -- paused, or not the tab
+that is playing -- `getMetadata()` **throws `NS_ERROR_NOT_AVAILABLE`** rather
+than returning null. Three states, not two. Zen guards this with
+`mediaController.isActive` before reading; a rebuild should do the same and
+hook the `activated` event Zen's media card already listens to, instead of
+the retry loop the shelved version used.
+
 Why shelved: it routed on every navigation and re-checked a session-less media
 tab twelve times at 2.5s intervals -- per-page-load work in the same window as
 the stutter. Suspected, not proven. Its cache (`zzrouter.creators`) was a

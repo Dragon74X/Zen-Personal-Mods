@@ -22,13 +22,19 @@ later change by hand is recognized as yours and never touched again.
 | Predictor on https hover | on | Extends Firefox's network predictor to act on hover over https links, and to prefetch what it is confident about |
 | Less session-store disk churn | on | Session state written every 30s instead of every 15s |
 | Bigger in-memory media cache | on | 64 MB, so small seeks in video replay from memory instead of re-fetching |
-| Physics-based smooth scrolling | on | MSD-physics scroll response instead of fixed-duration easing: tracks the wheel with less lag, settles without the floaty tail |
 | Force GPU rendering paths | off | WebRender and accelerated canvas on hardware where Mozilla's blocklist keeps them off conservatively |
 
-Nothing here changes how the browser *looks* -- the line is look versus feel.
-Scroll physics stays because it changes how scrolling *responds*, not how
-anything is drawn. Appearance belongs to the styling mods: corner shapes and
-instant UI animations both live in [Glassflow](../glassflow).
+Nothing here changes how the browser *looks*. Appearance belongs to the
+styling mods: corner shapes and instant UI animations both live in
+[Glassflow](../glassflow).
+
+There is no scroll pack any more. Zen ships its own smooth-scroll tuning in
+`prefs/fastfox/smoothscroll.yaml`, and it sets every value this mod used to
+set, to the identical numbers -- MSD physics on, 12ms continuous-motion delta,
+spring constants 600 / 650 / 250, 25ms slowdown minimum -- plus five more this
+mod never touched. So the pack was a no-op wherever Zen applies those
+defaults, and on macOS, where Zen deliberately excludes them, it overrode that
+choice. Zen's tuning is better than what this mod was duplicating.
 
 **Hover warmup** -- hovering an unloaded tab or a bookmark pre-opens TCP+TLS
 to its site, in the right container, so the click lands on a warm socket.

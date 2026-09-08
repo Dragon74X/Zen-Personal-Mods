@@ -217,9 +217,18 @@ rest of the browser keeps Zen's shape:
 |---|---|---|
 | Corner shape | Follow Zen | Mirrors Zen's value, so nothing changes out of the box. **Round (classic)** is `superellipse(1)` and restores exactly how these surfaces looked before 1.22b |
 | Custom superellipse value | `2.3` | 1 round, 2 squircle, higher squarer, negative scoops inward, `infinity` hard square |
+| Radius source | My value | **Follow Zen's own corner radius** reads Zen's `--border-radius-medium` instead of the number you set |
 | Radius compensation | Off | **Auto** follows Zen's own per-platform squircle value — the same factor Zen applies to its native radii |
 | Custom radius multiplier | `1.5` | Only used when compensation is Custom |
 | Corner shape, tabs / Essentials / window buttons / sidebar | Follow the setting above | Per-surface override |
+
+**Radius source** is the answer to what went wrong at 1.22b. A pinned number
+cannot follow a chrome that restyles itself: when Zen rescaled its radii for
+squircles, a 12px tab sat inside a 16.8px world and read as square. Following
+Zen's own `--border-radius-medium` keeps these surfaces in step through future
+restyles automatically. Leave **Radius compensation** Off when following Zen —
+that token already carries the squircle scaling, and applying it twice
+over-rounds.
 
 The per-surface knobs matter because the same corner reads differently at
 different sizes: an Essentials card is far larger than a tab, and the window

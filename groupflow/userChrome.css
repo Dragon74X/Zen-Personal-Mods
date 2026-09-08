@@ -25,7 +25,8 @@
      out of the box; the 1 fallback is a plain round corner on older builds. */
   --zzgf-corner: superellipse(var(--zen-squircle-value, 1));
   --zzgf-rscale: 1;
-  --zzgf-round: calc(var(--zzgroup-header-roundness, 12px) * var(--zzgf-rscale));
+  --zzgf-rbase: var(--zzgroup-header-roundness, 12px);
+  --zzgf-round: calc(var(--zzgf-rbase) * var(--zzgf-rscale));
   --zzgf-glass: var(--zzg-glass, 1);
   --zzgf-fx: var(--zzg-fx, );
   --zzgf-sheen: var(--zzg-sheen, linear-gradient(to bottom,
@@ -275,6 +276,7 @@
 
 
 /* ---- corner shape (Zen 1.22b squircles); 0 = follow Zen ---- */
+@media (-moz-pref("zzgroup.corner.radius-source", 1)) { :root { --zzgf-rbase: var(--border-radius-medium, var(--zzgroup-header-roundness, 12px)); } }
 @media (-moz-pref("zzgroup.corner.radius-mode", 1)) { :root { --zzgf-rscale: var(--zen-squircle-value, 1); } }
 @media (-moz-pref("zzgroup.corner.radius-mode", 2)) { :root { --zzgf-rscale: var(--zzgroup-corner-radius-scale, 1); } }
 @media (-moz-pref("zzgroup.corner.mode", 1)) { :root { --zzgf-corner: round; } }

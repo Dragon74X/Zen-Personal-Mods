@@ -42,7 +42,13 @@
   --zzg-corner-btn: var(--zzg-corner);
   --zzg-corner-side: var(--zzg-corner);
   --zzg-rscale: 1;
-  --zzg-round: calc(var(--zzglass-tabs-roundness, 10px) * var(--zzg-rscale));
+  /* Radius source. "My value" is the number in settings; "Follow Zen" reads
+     Zen's own --border-radius-medium, which since 1.22b is already scaled for
+     the squircle corner (calc(8px * 2.1) = 16.8px). Following it means these
+     surfaces track Zen's design language through future restyles instead of
+     drifting away from it the way a pinned number did at 1.22b. */
+  --zzg-rbase: var(--zzglass-tabs-roundness, 10px);
+  --zzg-round: calc(var(--zzg-rbase) * var(--zzg-rscale));
   --zzg-glass: var(--zzglass-glass-intensity, 1);
   --zzg-sheenamt: var(--zzglass-glass-sheen-strength, 1);
   --zzg-sheen-dir: to bottom;
@@ -426,6 +432,7 @@
    same factor Zen applies to its native radii -- and it is per-platform, so
    Windows (2.3) gets more compensation than everywhere else (1.3) without
    anyone typing a number. */
+@media (-moz-pref("zzglass.corner.radius-source", 1)) { :root { --zzg-rbase: var(--border-radius-medium, var(--zzglass-tabs-roundness, 10px)); } }
 @media (-moz-pref("zzglass.corner.radius-mode", 1)) { :root { --zzg-rscale: var(--zen-squircle-value, 1); } }
 @media (-moz-pref("zzglass.corner.radius-mode", 2)) { :root { --zzg-rscale: var(--zzglass-corner-radius-scale, 1); } }
 

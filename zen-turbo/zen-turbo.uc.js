@@ -88,17 +88,6 @@
       ["gfx.webrender.all", true],
       ["gfx.canvas.accelerated", true],
     ],
-    // MSD-physics smooth scrolling: a mass-spring-damper response curve
-    // instead of fixed-duration easing. Scrolling tracks the wheel with
-    // less lag and settles without the floaty tail.
-    scroll: [
-      ["general.smoothScroll.msdPhysics.enabled", true],
-      ["general.smoothScroll.msdPhysics.continuousMotionMaxDeltaMS", 12],
-      ["general.smoothScroll.msdPhysics.motionBeginSpringConstant", 600],
-      ["general.smoothScroll.msdPhysics.regularSpringConstant", 650],
-      ["general.smoothScroll.msdPhysics.slowdownMinDeltaMS", 25],
-      ["general.smoothScroll.msdPhysics.slowdownSpringConstant", 250],
-    ],
   };
 
   // Packs default ON when the pref has not been written yet, EXCEPT these.

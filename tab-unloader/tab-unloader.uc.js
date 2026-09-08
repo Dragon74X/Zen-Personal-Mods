@@ -73,13 +73,25 @@
   // Returns true only when we positively found stored form data.
   // If SessionStore is missing the check is skipped rather than treating
   // every tab as dirty -- doing that kept every tab loaded in v1.0.
+  // A SessionStore formdata record is { id, xpath, children, url }, and `url`
+  // is stamped on whenever anything is recorded at all, purely so the data can
+  // be checked against the page it came from before being restored. Counting
+  // the keys therefore treats "SessionStore looked at this page" as "the user
+  // typed something", which keeps any such tab loaded forever -- YouTube among
+  // them, whose search box qualifies on sight. Only real field entries count:
+  // id and xpath hold them, and children holds a record per frame.
+  function hasFields(fd) {
+    if (!fd || typeof fd !== "object") return false;
+    if (fd.id && Object.keys(fd.id).length) return true;
+    if (fd.xpath && Object.keys(fd.xpath).length) return true;
+    return Array.isArray(fd.children) && fd.children.some(hasFields);
+  }
+
   function hasFormData(tab) {
     const ss = sessionStore();
     if (!ss) return false;
     try {
-      const state = JSON.parse(ss.getTabState(tab));
-      const fd = state && state.formdata;
-      return !!fd && Object.keys(fd).length > 0;
+      return hasFields(JSON.parse(ss.getTabState(tab))?.formdata);
     } catch {
       return false;
     }
@@ -171,15 +183,32 @@
     return [...set];
   }
 
+  // Deferring on Zen's animation markers has to be BOUNDED. Zen sets
+  // animating-background from more than one code path but removes it from only
+  // one, and its own source calls the animation "stuck" as a known hazard
+  // (desktop issue 9334) -- it races a timeout against it for exactly that
+  // reason. An unbounded wait means one stuck attribute silently retires the
+  // unloader for the rest of the session, which looks identical to the mod
+  // being broken. Past the cap, sweep anyway: a little animation stutter is a
+  // far better failure than never unloading again.
+  const MAX_DEFER_MS = 10000;
+  let deferredSince = 0;
+
   function sweep() {
     if (!bool("enabled", false)) return;
     // discardBrowser mid workspace-slide contributes to animation stutter;
     // Zen marks the slide on :root. Skip this tick, the interval retries.
     if (document.documentElement.hasAttribute("animating-background") ||
         document.documentElement.hasAttribute("swipe-gesture")) {
-      note("sweep deferred: workspace animation in progress");
-      return;
+      if (!deferredSince) deferredSince = Date.now();
+      const waited = Date.now() - deferredSince;
+      if (waited < MAX_DEFER_MS) {
+        note("sweep deferred: workspace animation in progress");
+        return;
+      }
+      note(`animation marker stuck for ${Math.round(waited / 1000)}s; sweeping anyway`);
     }
+    deferredSince = 0;
     const now = Date.now();
     const tabs = allTabs();
     const eligible = tabs.filter(t => whyKeep(t, now) === null);

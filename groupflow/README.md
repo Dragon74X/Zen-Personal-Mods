@@ -60,6 +60,39 @@ window for the life of the session.
 
 Turn off **Favicon as group icon** and the script does nothing.
 
+### Automatic: the page's own image
+
+**Icon source** switches what the automatic icon is drawn from.
+
+*Site favicon* (the default) is one picture per domain. It identifies
+*Nexusmods* correctly and tells you nothing one level down, where every game
+subgroup draws the same Nexus logo.
+
+*Page image, favicon fallback* uses what the page advertises about itself — its
+`og:image`. Firefox already has this: `ContentMetaHandler` reads that tag while
+a page loads and writes it into your history through
+`PlacesUtils.history.update`, so it is sitting in the profile for every page
+already visited. Reading it is a local database lookup, not a scrape and not a
+request to the site.
+
+What it actually gives you varies by site, and it is the *page's* image rather
+than the author's:
+
+| Page | Image you get |
+|---|---|
+| Nexus or Steam game page | the game art |
+| GitHub repository | the repository's social card |
+| YouTube **channel** page | the channel avatar |
+| YouTube **watch** page | the video thumbnail, not the creator |
+
+The favicon is painted first and the page image replaces it when the lookup
+resolves, so a group is never blank while that happens, and a group whose page
+had no stored image simply keeps the favicon. Results are cached per URL.
+
+Page images are wide banners, so they are cropped to the centre and the backing
+plate is dropped — a photo does not need one. Displaying an image does load it,
+normally from cache, since it came from a page you visited.
+
 ### Naming an icon yourself
 
 The dominant-domain rule is right for *Nexusmods* and useless below it: every

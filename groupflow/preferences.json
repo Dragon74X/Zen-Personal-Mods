@@ -380,6 +380,38 @@
     ]
   },
   {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.icon-source",
+    "label": "Icon source *Site favicon is one picture per domain, so every subgroup under a mod site or a store draws the same thing. Page image uses what the page itself advertises -- its og:image -- which Firefox already saved to your history while the page loaded, so reading it is a local database lookup rather than a scrape. It gives game art on Nexus and Steam pages and a channel avatar on a YouTube channel page, but on a YouTube watch page it is the video thumbnail, not the creator. Falls back to the favicon whenever no image was stored, and the favicon is drawn first either way so a group is never blank while the lookup runs. Displaying an image does load it, normally from cache since you visited the page it came from.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Site favicon",
+        "value": 0
+      },
+      {
+        "label": "Page image, favicon fallback",
+        "value": 1
+      }
+    ],
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.favicons",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
     "type": "string",
     "property": "zzgroup.icon-rules",
     "label": "Icon rules *One per line, or separated by semicolons. Left of the = is the group name, right of it is the icon. Names match the subgroup on its own (crimson desert) or its full path (youtube / crimson desert), case does not matter, and a rule beats the automatic favicon. On the right, a bare domain means that site's favicon from Firefox's local store, with no network request; anything with a scheme is used as written, so file:/// points at your own image and data: embeds one. An https: address does fetch. Useful because every game on a mod site shares that site's favicon, so subgroups under it all look identical until you name them.*",

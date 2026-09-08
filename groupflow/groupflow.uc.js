@@ -30,6 +30,19 @@
 
   const bool = (k, d) => { try { return Services.prefs.getBoolPref("zzgroup." + k, d); } catch { return d; } };
   const str  = (k, d) => { try { return Services.prefs.getStringPref("zzgroup." + k, d); } catch { return d; } };
+  // Type is checked, never guessed: getIntPref on a string pref throws, and
+  // Firefox logs every one of those even when it is caught.
+  const num  = (k, d) => {
+    const S = Services.prefs, full = "zzgroup." + k;
+    try {
+      if (S.getPrefType(full) === S.PREF_INT) return S.getIntPref(full);
+      if (S.getPrefType(full) === S.PREF_STRING) {
+        const v = parseInt(S.getStringPref(full), 10);
+        return Number.isFinite(v) ? v : d;
+      }
+    } catch {}
+    return d;
+  };
 
 const PREFIX = "zzgroup.";
   // ---- pref variables at startup -----------------------------------------
@@ -182,7 +195,79 @@ const PREFIX = "zzgroup.";
   // Dominant base host among the group's DIRECT tabs; subgroups compute
   // their own, so "Youtube > Creator" shows youtube's icon on the parent
   // and (usually the same) icon on the child from its own members.
+  // ---- page images --------------------------------------------------------
+  // A site's favicon is the same for every page on it, which is why every
+  // game under Nexusmods draws the same picture. The page's own og:image is
+  // the distinguishing one -- and Firefox already has it. ContentMetaHandler
+  // reads og:image while a page loads and writes it to moz_places via
+  // PlacesUtils.history.update, so it is sitting in the profile for every
+  // page already visited. Reading it costs a local database lookup, not a
+  // scrape and not a request to the site.
+  //
+  // What it yields is the PAGE's image, which is not always the author's:
+  // a Nexus or Steam game page gives the game art, a YouTube channel page
+  // gives the channel avatar, but a YouTube watch page gives the video
+  // thumbnail rather than the creator. The setting says so.
+  //
+  // Rendering the result does load that image, from cache in the normal case
+  // since the page it came from was visited.
+  let places = null;
+  function history() {
+    if (places === null) {
+      try {
+        places = ChromeUtils.importESModule(
+          "resource://gre/modules/PlacesUtils.sys.mjs").PlacesUtils.history;
+      } catch { places = false; }
+    }
+    return places || null;
+  }
+
+  // Bounded, and never invalidated: a page's og:image effectively does not
+  // change, and a wrong entry costs one stale icon, not correctness.
+  const pageImages = new Map();
+
+  async function pageImageFor(url) {
+    if (!url) return null;
+    if (pageImages.has(url)) return pageImages.get(url);
+    let img = null;
+    try {
+      const info = await history()?.fetch(url, { includeMeta: true });
+      const raw = info?.previewImageURL;
+      // previewImageURL comes back as an nsIURI-ish object or a string
+      // depending on the build; take the spec either way, and refuse
+      // anything that would escape the url() it is about to sit inside.
+      const spec = typeof raw === "string" ? raw : raw?.href ?? raw?.spec ?? null;
+      if (spec && /^https?:/i.test(spec) && !/["'()\\]/.test(spec)) img = spec;
+    } catch {}
+    if (pageImages.size > 500) pageImages.clear();
+    pageImages.set(url, img);
+    return img;
+  }
+
+  const urlOf = (tab) => {
+    try {
+      const uri = tab.linkedBrowser?.currentURI;
+      return uri && /^https?$/.test(uri.scheme) ? uri.spec : null;
+    } catch { return null; }
+  };
+
+  // Upgrade in place. The favicon is already painted by the time this
+  // resolves, so a group is never blank while the lookup runs, and a group
+  // with no stored image simply keeps the favicon.
+  function upgradeToPageImage(g, tab) {
+    const url = urlOf(tab);
+    if (!url) return;
+    pageImageFor(url).then((img) => {
+      if (!img || !g.isConnected) return;
+      // A page image is a wide banner, not a square glyph. Cropping to the
+      // centre reads better at icon size than letterboxing it.
+      g.setAttribute("zzgf-icon-fit", "cover");
+      g.style.setProperty("--zzgf-icon", `url("${img}")`);
+    }).catch(() => {});
+  }
+
   function refreshGroup(g) {
+    g.removeAttribute("zzgf-icon-fit");
     const ruled = ruledIcon(g);
     if (ruled) { g.style.setProperty("--zzgf-icon", `url("${ruled}")`); return; }
     const counts = new Map();
@@ -208,6 +293,23 @@ const PREFIX = "zzgroup.";
     // page-icon: is Firefox's own favicon protocol, served from the local
     // favicon store -- no network fetch happens here.
     g.style.setProperty("--zzgf-icon", `url("page-icon:https://${host}/")`);
+
+    // Then try to better it with the page's own image, if that is switched on.
+    if (num("icon-source", 0) === 1) {
+      const pick = members(g).find((t) => hostOf(t) === host);
+      if (pick) upgradeToPageImage(g, pick);
+    }
+  }
+
+  // Direct tabs, else the tabs of the first subgroup -- the same widening the
+  // favicon count does, so both pick their icon from the same members.
+  function members(g) {
+    const direct = [...(g.groupContainer?.children ?? [])].filter((el) => el.matches?.("tab"));
+    if (direct.length) return direct;
+    for (const el of g.groupContainer?.children ?? []) {
+      if (gBrowser.isTabGroup?.(el) && el.tabs?.length) return [...el.tabs];
+    }
+    return [];
   }
 
   function refreshAll() {

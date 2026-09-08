@@ -51,13 +51,17 @@ Sweeps are skipped entirely while a workspace slide or trackpad swipe is in prog
 
 The form-data check needs `SessionStore`. If it is unavailable the check is **skipped** and logged once, rather than treating every tab as dirty. Treating it as dirty is what kept every tab loaded in 1.0.
 
-Even read precisely, the rule cannot tell a half-written comment from a search
-box still holding last week's query -- the browser records both as a real field
-entry, and both then pin the tab for good. YouTube is the usual offender: search
-once and its search box keeps that text for the life of the tab, so the tab
-never becomes eligible again. **Sites where typed text does not count** exempts
-a site from this rule alone; it defaults to `youtube.com` for exactly that
-reason, and every other protection still applies to those tabs.
+The rule counts **values, not fields**. SessionStore records any field it
+considers changed, which is far more than text you would lose -- measured on a
+real profile, YouTube stores its *empty* comment textarea, Nexus stores 28
+empty reply boxes, and `about:preferences` stores around 300 checkboxes and
+dropdowns. Every one of those pinned its tab permanently under the old reading,
+which is why YouTube tabs never unloaded however long they sat.
+
+What separates real work from that noise is the value. A checkbox stores a
+boolean, a `<select>` stores `{ selectedIndex, value }`, a touched-but-empty
+textarea stores `""`. Only a non-empty string counts, so a half-written comment
+still protects its tab and an untouched comment box does not.
 
 It also has to read that record precisely. A formdata record is `{ id, xpath, children, url }`, and `url` is stamped on whenever anything is recorded at all -- purely so the data can be checked against the page it came from before being restored. Counting the record's keys therefore reads "SessionStore looked at this page" as "the user typed something", which keeps such a tab loaded forever; YouTube's search box qualifies on sight. Only real field entries count: `id` and `xpath` hold them, and `children` holds one record per frame, so a draft inside an iframe still protects the tab.
 

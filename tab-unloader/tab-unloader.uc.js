@@ -73,17 +73,36 @@
   // Returns true only when we positively found stored form data.
   // If SessionStore is missing the check is skipped rather than treating
   // every tab as dirty -- doing that kept every tab loaded in v1.0.
-  // A SessionStore formdata record is { id, xpath, children, url }, and `url`
-  // is stamped on whenever anything is recorded at all, purely so the data can
-  // be checked against the page it came from before being restored. Counting
-  // the keys therefore treats "SessionStore looked at this page" as "the user
-  // typed something", which keeps any such tab loaded forever -- YouTube among
-  // them, whose search box qualifies on sight. Only real field entries count:
-  // id and xpath hold them, and children holds a record per frame.
+  // SessionStore records any field it considers changed -- which is far more
+  // than "text the user would lose". Measured on a real profile: YouTube stores
+  // its EMPTY comment textarea, Nexus stores 28 empty reply boxes,
+  // about:preferences stores ~300 checkboxes and dropdowns. Every one of those
+  // pinned a tab permanently under the old rule, which is why YouTube tabs
+  // never unloaded no matter how long they sat.
+  //
+  // What separates real work from that noise is the VALUE, not the key. A
+  // checkbox stores a boolean, a select stores an index or its option value, a
+  // touched-but-empty textarea stores "". Only a non-empty string is something
+  // a person typed and could lose.
+  function meaningful(v) {
+    if (typeof v === "string") return v.trim() !== "";
+    if (Array.isArray(v)) return v.some(meaningful);
+    // Objects cover nested shapes such as contenteditable's { innerHTML }.
+    if (v && typeof v === "object") {
+      // A <select> is stored as { selectedIndex, value }. Picking an option is
+      // a choice, not text you would lose, and its option string would
+      // otherwise read as typing -- which is how about:preferences ended up
+      // looking like 300 fields of unsaved work.
+      if ("selectedIndex" in v) return false;
+      return Object.values(v).some(meaningful);
+    }
+    return false;                        // booleans and numbers are state, not text
+  }
+
   function hasFields(fd) {
     if (!fd || typeof fd !== "object") return false;
-    if (fd.id && Object.keys(fd.id).length) return true;
-    if (fd.xpath && Object.keys(fd.xpath).length) return true;
+    if (Object.values(fd.id || {}).some(meaningful)) return true;
+    if (Object.values(fd.xpath || {}).some(meaningful)) return true;
     return Array.isArray(fd.children) && fd.children.some(hasFields);
   }
 
@@ -97,11 +116,6 @@
     }
   }
 
-  // Sites where stored form text should not pin a tab. The form rule cannot
-  // tell a half-written comment from a search box still holding last week's
-  // query -- SessionStore records both as a real field entry, so both keep the
-  // tab loaded forever. YouTube is the canonical case: search once and its
-  // search_query input holds that text for the life of the tab.
   let formIgnore = null;
   function formExempt(tab) {
     if (formIgnore === null) {

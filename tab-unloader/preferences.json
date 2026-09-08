@@ -214,8 +214,8 @@
   {
     "type": "string",
     "property": "zzunload.forms-ignore-urls",
-    "label": "Sites where typed text does not count *Comma separated, matched anywhere in the URL. The rule above cannot tell a half-written comment from a search box still holding last week's query: the browser records both as real form data, and both then keep the tab loaded forever. YouTube is the usual offender -- search once and its search box holds that text for the life of the tab, so the tab never unloads again. Listing a site here skips the form check for it; every other protection still applies.*",
-    "defaultValue": "youtube.com",
+    "label": "Sites where typed text does not count *Comma separated, matched anywhere in the URL. An escape hatch, and normally unnecessary: the rule above only counts text you actually typed, so an empty comment box or a row of checkboxes no longer pins a tab. Use it for a site that holds real text you genuinely do not mind losing.*",
+    "defaultValue": "",
     "placeholder": "youtube.com, reddit.com",
     "conditions": [
       {

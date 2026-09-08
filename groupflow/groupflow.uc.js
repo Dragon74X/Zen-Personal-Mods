@@ -520,8 +520,56 @@ const PREFIX = "zzgroup.";
   // the CSS fallbacks (10px roundness, the default tints) and then snapping to
   // the configured values. Doing it here is what actually makes the comment
   // above true.
+  // ---- declared defaults --------------------------------------------------
+  // Sine does not write the defaults declared in preferences.json into the
+  // profile. manager.sys.mjs says so outright: "TODO: Apply default
+  // preferences." So an unset pref reads as whatever the READER falls back
+  // to, and the readers disagree with each other.
+  //
+  // This script asks bool("favicons", true). Sine's settings panel, deciding
+  // whether to show a row conditioned on that same pref, asks
+  // getBoolPref("zzgroup.favicons", false). Both are reasonable in isolation
+  // and together they produce a mod behaving as if a setting is on while
+  // every row it governs is hidden as if it were off. A -moz-pref() media
+  // query in the stylesheet is a third reader with its own answer.
+  //
+  // Writing each declared default once, and only when the pref has never
+  // been set, removes the disagreement for all three at once. Nothing that
+  // was already chosen is touched.
+  const MOD_ID = "zz-groupflow";
+  async function seedDefaults() {
+    let declared;
+    try {
+      const res = await fetch(`chrome://sine/content/${MOD_ID}/preferences.json`);
+      const json = await res.json();
+      declared = Array.isArray(json) ? json : (json.preferences ?? []);
+    } catch { return false; }
+
+    const S = Services.prefs;
+    let wrote = 0;
+    for (const pref of declared) {
+      const name = pref?.property;
+      const value = pref?.defaultValue;
+      if (!name || !name.startsWith(PREFIX) || value === undefined || value === null) continue;
+      try {
+        if (S.getPrefType(name) !== S.PREF_INVALID) continue;   // already chosen
+        if (typeof value === "boolean") S.setBoolPref(name, value);
+        else if (typeof value === "number") S.setIntPref(name, value);
+        else if (typeof value === "string") S.setStringPref(name, value);
+        else continue;
+        wrote++;
+      } catch {}
+    }
+    return wrote > 0;
+  }
+
   try { repairNumericPrefs(); } catch {}
   try { injectPrefVars(); } catch {}
+  // Seeding is a file read, so it cannot happen before first paint like the
+  // line above. Re-inject after it, and only if it actually wrote something,
+  // so a profile that already has its prefs pays nothing.
+  seedDefaults().then((wrote) => { if (wrote) injectPrefVars(); }).catch(() => {});
+
 
   // ---- startup ------------------------------------------------------------
   // browser-delayed-startup-finished is a ONE-SHOT notification, and waiting
@@ -557,7 +605,17 @@ const PREFIX = "zzgroup.";
     if (started || window[INSTANCE_KEY] !== instance) return;
     started = true;
     stopWaiting();
-    start();
+    // Contained on purpose. Sine's window-open loop calls
+    // loadSubScriptWithOptions for each mod in turn and does NOT wrap it, so a
+    // throw that escapes this script propagates into that loop and every mod
+    // queued after it is silently never injected. That is not hypothetical:
+    // one missing function in Glassflow -- the first mod loaded -- left Tab
+    // Router, Tab Unloader and Zen Turbo uninjected, which read as three
+    // unrelated mods breaking at once. A broken mod should break only itself,
+    // and should say so rather than failing quietly.
+    try { start(); } catch (e) {
+      console.error("[Groupflow] failed to start:", e);
+    }
   };
 
   // Read through the window first, then the bare global. A sub-script loaded

@@ -40,3 +40,11 @@ last and win on source order without escalating `!important`.
 ## License
 
 MIT
+
+## Checking a profile
+
+`tools/check.js` reports, for every mod: whether its script is actually running
+in this window, whether each pref holds the type its declaration calls for, and
+which settings rows are hidden because the pref their condition names has never
+been written. Paste it into the Browser Console (Ctrl+Shift+J); it reads only
+and copies its report to the clipboard.

@@ -140,6 +140,25 @@
     try { P.clearUserPref(CS_SAVED); } catch {}
   }
 
+  // ---- instant UI animations ---------------------------------------------
+  // Zen animates its interface through its vendored Motion library, which
+  // exposes a global switch: with instantAnimations set, every animation jumps
+  // straight to its final frame. This is the real lever -- no zen.animations
+  // pref exists. It is a LOOK change, which is why it lives here and not in a
+  // performance mod. In-memory, applies live, reverts live, touches nothing on
+  // web pages.
+  //
+  // Restored: cd192ee deleted this body while leaving both call sites, so
+  // start() threw ReferenceError on every window from then on. See the note
+  // on startOnce() for why that took the other four mods down with it.
+  function syncInstantUI() {
+    const cfg = window.Motion?.MotionGlobalConfig;
+    if (!cfg) return;                      // not on this build; nothing to do
+    let want = false;
+    try { want = Services.prefs.getBoolPref(PREFIX + "instant-ui", false); } catch {}
+    if (cfg.instantAnimations !== want) cfg.instantAnimations = want;
+  }
+
   const prefVarObserver = {
     observe(_s, _t, data) {
       if (!data || !data.startsWith(PREFIX)) return;
@@ -191,8 +210,56 @@
   // the CSS fallbacks (10px roundness, the default tints) and then snapping to
   // the configured values. Doing it here is what actually makes the comment
   // above true.
+  // ---- declared defaults --------------------------------------------------
+  // Sine does not write the defaults declared in preferences.json into the
+  // profile. manager.sys.mjs says so outright: "TODO: Apply default
+  // preferences." So an unset pref reads as whatever the READER falls back
+  // to, and the readers disagree with each other.
+  //
+  // This script asks bool("favicons", true). Sine's settings panel, deciding
+  // whether to show a row conditioned on that same pref, asks
+  // getBoolPref("zzgroup.favicons", false). Both are reasonable in isolation
+  // and together they produce a mod behaving as if a setting is on while
+  // every row it governs is hidden as if it were off. A -moz-pref() media
+  // query in the stylesheet is a third reader with its own answer.
+  //
+  // Writing each declared default once, and only when the pref has never
+  // been set, removes the disagreement for all three at once. Nothing that
+  // was already chosen is touched.
+  const MOD_ID = "zz-glassflow";
+  async function seedDefaults() {
+    let declared;
+    try {
+      const res = await fetch(`chrome://sine/content/${MOD_ID}/preferences.json`);
+      const json = await res.json();
+      declared = Array.isArray(json) ? json : (json.preferences ?? []);
+    } catch { return false; }
+
+    const S = Services.prefs;
+    let wrote = 0;
+    for (const pref of declared) {
+      const name = pref?.property;
+      const value = pref?.defaultValue;
+      if (!name || !name.startsWith(PREFIX) || value === undefined || value === null) continue;
+      try {
+        if (S.getPrefType(name) !== S.PREF_INVALID) continue;   // already chosen
+        if (typeof value === "boolean") S.setBoolPref(name, value);
+        else if (typeof value === "number") S.setIntPref(name, value);
+        else if (typeof value === "string") S.setStringPref(name, value);
+        else continue;
+        wrote++;
+      } catch {}
+    }
+    return wrote > 0;
+  }
+
   try { repairNumericPrefs(); } catch {}
   try { injectPrefVars(); } catch {}
+  // Seeding is a file read, so it cannot happen before first paint like the
+  // line above. Re-inject after it, and only if it actually wrote something,
+  // so a profile that already has its prefs pays nothing.
+  seedDefaults().then((wrote) => { if (wrote) injectPrefVars(); }).catch(() => {});
+
 
   // ---- startup ------------------------------------------------------------
   // browser-delayed-startup-finished is a ONE-SHOT notification, and waiting
@@ -228,7 +295,17 @@
     if (started || window[INSTANCE_KEY] !== instance) return;
     started = true;
     stopWaiting();
-    start();
+    // Contained on purpose. Sine's window-open loop calls
+    // loadSubScriptWithOptions for each mod in turn and does NOT wrap it, so a
+    // throw that escapes this script propagates into that loop and every mod
+    // queued after it is silently never injected. That is not hypothetical:
+    // one missing function in Glassflow -- the first mod loaded -- left Tab
+    // Router, Tab Unloader and Zen Turbo uninjected, which read as three
+    // unrelated mods breaking at once. A broken mod should break only itself,
+    // and should say so rather than failing quietly.
+    try { start(); } catch (e) {
+      console.error("[Glassflow] failed to start:", e);
+    }
   };
 
   // Read through the window first, then the bare global. A sub-script loaded

@@ -3205,6 +3205,22 @@
   },
   {
     "type": "dropdown",
+    "property": "zzglass.corner.radius-source",
+    "label": "Radius source *Where the corner radius comes from. The number is Tab roundness under *Tabs, shared*. **Follow Zen's own corner radius** reads Zen's `--border-radius-medium` instead, which since 1.22b is already scaled for the squircle corner -- so these surfaces track Zen's design language through future restyles rather than drifting away from it the way a pinned number did when 1.22b landed. Leave Radius compensation Off when following Zen; Zen's token already carries that scaling, and applying it twice over-rounds.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "My value (the number below)",
+        "value": 0
+      },
+      {
+        "label": "Follow Zen's own corner radius",
+        "value": 1
+      }
+    ]
+  },
+  {
+    "type": "dropdown",
     "property": "zzglass.corner.radius-mode",
     "label": "Radius compensation *A superellipse corner eats its radius differently from a circular one, so a radius tuned before Zen 1.22b reads tighter now. This scales every radius this mod sets, so you do not re-type each one. Auto uses the same factor Zen applies to its own corners, and it is per-platform, so Windows gets more than everywhere else without you typing a number. Turn this on first if tabs look square at a radius that used to look right; only reach for Custom if Auto overshoots.*",
     "defaultValue": 0,

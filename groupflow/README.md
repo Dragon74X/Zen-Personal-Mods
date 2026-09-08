@@ -94,7 +94,9 @@ are reshaped along with everything else, and a roundness tuned before 1.22b
 reads squarer at the same number.
 
 **Corner shape** defaults to *Follow Zen* and changes nothing; *Round (classic)*
-restores the pre-1.22b look. **Radius compensation** set to *Auto* keeps the
+restores the pre-1.22b look. **Radius source** can take the header radius from
+Zen's own `--border-radius-medium` rather than a pinned number, so headers
+track Zen's design language through future restyles. **Radius compensation** set to *Auto* keeps the
 squircle but scales the header roundness by Zen's own per-platform factor.
 
 Set both to match Glassflow's, or headers and tabs will disagree — this is the

@@ -43,12 +43,6 @@
   },
   {
     "type": "checkbox",
-    "property": "zzturbo.pack-scroll",
-    "label": "Physics-based smooth scrolling *Replaces fixed-duration scroll easing with a mass-spring-damper response: scrolling tracks the wheel with less lag and settles without the floaty tail. Feel, tuned for responsiveness; snapshotted and fully restored when turned off.*",
-    "defaultValue": true
-  },
-  {
-    "type": "checkbox",
     "property": "zzturbo.pack-gfx",
     "label": "Force GPU rendering paths *Enables WebRender and accelerated canvas on hardware where Mozilla's blocklist keeps them off conservatively. Changes nothing on machines where they already run -- ZenTurbo.status() shows whether this pack is managing any prefs. If you see visual glitches, turn it off; your profile is restored exactly.*",
     "defaultValue": false

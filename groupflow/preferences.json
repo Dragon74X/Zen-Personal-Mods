@@ -1657,6 +1657,22 @@
   },
   {
     "type": "dropdown",
+    "property": "zzgroup.corner.radius-source",
+    "label": "Radius source *Where the corner radius comes from. The number is Header roundness under *Header*. **Follow Zen's own corner radius** reads Zen's `--border-radius-medium` instead, which since 1.22b is already scaled for the squircle corner -- so these surfaces track Zen's design language through future restyles rather than drifting away from it the way a pinned number did when 1.22b landed. Leave Radius compensation Off when following Zen; Zen's token already carries that scaling, and applying it twice over-rounds.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "My value (the number below)",
+        "value": 0
+      },
+      {
+        "label": "Follow Zen's own corner radius",
+        "value": 1
+      }
+    ]
+  },
+  {
+    "type": "dropdown",
     "property": "zzgroup.corner.radius-mode",
     "label": "Radius compensation *A superellipse corner eats its radius differently from a circular one, so a radius tuned before Zen 1.22b reads tighter now. This scales every radius this mod sets, so you do not re-type each one. Auto follows Zen's own per-platform squircle value. Match it to Glassflow's setting to keep headers and tabs in step.*",
     "defaultValue": 0,

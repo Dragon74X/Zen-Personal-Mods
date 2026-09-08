@@ -7,6 +7,27 @@
 (() => {
   "use strict";
 
+  // ---- single instance ---------------------------------------------------
+  // Sine can inject this script into a window that already has a live copy.
+  // Its two load paths in manager.sys.mjs do not agree: the rebuild path
+  // calls triggerUnloadListener() first and leaves the window alone if the
+  // script is still loaded, but the window-open path (observe -> "load")
+  // calls loadSubScriptWithOptions directly, with no handshake and no
+  // marker registered. A rebuild landing on a window opened moments earlier
+  // -- every settings change triggers one -- therefore installs a SECOND
+  // copy, and nothing here used to stop it. Two copies means two of every
+  // listener, observer and timer acting on the same window, which reads as
+  // the mod working intermittently rather than as an obvious break.
+  //
+  // So: retire whatever instance is already on this window, then claim it.
+  // instance.retire is the pending startup observer until start() replaces it
+  // with the real cleanup, so a copy is releasable at either stage.
+  const INSTANCE_KEY = "__zzrouterInstance";
+  const previous = window[INSTANCE_KEY];
+  try { previous?.retire?.(); } catch {}
+  const instance = { generation: (previous?.generation | 0) + 1, retire: () => {} };
+  window[INSTANCE_KEY] = instance;
+
   const P = "zzrouter.";
   const bool = (k, d) => { try { return Services.prefs.getBoolPref(P + k, d); } catch { return d; } };
   const str  = (k, d) => { try { return Services.prefs.getStringPref(P + k, d); } catch { return d; } };
@@ -1045,6 +1066,73 @@
         return slug ? `forgot "${slug}"` : "forgot all learned names";
       },
       log: formatLog,
+
+      // Non-destructive counterpart to diag(), which ejects the selected tab
+      // to prove the group API works. This one only reads, so it is safe to
+      // run the moment something looks wrong.
+      //
+      // "stalled" is the list that matters: tabs that are NOT skipped, DO
+      // have a target, and are still not sitting under it. Those are the
+      // tabs the mod was supposed to file and did not, and every other field
+      // here exists to explain why.
+      status() {
+        const reasons = {};
+        const stalled = [];
+        let withTarget = 0;
+        for (const t of allTabs()) {
+          const parts = targetPath(t);
+          if (parts?.length) withTarget++;
+          const why = skip(t, parts);
+          if (why) { reasons[why] = (reasons[why] ?? 0) + 1; continue; }
+          if (!parts?.length) { reasons["no rule"] = (reasons["no rule"] ?? 0) + 1; continue; }
+          const have = chainOf(t);
+          if (!startsWithPath(have, parts)) {
+            stalled.push({
+              tab: t.label,
+              host: hostOf(t),
+              is: have.join(SEP()) || "(ungrouped)",
+              wants: parts.join(SEP()),
+            });
+          }
+        }
+
+        // Report "unknown" rather than false when the collection is not
+        // where it is expected: a diagnostic that invents a detached
+        // listener sends you hunting the wrong bug.
+        let listenerAttached = "unknown";
+        try {
+          const set = gBrowser.mTabsProgressListeners;
+          if (typeof set?.has === "function") listenerAttached = set.has(progress);
+        } catch {}
+
+        const r = {
+          version: "1.18.0",
+          zen: Services.appinfo?.version,
+          enabled: bool("enabled", false),
+          // >1 means this window has loaded the script more than once. The
+          // guard at the top of the file retires the older copy, so a high
+          // number is a record of re-injection, not of copies running now.
+          instanceGeneration: instance.generation,
+          // False while the mod is loaded means the progress listener was
+          // dropped without the script being torn down -- routing on
+          // navigation would be dead while a manual sortAll() still worked.
+          navigationListenerAttached: listenerAttached,
+          groupsCached: groupsCache ? groupsCache.length : "(cold)",
+          tabs: allTabs().length,
+          tabsWithATarget: withTarget,
+          skipped: reasons,
+          stalled,
+          recentLog: formatLog().slice(-40),
+        };
+        const text = JSON.stringify(r, null, 2);
+        console.log(text);
+        try {
+          Cc["@mozilla.org/widget/clipboardhelper;1"]
+            .getService(Ci.nsIClipboardHelper).copyString(text);
+          console.log("(copied to clipboard)");
+        } catch {}
+        return r;
+      },
     };
 
     if (bool("sort-on-startup", false)) setTimeout(() => sweepAll("startup"), num("startup-delay-ms", 2500));
@@ -1071,16 +1159,24 @@
     // none) in the running window. The DOM unload event below does not satisfy
     // that protocol: it only fires when the window itself closes.
     try { window.addUnloadListener?.(cleanup); } catch {}
+    instance.retire = cleanup;
   }
 
   if (gBrowserInit?.delayedStartupFinished) start();
   else {
+    // A pending observer is a live registration like any other: if a newer
+    // copy of this script claims the window before delayed startup fires,
+    // this one must not start. retire() drops the observer; the identity
+    // check covers a copy claimed after it already fired.
     const obs = (subject, topic) => {
       if (topic === "browser-delayed-startup-finished" && subject === window) {
         Services.obs.removeObserver(obs, topic);
-        start();
+        if (window[INSTANCE_KEY] === instance) start();
       }
     };
     Services.obs.addObserver(obs, "browser-delayed-startup-finished");
+    instance.retire = () => {
+      try { Services.obs.removeObserver(obs, "browser-delayed-startup-finished"); } catch {}
+    };
   }
 })();

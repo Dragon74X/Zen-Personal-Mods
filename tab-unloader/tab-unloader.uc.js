@@ -7,6 +7,27 @@
 (() => {
   "use strict";
 
+  // ---- single instance ---------------------------------------------------
+  // Sine can inject this script into a window that already has a live copy.
+  // Its two load paths in manager.sys.mjs do not agree: the rebuild path
+  // calls triggerUnloadListener() first and leaves the window alone if the
+  // script is still loaded, but the window-open path (observe -> "load")
+  // calls loadSubScriptWithOptions directly, with no handshake and no
+  // marker registered. A rebuild landing on a window opened moments earlier
+  // -- every settings change triggers one -- therefore installs a SECOND
+  // copy, and nothing here used to stop it. Two copies means two of every
+  // listener, observer and timer acting on the same window, which reads as
+  // the mod working intermittently rather than as an obvious break.
+  //
+  // So: retire whatever instance is already on this window, then claim it.
+  // instance.retire is the pending startup observer until start() replaces it
+  // with the real cleanup, so a copy is releasable at either stage.
+  const INSTANCE_KEY = "__zzunloadInstance";
+  const previous = window[INSTANCE_KEY];
+  try { previous?.retire?.(); } catch {}
+  const instance = { generation: (previous?.generation | 0) + 1, retire: () => {} };
+  window[INSTANCE_KEY] = instance;
+
   const P = "zzunload.";
 
   // Sine may store a pref as string or int depending on the control type,
@@ -345,17 +366,25 @@
     // none) in the running window. The DOM unload event below does not satisfy
     // that protocol: it only fires when the window itself closes.
     try { window.addUnloadListener?.(cleanup); } catch {}
+    instance.retire = cleanup;
   }
 
   if (gBrowserInit?.delayedStartupFinished) {
     start();
   } else {
+    // A pending observer is a live registration like any other: if a newer
+    // copy of this script claims the window before delayed startup fires,
+    // this one must not start. retire() drops the observer; the identity
+    // check covers a copy claimed after it already fired.
     const obs = (subject, topic) => {
       if (topic === "browser-delayed-startup-finished" && subject === window) {
         Services.obs.removeObserver(obs, topic);
-        start();
+        if (window[INSTANCE_KEY] === instance) start();
       }
     };
     Services.obs.addObserver(obs, "browser-delayed-startup-finished");
+    instance.retire = () => {
+      try { Services.obs.removeObserver(obs, "browser-delayed-startup-finished"); } catch {}
+    };
   }
 })();

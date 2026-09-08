@@ -49,6 +49,7 @@ respects Zen's own container routing rather than fighting it.
 ## Inspecting it
 
 ```js
+TabRouter.status()       // what routed, what did not, and why -- copied to the clipboard
 TabRouter.preview()      // every tab and the group it WOULD go to -- moves nothing
 TabRouter.explain()      // how the selected tab resolves: host, base, path segments, target
 TabRouter.sortAll()      // run one routing pass now
@@ -87,7 +88,21 @@ TabRouter.forget()         // drop all of them
 
 ### When filing goes wrong
 
+Start with `status()`. It reads only — nothing moves — so it is safe to run the
+moment something looks off, and it copies itself to the clipboard.
+
+Its **stalled** list is the one to read first: tabs that are not skipped, do
+have a target, and are still not under it. Those are the tabs the mod was
+supposed to file and did not. Everything else in the report explains why —
+the skip histogram, whether the navigation listener is still attached, and the
+last forty log lines.
+
+`instanceGeneration` above 1 means this window loaded the script more than
+once. The mod retires the older copy when that happens, so a high number is a
+record of re-injection rather than of copies running at the same time.
+
 ```js
+TabRouter.status() // read-only; stalled tabs, skip reasons, recent log
 TabRouter.diag()   // runs the eject experiment on the selected tab
 ```
 

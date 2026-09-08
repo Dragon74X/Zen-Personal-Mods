@@ -1106,7 +1106,7 @@
         } catch {}
 
         const r = {
-          version: "1.18.0",
+          version: "1.19.0",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The
@@ -1151,32 +1151,94 @@
       }
     };
     window.addEventListener("unload", cleanup, { once: true });
-    // Sine hot-reloads a mod's script when the mod updates, but ONLY if the
-    // script registered an unload callback through Sine's own API. Without one,
-    // manager.sys.mjs triggerUnloadListener() finds a null callback, reports
-    // "still loaded", and the NEW script is never injected -- so an update
-    // silently does nothing until the browser restarts, leaving stale code (or
-    // none) in the running window. The DOM unload event below does not satisfy
-    // that protocol: it only fires when the window itself closes.
-    try { window.addUnloadListener?.(cleanup); } catch {}
+    // Deliberately NOT registered with Sine's addUnloadListener().
+    //
+    // Handing Sine this callback buys hot-reload on update: triggerUnloadListener()
+    // runs it, reports the script unloaded, and rebuildMods() injects the new
+    // file. Without it Sine finds the null marker it registered itself, reports
+    // "still loaded", and leaves the running mod alone -- an update takes effect
+    // on the next restart, which is exactly what Sine's own toast tells you to
+    // do ("A mod utilizing JS has been updated. For it to work properly,
+    // restart your browser").
+    //
+    // The cost was not worth it. Registering turned every mod update into a
+    // teardown-and-reinject of every script in every window, and each of those
+    // re-runs the startup gate below. One of them landed wrong and Tab Router,
+    // Tab Unloader and Zen Turbo were all left injected but never started, with
+    // nothing logged. The gate is now backstopped, but re-injecting on a
+    // schedule to gain something Sine does not even promise is a bad trade.
+    //
+    // The DOM unload listener above is the one that matters: it fires when the
+    // window closes, which is when these registrations actually need releasing.
     instance.retire = cleanup;
   }
 
-  if (gBrowserInit?.delayedStartupFinished) start();
-  else {
-    // A pending observer is a live registration like any other: if a newer
-    // copy of this script claims the window before delayed startup fires,
-    // this one must not start. retire() drops the observer; the identity
-    // check covers a copy claimed after it already fired.
-    const obs = (subject, topic) => {
-      if (topic === "browser-delayed-startup-finished" && subject === window) {
-        Services.obs.removeObserver(obs, topic);
-        if (window[INSTANCE_KEY] === instance) start();
-      }
+  // ---- startup ------------------------------------------------------------
+  // browser-delayed-startup-finished is a ONE-SHOT notification, and waiting
+  // on it alone is not safe. Sine does not always inject through its
+  // window-open path: a rebuildMods() injects into whatever windows already
+  // exist, so this script can land in a window where gBrowserInit is not
+  // reachable yet AND the notification has already fired. The observer then
+  // waits for an event that will never come again and the mod sits loaded,
+  // parsed, and never started for the life of the window -- no error, no log
+  // line, nothing to notice.
+  //
+  // That is not hypothetical. It is how Tab Router, Tab Unloader and Zen Turbo
+  // all ended up injected with their globals never defined, while Glassflow --
+  // whose pref-variable injection runs outside start() -- looked fine.
+  //
+  // So the observer is kept for the fast path and a bounded poll backs it up.
+  // Whichever fires first wins; startOnce() makes the other a no-op.
+  let started = false;
+  let waitTimer = null;
+  let obs = null;
+
+  const stopWaiting = () => {
+    if (obs) {
+      try { Services.obs.removeObserver(obs, "browser-delayed-startup-finished"); } catch {}
+      obs = null;
+    }
+    if (waitTimer) { clearInterval(waitTimer); waitTimer = null; }
+  };
+
+  const startOnce = () => {
+    // A newer copy of this script may have claimed the window while this one
+    // was waiting; that copy owns the registrations, so this one stays quiet.
+    if (started || window[INSTANCE_KEY] !== instance) return;
+    started = true;
+    stopWaiting();
+    start();
+  };
+
+  // Read through the window first, then the bare global. A sub-script loaded
+  // with the window as its target sees the same object either way, but that
+  // is a property of how Sine loads us, not a guarantee -- and reading only
+  // one of the two is how this check silently returns false in a window that
+  // is in fact ready.
+  const windowReady = () => {
+    try { return !!(window.gBrowserInit ?? gBrowserInit)?.delayedStartupFinished; }
+    catch { return false; }
+  };
+
+  // Until start() swaps in the real cleanup, releasing this copy means
+  // dropping whatever it is waiting on.
+  instance.retire = stopWaiting;
+
+  if (windowReady()) {
+    startOnce();
+  } else {
+    obs = (subject, topic) => {
+      if (topic === "browser-delayed-startup-finished" && subject === window) startOnce();
     };
     Services.obs.addObserver(obs, "browser-delayed-startup-finished");
-    instance.retire = () => {
-      try { Services.obs.removeObserver(obs, "browser-delayed-startup-finished"); } catch {}
-    };
+
+    // The backstop. In the failure above the window is ALREADY past delayed
+    // startup, so the first tick starts the mod half a second later. Bounded,
+    // because a window that never gets there is not one this mod belongs in.
+    const deadline = Date.now() + 60000;
+    waitTimer = setInterval(() => {
+      if (windowReady()) startOnce();
+      else if (Date.now() > deadline) stopWaiting();
+    }, 500);
   }
 })();

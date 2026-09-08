@@ -61,6 +61,35 @@
   },
   {
     "type": "checkbox",
+    "property": "zzturbo.hover-links",
+    "label": "Warm connections on link hover *Extends hover warmup into web pages: hovering a link opens the TCP and TLS connection to wherever it points, so a click lands on a socket that already exists. A chrome script cannot see mouse events inside a page, so this hooks the function Firefox already calls to show a link's target in the corner status panel -- it fires on every link hover there is. The connection is opened in the container of the tab you are hovering in, since that is where the link would open. Same throttle as the rest: an origin is not re-warmed while its socket is still alive.*",
+    "defaultValue": true,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzturbo.hover-warmup",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzturbo.hover-dwell-ms",
+    "label": "Hover before warming (milliseconds) *How long the pointer has to rest on something before its connection is opened. This is what keeps hover warming cheap: sweeping across a page of links, or down the tab strip, warms nothing, while pausing on one warms it. It matters because a socket, once opened, is Firefox's to close -- there is no way to cancel a speculative connection, so one you never click sits in the pool until keep-alive reaps it 115 seconds later. Not opening it is the only real economy. 0 warms instantly and is wasteful; 200 catches deliberate hovers without a perceptible delay; raise it if you tend to read with the pointer resting on links.*",
+    "defaultValue": "200",
+    "placeholder": "200",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzturbo.hover-warmup",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
+    "type": "checkbox",
     "property": "zzturbo.startup-warmup",
     "label": "Warm frequent sites at startup *The first visit of a session pays DNS and TLS cold. Shortly after startup this reads your most-visited sites from history (read-only, local) and pre-opens connections to them, spread out a quarter second apart. Your first real navigation of the day lands warm.*",
     "defaultValue": true
@@ -100,6 +129,12 @@
     "label": "Troubleshooting",
     "size": "17px",
     "margin": "22px 0 10px 0"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzturbo.measure",
+    "label": "Measure whether warming actually helps *Counts every connection this mod opens ahead of time, then checks each navigation against it: did a real request land on that socket before the browser closed it? `ZenTurbo.stats()` reports the hit rate and the worst offenders by origin. A warmed socket only survives `network.http.keep-alive.timeout` -- 115 seconds by default -- and anything later is counted as a miss, so the number is not flattered. This exists because \"it feels faster\" is exactly the claim this mod refuses to make: if the rate is low, the warming is aimed wrong and should be turned off. Costs one lookup per page load.*",
+    "defaultValue": true
   },
   {
     "type": "checkbox",

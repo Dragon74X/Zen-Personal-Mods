@@ -218,6 +218,35 @@
   // container (OriginAttributes), otherwise it would warm a pool the actual
   // request never uses.
   const recentWarm = new Map();          // origin|ctx -> last warm time
+
+  // Warm-hit measurement. A warmed socket is only worth opening if a real
+  // request lands on it before it goes cold, and nothing in this mod could
+  // tell you whether that ever happened -- "it feels faster" is exactly the
+  // claim the README refuses to make. So each warm is counted, each navigation
+  // is checked against what was warmed, and ZenTurbo.stats() reports the rate.
+  // Costs one Map lookup per navigation.
+  // How long a warmed socket actually survives, rather than a number picked to
+  // flatter the result. A speculative connection is an ordinary idle
+  // persistent connection once it is open, so Firefox reaps it on
+  // network.http.keep-alive.timeout -- 115 seconds by default, and Zen does
+  // not override it. Counting a navigation past that as a "hit" would credit
+  // this mod for a socket the browser had already closed.
+  const warmTtlMs = () => prefNum("network.http.keep-alive.timeout", 115) * 1000;
+  const stats = { warmed: 0, hits: 0, cold: 0, byOrigin: new Map() };
+
+  function recordHit(uri, userContextId) {
+    if (!bool("measure", true)) return;
+    try {
+      if (!uri || !/^https?$/.test(uri.scheme)) return;
+      const key = uri.prePath + "|" + userContextId;
+      const at = recentWarm.get(key);
+      const hit = at !== undefined && Date.now() - at < warmTtlMs();
+      if (hit) stats.hits++; else stats.cold++;
+      const e = stats.byOrigin.get(uri.prePath) || { warmed: 0, hits: 0 };
+      if (hit) { e.hits++; stats.byOrigin.set(uri.prePath, e); }
+      if (bool("debug", false)) note(`${hit ? "HIT" : "cold"} ${uri.prePath}`);
+    } catch {}
+  }
   function warm(uriLike, userContextId = 0) {
     try {
       const uri = typeof uriLike === "string" ? Services.io.newURI(uriLike) : uriLike;
@@ -225,12 +254,18 @@
       const key = uri.prePath + "|" + userContextId;
       const now = Date.now();
       const last = recentWarm.get(key) || 0;
-      if (now - last < 60000) return;    // a warmed socket keeps for a while
+      // Re-warming an origin whose socket is still alive is wasted work, so the
+      // throttle tracks the socket lifetime rather than a fixed minute: half
+      // of keep-alive leaves room to re-warm once before it is reaped.
+      if (now - last < warmTtlMs() / 2) return;
       recentWarm.set(key, now);
       if (recentWarm.size > 200) recentWarm.delete(recentWarm.keys().next().value);
       const principal = Services.scriptSecurityManager
         .createContentPrincipal(uri, { userContextId });
       Services.io.speculativeConnect(uri, principal, null, false);
+      stats.warmed++;
+      const e = stats.byOrigin.get(uri.prePath) || { warmed: 0, hits: 0 };
+      e.warmed++; stats.byOrigin.set(uri.prePath, e);
       note(`warmed ${uri.prePath}${userContextId ? ` [container ${userContextId}]` : ""}`);
     } catch (e) { note(`warm failed: ${e}`); }
   }
@@ -247,13 +282,13 @@
       try { uri = tab.linkedBrowser?.currentURI; } catch {}
       if (uri) {
         const ctx = parseInt(tab.getAttribute("usercontextid") || "0", 10);
-        warm(uri, ctx);
+        warmAfterDwell(uri, ctx);
       }
       return;
     }
     const bm = t?.closest?.(".bookmark-item");
     const url = bm?._placesNode?.uri;
-    if (url) warm(url);
+    if (url) warmAfterDwell(url, 0);
   }
 
   // ---- startup warmup -----------------------------------------------------
@@ -282,6 +317,71 @@
     } catch (e) { note(`startup warmup failed: ${e}`); }
   }
 
+  // ---- link hover warmup --------------------------------------------------
+  // A chrome-context mouseover listener cannot see into web content, so
+  // hovering a link on a page is invisible to the handler above. Firefox
+  // already computes that though: XULBrowserWindow.setOverLink(url) is what
+  // fills the little status panel in the corner, and it fires on every link
+  // hover in content. Wrapping it is the supported way to learn the URL the
+  // pointer is on. Zen does not patch it and performs no speculative connect
+  // of its own, so nothing here is duplicated.
+  //
+  // The container is the hovered TAB's, not the link's: a link opens in the
+  // tab it was clicked from, and warming the wrong container pool would warm a
+  // connection the real request never uses.
+  let overLinkOriginal = null;
+  let dwellTimer = null;
+
+  // A socket, once opened, is Firefox's to close: there is no API to cancel a
+  // speculative connection, so an unclicked one sits in the pool for the full
+  // keep-alive. The fix is therefore not to open it for a hover that was never
+  // going to convert. Sweeping the pointer across a page of links, or down the
+  // tab strip, warms nothing; resting on one does. This is the whole reason
+  // the cost of link warming stays bounded.
+  function warmAfterDwell(url, ctx) {
+    clearTimeout(dwellTimer);
+    dwellTimer = null;
+    if (!url) return;                    // pointer left the link
+    const delay = Math.max(0, num("hover-dwell-ms", 200));
+    dwellTimer = setTimeout(() => { dwellTimer = null; warm(url, ctx); }, delay);
+  }
+
+  function hookOverLink() {
+    const XBW = window.XULBrowserWindow;
+    if (overLinkOriginal || !XBW || typeof XBW.setOverLink !== "function") return;
+    overLinkOriginal = XBW.setOverLink;
+    XBW.setOverLink = function (url, anchorElt) {
+      try {
+        // setOverLink("") fires when the pointer leaves a link; nothing to do.
+        if (bool("hover-warmup", true) && bool("hover-links", true)) {
+          let ctx = 0;
+          try { ctx = parseInt(gBrowser.selectedTab?.getAttribute("usercontextid") || "0", 10); } catch {}
+          // "" arrives when the pointer leaves a link, which cancels a pending warm.
+          warmAfterDwell(url, ctx);
+        }
+      } catch {}
+      return overLinkOriginal.call(this, url, anchorElt);
+    };
+    note("link hover warmup active");
+  }
+
+  function unhookOverLink() {
+    const XBW = window.XULBrowserWindow;
+    if (overLinkOriginal && XBW) XBW.setOverLink = overLinkOriginal;
+    overLinkOriginal = null;
+  }
+
+  // Every navigation is checked against what was warmed, so the hit rate is
+  // measured rather than asserted.
+  const navListener = {
+    onLocationChange(browser, _wp, _req, uri, flags) {
+      if (flags & Ci.nsIWebProgressListener.LOCATION_CHANGE_SAME_DOCUMENT) return;
+      let ctx = 0;
+      try { ctx = browser?.getAttribute?.("usercontextid") | 0; } catch {}
+      recordHit(uri, ctx);
+    },
+  };
+
   // ---- wiring -------------------------------------------------------------
   const prefObserver = {
     observe(_s, _t, data) {
@@ -296,6 +396,8 @@
     // mouseover fires on element boundaries only, not per pixel; with the
     // per-origin 60s throttle inside warm() this is effectively free.
     document.addEventListener("mouseover", onHover, { passive: true });
+    hookOverLink();
+    try { gBrowser.addTabsProgressListener(navListener); } catch {}
 
     if (bool("startup-warmup", true) && isMainAppWindow()) {
       setTimeout(startupWarmup, Math.max(0, num("startup-warm-delay-ms", 4000)));
@@ -316,6 +418,18 @@
           warmedThisSession: recentWarm.size,
         };
       },
+      // Measured, not claimed: how many warmed sockets a real request landed
+      // on before they went cold. A low rate means the warming is aimed wrong.
+      stats: () => ({
+        warmed: stats.warmed,
+        hits: stats.hits,
+        cold: stats.cold,
+        hitRate: stats.hits + stats.cold
+          ? `${Math.round((100 * stats.hits) / (stats.hits + stats.cold))}%`
+          : "no navigations yet",
+        byOrigin: Object.fromEntries(
+          [...stats.byOrigin].sort((a, b) => b[1].warmed - a[1].warmed).slice(0, 20)),
+      }),
       warm,                              // ZenTurbo.warm("https://example.com")
       log: () => log.map(([t, m]) => `${new Date(t).toLocaleTimeString()}  ${m}`),
     };
@@ -324,6 +438,9 @@
     const cleanup = () => {
       try { Services.prefs.removeObserver(P, prefObserver); } catch {}
       try { document.removeEventListener("mouseover", onHover); } catch {}
+      try { unhookOverLink(); } catch {}
+      try { clearTimeout(dwellTimer); dwellTimer = null; } catch {}
+      try { gBrowser.removeTabsProgressListener(navListener); } catch {}
     };
     window.addEventListener("unload", cleanup, { once: true });
     // Sine hot-reloads a mod's script when the mod updates, but ONLY if the

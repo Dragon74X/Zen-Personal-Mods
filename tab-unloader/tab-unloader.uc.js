@@ -30,13 +30,6 @@
 
   const P = "zzunload.";
 
-  // Sine may store a pref as string or int depending on the control type,
-  // so every read is type-tolerant rather than assuming.
-  // No getPrefType: Services.prefs.PREF_INT is an interface constant and is
-  // not guaranteed to be reachable on the branch object. If it resolves to
-  // undefined the switch falls through to the default and every value
-  // silently becomes the fallback -- which is why 1.1 behaved as if the
-  // idle threshold were 1800 no matter what was typed. Try both reads.
   // Types are CHECKED, never guessed by attempting reads. Calling
   // getIntPref on a string pref (or getStringPref on a bool) throws
   // NS_ERROR_UNEXPECTED, and Firefox logs every one even when it is
@@ -137,28 +130,18 @@
     }
   }
 
-  let formIgnore = null;
-  function formExempt(tab) {
-    if (formIgnore === null) {
-      formIgnore = str("forms-ignore-urls", "").split(",")
-        .map(s => s.trim()).filter(Boolean);
-    }
-    if (!formIgnore.length) return false;
+  // Two comma-separated URL-fragment lists, parsed once each; the pref
+  // observer drops the cache on any change.
+  const lists = {};
+  function urlMatches(tab, prefKey) {
+    const list = lists[prefKey] ??= str(prefKey, "").split(",").map(s => s.trim()).filter(Boolean);
+    if (!list.length) return false;
     let url = "";
     try { url = tab.linkedBrowser?.currentURI?.spec ?? ""; } catch { return false; }
-    return formIgnore.some(f => url.includes(f));
+    return list.some(f => url.includes(f));
   }
-
-  let urlFilters = null;   // parsed once; pref observer resets it
-  function urlExcluded(tab) {
-    if (urlFilters === null) {
-      urlFilters = str("exclude-urls", "").split(",").map(s => s.trim()).filter(Boolean);
-    }
-    if (!urlFilters.length) return false;
-    let url = "";
-    try { url = tab.linkedBrowser?.currentURI?.spec ?? ""; } catch { return false; }
-    return urlFilters.some(f => url.includes(f));
-  }
+  const formExempt = (tab) => urlMatches(tab, "forms-ignore-urls");
+  const urlExcluded = (tab) => urlMatches(tab, "exclude-urls");
 
   // ---- last tab per workspace --------------------------------------------
   // Switching workspaces leaves the tab you were on selected in ITS
@@ -345,8 +328,7 @@
 
   const observer = {
     observe(_s, _t, data) {
-      urlFilters = null;
-      formIgnore = null;
+      for (const k of Object.keys(lists)) delete lists[k];
       if (data === P + "enabled" || data === P + "check-seconds") reschedule();
     },
   };
@@ -425,12 +407,12 @@
   // preferences." So an unset pref reads as whatever the READER falls back
   // to, and the readers disagree with each other.
   //
-  // This script asks bool("favicons", true). Sine's settings panel, deciding
-  // whether to show a row conditioned on that same pref, asks
-  // getBoolPref("zzgroup.favicons", false). Both are reasonable in isolation
-  // and together they produce a mod behaving as if a setting is on while
-  // every row it governs is hidden as if it were off. A -moz-pref() media
-  // query in the stylesheet is a third reader with its own answer.
+  // A mod's own reader falls back one way (this script's bool(name, true)),
+  // Sine's settings panel another (getBoolPref(name, false) when deciding
+  // whether a conditioned row shows), and a -moz-pref() media query in the
+  // stylesheet a third. Each is reasonable alone; together they produce a mod
+  // behaving as if a setting is on while every row it governs is hidden as if
+  // it were off.
   //
   // Writing each declared default once, and only when the pref has never
   // been set, removes the disagreement for all three at once. Nothing that

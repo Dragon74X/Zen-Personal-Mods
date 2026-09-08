@@ -67,7 +67,15 @@
   // Pref strings (rules, aliases, ignore words) were re-parsed on every tab
   // and every path segment. Parsed once, invalidated by a pref observer.
   const parsed = {};
-  const prefObserver = { observe() { for (const k of Object.keys(parsed)) delete parsed[k]; learnedCache = null; targetGen++; } };
+  const prefObserver = { observe(_s, _t, data) {
+    // saveLearned() writes learned-names from inside a routing pass. Treating
+    // that like a user edit threw away every parsed rule, alias and domain
+    // list and invalidated every tab's cached target -- once per name learned,
+    // which on a fresh session is once per new site. The cache it feeds is
+    // already current, so its own write is not a reason to reparse anything.
+    if (data === P + "learned-names") return;
+    for (const k of Object.keys(parsed)) delete parsed[k]; learnedCache = null; targetGen++;
+  } };
   function cached(key, make) {
     if (!(key in parsed)) parsed[key] = make();
     return parsed[key];
@@ -232,8 +240,11 @@
     const skipWords = cached("skipwords", () => new Set(
       str("auto-path-ignore", "")
         .split(",").map(s => s.trim().toLowerCase()).filter(Boolean)));
+    // decodeURIComponent throws on a malformed escape, and this runs inside
+    // route(): one bad %-sequence in a URL must not abort the pass.
+    const decode = (s) => { try { return decodeURIComponent(s); } catch { return s; } };
     const segs = path.split("/")
-      .map(s => decodeURIComponent(s).trim())
+      .map(s => decode(s).trim())
       .filter(Boolean)
       .filter(s => !BUILTIN_IGNORE.has(s.toLowerCase()) && !skipWords.has(s.toLowerCase()))
       // drop pure ids and file names, which make useless group names
@@ -1106,7 +1117,7 @@
         } catch {}
 
         const r = {
-          version: "1.22.0",
+          version: "1.22.1",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The
@@ -1180,12 +1191,12 @@
   // preferences." So an unset pref reads as whatever the READER falls back
   // to, and the readers disagree with each other.
   //
-  // This script asks bool("favicons", true). Sine's settings panel, deciding
-  // whether to show a row conditioned on that same pref, asks
-  // getBoolPref("zzgroup.favicons", false). Both are reasonable in isolation
-  // and together they produce a mod behaving as if a setting is on while
-  // every row it governs is hidden as if it were off. A -moz-pref() media
-  // query in the stylesheet is a third reader with its own answer.
+  // A mod's own reader falls back one way (this script's bool(name, true)),
+  // Sine's settings panel another (getBoolPref(name, false) when deciding
+  // whether a conditioned row shows), and a -moz-pref() media query in the
+  // stylesheet a third. Each is reasonable alone; together they produce a mod
+  // behaving as if a setting is on while every row it governs is hidden as if
+  // it were off.
   //
   // Writing each declared default once, and only when the pref has never
   // been set, removes the disagreement for all three at once. Nothing that

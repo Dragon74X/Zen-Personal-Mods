@@ -299,6 +299,9 @@
     } catch (e) { note(`warm failed: ${e}`); }
   }
 
+  const hoverSurfaces = () =>
+    [gBrowser?.tabContainer, document.getElementById("PersonalToolbar")].filter(Boolean);
+
   // Hover over an UNLOADED tab: by the time it is clicked and the page
   // starts reloading, the connection already exists. Loaded tabs need
   // nothing. Also warms bookmark hovers.
@@ -422,9 +425,12 @@
     Services.prefs.addObserver(P, prefObserver);
     syncPacks();
 
-    // mouseover fires on element boundaries only, not per pixel; with the
-    // per-origin 60s throttle inside warm() this is effectively free.
-    document.addEventListener("mouseover", onHover, { passive: true });
+    // onHover only ever acts on a tab or a bookmark, so it listens on the two
+    // surfaces that hold them rather than on document. On document it ran on
+    // every element boundary the pointer crossed anywhere in the chrome --
+    // a pref read and two closest() walks per crossing -- which is the only
+    // thing in these mods that runs on mouse movement at all.
+    for (const el of hoverSurfaces()) el.addEventListener("mouseover", onHover, { passive: true });
     hookOverLink();
     try { gBrowser.addTabsProgressListener(navListener); } catch {}
 
@@ -466,7 +472,7 @@
 
     const cleanup = () => {
       try { Services.prefs.removeObserver(P, prefObserver); } catch {}
-      try { document.removeEventListener("mouseover", onHover); } catch {}
+      for (const el of hoverSurfaces()) { try { el.removeEventListener("mouseover", onHover); } catch {} }
       try { unhookOverLink(); } catch {}
       try { clearTimeout(dwellTimer); dwellTimer = null; } catch {}
       try { gBrowser.removeTabsProgressListener(navListener); } catch {}
@@ -501,12 +507,12 @@
   // preferences." So an unset pref reads as whatever the READER falls back
   // to, and the readers disagree with each other.
   //
-  // This script asks bool("favicons", true). Sine's settings panel, deciding
-  // whether to show a row conditioned on that same pref, asks
-  // getBoolPref("zzgroup.favicons", false). Both are reasonable in isolation
-  // and together they produce a mod behaving as if a setting is on while
-  // every row it governs is hidden as if it were off. A -moz-pref() media
-  // query in the stylesheet is a third reader with its own answer.
+  // A mod's own reader falls back one way (this script's bool(name, true)),
+  // Sine's settings panel another (getBoolPref(name, false) when deciding
+  // whether a conditioned row shows), and a -moz-pref() media query in the
+  // stylesheet a third. Each is reasonable alone; together they produce a mod
+  // behaving as if a setting is on while every row it governs is hidden as if
+  // it were off.
   //
   // Writing each declared default once, and only when the pref has never
   // been set, removes the disagreement for all three at once. Nothing that

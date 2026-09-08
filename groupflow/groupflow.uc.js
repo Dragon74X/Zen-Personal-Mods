@@ -30,21 +30,8 @@
 
   const bool = (k, d) => { try { return Services.prefs.getBoolPref("zzgroup." + k, d); } catch { return d; } };
   const str  = (k, d) => { try { return Services.prefs.getStringPref("zzgroup." + k, d); } catch { return d; } };
-  // Type is checked, never guessed: getIntPref on a string pref throws, and
-  // Firefox logs every one of those even when it is caught.
-  const num  = (k, d) => {
-    const S = Services.prefs, full = "zzgroup." + k;
-    try {
-      if (S.getPrefType(full) === S.PREF_INT) return S.getIntPref(full);
-      if (S.getPrefType(full) === S.PREF_STRING) {
-        const v = parseInt(S.getStringPref(full), 10);
-        return Number.isFinite(v) ? v : d;
-      }
-    } catch {}
-    return d;
-  };
 
-const PREFIX = "zzgroup.";
+  const PREFIX = "zzgroup.";
   // ---- pref variables at startup -----------------------------------------
   // Sine injects string and number prefs as CSS variables, but not until
   // something (the settings page, a mod reload) triggers it -- measured on a
@@ -53,8 +40,8 @@ const PREFIX = "zzgroup.";
   // values only appeared after a reload. These are written here instead,
   // from the prefs themselves, so they exist before first paint.
   //
-  // Naming matches Sine's own convention exactly: "zzgroup.".foo-bar becomes
-  // --"zzgroup."-foo-bar, dots to dashes. Booleans are skipped -- those are read
+  // Naming matches Sine's own convention exactly: zzgroup.foo-bar becomes
+  // --zzgroup-foo-bar, dots to dashes. Booleans are skipped -- those are read
   // with -moz-pref(), never as variables.
   function injectPrefVars() {
     let names = [];
@@ -197,7 +184,7 @@ const PREFIX = "zzgroup.";
   // and (usually the same) icon on the child from its own members.
   function refreshGroup(g) {
     const ruled = ruledIcon(g);
-    if (ruled) { g.style.setProperty("--zzgf-icon", `url("${ruled}")`); return; }
+    if (ruled) { setIcon(g, `url("${ruled}")`); return; }
     const counts = new Map();
     for (const el of g.groupContainer?.children ?? []) {
       if (!el.matches?.("tab")) continue;
@@ -220,7 +207,16 @@ const PREFIX = "zzgroup.";
     const host = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
     // page-icon: is Firefox's own favicon protocol, served from the local
     // favicon store -- no network fetch happens here.
-    g.style.setProperty("--zzgf-icon", `url("page-icon:https://${host}/")`);
+    setIcon(g, `url("page-icon:https://${host}/")`);
+  }
+
+  // refreshAll runs half a second after any tab's favicon changes -- so
+  // after every page load -- and rewrote every group's icon each time.
+  // Writing an inline style invalidates style on that element even when
+  // the value is identical, and these groups carry the glass effects. In
+  // the steady state nothing has changed, so nothing is written.
+  function setIcon(g, value) {
+    if (g.style.getPropertyValue("--zzgf-icon") !== value) g.style.setProperty("--zzgf-icon", value);
   }
 
   function refreshAll() {
@@ -317,12 +313,12 @@ const PREFIX = "zzgroup.";
   // preferences." So an unset pref reads as whatever the READER falls back
   // to, and the readers disagree with each other.
   //
-  // This script asks bool("favicons", true). Sine's settings panel, deciding
-  // whether to show a row conditioned on that same pref, asks
-  // getBoolPref("zzgroup.favicons", false). Both are reasonable in isolation
-  // and together they produce a mod behaving as if a setting is on while
-  // every row it governs is hidden as if it were off. A -moz-pref() media
-  // query in the stylesheet is a third reader with its own answer.
+  // A mod's own reader falls back one way (this script's bool(name, true)),
+  // Sine's settings panel another (getBoolPref(name, false) when deciding
+  // whether a conditioned row shows), and a -moz-pref() media query in the
+  // stylesheet a third. Each is reasonable alone; together they produce a mod
+  // behaving as if a setting is on while every row it governs is hidden as if
+  // it were off.
   //
   // Writing each declared default once, and only when the pref has never
   // been set, removes the disagreement for all three at once. Nothing that

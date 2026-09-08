@@ -99,10 +99,6 @@
   const isMainAppWindow = () =>
     Services.wm.getMostRecentWindow("navigator:browser") === window;
 
-  // One-shot cleanup for profiles touched by the old pref-writing switch.
-  // Without it, anyone who used that switch keeps corner-shape disabled at the
-  // platform level for good, with an orphaned snapshot and nothing left in the
-  // mod that would ever put it back.
   // Sine only stores a dropdown as a number when the pref declares
   // value: "number"; without it, convertValueType() hands back the raw string
   // from the menulist. The corner dropdowns shipped without that key, so the
@@ -127,6 +123,10 @@
     }
   }
 
+  // One-shot cleanup for profiles touched by the old pref-writing switch.
+  // Without it, anyone who used that switch keeps corner-shape disabled at the
+  // platform level for good, with an orphaned snapshot and nothing left in the
+  // mod that would ever put it back.
   function reclaimPlatformPref() {
     if (!isMainAppWindow()) return;
     const P = Services.prefs;
@@ -203,25 +203,18 @@
     instance.retire = cleanup;
   }
 
-  // Written the moment this script is injected, not from start(). These
-  // variables need only Services.prefs and the document element -- never
-  // gBrowser -- and browser-delayed-startup-finished, which start() waits for,
-  // fires well AFTER first paint. Deferring meant every window opened painting
-  // the CSS fallbacks (10px roundness, the default tints) and then snapping to
-  // the configured values. Doing it here is what actually makes the comment
-  // above true.
   // ---- declared defaults --------------------------------------------------
   // Sine does not write the defaults declared in preferences.json into the
   // profile. manager.sys.mjs says so outright: "TODO: Apply default
   // preferences." So an unset pref reads as whatever the READER falls back
   // to, and the readers disagree with each other.
   //
-  // This script asks bool("favicons", true). Sine's settings panel, deciding
-  // whether to show a row conditioned on that same pref, asks
-  // getBoolPref("zzgroup.favicons", false). Both are reasonable in isolation
-  // and together they produce a mod behaving as if a setting is on while
-  // every row it governs is hidden as if it were off. A -moz-pref() media
-  // query in the stylesheet is a third reader with its own answer.
+  // A mod's own reader falls back one way (this script's bool(name, true)),
+  // Sine's settings panel another (getBoolPref(name, false) when deciding
+  // whether a conditioned row shows), and a -moz-pref() media query in the
+  // stylesheet a third. Each is reasonable alone; together they produce a mod
+  // behaving as if a setting is on while every row it governs is hidden as if
+  // it were off.
   //
   // Writing each declared default once, and only when the pref has never
   // been set, removes the disagreement for all three at once. Nothing that
@@ -253,6 +246,13 @@
     return wrote > 0;
   }
 
+  // Written the moment this script is injected, not from start(). These
+  // variables need only Services.prefs and the document element -- never
+  // gBrowser -- and browser-delayed-startup-finished, which start() waits for,
+  // fires well AFTER first paint. Deferring meant every window opened painting
+  // the CSS fallbacks (10px roundness, the default tints) and then snapping to
+  // the configured values. Doing it here is what actually makes the startup comment
+  // above true.
   try { repairNumericPrefs(); } catch {}
   try { injectPrefVars(); } catch {}
   // Seeding is a file read, so it cannot happen before first paint like the

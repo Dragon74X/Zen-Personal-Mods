@@ -368,7 +368,7 @@
   {
     "type": "checkbox",
     "property": "zzgroup.favicons",
-    "label": "Favicon as group icon *Each group and subgroup shows the favicon of its dominant member domain at the left of the label -- the slot a chevron or folder icon would occupy. Icons come from Firefox's local favicon store via the page-icon protocol, so no network requests are made. Refreshes when tabs join or leave a group, and once a minute for domains that changed by navigation.*",
+    "label": "Favicon as group icon *Each group and subgroup shows the favicon of its dominant member domain at the left of the label -- the slot a chevron or folder icon would occupy. Icons come from Firefox's local favicon store via the page-icon protocol, so no network requests are made. Refreshes when tabs join or leave a group and when a member's favicon changes, both driven by Zen's own events -- there is no polling.*",
     "defaultValue": true,
     "conditions": [
       {
@@ -378,6 +378,28 @@
         }
       }
     ]
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.icon-rules",
+    "label": "Icon rules *One per line, or separated by semicolons. Left of the = is the group name, right of it is the icon. Names match the subgroup on its own (crimson desert) or its full path (youtube / crimson desert), case does not matter, and a rule beats the automatic favicon. On the right, a bare domain means that site's favicon from Firefox's local store, with no network request; anything with a scheme is used as written, so file:/// points at your own image and data: embeds one. An https: address does fetch. Useful because every game on a mod site shares that site's favicon, so subgroups under it all look identical until you name them.*",
+    "defaultValue": "",
+    "placeholder": "crimson desert = file:///C:/icons/crimson.png ; nexusmods = nexusmods.com",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.favicons",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
   },
   {
     "type": "string",

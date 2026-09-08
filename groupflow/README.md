@@ -60,6 +60,41 @@ window for the life of the session.
 
 Turn off **Favicon as group icon** and the script does nothing.
 
+### Naming an icon yourself
+
+The dominant-domain rule is right for *Nexusmods* and useless below it: every
+game on a mod site shares that site's favicon, so *Crimson Desert*,
+*Dawnwalker* and *Stalker 2* all end up with the same picture. **Icon rules**
+gives a group an icon of its own. One per line, or separated by semicolons:
+
+```
+crimson desert     = file:///C:/icons/crimson.png
+youtube / mandalore = file:///C:/icons/mandalore.png
+nexusmods          = nexusmods.com
+```
+
+The left side matches the subgroup on its own (`crimson desert`) or its full
+path (`youtube / crimson desert`) — the path form is there for when the same
+leaf name sits under two different parents. Case and spacing around the slash
+do not matter. A rule beats the automatic favicon.
+
+The right side is one of:
+
+| You write | What is used | Network |
+|---|---|---|
+| `nexusmods.com` | that site's favicon, from Firefox's local store | none |
+| `file:///C:/icons/x.png` | your own image | none |
+| `data:image/png;base64,…` | an embedded image | none |
+| `chrome://browser/skin/…` | a built-in browser icon | none |
+| `https://example.com/x.png` | a remote image | **a real fetch** |
+
+Prefer a local file for artwork the browser has no favicon for. Values
+containing a quote, a bracket or a backslash are ignored rather than allowed to
+break the stylesheet.
+
+Zen **folders** (`<zen-folder>`) are a different element and this mod does not
+touch them; they carry Zen's own icon, set from the folder's right-click menu.
+
 ## How it overrides Advanced Tab Groups and Arc
 
 The mod id `zz-groupflow` imports after `advanced-tab-groups`, `Arc-2.0` and

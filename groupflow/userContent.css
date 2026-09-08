@@ -110,13 +110,13 @@
 /* ============================================================
    Only what applies.
 
-   Sine does have a native conditional-visibility field (`conditions` in
-   preferences.json). Rows are hidden here anyway, on purpose: Sine reads the
-   governing pref with a getter chosen from the JSON value's type, and an
-   untrapped getIntPref on a pref stored as a string throws, aborting the
-   panel build for the whole mod. A media query cannot fail that way -- a
-   rule that never matches just leaves the row visible. No functionality is
-   behind this, only tidiness.
+   These rules DUPLICATE preferences.json. Every row hidden below also carries
+   a native `conditions` entry, which is what actually hides it; this block is
+   the backstop. It earns its place because Sine picks the pref getter from
+   the type of the value in the JSON, and an untrapped getIntPref on a pref
+   stored as a string throws, aborting the panel build for the whole mod. A
+   media query cannot fail that way -- a rule that never matches just leaves
+   the row visible. No functionality is behind this, only tidiness.
    ============================================================ */
 
 @media not (-moz-pref("zzgroup.connector", 5)) {

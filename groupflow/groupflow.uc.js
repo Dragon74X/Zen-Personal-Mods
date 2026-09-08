@@ -29,6 +29,7 @@
   window[INSTANCE_KEY] = instance;
 
   const bool = (k, d) => { try { return Services.prefs.getBoolPref("zzgroup." + k, d); } catch { return d; } };
+  const str  = (k, d) => { try { return Services.prefs.getStringPref("zzgroup." + k, d); } catch { return d; } };
 
 const PREFIX = "zzgroup.";
   // ---- pref variables at startup -----------------------------------------
@@ -100,6 +101,8 @@ const PREFIX = "zzgroup.";
   const prefVarObserver = {
     observe(_s, _t, data) {
       if (!data || !data.startsWith(PREFIX)) return;
+      iconRules = null;                    // reparsed on the next refresh
+      if (data === PREFIX + "icon-rules") schedule();
       const name = "--" + data.replace(/\./g, "-");
       const value = readPrefValue(data);
       try {
@@ -117,10 +120,71 @@ const PREFIX = "zzgroup.";
     } catch { return null; }
   }
 
+  // ---- icon rules ---------------------------------------------------------
+  // The automatic icon is the group's dominant domain, which is right for
+  // "Nexusmods" and useless for "Crimson Desert" -- every game on a mod site
+  // shares that site's favicon, so every subgroup under it looks identical.
+  // A rule names the group and gives it an icon of its own.
+  //
+  //   crimson desert = file:///C:/icons/crimson.png
+  //   dawnwalker     = file:///C:/icons/dawnwalker.png
+  //   nexusmods      = nexusmods.com
+  //
+  // A bare host on the right means "that site's favicon", which Firefox
+  // serves from its own store with no network request. Anything carrying a
+  // scheme is used as written, so file:, data: and chrome: all work -- and
+  // https: works too, at the cost of an actual fetch.
+  let iconRules = null;
+
+  const normName = (s) => s.trim().toLowerCase().replace(/\s*\/\s*/g, "/");
+
+  function parseIconRules() {
+    if (iconRules) return iconRules;
+    iconRules = [];
+    for (const line of str("icon-rules", "").split(/[\n;]/)) {
+      const eq = line.indexOf("=");
+      if (eq < 1) continue;
+      const name = normName(line.slice(0, eq));
+      const value = line.slice(eq + 1).trim();
+      // A quote would close the url() this ends up inside; a rule is not
+      // worth breaking the whole sheet over, so such a value is dropped.
+      if (!name || !value || /["'()\\]/.test(value)) continue;
+      iconRules.push([name, /^[a-z][a-z0-9+.\-]*:/i.test(value)
+        ? value
+        : `page-icon:https://${value.replace(/^\/+|\/+$/g, "")}/`]);
+    }
+    return iconRules;
+  }
+
+  // Both the full path and the leaf are matchable, so "Crimson Desert" hits
+  // wherever it sits while "Youtube / Crimson Desert" can single one out when
+  // the same leaf name appears under two parents.
+  function pathOf(g) {
+    const out = [];
+    for (let cur = g; cur?.tagName === "tab-group";
+         cur = cur.parentElement?.closest("tab-group") ?? null) {
+      out.unshift((cur.label ?? "").trim());
+    }
+    return out;
+  }
+
+  function ruledIcon(g) {
+    const rules = parseIconRules();
+    if (!rules.length) return null;
+    const path = pathOf(g);
+    if (!path.length) return null;
+    const full = normName(path.join("/"));
+    const leaf = normName(path.at(-1));
+    for (const [name, url] of rules) if (name === full || name === leaf) return url;
+    return null;
+  }
+
   // Dominant base host among the group's DIRECT tabs; subgroups compute
   // their own, so "Youtube > Creator" shows youtube's icon on the parent
   // and (usually the same) icon on the child from its own members.
   function refreshGroup(g) {
+    const ruled = ruledIcon(g);
+    if (ruled) { g.style.setProperty("--zzgf-icon", `url("${ruled}")`); return; }
     const counts = new Map();
     for (const el of g.groupContainer?.children ?? []) {
       if (!el.matches?.("tab")) continue;

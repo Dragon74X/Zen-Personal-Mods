@@ -48,8 +48,15 @@ computes its own; a parent whose direct children are all subgroups borrows
 from the first one, so it still gets an icon.
 
 Icons come from `page-icon:`, Firefox's own favicon protocol, served out of
-the local favicon store — no network fetch happens. The pass runs on group
-events and once a minute, to catch a member navigating to a different domain.
+the local favicon store — no network fetch happens.
+
+The pass is entirely event-driven; there is no timer. Zen patches a
+`ZenTabIconChanged` event into `tabbrowser.setIcon()`, so it fires for every
+tab whose favicon is set and it bubbles — which is exactly the signal this
+needs, since a member navigating to another domain is only interesting because
+its favicon changes. It used to poll once a minute for that, which meant a
+group icon could sit wrong for up to sixty seconds and a timer ran in every
+window for the life of the session.
 
 Turn off **Favicon as group icon** and the script does nothing.
 

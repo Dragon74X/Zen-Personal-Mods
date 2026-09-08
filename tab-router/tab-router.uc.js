@@ -897,7 +897,11 @@
     gBrowser.tabContainer.addEventListener("TabAttrModified", onAttrModified);
     try { Services.prefs.addObserver(P, prefObserver); } catch {}
     // Groups made or removed by hand must invalidate the cache too.
-    const groupEvents = ["TabGroupCreate", "TabGroupRemoved", "TabGroupUngroup", "TabGrouped", "TabUngrouped"];
+    // TabGroupUngroup does not exist in Zen 1.22b -- it was a dead listener.
+    // TabGroupUpdate and TabGroupRemovedFromDOM are the real Zen events for a
+    // group changing or leaving the DOM, and both must bust the cache.
+    const groupEvents = ["TabGroupCreate", "TabGroupRemoved", "TabGroupRemovedFromDOM",
+                         "TabGroupUpdate", "TabGrouped", "TabUngrouped"];
     for (const ev of groupEvents) window.addEventListener(ev, bustGroups, true);
 
     window.TabRouter = {

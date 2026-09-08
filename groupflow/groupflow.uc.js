@@ -115,15 +115,19 @@ const PREFIX = "zzgroup.";
   let timer = null;
   const schedule = () => { clearTimeout(timer); timer = setTimeout(refreshAll, 500); };
 
+  // ZenTabIconChanged is patched into tabbrowser.setIcon(), so it fires for
+  // EVERY tab whose favicon is set, and it bubbles -- which is precisely the
+  // signal this mod used to poll for. A member navigating to another domain
+  // gets a new favicon, which is the only reason the icon needs recomputing.
+  // TabGroupUpdate and TabGroupRemovedFromDOM are Zen's own group events; both
+  // change what a group contains and neither was being watched.
   const EVENTS = ["TabGroupCreate", "TabGrouped", "TabUngrouped",
-                  "TabGroupRemoved", "SSTabRestored"];
+                  "TabGroupRemoved", "TabGroupRemovedFromDOM", "TabGroupUpdate",
+                  "SSTabRestored", "ZenTabIconChanged"];
 
   function start() {
     Services.prefs.addObserver(PREFIX, prefVarObserver);
     for (const ev of EVENTS) window.addEventListener(ev, schedule, true);
-    // Domain of an existing member can change by navigation; a light
-    // periodic pass covers that without watching every location change.
-    const interval = setInterval(() => { if (bool("favicons", true)) refreshAll(); }, 60000);
     const boot = setTimeout(refreshAll, 2000);
 
     // This script is injected per window and lives as long as the window
@@ -135,7 +139,6 @@ const PREFIX = "zzgroup.";
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}
       clearTimeout(timer);
       clearTimeout(boot);
-      clearInterval(interval);
     };
     window.addEventListener("unload", cleanup, { once: true });
     // Sine hot-reloads a mod's script when the mod updates, but ONLY if the

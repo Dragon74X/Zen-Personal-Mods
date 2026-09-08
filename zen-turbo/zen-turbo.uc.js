@@ -260,9 +260,17 @@
       if (now - last < warmTtlMs() / 2) return;
       recentWarm.set(key, now);
       if (recentWarm.size > 200) recentWarm.delete(recentWarm.keys().next().value);
-      const principal = Services.scriptSecurityManager
-        .createContentPrincipal(uri, { userContextId });
-      Services.io.speculativeConnect(uri, principal, null, false);
+      // nsISpeculativeConnect offers this exact call: origin attributes, which
+      // is all the network layer wants, rather than a content principal built
+      // per warm purely to carry the container id. Falls back where the newer
+      // entry point is missing.
+      if (typeof Services.io.speculativeConnectWithOriginAttributes === "function") {
+        Services.io.speculativeConnectWithOriginAttributes(uri, { userContextId }, null, false);
+      } else {
+        const principal = Services.scriptSecurityManager
+          .createContentPrincipal(uri, { userContextId });
+        Services.io.speculativeConnect(uri, principal, null, false);
+      }
       stats.warmed++;
       const e = stats.byOrigin.get(uri.prePath) || { warmed: 0, hits: 0 };
       e.warmed++; stats.byOrigin.set(uri.prePath, e);

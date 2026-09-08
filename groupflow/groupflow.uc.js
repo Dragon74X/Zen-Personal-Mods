@@ -7,7 +7,42 @@
 (() => {
   "use strict";
 
+  // ---- single instance ---------------------------------------------------
+  // Sine can inject this script into a window that already has a live copy.
+  // Its two load paths in manager.sys.mjs do not agree: the rebuild path
+  // calls triggerUnloadListener() first and leaves the window alone if the
+  // script is still loaded, but the window-open path (observe -> "load")
+  // calls loadSubScriptWithOptions directly, with no handshake and no
+  // marker registered. A rebuild landing on a window opened moments earlier
+  // -- every settings change triggers one -- therefore installs a SECOND
+  // copy, and nothing here used to stop it. Two copies means two of every
+  // listener, observer and timer acting on the same window, which reads as
+  // the mod working intermittently rather than as an obvious break.
+  //
+  // So: retire whatever instance is already on this window, then claim it.
+  // instance.retire is the pending startup observer until start() replaces it
+  // with the real cleanup, so a copy is releasable at either stage.
+  const INSTANCE_KEY = "__zzgroupInstance";
+  const previous = window[INSTANCE_KEY];
+  try { previous?.retire?.(); } catch {}
+  const instance = { generation: (previous?.generation | 0) + 1, retire: () => {} };
+  window[INSTANCE_KEY] = instance;
+
   const bool = (k, d) => { try { return Services.prefs.getBoolPref("zzgroup." + k, d); } catch { return d; } };
+  const str  = (k, d) => { try { return Services.prefs.getStringPref("zzgroup." + k, d); } catch { return d; } };
+  // Type is checked, never guessed: getIntPref on a string pref throws, and
+  // Firefox logs every one of those even when it is caught.
+  const num  = (k, d) => {
+    const S = Services.prefs, full = "zzgroup." + k;
+    try {
+      if (S.getPrefType(full) === S.PREF_INT) return S.getIntPref(full);
+      if (S.getPrefType(full) === S.PREF_STRING) {
+        const v = parseInt(S.getStringPref(full), 10);
+        return Number.isFinite(v) ? v : d;
+      }
+    } catch {}
+    return d;
+  };
 
 const PREFIX = "zzgroup.";
   // ---- pref variables at startup -----------------------------------------
@@ -79,6 +114,8 @@ const PREFIX = "zzgroup.";
   const prefVarObserver = {
     observe(_s, _t, data) {
       if (!data || !data.startsWith(PREFIX)) return;
+      iconRules = null;                    // reparsed on the next refresh
+      if (data === PREFIX + "icon-rules") schedule();
       const name = "--" + data.replace(/\./g, "-");
       const value = readPrefValue(data);
       try {
@@ -96,10 +133,143 @@ const PREFIX = "zzgroup.";
     } catch { return null; }
   }
 
+  // ---- icon rules ---------------------------------------------------------
+  // The automatic icon is the group's dominant domain, which is right for
+  // "Nexusmods" and useless for "Crimson Desert" -- every game on a mod site
+  // shares that site's favicon, so every subgroup under it looks identical.
+  // A rule names the group and gives it an icon of its own.
+  //
+  //   crimson desert = file:///C:/icons/crimson.png
+  //   dawnwalker     = file:///C:/icons/dawnwalker.png
+  //   nexusmods      = nexusmods.com
+  //
+  // A bare host on the right means "that site's favicon", which Firefox
+  // serves from its own store with no network request. Anything carrying a
+  // scheme is used as written, so file:, data: and chrome: all work -- and
+  // https: works too, at the cost of an actual fetch.
+  let iconRules = null;
+
+  const normName = (s) => s.trim().toLowerCase().replace(/\s*\/\s*/g, "/");
+
+  function parseIconRules() {
+    if (iconRules) return iconRules;
+    iconRules = [];
+    for (const line of str("icon-rules", "").split(/[\n;]/)) {
+      const eq = line.indexOf("=");
+      if (eq < 1) continue;
+      const name = normName(line.slice(0, eq));
+      const value = line.slice(eq + 1).trim();
+      // A quote would close the url() this ends up inside; a rule is not
+      // worth breaking the whole sheet over, so such a value is dropped.
+      if (!name || !value || /["'()\\]/.test(value)) continue;
+      iconRules.push([name, /^[a-z][a-z0-9+.\-]*:/i.test(value)
+        ? value
+        : `page-icon:https://${value.replace(/^\/+|\/+$/g, "")}/`]);
+    }
+    return iconRules;
+  }
+
+  // Both the full path and the leaf are matchable, so "Crimson Desert" hits
+  // wherever it sits while "Youtube / Crimson Desert" can single one out when
+  // the same leaf name appears under two parents.
+  function pathOf(g) {
+    const out = [];
+    for (let cur = g; cur?.tagName === "tab-group";
+         cur = cur.parentElement?.closest("tab-group") ?? null) {
+      out.unshift((cur.label ?? "").trim());
+    }
+    return out;
+  }
+
+  function ruledIcon(g) {
+    const rules = parseIconRules();
+    if (!rules.length) return null;
+    const path = pathOf(g);
+    if (!path.length) return null;
+    const full = normName(path.join("/"));
+    const leaf = normName(path.at(-1));
+    for (const [name, url] of rules) if (name === full || name === leaf) return url;
+    return null;
+  }
+
   // Dominant base host among the group's DIRECT tabs; subgroups compute
   // their own, so "Youtube > Creator" shows youtube's icon on the parent
   // and (usually the same) icon on the child from its own members.
+  // ---- page images --------------------------------------------------------
+  // A site's favicon is the same for every page on it, which is why every
+  // game under Nexusmods draws the same picture. The page's own og:image is
+  // the distinguishing one -- and Firefox already has it. ContentMetaHandler
+  // reads og:image while a page loads and writes it to moz_places via
+  // PlacesUtils.history.update, so it is sitting in the profile for every
+  // page already visited. Reading it costs a local database lookup, not a
+  // scrape and not a request to the site.
+  //
+  // What it yields is the PAGE's image, which is not always the author's:
+  // a Nexus or Steam game page gives the game art, a YouTube channel page
+  // gives the channel avatar, but a YouTube watch page gives the video
+  // thumbnail rather than the creator. The setting says so.
+  //
+  // Rendering the result does load that image, from cache in the normal case
+  // since the page it came from was visited.
+  let places = null;
+  function history() {
+    if (places === null) {
+      try {
+        places = ChromeUtils.importESModule(
+          "resource://gre/modules/PlacesUtils.sys.mjs").PlacesUtils.history;
+      } catch { places = false; }
+    }
+    return places || null;
+  }
+
+  // Bounded, and never invalidated: a page's og:image effectively does not
+  // change, and a wrong entry costs one stale icon, not correctness.
+  const pageImages = new Map();
+
+  async function pageImageFor(url) {
+    if (!url) return null;
+    if (pageImages.has(url)) return pageImages.get(url);
+    let img = null;
+    try {
+      const info = await history()?.fetch(url, { includeMeta: true });
+      const raw = info?.previewImageURL;
+      // previewImageURL comes back as an nsIURI-ish object or a string
+      // depending on the build; take the spec either way, and refuse
+      // anything that would escape the url() it is about to sit inside.
+      const spec = typeof raw === "string" ? raw : raw?.href ?? raw?.spec ?? null;
+      if (spec && /^https?:/i.test(spec) && !/["'()\\]/.test(spec)) img = spec;
+    } catch {}
+    if (pageImages.size > 500) pageImages.clear();
+    pageImages.set(url, img);
+    return img;
+  }
+
+  const urlOf = (tab) => {
+    try {
+      const uri = tab.linkedBrowser?.currentURI;
+      return uri && /^https?$/.test(uri.scheme) ? uri.spec : null;
+    } catch { return null; }
+  };
+
+  // Upgrade in place. The favicon is already painted by the time this
+  // resolves, so a group is never blank while the lookup runs, and a group
+  // with no stored image simply keeps the favicon.
+  function upgradeToPageImage(g, tab) {
+    const url = urlOf(tab);
+    if (!url) return;
+    pageImageFor(url).then((img) => {
+      if (!img || !g.isConnected) return;
+      // A page image is a wide banner, not a square glyph. Cropping to the
+      // centre reads better at icon size than letterboxing it.
+      g.setAttribute("zzgf-icon-fit", "cover");
+      g.style.setProperty("--zzgf-icon", `url("${img}")`);
+    }).catch(() => {});
+  }
+
   function refreshGroup(g) {
+    g.removeAttribute("zzgf-icon-fit");
+    const ruled = ruledIcon(g);
+    if (ruled) { g.style.setProperty("--zzgf-icon", `url("${ruled}")`); return; }
     const counts = new Map();
     for (const el of g.groupContainer?.children ?? []) {
       if (!el.matches?.("tab")) continue;
@@ -123,6 +293,23 @@ const PREFIX = "zzgroup.";
     // page-icon: is Firefox's own favicon protocol, served from the local
     // favicon store -- no network fetch happens here.
     g.style.setProperty("--zzgf-icon", `url("page-icon:https://${host}/")`);
+
+    // Then try to better it with the page's own image, if that is switched on.
+    if (num("icon-source", 0) === 1) {
+      const pick = members(g).find((t) => hostOf(t) === host);
+      if (pick) upgradeToPageImage(g, pick);
+    }
+  }
+
+  // Direct tabs, else the tabs of the first subgroup -- the same widening the
+  // favicon count does, so both pick their icon from the same members.
+  function members(g) {
+    const direct = [...(g.groupContainer?.children ?? [])].filter((el) => el.matches?.("tab"));
+    if (direct.length) return direct;
+    for (const el of g.groupContainer?.children ?? []) {
+      if (gBrowser.isTabGroup?.(el) && el.tabs?.length) return [...el.tabs];
+    }
+    return [];
   }
 
   function refreshAll() {
@@ -165,14 +352,26 @@ const PREFIX = "zzgroup.";
       clearTimeout(boot);
     };
     window.addEventListener("unload", cleanup, { once: true });
-    // Sine hot-reloads a mod's script when the mod updates, but ONLY if the
-    // script registered an unload callback through Sine's own API. Without one,
-    // manager.sys.mjs triggerUnloadListener() finds a null callback, reports
-    // "still loaded", and the NEW script is never injected -- so an update
-    // silently does nothing until the browser restarts, leaving stale code (or
-    // none) in the running window. The DOM unload event below does not satisfy
-    // that protocol: it only fires when the window itself closes.
-    try { window.addUnloadListener?.(cleanup); } catch {}
+    // Deliberately NOT registered with Sine's addUnloadListener().
+    //
+    // Handing Sine this callback buys hot-reload on update: triggerUnloadListener()
+    // runs it, reports the script unloaded, and rebuildMods() injects the new
+    // file. Without it Sine finds the null marker it registered itself, reports
+    // "still loaded", and leaves the running mod alone -- an update takes effect
+    // on the next restart, which is exactly what Sine's own toast tells you to
+    // do ("A mod utilizing JS has been updated. For it to work properly,
+    // restart your browser").
+    //
+    // The cost was not worth it. Registering turned every mod update into a
+    // teardown-and-reinject of every script in every window, and each of those
+    // re-runs the startup gate below. One of them landed wrong and Tab Router,
+    // Tab Unloader and Zen Turbo were all left injected but never started, with
+    // nothing logged. The gate is now backstopped, but re-injecting on a
+    // schedule to gain something Sine does not even promise is a bad trade.
+    //
+    // The DOM unload listener above is the one that matters: it fires when the
+    // window closes, which is when these registrations actually need releasing.
+    instance.retire = cleanup;
   }
 
   // Written the moment this script is injected, not from start(). These
@@ -185,14 +384,72 @@ const PREFIX = "zzgroup.";
   try { repairNumericPrefs(); } catch {}
   try { injectPrefVars(); } catch {}
 
-  if (gBrowserInit?.delayedStartupFinished) start();
-  else {
-    const obs = (subject, topic) => {
-      if (topic === "browser-delayed-startup-finished" && subject === window) {
-        Services.obs.removeObserver(obs, topic);
-        start();
-      }
+  // ---- startup ------------------------------------------------------------
+  // browser-delayed-startup-finished is a ONE-SHOT notification, and waiting
+  // on it alone is not safe. Sine does not always inject through its
+  // window-open path: a rebuildMods() injects into whatever windows already
+  // exist, so this script can land in a window where gBrowserInit is not
+  // reachable yet AND the notification has already fired. The observer then
+  // waits for an event that will never come again, and the mod sits loaded,
+  // parsed, and never started for the life of the window -- no error, no log
+  // line, nothing to notice.
+  //
+  // That is not hypothetical. It is how Tab Router, Tab Unloader and Zen Turbo
+  // all ended up injected with their globals never defined, while Glassflow --
+  // whose pref-variable injection runs outside start() -- looked fine.
+  //
+  // So the observer is kept for the fast path and a bounded poll backs it up.
+  // Whichever fires first wins; startOnce() makes the other a no-op.
+  let started = false;
+  let waitTimer = null;
+  let obs = null;
+
+  const stopWaiting = () => {
+    if (obs) {
+      try { Services.obs.removeObserver(obs, "browser-delayed-startup-finished"); } catch {}
+      obs = null;
+    }
+    if (waitTimer) { clearInterval(waitTimer); waitTimer = null; }
+  };
+
+  const startOnce = () => {
+    // A newer copy of this script may have claimed the window while this one
+    // was waiting; that copy owns the registrations, so this one stays quiet.
+    if (started || window[INSTANCE_KEY] !== instance) return;
+    started = true;
+    stopWaiting();
+    start();
+  };
+
+  // Read through the window first, then the bare global. A sub-script loaded
+  // with the window as its target sees the same object either way, but that
+  // is a property of how Sine loads us, not a guarantee -- and reading only
+  // one of the two is how this check silently returns false in a window that
+  // is in fact ready.
+  const windowReady = () => {
+    try { return !!(window.gBrowserInit ?? gBrowserInit)?.delayedStartupFinished; }
+    catch { return false; }
+  };
+
+  // Until start() swaps in the real cleanup, releasing this copy means
+  // dropping whatever it is waiting on.
+  instance.retire = stopWaiting;
+
+  if (windowReady()) {
+    startOnce();
+  } else {
+    obs = (subject, topic) => {
+      if (topic === "browser-delayed-startup-finished" && subject === window) startOnce();
     };
     Services.obs.addObserver(obs, "browser-delayed-startup-finished");
+
+    // The backstop. In the failure above the window is ALREADY past delayed
+    // startup, so the first tick starts the mod half a second later. Bounded,
+    // because a window that never gets there is not one this mod belongs in.
+    const deadline = Date.now() + 60000;
+    waitTimer = setInterval(() => {
+      if (windowReady()) startOnce();
+      else if (Date.now() > deadline) stopWaiting();
+    }, 500);
   }
 })();

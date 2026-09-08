@@ -60,6 +60,74 @@ window for the life of the session.
 
 Turn off **Favicon as group icon** and the script does nothing.
 
+### Automatic: the page's own image
+
+**Icon source** switches what the automatic icon is drawn from.
+
+*Site favicon* (the default) is one picture per domain. It identifies
+*Nexusmods* correctly and tells you nothing one level down, where every game
+subgroup draws the same Nexus logo.
+
+*Page image, favicon fallback* uses what the page advertises about itself — its
+`og:image`. Firefox already has this: `ContentMetaHandler` reads that tag while
+a page loads and writes it into your history through
+`PlacesUtils.history.update`, so it is sitting in the profile for every page
+already visited. Reading it is a local database lookup, not a scrape and not a
+request to the site.
+
+What it actually gives you varies by site, and it is the *page's* image rather
+than the author's:
+
+| Page | Image you get |
+|---|---|
+| Nexus or Steam game page | the game art |
+| GitHub repository | the repository's social card |
+| YouTube **channel** page | the channel avatar |
+| YouTube **watch** page | the video thumbnail, not the creator |
+
+The favicon is painted first and the page image replaces it when the lookup
+resolves, so a group is never blank while that happens, and a group whose page
+had no stored image simply keeps the favicon. Results are cached per URL.
+
+Page images are wide banners, so they are cropped to the centre and the backing
+plate is dropped — a photo does not need one. Displaying an image does load it,
+normally from cache, since it came from a page you visited.
+
+### Naming an icon yourself
+
+The dominant-domain rule is right for *Nexusmods* and useless below it: every
+game on a mod site shares that site's favicon, so *Crimson Desert*,
+*Dawnwalker* and *Stalker 2* all end up with the same picture. **Icon rules**
+gives a group an icon of its own. One per line, or separated by semicolons:
+
+```
+crimson desert     = file:///C:/icons/crimson.png
+youtube / mandalore = file:///C:/icons/mandalore.png
+nexusmods          = nexusmods.com
+```
+
+The left side matches the subgroup on its own (`crimson desert`) or its full
+path (`youtube / crimson desert`) — the path form is there for when the same
+leaf name sits under two different parents. Case and spacing around the slash
+do not matter. A rule beats the automatic favicon.
+
+The right side is one of:
+
+| You write | What is used | Network |
+|---|---|---|
+| `nexusmods.com` | that site's favicon, from Firefox's local store | none |
+| `file:///C:/icons/x.png` | your own image | none |
+| `data:image/png;base64,…` | an embedded image | none |
+| `chrome://browser/skin/…` | a built-in browser icon | none |
+| `https://example.com/x.png` | a remote image | **a real fetch** |
+
+Prefer a local file for artwork the browser has no favicon for. Values
+containing a quote, a bracket or a backslash are ignored rather than allowed to
+break the stylesheet.
+
+Zen **folders** (`<zen-folder>`) are a different element and this mod does not
+touch them; they carry Zen's own icon, set from the folder's right-click menu.
+
 ## How it overrides Advanced Tab Groups and Arc
 
 The mod id `zz-groupflow` imports after `advanced-tab-groups`, `Arc-2.0` and

@@ -35,7 +35,7 @@
      from a circular one, so a radius tuned before 1.22b reads square now.
      Two levers: --zzg-corner picks the shape, radius-scale compensates the
      size. The default MIRRORS Zen's own value, so out of the box nothing
-     changes !important; the 1 fallback is a plain round corner on pre-1.22b builds. */
+     changes; the 1 fallback is a plain round corner on pre-1.22b builds. */
   --zzg-corner: superellipse(var(--zen-squircle-value, 1));
   --zzg-corner-tabs: var(--zzg-corner);
   --zzg-corner-ess: var(--zzg-corner);

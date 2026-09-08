@@ -108,12 +108,15 @@
 }
 
 /* ============================================================
-   Only what applies. Sine's preferences.json has no conditional
-   visibility field -- only disabledOn, which is per operating system --
-   so rows are hidden here instead, keyed on the pref that governs them.
-   If a build does not evaluate -moz-pref in this sheet, every rule below
-   simply never matches and all rows stay visible: no functionality is
-   behind this, only tidiness.
+   Only what applies.
+
+   These rules DUPLICATE preferences.json. Every row hidden below also carries
+   a native `conditions` entry, which is what actually hides it; this block is
+   the backstop. It earns its place because Sine picks the pref getter from
+   the type of the value in the JSON, and an untrapped getIntPref on a pref
+   stored as a string throws, aborting the panel build for the whole mod. A
+   media query cannot fail that way -- a rule that never matches just leaves
+   the row visible. No functionality is behind this, only tidiness.
    ============================================================ */
 
 @media not (-moz-pref("zzgroup.connector", 5)) {

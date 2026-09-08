@@ -110,9 +110,21 @@
 /* ============================================================
    Only what applies.
 
-   Sine's preferences.json has no conditional-visibility field, so rows are
-   hidden here, keyed on the pref that governs them. Generated from
-   preferences.json, so a removed pref cannot leave a stale rule behind.
+   These rules DUPLICATE preferences.json. Every row hidden below also carries
+   a native `conditions` entry, which is what actually hides it: Sine
+   evaluates those in preferences.sys.mjs and sets the row's inline display.
+   This block is the backstop.
+
+   It earns its place because Sine's evaluator picks the pref getter from the
+   type of the value written in the JSON, and an untrapped getIntPref on a
+   pref stored as a string throws -- which aborts the panel build for the
+   whole mod, not just that row. That is the failure the numeric dropdown
+   declarations fixed. A media query cannot fail that way: a rule that never
+   matches just leaves the row visible.
+
+   Generated from preferences.json, so a removed pref cannot leave a stale
+   rule behind. If a row is ever added with `conditions` and no rule here,
+   nothing breaks -- it simply loses the backstop.
    ============================================================ */
 @media not (-moz-pref("zzglass.selected.enabled")) {
   #zzglass-edges-selected-color,

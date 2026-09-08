@@ -46,6 +46,45 @@ respects Zen's own container routing rather than fighting it.
 
 `TabRouter.applyOrder()` re-runs just the ordering pass.
 
+## Splitting by creator
+
+A YouTube watch address names the video and never the channel — `/watch?v=…`,
+with `watch` itself a route word. No path rule can split watch tabs by creator,
+because the creator is not in the URL.
+
+The page hands it over anyway. Any site playing media registers a
+`MediaSession`, and Firefox exposes it to the browser chrome as
+`browsingContext.mediaController`; its `artist` field is the channel name. Zen
+reads the same thing for its sidebar media card. **Nothing is fetched, no
+service is asked and no key is needed** — the page you are already watching
+supplied it.
+
+Turn on **Subgroup by creator** and *Youtube* becomes *Youtube / Rick Astley*.
+**Creator domains** limits which sites are asked; it defaults to `youtube.com`.
+
+Two things follow from where the name comes from:
+
+- **It arrives late.** The session registers when the player initialises, not
+  when the tab opens, so a tab files under its base group first and moves under
+  the creator a moment later — the same deferred re-file a retitle already
+  causes. A tab opened from *another* channel's video is no different: routing
+  reads each tab's own identity, never the opener's, and `refile-mismatched`
+  moves an inherited tab out of the group it landed in.
+- **An unloaded tab loses its controller.** Tab Unloader discards a tab and the
+  media session goes with it. Answers are therefore remembered, keyed by video
+  id so a `&t=` timestamp does not fragment one video into many entries.
+
+```js
+TabRouter.creators()          // key -> creator name, everything remembered
+TabRouter.forgetCreators()    // empty it
+TabRouter.forgetCreators(key) // drop one
+```
+
+That store is a record of what you have watched. It lives in
+`zzrouter.creators`, is capped at 300 entries oldest-out, and `status()`
+reports only its size rather than its contents — status output tends to get
+pasted into bug reports.
+
 ## Inspecting it
 
 ```js

@@ -702,17 +702,29 @@
   }
 
   let orderTimer = null;
+  const MAX_ORDER_DEFER_MS = 10000;
+  let orderDeferredSince = 0;
   function scheduleOrder() {
     clearTimeout(orderTimer);
     orderTimer = setTimeout(() => {
       // Re-sorting moves DOM nodes; doing that mid workspace-slide adds
       // stutter to the animation. Zen marks the slide on :root, so wait it
       // out and land the sort right after.
+      // Bounded, for the same reason Tab Unloader bounds its sweep: Zen sets
+      // animating-background from more than one path and clears it from one,
+      // and treats the animation getting stuck as a known hazard. Unbounded,
+      // this rescheduled itself every order-delay-ms forever -- ordering dead
+      // for the session and a timer burning behind it.
       if (document.documentElement.hasAttribute("animating-background") ||
           document.documentElement.hasAttribute("swipe-gesture")) {
-        scheduleOrder();
-        return;
+        if (!orderDeferredSince) orderDeferredSince = Date.now();
+        if (Date.now() - orderDeferredSince < MAX_ORDER_DEFER_MS) {
+          scheduleOrder();
+          return;
+        }
+        note("animation marker stuck; ordering anyway");
       }
+      orderDeferredSince = 0;
       try { applyOrder(); } catch (e) { note(`applyOrder: ${e}`); }
     }, num("order-delay-ms", 150));
   }

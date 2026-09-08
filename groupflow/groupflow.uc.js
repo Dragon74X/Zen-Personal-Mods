@@ -347,6 +347,14 @@ const PREFIX = "zzgroup.";
   function upgradeToSubjectImage(g, host, fallbackTab) {
     const name = (g.label ?? "").trim();
     if (!name) return;
+
+    // The site-level group IS the site. "Youtube" sitting above the creator
+    // subgroups should keep youtube.com's favicon -- that is what identifies
+    // it -- rather than borrow the image of whatever page happens to be
+    // titled "Youtube". Only a group named after something ON the site gets a
+    // subject image, which is exactly the level where the favicon stops
+    // telling them apart.
+    if (normName(name) === normName(baseHost(host).split(".")[0])) return;
     subjectImage(name, host).then((img) => {
       if (!g.isConnected) return;
       if (img) {

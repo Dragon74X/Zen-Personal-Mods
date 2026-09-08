@@ -193,7 +193,26 @@
     return held === tab;
   }
 
-  function whyKeep(tab, now) {
+  // whyKeep was reading a dozen prefs PER TAB. On a 73-tab window that is
+  // roughly nine hundred pref reads per sweep to decide something that does
+  // not change between tabs. Read them once and pass them down.
+  function sweepConfig() {
+    return {
+      idleSec: Math.max(5, num("idle-seconds", 1800)),
+      anchor: bool("exclude-workspace-anchor", true),
+      audio: bool("exclude-audio", true),
+      attention: bool("exclude-attention", true),
+      sharing: bool("exclude-sharing", true),
+      pip: bool("exclude-pip", true),
+      essentials: bool("exclude-essentials", true),
+      pinned: bool("exclude-pinned", true),
+      glance: bool("exclude-glance", true),
+      split: bool("exclude-split", true),
+      forms: bool("exclude-forms", true),
+    };
+  }
+
+  function whyKeep(tab, now, cfg = sweepConfig()) {
     if (!tab || !tab.isConnected) return "gone";
     if (tab.closing) return "closing";
     if (tab.selected) return "active tab";
@@ -202,21 +221,21 @@
     if (tab.hasAttribute("zen-empty-tab")) return "empty tab";
     if (tab.hasAttribute("_forZenEmptyTab")) return "empty tab";
 
-    const idleSec = Math.max(5, num("idle-seconds", 1800));
     const idleFor = (now - (tab.lastAccessed || now)) / 1000;
-    if (idleFor < idleSec) return `idle ${Math.round(idleFor)}s of ${idleSec}s`;
+    if (idleFor < cfg.idleSec) return `idle ${Math.round(idleFor)}s of ${cfg.idleSec}s`;
 
-    if (bool("exclude-workspace-anchor", true) && isWorkspaceAnchor(tab))
-      return "last tab in its workspace";
-    if (bool("exclude-audio", true) && tab.hasAttribute("soundplaying")) return "playing audio";
-    if (bool("exclude-attention", true) && tab.hasAttribute("attention")) return "wants attention";
-    if (bool("exclude-sharing", true) && tab.hasAttribute("sharing")) return "sharing camera/mic/screen";
-    if (bool("exclude-pip", true) && tab.hasAttribute("pictureinpicture")) return "picture-in-picture";
-    if (bool("exclude-essentials", true) && tab.getAttribute("zen-essential") === "true") return "essential";
-    if (bool("exclude-pinned", true) && tab.pinned) return "pinned";
-    if (bool("exclude-glance", true) && tab.hasAttribute("zen-glance-tab")) return "glance";
-    if (bool("exclude-split", true) && tab.hasAttribute("zen-split")) return "split view";
-    if (bool("exclude-forms", true) && !formExempt(tab) && hasFormData(tab))
+    if (cfg.anchor && isWorkspaceAnchor(tab)) return "last tab in its workspace";
+    if (cfg.audio && tab.hasAttribute("soundplaying")) return "playing audio";
+    if (cfg.attention && tab.hasAttribute("attention")) return "wants attention";
+    if (cfg.sharing && tab.hasAttribute("sharing")) return "sharing camera/mic/screen";
+    if (cfg.pip && tab.hasAttribute("pictureinpicture")) return "picture-in-picture";
+    if (cfg.essentials && tab.getAttribute("zen-essential") === "true") return "essential";
+    if (cfg.pinned && tab.pinned) return "pinned";
+    if (cfg.glance && tab.hasAttribute("zen-glance-tab")) return "glance";
+    if (cfg.split && tab.hasAttribute("zen-split")) return "split view";
+    // Last on purpose: this is the only check that costs real work.
+    // SessionStore.getTabState() serialises the tab's whole state to JSON.
+    if (cfg.forms && !formExempt(tab) && hasFormData(tab))
       return "unsubmitted form data";
     if (urlExcluded(tab)) return "url excluded";
 
@@ -264,36 +283,49 @@
     deferredSince = 0;
     const now = Date.now();
     const tabs = allTabs();
-    const eligible = tabs.filter(t => whyKeep(t, now) === null);
-
-    if (!eligible.length) { note(`sweep: 0 of ${tabs.length} eligible`); return; }
-
-    eligible.sort((a, b) => (a.lastAccessed || 0) - (b.lastAccessed || 0));
 
     const cap = num("max-per-sweep", 5);
-    let budget = cap > 0 ? cap : eligible.length;
+    let budget = cap > 0 ? cap : tabs.length;
 
     const floor = num("keep-loaded", 0);
     if (floor > 0) {
       const loaded = tabs.filter(t => !t.hasAttribute("pending") && !t.closing).length;
       budget = Math.min(budget, Math.max(0, loaded - floor));
     }
+    if (budget <= 0) { note(`sweep: budget 0 (floor ${floor}); nothing to do`); return; }
 
-    if (budget < eligible.length) {
-      note(`throttled: ${eligible.length} eligible but budget ${budget} ` +
-        `(cap ${cap || "none"}, floor ${floor || "none"}) -- raise 'Unload at most' to go faster`);
-    }
+    // Oldest first, then stop as soon as the budget is filled.
+    //
+    // This used to run whyKeep() over EVERY tab, sort the survivors, and
+    // unload the oldest few -- so on a 73-tab window it paid for 73 full
+    // evaluations, including 73 SessionStore.getTabState() serialisations,
+    // to unload at most five tabs. Sorting by age first and evaluating
+    // lazily gives exactly the same tabs: the oldest N eligible is the same
+    // set whether you filter then sort, or sort then take the first N that
+    // pass. It just stops doing the work once it has them.
+    const cfg = sweepConfig();
+    const byAge = tabs
+      .filter(t => t && !t.selected && !t.closing && !t.hasAttribute("pending"))
+      .sort((a, b) => (a.lastAccessed || 0) - (b.lastAccessed || 0));
 
-    let done = 0;
-    for (const tab of eligible) {
+    let done = 0, examined = 0;
+    for (const tab of byAge) {
       if (done >= budget) break;
+      examined++;
+      if (whyKeep(tab, now, cfg) !== null) continue;
       try { gBrowser.discardBrowser(tab); done++; note(`unloaded: ${tab.label}`); }
       catch (e) { note(`failed on ${tab.label}: ${e}`); }
     }
-    note(`sweep: unloaded ${done} of ${eligible.length} eligible, ${tabs.length} total`);
+
+    if (done >= budget && examined < byAge.length) {
+      note(`throttled at ${budget} (cap ${cap || "none"}, floor ${floor || "none"}) ` +
+        `-- raise 'Unload at most' to go faster`);
+    }
+    note(`sweep: unloaded ${done}, examined ${examined} of ${byAge.length} candidates, ` +
+      `${tabs.length} tabs total`);
   }
 
-  function reschedule() {
+  function reschedule(firstDelay = 500) {
     if (timer) { clearInterval(timer); timer = null; }
     // A pending first sweep from a previous reschedule must be dropped too,
     // or toggling settings quickly queues one sweep per toggle.
@@ -303,8 +335,12 @@
     timer = setInterval(sweep, every * 1000);
     note(`running every ${every}s, idle threshold ${Math.max(5, num("idle-seconds", 1800))}s, ` +
       `cap ${num("max-per-sweep", 5)}/sweep, floor ${num("keep-loaded", 0)}`);
-    // Do not make the user wait a whole interval to see the first result.
-    kick = setTimeout(() => { kick = null; sweep(); }, 500);
+    // Do not make the user wait a whole interval to see the first result --
+    // but do not land the first sweep in the middle of session restore
+    // either. At startup Zen is still rebuilding tabs, and a sweep there
+    // competes with it for the main thread at the worst possible moment.
+    // A settings change still gets near-instant feedback.
+    kick = setTimeout(() => { kick = null; sweep(); }, Math.max(0, firstDelay));
   }
 
   const observer = {
@@ -322,16 +358,18 @@
     try { if (gBrowser.selectedTab) onTabSelect({ target: gBrowser.selectedTab }); } catch {}
     gBrowser.tabContainer.addEventListener("TabSelect", onTabSelect);
     gBrowser.tabContainer.addEventListener("TabClose", onTabClose);
-    reschedule();
+    // Startup: hold the first sweep well clear of session restore.
+    reschedule(Math.max(0, num("first-sweep-ms", 15000)));
 
     window.TabUnloader = {
       sweepNow: sweep,
       status() {
         const now = Date.now();
+        const cfg = sweepConfig();
         return allTabs().map(t => ({
           title: t.label,
           idleSec: Math.round((now - (t.lastAccessed || now)) / 1000),
-          verdict: whyKeep(t, now) ?? "ELIGIBLE",
+          verdict: whyKeep(t, now, cfg) ?? "ELIGIBLE",
         }));
       },
       // Which tab is currently protected in each workspace.

@@ -222,6 +222,26 @@
     ]
   },
   {
+    "type": "checkbox",
+    "property": "zzrouter.creator-icons",
+    "label": "Channel avatar on creator subgroups *Gives each Youtube / Creator subgroup the channel's avatar as its icon; the Youtube group itself keeps the site favicon. Needs Groupflow. Once per NEW creator the channel page is fetched for its avatar address, then the small image itself -- both inside the tab's container, both anonymous, exactly like the creator lookup. The image is kept as data, so showing it later never touches the network. Bounded to 100 creators; TabRouter.forgetCreators() empties it too.*",
+    "defaultValue": true,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzrouter.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzrouter.media-subgroups",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
     "type": "string",
     "property": "zzrouter.auto-path-ignore",
     "label": "Extra path words to ignore *Comma separated, ADDED to a built-in list of generic route words (search, watch, videos, results, games, category and similar). Numeric segments and file names are always dropped.*",

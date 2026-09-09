@@ -691,11 +691,12 @@
     }
     /* Two frames crossfading under the one blur; the fade lasts as long
        as the read interval, so one frame is always arriving. */
+    /* Each layer is placed by the script at exactly the margin its read
+       managed, and sized 100%: the picture maps to the page one to one. */
     :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] > #zzglass-sample > div {
       position: absolute !important;
-      inset: 0 !important;
-      background-size: cover !important;
-      background-position: center !important;
+      background-size: 100% 100% !important;
+      background-position: 0 0 !important;
       background-repeat: no-repeat !important;
       opacity: 0;
     }

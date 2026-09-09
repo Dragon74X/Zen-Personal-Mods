@@ -210,13 +210,31 @@
       // is cropped out of that. At a tenth scale the whole viewport is a
       // few hundred pixels a side.
       const bmp = await wg.drawSnapshot(null, SAMPLE_SCALE, "transparent");
-      const sx = Math.max(0, Math.round(rect.x * SAMPLE_SCALE)), sy = Math.max(0, Math.round(rect.y * SAMPLE_SCALE));
-      const sw = Math.max(1, Math.min(bmp.width - sx, Math.round(rect.width * SAMPLE_SCALE)));
-      const sh = Math.max(1, Math.min(bmp.height - sy, Math.round(rect.height * SAMPLE_SCALE)));
-      const c = new OffscreenCanvas(sw, sh);
+      // The strip is read with a margin of twice the blur on every side, so
+      // the blurred edges have real page behind them rather than fading
+      // into the backing, and the picture is then laid over the panel ONE
+      // TO ONE: the layer is placed at exactly the margin the read managed
+      // (clamped at the viewport edge) and sized 100%, never "cover", which
+      // zoomed and shifted it. Fractional source coordinates: at a tenth
+      // scale a rounded pixel is five on screen.
+      let zoom = 1;
+      try { zoom = gBrowser.selectedBrowser.browsingContext?.fullZoom || 1; } catch {}
+      const blurPx = parseFloat(readPrefValue(PREFIX + "sidebar.sample-blur")) || 18;
+      const mc = 2 * blurPx / zoom;                     // margin in content px
+      const vw = bmp.width / SAMPLE_SCALE, vh = bmp.height / SAMPLE_SCALE;
+      const e = {
+        l: Math.min(mc, Math.max(0, rect.x)), t: Math.min(mc, Math.max(0, rect.y)),
+        r: Math.min(mc, Math.max(0, vw - (rect.x + rect.width))), b: Math.min(mc, Math.max(0, vh - (rect.y + rect.height))),
+      };
+      const sx = (rect.x - e.l) * SAMPLE_SCALE, sy = (rect.y - e.t) * SAMPLE_SCALE;
+      const sw = (rect.width + e.l + e.r) * SAMPLE_SCALE, sh = (rect.height + e.t + e.b) * SAMPLE_SCALE;
+      const c = new OffscreenCanvas(Math.max(1, Math.ceil(sw)), Math.max(1, Math.ceil(sh)));
       const ctx = c.getContext("2d");
-      ctx.drawImage(bmp, sx, sy, sw, sh, 0, 0, sw, sh);
+      ctx.drawImage(bmp, sx, sy, sw, sh, 0, 0, c.width, c.height);
       bmp.close();
+      // Where the layer sits inside the host, which itself reaches 2*blur
+      // past the panel: the part of the margin the read could not have.
+      const place = { left: 2 * blurPx - e.l * zoom, top: 2 * blurPx - e.t * zoom, right: 2 * blurPx - e.r * zoom, bottom: 2 * blurPx - e.b * zoom };
       const px = ctx.getImageData(0, 0, c.width, c.height).data;
       // An opaque page is one the real backdrop blur can see, and that blur
       // is per-frame where this is a few reads a second. So the sample
@@ -245,6 +263,7 @@
       if (host) {
         const back = 1 - front;
         layers[back].style.backgroundImage = `url("${url}")`;
+        for (const k of ["left", "top", "right", "bottom"]) layers[back].style[k] = place[k].toFixed(2) + "px";
         layers[back].setAttribute("front", "");
         layers[front].removeAttribute("front");
         if (urls[back]) { try { URL.revokeObjectURL(urls[back]); } catch {} }

@@ -978,6 +978,15 @@
       border-radius: 4px;
     }
   }
+  /* Avatars (groupflow.uc.js marks a group whose icon is one): round,
+     filling the slot edge to edge, no plate showing at the corners. After
+     the plate rules on purpose, so it wins at equal specificity. */
+  #navigator-toolbox tab-group[zzgf-round]:not([split-view-group]) .tab-group-label::before {
+    padding: 0;
+    border-radius: 50%;
+    background-origin: border-box;
+    background-color: transparent;
+  }
 }
 
 /* ---- other mods' group icons -------------------------------------- */

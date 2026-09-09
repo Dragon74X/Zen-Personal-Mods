@@ -157,7 +157,11 @@
   // their own, so "Youtube > Creator" shows youtube's icon on the parent
   // and (usually the same) icon on the child from its own members.
   function refreshGroup(g) {
-    const ruled = ruledIcon(g) ?? stampedIcon(g);
+    const stamped = stampedIcon(g);
+    // An avatar is drawn round, like the channel page draws it; the CSS
+    // selects on this attribute since it cannot read a custom property.
+    g.toggleAttribute("zzgf-round", !!stamped && !ruledIcon(g));
+    const ruled = ruledIcon(g) ?? stamped;
     if (ruled) { setIcon(g, `url("${ruled}")`); return; }
     const counts = new Map();
     for (const el of g.groupContainer?.children ?? []) {

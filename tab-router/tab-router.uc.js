@@ -896,7 +896,9 @@
     for (const g of all) {
       const c = g.groupContainer ?? g.querySelector(".tab-group-container");
       if (!c) continue;
-      const subs = [...c.children].filter(el => el.tagName === "tab-group");
+      // A subgroup Zen is animating out still sits in the DOM with no
+      // tabs; zenHandleTabMove throws on it (previousTabStates[0]).
+      const subs = [...c.children].filter(el => el.tagName === "tab-group" && live(el));
       if (!subs.length) continue;
       const sorted = mode === 2 ? domOrder(subs) : subs.slice().sort(cmp);
       if (tabsFirst) {
@@ -1302,7 +1304,7 @@
         } catch {}
 
         const r = {
-          version: "1.25.0",
+          version: "1.25.1",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The

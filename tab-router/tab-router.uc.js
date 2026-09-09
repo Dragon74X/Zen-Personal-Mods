@@ -209,23 +209,28 @@
   // Generic route words that make useless group names. Built in so search
   // engines don't produce a "Search" subgroup; the pref ADDS to this list.
   const BUILTIN_IGNORE = new Set(("search,results,watch,videos,video,shorts,feed," +
-    "browse,explore,channel,playlist,games,game,category,categories,c,p,en,en-us," +
-    "www,index,home,wiki,tag,tags,new,top,hot,trending,threads,posts,post,r,user,users")
+    "browse,explore,channel,playlist,games,game,category,categories,en-us,en-gb," +
+    "www,index,home,wiki,tag,tags,new,top,hot,trending,threads,posts,post,user,users," +
+    "web,app,apps,dashboard,login,signin,logout,account,accounts,myaccount,portal," +
+    "settings,profile,mail,inbox,folders,products,product,item,items,shop,store,cart," +
+    "checkout,docs,doc,help,support,about,blog,news,article,articles,page,pages,view," +
+    "share,embed,api,static,assets,cdn,images,img,media,files,download,downloads")
     .split(","));
 
   function pathParts(tab) {
     const depth = num("auto-path-depth", 0);
     if (depth < 1) return [];
-    // Path subgroups are opt-in per site. Deriving them from any URL made
-    // sense on YouTube, where the first path segment is a creator handle,
-    // and nonsense nearly everywhere else -- shops, docs and forums put
-    // section names, ids and slugs there, so every site grew subgroups
-    // nobody asked for. Only the domains listed here get them.
-    const allow = cached("pathdomains", () => str("auto-path-domains", "")
+    // The domain list is read either way round: only these sites, or
+    // every site except these. Everywhere means shops, docs and forums
+    // too, which put section names, ids and slugs in the first segment;
+    // the ignore list below and the short-segment rule take the worst of
+    // that out, and the ignore words setting takes the rest.
+    const list = cached("pathdomains", () => str("auto-path-domains", "")
       .split(",").map(s => s.trim().toLowerCase()).filter(Boolean));
-    if (!allow.length) return [];
     const host = hostOf(tab);
-    if (!host || !allow.some(d => host === d || host.endsWith("." + d))) return [];
+    if (!host) return [];
+    const listed = list.some(d => host === d || host.endsWith("." + d));
+    if (num("auto-path-mode", 0) === 1 ? listed : !listed) return [];
     let path = "";
     try { path = tab.linkedBrowser?.currentURI?.filePath ?? ""; } catch { return []; }
     const skipWords = cached("skipwords", () => new Set(
@@ -237,9 +242,10 @@
     const raw = path.split("/").filter(Boolean);
     const keep = (s) => {
       const d = decode(s).trim().toLowerCase();
-      return d && !BUILTIN_IGNORE.has(d) && !skipWords.has(d) &&
-        // pure ids and file names make useless group names
-        !/^\d+$/.test(d) && !/\.[a-z0-9]{2,4}$/i.test(d);
+      // one- and two-letter segments (u, g, n, r, en) are route codes,
+      // pure ids and file names make useless group names
+      return d.length >= 3 && !BUILTIN_IGNORE.has(d) && !skipWords.has(d) &&
+        !/^\d+$/.test(d) && !/\.[a-z0-9]{2,4}$/i.test(d) && !/[=?&]/.test(d);
     };
     const segs = raw.filter(keep).map(s => decode(s).trim());
     const parts = segs.slice(0, depth).map(s => segName(tab, s));
@@ -288,15 +294,17 @@
   // attributes, so its cache entry lives in that container's partition and
   // nothing about it is visible from another container. Anonymous:
   // LOAD_ANONYMOUS strips cookies both ways, so YouTube cannot tie the
-  // lookup to an account and the lookup writes no cookie back. Private
-  // windows are skipped outright -- nothing leaves them.
+  // lookup to an account and the lookup writes no cookie back. A private
+  // window asks too, from the private partition, and what it learns is
+  // remembered like everything else -- names and pictures, never URLs.
   const OEMBED = "https://www.youtube.com/oembed?format=json&url=";
   const isPrivate = () => {
     try {
       return ChromeUtils.importESModule("resource://gre/modules/PrivateBrowsingUtils.sys.mjs")
         .PrivateBrowsingUtils.isWindowPrivate(window);
-    } catch { return true; }             // cannot tell: treat as private
+    } catch { return false; }
   };
+  const originOf = (ctx) => ({ userContextId: ctx, privateBrowsingId: isPrivate() ? 1 : 0 });
 
   // Cache key: the video id, so &t= timestamps and tracking parameters do
   // not fragment one video into many entries.
@@ -339,7 +347,7 @@
   function fetchAnon(url, ctx, cb) {
     const { NetUtil } = ChromeUtils.importESModule("resource://gre/modules/NetUtil.sys.mjs");
     const principal = Services.scriptSecurityManager
-      .createContentPrincipal(Services.io.newURI(url), { userContextId: ctx });
+      .createContentPrincipal(Services.io.newURI(url), originOf(ctx));
     const channel = NetUtil.newChannel({
       uri: url,
       loadingPrincipal: principal,
@@ -452,31 +460,35 @@
 
   // label: the group name this section files under (the store key).
   function fetchSectionIcon(label, pageUrl, ctx, shape) {
-    if (!bool("section-icons", true) || !pageUrl || isPrivate()) return;
+    if (!bool("section-icons", true) || !pageUrl) return;
     const key = label.trim().toLowerCase(), slot = "icon:" + key;
     if (!key || iconMap().has(key) || inFlight.has(slot)) return;
     const lastFail = failed.get(slot);
     if (lastFail && Date.now() - lastFail < RETRY_FAIL_MS) return;
     inFlight.set(slot, true);
-    const done = (icon) => {
+    // A page that answered with nothing usable is remembered as such (d:
+    // null), so it is asked once; a page that did not answer is retried.
+    const done = (icon, answered = true) => {
       inFlight.delete(slot);
-      if (!icon) { failed.set(slot, Date.now()); return; }
+      if (!icon && !answered) { failed.set(slot, Date.now()); return; }
       iconMap().set(key, { d: icon, s: shape });
       saveIcons();
-      note(`icon for "${label}"`);
-      stampIcons();
+      note(icon ? `icon for "${label}"` : `no usable picture for "${label}"; favicon stays`);
+      if (icon) stampIcons();
     };
     try {
       fetchAnon(pageUrl, ctx, (html) => {
         // og:image read with a string search, never parsed as a document.
         // A consent interstitial has none; the lookup is retried later.
-        const m = html && /<meta property="og:image" content="([^"]{1,400})"/.exec(html);
+        if (!html) return done(null, false);
+        const m = /<meta property="og:image" content="([^"]{1,400})"/.exec(html);
         const img = m ? m[1].replace(/=s\d+/, "=s256") : null;   // YouTube sizes by suffix
         if (!img || !/^https:\/\/[^\s"'<>\\]+$/.test(img)) return done(null);
         try {
           fetchAnon(img, ctx, (bytes) => {
-            if (!bytes || bytes.length > 400000) return done(null);
-            toIcon(bytes).then((icon) => { if (!icon) note(`picture for "${label}" is a banner, not a portrait; favicon stays`); done(icon); },
+            if (!bytes) return done(null, false);
+            if (bytes.length > 400000) return done(null);
+            toIcon(bytes).then((icon) => { if (!icon) note(`picture for "${label}" is a banner, not a portrait`); done(icon); },
                                (e) => { note(`icon convert failed for "${label}": ${e}`); done(null); });
           });
         } catch { done(null); }
@@ -502,7 +514,7 @@
     let changed = 0;
     for (const g of groups()) {
       const want = on && parentOf(g) ? iconMap().get((g.label ?? "").trim().toLowerCase()) : null;
-      if (want) {
+      if (want?.d) {
         if (g.getAttribute("data-zzrouter-icon") !== want.d) {
           g.setAttribute("data-zzrouter-icon", want.d);
           g.setAttribute("data-zzrouter-icon-shape", want.s);
@@ -520,7 +532,7 @@
   // The creator for this tab if known; otherwise starts the lookup and
   // returns null so the tab files under its base path for now.
   function creatorOf(tab) {
-    if (!bool("media-subgroups", false) || isPrivate()) return null;
+    if (!bool("media-subgroups", false)) return null;
     const id = videoId(tab);
     if (!id) return null;
     const known = creatorMap().get(id);
@@ -1354,7 +1366,7 @@
         } catch {}
 
         const r = {
-          version: "1.27.0",
+          version: "1.28.0",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The
@@ -1368,7 +1380,8 @@
           groupsCached: groupsCache ? groupsCache.length : "(cold)",
           // A count, not the contents: status() gets pasted into bug reports.
           creatorsRemembered: creatorMap().size,
-          sectionIconsRemembered: iconMap().size,
+          sectionIconsRemembered: [...iconMap().values()].filter(v => v.d).length,
+          sectionsWithoutPicture: [...iconMap().values()].filter(v => !v.d).length,
           creatorLookupsInFlight: inFlight.size,
           tabs: allTabs().length,
           tabsWithATarget: withTarget,

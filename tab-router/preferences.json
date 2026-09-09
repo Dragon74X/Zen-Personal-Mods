@@ -186,11 +186,43 @@
     "operator": "AND"
   },
   {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzrouter.auto-path-mode",
+    "label": "Which sites get path subgroups *Splitting by URL path is right where the first segment names a creator, a game or an account, and noise where it names a section or a slug. Only listed: the sites you name. Every site except listed: everything, with a built-in list of generic route words, one- and two-letter codes, ids and file names filtered out, plus your ignore words.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Only the listed sites",
+        "value": 0
+      },
+      {
+        "label": "Every site except the listed ones",
+        "value": 1
+      }
+    ],
+    "conditions": [
+      {
+        "if": {
+          "property": "zzrouter.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzrouter.auto-unmatched",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
     "type": "string",
     "property": "zzrouter.auto-path-domains",
-    "label": "Sites that get path subgroups *Comma separated. Only these domains split into subgroups by URL path -- youtube.com gives a subgroup per creator, because its first path segment is a handle. Most sites put section names, ids or slugs there instead, so leaving them out avoids subgroups nobody asked for. Empty means no site does it.*",
+    "label": "Path subgroup domain list *Comma separated. Read as the setting above says: only these sites, or every site except these.*",
     "defaultValue": "youtube.com",
-    "placeholder": "youtube.com",
+    "placeholder": "youtube.com, nexusmods.com",
     "conditions": [
       {
         "if": {
@@ -210,7 +242,7 @@
   {
     "type": "checkbox",
     "property": "zzrouter.media-subgroups",
-    "label": "Subgroup by creator (YouTube) *A watch address names the video, never the channel, so path rules cannot split YouTube tabs by creator. This asks YouTube's oEmbed endpoint for the video's author -- one small JSON request per NEW video, no key, then remembered -- and files the tab as Youtube / Creator. The request is built inside the tab's own container, so nothing about it is visible from another container, and it is sent anonymously: no cookies go out and none come back, so YouTube cannot tie it to your account. Private windows are never asked. The remembered list is a record of which videos you opened; it is capped at 300 and TabRouter.forgetCreators() empties it.*",
+    "label": "Subgroup by creator (YouTube) *A watch address names the video, never the channel, so path rules cannot split YouTube tabs by creator. This asks YouTube's oEmbed endpoint for the video's author -- one small JSON request per NEW video, no key, then remembered -- and files the tab as Youtube / Creator. The request is built inside the tab's own container, so nothing about it is visible from another container, and it is sent anonymously: no cookies go out and none come back, so YouTube cannot tie it to your account. A private window asks too, from its own partition, still anonymous, and the name is remembered like any other. The remembered list is a record of which videos you opened; it is capped at 300 and TabRouter.forgetCreators() empties it.*",
     "defaultValue": false,
     "conditions": [
       {
@@ -224,7 +256,7 @@
   {
     "type": "checkbox",
     "property": "zzrouter.section-icons",
-    "label": "Pictures on subgroups *A subgroup named after a creator, a game or an account gets that thing's own picture as its icon, on any site with path subgroups: the page the subgroup is named after (abc.com/creator/name for a subgroup Name) is asked for its share image, and it is used when it is roughly square -- an avatar, a cover -- while wide banners are refused and the favicon stays. The parent group keeps the site favicon. Needs Groupflow. Once per NEW section the page is fetched for its picture address, then the picture -- both inside the tab's container, both anonymous, like the creator lookup -- cropped square, scaled to 64px and kept as data, so showing it later never touches the network. Bounded to 100; TabRouter.forgetCreators() empties it too.*",
+    "label": "Pictures on subgroups *A subgroup named after a creator, a game or an account gets that thing's own picture as its icon, on any site with path subgroups: the page the subgroup is named after (abc.com/creator/name for a subgroup Name) is asked for its share image, and it is used when it is roughly square -- an avatar, a cover -- while wide banners are refused and the favicon stays. The parent group keeps the site favicon. Needs Groupflow. Once per NEW section the page is fetched for its picture address, then the picture -- both inside the tab's container, both anonymous, like the creator lookup -- cropped square, scaled to 64px and kept as data, so showing it later never touches the network. Private windows included, still anonymous. A page with nothing usable is remembered as such and never asked again. Bounded to 100; TabRouter.forgetCreators() empties it too.*",
     "defaultValue": true,
     "conditions": [
       {
@@ -510,4 +542,4 @@
       }
     ]
   }
-]\n
+]

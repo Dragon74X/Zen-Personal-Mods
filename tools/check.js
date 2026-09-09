@@ -110,7 +110,7 @@
     // the feature, and no amount of looking in the panel will find it.
     const EXPECT = {
       "zz-groupflow": ["zzgroup.icon-rules"],
-      "zz-tab-router": ["zzrouter.media-subgroups", "zzrouter.section-icons"],
+      "zz-tab-router": ["zzrouter.media-subgroups", "zzrouter.section-icons", "zzrouter.auto-path-mode"],
     }[id];
     if (EXPECT) {
       const have = new Set(prefs.map((x) => x?.property).filter(Boolean));

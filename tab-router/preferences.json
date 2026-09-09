@@ -224,7 +224,7 @@
   {
     "type": "checkbox",
     "property": "zzrouter.section-icons",
-    "label": "Pictures on subgroups *A subgroup that stands for a YouTube creator, a Nexus Mods game or a GitHub account gets that thing's own picture as its icon: the channel avatar, the game cover, the profile avatar. The parent group keeps the site favicon. Needs Groupflow. Once per NEW section the page is fetched for its picture address, then the picture -- both inside the tab's container, both anonymous, like the creator lookup -- and kept at 64px as data, so showing it later never touches the network. Bounded to 100; TabRouter.forgetCreators() empties it too.*",
+    "label": "Pictures on subgroups *A subgroup named after a creator, a game or an account gets that thing's own picture as its icon, on any site with path subgroups: the page the subgroup is named after (abc.com/creator/name for a subgroup Name) is asked for its share image, and it is used when it is roughly square -- an avatar, a cover -- while wide banners are refused and the favicon stays. The parent group keeps the site favicon. Needs Groupflow. Once per NEW section the page is fetched for its picture address, then the picture -- both inside the tab's container, both anonymous, like the creator lookup -- cropped square, scaled to 64px and kept as data, so showing it later never touches the network. Bounded to 100; TabRouter.forgetCreators() empties it too.*",
     "defaultValue": true,
     "conditions": [
       {
@@ -510,4 +510,4 @@
       }
     ]
   }
-]
+]\n

@@ -234,14 +234,18 @@
     // decodeURIComponent throws on a malformed escape, and this runs inside
     // route(): one bad %-sequence in a URL must not abort the pass.
     const decode = (s) => { try { return decodeURIComponent(s); } catch { return s; } };
-    const segs = path.split("/")
-      .map(s => decode(s).trim())
-      .filter(Boolean)
-      .filter(s => !BUILTIN_IGNORE.has(s.toLowerCase()) && !skipWords.has(s.toLowerCase()))
-      // drop pure ids and file names, which make useless group names
-      .filter(s => !/^\d+$/.test(s) && !/\.[a-z0-9]{2,4}$/i.test(s));
+    const raw = path.split("/").filter(Boolean);
+    const keep = (s) => {
+      const d = decode(s).trim().toLowerCase();
+      return d && !BUILTIN_IGNORE.has(d) && !skipWords.has(d) &&
+        // pure ids and file names make useless group names
+        !/^\d+$/.test(d) && !/\.[a-z0-9]{2,4}$/i.test(d);
+    };
+    const segs = raw.filter(keep).map(s => decode(s).trim());
     const parts = segs.slice(0, depth).map(s => segName(tab, s));
-    if (parts.length) wantSectionIcon(tab, host, segs[0], parts[0]);
+    // The page the first subgroup is named after: the URL up to that segment.
+    const at = raw.findIndex(keep);
+    if (parts.length && at >= 0) wantSectionIcon(tab, host, "/" + raw.slice(0, at + 1).join("/"), segs[0], parts[0]);
     return parts;
   }
 
@@ -370,7 +374,7 @@
       saveCreators();
       note(`creator ${id}: ${name}`);
       if (tab.isConnected && !tab.closing) queueRoute(tab, "creator");
-      if (channelUrl) fetchSectionIcon(name, channelUrl, ctx, ICON_SITES[0]);
+      if (channelUrl) fetchSectionIcon(name, channelUrl, ctx, "round");
     };
     try {
       fetchAnon(OEMBED + encodeURIComponent(watch), ctx, (body) => {
@@ -390,22 +394,26 @@
   // ---- section icons -----------------------------------------------------
   // A subgroup that stands for a creator, a game or an account gets that
   // thing's own picture as its icon; Groupflow reads data-zzrouter-icon off
-  // the group before it computes a favicon. Probed on the live profile: a
-  // YouTube channel page's og:image is the 900px avatar, a Nexus game page's
-  // is the 400x600 cover tile, a GitHub owner page's is the 420px avatar.
-  // Each is fetched once per section -- the page, then the picture, both in
-  // the tab's container and anonymous -- cropped square, scaled to 64px and
-  // kept as a data: URI, so showing it later never touches the network.
-  // Only the named picture host is accepted per site, only bytes the image
-  // decoder accepts are kept, and the store is bounded to 100 sections.
-  const ICON_SITES = [
-    { host: /(^|\.)youtube\.com$/, page: (seg) => seg.startsWith("@") ? `https://www.youtube.com/${seg}` : null,
-      image: /^https:\/\/yt3\.(?:googleusercontent|ggpht)\.com\//, shape: "round" },
-    { host: /(^|\.)nexusmods\.com$/, page: (seg) => `https://www.nexusmods.com/games/${seg}`,
-      image: /^https:\/\/images\.nexusmods\.com\//, shape: "square" },
-    { host: /^github\.com$/, page: (seg) => `https://github.com/${seg}`,
-      image: /^https:\/\/avatars\.githubusercontent\.com\//, shape: "round" },
+  // the group before it computes a favicon. Generic: the page a subgroup is
+  // named after is the URL up to the naming segment -- abc.com/creator/name
+  // names a subgroup "Name", and abc.com/creator/name is the page asked for
+  // its og:image. Sites where that page is elsewhere get one line in the
+  // table (Nexus keeps a game at /games/<slug>, not at /<slug>). Probed on
+  // the live profile: a YouTube channel page's og:image is the 900px
+  // avatar, a Nexus game page's the 400x600 cover tile, a GitHub owner
+  // page's the 420px avatar. A wide share banner, which is what most other
+  // pages offer, is refused by aspect and the favicon stays.
+  //
+  // Each picture is fetched once per section -- the page, then the image,
+  // both in the tab's container and anonymous -- cropped square, scaled to
+  // 64px and kept as a data: URI, so showing it later never touches the
+  // network. https only, only bytes the image decoder accepts are kept, and
+  // the store is bounded to 100 sections.
+  const ICON_PAGES = [
+    { host: /(^|\.)nexusmods\.com$/, page: (seg) => `https://www.nexusmods.com/games/${seg}` },
   ];
+  const ROUND_HOSTS = /(^|\.)(youtube\.com|github\.com|twitch\.tv|tiktok\.com|x\.com|twitter\.com|instagram\.com|threads\.net|bsky\.app|mastodon\.social|reddit\.com|patreon\.com|kick\.com)$/;
+  const ICON_ASPECT = [0.6, 1.6];         // 1:1 avatars and 2:3 covers in, 1.9:1 banners out
   const ICON_MAX = 100;
   const ICON_PX = 64;
   let iconCache = null;
@@ -431,6 +439,8 @@
   // the validation: bytes that are not an image never get this far.
   async function toIcon(bytes) {
     const bmp = await createImageBitmap(new Blob([Uint8Array.from(bytes, c => c.charCodeAt(0))]));
+    const aspect = bmp.width / bmp.height;
+    if (aspect < ICON_ASPECT[0] || aspect > ICON_ASPECT[1]) { bmp.close(); return null; }
     const side = Math.min(bmp.width, bmp.height);
     const c = new OffscreenCanvas(ICON_PX, ICON_PX);
     c.getContext("2d").drawImage(bmp, (bmp.width - side) / 2, (bmp.height - side) / 2, side, side, 0, 0, ICON_PX, ICON_PX);
@@ -441,7 +451,7 @@
   }
 
   // label: the group name this section files under (the store key).
-  function fetchSectionIcon(label, pageUrl, ctx, site) {
+  function fetchSectionIcon(label, pageUrl, ctx, shape) {
     if (!bool("section-icons", true) || !pageUrl || isPrivate()) return;
     const key = label.trim().toLowerCase(), slot = "icon:" + key;
     if (!key || iconMap().has(key) || inFlight.has(slot)) return;
@@ -451,7 +461,7 @@
     const done = (icon) => {
       inFlight.delete(slot);
       if (!icon) { failed.set(slot, Date.now()); return; }
-      iconMap().set(key, { d: icon, s: site.shape });
+      iconMap().set(key, { d: icon, s: shape });
       saveIcons();
       note(`icon for "${label}"`);
       stampIcons();
@@ -462,24 +472,25 @@
         // A consent interstitial has none; the lookup is retried later.
         const m = html && /<meta property="og:image" content="([^"]{1,400})"/.exec(html);
         const img = m ? m[1].replace(/=s\d+/, "=s256") : null;   // YouTube sizes by suffix
-        if (!img || !site.image.test(img)) return done(null);
+        if (!img || !/^https:\/\/[^\s"'<>\\]+$/.test(img)) return done(null);
         try {
           fetchAnon(img, ctx, (bytes) => {
             if (!bytes || bytes.length > 400000) return done(null);
-            toIcon(bytes).then(done, (e) => { note(`icon convert failed for "${label}": ${e}`); done(null); });
+            toIcon(bytes).then((icon) => { if (!icon) note(`picture for "${label}" is a banner, not a portrait; favicon stays`); done(icon); },
+                               (e) => { note(`icon convert failed for "${label}": ${e}`); done(null); });
           });
         } catch { done(null); }
       });
     } catch (e) { note(`icon setup failed for "${label}": ${e}`); done(null); }
   }
 
-  // Called from pathParts() with the raw first segment and the label it
-  // became; the site table decides whether that segment names a page.
-  function wantSectionIcon(tab, host, seg, label) {
-    const site = ICON_SITES.find(x => x.host.test(host));
-    if (!site) return;
-    const page = site.page(seg);
-    if (page) fetchSectionIcon(label, page, parseInt(tab.getAttribute("usercontextid") || "0", 10), site);
+  // Called from pathParts() with the URL prefix that ends at the naming
+  // segment, that segment, and the label it became.
+  function wantSectionIcon(tab, host, prefix, seg, label) {
+    const site = ICON_PAGES.find(x => x.host.test(host));
+    const page = site ? site.page(seg) : `https://${host}${prefix}`;
+    fetchSectionIcon(label, page, parseInt(tab.getAttribute("usercontextid") || "0", 10),
+                     ROUND_HOSTS.test(host) ? "round" : "square");
   }
 
   // Subgroups whose label is a known section carry its picture; Groupflow
@@ -1343,7 +1354,7 @@
         } catch {}
 
         const r = {
-          version: "1.26.0",
+          version: "1.27.0",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The

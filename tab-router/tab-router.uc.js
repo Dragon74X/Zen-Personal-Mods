@@ -1390,7 +1390,7 @@
         } catch {}
 
         const r = {
-          version: "1.29.0",
+          version: "1.30.0",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The
@@ -1444,12 +1444,13 @@
       }
     };
     window.addEventListener("unload", cleanup, { once: true });
-    // Not registered with Sine's addUnloadListener() on purpose: that buys
-    // hot-reload on update at the cost of tearing down and re-injecting every
-    // script in every window, and one bad re-injection took four mods down.
-    // Sine's own toast asks for a restart after a JS update; that is enough.
-    // The DOM unload listener above is what releases these when the window
-    // closes.
+    // Registered with Sine, so an update re-injects this script live, no
+    // restart: Sine calls cleanup, then loads the new file into the same
+    // window, and the instance guard at the top retires whatever copy is
+    // still here. Safe now that start() is contained and the top level
+    // does nothing that can throw; the DOM unload listener above still
+    // releases everything when the window closes.
+    try { window.addUnloadListener?.(cleanup); } catch {}
     instance.retire = cleanup;
   }
 
@@ -1471,6 +1472,28 @@
   // been set, removes the disagreement for all three at once. Nothing that
   // was already chosen is touched.
   const MOD_ID = "zz-tab-router";
+
+  // Sine's reinstall of a mod from a multi-mod repository has been seen to
+  // move a sibling's folder INSIDE this one (zz-tab-router/tab-unloader),
+  // after which Sine cannot find that mod at all and warns about it on
+  // every settings build. Put such a folder back where Sine expects it.
+  async function repairSiblings() {
+    const dir = PathUtils.join(PathUtils.profileDir, "chrome", "sine-mods");
+    let kids = [];
+    try { kids = await IOUtils.getChildren(PathUtils.join(dir, MOD_ID)); } catch { return; }
+    for (const p of kids) {
+      const name = PathUtils.filename(p);
+      if (!/^(glassflow|groupflow|tab-router|tab-unloader|zen-turbo)$/.test(name)) continue;
+      const dest = PathUtils.join(dir, "zz-" + name);
+      try {
+        if (await IOUtils.exists(dest)) continue;
+        if (!(await IOUtils.exists(PathUtils.join(p, "theme.json")))) continue;
+        await IOUtils.move(p, dest);
+        console.warn(`[TabRouter] moved the stray mod folder "${name}" back to "zz-${name}"; restart Zen once to load it`);
+        note(`moved stray mod folder ${name} back into place`);
+      } catch (e) { note(`sibling repair failed for ${name}: ${e}`); }
+    }
+  }
   async function seedDefaults() {
     let declared;
     try {
@@ -1519,6 +1542,7 @@
   // Seed before starting where possible. start() reads prefs immediately, so
   // a mod that starts first would run one session on the wrong fallbacks.
   seedDefaults().catch(() => {});
+  repairSiblings().catch(() => {});
 
   const startOnce = () => {
     // A newer copy of this script may have claimed the window while this one

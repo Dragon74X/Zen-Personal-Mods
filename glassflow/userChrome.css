@@ -689,8 +689,11 @@
                        round var(--zzglass-sidebar-blur-radius-corner, 12px)) !important;
       opacity: var(--zzglass-sidebar-sample-opacity, 1) !important;
     }
-    /* Two frames crossfading under the one blur; the fade lasts as long
-       as the read interval, so one frame is always arriving. */
+    /* Two frames under the one blur. The new frame fades in ON TOP of the
+       old one, which stays at full strength beneath it until the fade is
+       over. A plain crossfade (old fading out while the new fades in)
+       showed the dark backing through both at the midpoint: a dip in
+       brightness on every frame change, a flicker on any bright page. */
     /* Each layer is placed by the script at exactly the margin its read
        managed, and sized 100%: the picture maps to the page one to one. */
     :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] > #zzglass-sample > div {
@@ -698,14 +701,15 @@
       background-size: 100% 100% !important;
       background-position: 0 0 !important;
       background-repeat: no-repeat !important;
-      opacity: 0;
-    }
-    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] > #zzglass-sample[zzglass-fade] > div {
-      transition: opacity var(--zzglass-sample-fade, 250ms) linear;
+      z-index: 0;
     }
     :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] > #zzglass-sample > div[front] {
-      opacity: 1;
+      z-index: 1;
     }
+    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] > #zzglass-sample[zzglass-fade] > div[front] {
+      animation: zzglass-sample-in var(--zzglass-sample-fade, 250ms) linear;
+    }
+    @keyframes zzglass-sample-in { from { opacity: 0; } }
   }
 }
 

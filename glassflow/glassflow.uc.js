@@ -169,15 +169,22 @@
   function clearSample() {
     try { sidebarEl()?.removeAttribute("zzglass-sample"); } catch {}
     for (const l of layers) { try { l.style.backgroundImage = ""; l.removeAttribute("front"); } catch {} }
+    try { sampleEl?.removeAttribute("zzglass-fade"); } catch {}
     for (let i = 0; i < 2; i++) if (urls[i]) { try { URL.revokeObjectURL(urls[i]); } catch {} urls[i] = null; }
     sampleSig = "";
   }
 
-  async function sampleOnce() {
+  // warm: a read taken while the sidebar is hidden, at the strip it last
+  // covered, so the first frame is already up when it slides in.
+  let ticks = 0, samplingSince = 0;
+  async function sampleOnce(warm = false) {
+    // A read that never came back (a tab torn down mid-snapshot) must not
+    // wedge every read after it.
+    if (sampling && Date.now() - samplingSince > 2000) sampling = false;
     if (sampling) return;
-    const rect = sampleRect();
-    if (!rect) { clearSample(); return; }
-    sampling = true;
+    const rect = sampleRect() ?? (warm ? lastSample?.rect : null);
+    if (!rect) { if (!warm) clearSample(); return; }
+    sampling = true; samplingSince = Date.now(); ticks++;
     lastSample = { rect, at: Date.now() };
     try {
       const wg = gBrowser.selectedBrowser.browsingContext?.currentWindowGlobal;
@@ -209,6 +216,8 @@
         if (urls[back]) { try { URL.revokeObjectURL(urls[back]); } catch {} }
         urls[back] = url;
         front = back;
+        // The first frame lands at once; only later frames crossfade.
+        if (urls[1 - front]) host.setAttribute("zzglass-fade", "");
         sidebarEl().setAttribute("zzglass-sample", "");
       }
       lastError = null;
@@ -220,7 +229,7 @@
   }
 
   function syncSampling() {
-    const on = (() => { try { return Services.prefs.getBoolPref(PREFIX + "sidebar.sample", false); } catch { return false; } })();
+    const on = sampleOn();
     const want = on && sidebarShown();
     if (want && !sampleTimer) {
       // A text field, so a string pref; read either type.
@@ -230,9 +239,11 @@
       sampleOnce();
       sampleTimer = setInterval(sampleOnce, ms);
     } else if (!want && sampleTimer) {
+      // The last frame stays up while hidden, so the next show is instant;
+      // the next read replaces it.
       clearInterval(sampleTimer); sampleTimer = null;
-      clearSample();
     }
+    if (!on) clearSample();
   }
 
   function startSampling() {
@@ -245,8 +256,11 @@
     sampleObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["zen-compact-mode"] });
     gBrowser.tabContainer.addEventListener("TabSelect", syncSampleNow);
     syncSampling();
+    if (sampleOn()) setTimeout(() => sampleOnce(true), 1500);    // warm the first frame
   }
-  const syncSampleNow = () => { sampleSig = ""; if (sampleTimer) sampleOnce(); };
+  const sampleOn = () => { try { return Services.prefs.getBoolPref(PREFIX + "sidebar.sample", false); } catch { return false; } };
+  // A new tab in front: re-read now if shown, or warm a frame for it if not.
+  const syncSampleNow = () => { sampleSig = ""; if (sampleOn()) sampleOnce(!sampleTimer); };
   function stopSampling() {
     try { sampleObserver?.disconnect(); } catch {}
     sampleObserver = null;
@@ -265,7 +279,7 @@
     // and what strip of the page it last read; .now() forces one read.
     window.Glassflow = {
       sample: {
-        status: () => ({ active: !!sampleTimer, shown: sidebarShown(), rect: sampleRect(), last: lastSample, lastError, opaquePage,
+        status: () => ({ active: !!sampleTimer, shown: sidebarShown(), rect: sampleRect(), last: lastSample, lastError, opaquePage, ticks, busy: sampling,
                          painted: !!(sampleEl?.isConnected && layers.some(l => l.style.backgroundImage)),
                          marked: !!sidebarEl()?.hasAttribute("zzglass-sample") }),
         now: () => { sampleSig = ""; return sampleOnce(); },

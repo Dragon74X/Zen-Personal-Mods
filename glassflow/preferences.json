@@ -1987,6 +1987,86 @@
   },
   {
     "type": "checkbox",
+    "property": "zzglass.tabs.load-fill",
+    "label": "Loading fill on the tab *Paints the page's load progress on the tab itself, from Firefox's own per-tab progress: a fill that grows across the tab, or a thin bar along its bottom. Sweeps when the page gives no total. Fades out on finish.*",
+    "defaultValue": true
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.tabs.load-style",
+    "label": "Loading fill style",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Gradient fill across the tab",
+        "value": 0
+      },
+      {
+        "label": "Thin bar along the bottom",
+        "value": 1
+      }
+    ],
+    "conditions": [
+      {
+        "if": {
+          "property": "zzglass.tabs.load-fill",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.tabs.load-strength",
+    "label": "Loading fill strength *Opacity of the fill colour, as a percentage.*",
+    "defaultValue": "40%",
+    "placeholder": "40%",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzglass.tabs.load-fill",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.tabs.load-color",
+    "label": "Loading fill colour *Empty uses the tab's accent colour; or any CSS colour.*",
+    "defaultValue": "",
+    "placeholder": "accent",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzglass.tabs.load-fill",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.tabs.load-height",
+    "label": "Loading bar height *For the thin bar.*",
+    "defaultValue": "2px",
+    "placeholder": "2px",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzglass.tabs.load-style",
+          "value": 1
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "checkbox",
     "property": "zen.theme.hide-tab-throbber",
     "label": "Keep the favicon while a page loads *Zen swaps the favicon for a spinner while a tab loads, which reads as the icon blinking out and back. This is Zen's own switch to keep the icon in place; Arc's loading animations hide the spinner the same way.*",
     "defaultValue": true

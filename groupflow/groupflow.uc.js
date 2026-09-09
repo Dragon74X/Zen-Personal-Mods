@@ -21,6 +21,7 @@
   const PREFIX = "zzgroup.";
   const bool = (k, d) => { try { return Services.prefs.getBoolPref(PREFIX + k, d); } catch { return d; } };
   const str  = (k, d) => { try { return Services.prefs.getStringPref(PREFIX + k, d); } catch { return d; } };
+  const num  = (k, d) => { try { return Services.prefs.getIntPref(PREFIX + k); } catch { return d; } };
   // ---- pref variables at startup -----------------------------------------
   // Sine injects string and number prefs as CSS variables, but not until
   // something (the settings page, a mod reload) triggers it -- measured on a
@@ -68,7 +69,7 @@
     observe(_s, _t, data) {
       if (!data || !data.startsWith(PREFIX)) return;
       iconRules = null;                    // reparsed on the next refresh
-      if (data === PREFIX + "icon-rules") schedule();
+      if (["icon-rules", "section-icons", "icon-shape"].some(k => data === PREFIX + k)) schedule();
       const name = "--" + data.replace(/\./g, "-");
       const value = readPrefValue(data);
       try {
@@ -157,12 +158,24 @@
   // Dominant base host among the group's DIRECT tabs; subgroups compute
   // their own, so "Youtube > Creator" shows youtube's icon on the parent
   // and (usually the same) icon on the child from its own members.
+  // Shape of the icon slot. Auto draws an avatar round, as its page does,
+  // and everything else as a rounded square; the other settings apply to
+  // every icon alike. The CSS selects on attributes since it cannot read
+  // a custom property.
+  const SHAPES = ["", "circle", "rounded", "squircle", "square"];
+  function setShape(g, picture) {
+    const mode = num("icon-shape", 0);
+    const shape = SHAPES[mode] ||
+      (picture && g.getAttribute("data-zzrouter-icon-shape") !== "square" ? "circle" : "rounded");
+    if (g.getAttribute("zzgf-shape") !== shape) g.setAttribute("zzgf-shape", shape);
+    if (g.hasAttribute("zzgf-picture") !== !!picture) g.toggleAttribute("zzgf-picture", !!picture);
+  }
+
   function refreshGroup(g) {
-    const stamped = stampedIcon(g);
-    // An avatar is drawn round, like the channel page draws it; the CSS
-    // selects on this attribute since it cannot read a custom property.
-    g.toggleAttribute("zzgf-round", !!stamped && !ruledIcon(g) && g.getAttribute("data-zzrouter-icon-shape") !== "square");
-    const ruled = ruledIcon(g) ?? stamped;
+    const rule = ruledIcon(g);
+    const picture = !rule && bool("section-icons", true) ? stampedIcon(g) : null;
+    setShape(g, picture);
+    const ruled = rule ?? picture;
     if (ruled) { setIcon(g, `url("${ruled}")`); return; }
     const counts = new Map();
     for (const el of g.groupContainer?.children ?? []) {
@@ -259,7 +272,7 @@
           out.push({
             group: (g.label ?? "").trim(),
             icon: (g.style.getPropertyValue("--zzgf-icon") || "(none)").slice(0, 60),
-            from: ruledIcon(g) ? "icon rule" : stampedIcon(g) ? "Tab Router section icon" : "favicon",
+            from: ruledIcon(g) ? "icon rule" : (bool("section-icons", true) && stampedIcon(g)) ? "Tab Router section icon" : "favicon",
           });
         }
         console.log(out);

@@ -978,14 +978,26 @@
       border-radius: 4px;
     }
   }
-  /* Avatars (groupflow.uc.js marks a group whose icon is one): round,
-     filling the slot edge to edge, no plate showing at the corners. After
-     the plate rules on purpose, so it wins at equal specificity. */
-  #navigator-toolbox tab-group[zzgf-round]:not([split-view-group]) .tab-group-label::before {
+  /* Pictures (groupflow.uc.js marks a group whose icon is one) fill the
+     slot edge to edge, no plate showing at the corners. */
+  #navigator-toolbox tab-group[zzgf-picture]:not([split-view-group]) .tab-group-label::before {
     padding: 0;
-    border-radius: 50%;
     background-origin: border-box;
     background-color: transparent;
+  }
+  /* Shape, chosen in settings or automatic per icon. After the plate
+     rules on purpose, so these win at equal specificity. */
+  #navigator-toolbox tab-group[zzgf-shape="circle"]:not([split-view-group]) .tab-group-label::before {
+    border-radius: 50%;
+  }
+  #navigator-toolbox tab-group[zzgf-shape="rounded"]:not([split-view-group]) .tab-group-label::before {
+    border-radius: 4px;
+  }
+  #navigator-toolbox tab-group[zzgf-shape="squircle"]:not([split-view-group]) .tab-group-label::before {
+    border-radius: 38%;
+  }
+  #navigator-toolbox tab-group[zzgf-shape="square"]:not([split-view-group]) .tab-group-label::before {
+    border-radius: 0;
   }
 }
 

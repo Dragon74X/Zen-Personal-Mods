@@ -60,6 +60,15 @@ window for the life of the session.
 
 Turn off **Favicon as group icon** and the script does nothing.
 
+### Pictures from Tab Router
+
+Tab Router can hand a subgroup its own picture: a YouTube channel avatar, a
+Nexus game cover, a GitHub avatar. **Pictures from Tab Router** draws them;
+off, those groups fall back to the favicon. **Icon shape** applies to every
+icon: auto draws avatars round and everything else as a rounded square, or
+pick circle, rounded square, squircle or square for all of them. **Icon
+size** sets the slot.
+
 ### Naming an icon yourself
 
 The dominant-domain rule is right for *Nexusmods* and useless below it: every

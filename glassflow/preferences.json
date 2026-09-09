@@ -2188,17 +2188,9 @@
   },
   {
     "type": "separator",
-    "label": "**Floating panel (compact mode)**",
-    "margin": "14px 0 6px 0",
-    "size": "14px",
-    "conditions": [
-      {
-        "if": {
-          "property": "zzglass.sidebar.enabled",
-          "value": true
-        }
-      }
-    ]
+    "label": "Floating panel (compact mode)",
+    "margin": "18px 0 8px 0",
+    "size": "15px"
   },
   {
     "type": "string",

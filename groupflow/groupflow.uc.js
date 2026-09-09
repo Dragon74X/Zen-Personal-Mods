@@ -8,30 +8,19 @@
   "use strict";
 
   // ---- single instance ---------------------------------------------------
-  // Sine can inject this script into a window that already has a live copy.
-  // Its two load paths in manager.sys.mjs do not agree: the rebuild path
-  // calls triggerUnloadListener() first and leaves the window alone if the
-  // script is still loaded, but the window-open path (observe -> "load")
-  // calls loadSubScriptWithOptions directly, with no handshake and no
-  // marker registered. A rebuild landing on a window opened moments earlier
-  // -- every settings change triggers one -- therefore installs a SECOND
-  // copy, and nothing here used to stop it. Two copies means two of every
-  // listener, observer and timer acting on the same window, which reads as
-  // the mod working intermittently rather than as an obvious break.
-  //
-  // So: retire whatever instance is already on this window, then claim it.
-  // instance.retire is the pending startup observer until start() replaces it
-  // with the real cleanup, so a copy is releasable at either stage.
+  // Sine has two injection paths and only one of them checks whether this
+  // script is already in the window, so a rebuild can install a second copy.
+  // Retire whatever is here, then claim the window. instance.retire is the
+  // pending startup observer until start() swaps in the real cleanup.
   const INSTANCE_KEY = "__zzgroupInstance";
   const previous = window[INSTANCE_KEY];
   try { previous?.retire?.(); } catch {}
   const instance = { generation: (previous?.generation | 0) + 1, retire: () => {} };
   window[INSTANCE_KEY] = instance;
 
-  const bool = (k, d) => { try { return Services.prefs.getBoolPref("zzgroup." + k, d); } catch { return d; } };
-  const str  = (k, d) => { try { return Services.prefs.getStringPref("zzgroup." + k, d); } catch { return d; } };
-
   const PREFIX = "zzgroup.";
+  const bool = (k, d) => { try { return Services.prefs.getBoolPref(PREFIX + k, d); } catch { return d; } };
+  const str  = (k, d) => { try { return Services.prefs.getStringPref(PREFIX + k, d); } catch { return d; } };
   // ---- pref variables at startup -----------------------------------------
   // Sine injects string and number prefs as CSS variables, but not until
   // something (the settings page, a mod reload) triggers it -- measured on a
@@ -74,29 +63,6 @@
     return null;
   }
 
-  // Sine only stores a dropdown as a number when the pref declares
-  // value: "number"; without it, convertValueType() hands back the raw string
-  // from the menulist. The corner dropdowns shipped without that key, so the
-  // moment one was CHANGED its pref flipped from int to string -- and
-  // @media (-moz-pref("name", 1)) never matches a string, so every corner
-  // setting silently stopped applying while still reading correctly in the
-  // settings panel. The declarations are fixed; these values were already
-  // written, and a pref keeps its type until it is cleared.
-  const NUMERIC_PREFS = ["corner.mode", "corner.radius-source", "corner.radius-mode"];
-
-  function repairNumericPrefs() {
-    const P = Services.prefs;
-    for (const key of NUMERIC_PREFS) {
-      const full = PREFIX + key;
-      try {
-        if (P.getPrefType(full) !== P.PREF_STRING) continue;
-        const raw = P.getStringPref(full, "").trim();
-        if (!/^-?\d+$/.test(raw)) continue;   // not a dropdown index; leave it
-        P.clearUserPref(full);                // type is fixed until cleared
-        P.setIntPref(full, parseInt(raw, 10));
-      } catch {}
-    }
-  }
 
   const prefVarObserver = {
     observe(_s, _t, data) {
@@ -230,8 +196,30 @@
     }
   }
 
+  // A favicon change or a session restore names one tab; only that tab's
+  // group chain can have changed. Group lifecycle events name a group whose
+  // members moved, so its old and new parents are both in play -- those
+  // refresh everything. Anything without a usable target also refreshes
+  // everything, so the fallback is always the full pass.
   let timer = null;
-  const schedule = () => { clearTimeout(timer); timer = setTimeout(refreshAll, 500); };
+  const dirty = new Set();
+  let everything = false;
+  const schedule = (event) => {
+    const t = event?.target;
+    if (t?.tagName === "tab" && t.group) {
+      for (let g = t.group; g?.tagName === "tab-group"; g = g.parentElement?.closest("tab-group") ?? null) dirty.add(g);
+    } else {
+      everything = true;
+    }
+    clearTimeout(timer);
+    timer = setTimeout(refreshDirty, 500);
+  };
+  function refreshDirty() {
+    if (everything) { everything = false; dirty.clear(); refreshAll(); return; }
+    if (!bool("favicons", true)) { dirty.clear(); return; }
+    for (const g of dirty) if (g.isConnected && !g.isZenFolder) refreshGroup(g);
+    dirty.clear();
+  }
 
   // ZenTabIconChanged is patched into tabbrowser.setIcon(), so it fires for
   // EVERY tab whose favicon is set, and it bubbles -- which is precisely the
@@ -276,27 +264,15 @@
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}
       clearTimeout(timer);
       clearTimeout(boot);
+      dirty.clear();
     };
     window.addEventListener("unload", cleanup, { once: true });
-    // Deliberately NOT registered with Sine's addUnloadListener().
-    //
-    // Handing Sine this callback buys hot-reload on update: triggerUnloadListener()
-    // runs it, reports the script unloaded, and rebuildMods() injects the new
-    // file. Without it Sine finds the null marker it registered itself, reports
-    // "still loaded", and leaves the running mod alone -- an update takes effect
-    // on the next restart, which is exactly what Sine's own toast tells you to
-    // do ("A mod utilizing JS has been updated. For it to work properly,
-    // restart your browser").
-    //
-    // The cost was not worth it. Registering turned every mod update into a
-    // teardown-and-reinject of every script in every window, and each of those
-    // re-runs the startup gate below. One of them landed wrong and Tab Router,
-    // Tab Unloader and Zen Turbo were all left injected but never started, with
-    // nothing logged. The gate is now backstopped, but re-injecting on a
-    // schedule to gain something Sine does not even promise is a bad trade.
-    //
-    // The DOM unload listener above is the one that matters: it fires when the
-    // window closes, which is when these registrations actually need releasing.
+    // Not registered with Sine's addUnloadListener() on purpose: that buys
+    // hot-reload on update at the cost of tearing down and re-injecting every
+    // script in every window, and one bad re-injection took four mods down.
+    // Sine's own toast asks for a restart after a JS update; that is enough.
+    // The DOM unload listener above is what releases these when the window
+    // closes.
     instance.retire = cleanup;
   }
 
@@ -350,7 +326,6 @@
     return wrote > 0;
   }
 
-  try { repairNumericPrefs(); } catch {}
   try { injectPrefVars(); } catch {}
   // Seeding is a file read, so it cannot happen before first paint like the
   // line above. Re-inject after it, and only if it actually wrote something,
@@ -358,29 +333,14 @@
   seedDefaults().then((wrote) => { if (wrote) injectPrefVars(); }).catch(() => {});
 
 
-  // ---- retired feature cleanup --------------------------------------------
-  // Automatic image lookup is gone, and its cache was built out of browsing: site-and-subject pairs matched out of history.
-  // Leaving that sitting in prefs.js after the feature that justified it has
-  // been removed is not acceptable, so it is cleared once. Harmless when the
-  // pref was never written.
-  try { Services.prefs.clearUserPref("zzgroup.icon-cache"); } catch {}
 
   // ---- startup ------------------------------------------------------------
-  // browser-delayed-startup-finished is a ONE-SHOT notification, and waiting
-  // on it alone is not safe. Sine does not always inject through its
-  // window-open path: a rebuildMods() injects into whatever windows already
-  // exist, so this script can land in a window where gBrowserInit is not
-  // reachable yet AND the notification has already fired. The observer then
-  // waits for an event that will never come again, and the mod sits loaded,
-  // parsed, and never started for the life of the window -- no error, no log
-  // line, nothing to notice.
-  //
-  // That is not hypothetical. It is how Tab Router, Tab Unloader and Zen Turbo
-  // all ended up injected with their globals never defined, while Glassflow --
-  // whose pref-variable injection runs outside start() -- looked fine.
-  //
-  // So the observer is kept for the fast path and a bounded poll backs it up.
-  // Whichever fires first wins; startOnce() makes the other a no-op.
+  // browser-delayed-startup-finished fires once. A script injected after it
+  // -- Sine's rebuild path does that -- would wait forever, so the observer
+  // is backed by a bounded poll and startOnce() makes whichever loses a
+  // no-op. start() is wrapped: a throw here escapes into Sine's injection
+  // loop, which does not catch, and every mod queued after this one is never
+  // injected.
   let started = false;
   let waitTimer = null;
   let obs = null;
@@ -399,14 +359,6 @@
     if (started || window[INSTANCE_KEY] !== instance) return;
     started = true;
     stopWaiting();
-    // Contained on purpose. Sine's window-open loop calls
-    // loadSubScriptWithOptions for each mod in turn and does NOT wrap it, so a
-    // throw that escapes this script propagates into that loop and every mod
-    // queued after it is silently never injected. That is not hypothetical:
-    // one missing function in Glassflow -- the first mod loaded -- left Tab
-    // Router, Tab Unloader and Zen Turbo uninjected, which read as three
-    // unrelated mods breaking at once. A broken mod should break only itself,
-    // and should say so rather than failing quietly.
     try { start(); } catch (e) {
       console.error("[Groupflow] failed to start:", e);
     }

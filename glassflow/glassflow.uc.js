@@ -8,20 +8,10 @@
   "use strict";
 
   // ---- single instance ---------------------------------------------------
-  // Sine can inject this script into a window that already has a live copy.
-  // Its two load paths in manager.sys.mjs do not agree: the rebuild path
-  // calls triggerUnloadListener() first and leaves the window alone if the
-  // script is still loaded, but the window-open path (observe -> "load")
-  // calls loadSubScriptWithOptions directly, with no handshake and no
-  // marker registered. A rebuild landing on a window opened moments earlier
-  // -- every settings change triggers one -- therefore installs a SECOND
-  // copy, and nothing here used to stop it. Two copies means two of every
-  // listener, observer and timer acting on the same window, which reads as
-  // the mod working intermittently rather than as an obvious break.
-  //
-  // So: retire whatever instance is already on this window, then claim it.
-  // instance.retire is the pending startup observer until start() replaces it
-  // with the real cleanup, so a copy is releasable at either stage.
+  // Sine has two injection paths and only one of them checks whether this
+  // script is already in the window, so a rebuild can install a second copy.
+  // Retire whatever is here, then claim the window. instance.retire is the
+  // pending startup observer until start() swaps in the real cleanup.
   const INSTANCE_KEY = "__zzglassInstance";
   const previous = window[INSTANCE_KEY];
   try { previous?.retire?.(); } catch {}
@@ -30,13 +20,6 @@
 
   const PREFIX = "zzglass.";
 
-  // An earlier version turned squircles off by writing
-  // layout.css.corner-shape.enabled. That pref gates corner-shape at parse
-  // time, so it only took effect after a restart -- the switch now does the
-  // same job live from CSS instead. These two are kept solely to give back a
-  // profile the old code changed; see reclaimPlatformPref() below.
-  const CS = "layout.css.corner-shape.enabled";
-  const CS_SAVED = PREFIX + "corner.platform-saved";
 
   // ---- pref variables at startup -----------------------------------------
   // Sine injects string and number prefs as CSS variables, but not until
@@ -70,9 +53,6 @@
   // skipped entirely; they are read with -moz-pref(), never as variables.
   function readPrefValue(full) {
     const P = Services.prefs;
-    // Bookkeeping, not a style value: this holds JSON and has no business
-    // being written into a CSS custom property.
-    if (full === CS_SAVED) return null;
     let type;
     try { type = P.getPrefType(full); } catch { return null; }
     try {
@@ -85,60 +65,6 @@
     return null;                        // booleans and unknown types
   }
 
-  // ---- browser-wide squircle switch --------------------------------------
-  // Zen 1.22b draws every corner in the chrome with corner-shape:
-  // superellipse(), gated behind the platform pref below. That is a browser
-  // pref rather than CSS, so the stylesheet cannot reach it -- but it is an
-  // appearance control, so it belongs here with the rest of Corner shape and
-  // not in a performance mod.
-  //
-  // Snapshotted before it is touched and restored EXACTLY when switched back
-  // off, including "no user value at all". If the pref no longer matches what
-  // this mod set, the user changed it by hand and it is left alone.
-  // One window owns this; the pref is global and every window runs this script.
-  const isMainAppWindow = () =>
-    Services.wm.getMostRecentWindow("navigator:browser") === window;
-
-  // Sine only stores a dropdown as a number when the pref declares
-  // value: "number"; without it, convertValueType() hands back the raw string
-  // from the menulist. The corner dropdowns shipped without that key, so the
-  // moment one was CHANGED its pref flipped from int to string -- and
-  // @media (-moz-pref("name", 1)) never matches a string, so every corner
-  // setting silently stopped applying while still reading correctly in the
-  // settings panel. The declarations are fixed; these values were already
-  // written, and a pref keeps its type until it is cleared.
-  const NUMERIC_PREFS = ["corner.mode", "corner.radius-source", "corner.radius-mode", "corner.tabs", "corner.essentials", "corner.buttons", "corner.sidebar"];
-
-  function repairNumericPrefs() {
-    const P = Services.prefs;
-    for (const key of NUMERIC_PREFS) {
-      const full = PREFIX + key;
-      try {
-        if (P.getPrefType(full) !== P.PREF_STRING) continue;
-        const raw = P.getStringPref(full, "").trim();
-        if (!/^-?\d+$/.test(raw)) continue;   // not a dropdown index; leave it
-        P.clearUserPref(full);                // type is fixed until cleared
-        P.setIntPref(full, parseInt(raw, 10));
-      } catch {}
-    }
-  }
-
-  // One-shot cleanup for profiles touched by the old pref-writing switch.
-  // Without it, anyone who used that switch keeps corner-shape disabled at the
-  // platform level for good, with an orphaned snapshot and nothing left in the
-  // mod that would ever put it back.
-  function reclaimPlatformPref() {
-    if (!isMainAppWindow()) return;
-    const P = Services.prefs;
-    let saved = null;
-    try { saved = JSON.parse(P.getStringPref(CS_SAVED, "null")); } catch {}
-    if (!saved) return;
-    try {
-      if (saved.had) P.setBoolPref(CS, saved.v);
-      else P.clearUserPref(CS);
-    } catch {}
-    try { P.clearUserPref(CS_SAVED); } catch {}
-  }
 
   // ---- instant UI animations ---------------------------------------------
   // Zen animates its interface through its vendored Motion library, which
@@ -174,32 +100,18 @@
 
 
   function start() {
-    reclaimPlatformPref();
     syncInstantUI();
     Services.prefs.addObserver(PREFIX, prefVarObserver);
     const cleanup = () => {
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}
     };
     window.addEventListener("unload", cleanup, { once: true });
-    // Deliberately NOT registered with Sine's addUnloadListener().
-    //
-    // Handing Sine this callback buys hot-reload on update: triggerUnloadListener()
-    // runs it, reports the script unloaded, and rebuildMods() injects the new
-    // file. Without it Sine finds the null marker it registered itself, reports
-    // "still loaded", and leaves the running mod alone -- an update takes effect
-    // on the next restart, which is exactly what Sine's own toast tells you to
-    // do ("A mod utilizing JS has been updated. For it to work properly,
-    // restart your browser").
-    //
-    // The cost was not worth it. Registering turned every mod update into a
-    // teardown-and-reinject of every script in every window, and each of those
-    // re-runs the startup gate below. One of them landed wrong and Tab Router,
-    // Tab Unloader and Zen Turbo were all left injected but never started, with
-    // nothing logged. The gate is now backstopped, but re-injecting on a
-    // schedule to gain something Sine does not even promise is a bad trade.
-    //
-    // The DOM unload listener above is the one that matters: it fires when the
-    // window closes, which is when these registrations actually need releasing.
+    // Not registered with Sine's addUnloadListener() on purpose: that buys
+    // hot-reload on update at the cost of tearing down and re-injecting every
+    // script in every window, and one bad re-injection took four mods down.
+    // Sine's own toast asks for a restart after a JS update; that is enough.
+    // The DOM unload listener above is what releases these when the window
+    // closes.
     instance.retire = cleanup;
   }
 
@@ -253,7 +165,6 @@
   // the CSS fallbacks (10px roundness, the default tints) and then snapping to
   // the configured values. Doing it here is what actually makes the startup comment
   // above true.
-  try { repairNumericPrefs(); } catch {}
   try { injectPrefVars(); } catch {}
   // Seeding is a file read, so it cannot happen before first paint like the
   // line above. Re-inject after it, and only if it actually wrote something,
@@ -262,21 +173,12 @@
 
 
   // ---- startup ------------------------------------------------------------
-  // browser-delayed-startup-finished is a ONE-SHOT notification, and waiting
-  // on it alone is not safe. Sine does not always inject through its
-  // window-open path: a rebuildMods() injects into whatever windows already
-  // exist, so this script can land in a window where gBrowserInit is not
-  // reachable yet AND the notification has already fired. The observer then
-  // waits for an event that will never come again, and the mod sits loaded,
-  // parsed, and never started for the life of the window -- no error, no log
-  // line, nothing to notice.
-  //
-  // That is not hypothetical. It is how Tab Router, Tab Unloader and Zen Turbo
-  // all ended up injected with their globals never defined, while Glassflow --
-  // whose pref-variable injection runs outside start() -- looked fine.
-  //
-  // So the observer is kept for the fast path and a bounded poll backs it up.
-  // Whichever fires first wins; startOnce() makes the other a no-op.
+  // browser-delayed-startup-finished fires once. A script injected after it
+  // -- Sine's rebuild path does that -- would wait forever, so the observer
+  // is backed by a bounded poll and startOnce() makes whichever loses a
+  // no-op. start() is wrapped: a throw here escapes into Sine's injection
+  // loop, which does not catch, and every mod queued after this one is never
+  // injected.
   let started = false;
   let waitTimer = null;
   let obs = null;
@@ -295,14 +197,6 @@
     if (started || window[INSTANCE_KEY] !== instance) return;
     started = true;
     stopWaiting();
-    // Contained on purpose. Sine's window-open loop calls
-    // loadSubScriptWithOptions for each mod in turn and does NOT wrap it, so a
-    // throw that escapes this script propagates into that loop and every mod
-    // queued after it is silently never injected. That is not hypothetical:
-    // one missing function in Glassflow -- the first mod loaded -- left Tab
-    // Router, Tab Unloader and Zen Turbo uninjected, which read as three
-    // unrelated mods breaking at once. A broken mod should break only itself,
-    // and should say so rather than failing quietly.
     try { start(); } catch (e) {
       console.error("[Glassflow] failed to start:", e);
     }

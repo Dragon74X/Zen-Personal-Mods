@@ -191,10 +191,18 @@
     try {
       const wg = gBrowser.selectedBrowser.browsingContext?.currentWindowGlobal;
       if (!wg?.drawSnapshot) return;
-      const bmp = await wg.drawSnapshot(rect, SAMPLE_SCALE, "transparent");
-      const c = new OffscreenCanvas(bmp.width, bmp.height);
+      // A rect given to drawSnapshot is taken relative to the PAGE, not the
+      // visible viewport, so it always rendered the top of the document
+      // whatever the scroll. A null rect is the viewport as seen; the strip
+      // is cropped out of that. At a tenth scale the whole viewport is a
+      // few hundred pixels a side.
+      const bmp = await wg.drawSnapshot(null, SAMPLE_SCALE, "transparent");
+      const sx = Math.max(0, Math.round(rect.x * SAMPLE_SCALE)), sy = Math.max(0, Math.round(rect.y * SAMPLE_SCALE));
+      const sw = Math.max(1, Math.min(bmp.width - sx, Math.round(rect.width * SAMPLE_SCALE)));
+      const sh = Math.max(1, Math.min(bmp.height - sy, Math.round(rect.height * SAMPLE_SCALE)));
+      const c = new OffscreenCanvas(sw, sh);
       const ctx = c.getContext("2d");
-      ctx.drawImage(bmp, 0, 0);
+      ctx.drawImage(bmp, sx, sy, sw, sh, 0, 0, sw, sh);
       bmp.close();
       const px = ctx.getImageData(0, 0, c.width, c.height).data;
       // An opaque page is one the real backdrop blur can see, and that blur

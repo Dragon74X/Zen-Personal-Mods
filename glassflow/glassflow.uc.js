@@ -142,8 +142,25 @@
     return new DOMRect((left - b.left) / zoom, (top - b.top) / zoom, (right - left) / zoom, (bottom - top) / zoom);
   }
 
+  // The picture lives on an element of our own, first child of the panel,
+  // and an attribute on the panel says one is up. Zen animates the panel
+  // and rewrites its style; neither touches a child we own or an attribute.
+  let sampleEl = null;
+  let lastError = null;
+  function sampleHost() {
+    const tb = sidebarEl();
+    if (!tb) return null;
+    if (!sampleEl || !sampleEl.isConnected) {
+      sampleEl = document.getElementById("zzglass-sample") ||
+        document.createElementNS("http://www.w3.org/1999/xhtml", "div");
+      sampleEl.id = "zzglass-sample";
+      if (sampleEl.parentNode !== tb) tb.insertBefore(sampleEl, tb.firstChild);
+    }
+    return sampleEl;
+  }
   function clearSample() {
-    try { sidebarEl()?.style.removeProperty("--zzglass-sidebar-sample"); } catch {}
+    try { sidebarEl()?.removeAttribute("zzglass-sample"); } catch {}
+    try { if (sampleEl) sampleEl.style.backgroundImage = ""; } catch {}
     if (sampleUrl) { try { URL.revokeObjectURL(sampleUrl); } catch {} sampleUrl = null; }
     sampleSig = "";
   }
@@ -169,11 +186,17 @@
       if (sig === sampleSig) return;
       sampleSig = sig;
       const url = URL.createObjectURL(await c.convertToBlob({ type: "image/png" }));
-      const sb = sidebarEl();
-      if (sb) sb.style.setProperty("--zzglass-sidebar-sample", `url("${url}")`);
+      const host = sampleHost();
+      if (host) {
+        host.style.backgroundImage = `url("${url}")`;
+        sidebarEl().setAttribute("zzglass-sample", "");
+      }
       if (sampleUrl) { try { URL.revokeObjectURL(sampleUrl); } catch {} }
       sampleUrl = url;
-    } catch {
+      lastError = null;
+    } catch (e) {
+      lastError = String(e);
+      console.warn("[Glassflow] sample failed:", e);
       clearSample();
     } finally { sampling = false; }
   }
@@ -211,6 +234,8 @@
     try { gBrowser.tabContainer.removeEventListener("TabSelect", syncSampleNow); } catch {}
     if (sampleTimer) { clearInterval(sampleTimer); sampleTimer = null; }
     clearSample();
+    try { sampleEl?.remove(); } catch {}
+    sampleEl = null;
   }
 
   function start() {
@@ -221,7 +246,9 @@
     // and what strip of the page it last read; .now() forces one read.
     window.Glassflow = {
       sample: {
-        status: () => ({ active: !!sampleTimer, shown: sidebarShown(), rect: sampleRect(), last: lastSample }),
+        status: () => ({ active: !!sampleTimer, shown: sidebarShown(), rect: sampleRect(), last: lastSample, lastError,
+                         painted: !!(sampleEl?.isConnected && sampleEl.style.backgroundImage),
+                         marked: !!sidebarEl()?.hasAttribute("zzglass-sample") }),
         now: () => { sampleSig = ""; return sampleOnce(); },
       },
     };

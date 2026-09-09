@@ -621,34 +621,46 @@
   }
 
   /* Sampled glass: glassflow.uc.js snaps the page strip under the panel
-     and hands it over as --zzglass-sidebar-sample on #titlebar. It is
-     painted on #titlebar::before, beneath the panel, which turns
-     see-through while a sample is up; the backdrop pass, which cannot
-     see the page anyway, is dropped at the same time. */
+     and paints it on #zzglass-sample, an element of its own that it puts
+     first inside the panel, and marks the panel with zzglass-sample
+     while a picture is up. The panel goes see-through over it and the
+     backdrop pass, which cannot see the page anyway, is dropped. The
+     picture reaches past the panel by twice the blur so the edges do not
+     fade, and is clipped back to the panel's own rounded box afterwards
+     -- clip-path applies after filter -- so nothing else is clipped or
+     moved. isolation keeps the negative z-index inside the panel. */
   @media (-moz-pref("zzglass.sidebar.sample")) {
-    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[style*="--zzglass-sidebar-sample"] {
-      overflow: hidden;
-      border-radius: var(--zzglass-sidebar-blur-radius-corner, 12px) !important;
+    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] {
+      isolation: isolate;
     }
-    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[style*="--zzglass-sidebar-sample"] #zen-toolbar-background {
+    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] #zen-toolbar-background {
       --zzg-pbase: transparent;          /* the sample is the base now */
       backdrop-filter: none !important;
       box-shadow: none !important;
     }
-    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[style*="--zzglass-sidebar-sample"] #zen-toolbar-background::before,
-    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[style*="--zzglass-sidebar-sample"] #zen-toolbar-background::after {
+    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] #zen-toolbar-background::before,
+    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] #zen-toolbar-background::after {
       opacity: 0 !important;
     }
-    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[style*="--zzglass-sidebar-sample"]::before {
-      content: "" !important;
+    #titlebar > #zzglass-sample {
+      display: none;
+    }
+    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] > #zzglass-sample {
+      display: block !important;
       position: absolute !important;
       inset: calc(-2 * var(--zzglass-sidebar-sample-blur, 18px)) !important;
       z-index: -2 !important;
       pointer-events: none !important;
-      background: var(--zzglass-sidebar-sample) center / cover no-repeat !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      background-size: cover !important;
+      background-position: center !important;
+      background-repeat: no-repeat !important;
       filter: blur(var(--zzglass-sidebar-sample-blur, 18px))
               saturate(var(--zzglass-sidebar-blur-saturate, 1))
               contrast(var(--zzglass-sidebar-blur-contrast, 1)) !important;
+      clip-path: inset(calc(2 * var(--zzglass-sidebar-sample-blur, 18px))
+                       round var(--zzglass-sidebar-blur-radius-corner, 12px)) !important;
       opacity: var(--zzglass-sidebar-sample-opacity, 1) !important;
     }
   }

@@ -137,6 +137,7 @@ down and let this own it.
 | Sidebar gradient direction | Top to bottom | |
 | Glass sheen / glass rim | off / off | |
 | Panel opacity | `70%` | dark and defined; `0%` is see-through |
+| Panel colour | Neutral | Arc's plain dark glass; or the workspace colour, or a custom colour, mixed in at the accent tint |
 | Panel gradient direction / end / end tint / spread | Top to bottom / Fade to the base / `8%` / `100%` | the same gradient model as a tab |
 | Glass sheen on the panel | off | |
 | Workspace gradient through the panel | `0` | `1` lets Zen's gradient through, lighter and hazier |

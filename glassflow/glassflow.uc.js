@@ -191,10 +191,18 @@
     try {
       const wg = gBrowser.selectedBrowser.browsingContext?.currentWindowGlobal;
       if (!wg?.drawSnapshot) return;
-      const bmp = await wg.drawSnapshot(rect, SAMPLE_SCALE, "transparent");
-      const c = new OffscreenCanvas(bmp.width, bmp.height);
+      // A rect given to drawSnapshot is taken relative to the PAGE, not the
+      // visible viewport, so it always rendered the top of the document
+      // whatever the scroll. A null rect is the viewport as seen; the strip
+      // is cropped out of that. At a tenth scale the whole viewport is a
+      // few hundred pixels a side.
+      const bmp = await wg.drawSnapshot(null, SAMPLE_SCALE, "transparent");
+      const sx = Math.max(0, Math.round(rect.x * SAMPLE_SCALE)), sy = Math.max(0, Math.round(rect.y * SAMPLE_SCALE));
+      const sw = Math.max(1, Math.min(bmp.width - sx, Math.round(rect.width * SAMPLE_SCALE)));
+      const sh = Math.max(1, Math.min(bmp.height - sy, Math.round(rect.height * SAMPLE_SCALE)));
+      const c = new OffscreenCanvas(sw, sh);
       const ctx = c.getContext("2d");
-      ctx.drawImage(bmp, 0, 0);
+      ctx.drawImage(bmp, sx, sy, sw, sh, 0, 0, sw, sh);
       bmp.close();
       const px = ctx.getImageData(0, 0, c.width, c.height).data;
       // An opaque page is one the real backdrop blur can see, and that blur
@@ -335,12 +343,13 @@
       try { delete window.Glassflow; } catch {}
     };
     window.addEventListener("unload", cleanup, { once: true });
-    // Not registered with Sine's addUnloadListener() on purpose: that buys
-    // hot-reload on update at the cost of tearing down and re-injecting every
-    // script in every window, and one bad re-injection took four mods down.
-    // Sine's own toast asks for a restart after a JS update; that is enough.
-    // The DOM unload listener above is what releases these when the window
-    // closes.
+    // Registered with Sine, so an update re-injects this script live, no
+    // restart: Sine calls cleanup, then loads the new file into the same
+    // window, and the instance guard at the top retires whatever copy is
+    // still here. Safe now that start() is contained and the top level
+    // does nothing that can throw; the DOM unload listener above still
+    // releases everything when the window closes.
+    try { window.addUnloadListener?.(cleanup); } catch {}
     instance.retire = cleanup;
   }
 

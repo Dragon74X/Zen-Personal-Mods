@@ -477,12 +477,13 @@
       try { gBrowser.removeTabsProgressListener(navListener); } catch {}
     };
     window.addEventListener("unload", cleanup, { once: true });
-    // Not registered with Sine's addUnloadListener() on purpose: that buys
-    // hot-reload on update at the cost of tearing down and re-injecting every
-    // script in every window, and one bad re-injection took four mods down.
-    // Sine's own toast asks for a restart after a JS update; that is enough.
-    // The DOM unload listener above is what releases these when the window
-    // closes.
+    // Registered with Sine, so an update re-injects this script live, no
+    // restart: Sine calls cleanup, then loads the new file into the same
+    // window, and the instance guard at the top retires whatever copy is
+    // still here. Safe now that start() is contained and the top level
+    // does nothing that can throw; the DOM unload listener above still
+    // releases everything when the window closes.
+    try { window.addUnloadListener?.(cleanup); } catch {}
     instance.retire = cleanup;
   }
 

@@ -116,10 +116,10 @@
   const SAMPLE_SCALE = 0.1;                   // 300px strip -> 30px image
   let sampleTimer = null;
   let sampleObserver = null;
-  let sampleUrl = null;
   let sampleSig = "";
   let sampling = false;
   let lastSample = null;
+  let opaquePage = null;                      // last read: could the backdrop blur see this page?
 
   // #titlebar is the floating panel in compact mode; the sample hangs on it.
   const sidebarEl = () => document.getElementById("titlebar");
@@ -147,21 +147,29 @@
   // and rewrites its style; neither touches a child we own or an attribute.
   let sampleEl = null;
   let lastError = null;
+  // Two layers inside the host crossfade between reads, so a video behind
+  // the panel reads as moving blur rather than a slideshow.
+  const XH = "http://www.w3.org/1999/xhtml";
+  let layers = [];
+  let front = 0;
   function sampleHost() {
     const tb = sidebarEl();
     if (!tb) return null;
     if (!sampleEl || !sampleEl.isConnected) {
-      sampleEl = document.getElementById("zzglass-sample") ||
-        document.createElementNS("http://www.w3.org/1999/xhtml", "div");
+      sampleEl = document.getElementById("zzglass-sample") || document.createElementNS(XH, "div");
       sampleEl.id = "zzglass-sample";
+      if (!sampleEl.children.length) {
+        layers = [0, 1].map(() => sampleEl.appendChild(document.createElementNS(XH, "div")));
+      } else layers = [...sampleEl.children];
       if (sampleEl.parentNode !== tb) tb.insertBefore(sampleEl, tb.firstChild);
     }
     return sampleEl;
   }
+  const urls = [null, null];
   function clearSample() {
     try { sidebarEl()?.removeAttribute("zzglass-sample"); } catch {}
-    try { if (sampleEl) sampleEl.style.backgroundImage = ""; } catch {}
-    if (sampleUrl) { try { URL.revokeObjectURL(sampleUrl); } catch {} sampleUrl = null; }
+    for (const l of layers) { try { l.style.backgroundImage = ""; l.removeAttribute("front"); } catch {} }
+    for (let i = 0; i < 2; i++) if (urls[i]) { try { URL.revokeObjectURL(urls[i]); } catch {} urls[i] = null; }
     sampleSig = "";
   }
 
@@ -179,20 +187,30 @@
       const ctx = c.getContext("2d");
       ctx.drawImage(bmp, 0, 0);
       bmp.close();
-      // Unchanged page -> unchanged image: no new blob, no repaint.
       const px = ctx.getImageData(0, 0, c.width, c.height).data;
-      let sig = "";
-      for (let i = 0; i < px.length; i += 64) sig += String.fromCharCode(px[i] >> 3);
+      // An opaque page is one the real backdrop blur can see, and that blur
+      // is per-frame where this is a few reads a second. So the sample
+      // stands down there and the backdrop rule takes over; it steps in
+      // only on a see-through page, where the backdrop has nothing to see.
+      let sig = "", solid = 0, n = 0;
+      for (let i = 0; i < px.length; i += 64) { sig += String.fromCharCode(px[i] >> 3); n++; if (px[i + 3] === 255) solid++; }
+      opaquePage = solid / n > 0.97;
+      if (opaquePage) { if (sidebarEl()?.hasAttribute("zzglass-sample")) clearSample(); return; }
+      // Unchanged page -> unchanged image: no new blob, no repaint.
       if (sig === sampleSig) return;
       sampleSig = sig;
       const url = URL.createObjectURL(await c.convertToBlob({ type: "image/png" }));
       const host = sampleHost();
       if (host) {
-        host.style.backgroundImage = `url("${url}")`;
+        const back = 1 - front;
+        layers[back].style.backgroundImage = `url("${url}")`;
+        layers[back].setAttribute("front", "");
+        layers[front].removeAttribute("front");
+        if (urls[back]) { try { URL.revokeObjectURL(urls[back]); } catch {} }
+        urls[back] = url;
+        front = back;
         sidebarEl().setAttribute("zzglass-sample", "");
       }
-      if (sampleUrl) { try { URL.revokeObjectURL(sampleUrl); } catch {} }
-      sampleUrl = url;
       lastError = null;
     } catch (e) {
       lastError = String(e);
@@ -208,6 +226,7 @@
       // A text field, so a string pref; read either type.
       let ms = 250;
       try { const v = parseInt(readPrefValue(PREFIX + "sidebar.sample-interval"), 10); if (v >= 100) ms = v; } catch {}
+      try { sampleHost()?.style.setProperty("--zzglass-sample-fade", ms + "ms"); } catch {}
       sampleOnce();
       sampleTimer = setInterval(sampleOnce, ms);
     } else if (!want && sampleTimer) {
@@ -246,8 +265,8 @@
     // and what strip of the page it last read; .now() forces one read.
     window.Glassflow = {
       sample: {
-        status: () => ({ active: !!sampleTimer, shown: sidebarShown(), rect: sampleRect(), last: lastSample, lastError,
-                         painted: !!(sampleEl?.isConnected && sampleEl.style.backgroundImage),
+        status: () => ({ active: !!sampleTimer, shown: sidebarShown(), rect: sampleRect(), last: lastSample, lastError, opaquePage,
+                         painted: !!(sampleEl?.isConnected && layers.some(l => l.style.backgroundImage)),
                          marked: !!sidebarEl()?.hasAttribute("zzglass-sample") }),
         now: () => { sampleSig = ""; return sampleOnce(); },
       },

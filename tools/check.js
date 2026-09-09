@@ -110,7 +110,7 @@
     // the feature, and no amount of looking in the panel will find it.
     const EXPECT = {
       "zz-groupflow": ["zzgroup.icon-rules"],
-      "zz-tab-router": ["zzrouter.media-subgroups", "zzrouter.creator-icons"],
+      "zz-tab-router": ["zzrouter.media-subgroups", "zzrouter.section-icons"],
     }[id];
     if (EXPECT) {
       const have = new Set(prefs.map((x) => x?.property).filter(Boolean));
@@ -124,7 +124,7 @@
     try {
       if (id === "zz-tab-router" && W.TabRouter?.status) {
         const st = W.TabRouter.status();
-        out.creators = { remembered: st.creatorsRemembered, avatars: st.avatarsRemembered,
+        out.creators = { remembered: st.creatorsRemembered, sectionIcons: st.sectionIconsRemembered,
                          lookupsInFlight: st.creatorLookupsInFlight };
       }
       if (id === "zz-groupflow" && W.Groupflow?.explain) {

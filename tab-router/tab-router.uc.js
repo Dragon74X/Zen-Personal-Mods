@@ -64,7 +64,7 @@
     // which on a fresh session is once per new site. The cache it feeds is
     // already current, so its own write is not a reason to reparse anything.
     if (data === P + "learned-names" || data === P + "avatars") return;
-    if (data === P + "creator-icons") { stampIcons(); return; }
+    if (data === P + "section-icons") { stampIcons(); return; }
     for (const k of Object.keys(parsed)) delete parsed[k]; learnedCache = null; targetGen++;
   } };
   function cached(key, make) {
@@ -240,7 +240,9 @@
       .filter(s => !BUILTIN_IGNORE.has(s.toLowerCase()) && !skipWords.has(s.toLowerCase()))
       // drop pure ids and file names, which make useless group names
       .filter(s => !/^\d+$/.test(s) && !/\.[a-z0-9]{2,4}$/i.test(s));
-    return segs.slice(0, depth).map(s => segName(tab, s));
+    const parts = segs.slice(0, depth).map(s => segName(tab, s));
+    if (parts.length) wantSectionIcon(tab, host, segs[0], parts[0]);
+    return parts;
   }
 
   // Retitle events repeat for an unchanged URL; the full computation
@@ -368,7 +370,7 @@
       saveCreators();
       note(`creator ${id}: ${name}`);
       if (tab.isConnected && !tab.closing) queueRoute(tab, "creator");
-      if (channelUrl) fetchAvatar(name, channelUrl, ctx);
+      if (channelUrl) fetchSectionIcon(name, channelUrl, ctx, ICON_SITES[0]);
     };
     try {
       fetchAnon(OEMBED + encodeURIComponent(watch), ctx, (body) => {
@@ -385,84 +387,121 @@
     } catch (e) { note(`oembed setup failed for ${id}: ${e}`); done(null); }
   }
 
-  // ---- channel avatars ---------------------------------------------------
-  // The creator subgroup gets the channel's avatar as its icon: Groupflow
-  // reads data-zzrouter-icon off the group before it computes a favicon.
-  // The avatar is not in the oEmbed answer, so the channel page is fetched
-  // once per creator -- same container, same anonymity -- and its og:image
-  // is read with a plain string search, never parsed as a document. The
-  // image bytes are then fetched the same way and kept as a data: URI, so
-  // showing the icon later never touches the network from outside the
-  // container. Only Google's avatar CDN is accepted, only real image bytes
-  // are kept, and the store is bounded to 100 creators.
-  const AVATAR_HOST = /^https:\/\/yt3\.(?:googleusercontent|ggpht)\.com\/[\w\-=.%/]+$/;
-  const AVATAR_MAX = 100;
-  const AVATAR_PX = 64;
-  let avatarCache = null;
-  function avatarMap() {
-    if (avatarCache) return avatarCache;
-    try { avatarCache = new Map(Object.entries(JSON.parse(str("avatars", "{}")))); }
-    catch { avatarCache = new Map(); }
-    return avatarCache;
+  // ---- section icons -----------------------------------------------------
+  // A subgroup that stands for a creator, a game or an account gets that
+  // thing's own picture as its icon; Groupflow reads data-zzrouter-icon off
+  // the group before it computes a favicon. Probed on the live profile: a
+  // YouTube channel page's og:image is the 900px avatar, a Nexus game page's
+  // is the 400x600 cover tile, a GitHub owner page's is the 420px avatar.
+  // Each is fetched once per section -- the page, then the picture, both in
+  // the tab's container and anonymous -- cropped square, scaled to 64px and
+  // kept as a data: URI, so showing it later never touches the network.
+  // Only the named picture host is accepted per site, only bytes the image
+  // decoder accepts are kept, and the store is bounded to 100 sections.
+  const ICON_SITES = [
+    { host: /(^|\.)youtube\.com$/, page: (seg) => seg.startsWith("@") ? `https://www.youtube.com/${seg}` : null,
+      image: /^https:\/\/yt3\.(?:googleusercontent|ggpht)\.com\//, shape: "round" },
+    { host: /(^|\.)nexusmods\.com$/, page: (seg) => `https://www.nexusmods.com/games/${seg}`,
+      image: /^https:\/\/images\.nexusmods\.com\//, shape: "square" },
+    { host: /^github\.com$/, page: (seg) => `https://github.com/${seg}`,
+      image: /^https:\/\/avatars\.githubusercontent\.com\//, shape: "round" },
+  ];
+  const ICON_MAX = 100;
+  const ICON_PX = 64;
+  let iconCache = null;
+  function iconMap() {
+    if (iconCache) return iconCache;
+    try {
+      iconCache = new Map(Object.entries(JSON.parse(str("avatars", "{}")))
+        .map(([k, v]) => [k, typeof v === "string" ? { d: v, s: "round" } : v]));   // 1.25.x stored bare avatars
+    } catch { iconCache = new Map(); }
+    return iconCache;
   }
-  function saveAvatars() {
+  function saveIcons() {
     // A pref string is capped at 1 MB by Firefox; 100 icons at 64px are a
     // few hundred KB. Oldest out first if it ever gets close.
-    const entries = [...avatarMap()].slice(-AVATAR_MAX);
+    const entries = [...iconMap()].slice(-ICON_MAX);
     let text = JSON.stringify(Object.fromEntries(entries));
     while (text.length > 900000 && entries.length) { entries.shift(); text = JSON.stringify(Object.fromEntries(entries)); }
-    avatarCache = new Map(entries);
+    iconCache = new Map(entries);
     try { Services.prefs.setStringPref(P + "avatars", text); } catch {}
   }
 
-  const imageType = (b) =>
-    b.startsWith("\xff\xd8\xff") ? "jpeg" :
-    b.startsWith("\x89PNG") ? "png" :
-    (b.startsWith("RIFF") && b.slice(8, 12) === "WEBP") ? "webp" : null;
+  // Any size, any aspect -> a 64px square WebP data: URI. The decoder is
+  // the validation: bytes that are not an image never get this far.
+  async function toIcon(bytes) {
+    const bmp = await createImageBitmap(new Blob([Uint8Array.from(bytes, c => c.charCodeAt(0))]));
+    const side = Math.min(bmp.width, bmp.height);
+    const c = new OffscreenCanvas(ICON_PX, ICON_PX);
+    c.getContext("2d").drawImage(bmp, (bmp.width - side) / 2, (bmp.height - side) / 2, side, side, 0, 0, ICON_PX, ICON_PX);
+    bmp.close();
+    const buf = new Uint8Array(await (await c.convertToBlob({ type: "image/webp", quality: 0.85 })).arrayBuffer());
+    let bin = ""; for (const b of buf) bin += String.fromCharCode(b);
+    return `data:image/webp;base64,${btoa(bin)}`;
+  }
 
-  function fetchAvatar(name, channelUrl, ctx) {
-    if (!bool("creator-icons", true)) return;
-    const key = name.toLowerCase();
-    if (avatarMap().has(key) || inFlight.has("avatar:" + key)) return;
-    const lastFail = failed.get("avatar:" + key);
+  // label: the group name this section files under (the store key).
+  function fetchSectionIcon(label, pageUrl, ctx, site) {
+    if (!bool("section-icons", true) || !pageUrl || isPrivate()) return;
+    const key = label.trim().toLowerCase(), slot = "icon:" + key;
+    if (!key || iconMap().has(key) || inFlight.has(slot)) return;
+    const lastFail = failed.get(slot);
     if (lastFail && Date.now() - lastFail < RETRY_FAIL_MS) return;
-    inFlight.set("avatar:" + key, true);
-    const done = (dataUri) => {
-      inFlight.delete("avatar:" + key);
-      if (!dataUri) { failed.set("avatar:" + key, Date.now()); return; }
-      avatarMap().set(key, dataUri);
-      saveAvatars();
-      note(`avatar for ${name}`);
+    inFlight.set(slot, true);
+    const done = (icon) => {
+      inFlight.delete(slot);
+      if (!icon) { failed.set(slot, Date.now()); return; }
+      iconMap().set(key, { d: icon, s: site.shape });
+      saveIcons();
+      note(`icon for "${label}"`);
       stampIcons();
     };
     try {
-      fetchAnon(channelUrl, ctx, (html) => {
-        // og:image on a channel page is the avatar; on a consent
-        // interstitial it is absent, and the lookup is retried later.
+      fetchAnon(pageUrl, ctx, (html) => {
+        // og:image read with a string search, never parsed as a document.
+        // A consent interstitial has none; the lookup is retried later.
         const m = html && /<meta property="og:image" content="([^"]{1,400})"/.exec(html);
-        let img = m ? m[1].replace(/=s\d+/, `=s${AVATAR_PX}`) : null;
-        if (!img || !AVATAR_HOST.test(img)) return done(null);
+        const img = m ? m[1].replace(/=s\d+/, "=s256") : null;   // YouTube sizes by suffix
+        if (!img || !site.image.test(img)) return done(null);
         try {
           fetchAnon(img, ctx, (bytes) => {
-            const type = bytes && bytes.length <= 60000 ? imageType(bytes) : null;
-            done(type ? `data:image/${type};base64,${btoa(bytes)}` : null);
+            if (!bytes || bytes.length > 400000) return done(null);
+            toIcon(bytes).then(done, (e) => { note(`icon convert failed for "${label}": ${e}`); done(null); });
           });
         } catch { done(null); }
       });
-    } catch (e) { note(`avatar setup failed for ${name}: ${e}`); done(null); }
+    } catch (e) { note(`icon setup failed for "${label}": ${e}`); done(null); }
   }
 
-  // Subgroups whose label is a known creator carry its avatar; Groupflow
-  // recomputes on request. Root groups are never stamped, so a creator
+  // Called from pathParts() with the raw first segment and the label it
+  // became; the site table decides whether that segment names a page.
+  function wantSectionIcon(tab, host, seg, label) {
+    const site = ICON_SITES.find(x => x.host.test(host));
+    if (!site) return;
+    const page = site.page(seg);
+    if (page) fetchSectionIcon(label, page, parseInt(tab.getAttribute("usercontextid") || "0", 10), site);
+  }
+
+  // Subgroups whose label is a known section carry its picture; Groupflow
+  // recomputes on request. Root groups are never stamped, so a section
   // named like a top-level group cannot take it over. Switched off: the
   // stamps come off and Groupflow falls back to favicons.
   function stampIcons() {
-    const on = bool("creator-icons", true);
+    const on = bool("section-icons", true);
     let changed = 0;
     for (const g of groups()) {
-      const want = on && parentOf(g) ? avatarMap().get((g.label ?? "").trim().toLowerCase()) : null;
-      if (want) { if (g.getAttribute("data-zzrouter-icon") !== want) { g.setAttribute("data-zzrouter-icon", want); changed++; } }
-      else if (g.hasAttribute("data-zzrouter-icon")) { g.removeAttribute("data-zzrouter-icon"); changed++; }
+      const want = on && parentOf(g) ? iconMap().get((g.label ?? "").trim().toLowerCase()) : null;
+      if (want) {
+        if (g.getAttribute("data-zzrouter-icon") !== want.d) {
+          g.setAttribute("data-zzrouter-icon", want.d);
+          g.setAttribute("data-zzrouter-icon-shape", want.s);
+          changed++;
+        }
+      } else if (g.hasAttribute("data-zzrouter-icon")) {
+        g.removeAttribute("data-zzrouter-icon");
+        g.removeAttribute("data-zzrouter-icon-shape");
+        changed++;
+      }
     }
     if (changed) try { window.Groupflow?.refresh?.(); } catch {}
   }
@@ -1257,7 +1296,7 @@
       // videos were opened: bounded to 300 and emptied by forgetCreators().
       creators: () => Object.fromEntries(creatorMap()),
       forgetCreators(id) {
-        if (id) creatorMap().delete(id); else { creatorCache = new Map(); avatarCache = new Map(); saveAvatars(); }
+        if (id) creatorMap().delete(id); else { creatorCache = new Map(); iconCache = new Map(); saveIcons(); }
         saveCreators();
         stampIcons();
         targetGen++;
@@ -1304,7 +1343,7 @@
         } catch {}
 
         const r = {
-          version: "1.25.1",
+          version: "1.26.0",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The
@@ -1318,7 +1357,7 @@
           groupsCached: groupsCache ? groupsCache.length : "(cold)",
           // A count, not the contents: status() gets pasted into bug reports.
           creatorsRemembered: creatorMap().size,
-          avatarsRemembered: avatarMap().size,
+          sectionIconsRemembered: iconMap().size,
           creatorLookupsInFlight: inFlight.size,
           tabs: allTabs().length,
           tabsWithATarget: withTarget,

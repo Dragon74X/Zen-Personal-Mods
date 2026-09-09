@@ -145,9 +145,10 @@
     return null;
   }
 
-  // Another mod may hand a group its icon: Tab Router stamps a creator
-  // subgroup with the channel avatar as a data: URI. A rule still wins,
-  // and anything that could break out of the url() is refused.
+  // Another mod may hand a group its icon: Tab Router stamps a creator,
+  // game or account subgroup with its picture as a data: URI, round or
+  // square by a second attribute. A rule still wins, and anything that
+  // could break out of the url() is refused.
   function stampedIcon(g) {
     const v = g.getAttribute("data-zzrouter-icon");
     return v && /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(v) ? v : null;
@@ -160,7 +161,7 @@
     const stamped = stampedIcon(g);
     // An avatar is drawn round, like the channel page draws it; the CSS
     // selects on this attribute since it cannot read a custom property.
-    g.toggleAttribute("zzgf-round", !!stamped && !ruledIcon(g));
+    g.toggleAttribute("zzgf-round", !!stamped && !ruledIcon(g) && g.getAttribute("data-zzrouter-icon-shape") !== "square");
     const ruled = ruledIcon(g) ?? stamped;
     if (ruled) { setIcon(g, `url("${ruled}")`); return; }
     const counts = new Map();
@@ -258,7 +259,7 @@
           out.push({
             group: (g.label ?? "").trim(),
             icon: (g.style.getPropertyValue("--zzgf-icon") || "(none)").slice(0, 60),
-            from: ruledIcon(g) ? "icon rule" : stampedIcon(g) ? "Tab Router avatar" : "favicon",
+            from: ruledIcon(g) ? "icon rule" : stampedIcon(g) ? "Tab Router section icon" : "favicon",
           });
         }
         console.log(out);

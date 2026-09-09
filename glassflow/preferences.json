@@ -2489,7 +2489,7 @@
   {
     "type": "checkbox",
     "property": "zzglass.sidebar.sample",
-    "label": "Sampled glass: blur the page itself (experimental) *No chrome blur can see the web page: the page is drawn by its own process, which is why every sidebar blur goes flat once the page has painted. This takes a tiny snapshot of the page strip under the floating sidebar a few times a second while the sidebar is shown, and paints it blurred and tinted behind the sidebar. Nothing runs while the sidebar is hidden or docked. The ordinary blur pass is dropped while a sample is up, so this costs less than what it replaces.*",
+    "label": "Sampled glass: blur the page itself (experimental) *No chrome blur can see a see-through page: it is drawn on its own surface. On such a page this takes a tiny snapshot of the strip under the floating panel a few times a second while the panel is shown, and paints it blurred behind the panel, crossfading between reads. On an opaque page it stands down automatically and the real blur above, which is per-frame, does the work. Nothing runs while the sidebar is hidden or docked.*",
     "defaultValue": false,
     "conditions": [
       {
@@ -2547,7 +2547,7 @@
   {
     "type": "string",
     "property": "zzglass.sidebar.sample-interval",
-    "label": "Sample interval (ms) *How often the strip is re-read while the sidebar is shown. 250 is four times a second; 100 is the floor.*",
+    "label": "Sample interval (ms) *How often the strip is re-read while the panel is over a see-through page. 250 is four reads a second; 100 is the floor and reads as motion behind a video, at four times the cost.*",
     "defaultValue": "250",
     "placeholder": "250",
     "conditions": [

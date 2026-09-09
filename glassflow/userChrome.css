@@ -653,15 +653,26 @@
       pointer-events: none !important;
       margin: 0 !important;
       padding: 0 !important;
-      background-size: cover !important;
-      background-position: center !important;
-      background-repeat: no-repeat !important;
       filter: blur(var(--zzglass-sidebar-sample-blur, 18px))
               saturate(var(--zzglass-sidebar-blur-saturate, 1))
               contrast(var(--zzglass-sidebar-blur-contrast, 1)) !important;
       clip-path: inset(calc(2 * var(--zzglass-sidebar-sample-blur, 18px))
                        round var(--zzglass-sidebar-blur-radius-corner, 12px)) !important;
       opacity: var(--zzglass-sidebar-sample-opacity, 1) !important;
+    }
+    /* Two frames crossfading under the one blur; the fade lasts as long
+       as the read interval, so one frame is always arriving. */
+    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] > #zzglass-sample > div {
+      position: absolute !important;
+      inset: 0 !important;
+      background-size: cover !important;
+      background-position: center !important;
+      background-repeat: no-repeat !important;
+      opacity: 0;
+      transition: opacity var(--zzglass-sample-fade, 250ms) linear;
+    }
+    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] > #zzglass-sample > div[front] {
+      opacity: 1;
     }
   }
 }

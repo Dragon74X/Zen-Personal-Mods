@@ -653,8 +653,12 @@
      -- clip-path applies after filter -- so nothing else is clipped or
      moved. isolation keeps the negative z-index inside the panel. */
   @media (-moz-pref("zzglass.sidebar.sample")) {
+    /* The sample sits at a negative z-index; that only stays inside the
+       panel if the panel is a stacking context of its own. Without one it
+       falls through to the window's and paints BEHIND the web page. */
     :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] {
-      isolation: isolate;
+      isolation: isolate !important;
+      position: relative !important;
     }
     /* The panel keeps its fill: over an opaque page the real blur sits
        under it, and here the sample does -- with a solid backing, so the

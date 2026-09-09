@@ -464,6 +464,71 @@
     "operator": "AND"
   },
   {
+    "type": "checkbox",
+    "property": "zzgroup.section-icons",
+    "label": "Pictures from Tab Router *Tab Router can hand a subgroup its own picture -- a YouTube channel avatar, a Nexus game cover, a GitHub avatar -- and this draws it. Off: those subgroups fall back to the favicon like every other group. Icon rules win either way.*",
+    "defaultValue": true,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.favicons",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.icon-shape",
+    "label": "Icon shape *Applies to every group icon. Auto draws avatars round, as their pages do, and everything else as a rounded square. Size is the setting above.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Auto",
+        "value": 0
+      },
+      {
+        "label": "Circle",
+        "value": 1
+      },
+      {
+        "label": "Rounded square",
+        "value": 2
+      },
+      {
+        "label": "Squircle",
+        "value": 3
+      },
+      {
+        "label": "Square",
+        "value": 4
+      }
+    ],
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.favicons",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.align",

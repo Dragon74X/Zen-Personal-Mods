@@ -137,11 +137,14 @@ down and let this own it.
 | Sidebar gradient direction | Top to bottom | |
 | Glass sheen / glass rim | off / off | |
 | Panel opacity | `35%` | Arc's look; `0%` is see-through |
+| Panel gradient direction / end / end tint / spread | Top to bottom / Fade to the base / `8%` / `100%` | the same gradient model as a tab |
+| Glass sheen on the panel | off | |
 | Workspace gradient through the panel | `1` | `0` hides Zen's gradient |
 | Panel shadow | on | Zen's own |
 | Panel accent tint / corner radius | `22%` / `12px` | |
 | Blur behind the floating panel | off | Real `backdrop-filter`. Cannot see the web page; no chrome blur can |
 | Blur radius / contrast / saturation | `25px` / `1` / `1` | |
+| Blur through transparent pages | off | Arc's clip-path trick; restart. For pages the Zen Internet extension made see-through |
 | Sampled glass (experimental) | off | Snaps the page strip under the panel a few times a second and paints it blurred behind the panel. The only way to blur the page itself |
 | Sample blur / opacity / interval | `18px` / `1` / `250` | |
 

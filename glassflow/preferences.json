@@ -2208,6 +2208,124 @@
     ]
   },
   {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.sidebar.panel-direction",
+    "label": "Panel gradient direction",
+    "defaultValue": 2,
+    "options": [
+      {
+        "label": "Left to right",
+        "value": 0
+      },
+      {
+        "label": "Right to left",
+        "value": 1
+      },
+      {
+        "label": "Top to bottom",
+        "value": 2
+      },
+      {
+        "label": "Bottom to top",
+        "value": 3
+      },
+      {
+        "label": "Diagonal (down-right)",
+        "value": 4
+      },
+      {
+        "label": "Diagonal (up-left)",
+        "value": 5
+      }
+    ],
+    "conditions": [
+      {
+        "if": {
+          "property": "zzglass.sidebar.enabled",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.sidebar.panel-end-mode",
+    "label": "Panel gradient end *What the accent fades toward. Base keeps the panel's opacity and drops the colour. Weaker tint keeps the hue at the End tint value. Second colour blends toward the Second gradient colour.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Fade to the base",
+        "value": 0
+      },
+      {
+        "label": "Fade to a weaker tint",
+        "value": 1
+      },
+      {
+        "label": "Fade to the second colour",
+        "value": 2
+      },
+      {
+        "label": "Flat, no gradient",
+        "value": 3
+      }
+    ],
+    "conditions": [
+      {
+        "if": {
+          "property": "zzglass.sidebar.enabled",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzglass.sidebar.panel-end-tint",
+    "label": "Panel end tint *Strength of the colour at the far end, for the weaker-tint and second-colour ends.*",
+    "defaultValue": "8%",
+    "placeholder": "8%",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzglass.sidebar.enabled",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzglass.sidebar.panel-spread",
+    "label": "Panel gradient spread *Where the fade finishes across the panel. 100% is edge to edge; lower ends early and leaves a flat run.*",
+    "defaultValue": "100%",
+    "placeholder": "100%",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzglass.sidebar.enabled",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.sidebar.panel-sheen",
+    "label": "Glass sheen on the panel *The same highlight the tabs use, over the panel gradient.*",
+    "defaultValue": false,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzglass.sidebar.enabled",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
     "type": "string",
     "property": "zzglass.sidebar.gradient-show",
     "label": "Workspace gradient through the panel *Zen paints the workspace gradient on the panel; 1 keeps it, 0 hides it so only the tint and blur show.*",
@@ -2330,6 +2448,28 @@
     "label": "Sidebar blur saturation *1 leaves it alone. Raise it for the colour-rich frosted look, lower toward 0 for grey glass.*",
     "defaultValue": "1",
     "placeholder": "1",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzglass.sidebar.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzglass.sidebar.blur",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.sidebar.blur-through-transparent",
+    "restart": true,
+    "label": "Blur through transparent pages *A page the Zen Internet extension made see-through is drawn on its own surface, which no chrome blur can read; an opaque page is not, which is why the blur works there and goes flat here. This keeps the page in the shared surface with a clip-path on the browser, Arc's own force-blur trick, so the blur behind the panel sees it. Costs the page its own presentation path: video may lose its overlay fast path. Restart to take effect. If it does not help on your machine, the sampled glass below sees every page regardless.*",
+    "defaultValue": false,
     "conditions": [
       {
         "if": {

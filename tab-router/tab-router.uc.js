@@ -444,15 +444,23 @@
   let groupsCache = null;
   const bustGroups = () => { groupsCache = null; };
 
+  // A group whose last tab left stays in the DOM for the length of its close
+  // animation (tabgroup-js.patch: TabGroupRemoved, then animateItemClose(),
+  // then remove()). isConnected is true the whole time, so on its own it let
+  // findChild() file a tab into a group that was already on its way out.
+  // `tabs` is recursive on Zen -- a parent holding only subgroups counts
+  // its grandchildren -- so zero means genuinely empty.
+  const live = (g) => g.isConnected && (g.tabs?.length ?? 1) > 0;
+
   function groups() {
-    if (groupsCache && groupsCache.every(g => g.isConnected)) return groupsCache;
+    if (groupsCache && groupsCache.every(live)) return groupsCache;
     const set = new Set();
     try { for (const g of gBrowser.tabGroups) set.add(g); } catch {}
     try { for (const g of document.querySelectorAll("tab-group")) set.add(g); } catch {}
     // Zen folders subclass tab-group but live pinned; split-view wrappers
     // are positional artifacts. Leave both alone.
     groupsCache = [...set].filter(g => g.tagName === "tab-group" && !g.isZenFolder &&
-                                       !g.hasAttribute("split-view-group"));
+                                       !g.hasAttribute("split-view-group") && live(g));
     return groupsCache;
   }
 
@@ -527,13 +535,7 @@
     return [...set];
   }
 
-  // ---- ejection ----------------------------------------------------------
-  // Verified against Zen 1.21 source (tabbrowser-js.patch):
-  //   gBrowser.ungroupTab(tab)  ->  tab.group.after(tab)
-  // pops exactly ONE level and leaves the tab adjacent to the group it left,
-  // so it never crosses a workspace boundary. Looping it walks the tab out
-  // of every ancestor, in place. (group.ungroupTabs() takes NO argument and
-  // dissolves the whole group -- last resort only.)
+  // ---- ancestry ----------------------------------------------------------
   function ancestorsOf(tab) {
     const out = [];
     let g = tab.group ?? null;
@@ -541,47 +543,32 @@
     return out;
   }
 
-  function ejectAll(tab) {
-    const left = ancestorsOf(tab);
-    for (let i = 0; i < 10 && tab.group; i++) {
+  // gBrowser.ungroupTab(tab) -> tab.group.after(tab): pops exactly ONE level,
+  // in place, never across a workspace (verified on 1.22b). Looping it walks
+  // the tab out to the root. Only needed when NO level of the target exists
+  // yet; otherwise addTabs() reparents straight into the deepest one.
+  function ungroupFully(tab) {
+    for (let i = 0; i < 12 && tab.group; i++) {
       const g = tab.group;
-      try {
-        if (typeof gBrowser.ungroupTab === "function") gBrowser.ungroupTab(tab);
-        else g.ungroupTabs?.();   // dissolves g entirely; siblings spill out
-      } catch (e) { note(`eject threw on "${g.label}": ${e}`); break; }
-      if (tab.group === g) { note(`eject made no progress on "${g.label}"`); break; }
+      try { gBrowser.ungroupTab(tab); } catch (e) { note(`ungroup threw on "${g.label}": ${e}`); return false; }
+      if (tab.group === g) { note(`ungroup made no progress on "${g.label}"`); return false; }
     }
-    return left;
+    return !tab.group;
   }
 
-  const endsWithPath = (chain, want) =>
-    want.length && chain.length >= want.length && samePath(chain.slice(-want.length), want);
-
-  // Want ["Youtube"], filed in ["Youtube", "XP To Level 3"]: the tab sits in
-  // a DEEPER subgroup of the right path, e.g. inherited from the creator
-  // page it was opened from. That is better organization, not drift --
-  // leave it. This is what keeps a creator's videos in the creator's group.
+  // Filed in ["Youtube", "Creator"] when ["Youtube"] was wanted: a DEEPER
+  // subgroup of the right path is better organisation, not drift. Leave it.
   const startsWithPath = (chain, want) =>
     want.length && chain.length >= want.length && samePath(chain.slice(0, want.length), want);
-
-  // One repair attempt per tab: if it is suffix-filed under junk and the
-  // junk cannot be ejected on this build, stop touching it instead of
-  // looping forever.
-  const repaired = new WeakSet();
 
   function placeInPath(tab, parts) {
     if (!parts?.length) return false;
     const cap = num("max-depth", 0);
     if (cap > 0) parts = parts.slice(0, cap);
 
-    const chain = chainOf(tab);
-    if (startsWithPath(chain, parts)) {                // filed right (or deeper)
+    if (startsWithPath(chainOf(tab), parts)) {        // filed right (or deeper)
       healWorkspace(tab);
       return false;
-    }
-    if (endsWithPath(chain, parts)) {                  // filed right, junk above
-      if (repaired.has(tab)) return false;
-      repaired.add(tab);                               // one shot at cleaning up
     }
 
     // ---- destination resolution, systemic and in strict order ----------
@@ -599,7 +586,7 @@
 
     if (bool("follow-containers", true) && dest.ctx != null && dest.ctx !== haveCtx) {
       const fresh = reopenInContainer(tab, dest.ctx, dest.ws);
-      if (fresh !== tab) { bustGroups(); return placeInPathTail(fresh, parts); }
+      if (fresh !== tab) { bustGroups(); return file(fresh, parts); }
     }
     if (dest.ws && dest.ws !== tabWs) {
       try {
@@ -609,7 +596,7 @@
         note(`workspace move failed: ${e}; filing in current workspace instead`);
       }
     }
-    return placeInPathTail(tab, parts);
+    return file(tab, parts);
   }
 
   function resolveDestination(tab, parts) {
@@ -703,75 +690,50 @@
     return fresh;
   }
 
-  function placeInPathTail(tab, parts) {
-    const left = ejectAll(tab);
+  // Files the tab under `parts`, touching only what differs. Verified
+  // primitives on 1.22b: addTabGroup([tab], {insertBefore: tab}) is born at
+  // the tab's DOM position, so inside a group it nests; group.addTabs([tab])
+  // reparents from anywhere; a group Zen empties removes itself after its
+  // close animation, so nothing here removes groups -- and removeTabGroup()
+  // is never called, because it closes the tabs.
+  function file(tab, parts) {
+    const ws = wsOf(tab) || window.gZenWorkspaces?.activeWorkspace || null;
 
-    // THE loop-killer: never create groups while the tab still sits inside
-    // an old chain -- that is exactly what manufactured the staircase.
-    if (chainOf(tab).length) {
-      note(`eject FAILED for "${tab.label}" -- still in ` +
-           `${chainOf(tab).join(" > ")}; leaving it alone. Run TabRouter.diag() and report.`);
+    // Deepest existing prefix of the path, root level scoped to the workspace.
+    let parent = null, depth = 0;
+    for (const name of parts) {
+      const g = findChild(name, parent, parent ? null : ws);
+      if (!g) break;
+      parent = g; depth++;
+    }
+
+    // Put the tab in the deepest existing level. addTabs() moves it out of
+    // wherever it sits; with no level existing, walk it out to the root.
+    if (parent) {
+      if (tab.group !== parent) {
+        try { parent.addTabs([tab]); }
+        catch (e) { note(`addTabs failed on "${parent.label}": ${e}`); return false; }
+        if (tab.group !== parent) { note(`addTabs did not move "${tab.label}" into "${parent.label}"`); return false; }
+      }
+    } else if (tab.group && !ungroupFully(tab)) {
       return false;
     }
 
-    const ok = walkPath(tab, parts);
-
-    // Groups the eject emptied are residue (1.9 flat joined-label groups,
-    // 1.10.x staircases). No tab anywhere under them = removing closes nothing.
-    for (const g of left) {
-      if (!g.isConnected) continue;
-      if (g.querySelector(".tabbrowser-tab")) continue;
-      try { gBrowser.removeTabGroup(g); bustGroups(); note(`removed empty group "${g.label}"`); }
-      catch (e) { note(`could not remove empty "${g.label}": ${e}`); }
-    }
-    return ok;
-  }
-
-  function walkPath(tab, parts) {
-    let parent = null;
-    const ws = wsOf(tab) || window.gZenWorkspaces?.activeWorkspace || null;
-    for (const name of parts) {
-      let g = findChild(name, parent, parent ? null : ws);
-      if (g) {
-        // Move the tab in at this level so the next creation nests here.
-        if (tab.group !== g) {
-          try { g.addTabs?.([tab]); } catch (e) { note(`addTabs failed on "${g.label}": ${e}`); return !!parent; }
-        }
-        parent = g;
-        continue;
-      }
-      if (!bool("create-groups", true)) {
-        note(`"${name}" does not exist and group creation is switched off`);
-        return !!parent;
-      }
-      if (typeof gBrowser.addTabGroup !== "function") {
-        note("gBrowser.addTabGroup missing -- cannot create groups on this build");
-        return !!parent;
-      }
-      try {
-        // Zen's addTabGroup dereferences insertBefore without a null guard,
-        // so the tab itself is passed: the group is born where the tab sits.
-        // If the tab sits inside `parent`, the new group is born nested --
-        // that IS the subgroup mechanism.
-        g = gBrowser.addTabGroup([tab], {
-          label: name,
-          insertBefore: tab,
-          isUserTriggered: true,
-        });
-      } catch (e) {
-        note(`addTabGroup("${name}") threw: ${e}`);
-        return !!parent;
-      }
-      if (!g) { note(`addTabGroup("${name}") returned nothing`); return !!parent; }
+    // Create the missing levels beneath it, one at a time. Each new group is
+    // born where the tab sits, i.e. inside the level just above.
+    for (const name of parts.slice(depth)) {
+      if (!bool("create-groups", true)) { note(`"${name}" does not exist and group creation is switched off`); return depth > 0; }
+      if (typeof gBrowser.addTabGroup !== "function") { note("gBrowser.addTabGroup missing on this build"); return depth > 0; }
+      let g;
+      try { g = gBrowser.addTabGroup([tab], { label: name, insertBefore: tab, isUserTriggered: true }); }
+      catch (e) { note(`addTabGroup("${name}") threw: ${e}`); return depth > 0; }
+      if (!g) { note(`addTabGroup("${name}") returned nothing`); return depth > 0; }
       g.setAttribute("data-zzrouter-created", Date.now());
       if (!parent && ws && !wsOf(g)) g.setAttribute("zen-workspace-id", ws);
-      if (parent && parentOf(g) !== parent) {
-        // ponytail: no repair attempt; report and keep the flat group
-        note(`"${name}" was created but did NOT nest under "${parent.label}" on this build`);
-      }
+      if (parent && parentOf(g) !== parent) note(`"${name}" did not nest under "${parent.label}" on this build`);
       bustGroups();
       note(`created group "${name}"${parent ? ` under "${parent.label}"` : ""}`);
-      parent = g;
+      parent = g; depth++;
     }
     return true;
   }
@@ -898,11 +860,7 @@
       if (bool("refile-mismatched", true)) {
         const want = precomputedParts !== undefined ? precomputedParts : targetPath(tab);
         const have = chainOf(tab);
-        if (want?.length && have.length && !startsWithPath(have, want)) {
-          // Suffix-filed under junk gets exactly one repair attempt;
-          // placeInPath marks it and this stops routing it afterwards.
-          if (!endsWithPath(have, want) || !repaired.has(tab)) return null;
-        }
+        if (want?.length && have.length && !startsWithPath(have, want)) return null;
       }
       return "already in a group";
     }
@@ -1171,7 +1129,7 @@
           },
         };
         if (before.length) {
-          ejectAll(tab);
+          ungroupFully(tab);
           r.chainAfterEject = chainOf(tab).join(" > ") || "(none -- eject works)";
         } else {
           r.chainAfterEject = "(tab was not in a group; put it in one and rerun)";
@@ -1245,7 +1203,7 @@
         } catch {}
 
         const r = {
-          version: "1.23.1",
+          version: "1.24.0",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The

@@ -116,7 +116,7 @@
   const SAMPLE_SCALE = 0.1;                   // 300px strip -> 30px image
   let sampleTimer = null;
   let sampleObserver = null;
-  let sampleSig = "";
+  let sampleSig = null;
   let sampling = false;
   let lastSample = null;
   let opaquePage = null;                      // last read: could the backdrop blur see this page?
@@ -171,7 +171,7 @@
     for (const l of layers) { try { l.style.backgroundImage = ""; l.removeAttribute("front"); } catch {} }
     try { sampleEl?.removeAttribute("zzglass-fade"); } catch {}
     for (let i = 0; i < 2; i++) if (urls[i]) { try { URL.revokeObjectURL(urls[i]); } catch {} urls[i] = null; }
-    sampleSig = "";
+    sampleSig = null;
   }
 
   // warm: a read taken while the sidebar is hidden, at the strip it last
@@ -182,8 +182,10 @@
     // wedge every read after it.
     if (sampling && Date.now() - samplingSince > 2000) sampling = false;
     if (sampling) return;
-    const rect = sampleRect() ?? (warm ? lastSample?.rect : null);
-    if (!rect) { if (!warm) clearSample(); return; }
+    // No overlap right now (the sidebar sliding out, or docked): keep the
+    // frames that are up, so the next show has one at once.
+    const rect = sampleRect() ?? lastSample?.rect;
+    if (!rect) return;
     sampling = true; samplingSince = Date.now(); ticks++;
     lastSample = { rect, at: Date.now() };
     try {
@@ -199,8 +201,14 @@
       // is per-frame where this is a few reads a second. So the sample
       // stands down there and the backdrop rule takes over; it steps in
       // only on a see-through page, where the backdrop has nothing to see.
-      let sig = "", solid = 0, n = 0;
-      for (let i = 0; i < px.length; i += 64) { sig += String.fromCharCode(px[i] >> 3); n++; if (px[i + 3] === 255) solid++; }
+      // Every pixel, colour and alpha: on a see-through page most pixels
+      // are transparent black, so a sparse sample of one channel missed a
+      // scroll entirely.
+      let sig = 0, solid = 0, n = 0;
+      for (let i = 0; i < px.length; i += 4) {
+        sig = (Math.imul(sig, 31) + px[i] + px[i + 1] + px[i + 2] + px[i + 3]) | 0;
+        n++; if (px[i + 3] === 255) solid++;
+      }
       opaquePage = solid / n > 0.97;
       if (opaquePage) { if (sidebarEl()?.hasAttribute("zzglass-sample")) clearSample(); return; }
       // Unchanged page -> unchanged image: no new blob, no repaint.
@@ -260,7 +268,7 @@
   }
   const sampleOn = () => { try { return Services.prefs.getBoolPref(PREFIX + "sidebar.sample", false); } catch { return false; } };
   // A new tab in front: re-read now if shown, or warm a frame for it if not.
-  const syncSampleNow = () => { sampleSig = ""; if (sampleOn()) sampleOnce(!sampleTimer); };
+  const syncSampleNow = () => { sampleSig = null; if (sampleOn()) sampleOnce(!sampleTimer); };
   function stopSampling() {
     try { sampleObserver?.disconnect(); } catch {}
     sampleObserver = null;
@@ -308,7 +316,7 @@
         status: () => ({ active: !!sampleTimer, shown: sidebarShown(), rect: sampleRect(), last: lastSample, lastError, opaquePage, ticks, busy: sampling,
                          painted: !!(sampleEl?.isConnected && layers.some(l => l.style.backgroundImage)),
                          marked: !!sidebarEl()?.hasAttribute("zzglass-sample") }),
-        now: () => { sampleSig = ""; return sampleOnce(); },
+        now: () => { sampleSig = null; return sampleOnce(); },
       },
     };
     const cleanup = () => {

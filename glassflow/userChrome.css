@@ -694,6 +694,8 @@
       background-position: center !important;
       background-repeat: no-repeat !important;
       opacity: 0;
+    }
+    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] > #zzglass-sample[zzglass-fade] > div {
       transition: opacity var(--zzglass-sample-fade, 250ms) linear;
     }
     :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] > #zzglass-sample > div[front] {

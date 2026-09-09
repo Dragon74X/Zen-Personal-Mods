@@ -148,7 +148,7 @@ down and let this own it.
 | Blur radius / contrast / saturation | `25px` / `1` / `1` | |
 | Blur through transparent pages | off | Arc's clip-path trick; restart. For pages the Zen Internet extension made see-through |
 | Sampled glass (experimental) | off | Snaps the page strip under the panel a few times a second and paints it blurred behind the panel. The only way to blur the page itself |
-| Sample blur / opacity / interval | `18px` / `1` / `250` | |
+| Sample blur / opacity / interval | `18px` / `1` / `250` | the last frame stays up while the sidebar is hidden, so it shows at once |
 
 `Glassflow.sample.status()` in the console says whether sampling is running
 and which strip of the page it last read.

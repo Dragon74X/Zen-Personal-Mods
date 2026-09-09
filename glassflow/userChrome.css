@@ -549,9 +549,13 @@
   :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background {
     /* The panel is a glass gradient like a tab: a = accent over the base,
        b = what it fades toward, along --zzg-pdir up to the spread. */
+    /* --zzg-accent is a per-tab token (container colour) and does not
+       exist up here; the panel's accent is the workspace colour, toned
+       like everything else. */
+    --zzg-pacc: color-mix(in srgb, var(--zen-primary-color, #7c8cf8), black var(--zzg-tone, 25%));
     --zzg-pbase: light-dark(rgb(255 255 255 / var(--zzglass-sidebar-panel-opacity, 70%)),
                             rgb(0 0 0 / var(--zzglass-sidebar-panel-opacity, 70%)));
-    --zzg-pa: color-mix(in srgb, var(--zzg-accent) var(--zzglass-sidebar-blur-tint, 10%), var(--zzg-pbase));
+    --zzg-pa: color-mix(in srgb, var(--zzg-pacc) var(--zzglass-sidebar-blur-tint, 10%), var(--zzg-pbase));
     --zzg-pb: var(--zzg-pbase);
     --zzg-pdir: to bottom;
     background-color: transparent !important;
@@ -562,7 +566,7 @@
     corner-shape: var(--zzg-corner-side) !important;
     outline: none !important;
   }
-  @media (-moz-pref("zzglass.sidebar.panel-end-mode", 1)) { :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background { --zzg-pb: color-mix(in srgb, var(--zzg-accent) var(--zzglass-sidebar-panel-end-tint, 8%), var(--zzg-pbase)); } }
+  @media (-moz-pref("zzglass.sidebar.panel-end-mode", 1)) { :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background { --zzg-pb: color-mix(in srgb, var(--zzg-pacc) var(--zzglass-sidebar-panel-end-tint, 8%), var(--zzg-pbase)); } }
   @media (-moz-pref("zzglass.sidebar.panel-end-mode", 2)) { :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background { --zzg-pb: color-mix(in srgb, var(--zzg-second) var(--zzglass-sidebar-panel-end-tint, 8%), var(--zzg-pbase)); } }
   @media (-moz-pref("zzglass.sidebar.panel-end-mode", 3)) { :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background { --zzg-pb: var(--zzg-pa); } }
   @media (-moz-pref("zzglass.sidebar.panel-direction", 0)) { :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background { --zzg-pdir: to right; } }
@@ -633,8 +637,10 @@
     :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] {
       isolation: isolate;
     }
+    /* The panel keeps its fill: over an opaque page the real blur sits
+       under it, and here the sample does -- with a solid backing, so the
+       page cannot show through unblurred beneath our blurred copy. */
     :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] #zen-toolbar-background {
-      --zzg-pbase: transparent;          /* the sample is the base now */
       backdrop-filter: none !important;
       box-shadow: none !important;
     }
@@ -653,6 +659,7 @@
       pointer-events: none !important;
       margin: 0 !important;
       padding: 0 !important;
+      background-color: light-dark(#f2f2f2, #0d0d10) !important;
       filter: blur(var(--zzglass-sidebar-sample-blur, 18px))
               saturate(var(--zzglass-sidebar-blur-saturate, 1))
               contrast(var(--zzglass-sidebar-blur-contrast, 1)) !important;

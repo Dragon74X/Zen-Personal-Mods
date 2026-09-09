@@ -8,6 +8,10 @@ reasoning with them.
 
 ## Creator subgrouping -- Tab Router
 
+**Back as of Tab Router 1.23.0, via oEmbed** (one anonymous, container-scoped
+request per new video). What stays shelved is the MediaSession variant below,
+which is free but only names what is playing.
+
 *Youtube* became *Youtube / Rick Astley*, with the name read from the page
 itself: a site playing media registers a `MediaSession`, Firefox exposes it to
 chrome as `browsingContext.mediaController`, and `getMetadata().artist` is the

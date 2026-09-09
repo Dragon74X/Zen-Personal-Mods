@@ -46,6 +46,35 @@ respects Zen's own container routing rather than fighting it.
 
 `TabRouter.applyOrder()` re-runs just the ordering pass.
 
+## Splitting YouTube by creator
+
+A watch address names the video and never the channel, so no path rule can
+split YouTube tabs by creator. **Subgroup by creator** asks YouTube's oEmbed
+endpoint for the video's author — one ~1KB JSON request per *new* video, no
+key — and files the tab as *Youtube / Creator*. Off by default.
+
+What the request is, exactly, because it is a network request:
+
+- **Built inside the tab's container.** The channel carries the tab's
+  `userContextId`, so its cache entry lives in that container's partition and
+  is not visible from any other container.
+- **Anonymous.** `LOAD_ANONYMOUS` strips cookies in both directions: YouTube
+  cannot tie the lookup to your account, and it writes no cookie back.
+- **Never from a private window.**
+- **Once per video.** Answers are remembered by video id, so `&t=` timestamps
+  do not fragment one video into many entries. A failed lookup is not retried
+  for ten minutes.
+
+```js
+TabRouter.creators()          // videoId -> creator, everything remembered
+TabRouter.forgetCreators()    // empty it
+TabRouter.forgetCreators(id)  // drop one
+```
+
+That store is a record of which videos you opened. It lives in
+`zzrouter.creators`, is capped at 300 oldest-out, and `status()` reports only
+its size.
+
 ## Inspecting it
 
 ```js

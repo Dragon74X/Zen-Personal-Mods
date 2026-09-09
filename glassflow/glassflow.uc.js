@@ -187,11 +187,17 @@
     // taken mid-slide crops a strip that is only partly over the page and
     // stretches it across the whole panel, then the next read replaces it:
     // a visible pulse on every hover. Wait the slide out.
+    // A warm read is the exception: taken as the hover begins, at the strip
+    // the panel is ABOUT to cover -- its final position, known from the
+    // last open -- so the frame Zen slides in is the page as it is now.
+    // The viewport snapshot does not depend on where the panel is; only
+    // the crop does.
     const tb = document.getElementById("navigator-toolbox");
-    if (tb?.getAttribute("animate") === "true" || document.documentElement.hasAttribute("zen-compact-animating")) return;
+    const sliding = tb?.getAttribute("animate") === "true" || document.documentElement.hasAttribute("zen-compact-animating");
+    if (sliding && !warm) return;
     // No overlap right now (the sidebar sliding out, or docked): keep the
     // frames that are up, so the next show has one at once.
-    const rect = sampleRect() ?? lastSample?.rect;
+    const rect = warm ? (lastSample?.rect ?? sampleRect()) : (sampleRect() ?? lastSample?.rect);
     if (!rect) return;
     sampling = true; samplingSince = Date.now(); ticks++;
     lastSample = { rect, at: Date.now() };
@@ -264,8 +270,8 @@
       let ms = 250;
       try { const v = parseInt(readPrefValue(PREFIX + "sidebar.sample-interval"), 10); if (v >= 100) ms = v; } catch {}
       try { sampleHost()?.style.setProperty("--zzglass-sample-fade", ms + "ms"); } catch {}
-      sampleOnce();
-      sampleTimer = setInterval(sampleOnce, ms);
+      sampleOnce(true);                      // the strip about to be covered, before the slide
+      sampleTimer = setInterval(() => sampleOnce(), ms);
     } else if (!want && sampleTimer) {
       // The last frame stays up while hidden, so the next show is instant;
       // the next read replaces it.

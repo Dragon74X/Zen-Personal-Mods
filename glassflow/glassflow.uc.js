@@ -271,10 +271,36 @@
     sampleEl = null;
   }
 
+  // ---- keep the favicon through a load ---------------------------------
+  // Firefox clears a tab's icon the moment a new document starts loading
+  // and sets it again only when the new page's favicon arrives; hiding the
+  // spinner (zen.theme.hide-tab-throbber) leaves that gap as a blank. While
+  // the tab is busy, the last icon is put back; if the load ends and no
+  // icon ever arrived, the held one is dropped so a page without a favicon
+  // does not wear the previous site's.
+  const heldIcon = new WeakMap();
+  const keepIconOn = () => { try { return Services.prefs.getBoolPref("zen.theme.hide-tab-throbber", false); } catch { return false; } };
+  function onIconAttr(event) {
+    const changed = event.detail?.changed;
+    if (!changed || !keepIconOn()) return;
+    const tab = event.target;
+    if (changed.includes("image")) {
+      const img = tab.getAttribute("image");
+      if (img) { heldIcon.set(tab, { url: img, held: false }); return; }
+      const h = heldIcon.get(tab);
+      if (h && tab.hasAttribute("busy") && !h.held) { h.held = true; tab.setAttribute("image", h.url); }
+    }
+    if (changed.includes("busy") && !tab.hasAttribute("busy")) {
+      const h = heldIcon.get(tab);
+      if (h?.held) { h.held = false; if (tab.getAttribute("image") === h.url) tab.removeAttribute("image"); }
+    }
+  }
+
   function start() {
     syncInstantUI();
     Services.prefs.addObserver(PREFIX, prefVarObserver);
     try { startSampling(); } catch (e) { console.error("[Glassflow] sampled glass failed to start:", e); }
+    try { gBrowser.tabContainer.addEventListener("TabAttrModified", onIconAttr); } catch (e) { console.error("[Glassflow] favicon hold failed to start:", e); }
     // Glassflow.sample.status() says whether the sampled glass is running
     // and what strip of the page it last read; .now() forces one read.
     window.Glassflow = {
@@ -288,6 +314,7 @@
     const cleanup = () => {
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}
       stopSampling();
+      try { gBrowser.tabContainer.removeEventListener("TabAttrModified", onIconAttr); } catch {}
       try { delete window.Glassflow; } catch {}
     };
     window.addEventListener("unload", cleanup, { once: true });

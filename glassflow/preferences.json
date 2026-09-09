@@ -2695,7 +2695,7 @@
   {
     "type": "string",
     "property": "zzglass.sidebar.sample-interval",
-    "label": "Sample interval (ms) *How often the strip is re-read while the panel is over a see-through page. 250 is four reads a second; 100 is the floor and reads as motion behind a video, at four times the cost.*",
+    "label": "Sample interval (ms) *How often the strip under the panel is re-read while nothing is changing. A read that finds a change is followed quickly on its own, so a scroll or a video is tracked at any setting; 100 is the floor.*",
     "defaultValue": "250",
     "placeholder": "250",
     "conditions": [

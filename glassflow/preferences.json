@@ -2210,6 +2210,57 @@
   {
     "type": "dropdown",
     "value": "number",
+    "property": "zzglass.sidebar.panel-color-mode",
+    "label": "Panel colour *Neutral is Arc's plain dark glass: black or white with the theme, no colour. Workspace mixes the workspace colour in at the accent tint below. Custom mixes the colour you give.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Neutral (Arc's look)",
+        "value": 0
+      },
+      {
+        "label": "Workspace colour",
+        "value": 1
+      },
+      {
+        "label": "Custom colour",
+        "value": 2
+      }
+    ],
+    "conditions": [
+      {
+        "if": {
+          "property": "zzglass.sidebar.enabled",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzglass.sidebar.panel-color",
+    "label": "Custom panel colour *Any CSS colour.*",
+    "defaultValue": "#7c8cf8",
+    "placeholder": "#7c8cf8",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzglass.sidebar.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzglass.sidebar.panel-color-mode",
+          "value": 2
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
     "property": "zzglass.sidebar.panel-direction",
     "label": "Panel gradient direction",
     "defaultValue": 2,
@@ -2357,7 +2408,7 @@
   {
     "type": "string",
     "property": "zzglass.sidebar.blur-tint",
-    "label": "Panel accent tint *How much workspace colour the floating panel carries. 10% is a hint; 25% and up visibly colours the glass.*",
+    "label": "Panel accent tint *How much of the panel colour is mixed into the base, for the Workspace and Custom colour modes. 10% is a hint; 25% and up visibly colours the glass.*",
     "defaultValue": "10%",
     "placeholder": "10%",
     "conditions": [
@@ -2366,8 +2417,26 @@
           "property": "zzglass.sidebar.enabled",
           "value": true
         }
+      },
+      {
+        "conditions": [
+          {
+            "if": {
+              "property": "zzglass.sidebar.panel-color-mode",
+              "value": 1
+            }
+          },
+          {
+            "if": {
+              "property": "zzglass.sidebar.panel-color-mode",
+              "value": 2
+            }
+          }
+        ],
+        "operator": "OR"
       }
-    ]
+    ],
+    "operator": "AND"
   },
   {
     "type": "string",

@@ -555,7 +555,10 @@
     --zzg-pacc: color-mix(in srgb, var(--zen-primary-color, #7c8cf8), black var(--zzg-tone, 25%));
     --zzg-pbase: light-dark(rgb(255 255 255 / var(--zzglass-sidebar-panel-opacity, 70%)),
                             rgb(0 0 0 / var(--zzglass-sidebar-panel-opacity, 70%)));
-    --zzg-pa: color-mix(in srgb, var(--zzg-pacc) var(--zzglass-sidebar-blur-tint, 10%), var(--zzg-pbase));
+    /* Neutral by default -- Arc's plain dark glass, no accent at all. The
+       colour mode below mixes the workspace colour or a custom one in at
+       the accent tint. */
+    --zzg-pa: var(--zzg-pbase);
     --zzg-pb: var(--zzg-pbase);
     --zzg-pdir: to bottom;
     background-color: transparent !important;
@@ -566,6 +569,8 @@
     corner-shape: var(--zzg-corner-side) !important;
     outline: none !important;
   }
+  @media (-moz-pref("zzglass.sidebar.panel-color-mode", 1)) { :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background { --zzg-pa: color-mix(in srgb, var(--zzg-pacc) var(--zzglass-sidebar-blur-tint, 10%), var(--zzg-pbase)); } }
+  @media (-moz-pref("zzglass.sidebar.panel-color-mode", 2)) { :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background { --zzg-pacc: var(--zzglass-sidebar-panel-color, #7c8cf8); --zzg-pa: color-mix(in srgb, var(--zzg-pacc) var(--zzglass-sidebar-blur-tint, 10%), var(--zzg-pbase)); } }
   @media (-moz-pref("zzglass.sidebar.panel-end-mode", 1)) { :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background { --zzg-pb: color-mix(in srgb, var(--zzg-pacc) var(--zzglass-sidebar-panel-end-tint, 8%), var(--zzg-pbase)); } }
   @media (-moz-pref("zzglass.sidebar.panel-end-mode", 2)) { :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background { --zzg-pb: color-mix(in srgb, var(--zzg-second) var(--zzglass-sidebar-panel-end-tint, 8%), var(--zzg-pbase)); } }
   @media (-moz-pref("zzglass.sidebar.panel-end-mode", 3)) { :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background { --zzg-pb: var(--zzg-pa); } }

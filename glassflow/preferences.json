@@ -1988,7 +1988,7 @@
   {
     "type": "checkbox",
     "property": "zen.theme.hide-tab-throbber",
-    "label": "Keep the favicon while a page loads *Zen swaps the favicon for a spinner while a tab loads, which reads as the icon blinking out and back. This is Zen's own switch to keep the icon in place; Arc's loading animations hide the spinner the same way.*",
+    "label": "Keep the favicon while a page loads *Zen swaps the favicon for a spinner while a tab loads, and Firefox clears the icon until the new page's favicon arrives; together they read as the icon blinking out and back. This hides the spinner, Zen's own switch, and holds the last icon through the load. A page that never sends a favicon drops the held one when it finishes.*",
     "defaultValue": true
   },
   {

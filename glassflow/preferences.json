@@ -2175,7 +2175,7 @@
   {
     "type": "checkbox",
     "property": "zzglass.sidebar.rim",
-    "label": "Glass rim on the sidebar *Independent switch.*",
+    "label": "Glass rim on the docked sidebar *Docked only; the floating panel has its own border setting below.*",
     "defaultValue": false,
     "conditions": [
       {
@@ -2253,6 +2253,79 @@
         "if": {
           "property": "zzglass.sidebar.panel-color-mode",
           "value": 2
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.sidebar.panel-border",
+    "label": "Panel border *Thin line is Arc's edge: one pixel, white at 15%. Glass rim is the same highlight-plus-line the tabs use, from the shared rim settings.*",
+    "defaultValue": 1,
+    "options": [
+      {
+        "label": "None",
+        "value": 0
+      },
+      {
+        "label": "Thin line (Arc's look)",
+        "value": 1
+      },
+      {
+        "label": "Glass rim, like the tabs",
+        "value": 2
+      }
+    ],
+    "conditions": [
+      {
+        "if": {
+          "property": "zzglass.sidebar.enabled",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzglass.sidebar.panel-border-color",
+    "label": "Border colour *Any CSS colour, for the thin line.*",
+    "defaultValue": "rgb(255 255 255 / 15%)",
+    "placeholder": "rgb(255 255 255 / 15%)",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzglass.sidebar.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzglass.sidebar.panel-border",
+          "value": 1
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.sidebar.panel-border-width",
+    "label": "Border width *For the thin line.*",
+    "defaultValue": "1px",
+    "placeholder": "1px",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzglass.sidebar.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzglass.sidebar.panel-border",
+          "value": 1
         }
       }
     ],

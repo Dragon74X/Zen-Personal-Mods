@@ -90,7 +90,7 @@
       if (!data || !data.startsWith(PREFIX)) return;
       if (data === PREFIX + "instant-ui") { syncInstantUI(); return; }
       if (data === PREFIX + "sidebar.sample" || data === PREFIX + "sidebar.sample-interval") {
-        if (sampleTimer) { clearInterval(sampleTimer); sampleTimer = null; }
+        if (sampleTimer) { clearTimeout(sampleTimer); sampleTimer = null; }
         syncSampling();
       }
       const name = "--" + data.replace(/\./g, "-");
@@ -116,6 +116,8 @@
   // nothing at all while the sidebar is hidden or docked.
   const SAMPLE_SCALE = 0.1;                   // the viewport at a tenth
   let sampleTimer = null;
+  let sampleMs = 250, lastPush = 0;
+  const FAST_MS = 80;                         // read rate while the strip keeps changing (a scroll, a video)
   let sampleObserver = null;
   let sampleSig = null;
   let sampling = false;
@@ -262,7 +264,7 @@
       opaqueLast = opaqueNow;
       if (opaquePage) { if (sidebarEl()?.hasAttribute("zzglass-sample")) clearSample(); return; }
       // Unchanged strip -> unchanged picture: no new blob, no repaint.
-      if (sig === sampleSig) return;
+      if (sig === sampleSig) return false;
       sampleSig = sig;
       const url = URL.createObjectURL(await c.convertToBlob({ type: "image/png" }));
       const host = sampleHost();
@@ -275,11 +277,17 @@
         urls[back] = url;
         front = back;
         placeLayers();
-        // The first frame lands at once; only later frames fade in.
+        // The first frame lands at once; later frames fade in -- briefly
+        // while frames keep coming (a scroll should not trail), at the
+        // idle rate after a pause.
+        const now = Date.now(), moving = now - lastPush < 2 * sampleMs;
+        lastPush = now;
+        host.style.setProperty("--zzglass-sample-fade", (moving ? FAST_MS : sampleMs) + "ms");
         if (urls[1 - front]) host.setAttribute("zzglass-fade", "");
         sidebarEl().setAttribute("zzglass-sample", "");
       }
       lastError = null;
+      return true;
     } catch (e) {
       lastError = String(e);
       console.warn("[Glassflow] sample failed:", e);
@@ -292,15 +300,17 @@
     const want = on && sidebarShown();
     if (want && !sampleTimer) {
       // A text field, so a string pref; read either type.
-      let ms = 250;
-      try { const v = parseInt(readPrefValue(PREFIX + "sidebar.sample-interval"), 10); if (v >= 100) ms = v; } catch {}
-      try { sampleHost()?.style.setProperty("--zzglass-sample-fade", ms + "ms"); } catch {}
+      sampleMs = 250;
+      try { const v = parseInt(readPrefValue(PREFIX + "sidebar.sample-interval"), 10); if (v >= 100) sampleMs = v; } catch {}
       sampleOnce(true);                      // the strip about to be covered, before the slide
-      sampleTimer = setInterval(() => sampleOnce(), ms);
+      // The idle rate is the setting; a read that found a change is
+      // followed quickly, so a scroll is tracked and a still page is not.
+      const next = (delay) => { sampleTimer = setTimeout(async () => { const changed = await sampleOnce(); if (sampleTimer) next(changed ? FAST_MS : sampleMs); }, delay); };
+      next(sampleMs);
     } else if (!want && sampleTimer) {
       // The last frame stays up while hidden, so the next show is instant;
       // the next read replaces it.
-      clearInterval(sampleTimer); sampleTimer = null;
+      clearTimeout(sampleTimer); sampleTimer = null;
     }
     // Shown or hidden, the panel is about to slide: keep the picture put.
     if (on && sampleEl?.isConnected) track();
@@ -326,7 +336,7 @@
     try { sampleObserver?.disconnect(); } catch {}
     sampleObserver = null;
     try { gBrowser.tabContainer.removeEventListener("TabSelect", syncSampleNow); } catch {}
-    if (sampleTimer) { clearInterval(sampleTimer); sampleTimer = null; }
+    if (sampleTimer) { clearTimeout(sampleTimer); sampleTimer = null; }
     cancelAnimationFrame(trackRaf); trackRaf = 0;
     clearSample();
     try { sampleEl?.remove(); } catch {}

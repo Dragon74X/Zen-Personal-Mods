@@ -280,28 +280,37 @@
   }
 
   // ---- keep the favicon through a load ---------------------------------
-  // Firefox clears a tab's icon the moment a new document starts loading
-  // and sets it again only when the new page's favicon arrives; hiding the
-  // spinner (zen.theme.hide-tab-throbber) leaves that gap as a blank. While
-  // the tab is busy, the last icon is put back; if the load ends and no
-  // icon ever arrived, the held one is dropped so a page without a favicon
-  // does not wear the previous site's.
+  // Measured on a live profile: Firefox clears a tab's icon the moment a
+  // load ENDS -- busy off, then the image attribute gone in the same tick
+  // -- and the page's real favicon arrives about half a second later. With
+  // the spinner hidden that half second is a blank. While a tab is busy,
+  // and for a short window after it stops, the last icon is put back; if
+  // no icon arrives inside the window the held one is dropped, so a page
+  // without a favicon does not wear the previous site's.
+  const HOLD_MS = 1500;
   const heldIcon = new WeakMap();
   const keepIconOn = () => { try { return Services.prefs.getBoolPref("zen.theme.hide-tab-throbber", false); } catch { return false; } };
   function onIconAttr(event) {
     const changed = event.detail?.changed;
     if (!changed || !keepIconOn()) return;
     const tab = event.target;
-    if (changed.includes("image")) {
-      const img = tab.getAttribute("image");
-      if (img) { heldIcon.set(tab, { url: img, held: false }); return; }
-      const h = heldIcon.get(tab);
-      if (h && tab.hasAttribute("busy") && !h.held) { h.held = true; tab.setAttribute("image", h.url); }
+    const h = heldIcon.get(tab);
+    if (changed.includes("busy") && !tab.hasAttribute("busy") && h) h.busyEnd = Date.now();
+    if (!changed.includes("image")) return;
+    const img = tab.getAttribute("image");
+    if (img) {
+      clearTimeout(h?.drop);
+      heldIcon.set(tab, { url: img, held: false, busyEnd: h?.busyEnd || 0 });
+      return;
     }
-    if (changed.includes("busy") && !tab.hasAttribute("busy")) {
-      const h = heldIcon.get(tab);
-      if (h?.held) { h.held = false; if (tab.getAttribute("image") === h.url) tab.removeAttribute("image"); }
-    }
+    if (!h || h.held) return;
+    if (!tab.hasAttribute("busy") && Date.now() - h.busyEnd > HOLD_MS) return;
+    h.held = true;
+    tab.setAttribute("image", h.url);
+    clearTimeout(h.drop);
+    h.drop = setTimeout(() => {
+      if (h.held && tab.getAttribute("image") === h.url) { h.held = false; tab.removeAttribute("image"); }
+    }, HOLD_MS);
   }
 
   function start() {

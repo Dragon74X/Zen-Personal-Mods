@@ -124,21 +124,29 @@ workspace colour, since container colour only exists per tab.
 
 ## Sidebar
 
-Off by default. **Sidebar target** picks what gets painted: the whole sidebar
-(`#navigator-toolbox`), the compact background only
-(`#zen-toolbar-background`), the titlebar, or all of them.
+Off by default. Two states, two surfaces, nothing to pick. Docked, the sidebar
+gets the tint gradient. In compact mode Zen floats the sidebar over the page
+and paints it with a panel element; that panel gets the panel settings, the
+same element Arc's compact sidebar section styles. Turn Arc's blur and opacity
+down and let this own it.
 
 | Setting | Default | Notes |
 |---|---|---|
 | Enable sidebar styling | off | |
-| Sidebar target | Whole sidebar | |
-| Sidebar tint / fill strength | `10%` / `1` | |
+| Sidebar tint / fill strength | `10%` / `1` | docked gradient |
 | Sidebar gradient direction | Top to bottom | |
 | Glass sheen / glass rim | off / off | |
-| Compact sidebar glass | off | Real `backdrop-filter` behind the sidebar |
-| Only in compact mode | on | |
-| Sidebar blur radius / contrast / saturation | `25px` / `1` / `1` | |
-| Sidebar corner radius | `12px` | |
+| Panel opacity | `35%` | Arc's look; `0%` is see-through |
+| Workspace gradient through the panel | `1` | `0` hides Zen's gradient |
+| Panel shadow | on | Zen's own |
+| Panel accent tint / corner radius | `22%` / `12px` | |
+| Blur behind the floating panel | off | Real `backdrop-filter`. Cannot see the web page; no chrome blur can |
+| Blur radius / contrast / saturation | `25px` / `1` / `1` | |
+| Sampled glass (experimental) | off | Snaps the page strip under the panel a few times a second and paints it blurred behind the panel. The only way to blur the page itself |
+| Sample blur / opacity / interval | `18px` / `1` / `250` | |
+
+`Glassflow.sample.status()` in the console says whether sampling is running
+and which strip of the page it last read.
 
 Two optional page-side effects, both off:
 

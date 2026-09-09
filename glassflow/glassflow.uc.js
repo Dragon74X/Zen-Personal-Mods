@@ -89,6 +89,10 @@
     observe(_s, _t, data) {
       if (!data || !data.startsWith(PREFIX)) return;
       if (data === PREFIX + "instant-ui") { syncInstantUI(); return; }
+      if (data === PREFIX + "sidebar.sample" || data === PREFIX + "sidebar.sample-interval") {
+        if (sampleTimer) { clearInterval(sampleTimer); sampleTimer = null; }
+        syncSampling();
+      }
       const name = "--" + data.replace(/\./g, "-");
       const value = readPrefValue(data);
       try {
@@ -99,11 +103,132 @@
   };
 
 
+  // ---- sampled sidebar glass ----------------------------------------------
+  // backdrop-filter in chrome cannot see web content: the content process
+  // composites its own surface, so every "sidebar blur" mod blurs the window
+  // background and goes flat once the page has painted. drawSnapshot() on
+  // the content's WindowGlobalParent can: it hands back a bitmap of any
+  // rectangle of the page. So while the compact sidebar floats over the
+  // page, the strip beneath it is snapped at a small scale a few times a
+  // second, and painted -- blurred, tinted -- behind the sidebar as a
+  // background image. A tiny readback, a tiny image, no per-frame pass;
+  // nothing at all while the sidebar is hidden or docked.
+  const SAMPLE_SCALE = 0.1;                   // 300px strip -> 30px image
+  let sampleTimer = null;
+  let sampleObserver = null;
+  let sampleUrl = null;
+  let sampleSig = "";
+  let sampling = false;
+  let lastSample = null;
+
+  // #titlebar is the floating panel in compact mode; the sample hangs on it.
+  const sidebarEl = () => document.getElementById("titlebar");
+  const sidebarShown = () => {
+    const root = document.documentElement, tb = document.getElementById("navigator-toolbox");
+    return root.getAttribute("zen-compact-mode") === "true" && !!tb &&
+      (tb.hasAttribute("zen-has-hover") || tb.hasAttribute("zen-user-show") || tb.hasAttribute("has-popup-menu"));
+  };
+
+  // The page rectangle under the sidebar, in the content's own CSS pixels.
+  function sampleRect() {
+    const sb = sidebarEl(), browser = gBrowser?.selectedBrowser;
+    if (!sb || !browser) return null;
+    const s = sb.getBoundingClientRect(), b = browser.getBoundingClientRect();
+    const left = Math.max(s.left, b.left), top = Math.max(s.top, b.top);
+    const right = Math.min(s.right, b.right), bottom = Math.min(s.bottom, b.bottom);
+    if (right - left < 8 || bottom - top < 8) return null;
+    let zoom = 1;
+    try { zoom = browser.browsingContext?.fullZoom || 1; } catch {}
+    return new DOMRect((left - b.left) / zoom, (top - b.top) / zoom, (right - left) / zoom, (bottom - top) / zoom);
+  }
+
+  function clearSample() {
+    try { sidebarEl()?.style.removeProperty("--zzglass-sidebar-sample"); } catch {}
+    if (sampleUrl) { try { URL.revokeObjectURL(sampleUrl); } catch {} sampleUrl = null; }
+    sampleSig = "";
+  }
+
+  async function sampleOnce() {
+    if (sampling) return;
+    const rect = sampleRect();
+    if (!rect) { clearSample(); return; }
+    sampling = true;
+    lastSample = { rect, at: Date.now() };
+    try {
+      const wg = gBrowser.selectedBrowser.browsingContext?.currentWindowGlobal;
+      if (!wg?.drawSnapshot) return;
+      const bmp = await wg.drawSnapshot(rect, SAMPLE_SCALE, "transparent");
+      const c = new OffscreenCanvas(bmp.width, bmp.height);
+      const ctx = c.getContext("2d");
+      ctx.drawImage(bmp, 0, 0);
+      bmp.close();
+      // Unchanged page -> unchanged image: no new blob, no repaint.
+      const px = ctx.getImageData(0, 0, c.width, c.height).data;
+      let sig = "";
+      for (let i = 0; i < px.length; i += 64) sig += String.fromCharCode(px[i] >> 3);
+      if (sig === sampleSig) return;
+      sampleSig = sig;
+      const url = URL.createObjectURL(await c.convertToBlob({ type: "image/png" }));
+      const sb = sidebarEl();
+      if (sb) sb.style.setProperty("--zzglass-sidebar-sample", `url("${url}")`);
+      if (sampleUrl) { try { URL.revokeObjectURL(sampleUrl); } catch {} }
+      sampleUrl = url;
+    } catch {
+      clearSample();
+    } finally { sampling = false; }
+  }
+
+  function syncSampling() {
+    const on = (() => { try { return Services.prefs.getBoolPref(PREFIX + "sidebar.sample", false); } catch { return false; } })();
+    const want = on && sidebarShown();
+    if (want && !sampleTimer) {
+      // A text field, so a string pref; read either type.
+      let ms = 250;
+      try { const v = parseInt(readPrefValue(PREFIX + "sidebar.sample-interval"), 10); if (v >= 100) ms = v; } catch {}
+      sampleOnce();
+      sampleTimer = setInterval(sampleOnce, ms);
+    } else if (!want && sampleTimer) {
+      clearInterval(sampleTimer); sampleTimer = null;
+      clearSample();
+    }
+  }
+
+  function startSampling() {
+    const tb = document.getElementById("navigator-toolbox");
+    if (!tb) return;
+    // Zen flips these attributes as the compact sidebar shows and hides;
+    // the observer is the only thing that runs while it is hidden.
+    sampleObserver = new MutationObserver(syncSampling);
+    sampleObserver.observe(tb, { attributes: true, attributeFilter: ["zen-has-hover", "zen-user-show", "has-popup-menu"] });
+    sampleObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["zen-compact-mode"] });
+    gBrowser.tabContainer.addEventListener("TabSelect", syncSampleNow);
+    syncSampling();
+  }
+  const syncSampleNow = () => { sampleSig = ""; if (sampleTimer) sampleOnce(); };
+  function stopSampling() {
+    try { sampleObserver?.disconnect(); } catch {}
+    sampleObserver = null;
+    try { gBrowser.tabContainer.removeEventListener("TabSelect", syncSampleNow); } catch {}
+    if (sampleTimer) { clearInterval(sampleTimer); sampleTimer = null; }
+    clearSample();
+  }
+
   function start() {
     syncInstantUI();
     Services.prefs.addObserver(PREFIX, prefVarObserver);
+    try { startSampling(); } catch (e) { console.error("[Glassflow] sampled glass failed to start:", e); }
+    // Glassflow.sample.status() says whether the sampled glass is running
+    // and what strip of the page it last read; .now() forces one read.
+    window.Glassflow = {
+      sample: {
+        status: () => ({ active: !!sampleTimer, shown: sidebarShown(), rect: sampleRect(), last: lastSample }),
+        now: () => { sampleSig = ""; return sampleOnce(); },
+      },
+    };
     const cleanup = () => {
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}
+      stopSampling();
+      try { delete window.Glassflow; } catch {}
     };
     window.addEventListener("unload", cleanup, { once: true });
     // Not registered with Sine's addUnloadListener() on purpose: that buys

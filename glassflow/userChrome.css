@@ -518,55 +518,102 @@
 }
 
 /* ============================================================
-   SIDEBAR
-   #zen-toolbar-background is Arc's compact pseudo-background and does
-   not exist in every layout, which is why targeting it alone did
-   nothing. The target is now selectable; --zzg-sb-sel names the group.
-   No #navigator-toolbox ancestor: USER_SHEET !important wins on cascade
-   origin, so specificity is not required.
+   SIDEBAR (v3.35)
+
+   Two states, two surfaces, no guessing. Docked: #navigator-toolbox is
+   the sidebar, and it gets the tint gradient. Compact: Zen floats
+   #titlebar over the page and paints its surface with
+   #zen-toolbar-background, a child of #titlebar that exists only for
+   this -- Zen's own gradient generator draws the workspace gradient on
+   its ::before/::after, and Zen's acrylic option blurs it. That element
+   is the panel, so that is what gets tinted, blurred and rounded here,
+   the way Arc styles the same panel. Nothing else is touched, so Zen's
+   geometry, animation and shadow stay Zen's.
    ============================================================ */
 
 @media (-moz-pref("zzglass.sidebar.enabled")) {
-  @media (-moz-pref("zzglass.sidebar.target", 0)) {
-    #navigator-toolbox {
-      background-image: var(--zzg-sb-img) !important;
-      background-repeat: no-repeat !important;
-      background-size: 100% 100% !important;
-    }
-    @media (-moz-pref("zzglass.sidebar.rim")) {
-      #navigator-toolbox { box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important; }
+  /* docked */
+  :root:not([zen-compact-mode="true"]) #navigator-toolbox {
+    background-image: var(--zzg-sb-img) !important;
+    background-repeat: no-repeat !important;
+    background-size: 100% 100% !important;
+  }
+  @media (-moz-pref("zzglass.sidebar.rim")) {
+    :root:not([zen-compact-mode="true"]) #navigator-toolbox {
+      box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important;
     }
   }
 
-  @media (-moz-pref("zzglass.sidebar.target", 1)) {
-    #zen-toolbar-background, .zen-toolbar-background {
-      background-image: var(--zzg-sb-img) !important;
-      background-repeat: no-repeat !important;
-      background-size: 100% 100% !important;
+  /* floating panel */
+  :root[zen-compact-mode="true"] #zen-toolbar-background {
+    background: color-mix(in srgb, var(--zzg-accent) var(--zzglass-sidebar-blur-tint, 22%),
+      light-dark(rgb(255 255 255 / var(--zzglass-sidebar-panel-opacity, 35%)),
+                 rgb(0 0 0 / var(--zzglass-sidebar-panel-opacity, 35%)))) !important;
+    border-radius: var(--zzglass-sidebar-blur-radius-corner, 12px) !important;
+    corner-shape: var(--zzg-corner-side) !important;
+    outline: none !important;
+  }
+  /* Zen's workspace gradient lives on the panel's pseudo-elements. */
+  :root[zen-compact-mode="true"] #zen-toolbar-background::before,
+  :root[zen-compact-mode="true"] #zen-toolbar-background::after {
+    opacity: var(--zzglass-sidebar-gradient-show, 1) !important;
+    outline: none !important;
+  }
+  @media (-moz-pref("zzglass.sidebar.rim")) {
+    :root[zen-compact-mode="true"] #zen-toolbar-background {
+      box-shadow: var(--zen-big-shadow), inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important;
     }
-    @media (-moz-pref("zzglass.sidebar.rim")) {
-      #zen-toolbar-background, .zen-toolbar-background {
-        box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important;
-      }
+  }
+  @media not (-moz-pref("zzglass.sidebar.shadow")) {
+    :root[zen-compact-mode="true"] #zen-toolbar-background { box-shadow: none !important; }
+  }
+
+  /* Blur behind the panel. KNOWN LIMIT, from Arc's own bug reports (#54,
+     #43, #59): chrome backdrop-filter cannot sample web content once the
+     content process has composited it, so this blurs the window
+     background and goes flat once a page has painted. The sampled glass
+     below is the answer to that; this stays for the tint-over-desktop
+     look and for windows with transparent pages. Held through the
+     sidebar animation on purpose: dropping it there reads as flicker. */
+  @media (-moz-pref("zzglass.sidebar.blur")) {
+    :root[zen-compact-mode="true"] #zen-toolbar-background {
+      backdrop-filter:
+        blur(var(--zzglass-sidebar-blur-radius, 25px))
+        contrast(var(--zzglass-sidebar-blur-contrast, 1))
+        saturate(var(--zzglass-sidebar-blur-saturate, 1)) !important;
     }
   }
 
-  @media (-moz-pref("zzglass.sidebar.target", 2)) {
-    #titlebar {
-      background-image: var(--zzg-sb-img) !important;
-      background-repeat: no-repeat !important;
-      background-size: 100% 100% !important;
+  /* Sampled glass: glassflow.uc.js snaps the page strip under the panel
+     and hands it over as --zzglass-sidebar-sample on #titlebar. It is
+     painted on #titlebar::before, beneath the panel, which turns
+     see-through while a sample is up; the backdrop pass, which cannot
+     see the page anyway, is dropped at the same time. */
+  @media (-moz-pref("zzglass.sidebar.sample")) {
+    :root[zen-compact-mode="true"] #titlebar[style*="--zzglass-sidebar-sample"] {
+      overflow: hidden;
+      border-radius: var(--zzglass-sidebar-blur-radius-corner, 12px) !important;
     }
-    @media (-moz-pref("zzglass.sidebar.rim")) {
-      #titlebar { box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important; }
+    :root[zen-compact-mode="true"] #titlebar[style*="--zzglass-sidebar-sample"] #zen-toolbar-background {
+      background: color-mix(in srgb, var(--zzg-accent) var(--zzglass-sidebar-blur-tint, 22%), transparent) !important;
+      backdrop-filter: none !important;
+      box-shadow: none !important;
     }
-  }
-
-  @media (-moz-pref("zzglass.sidebar.target", 3)) {
-    #navigator-toolbox, #zen-toolbar-background, .zen-toolbar-background, #titlebar {
-      background-image: var(--zzg-sb-img) !important;
-      background-repeat: no-repeat !important;
-      background-size: 100% 100% !important;
+    :root[zen-compact-mode="true"] #titlebar[style*="--zzglass-sidebar-sample"] #zen-toolbar-background::before,
+    :root[zen-compact-mode="true"] #titlebar[style*="--zzglass-sidebar-sample"] #zen-toolbar-background::after {
+      opacity: 0 !important;
+    }
+    :root[zen-compact-mode="true"] #titlebar[style*="--zzglass-sidebar-sample"]::before {
+      content: "" !important;
+      position: absolute !important;
+      inset: calc(-2 * var(--zzglass-sidebar-sample-blur, 18px)) !important;
+      z-index: -2 !important;
+      pointer-events: none !important;
+      background: var(--zzglass-sidebar-sample) center / cover no-repeat !important;
+      filter: blur(var(--zzglass-sidebar-sample-blur, 18px))
+              saturate(var(--zzglass-sidebar-blur-saturate, 1))
+              contrast(var(--zzglass-sidebar-blur-contrast, 1)) !important;
+      opacity: var(--zzglass-sidebar-sample-opacity, 1) !important;
     }
   }
 }
@@ -1145,56 +1192,6 @@
 
 
 
-
-
-/* ============================================================
-   Compact sidebar glass (v3.24)
-
-   Targets #zen-toolbar-background, the element that actually paints the
-   sidebar's surface -- not #navigator-toolbox, which is its container.
-   Arc sets `backdrop-filter: none !important` on it unconditionally and
-   then re-enables blur only when zen.view.compact.hide-tabbar is on and
-   the toolbox is not animating. This mod imports after Arc, so at equal
-   specificity these rules win, and Arc's compact sidebar section can be
-   left off entirely.
-
-   KNOWN LIMIT, from Arc's own bug reports (#54, #43, #59): chrome
-   backdrop-filter cannot sample web content once the content process has
-   composited it. That is why the sidebar "blurs while the page is
-   loading, then goes transparent when it finishes", and why opening any
-   extension sidebar makes the blur reappear -- both cases put a
-   parent-process surface back into the backdrop root. Blur of the page
-   itself is therefore not reliable on any build; the tint below is, and
-   is what carries the doubled-opacity look when the blur has nothing to
-   work on.
-   ============================================================ */
-
-@media (-moz-pref("zzglass.sidebar.blur")) {
-  #zen-toolbar-background {
-    background-color: color-mix(in srgb, var(--zzg-accent)
-      var(--zzglass-sidebar-blur-tint, 22%), transparent) !important;
-    border-radius: var(--zzglass-sidebar-blur-radius-corner, 12px) !important;
-    corner-shape: var(--zzg-corner-side) !important;
-    backdrop-filter:
-      blur(var(--zzglass-sidebar-blur-radius, 25px))
-      contrast(var(--zzglass-sidebar-blur-contrast, 1))
-      saturate(var(--zzglass-sidebar-blur-saturate, 1)) !important;
-    outline: none !important;
-  }
-  /* Arc drops the blur while the toolbox animates, which reads as a
-     flicker on every sidebar transition. Holding it through the
-     animation is steadier, so it is not conditioned on [animate]. */
-}
-
-@media (-moz-pref("zzglass.sidebar.blur")) and (-moz-pref("zzglass.sidebar.blur-compact-only")) {
-  #zen-toolbar-background { backdrop-filter: none !important; }
-  :root[zen-compact-mode="true"] #zen-toolbar-background {
-    backdrop-filter:
-      blur(var(--zzglass-sidebar-blur-radius, 25px))
-      contrast(var(--zzglass-sidebar-blur-contrast, 1))
-      saturate(var(--zzglass-sidebar-blur-saturate, 1)) !important;
-  }
-}
 
 
 /* ============================================================

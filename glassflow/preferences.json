@@ -2076,41 +2076,8 @@
   {
     "type": "checkbox",
     "property": "zzglass.sidebar.enabled",
-    "label": "Enable sidebar styling *Tints the sidebar background. Arc's compact sidebar opacity still applies underneath; set that first, then use this on top.*",
+    "label": "Enable sidebar styling *Docked, the sidebar gets the tint gradient below. In compact mode Zen floats the sidebar over the page, and the floating panel gets the panel settings further down. Arc's compact sidebar section paints the same panel; turn Arc's blur and opacity down and let this own it.*",
     "defaultValue": false
-  },
-  {
-    "type": "dropdown",
-    "value": "number",
-    "property": "zzglass.sidebar.target",
-    "label": "Sidebar target *Which element gets the tint. Zen's layout differs between compact, collapsed and expanded, so if one target does nothing, try the next. Whole sidebar is the safest. Turn on the debug outlines to see which elements actually exist in your layout.*",
-    "defaultValue": 0,
-    "options": [
-      {
-        "label": "Whole sidebar (#navigator-toolbox)",
-        "value": 0
-      },
-      {
-        "label": "Compact background only (#zen-toolbar-background)",
-        "value": 1
-      },
-      {
-        "label": "Titlebar (#titlebar)",
-        "value": 2
-      },
-      {
-        "label": "All of them",
-        "value": 3
-      }
-    ],
-    "conditions": [
-      {
-        "if": {
-          "property": "zzglass.sidebar.enabled",
-          "value": true
-        }
-      }
-    ]
   },
   {
     "type": "string",
@@ -2220,10 +2187,40 @@
     ]
   },
   {
-    "type": "checkbox",
-    "property": "zzglass.sidebar.blur",
-    "label": "Compact sidebar glass *Blurs and tints the floating sidebar in compact mode, replacing Arc's version of the same feature -- turn Arc's compact sidebar section off if you use this. Note that browser chrome cannot blur a web page once it has finished loading; that is a platform limit, not a setting, so the tint below is what carries the effect on most pages and the blur adds to it where the backdrop allows.*",
-    "defaultValue": false,
+    "type": "separator",
+    "label": "**Floating panel (compact mode)**",
+    "margin": "14px 0 6px 0",
+    "size": "14px",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzglass.sidebar.enabled",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzglass.sidebar.panel-opacity",
+    "label": "Panel opacity *How solid the floating panel's base is, as a percentage: 35% is Arc's look, 0% is see-through with only the tint, 100% is opaque.*",
+    "defaultValue": "35%",
+    "placeholder": "35%",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzglass.sidebar.enabled",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzglass.sidebar.gradient-show",
+    "label": "Workspace gradient through the panel *Zen paints the workspace gradient on the panel; 1 keeps it, 0 hides it so only the tint and blur show.*",
+    "defaultValue": "1",
+    "placeholder": "1",
     "conditions": [
       {
         "if": {
@@ -2235,8 +2232,8 @@
   },
   {
     "type": "checkbox",
-    "property": "zzglass.sidebar.blur-compact-only",
-    "label": "Only in compact mode *Compact mode is where the sidebar floats over the page. Turn this off to keep the glass while docked as well.*",
+    "property": "zzglass.sidebar.shadow",
+    "label": "Panel shadow *Zen's own drop shadow under the floating panel.*",
     "defaultValue": true,
     "conditions": [
       {
@@ -2244,20 +2241,13 @@
           "property": "zzglass.sidebar.enabled",
           "value": true
         }
-      },
-      {
-        "if": {
-          "property": "zzglass.sidebar.blur",
-          "value": true
-        }
       }
-    ],
-    "operator": "AND"
+    ]
   },
   {
     "type": "string",
     "property": "zzglass.sidebar.blur-tint",
-    "label": "Sidebar tint strength *Accent strength of the layer over the page, as a percentage. This is the half of the effect that always works, so raise it if the blur alone looks too clear.*",
+    "label": "Panel accent tint *How much workspace colour the floating panel carries, as a percentage of its fill.*",
     "defaultValue": "22%",
     "placeholder": "22%",
     "conditions": [
@@ -2266,15 +2256,37 @@
           "property": "zzglass.sidebar.enabled",
           "value": true
         }
-      },
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzglass.sidebar.blur-radius-corner",
+    "label": "Panel corner radius *Rounding of the floating panel.*",
+    "defaultValue": "12px",
+    "placeholder": "12px",
+    "conditions": [
       {
         "if": {
-          "property": "zzglass.sidebar.blur",
+          "property": "zzglass.sidebar.enabled",
           "value": true
         }
       }
-    ],
-    "operator": "AND"
+    ]
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.sidebar.blur",
+    "label": "Blur behind the floating panel *A real backdrop-filter on the compact panel, like Arc's. Firefox limit, shared by every mod: it cannot see the web page, only the window behind it, so it goes flat once a page has painted. Sampled glass below is the fix for that.*",
+    "defaultValue": false,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzglass.sidebar.enabled",
+          "value": true
+        }
+      }
+    ]
   },
   {
     "type": "string",
@@ -2343,11 +2355,25 @@
     "operator": "AND"
   },
   {
+    "type": "checkbox",
+    "property": "zzglass.sidebar.sample",
+    "label": "Sampled glass: blur the page itself (experimental) *No chrome blur can see the web page: the page is drawn by its own process, which is why every sidebar blur goes flat once the page has painted. This takes a tiny snapshot of the page strip under the floating sidebar a few times a second while the sidebar is shown, and paints it blurred and tinted behind the sidebar. Nothing runs while the sidebar is hidden or docked. The ordinary blur pass is dropped while a sample is up, so this costs less than what it replaces.*",
+    "defaultValue": false,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzglass.sidebar.enabled",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
     "type": "string",
-    "property": "zzglass.sidebar.blur-radius-corner",
-    "label": "Sidebar corner radius *Rounding of the floating sidebar panel.*",
-    "defaultValue": "12px",
-    "placeholder": "12px",
+    "property": "zzglass.sidebar.sample-blur",
+    "label": "Sample blur radius *How soft the page reads through the sidebar.*",
+    "defaultValue": "18px",
+    "placeholder": "18px",
     "conditions": [
       {
         "if": {
@@ -2357,7 +2383,51 @@
       },
       {
         "if": {
-          "property": "zzglass.sidebar.blur",
+          "property": "zzglass.sidebar.sample",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.sidebar.sample-opacity",
+    "label": "Sample opacity *1 shows the blurred page at full strength; lower fades it toward the plain tint.*",
+    "defaultValue": "1",
+    "placeholder": "1",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzglass.sidebar.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzglass.sidebar.sample",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.sidebar.sample-interval",
+    "label": "Sample interval (ms) *How often the strip is re-read while the sidebar is shown. 250 is four times a second; 100 is the floor.*",
+    "defaultValue": "250",
+    "placeholder": "250",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzglass.sidebar.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzglass.sidebar.sample",
           "value": true
         }
       }

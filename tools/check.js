@@ -15,7 +15,7 @@
   const TYPE = { 0: "unset", 32: "string", 64: "int", 128: "bool" };
 
   const MODS = [
-    ["zz-glassflow",    "Glassflow",    null],
+    ["zz-glassflow", "Glassflow", "Glassflow"],
     ["zz-groupflow",    "Groupflow",    "Groupflow"],
     ["zz-tab-router",   "Tab Router",   "TabRouter"],
     ["zz-tab-unloader", "Tab Unloader", "TabUnloader"],
@@ -100,7 +100,7 @@
         if (fails) {
           out.hiddenRows.push(
             `${pref.property} hidden: needs ${c.property}` +
-            `=${JSON.stringify(c.value)}, ` +
+            `${cond.not ? "!=" : "="}${JSON.stringify(c.value)}, ` +
             (dep.type === "unset" ? "but it has never been set (default not applied)"
                                   : `but it is ${JSON.stringify(dep.value)}`));
         }
@@ -138,6 +138,10 @@
     // it, and every row after it vanishes. Checked here so it cannot recur.
     for (const pref of prefs) {
       if (pref?.type === "separator" && pref.conditions) out.problems.push(`separator "${pref.label}" has conditions: rows after it will not render`);
+    }
+
+    if (String(out.installedVersion).includes("NetworkError")) {
+      out.problems.push("Sine cannot serve this mod's files: its folder is missing from chrome/sine-mods (a reinstall from the multi-mod repository can move it into another mod's folder)");
     }
 
     out.prefsChecked = checked;

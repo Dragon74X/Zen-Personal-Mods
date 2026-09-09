@@ -681,6 +681,9 @@
       pointer-events: none !important;
       margin: 0 !important;
       padding: 0 !important;
+      /* The picture is the whole viewport; only the part under the panel
+         is kept, so the blur has only that much to do. */
+      overflow: hidden !important;
       background-color: light-dark(#f2f2f2, #0d0d10) !important;
       filter: blur(var(--zzglass-sidebar-sample-blur, 18px))
               saturate(var(--zzglass-sidebar-blur-saturate, 1))
@@ -694,8 +697,8 @@
        over. A plain crossfade (old fading out while the new fades in)
        showed the dark backing through both at the midpoint: a dip in
        brightness on every frame change, a flicker on any bright page. */
-    /* Each layer is placed by the script at exactly the margin its read
-       managed, and sized 100%: the picture maps to the page one to one. */
+    /* Each layer is placed by the script over the page's own box, and
+       sized 100%: the picture maps to the page one to one. */
     :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] > #zzglass-sample > div {
       position: absolute !important;
       background-size: 100% 100% !important;

@@ -544,8 +544,9 @@
     }
   }
 
-  /* floating panel */
-  :root[zen-compact-mode="true"] #zen-toolbar-background {
+  /* floating panel. Three ids on purpose: Arc paints the same element from
+     a two-id selector with three attributes, and ids outrank attributes. */
+  :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background {
     background: color-mix(in srgb, var(--zzg-accent) var(--zzglass-sidebar-blur-tint, 22%),
       light-dark(rgb(255 255 255 / var(--zzglass-sidebar-panel-opacity, 35%)),
                  rgb(0 0 0 / var(--zzglass-sidebar-panel-opacity, 35%)))) !important;
@@ -554,18 +555,18 @@
     outline: none !important;
   }
   /* Zen's workspace gradient lives on the panel's pseudo-elements. */
-  :root[zen-compact-mode="true"] #zen-toolbar-background::before,
-  :root[zen-compact-mode="true"] #zen-toolbar-background::after {
+  :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background::before,
+  :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background::after {
     opacity: var(--zzglass-sidebar-gradient-show, 1) !important;
     outline: none !important;
   }
   @media (-moz-pref("zzglass.sidebar.rim")) {
-    :root[zen-compact-mode="true"] #zen-toolbar-background {
+    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background {
       box-shadow: var(--zen-big-shadow), inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important;
     }
   }
   @media not (-moz-pref("zzglass.sidebar.shadow")) {
-    :root[zen-compact-mode="true"] #zen-toolbar-background { box-shadow: none !important; }
+    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background { box-shadow: none !important; }
   }
 
   /* Blur behind the panel. KNOWN LIMIT, from Arc's own bug reports (#54,
@@ -576,7 +577,7 @@
      look and for windows with transparent pages. Held through the
      sidebar animation on purpose: dropping it there reads as flicker. */
   @media (-moz-pref("zzglass.sidebar.blur")) {
-    :root[zen-compact-mode="true"] #zen-toolbar-background {
+    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background {
       backdrop-filter:
         blur(var(--zzglass-sidebar-blur-radius, 25px))
         contrast(var(--zzglass-sidebar-blur-contrast, 1))
@@ -590,20 +591,20 @@
      see-through while a sample is up; the backdrop pass, which cannot
      see the page anyway, is dropped at the same time. */
   @media (-moz-pref("zzglass.sidebar.sample")) {
-    :root[zen-compact-mode="true"] #titlebar[style*="--zzglass-sidebar-sample"] {
+    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[style*="--zzglass-sidebar-sample"] {
       overflow: hidden;
       border-radius: var(--zzglass-sidebar-blur-radius-corner, 12px) !important;
     }
-    :root[zen-compact-mode="true"] #titlebar[style*="--zzglass-sidebar-sample"] #zen-toolbar-background {
+    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[style*="--zzglass-sidebar-sample"] #zen-toolbar-background {
       background: color-mix(in srgb, var(--zzg-accent) var(--zzglass-sidebar-blur-tint, 22%), transparent) !important;
       backdrop-filter: none !important;
       box-shadow: none !important;
     }
-    :root[zen-compact-mode="true"] #titlebar[style*="--zzglass-sidebar-sample"] #zen-toolbar-background::before,
-    :root[zen-compact-mode="true"] #titlebar[style*="--zzglass-sidebar-sample"] #zen-toolbar-background::after {
+    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[style*="--zzglass-sidebar-sample"] #zen-toolbar-background::before,
+    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[style*="--zzglass-sidebar-sample"] #zen-toolbar-background::after {
       opacity: 0 !important;
     }
-    :root[zen-compact-mode="true"] #titlebar[style*="--zzglass-sidebar-sample"]::before {
+    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[style*="--zzglass-sidebar-sample"]::before {
       content: "" !important;
       position: absolute !important;
       inset: calc(-2 * var(--zzglass-sidebar-sample-blur, 18px)) !important;

@@ -119,7 +119,8 @@
   let sampleSig = null;
   let sampling = false;
   let lastSample = null;
-  let opaquePage = null;                      // last read: could the backdrop blur see this page?
+  let opaquePage = null;                      // settled: could the backdrop blur see this page?
+  let opaqueLast = null;                      // the read before, for the two-in-a-row rule
 
   // #titlebar is the floating panel in compact mode; the sample hangs on it.
   const sidebarEl = () => document.getElementById("titlebar");
@@ -182,9 +183,21 @@
     // wedge every read after it.
     if (sampling && Date.now() - samplingSince > 2000) sampling = false;
     if (sampling) return;
+    // Zen slides the panel in over a couple of hundred milliseconds. A read
+    // taken mid-slide crops a strip that is only partly over the page and
+    // stretches it across the whole panel, then the next read replaces it:
+    // a visible pulse on every hover. Wait the slide out.
+    // A warm read is the exception: taken as the hover begins, at the strip
+    // the panel is ABOUT to cover -- its final position, known from the
+    // last open -- so the frame Zen slides in is the page as it is now.
+    // The viewport snapshot does not depend on where the panel is; only
+    // the crop does.
+    const tb = document.getElementById("navigator-toolbox");
+    const sliding = tb?.getAttribute("animate") === "true" || document.documentElement.hasAttribute("zen-compact-animating");
+    if (sliding && !warm) return;
     // No overlap right now (the sidebar sliding out, or docked): keep the
     // frames that are up, so the next show has one at once.
-    const rect = sampleRect() ?? lastSample?.rect;
+    const rect = warm ? (lastSample?.rect ?? sampleRect()) : (sampleRect() ?? lastSample?.rect);
     if (!rect) return;
     sampling = true; samplingSince = Date.now(); ticks++;
     lastSample = { rect, at: Date.now() };
@@ -217,7 +230,12 @@
         sig = (Math.imul(sig, 31) + px[i] + px[i + 1] + px[i + 2] + px[i + 3]) | 0;
         n++; if (px[i + 3] === 255) solid++;
       }
-      opaquePage = solid / n > 0.97;
+      // Two reads in a row have to agree before the panel flips between the
+      // backdrop blur and the sample; a single borderline read is not a
+      // reason to blink.
+      const opaqueNow = solid / n > 0.97;
+      if (opaquePage === null || opaqueNow === opaqueLast) opaquePage = opaqueNow;
+      opaqueLast = opaqueNow;
       if (opaquePage) { if (sidebarEl()?.hasAttribute("zzglass-sample")) clearSample(); return; }
       // Unchanged page -> unchanged image: no new blob, no repaint.
       if (sig === sampleSig) return;
@@ -252,8 +270,8 @@
       let ms = 250;
       try { const v = parseInt(readPrefValue(PREFIX + "sidebar.sample-interval"), 10); if (v >= 100) ms = v; } catch {}
       try { sampleHost()?.style.setProperty("--zzglass-sample-fade", ms + "ms"); } catch {}
-      sampleOnce();
-      sampleTimer = setInterval(sampleOnce, ms);
+      sampleOnce(true);                      // the strip about to be covered, before the slide
+      sampleTimer = setInterval(() => sampleOnce(), ms);
     } else if (!want && sampleTimer) {
       // The last frame stays up while hidden, so the next show is instant;
       // the next read replaces it.

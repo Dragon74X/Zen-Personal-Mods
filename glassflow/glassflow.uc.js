@@ -271,10 +271,64 @@
     sampleEl = null;
   }
 
+  // ---- tab load fill ---------------------------------------------------
+  // Firefox reports each tab's load progress to a tabs progress listener;
+  // nothing shows it on the tab but a spinner. This paints it: an element
+  // of our own inside the tab background, its width the page's progress,
+  // drawn by the CSS as a gradient fill or a thin bar. Arc and Zen both
+  // use the background's pseudo-elements, so this is a real element.
+  // Writes are throttled per tab and stop the moment the load does.
+  const loadEls = new WeakMap();
+  const loadAt = new WeakMap();
+  const loadOn = () => { try { return Services.prefs.getBoolPref(PREFIX + "tabs.load-fill", true); } catch { return true; } };
+  function loadEl(tab) {
+    let el = loadEls.get(tab);
+    if (el?.isConnected) return el;
+    const bg = tab.querySelector?.(".tab-background");
+    if (!bg) return null;
+    el = document.createElementNS("http://www.w3.org/1999/xhtml", "div");
+    el.className = "zzglass-load";
+    bg.appendChild(el);
+    loadEls.set(tab, el);
+    return el;
+  }
+  function setLoad(tab, pct, state = "1") {
+    const el = loadEl(tab);
+    if (!el) return;
+    if (pct != null) el.style.setProperty("--zzglass-load", Math.round(pct) + "%");
+    if (tab.getAttribute("zzglass-loading") !== state) tab.setAttribute("zzglass-loading", state);
+  }
+  function endLoad(tab) {
+    setLoad(tab, 100, "done");
+    setTimeout(() => { if (tab.getAttribute("zzglass-loading") === "done") tab.removeAttribute("zzglass-loading"); }, 400);
+  }
+  const loadListener = {
+    onStateChange(browser, wp, req, flags) {
+      if (!loadOn() || !wp?.isTopLevel) return;
+      const W = Ci.nsIWebProgressListener;
+      if (!(flags & W.STATE_IS_NETWORK)) return;
+      const tab = gBrowser.getTabForBrowser(browser);
+      if (!tab) return;
+      if (flags & W.STATE_START) setLoad(tab, 4);
+      else if (flags & W.STATE_STOP) endLoad(tab);
+    },
+    onProgressChange(browser, wp, req, curSelf, maxSelf, cur, max) {
+      if (!loadOn() || !wp?.isTopLevel) return;
+      const tab = gBrowser.getTabForBrowser(browser);
+      if (!tab || !tab.hasAttribute("zzglass-loading")) return;
+      const now = Date.now();
+      if (now - (loadAt.get(tab) || 0) < 60) return;
+      loadAt.set(tab, now);
+      if (max > 0) setLoad(tab, Math.max(4, Math.min(96, 100 * cur / max)));
+      else setLoad(tab, null, "indeterminate");
+    },
+  };
+
   function start() {
     syncInstantUI();
     Services.prefs.addObserver(PREFIX, prefVarObserver);
     try { startSampling(); } catch (e) { console.error("[Glassflow] sampled glass failed to start:", e); }
+    try { gBrowser.addTabsProgressListener(loadListener); } catch (e) { console.error("[Glassflow] load fill failed to start:", e); }
     // Glassflow.sample.status() says whether the sampled glass is running
     // and what strip of the page it last read; .now() forces one read.
     window.Glassflow = {
@@ -288,6 +342,7 @@
     const cleanup = () => {
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}
       stopSampling();
+      try { gBrowser.removeTabsProgressListener(loadListener); } catch {}
       try { delete window.Glassflow; } catch {}
     };
     window.addEventListener("unload", cleanup, { once: true });

@@ -103,6 +103,11 @@ one white 1px top highlight and 1px ring per state.
 
 ## Tabs, shared
 
+**Loading fill on the tab** paints the page's load progress on the tab itself,
+from Firefox's per-tab progress events: a gradient fill that grows across the
+tab (default) or a thin bar along its bottom, in the tab's accent colour or one
+you give, sweeping when the page reports no total and fading out on finish.
+
 | Setting | Default | Notes |
 |---|---|---|
 | Detailed rim control | off | Reveals the per-state rim colour / edge / thickness knobs |

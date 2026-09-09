@@ -130,6 +130,7 @@
     return learnedCache;
   }
   function saveLearned() {
+    if (isPrivate()) return;            // a private window learns for its session only
     try {
       Services.prefs.setStringPref(P + "learned-names",
         JSON.stringify(Object.fromEntries([...learnedMap()].slice(-200))));
@@ -330,6 +331,7 @@
     return creatorCache;
   }
   function saveCreators() {
+    if (isPrivate()) return;            // a private window learns for its session only
     // Bounded, oldest out. This is a record of which videos were opened, so
     // it is kept small and forgetCreators() empties it.
     try {
@@ -372,8 +374,9 @@
     if (lastFail && Date.now() - lastFail < RETRY_FAIL_MS) return;
     inFlight.set(id, true);
 
-    let watch = "";
-    try { watch = tab.linkedBrowser.currentURI.spec; } catch {}
+    // The id is all oEmbed needs. The tab's full URL would also carry the
+    // timestamp, the playlist and YouTube's si= share-tracking token.
+    const watch = `https://www.youtube.com/watch?v=${id}`;
     const ctx = parseInt(tab.getAttribute("usercontextid") || "0", 10);
     const done = (name, channelUrl) => {
       inFlight.delete(id);
@@ -434,6 +437,7 @@
     return iconCache;
   }
   function saveIcons() {
+    if (isPrivate()) return;            // a private window learns for its session only
     // A pref string is capped at 1 MB by Firefox; 100 icons at 64px are a
     // few hundred KB. Oldest out first if it ever gets close.
     const entries = [...iconMap()].slice(-ICON_MAX);
@@ -498,7 +502,13 @@
 
   // Called from pathParts() with the URL prefix that ends at the naming
   // segment, that segment, and the label it became.
+  // Routers, NAS boxes and dev servers: a picture lookup must never turn
+  // into a request at the local network. Bare addresses and local-only
+  // suffixes are skipped before any URL is built.
+  const INTERNAL_HOST = /^(?:localhost|[^.]+|\d{1,3}(?:\.\d{1,3}){3}|\[[^\]]*\]|.+\.(?:local|localhost|internal|lan|home|corp|intranet))$/i;
+
   function wantSectionIcon(tab, host, prefix, seg, label) {
+    if (INTERNAL_HOST.test(host)) return;
     const site = ICON_PAGES.find(x => x.host.test(host));
     const page = site ? site.page(seg) : `https://${host}${prefix}`;
     fetchSectionIcon(label, page, parseInt(tab.getAttribute("usercontextid") || "0", 10),
@@ -1163,10 +1173,22 @@
     return text;
   }
 
+  // "Clear history" in Firefox's own dialog also clears what this mod
+  // learned from browsing: creator names, section pictures, learned names.
+  const purgeObserver = () => { try { forgetAll(); } catch {} };
+  function forgetAll() {
+    creatorCache = new Map(); iconCache = new Map(); learnedCache = new Map();
+    saveCreators(); saveIcons(); saveLearned();
+    stampIcons();
+    targetGen++;
+    note("forgot every learned name, creator and picture");
+  }
+
   function start() {
     gBrowser.addTabsProgressListener(progress);
     gBrowser.tabContainer.addEventListener("TabAttrModified", onAttrModified);
     try { Services.prefs.addObserver(P, prefObserver); } catch {}
+    try { Services.obs.addObserver(purgeObserver, "browser:purge-session-history"); } catch {}
     // Groups made or removed by hand must invalidate the cache too.
     // TabGroupUngroup does not exist in Zen 1.22b -- it was a dead listener.
     // TabGroupUpdate and TabGroupRemovedFromDOM are the real Zen events for a
@@ -1323,8 +1345,10 @@
         saveCreators();
         stampIcons();
         targetGen++;
-        return id ? `forgot "${id}"` : "forgot every remembered creator";
+        return id ? `forgot "${id}"` : "forgot every remembered creator and picture";
       },
+      // Everything learned from browsing, at once. Clearing history does this too.
+      forgetAll() { forgetAll(); return "forgot every learned name, creator and picture"; },
       log: formatLog,
 
       // Non-destructive counterpart to diag(), which ejects the selected tab
@@ -1366,7 +1390,7 @@
         } catch {}
 
         const r = {
-          version: "1.28.0",
+          version: "1.29.0",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The
@@ -1414,6 +1438,7 @@
       try { gBrowser.removeTabsProgressListener(progress); } catch {}
       try { gBrowser.tabContainer.removeEventListener("TabAttrModified", onAttrModified); } catch {}
       try { Services.prefs.removeObserver(P, prefObserver); } catch {}
+      try { Services.obs.removeObserver(purgeObserver, "browser:purge-session-history"); } catch {}
       for (const ev of groupEvents) {
         try { window.removeEventListener(ev, bustGroups, true); } catch {}
       }

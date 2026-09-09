@@ -2195,9 +2195,9 @@
   {
     "type": "string",
     "property": "zzglass.sidebar.panel-opacity",
-    "label": "Panel opacity *How solid the floating panel's base is, as a percentage: 35% is Arc's look, 0% is see-through with only the tint, 100% is opaque.*",
-    "defaultValue": "35%",
-    "placeholder": "35%",
+    "label": "Panel opacity *How solid the floating panel's base is, as a percentage. 70% is the dark, defined look; 0% is see-through with only the tint.*",
+    "defaultValue": "70%",
+    "placeholder": "70%",
     "conditions": [
       {
         "if": {
@@ -2328,9 +2328,9 @@
   {
     "type": "string",
     "property": "zzglass.sidebar.gradient-show",
-    "label": "Workspace gradient through the panel *Zen paints the workspace gradient on the panel; 1 keeps it, 0 hides it so only the tint and blur show.*",
-    "defaultValue": "1",
-    "placeholder": "1",
+    "label": "Workspace gradient through the panel *Zen paints the workspace gradient on the panel. 0 hides it for a clean dark panel; 1 lets it through, which reads lighter and hazier.*",
+    "defaultValue": "0",
+    "placeholder": "0",
     "conditions": [
       {
         "if": {
@@ -2357,9 +2357,9 @@
   {
     "type": "string",
     "property": "zzglass.sidebar.blur-tint",
-    "label": "Panel accent tint *How much workspace colour the floating panel carries, as a percentage of its fill.*",
-    "defaultValue": "22%",
-    "placeholder": "22%",
+    "label": "Panel accent tint *How much workspace colour the floating panel carries. 10% is a hint; 25% and up visibly colours the glass.*",
+    "defaultValue": "10%",
+    "placeholder": "10%",
     "conditions": [
       {
         "if": {

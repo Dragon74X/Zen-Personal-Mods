@@ -109,7 +109,7 @@
   --zzg-sb-fill: color-mix(in srgb,
     color-mix(in srgb,
       color-mix(in srgb, var(--zen-primary-color, #7c8cf8), black var(--zzg-tone))
-      var(--zzglass-sidebar-tint, 10%), transparent)
+      var(--zzglass-sidebar-tint, 0%), transparent)
     calc(var(--zzglass-sidebar-strength, 1) * 100%), transparent);
   --zzg-sb-img: linear-gradient(var(--zzg-sdir), var(--zzg-sb-fill), transparent 85%);
 }

@@ -2082,9 +2082,9 @@
   {
     "type": "string",
     "property": "zzglass.sidebar.tint",
-    "label": "Sidebar tint *How much workspace colour the sidebar carries.*",
-    "defaultValue": "10%",
-    "placeholder": "10%",
+    "label": "Sidebar tint *Docked sidebar only. 0% leaves the docked sidebar untouched; raise it for a workspace-coloured gradient behind it.*",
+    "defaultValue": "0%",
+    "placeholder": "0%",
     "conditions": [
       {
         "if": {
@@ -2304,7 +2304,7 @@
     "value": "number",
     "property": "zzglass.sidebar.panel-end-mode",
     "label": "Panel gradient end *What the accent fades toward. Base keeps the panel's opacity and drops the colour. Weaker tint keeps the hue at the End tint value. Second colour blends toward the Second gradient colour.*",
-    "defaultValue": 0,
+    "defaultValue": 3,
     "options": [
       {
         "label": "Fade to the base",

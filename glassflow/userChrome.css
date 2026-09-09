@@ -591,13 +591,27 @@
     opacity: var(--zzglass-sidebar-gradient-show, 0) !important;
     outline: none !important;
   }
-  @media (-moz-pref("zzglass.sidebar.rim")) {
+  @media not (-moz-pref("zzglass.sidebar.shadow")) {
+    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background { box-shadow: none !important; }
+  }
+  /* Panel border. Arc's edge is Zen's own 1px line on the panel's gradient
+     layers, which are hidden here, so the line is drawn on the panel
+     itself: a thin line, or the same glass rim the tabs use. */
+  @media (-moz-pref("zzglass.sidebar.panel-border", 1)) {
+    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background {
+      outline: var(--zzglass-sidebar-panel-border-width, 1px) solid var(--zzglass-sidebar-panel-border-color, rgb(255 255 255 / 15%)) !important;
+      outline-offset: calc(-1 * var(--zzglass-sidebar-panel-border-width, 1px)) !important;
+    }
+  }
+  @media (-moz-pref("zzglass.sidebar.panel-border", 2)) {
     :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background {
       box-shadow: var(--zen-big-shadow), inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important;
     }
-  }
-  @media not (-moz-pref("zzglass.sidebar.shadow")) {
-    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background { box-shadow: none !important; }
+    @media not (-moz-pref("zzglass.sidebar.shadow")) {
+      :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background {
+        box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important;
+      }
+    }
   }
 
   /* Blur behind the panel. KNOWN LIMIT, from Arc's own bug reports (#54,
@@ -647,7 +661,6 @@
        page cannot show through unblurred beneath our blurred copy. */
     :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] #zen-toolbar-background {
       backdrop-filter: none !important;
-      box-shadow: none !important;
     }
     :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] #zen-toolbar-background::before,
     :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] #zen-toolbar-background::after {

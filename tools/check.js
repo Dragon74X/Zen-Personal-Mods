@@ -134,6 +134,12 @@
       }
     } catch (e) { out.problems.push(`live state: ${e}`); }
 
+    // A separator carrying conditions makes Sine's panel builder throw on
+    // it, and every row after it vanishes. Checked here so it cannot recur.
+    for (const pref of prefs) {
+      if (pref?.type === "separator" && pref.conditions) out.problems.push(`separator "${pref.label}" has conditions: rows after it will not render`);
+    }
+
     out.prefsChecked = checked;
     out.prefsNeverSet = `${unset} of ${checked} still on their declared default`;
     if (!out.problems.length) out.problems = "none -- every stored pref matches its declared type";

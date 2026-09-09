@@ -264,15 +264,144 @@
     if (spec) {
       const hit = targetCache.get(tab);
       if (hit && hit.spec === spec && hit.gen === targetGen) return hit.parts;
-      const parts = computeTargetPath(tab);
-      targetCache.set(tab, { spec, gen: targetGen, parts });
+      const parts = withCreator(tab, computeTargetPath(tab));
+      // A path still waiting on its creator must be recomputed next pass,
+      // or the tab sits in the base group for as long as its URL is
+      // unchanged -- on a watch page, the whole time it is open.
+      const id = videoId(tab);
+      if (!id || !bool("media-subgroups", false) || creatorMap().has(id)) {
+        targetCache.set(tab, { spec, gen: targetGen, parts });
+      }
       return parts;
     }
-    return computeTargetPath(tab);
+    return withCreator(tab, computeTargetPath(tab));
   }
 
   // Returns the target as a PATH: ["Nexusmods", "Stalker 2"]. Each level is
   // a nested tab group. A flat name is just a one-element path.
+  // ---- creator via oEmbed -------------------------------------------------
+  // A watch URL names the video, never the channel. The page's MediaSession
+  // gives the channel for free but only while the video is PLAYING, so a tab
+  // opened and never played could not be filed (docs/SHELVED.md). YouTube's
+  // oEmbed endpoint answers for any video: one ~1KB JSON request, no key,
+  // returns author_name. One request per new video, then remembered.
+  //
+  // The request is built INSIDE the tab's container and sent anonymously.
+  // Container: the channel carries the tab's userContextId in its origin
+  // attributes, so its cache entry lives in that container's partition and
+  // nothing about it is visible from another container. Anonymous:
+  // LOAD_ANONYMOUS strips cookies both ways, so YouTube cannot tie the
+  // lookup to an account and the lookup writes no cookie back. Private
+  // windows are skipped outright -- nothing leaves them.
+  const OEMBED = "https://www.youtube.com/oembed?format=json&url=";
+  const isPrivate = () => {
+    try {
+      return ChromeUtils.importESModule("resource://gre/modules/PrivateBrowsingUtils.sys.mjs")
+        .PrivateBrowsingUtils.isWindowPrivate(window);
+    } catch { return true; }             // cannot tell: treat as private
+  };
+
+  // Cache key: the video id, so &t= timestamps and tracking parameters do
+  // not fragment one video into many entries.
+  function videoId(tab) {
+    try {
+      const uri = tab.linkedBrowser?.currentURI;
+      if (!uri || !/^https?$/.test(uri.scheme)) return null;
+      const host = uri.host.toLowerCase();
+      if (host === "youtu.be") return uri.filePath.replace(/^\/+/, "").split("/")[0] || null;
+      if (!/(^|\.)youtube\.com$/.test(host)) return null;
+      const v = new URLSearchParams(uri.query || "").get("v");
+      if (v) return v;
+      const m = uri.filePath.match(/^\/(?:shorts|live|embed)\/([^/?#]+)/);
+      return m ? m[1] : null;
+    } catch { return null; }
+  }
+
+  let creatorCache = null;
+  function creatorMap() {
+    if (creatorCache) return creatorCache;
+    try { creatorCache = new Map(Object.entries(JSON.parse(str("creators", "{}")))); }
+    catch { creatorCache = new Map(); }
+    return creatorCache;
+  }
+  function saveCreators() {
+    // Bounded, oldest out. This is a record of which videos were opened, so
+    // it is kept small and forgetCreators() empties it.
+    try {
+      Services.prefs.setStringPref(P + "creators",
+        JSON.stringify(Object.fromEntries([...creatorMap()].slice(-300))));
+    } catch {}
+  }
+
+  const inFlight = new Map();            // videoId -> true while a request is out
+  const failed = new Map();              // videoId -> when it last failed (memory only)
+  const RETRY_FAIL_MS = 10 * 60 * 1000;
+
+  function fetchCreator(tab, id) {
+    if (inFlight.has(id)) return;
+    const lastFail = failed.get(id);
+    if (lastFail && Date.now() - lastFail < RETRY_FAIL_MS) return;
+    inFlight.set(id, true);
+
+    let watch = "";
+    try { watch = tab.linkedBrowser.currentURI.spec; } catch {}
+    const ctx = parseInt(tab.getAttribute("usercontextid") || "0", 10);
+    const done = (name) => {
+      inFlight.delete(id);
+      if (!name) { failed.set(id, Date.now()); return; }
+      creatorMap().set(id, name);
+      saveCreators();
+      note(`creator ${id}: ${name}`);
+      if (tab.isConnected && !tab.closing) queueRoute(tab, "creator");
+    };
+    try {
+      const { NetUtil } = ChromeUtils.importESModule("resource://gre/modules/NetUtil.sys.mjs");
+      const url = OEMBED + encodeURIComponent(watch);
+      const principal = Services.scriptSecurityManager
+        .createContentPrincipal(Services.io.newURI(url), { userContextId: ctx });
+      const channel = NetUtil.newChannel({
+        uri: url,
+        loadingPrincipal: principal,
+        securityFlags: Ci.nsILoadInfo.SEC_ALLOW_CROSS_ORIGIN_SEC_CONTEXT_IS_NULL,
+        contentPolicyType: Ci.nsIContentPolicy.TYPE_OTHER,
+      });
+      channel.loadFlags |= Ci.nsIRequest.LOAD_ANONYMOUS;
+      NetUtil.asyncFetch(channel, (stream, status) => {
+        let name = null;
+        try {
+          if (Components.isSuccessCode(status)) {
+            const text = NetUtil.readInputStreamToString(stream, stream.available(), { charset: "UTF-8" });
+            const n = String(JSON.parse(text)?.author_name ?? "").trim();
+            if (n && n.length <= 80) name = n;
+          }
+        } catch {}
+        done(name);
+      });
+    } catch (e) { note(`oembed setup failed for ${id}: ${e}`); done(null); }
+  }
+
+  // The creator for this tab if known; otherwise starts the lookup and
+  // returns null so the tab files under its base path for now.
+  function creatorOf(tab) {
+    if (!bool("media-subgroups", false) || isPrivate()) return null;
+    const id = videoId(tab);
+    if (!id) return null;
+    const known = creatorMap().get(id);
+    if (known) return known;
+    fetchCreator(tab, id);
+    return null;
+  }
+
+  // Appends the creator to whatever path was computed, rule-made or
+  // automatic: youtube.com > Watch becomes Watch / Creator. Unknown yet:
+  // base path, and the route re-runs when the answer lands.
+  function withCreator(tab, parts) {
+    if (!parts?.length) return parts;
+    const who = creatorOf(tab);
+    if (!who || parts.some(p => p.toLowerCase() === who.toLowerCase())) return parts;
+    return [...parts, who];
+  }
+
   function computeTargetPath(tab) {
     const host = hostOf(tab);
     if (!host) return null;
@@ -1076,6 +1205,15 @@
         saveLearned();
         return slug ? `forgot "${slug}"` : "forgot all learned names";
       },
+      // videoId -> creator, everything looked up so far. A record of which
+      // videos were opened: bounded to 300 and emptied by forgetCreators().
+      creators: () => Object.fromEntries(creatorMap()),
+      forgetCreators(id) {
+        if (id) creatorMap().delete(id); else creatorCache = new Map();
+        saveCreators();
+        targetGen++;
+        return id ? `forgot "${id}"` : "forgot every remembered creator";
+      },
       log: formatLog,
 
       // Non-destructive counterpart to diag(), which ejects the selected tab
@@ -1117,7 +1255,7 @@
         } catch {}
 
         const r = {
-          version: "1.22.1",
+          version: "1.23.0",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The
@@ -1129,6 +1267,9 @@
           // navigation would be dead while a manual sortAll() still worked.
           navigationListenerAttached: listenerAttached,
           groupsCached: groupsCache ? groupsCache.length : "(cold)",
+          // A count, not the contents: status() gets pasted into bug reports.
+          creatorsRemembered: creatorMap().size,
+          creatorLookupsInFlight: inFlight.size,
           tabs: allTabs().length,
           tabsWithATarget: withTarget,
           skipped: reasons,
@@ -1227,13 +1368,6 @@
     }
     return wrote > 0;
   }
-
-  // ---- retired feature cleanup --------------------------------------------
-  // Creator subgrouping is gone, and its cache was built out of browsing: a record of which video belonged to which channel.
-  // Leaving that sitting in prefs.js after the feature that justified it has
-  // been removed is not acceptable, so it is cleared once. Harmless when the
-  // pref was never written.
-  try { Services.prefs.clearUserPref("zzrouter.creators"); } catch {}
 
   // ---- startup ------------------------------------------------------------
   // browser-delayed-startup-finished is a ONE-SHOT notification, and waiting

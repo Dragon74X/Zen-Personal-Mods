@@ -208,6 +208,20 @@
     "operator": "AND"
   },
   {
+    "type": "checkbox",
+    "property": "zzrouter.media-subgroups",
+    "label": "Subgroup by creator (YouTube) *A watch address names the video, never the channel, so path rules cannot split YouTube tabs by creator. This asks YouTube's oEmbed endpoint for the video's author -- one small JSON request per NEW video, no key, then remembered -- and files the tab as Youtube / Creator. The request is built inside the tab's own container, so nothing about it is visible from another container, and it is sent anonymously: no cookies go out and none come back, so YouTube cannot tie it to your account. Private windows are never asked. The remembered list is a record of which videos you opened; it is capped at 300 and TabRouter.forgetCreators() empties it.*",
+    "defaultValue": false,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzrouter.enabled",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
     "type": "string",
     "property": "zzrouter.auto-path-ignore",
     "label": "Extra path words to ignore *Comma separated, ADDED to a built-in list of generic route words (search, watch, videos, results, games, category and similar). Numeric segments and file names are always dropped.*",

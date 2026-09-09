@@ -110,7 +110,7 @@
     // the feature, and no amount of looking in the panel will find it.
     const EXPECT = {
       "zz-groupflow": ["zzgroup.icon-rules"],
-      "zz-tab-router": ["zzrouter.media-subgroups"],
+      "zz-tab-router": ["zzrouter.media-subgroups", "zzrouter.creator-icons"],
     }[id];
     if (EXPECT) {
       const have = new Set(prefs.map((x) => x?.property).filter(Boolean));
@@ -119,6 +119,20 @@
         ? `MISSING from the installed copy: ${absent.join(", ")}`
         : "present";
     }
+
+    // Live state of the creator/avatar pipeline: counts only, never contents.
+    try {
+      if (id === "zz-tab-router" && W.TabRouter?.status) {
+        const st = W.TabRouter.status();
+        out.creators = { remembered: st.creatorsRemembered, avatars: st.avatarsRemembered,
+                         lookupsInFlight: st.creatorLookupsInFlight };
+      }
+      if (id === "zz-groupflow" && W.Groupflow?.explain) {
+        const tally = {};
+        for (const row of W.Groupflow.explain()) tally[row.from ?? "(pre-1.37)"] = (tally[row.from ?? "(pre-1.37)"] || 0) + 1;
+        out.iconSources = tally;
+      }
+    } catch (e) { out.problems.push(`live state: ${e}`); }
 
     out.prefsChecked = checked;
     out.prefsNeverSet = `${unset} of ${checked} still on their declared default`;

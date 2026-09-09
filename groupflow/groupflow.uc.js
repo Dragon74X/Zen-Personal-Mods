@@ -145,11 +145,19 @@
     return null;
   }
 
+  // Another mod may hand a group its icon: Tab Router stamps a creator
+  // subgroup with the channel avatar as a data: URI. A rule still wins,
+  // and anything that could break out of the url() is refused.
+  function stampedIcon(g) {
+    const v = g.getAttribute("data-zzrouter-icon");
+    return v && /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(v) ? v : null;
+  }
+
   // Dominant base host among the group's DIRECT tabs; subgroups compute
   // their own, so "Youtube > Creator" shows youtube's icon on the parent
   // and (usually the same) icon on the child from its own members.
   function refreshGroup(g) {
-    const ruled = ruledIcon(g);
+    const ruled = ruledIcon(g) ?? stampedIcon(g);
     if (ruled) { setIcon(g, `url("${ruled}")`); return; }
     const counts = new Map();
     for (const el of g.groupContainer?.children ?? []) {
@@ -245,7 +253,8 @@
           if (g.isZenFolder || g.hasAttribute("split-view-group")) continue;
           out.push({
             group: (g.label ?? "").trim(),
-            icon: g.style.getPropertyValue("--zzgf-icon") || "(none)",
+            icon: (g.style.getPropertyValue("--zzgf-icon") || "(none)").slice(0, 60),
+            from: ruledIcon(g) ? "icon rule" : stampedIcon(g) ? "Tab Router avatar" : "favicon",
           });
         }
         console.log(out);

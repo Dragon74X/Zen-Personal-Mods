@@ -63,7 +63,8 @@
     // list and invalidated every tab's cached target -- once per name learned,
     // which on a fresh session is once per new site. The cache it feeds is
     // already current, so its own write is not a reason to reparse anything.
-    if (data === P + "learned-names") return;
+    if (data === P + "learned-names" || data === P + "avatars") return;
+    if (data === P + "creator-icons") { stampIcons(); return; }
     for (const k of Object.keys(parsed)) delete parsed[k]; learnedCache = null; targetGen++;
   } };
   function cached(key, make) {
@@ -327,6 +328,30 @@
   const failed = new Map();              // videoId -> when it last failed (memory only)
   const RETRY_FAIL_MS = 10 * 60 * 1000;
 
+  // One request, built inside the tab's container and sent anonymously (see
+  // above). cb(bytes) gets the raw body as a byte string, or null.
+  function fetchAnon(url, ctx, cb) {
+    const { NetUtil } = ChromeUtils.importESModule("resource://gre/modules/NetUtil.sys.mjs");
+    const principal = Services.scriptSecurityManager
+      .createContentPrincipal(Services.io.newURI(url), { userContextId: ctx });
+    const channel = NetUtil.newChannel({
+      uri: url,
+      loadingPrincipal: principal,
+      securityFlags: Ci.nsILoadInfo.SEC_ALLOW_CROSS_ORIGIN_SEC_CONTEXT_IS_NULL,
+      contentPolicyType: Ci.nsIContentPolicy.TYPE_OTHER,
+    });
+    channel.loadFlags |= Ci.nsIRequest.LOAD_ANONYMOUS;
+    NetUtil.asyncFetch(channel, (stream, status) => {
+      let body = null;
+      try {
+        if (Components.isSuccessCode(status)) body = NetUtil.readInputStreamToString(stream, stream.available());
+      } catch {}
+      cb(body);
+    });
+  }
+  // Byte string -> JS string, for text bodies.
+  const utf8 = (bytes) => decodeURIComponent(escape(bytes));
+
   function fetchCreator(tab, id) {
     if (inFlight.has(id)) return;
     const lastFail = failed.get(id);
@@ -336,38 +361,110 @@
     let watch = "";
     try { watch = tab.linkedBrowser.currentURI.spec; } catch {}
     const ctx = parseInt(tab.getAttribute("usercontextid") || "0", 10);
-    const done = (name) => {
+    const done = (name, channelUrl) => {
       inFlight.delete(id);
       if (!name) { failed.set(id, Date.now()); return; }
       creatorMap().set(id, name);
       saveCreators();
       note(`creator ${id}: ${name}`);
       if (tab.isConnected && !tab.closing) queueRoute(tab, "creator");
+      if (channelUrl) fetchAvatar(name, channelUrl, ctx);
     };
     try {
-      const { NetUtil } = ChromeUtils.importESModule("resource://gre/modules/NetUtil.sys.mjs");
-      const url = OEMBED + encodeURIComponent(watch);
-      const principal = Services.scriptSecurityManager
-        .createContentPrincipal(Services.io.newURI(url), { userContextId: ctx });
-      const channel = NetUtil.newChannel({
-        uri: url,
-        loadingPrincipal: principal,
-        securityFlags: Ci.nsILoadInfo.SEC_ALLOW_CROSS_ORIGIN_SEC_CONTEXT_IS_NULL,
-        contentPolicyType: Ci.nsIContentPolicy.TYPE_OTHER,
-      });
-      channel.loadFlags |= Ci.nsIRequest.LOAD_ANONYMOUS;
-      NetUtil.asyncFetch(channel, (stream, status) => {
-        let name = null;
+      fetchAnon(OEMBED + encodeURIComponent(watch), ctx, (body) => {
+        let name = null, channelUrl = null;
         try {
-          if (Components.isSuccessCode(status)) {
-            const text = NetUtil.readInputStreamToString(stream, stream.available(), { charset: "UTF-8" });
-            const n = String(JSON.parse(text)?.author_name ?? "").trim();
-            if (n && n.length <= 80) name = n;
-          }
+          const j = JSON.parse(utf8(body));
+          const n = String(j?.author_name ?? "").trim();
+          if (n && n.length <= 80) name = n;
+          const u = String(j?.author_url ?? "");
+          if (/^https:\/\/www\.youtube\.com\/[@\w][\w.\-\/]{0,120}$/.test(u)) channelUrl = u;
         } catch {}
-        done(name);
+        done(name, channelUrl);
       });
     } catch (e) { note(`oembed setup failed for ${id}: ${e}`); done(null); }
+  }
+
+  // ---- channel avatars ---------------------------------------------------
+  // The creator subgroup gets the channel's avatar as its icon: Groupflow
+  // reads data-zzrouter-icon off the group before it computes a favicon.
+  // The avatar is not in the oEmbed answer, so the channel page is fetched
+  // once per creator -- same container, same anonymity -- and its og:image
+  // is read with a plain string search, never parsed as a document. The
+  // image bytes are then fetched the same way and kept as a data: URI, so
+  // showing the icon later never touches the network from outside the
+  // container. Only Google's avatar CDN is accepted, only real image bytes
+  // are kept, and the store is bounded to 100 creators.
+  const AVATAR_HOST = /^https:\/\/yt3\.(?:googleusercontent|ggpht)\.com\/[\w\-=.%/]+$/;
+  const AVATAR_MAX = 100;
+  const AVATAR_PX = 64;
+  let avatarCache = null;
+  function avatarMap() {
+    if (avatarCache) return avatarCache;
+    try { avatarCache = new Map(Object.entries(JSON.parse(str("avatars", "{}")))); }
+    catch { avatarCache = new Map(); }
+    return avatarCache;
+  }
+  function saveAvatars() {
+    // A pref string is capped at 1 MB by Firefox; 100 icons at 64px are a
+    // few hundred KB. Oldest out first if it ever gets close.
+    const entries = [...avatarMap()].slice(-AVATAR_MAX);
+    let text = JSON.stringify(Object.fromEntries(entries));
+    while (text.length > 900000 && entries.length) { entries.shift(); text = JSON.stringify(Object.fromEntries(entries)); }
+    avatarCache = new Map(entries);
+    try { Services.prefs.setStringPref(P + "avatars", text); } catch {}
+  }
+
+  const imageType = (b) =>
+    b.startsWith("\xff\xd8\xff") ? "jpeg" :
+    b.startsWith("\x89PNG") ? "png" :
+    (b.startsWith("RIFF") && b.slice(8, 12) === "WEBP") ? "webp" : null;
+
+  function fetchAvatar(name, channelUrl, ctx) {
+    if (!bool("creator-icons", true)) return;
+    const key = name.toLowerCase();
+    if (avatarMap().has(key) || inFlight.has("avatar:" + key)) return;
+    const lastFail = failed.get("avatar:" + key);
+    if (lastFail && Date.now() - lastFail < RETRY_FAIL_MS) return;
+    inFlight.set("avatar:" + key, true);
+    const done = (dataUri) => {
+      inFlight.delete("avatar:" + key);
+      if (!dataUri) { failed.set("avatar:" + key, Date.now()); return; }
+      avatarMap().set(key, dataUri);
+      saveAvatars();
+      note(`avatar for ${name}`);
+      stampIcons();
+    };
+    try {
+      fetchAnon(channelUrl, ctx, (html) => {
+        // og:image on a channel page is the avatar; on a consent
+        // interstitial it is absent, and the lookup is retried later.
+        const m = html && /<meta property="og:image" content="([^"]{1,400})"/.exec(html);
+        let img = m ? m[1].replace(/=s\d+/, `=s${AVATAR_PX}`) : null;
+        if (!img || !AVATAR_HOST.test(img)) return done(null);
+        try {
+          fetchAnon(img, ctx, (bytes) => {
+            const type = bytes && bytes.length <= 60000 ? imageType(bytes) : null;
+            done(type ? `data:image/${type};base64,${btoa(bytes)}` : null);
+          });
+        } catch { done(null); }
+      });
+    } catch (e) { note(`avatar setup failed for ${name}: ${e}`); done(null); }
+  }
+
+  // Subgroups whose label is a known creator carry its avatar; Groupflow
+  // recomputes on request. Root groups are never stamped, so a creator
+  // named like a top-level group cannot take it over. Switched off: the
+  // stamps come off and Groupflow falls back to favicons.
+  function stampIcons() {
+    const on = bool("creator-icons", true);
+    let changed = 0;
+    for (const g of groups()) {
+      const want = on && parentOf(g) ? avatarMap().get((g.label ?? "").trim().toLowerCase()) : null;
+      if (want) { if (g.getAttribute("data-zzrouter-icon") !== want) { g.setAttribute("data-zzrouter-icon", want); changed++; } }
+      else if (g.hasAttribute("data-zzrouter-icon")) { g.removeAttribute("data-zzrouter-icon"); changed++; }
+    }
+    if (changed) try { window.Groupflow?.refresh?.(); } catch {}
   }
 
   // The creator for this tab if known; otherwise starts the lookup and
@@ -839,6 +936,7 @@
       }
       orderDeferredSince = 0;
       try { applyOrder(); } catch (e) { note(`applyOrder: ${e}`); }
+      try { stampIcons(); } catch (e) { note(`stampIcons: ${e}`); }
     }, num("order-delay-ms", 150));
   }
 
@@ -1157,8 +1255,9 @@
       // videos were opened: bounded to 300 and emptied by forgetCreators().
       creators: () => Object.fromEntries(creatorMap()),
       forgetCreators(id) {
-        if (id) creatorMap().delete(id); else creatorCache = new Map();
+        if (id) creatorMap().delete(id); else { creatorCache = new Map(); avatarCache = new Map(); saveAvatars(); }
         saveCreators();
+        stampIcons();
         targetGen++;
         return id ? `forgot "${id}"` : "forgot every remembered creator";
       },
@@ -1203,7 +1302,7 @@
         } catch {}
 
         const r = {
-          version: "1.24.0",
+          version: "1.25.0",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The
@@ -1217,6 +1316,7 @@
           groupsCached: groupsCache ? groupsCache.length : "(cold)",
           // A count, not the contents: status() gets pasted into bug reports.
           creatorsRemembered: creatorMap().size,
+          avatarsRemembered: avatarMap().size,
           creatorLookupsInFlight: inFlight.size,
           tabs: allTabs().length,
           tabsWithATarget: withTarget,
@@ -1236,6 +1336,9 @@
     };
 
     if (bool("sort-on-startup", false)) setTimeout(() => sweepAll("startup"), num("startup-delay-ms", 2500));
+    // Restored creator subgroups get their avatar back whether or not the
+    // startup sort runs.
+    setTimeout(() => { try { stampIcons(); } catch {} }, num("startup-delay-ms", 2500) + 500);
     note("loaded");
 
     // This script is injected per window and lives as long as the window

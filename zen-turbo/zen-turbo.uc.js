@@ -258,6 +258,15 @@
       if (bool("debug", false)) note(`${hit ? "HIT" : "cold"} ${uri.prePath}`);
     } catch {}
   }
+  // A private window's warmups go to the private connection pool, never
+  // the normal one: the origin attributes carry privateBrowsingId, and a
+  // socket opened for a private tab is not one a normal tab can reuse.
+  const isPrivate = () => {
+    try {
+      return ChromeUtils.importESModule("resource://gre/modules/PrivateBrowsingUtils.sys.mjs")
+        .PrivateBrowsingUtils.isWindowPrivate(window);
+    } catch { return false; }
+  };
   function warm(uriLike, userContextId = 0) {
     try {
       const uri = typeof uriLike === "string" ? Services.io.newURI(uriLike) : uriLike;
@@ -275,11 +284,11 @@
       // is all the network layer wants, rather than a content principal built
       // per warm purely to carry the container id. Falls back where the newer
       // entry point is missing.
+      const oa = { userContextId, privateBrowsingId: isPrivate() ? 1 : 0 };
       if (typeof Services.io.speculativeConnectWithOriginAttributes === "function") {
-        Services.io.speculativeConnectWithOriginAttributes(uri, { userContextId }, null, false);
+        Services.io.speculativeConnectWithOriginAttributes(uri, oa, null, false);
       } else {
-        const principal = Services.scriptSecurityManager
-          .createContentPrincipal(uri, { userContextId });
+        const principal = Services.scriptSecurityManager.createContentPrincipal(uri, oa);
         Services.io.speculativeConnect(uri, principal, null, false);
       }
       stats.warmed++;

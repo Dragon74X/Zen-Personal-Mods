@@ -111,14 +111,15 @@
   // rectangle of the page. So while the compact sidebar floats over the
   // page, the strip beneath it is snapped at a small scale a few times a
   // second, and painted -- blurred, tinted -- behind the sidebar as a
-  // background image. A tiny readback, a tiny image, no per-frame pass;
+  // background image, the whole viewport laid over the page's own box so
+  // the panel is only ever a window onto it. A tiny readback, a tiny image, no per-frame pass;
   // nothing at all while the sidebar is hidden or docked.
-  const SAMPLE_SCALE = 0.1;                   // 300px strip -> 30px image
+  const SAMPLE_SCALE = 0.1;                   // the viewport at a tenth
   let sampleTimer = null;
   let sampleObserver = null;
   let sampleSig = null;
   let sampling = false;
-  let lastSample = null;
+  let lastSample = null;                      // { panel, at }: the panel's last settled box, for warm reads
   let opaquePage = null;                      // settled: could the backdrop blur see this page?
   let opaqueLast = null;                      // the read before, for the two-in-a-row rule
 
@@ -130,17 +131,16 @@
       (tb.hasAttribute("zen-has-hover") || tb.hasAttribute("zen-user-show") || tb.hasAttribute("has-popup-menu"));
   };
 
-  // The page rectangle under the sidebar, in the content's own CSS pixels.
-  function sampleRect() {
-    const sb = sidebarEl(), browser = gBrowser?.selectedBrowser;
-    if (!sb || !browser) return null;
-    const s = sb.getBoundingClientRect(), b = browser.getBoundingClientRect();
-    const left = Math.max(s.left, b.left), top = Math.max(s.top, b.top);
-    const right = Math.min(s.right, b.right), bottom = Math.min(s.bottom, b.bottom);
+  // The part of the page's box a panel box covers, in chrome px from the
+  // page's top left; bw is the page box's width, to scale into the picture.
+  function overlap(panel) {
+    const browser = gBrowser?.selectedBrowser;
+    if (!panel || !browser) return null;
+    const b = browser.getBoundingClientRect();
+    const left = Math.max(panel.left, b.left), top = Math.max(panel.top, b.top);
+    const right = Math.min(panel.right, b.right), bottom = Math.min(panel.bottom, b.bottom);
     if (right - left < 8 || bottom - top < 8) return null;
-    let zoom = 1;
-    try { zoom = browser.browsingContext?.fullZoom || 1; } catch {}
-    return new DOMRect((left - b.left) / zoom, (top - b.top) / zoom, (right - left) / zoom, (bottom - top) / zoom);
+    return { x: left - b.left, y: top - b.top, width: right - left, height: bottom - top, bw: b.right - b.left };
   }
 
   // The picture lives on an element of our own, first child of the panel,
@@ -148,8 +148,8 @@
   // and rewrites its style; neither touches a child we own or an attribute.
   let sampleEl = null;
   let lastError = null;
-  // Two layers inside the host crossfade between reads, so a video behind
-  // the panel reads as moving blur rather than a slideshow.
+  // Two layers inside the host; a new frame fades in over the old one, so
+  // a video behind the panel reads as moving blur rather than a slideshow.
   const XH = "http://www.w3.org/1999/xhtml";
   let layers = [];
   let front = 0;
@@ -175,67 +175,73 @@
     sampleSig = null;
   }
 
-  // warm: a read taken while the sidebar is hidden, at the strip it last
-  // covered, so the first frame is already up when it slides in.
+  // The picture is the WHOLE viewport, laid over the page's own box (the
+  // host clips it to the panel). So it never has to be cropped to where
+  // the panel is: the panel sliding across it uncovers a picture that
+  // stays put, like a window, and the settled read after a slide is the
+  // same picture -- no new frame, nothing to fade. Returns the host's box.
+  function placeLayers() {
+    const host = sampleEl, browser = gBrowser?.selectedBrowser;
+    if (!host?.isConnected || !browser) return null;
+    const h = host.getBoundingClientRect(), b = browser.getBoundingClientRect();
+    const css = { left: b.left - h.left, top: b.top - h.top, width: b.right - b.left, height: b.bottom - b.top };
+    for (const l of layers) for (const k in css) l.style[k] = css[k].toFixed(2) + "px";
+    return h;
+  }
+  // Zen slides the panel with a plain CSS transition (no attribute marks
+  // it), so a read taken then would crop a strip the panel is only
+  // passing over. The picture is re-placed every frame until the panel
+  // has held still for two, and only then is the strip beneath it read.
+  let trackRaf = 0;
+  function track() {
+    cancelAnimationFrame(trackRaf);
+    let last = null, still = 0;
+    const step = () => {
+      const h = placeLayers();
+      if (h && last && Math.abs(h.left - last.left) < 0.01 && Math.abs(h.top - last.top) < 0.01) still++; else still = 0;
+      last = h;
+      if (!h || still >= 2) { trackRaf = 0; if (h && sampleTimer) sampleOnce(); return; }
+      trackRaf = requestAnimationFrame(step);
+    };
+    trackRaf = requestAnimationFrame(step);
+  }
+
+  // warm: a read taken while the panel is hidden or about to slide in, at
+  // the strip it covered last, so the frame is up before the slide.
   let ticks = 0, samplingSince = 0;
   async function sampleOnce(warm = false) {
     // A read that never came back (a tab torn down mid-snapshot) must not
     // wedge every read after it.
     if (sampling && Date.now() - samplingSince > 2000) sampling = false;
     if (sampling) return;
-    // Zen slides the panel in over a couple of hundred milliseconds. A read
-    // taken mid-slide crops a strip that is only partly over the page and
-    // stretches it across the whole panel, then the next read replaces it:
-    // a visible pulse on every hover. Wait the slide out.
-    // A warm read is the exception: taken as the hover begins, at the strip
-    // the panel is ABOUT to cover -- its final position, known from the
-    // last open -- so the frame Zen slides in is the page as it is now.
-    // The viewport snapshot does not depend on where the panel is; only
-    // the crop does.
-    const tb = document.getElementById("navigator-toolbox");
-    const sliding = tb?.getAttribute("animate") === "true" || document.documentElement.hasAttribute("zen-compact-animating");
-    if (sliding && !warm) return;
-    // No overlap right now (the sidebar sliding out, or docked): keep the
-    // frames that are up, so the next show has one at once.
-    const rect = warm ? (lastSample?.rect ?? sampleRect()) : (sampleRect() ?? lastSample?.rect);
-    if (!rect) return;
+    if (trackRaf && !warm) return;            // still sliding; track() reads once it settles
+    const panel = warm ? (lastSample?.panel ?? (sidebarShown() ? sidebarEl()?.getBoundingClientRect() : null))
+                       : sidebarEl()?.getBoundingClientRect();
+    // No overlap right now (docked, or the panel has not been over the page
+    // yet): keep the frames that are up, so the next show has one at once.
+    const strip = overlap(panel);
+    if (!strip) return;
     sampling = true; samplingSince = Date.now(); ticks++;
-    lastSample = { rect, at: Date.now() };
+    lastSample = { panel, at: Date.now() };
     try {
       const wg = gBrowser.selectedBrowser.browsingContext?.currentWindowGlobal;
       if (!wg?.drawSnapshot) return;
       // A rect given to drawSnapshot is taken relative to the PAGE, not the
-      // visible viewport, so it always rendered the top of the document
-      // whatever the scroll. A null rect is the viewport as seen; the strip
-      // is cropped out of that. At a tenth scale the whole viewport is a
-      // few hundred pixels a side.
+      // visible viewport; null is the viewport as seen. At a tenth scale
+      // the whole viewport is a couple of hundred pixels a side.
       const bmp = await wg.drawSnapshot(null, SAMPLE_SCALE, "transparent");
-      // The strip is read with a margin of twice the blur on every side, so
-      // the blurred edges have real page behind them rather than fading
-      // into the backing, and the picture is then laid over the panel ONE
-      // TO ONE: the layer is placed at exactly the margin the read managed
-      // (clamped at the viewport edge) and sized 100%, never "cover", which
-      // zoomed and shifted it. Fractional source coordinates: at a tenth
-      // scale a rounded pixel is five on screen.
-      let zoom = 1;
-      try { zoom = gBrowser.selectedBrowser.browsingContext?.fullZoom || 1; } catch {}
-      const blurPx = parseFloat(readPrefValue(PREFIX + "sidebar.sample-blur")) || 18;
-      const mc = 2 * blurPx / zoom;                     // margin in content px
-      const vw = bmp.width / SAMPLE_SCALE, vh = bmp.height / SAMPLE_SCALE;
-      const e = {
-        l: Math.min(mc, Math.max(0, rect.x)), t: Math.min(mc, Math.max(0, rect.y)),
-        r: Math.min(mc, Math.max(0, vw - (rect.x + rect.width))), b: Math.min(mc, Math.max(0, vh - (rect.y + rect.height))),
-      };
-      const sx = (rect.x - e.l) * SAMPLE_SCALE, sy = (rect.y - e.t) * SAMPLE_SCALE;
-      const sw = (rect.width + e.l + e.r) * SAMPLE_SCALE, sh = (rect.height + e.t + e.b) * SAMPLE_SCALE;
-      const c = new OffscreenCanvas(Math.max(1, Math.ceil(sw)), Math.max(1, Math.ceil(sh)));
+      const c = new OffscreenCanvas(bmp.width, bmp.height);
       const ctx = c.getContext("2d");
-      ctx.drawImage(bmp, sx, sy, sw, sh, 0, 0, c.width, c.height);
+      ctx.drawImage(bmp, 0, 0);
       bmp.close();
-      // Where the layer sits inside the host, which itself reaches 2*blur
-      // past the panel: the part of the margin the read could not have.
-      const place = { left: 2 * blurPx - e.l * zoom, top: 2 * blurPx - e.t * zoom, right: 2 * blurPx - e.r * zoom, bottom: 2 * blurPx - e.b * zoom };
-      const px = ctx.getImageData(0, 0, c.width, c.height).data;
+      // Only the strip under the panel says whether anything changed and
+      // whether the page is see-through; the rest of the viewport may
+      // play a video without a frame being pushed for it.
+      const k = c.width / strip.bw;                     // picture px per chrome px
+      const cx = Math.min(c.width - 1, Math.floor(strip.x * k)), cy = Math.min(c.height - 1, Math.floor(strip.y * k));
+      const cw = Math.max(1, Math.min(c.width - cx, Math.ceil(strip.width * k)));
+      const ch = Math.max(1, Math.min(c.height - cy, Math.ceil(strip.height * k)));
+      const px = ctx.getImageData(cx, cy, cw, ch).data;
       // An opaque page is one the real backdrop blur can see, and that blur
       // is per-frame where this is a few reads a second. So the sample
       // stands down there and the backdrop rule takes over; it steps in
@@ -255,7 +261,7 @@
       if (opaquePage === null || opaqueNow === opaqueLast) opaquePage = opaqueNow;
       opaqueLast = opaqueNow;
       if (opaquePage) { if (sidebarEl()?.hasAttribute("zzglass-sample")) clearSample(); return; }
-      // Unchanged page -> unchanged image: no new blob, no repaint.
+      // Unchanged strip -> unchanged picture: no new blob, no repaint.
       if (sig === sampleSig) return;
       sampleSig = sig;
       const url = URL.createObjectURL(await c.convertToBlob({ type: "image/png" }));
@@ -263,13 +269,13 @@
       if (host) {
         const back = 1 - front;
         layers[back].style.backgroundImage = `url("${url}")`;
-        for (const k of ["left", "top", "right", "bottom"]) layers[back].style[k] = place[k].toFixed(2) + "px";
         layers[back].setAttribute("front", "");
         layers[front].removeAttribute("front");
         if (urls[back]) { try { URL.revokeObjectURL(urls[back]); } catch {} }
         urls[back] = url;
         front = back;
-        // The first frame lands at once; only later frames crossfade.
+        placeLayers();
+        // The first frame lands at once; only later frames fade in.
         if (urls[1 - front]) host.setAttribute("zzglass-fade", "");
         sidebarEl().setAttribute("zzglass-sample", "");
       }
@@ -296,6 +302,8 @@
       // the next read replaces it.
       clearInterval(sampleTimer); sampleTimer = null;
     }
+    // Shown or hidden, the panel is about to slide: keep the picture put.
+    if (on && sampleEl?.isConnected) track();
     if (!on) clearSample();
   }
 
@@ -319,51 +327,47 @@
     sampleObserver = null;
     try { gBrowser.tabContainer.removeEventListener("TabSelect", syncSampleNow); } catch {}
     if (sampleTimer) { clearInterval(sampleTimer); sampleTimer = null; }
+    cancelAnimationFrame(trackRaf); trackRaf = 0;
     clearSample();
     try { sampleEl?.remove(); } catch {}
     sampleEl = null;
   }
 
   // ---- keep the favicon through a load ---------------------------------
-  // Measured on a live profile: Firefox clears a tab's icon the moment a
-  // load ENDS -- busy off, then the image attribute gone in the same tick
-  // -- and the page's real favicon arrives later, half a second on a fast
-  // page and well past that on a slow one. With the spinner hidden that
-  // gap is a blank. The last icon is put back for as long as the tab is
-  // still on the SITE it came from -- same-site loads are nearly all of
-  // them, and the icon is right for them however slow the page -- and
-  // never for a different site, which must not wear the previous one.
-  const heldIcon = new WeakMap();
+  // Firefox (tabbrowser.js) forgets a tab's icon URL as a new document
+  // starts loading, and when the load ENDS with no icon offered yet, takes
+  // the image off the tab outright -- no event -- so the page's real
+  // favicon, arriving later, comes in as a fresh image: a blank, then a
+  // decode, on every load. Putting the image back after the fact still
+  // showed that frame. So the icon URL is put back the moment it is
+  // forgotten, for as long as the load stays on the SITE the icon came
+  // from: the load then ends with the icon still on, and the page's own
+  // icon, usually the very same file, lands without a repaint. A
+  // different site starts clean and never wears the previous icon.
+  const lastHost = new WeakMap();             // browser -> host of its last location
   const keepIconOn = () => { try { return Services.prefs.getBoolPref("zen.theme.hide-tab-throbber", false); } catch { return false; } };
-  const hostOfTab = (tab) => { try { const u = tab.linkedBrowser?.currentURI; return /^https?$/.test(u?.scheme) ? u.host : null; } catch { return null; } };
-  function onIconAttr(event) {
-    const changed = event.detail?.changed;
-    if (!changed || !keepIconOn() || !changed.includes("image")) return;
-    const tab = event.target;
-    const img = tab.getAttribute("image");
-    if (img) {
-      const h = heldIcon.get(tab);
-      // The page's own icon, or ours put back: only the former teaches a host.
-      if (!h?.held || img !== h.url) heldIcon.set(tab, { url: img, host: hostOfTab(tab), held: false });
-      else h.held = false;
-      return;
-    }
-    const h = heldIcon.get(tab);
-    if (!h || h.held || !h.host || hostOfTab(tab) !== h.host) return;
-    h.held = true;
-    tab.setAttribute("image", h.url);
-  }
+  const hostOf = (uri) => { try { return /^https?$/.test(uri?.scheme) ? uri.host : null; } catch { return null; } };
+  const iconKeeper = {
+    onLocationChange(browser, webProgress, request, location) {
+      const prev = lastHost.get(browser), host = hostOf(location);
+      lastHost.set(browser, host);
+      if (!keepIconOn() || !host || host !== prev || browser.mIconURL) return;
+      const img = gBrowser.getTabForBrowser(browser)?.getAttribute("image");
+      if (img) browser.mIconURL = img;
+    },
+  };
 
   function start() {
     syncInstantUI();
     Services.prefs.addObserver(PREFIX, prefVarObserver);
     try { startSampling(); } catch (e) { console.error("[Glassflow] sampled glass failed to start:", e); }
-    try { gBrowser.tabContainer.addEventListener("TabAttrModified", onIconAttr); } catch (e) { console.error("[Glassflow] favicon hold failed to start:", e); }
+    try { gBrowser.addTabsProgressListener(iconKeeper); } catch (e) { console.error("[Glassflow] favicon hold failed to start:", e); }
     // Glassflow.sample.status() says whether the sampled glass is running
     // and what strip of the page it last read; .now() forces one read.
     window.Glassflow = {
       sample: {
-        status: () => ({ active: !!sampleTimer, shown: sidebarShown(), rect: sampleRect(), last: lastSample, lastError, opaquePage, ticks, busy: sampling,
+        status: () => ({ active: !!sampleTimer, shown: sidebarShown(), sliding: !!trackRaf, strip: overlap(sidebarEl()?.getBoundingClientRect()),
+                         last: lastSample, lastError, opaquePage, ticks, busy: sampling,
                          painted: !!(sampleEl?.isConnected && layers.some(l => l.style.backgroundImage)),
                          marked: !!sidebarEl()?.hasAttribute("zzglass-sample") }),
         now: () => { sampleSig = null; return sampleOnce(); },
@@ -372,7 +376,7 @@
     const cleanup = () => {
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}
       stopSampling();
-      try { gBrowser.tabContainer.removeEventListener("TabAttrModified", onIconAttr); } catch {}
+      try { gBrowser.removeTabsProgressListener(iconKeeper); } catch {}
       try { delete window.Glassflow; } catch {}
     };
     window.addEventListener("unload", cleanup, { once: true });

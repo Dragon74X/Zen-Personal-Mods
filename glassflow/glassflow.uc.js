@@ -327,35 +327,31 @@
   // ---- keep the favicon through a load ---------------------------------
   // Measured on a live profile: Firefox clears a tab's icon the moment a
   // load ENDS -- busy off, then the image attribute gone in the same tick
-  // -- and the page's real favicon arrives about half a second later. With
-  // the spinner hidden that half second is a blank. While a tab is busy,
-  // and for a short window after it stops, the last icon is put back; if
-  // no icon arrives inside the window the held one is dropped, so a page
-  // without a favicon does not wear the previous site's.
-  const HOLD_MS = 1500;
+  // -- and the page's real favicon arrives later, half a second on a fast
+  // page and well past that on a slow one. With the spinner hidden that
+  // gap is a blank. The last icon is put back for as long as the tab is
+  // still on the SITE it came from -- same-site loads are nearly all of
+  // them, and the icon is right for them however slow the page -- and
+  // never for a different site, which must not wear the previous one.
   const heldIcon = new WeakMap();
   const keepIconOn = () => { try { return Services.prefs.getBoolPref("zen.theme.hide-tab-throbber", false); } catch { return false; } };
+  const hostOfTab = (tab) => { try { const u = tab.linkedBrowser?.currentURI; return /^https?$/.test(u?.scheme) ? u.host : null; } catch { return null; } };
   function onIconAttr(event) {
     const changed = event.detail?.changed;
-    if (!changed || !keepIconOn()) return;
+    if (!changed || !keepIconOn() || !changed.includes("image")) return;
     const tab = event.target;
-    const h = heldIcon.get(tab);
-    if (changed.includes("busy") && !tab.hasAttribute("busy") && h) h.busyEnd = Date.now();
-    if (!changed.includes("image")) return;
     const img = tab.getAttribute("image");
     if (img) {
-      clearTimeout(h?.drop);
-      heldIcon.set(tab, { url: img, held: false, busyEnd: h?.busyEnd || 0 });
+      const h = heldIcon.get(tab);
+      // The page's own icon, or ours put back: only the former teaches a host.
+      if (!h?.held || img !== h.url) heldIcon.set(tab, { url: img, host: hostOfTab(tab), held: false });
+      else h.held = false;
       return;
     }
-    if (!h || h.held) return;
-    if (!tab.hasAttribute("busy") && Date.now() - h.busyEnd > HOLD_MS) return;
+    const h = heldIcon.get(tab);
+    if (!h || h.held || !h.host || hostOfTab(tab) !== h.host) return;
     h.held = true;
     tab.setAttribute("image", h.url);
-    clearTimeout(h.drop);
-    h.drop = setTimeout(() => {
-      if (h.held && tab.getAttribute("image") === h.url) { h.held = false; tab.removeAttribute("image"); }
-    }, HOLD_MS);
   }
 
   function start() {

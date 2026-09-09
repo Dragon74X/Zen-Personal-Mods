@@ -549,9 +549,9 @@
   :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background {
     /* The panel is a glass gradient like a tab: a = accent over the base,
        b = what it fades toward, along --zzg-pdir up to the spread. */
-    --zzg-pbase: light-dark(rgb(255 255 255 / var(--zzglass-sidebar-panel-opacity, 35%)),
-                            rgb(0 0 0 / var(--zzglass-sidebar-panel-opacity, 35%)));
-    --zzg-pa: color-mix(in srgb, var(--zzg-accent) var(--zzglass-sidebar-blur-tint, 22%), var(--zzg-pbase));
+    --zzg-pbase: light-dark(rgb(255 255 255 / var(--zzglass-sidebar-panel-opacity, 70%)),
+                            rgb(0 0 0 / var(--zzglass-sidebar-panel-opacity, 70%)));
+    --zzg-pa: color-mix(in srgb, var(--zzg-accent) var(--zzglass-sidebar-blur-tint, 10%), var(--zzg-pbase));
     --zzg-pb: var(--zzg-pbase);
     --zzg-pdir: to bottom;
     background-color: transparent !important;
@@ -579,7 +579,7 @@
   /* Zen's workspace gradient lives on the panel's pseudo-elements. */
   :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background::before,
   :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background::after {
-    opacity: var(--zzglass-sidebar-gradient-show, 1) !important;
+    opacity: var(--zzglass-sidebar-gradient-show, 0) !important;
     outline: none !important;
   }
   @media (-moz-pref("zzglass.sidebar.rim")) {

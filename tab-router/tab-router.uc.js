@@ -57,16 +57,24 @@
   // Pref strings (rules, aliases, ignore words) were re-parsed on every tab
   // and every path segment. Parsed once, invalidated by a pref observer.
   const parsed = {};
+  // Learned names, creators and icons are one shared pref each, and every
+  // window keeps its own copy. A write from THIS window is the copy it
+  // already holds (writing is up while it lands); a write from another
+  // window is news, and just that copy is dropped so the next read is the
+  // shared one -- never the parsed rules, which that write did not touch.
+  let writing = false;
   const prefObserver = { observe(_s, _t, data) {
-    // saveLearned() writes learned-names from inside a routing pass. Treating
-    // that like a user edit threw away every parsed rule, alias and domain
-    // list and invalidated every tab's cached target -- once per name learned,
-    // which on a fresh session is once per new site. The cache it feeds is
-    // already current, so its own write is not a reason to reparse anything.
-    if (data === P + "learned-names" || data === P + "avatars") return;
+    if (writing) return;
+    if (data === P + "learned-names") { learnedCache = null; targetGen++; return; }
+    if (data === P + "creators") { creatorCache = null; return; }
+    if (data === P + "avatars") { iconCache = null; stampIcons(); return; }
     if (data === P + "section-icons") { stampIcons(); return; }
     for (const k of Object.keys(parsed)) delete parsed[k]; learnedCache = null; targetGen++;
   } };
+  function write(key, text) {
+    writing = true;
+    try { Services.prefs.setStringPref(P + key, text); } catch {} finally { writing = false; }
+  }
   function cached(key, make) {
     if (!(key in parsed)) parsed[key] = make();
     return parsed[key];
@@ -131,10 +139,7 @@
   }
   function saveLearned() {
     if (isPrivate()) return;            // a private window learns for its session only
-    try {
-      Services.prefs.setStringPref(P + "learned-names",
-        JSON.stringify(Object.fromEntries([...learnedMap()].slice(-200))));
-    } catch {}
+    write("learned-names", JSON.stringify(Object.fromEntries([...learnedMap()].slice(-200))));
   }
 
   function titleNameFor(tab, slug) {
@@ -334,10 +339,7 @@
     if (isPrivate()) return;            // a private window learns for its session only
     // Bounded, oldest out. This is a record of which videos were opened, so
     // it is kept small and forgetCreators() empties it.
-    try {
-      Services.prefs.setStringPref(P + "creators",
-        JSON.stringify(Object.fromEntries([...creatorMap()].slice(-300))));
-    } catch {}
+    write("creators", JSON.stringify(Object.fromEntries([...creatorMap()].slice(-300))));
   }
 
   const inFlight = new Map();            // videoId -> true while a request is out
@@ -444,7 +446,7 @@
     let text = JSON.stringify(Object.fromEntries(entries));
     while (text.length > 900000 && entries.length) { entries.shift(); text = JSON.stringify(Object.fromEntries(entries)); }
     iconCache = new Map(entries);
-    try { Services.prefs.setStringPref(P + "avatars", text); } catch {}
+    write("avatars", text);
   }
 
   // Any size, any aspect -> a 64px square WebP data: URI. The decoder is
@@ -1014,8 +1016,33 @@
     }, num("order-delay-ms", 150));
   }
 
+  // Zen's window sync mirrors every tab and group into every other
+  // window, and the page itself lives in exactly one of them at a time
+  // (the one that last showed it); elsewhere the tab is a shell with the
+  // label copied over. Only the window holding the page can read its URL,
+  // and whatever it does -- a group made, a tab moved -- Zen mirrors to
+  // the rest. So each window routes the tabs it holds and leaves the
+  // shells alone; two windows routing the same tab is how folders
+  // doubled and tabs bounced.
+  function heldElsewhere(tab) {
+    if (!tab.id || tab._zenContentsVisible) return false;
+    try {
+      if (window.gZenWorkspaces?.privateWindowOrDisabled) return false;
+      if (!Services.prefs.getBoolPref("zen.window-sync.enabled", true)) return false;
+      if (Services.prefs.getBoolPref("zen.window-sync.sync-only-pinned-tabs", true) && !tab.pinned) return false;
+      const e = Services.wm.getEnumerator("navigator:browser");
+      while (e.hasMoreElements()) {
+        const w = e.getNext();
+        if (w === window || w.closed) continue;
+        if (w.document?.getElementById(tab.id)?._zenContentsVisible) return true;
+      }
+    } catch {}
+    return false;
+  }
+
   function skip(tab, precomputedParts) {
     if (!tab || !tab.isConnected || tab.closing) return "gone";
+    if (heldElsewhere(tab)) return "held by another window";
     if (tab.hasAttribute("zen-glance-tab")) return "glance";
     // Zen's blank placeholder tabs cannot be grouped; addTabGroup returns
     // null for them rather than throwing.

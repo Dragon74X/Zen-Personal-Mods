@@ -58,6 +58,8 @@ The wrapper looks at the name first. If it is free, or a folder is in the way, i
 
 Two downloads colliding at the same moment would stack one modal window on another, so the second one keeps both.
 
+The prototype it patches is taken from an instance of the component the download code itself creates, not from a second import of the module: a copy loaded into another global would take the patch and change nothing, which looks exactly like the mod not working. If the import hands back a different object, that one is patched as well, and `status()` reports how many copies were found.
+
 That module is shared by every window, so the patch is installed once and marked. The window that installed it owns it; when that window closes, another live window installs its own copy and the browser's module is never left holding a closed window's code. If another mod has patched the same function on top, this one leaves the chain alone rather than ripping it out.
 
 ## Inspecting it
@@ -65,7 +67,7 @@ That module is shared by every window, so the patch is installed once and marked
 Browser Console (`Ctrl+Shift+J`):
 
 ```js
-DownloadPrompt.status()   // the setting, whether the hook is in, and whether downloads reach it
+DownloadPrompt.status()   // the setting, whether the hook is in, how many copies of the module carry it, and whether downloads reach it
 DownloadPrompt.log()      // recent collisions and what was chosen
 DownloadPrompt.install()  // re-install the hook, if something else removed it
 ```

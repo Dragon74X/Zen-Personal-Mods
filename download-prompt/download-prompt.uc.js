@@ -132,40 +132,55 @@
   // module never holds a closed window's code.
   let mine = null;
 
-  const protoOf = () => {
-    try { return ChromeUtils.importESModule(MODULE)?.nsUnknownContentTypeDialog?.prototype ?? null; }
-    catch (e) { note(`could not read ${MODULE}: ${e}`); return null; }
-  };
+  // The prototype the browser's own component actually uses. Importing the
+  // module a second time is meant to hand back the same object, but a copy
+  // living in another global would take the patch and change nothing, which
+  // looks exactly like the mod not working. So the object is taken from an
+  // instance of the very component the download code creates, and the
+  // import is kept as a second candidate: if the two are not the same
+  // object, both are patched.
+  function targets() {
+    const found = [];
+    const keep = (p) => { if (p && typeof p.validateLeafName === "function" && !found.includes(p)) found.push(p); };
+    try {
+      const inst = Cc["@mozilla.org/helperapplauncherdialog;1"].createInstance(Ci.nsIHelperAppLauncherDialog);
+      keep(Object.getPrototypeOf(inst.wrappedJSObject ?? inst));
+    } catch (e) { note(`could not create the download dialog component: ${e}`); }
+    try { keep(ChromeUtils.importESModule(MODULE)?.nsUnknownContentTypeDialog?.prototype); }
+    catch (e) { note(`could not read ${MODULE}: ${e}`); }
+    if (!found.length) note("no hook: this browser's download code is not shaped the way the mod expects");
+    return found;
+  }
 
   function install() {
-    const proto = protoOf();
-    if (!proto || typeof proto.validateLeafName !== "function") {
-      note("no hook: this browser's download code is not shaped the way the mod expects");
-      return "no hook";
+    let done = 0, held = 0;
+    for (const proto of targets()) {
+      const has = proto[MARK];
+      if (has) { held++; continue; }                 // this window's copy, or another window's
+      const orig = proto.validateLeafName;
+      const fn = function (folder, leaf, ext, allowExisting, afterPicker) {
+        let chosen = null;
+        try { chosen = decide(this, folder, leaf, ext, allowExisting, afterPicker); }
+        catch (e) { note(`failed while deciding: ${e}`); }
+        return chosen ?? orig.apply(this, arguments);
+      };
+      Object.defineProperty(proto, MARK, { value: { fn, orig }, configurable: true });
+      proto.validateLeafName = fn;
+      mine = fn;
+      done++;
     }
-    const held = proto[MARK];
-    if (held) return held.fn === proto.validateLeafName ? "already installed" : "another patch sits on top";
-
-    const orig = proto.validateLeafName;
-    mine = function (folder, leaf, ext, allowExisting, afterPicker) {
-      let chosen = null;
-      try { chosen = decide(this, folder, leaf, ext, allowExisting, afterPicker); }
-      catch (e) { note(`failed while deciding: ${e}`); }
-      return chosen ?? orig.apply(this, arguments);
-    };
-    Object.defineProperty(proto, MARK, { value: { fn: mine, orig }, configurable: true });
-    proto.validateLeafName = mine;
-    note("installed");
-    return "installed";
+    note(`install: ${done} patched, ${held} already had one`);
+    return done ? "installed" : held ? "already installed" : "no hook";
   }
 
   function uninstall() {
-    const proto = protoOf();
-    const held = proto?.[MARK];
     mine = null;
-    if (!held || proto.validateLeafName !== held.fn) return;   // gone, or something else is on top
-    proto.validateLeafName = held.orig;
-    delete proto[MARK];
+    for (const proto of targets()) {
+      const held = proto[MARK];
+      if (!held || proto.validateLeafName !== held.fn) continue;   // gone, or something else is on top
+      proto.validateLeafName = held.orig;
+      delete proto[MARK];
+    }
     try {
       const e = Services.wm.getEnumerator("navigator:browser");
       while (e.hasMoreElements()) {
@@ -210,13 +225,15 @@
     window.DownloadPrompt = {
       // Is the hook in, and would a download reach it at all?
       status: () => {
-        const proto = protoOf();
+        const found = targets();
+        const proto = found[0];
         const held = proto?.[MARK];
         const m = mode();
         let toFolder = null;
         try { toFolder = Services.prefs.getBoolPref("browser.download.useDownloadDir", true); } catch {}
         return {
           setting: m === REPLACE ? "always replace" : m === KEEP ? "always keep both" : "ask",
+          hookedCopies: found.length,
           hook: !proto ? "the browser's download module could not be read"
               : !held ? "not installed"
               : held.fn !== proto.validateLeafName ? "installed, but another patch sits on top"

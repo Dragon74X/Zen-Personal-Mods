@@ -21,16 +21,18 @@
   const P = "zzdl.";
 
   // Where the browser decides a download's file name. With "Save files to
-  // <folder>" chosen (the default), every download goes through
-  // validateLeafName(), and that is the one line of Firefox that turns a
-  // name already on disk into "file(1).ext" without asking. The other path
-  // -- "Always ask you where to save files" -- opens the system save
-  // dialog, which asks about replacing on its own, so it is left alone.
+  // <folder>" chosen (the default), promptForSaveToFileAsync() shows no UI
+  // at all: it takes the download folder, hands the name to
+  // createNiceUniqueFile() if something is already there -- the silent
+  // "file(1).ext" -- and reports the answer through the launcher. The other
+  // path opens the system save dialog, which asks about replacing on its
+  // own and is left alone.
   const MODULE = "resource://gre/modules/HelperAppDlg.sys.mjs";
+  const CONTRACT = "@mozilla.org/helperapplauncherdialog;1";
   const MARK = "__zzdlPatch";                 // our patch's marker on the shared prototype
-  const ABORTED = 0x804b0002;                 // NS_BINDING_ABORTED
 
   const ASK = 0, REPLACE = 1, KEEP = 2, CANCEL = 3;
+  const NAMES = { [REPLACE]: "replace", [KEEP]: "keep both", [CANCEL]: "cancel" };
 
   // Types are CHECKED, never guessed by attempting reads: calling
   // getIntPref on a string pref throws, and Firefox logs every one even
@@ -54,82 +56,120 @@
   };
 
   // ---- the question ------------------------------------------------------
-  // Enter and Escape both land on "Keep both": the answer that cannot lose
-  // a file is the one a stray keypress gives you.
-  let asking = false;
-  function ask(leafName, folderPath) {
-    const p = Services.prompt;
-    const flags = p.BUTTON_POS_0 * p.BUTTON_TITLE_IS_STRING +
-                  p.BUTTON_POS_1 * p.BUTTON_TITLE_IS_STRING +
-                  p.BUTTON_POS_2 * p.BUTTON_TITLE_IS_STRING +
-                  p.BUTTON_POS_1_DEFAULT;
-    const again = { value: false };
-    let pressed;
-    asking = true;
-    try {
-      pressed = p.confirmEx(
-        Services.wm.getMostRecentWindow("navigator:browser"),
-        "Download",
-        `${leafName} is already in ${folderPath}.`,
-        flags,
-        "Replace it", "Keep both", "Cancel",
-        "Do this for every download from now on", again);
-    } finally { asking = false; }
-    const choice = pressed === 0 ? REPLACE : pressed === 2 ? CANCEL : KEEP;
-    // Replace and Keep both are exactly the two settings; Cancel is not a
-    // rule anyone would want applied to every download unattended.
-    if (again.value && choice !== CANCEL) {
-      try { Services.prefs.setIntPref(P + "mode", choice); } catch {}
-    }
-    return choice;
+  // Built inside the browser window rather than opened as a dialog window of
+  // its own, so it is styled by this mod's userChrome.css and every
+  // Glassflow token on :root -- roundness, corner shape, sheen, rim, the
+  // sidebar panel's colour recipe -- applies to it directly.
+  const XH = "http://www.w3.org/1999/xhtml";
+  let open = null;                            // the dialog currently up, if any
+
+  // The window the download came from, if it is a browser window; the one in
+  // front otherwise. A window of some other kind has none of the styling.
+  function browserWindow(context) {
+    let w = null;
+    try { w = context?.getInterface(Ci.nsIDOMWindow); } catch {}
+    try { if (w?.document?.documentElement?.getAttribute("windowtype") !== "navigator:browser") w = null; }
+    catch { w = null; }
+    try { return w || Services.wm.getMostRecentWindow("navigator:browser"); } catch { return w; }
+  }
+
+  function ask(win, target, folderPath) {
+    return new Promise((resolve) => {
+      const doc = win.document;
+      const host = doc.createElementNS(XH, "div");
+      host.id = "zzdl-ask";
+      const add = (parent, cls, text) => {
+        const e = parent.appendChild(doc.createElementNS(XH, "div"));
+        e.className = cls;
+        if (text !== undefined) e.textContent = text;
+        return e;
+      };
+      const panel = add(host, "zzdl-panel");
+      add(panel, "zzdl-title", "That name is already taken");
+      add(panel, "zzdl-name", target.leafName);
+      add(panel, "zzdl-where", folderPath);
+      const row = add(panel, "zzdl-buttons");
+
+      let done = false;
+      const finish = (choice) => {
+        if (done) return;
+        done = true;
+        try { win.removeEventListener("keydown", onKey, true); } catch {}
+        try { win.removeEventListener("unload", onGone); } catch {}
+        try { host.remove(); } catch {}
+        if (open === finish) open = null;
+        resolve(choice);
+      };
+      // Escape keeps both: the answer that cannot lose a file is the one a
+      // stray keypress gives you. Enter presses whatever button has focus,
+      // which starts on Keep both for the same reason.
+      const onKey = (e) => {
+        if (e.key !== "Escape") return;
+        e.preventDefault(); e.stopPropagation();
+        finish(KEEP);
+      };
+      const onGone = () => finish(KEEP);
+
+      const button = (label, cls, choice) => {
+        const b = row.appendChild(doc.createElementNS(XH, "button"));
+        b.className = "zzdl-btn " + cls;
+        b.textContent = label;
+        b.addEventListener("click", () => finish(choice));
+        return b;
+      };
+      button("Replace it", "zzdl-replace", REPLACE);
+      const keep = button("Keep both", "zzdl-keep", KEEP);
+      button("Cancel", "zzdl-cancel", CANCEL);
+
+      win.addEventListener("keydown", onKey, true);
+      win.addEventListener("unload", onGone, { once: true });
+      doc.documentElement.appendChild(host);
+      open = finish;
+      try { keep.focus(); } catch {}
+    });
   }
 
   // ---- the decision ------------------------------------------------------
-  // Returns the file the download should use, or null to leave the
-  // browser's own naming alone.
-  function decide(dialog, folder, leaf, ext, allowExisting, afterPicker) {
-    // allowExisting means the save dialog already asked about replacing and
-    // the user said yes. Asking twice would be rude.
-    if (allowExisting || !folder || !leaf) return null;
+  // True when the answer has been handed to the launcher and the browser's
+  // own code must not run; false to leave the download entirely alone.
+  async function preflight(dialog, launcher, context, name, ext, forcePrompt) {
+    if (forcePrompt || !name || !launcher) return false;
+    let toFolder = false;
+    try { toFolder = Services.prefs.getBoolPref("browser.download.useDownloadDir", false); } catch {}
+    if (!toFolder) return false;              // the system save dialog asks about replacing itself
+    let m = mode();
+    if (m === KEEP) return false;             // the mod is off in everything but name
 
-    let target;
-    try {
-      target = folder.clone();
-      // The browser sanitises the suggested name before looking on disk;
-      // the same name has to be used here or the collision is missed.
-      target.append(dialog?.getFinalLeafName ? dialog.getFinalLeafName(leaf, ext, afterPicker) : leaf);
-      if (!target.exists() || !target.isFile()) return null;     // free name, or a folder in the way
-    } catch (e) { note(`could not look at the target: ${e}`); return null; }
+    const { Downloads } = ChromeUtils.importESModule("resource://gre/modules/Downloads.sys.mjs");
+    const { FileUtils } = ChromeUtils.importESModule("resource://gre/modules/FileUtils.sys.mjs");
+    const dir = new FileUtils.File(await Downloads.getPreferredDownloadsDirectory());
+    // The same test the browser makes before using the folder. When it
+    // fails the browser falls back to its save dialog, which asks anyway.
+    if (!dir.exists() || !dir.isDirectory() || !dir.isWritable()) return false;
 
-    let choice = mode();
-    if (choice !== REPLACE && choice !== KEEP) {
-      // Two downloads colliding at once would stack one modal window on
-      // another; the second keeps both, which is what Firefox does anyway.
-      choice = asking ? KEEP : ask(target.leafName, folder.path);
+    const target = dir.clone();
+    target.append(dialog?.getFinalLeafName ? dialog.getFinalLeafName(name, ext) : name);
+    if (!target.exists() || !target.isFile()) return false;   // free name, or a folder in the way
+
+    if (m !== REPLACE) {
+      const win = browserWindow(context);
+      if (!win?.document) return false;
+      // A second download colliding while the question is up answers
+      // itself: keeping both is what the browser does anyway.
+      m = open ? KEEP : await ask(win, target, dir.path);
     }
-    note(`${target.leafName} is taken -> ${{ [REPLACE]: "replace", [KEEP]: "keep both", [CANCEL]: "cancel" }[choice]}`);
+    note(`${target.leafName} is taken -> ${NAMES[m]}`);
+    if (m === KEEP) return false;
 
-    // Replacing is the browser's own job: the file saver writes to a .part
-    // file and deletes whatever is at the destination when the download
-    // finishes. A download that fails leaves the old file untouched.
-    if (choice === REPLACE) return target;
-
-    if (choice === CANCEL) {
-      // Stop the download and hand back a path anyway: the browser drops a
-      // destination for a cancelled launcher without touching it. If the
-      // cancel does not take, keep both rather than replace something the
-      // user asked not to download at all.
-      try { dialog.mLauncher.cancel(ABORTED); return target; }
-      catch (e) { note(`could not cancel, keeping both instead: ${e}`); return null; }
-    }
-    return null;
+    // How the browser's own code hands back an answer: a file to use, or
+    // null to cancel. Replacing is then the file saver's job -- it writes a
+    // .part file and deletes whatever is at the destination only when the
+    // download finishes, so a failed download leaves the old file alone.
+    launcher.saveDestinationAvailable(m === REPLACE ? target : null);
+    return true;
   }
 
   // ---- the patch ---------------------------------------------------------
-  // One shared module serves every window, so the patch is installed once
-  // and marked. The window that installed it owns it; when that window
-  // goes, another live one takes over (see uninstall), so the browser's
-  // module never holds a closed window's code.
   let mine = null;
 
   // The prototype the browser's own component actually uses. Importing the
@@ -141,9 +181,11 @@
   // object, both are patched.
   function targets() {
     const found = [];
-    const keep = (p) => { if (p && typeof p.validateLeafName === "function" && !found.includes(p)) found.push(p); };
+    const keep = (p) => {
+      if (p && typeof p.promptForSaveToFileAsync === "function" && !found.includes(p)) found.push(p);
+    };
     try {
-      const inst = Cc["@mozilla.org/helperapplauncherdialog;1"].createInstance(Ci.nsIHelperAppLauncherDialog);
+      const inst = Cc[CONTRACT].createInstance(Ci.nsIHelperAppLauncherDialog);
       keep(Object.getPrototypeOf(inst.wrappedJSObject ?? inst));
     } catch (e) { note(`could not create the download dialog component: ${e}`); }
     try { keep(ChromeUtils.importESModule(MODULE)?.nsUnknownContentTypeDialog?.prototype); }
@@ -155,17 +197,17 @@
   function install() {
     let done = 0, held = 0;
     for (const proto of targets()) {
-      const has = proto[MARK];
-      if (has) { held++; continue; }                 // this window's copy, or another window's
-      const orig = proto.validateLeafName;
-      const fn = function (folder, leaf, ext, allowExisting, afterPicker) {
-        let chosen = null;
-        try { chosen = decide(this, folder, leaf, ext, allowExisting, afterPicker); }
+      if (proto[MARK]) { held++; continue; }            // this window's copy, or another window's
+      const orig = proto.promptForSaveToFileAsync;
+      const fn = async function (launcher, context, name, ext, forcePrompt) {
+        let handled = false;
+        try { handled = await preflight(this, launcher, context, name, ext, forcePrompt); }
         catch (e) { note(`failed while deciding: ${e}`); }
-        return chosen ?? orig.apply(this, arguments);
+        if (handled) return undefined;
+        return orig.apply(this, arguments);
       };
       Object.defineProperty(proto, MARK, { value: { fn, orig }, configurable: true });
-      proto.validateLeafName = fn;
+      proto.promptForSaveToFileAsync = fn;
       mine = fn;
       done++;
     }
@@ -177,10 +219,13 @@
     mine = null;
     for (const proto of targets()) {
       const held = proto[MARK];
-      if (!held || proto.validateLeafName !== held.fn) continue;   // gone, or something else is on top
-      proto.validateLeafName = held.orig;
+      if (!held || proto.promptForSaveToFileAsync !== held.fn) continue;   // gone, or something on top
+      proto.promptForSaveToFileAsync = held.orig;
       delete proto[MARK];
     }
+    // The patch is shared by every window but its code lives in this one.
+    // Hand it to a window that is staying, so the feature survives and
+    // nothing of this window is kept alive by the browser's module.
     try {
       const e = Services.wm.getEnumerator("navigator:browser");
       while (e.hasMoreElements()) {
@@ -236,7 +281,7 @@
           hookedCopies: found.length,
           hook: !proto ? "the browser's download module could not be read"
               : !held ? "not installed"
-              : held.fn !== proto.validateLeafName ? "installed, but another patch sits on top"
+              : held.fn !== proto.promptForSaveToFileAsync ? "installed, but another patch sits on top"
               : held.fn === mine ? "installed (this window)" : "installed (another window)",
           // With this off the browser opens the system save dialog for every
           // download, that dialog asks about replacing itself, and nothing
@@ -245,11 +290,16 @@
           generation: instance.generation,
         };
       },
+      // Show the question against any name, to see the styling without
+      // downloading anything. Returns what was chosen.
+      preview: (name = "example.pdf") =>
+        ask(window, { leafName: name }, "(preview -- nothing is downloaded)").then((c) => NAMES[c]),
       install,
       log: () => log.slice(),
     };
 
     const cleanup = () => {
+      try { open?.(KEEP); } catch {}
       try { uninstall(); } catch {}
       try { if (window.DownloadPrompt?.install === install) delete window.DownloadPrompt; } catch {}
     };

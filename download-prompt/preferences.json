@@ -9,7 +9,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzdl.mode",
-    "label": "When a download's name is already taken *Firefox never asks: it quietly saves the second copy as name(1).ext, and people find out weeks later that the file they wanted is the one without the number. Ask me puts a small window in front of the download instead: replace the file, keep both, or cancel. The other two answers skip the question and always do the same thing; the window can set them for you with its own checkbox. Keep both is Firefox's own behaviour, so choosing it turns this mod off in everything but name.*",
+    "label": "When a download's name is already taken *Firefox never asks: it quietly saves the second copy as name(1).ext, and people find out weeks later that the file they wanted is the one without the number. Ask me puts a small window in front of the download instead: replace the file, keep both, or cancel. The other two answers skip the question and always do the same thing. Keep both is Firefox's own behaviour, so choosing it turns this mod off in everything but name.*",
     "defaultValue": 0,
     "options": [
       {

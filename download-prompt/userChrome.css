@@ -1,0 +1,140 @@
+/* ============================================================
+   Download Prompt -- the question itself
+
+   The question is built INSIDE the browser window rather than opened
+   as a dialog window of its own, so every Glassflow token on :root is
+   in scope here: --zzg-round and --zzg-corner for the shape,
+   --zzg-sheen for the highlight, --zzg-rim-all and --zzg-rim-top for
+   the edges, --zzg-fx for the colour treatment, and the sidebar
+   panel's own colour recipe for the fill. Turn a knob in Glassflow and
+   this follows. Every one of them has a fallback, so the mod looks
+   right on its own too.
+
+   The page behind is DIMMED rather than blurred. Chrome CSS cannot
+   blur web content -- the page composites its own surface, which is
+   the whole reason Glassflow samples the page for its sidebar. The
+   backdrop-filter below is real all the same: it blurs the browser's
+   own chrome behind the panel, and with Glassflow's "Blur through
+   transparent pages" turned on it starts blurring the page as well.
+   ============================================================ */
+
+#zzdl-ask {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(0 0 0 / 0.32);
+  /* Chrome elements inherit window dragging from the toolbars above. */
+  -moz-window-dragging: no-drag;
+  animation: zzdl-fade 120ms ease-out;
+}
+
+#zzdl-ask .zzdl-panel {
+  /* The sidebar panel's recipe, verbatim: a toned accent over a
+     light-dark base, at the opacity and tint set in Glassflow. */
+  --zzdl-acc: color-mix(in srgb, var(--zen-primary-color, #7c8cf8), black var(--zzg-tone, 25%));
+  --zzdl-base: light-dark(rgb(255 255 255 / var(--zzglass-sidebar-panel-opacity, 70%)),
+                          rgb(0 0 0 / var(--zzglass-sidebar-panel-opacity, 70%)));
+  --zzdl-a: color-mix(in srgb, var(--zzdl-acc) var(--zzglass-sidebar-blur-tint, 10%), var(--zzdl-base));
+
+  box-sizing: border-box;
+  min-width: 320px;
+  max-width: min(460px, 72vw);
+  padding: 18px 20px 14px;
+  border-radius: var(--zzglass-sidebar-blur-radius-corner, var(--zzg-round, 12px));
+  border: 1px solid var(--zzg-rim-all, rgb(255 255 255 / 0.12));
+  background-color: transparent;
+  background-image: var(--zzg-sheen, none),
+                    linear-gradient(to bottom, var(--zzdl-a) 0%, var(--zzdl-base) 100%);
+  backdrop-filter: blur(var(--zzglass-sidebar-blur-radius, 18px)) var(--zzg-fx, );
+  box-shadow:
+    0 1px 0 var(--zzg-rim-top, rgb(255 255 255 / 0.35)) inset,
+    0 18px 56px rgb(0 0 0 / 0.42);
+  color: light-dark(rgb(21 20 26), rgb(251 251 254));
+  animation: zzdl-rise 140ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+#zzdl-ask .zzdl-title {
+  font-size: 1.05em;
+  font-weight: 600;
+}
+
+/* The name is the one thing being decided about, so it carries the accent. */
+#zzdl-ask .zzdl-name {
+  margin-top: 10px;
+  padding: 7px 10px;
+  border-radius: calc(var(--zzg-round, 10px) * 0.7);
+  border: 1px solid var(--zzg-rim-all, rgb(255 255 255 / 0.10));
+  background-color: color-mix(in srgb, var(--zzdl-acc) 16%, transparent);
+  overflow-wrap: anywhere;
+}
+
+#zzdl-ask .zzdl-where {
+  margin-top: 7px;
+  font-size: 0.85em;
+  opacity: 0.65;
+  overflow-wrap: anywhere;
+}
+
+#zzdl-ask .zzdl-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+#zzdl-ask .zzdl-btn {
+  appearance: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  padding: 7px 14px;
+  border-radius: var(--zzg-round, 10px);
+  border: 1px solid var(--zzg-rim-all, rgb(255 255 255 / 0.14));
+  background-color: color-mix(in srgb, var(--zzdl-acc) 14%, transparent);
+  background-image: var(--zzg-sheen, none);
+  backdrop-filter: blur(12px) var(--zzg-fx, );
+  transition: background-color 120ms ease-out, transform 90ms ease-out;
+}
+
+#zzdl-ask .zzdl-btn:hover {
+  background-color: color-mix(in srgb, var(--zzdl-acc) 32%, transparent);
+}
+
+#zzdl-ask .zzdl-btn:active {
+  transform: translateY(1px);
+}
+
+#zzdl-ask .zzdl-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--zzdl-acc) 65%, white);
+  outline-offset: 2px;
+}
+
+/* Replacing is the deliberate answer, so it is the one that stands out;
+   cancelling is the quiet one. Keep both needs no emphasis -- it is
+   where focus starts, and what Enter and Escape both do. */
+#zzdl-ask .zzdl-replace {
+  background-color: color-mix(in srgb, var(--zzdl-acc) 42%, transparent);
+}
+
+#zzdl-ask .zzdl-replace:hover {
+  background-color: color-mix(in srgb, var(--zzdl-acc) 58%, transparent);
+}
+
+#zzdl-ask .zzdl-cancel {
+  opacity: 0.7;
+}
+
+#zzdl-ask .zzdl-cancel:hover {
+  opacity: 1;
+}
+
+@keyframes zzdl-fade { from { opacity: 0; } }
+@keyframes zzdl-rise { from { opacity: 0; transform: translateY(6px) scale(0.985); } }
+
+@media (prefers-reduced-motion: reduce) {
+  #zzdl-ask, #zzdl-ask .zzdl-panel { animation: none; }
+  #zzdl-ask .zzdl-btn { transition: none; }
+}

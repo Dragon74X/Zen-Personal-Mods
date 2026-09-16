@@ -8,7 +8,7 @@ Install any of them by pasting its folder URL into Sine's install box, under
 
 | Mod | What it does | Script |
 |---|---|---|
-| [**Download Prompt**](download-prompt) | Asks whether to replace or keep both when a download's name is already taken, instead of quietly saving `name(1).ext`. | yes |
+| [**Download Prompt**](download-prompt) | Asks whether to replace or keep both when a download's name is already taken, instead of quietly saving `name(1).ext`. Wears Glassflow's glass. | yes |
 | [**Glassflow**](glassflow) | Per-state glass theming for tabs, tab strip, sidebar and window buttons, plus interface font and font-size control. | yes |
 | [**Groupflow**](groupflow) | The same visual language applied to tab groups and subgroups: headers, nesting guides, markers, per-group favicons. | yes |
 | [**Tab Router**](tab-router) | Files tabs into nested tab groups by domain and URL path, from rules you write or fully automatically. | yes |
@@ -31,8 +31,9 @@ automatically. Either works on its own.
 Tab Router files tabs into groups; Groupflow styles the groups it makes.
 Tab Unloader unloads idle tabs; Zen Turbo's hover warmup pre-opens the
 connection so they reload onto a warm socket, and Glassflow's **Unloaded
-tab** state gives them their own look. Download Prompt stands on its own:
-it touches downloads, not tabs. Nothing depends on anything else being
+tab** state gives them their own look. Download Prompt touches downloads
+rather than tabs, but its question reads Glassflow's tokens, so it is
+glass too when Glassflow is installed and plain when it is not. Nothing depends on anything else being
 installed.
 
 Every mod id starts with `zz`, because Sine builds `chrome.css` by importing

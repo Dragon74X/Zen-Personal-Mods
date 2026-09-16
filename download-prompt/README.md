@@ -2,7 +2,7 @@
 
 A replace-or-keep-both question for downloads, for [Zen Browser](https://zen-browser.app/) via [Sine](https://github.com/CosmoCreeper/Sine).
 
-Download a file whose name is already in your downloads folder and Firefox says nothing: it saves the new one as `report(1).pdf` and leaves you to work out, later, which of the two is the one you wanted. Every other program on your machine asks. This mod asks.
+Download a file whose name is already in your downloads folder and Firefox says nothing: it saves the new one as `report(1).pdf` and leaves you to work out, later, which of the two is the one you wanted. Every other program on your machine asks. This mod asks, in the browser window, wearing Glassflow's glass.
 
 ## Install
 
@@ -16,12 +16,7 @@ Nothing else to turn on. The question starts appearing straight away.
 
 ## The question
 
-```
-report.pdf is already in /home/you/Downloads.
-
-[ Replace it ]  [ Keep both ]  [ Cancel ]
-[ ] Do this for every download from now on
-```
+It is built inside the browser window, not opened as a dialog window of its own, so it wears Glassflow's look: the sidebar panel's colour recipe, its roundness and corner shape, the sheen, the rim, and glass buttons that pick up the workspace accent.
 
 **Replace it** hands the download the plain name. Nothing is deleted at that moment: the browser writes to a `.part` file and swaps it into place when the download finishes, so a download that fails or is cancelled halfway leaves your existing file exactly where it was.
 
@@ -29,9 +24,22 @@ report.pdf is already in /home/you/Downloads.
 
 **Cancel** stops the download.
 
-Enter and Escape both choose **Keep both**. The answer that cannot lose a file is the one a stray keypress gives you.
+Focus starts on **Keep both**, and Enter and Escape both choose it. The answer that cannot lose a file is the one a stray keypress gives you.
 
-The checkbox writes the setting below, so a habit only has to be stated once. It is offered for Replace and Keep both, never for Cancel.
+`DownloadPrompt.preview()` in the console shows the question against a made-up name, so you can see the styling without downloading anything.
+
+## Styling
+
+Every colour and shape comes from a Glassflow token with a fallback, so turning a knob in Glassflow moves this too and the mod still looks right on its own:
+
+| Part | Follows |
+|---|---|
+| Panel fill | The floating sidebar panel's recipe: workspace accent, panel opacity, blur tint |
+| Shape | Glassflow roundness, and Zen's corner shape |
+| Highlight and edges | Glassflow's sheen, rim and glass intensity |
+| Buttons | The same sheen and rim, tinted with the accent |
+
+The page behind is **dimmed rather than blurred**. Chrome CSS cannot blur web content, which is the whole reason Glassflow samples the page for its sidebar. The `backdrop-filter` is real all the same: it blurs the browser's own chrome behind the panel, and with Glassflow's **Blur through transparent pages** turned on it starts blurring the page as well.
 
 ## Setting
 
@@ -49,18 +57,19 @@ The same goes for **Save Link As...**, **Save Image As...** and **Save Page As..
 
 ## How it works
 
-Firefox decides a download's file name in `validateLeafName()`, in `resource://gre/modules/HelperAppDlg.sys.mjs`. That function appends the suggested name to the download folder and, if something is already there, hands it to `DownloadPaths.createNiceUniqueFile()`, which counts up until it finds a free `(n)` and creates the file to reserve it. That is the whole of the silent rename, and it is the one function this mod wraps.
+With **Save files to <folder>** chosen, `promptForSaveToFileAsync()` in `resource://gre/modules/HelperAppDlg.sys.mjs` shows no UI at all: it takes the download folder, hands the name to `DownloadPaths.createNiceUniqueFile()` when something is already there -- that is the silent `(1)` -- and reports the answer back through the download's launcher. The mod wraps that one method.
 
-The wrapper looks at the name first. If it is free, or a folder is in the way, it steps aside and the browser does exactly what it always did. If a file is there it asks, and:
+The wrapper works out the same target the browser is about to use: the preferred download folder, checked the same way the browser checks it, plus the name run through the browser's own sanitiser. If the name is free, a folder is in the way, or the folder is not usable, it steps aside and the browser does exactly what it always did. If a file is there it asks, and answers through the same channel the browser's own code uses:
 
-- **Replace** returns the plain path, never calling `createNiceUniqueFile`, so no `(1)` file is ever created. `BackgroundFileSaver` deletes whatever sits at the destination when it moves the finished `.part` file into place -- the same path the system save dialog's own replace takes.
-- **Cancel** cancels the launcher and then returns that path anyway. `ContinueSave` drops a destination for a cancelled download without touching it, so nothing is written, renamed or deleted. If the cancel cannot be delivered, the mod keeps both rather than replacing something you asked not to download.
+- **Replace** hands back the plain path, so `createNiceUniqueFile` is never called and no `(1)` file is created. `BackgroundFileSaver` deletes whatever sits at the destination when it moves the finished `.part` file into place, the same path the system save dialog's own replace takes.
+- **Cancel** hands back nothing, which is how the browser's code says a download was cancelled.
+- **Keep both** delegates to the browser's own method, untouched.
 
-Two downloads colliding at the same moment would stack one modal window on another, so the second one keeps both.
+Because the wrapper is async, the question is a plain element in the browser window rather than a modal dialog window: nothing blocks, and the download keeps streaming into its temporary file while you decide. A second download colliding while the question is up keeps both rather than stacking a second question.
 
 The prototype it patches is taken from an instance of the component the download code itself creates, not from a second import of the module: a copy loaded into another global would take the patch and change nothing, which looks exactly like the mod not working. If the import hands back a different object, that one is patched as well, and `status()` reports how many copies were found.
 
-That module is shared by every window, so the patch is installed once and marked. The window that installed it owns it; when that window closes, another live window installs its own copy and the browser's module is never left holding a closed window's code. If another mod has patched the same function on top, this one leaves the chain alone rather than ripping it out.
+That module is shared by every window, so the patch is installed once and marked. The window that installed it owns it; when that window closes, another live window installs its own copy and the browser's module is never left holding a closed window's code. If another mod has patched the same method on top, this one leaves the chain alone rather than ripping it out.
 
 ## Inspecting it
 
@@ -69,6 +78,7 @@ Browser Console (`Ctrl+Shift+J`):
 ```js
 DownloadPrompt.status()   // the setting, whether the hook is in, how many copies of the module carry it, and whether downloads reach it
 DownloadPrompt.log()      // recent collisions and what was chosen
+DownloadPrompt.preview()  // show the question against a made-up name, to see the styling
 DownloadPrompt.install()  // re-install the hook, if something else removed it
 ```
 

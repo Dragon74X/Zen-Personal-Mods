@@ -1510,7 +1510,7 @@
     try { kids = await IOUtils.getChildren(PathUtils.join(dir, MOD_ID)); } catch { return; }
     for (const p of kids) {
       const name = PathUtils.filename(p);
-      if (!/^(glassflow|groupflow|tab-router|tab-unloader|zen-turbo)$/.test(name)) continue;
+      if (!/^(download-prompt|glassflow|groupflow|tab-router|tab-unloader|zen-turbo)$/.test(name)) continue;
       const dest = PathUtils.join(dir, "zz-" + name);
       try {
         if (await IOUtils.exists(dest)) continue;

@@ -118,7 +118,9 @@
   // nothing at all while the sidebar is hidden or docked.
   const SAMPLE_SCALE = 0.1;                   // the viewport at a tenth
   let sampleTimer = null;
+  let warmSampleTimer = null;
   let sampleChain = 0;                        // which chain owns sampleTimer
+  let samplingEpoch = 0;                      // invalidates reads across cleanup
   let sampleMs = 250, lastPush = 0;
   const FAST_MS = 80;                         // read rate while the strip keeps changing (a scroll, a video)
   let sampleObserver = null;
@@ -236,6 +238,7 @@
   // the strip it covered last, so the frame is up before the slide.
   let ticks = 0, samplingSince = 0;
   async function sampleOnce(warm = false) {
+    const epoch = samplingEpoch;
     // A read that never came back (a tab torn down mid-snapshot) must not
     // wedge every read after it.
     if (sampling && Date.now() - samplingSince > 2000) sampling = false;
@@ -256,6 +259,7 @@
       // visible viewport; null is the viewport as seen. At a tenth scale
       // the whole viewport is a couple of hundred pixels a side.
       const bmp = await wg.drawSnapshot(null, SAMPLE_SCALE, "transparent");
+      if (epoch !== samplingEpoch) { bmp.close(); return false; }
       const c = new OffscreenCanvas(bmp.width, bmp.height);
       const ctx = c.getContext("2d");
       ctx.drawImage(bmp, 0, 0);
@@ -297,6 +301,10 @@
       if (!host) return false;
       sampleSig = sig;
       const url = URL.createObjectURL(await c.convertToBlob({ type: "image/png" }));
+      // A live reinjection can retire this copy while either await above is
+      // pending. Never let the stale read recreate the host or paint over the
+      // new generation; the just-created URL is ours to release.
+      if (epoch !== samplingEpoch) { URL.revokeObjectURL(url); return false; }
       const back = 1 - front;
       layers[back].style.backgroundImage = `url("${url}")`;
       layers[back].setAttribute("front", "");
@@ -316,6 +324,7 @@
       lastError = null;
       return true;
     } catch (e) {
+      if (epoch !== samplingEpoch) return false;
       lastError = String(e);
       console.warn("[Glassflow] sample failed:", e);
       clearSample();
@@ -325,6 +334,13 @@
   function syncSampling() {
     const on = sampleOn();
     const want = on && sidebarShown();
+    // Disabling the feature must also retire a snapshot already across an
+    // await. Clearing only the visible frame allowed that read to paint the
+    // frame straight back after the setting had been switched off.
+    if (!on) {
+      samplingEpoch++;
+      if (warmSampleTimer) { clearTimeout(warmSampleTimer); warmSampleTimer = null; }
+    }
     if (want && !sampleTimer) {
       // A text field, so a string pref; read either type.
       sampleMs = 250;
@@ -367,16 +383,23 @@
     sampleObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["zen-compact-mode"] });
     gBrowser.tabContainer.addEventListener("TabSelect", syncSampleNow);
     syncSampling();
-    if (sampleOn()) setTimeout(() => sampleOnce(true), 1500);    // warm the first frame
+    if (sampleOn()) {
+      warmSampleTimer = setTimeout(() => {
+        warmSampleTimer = null;
+        sampleOnce(true);
+      }, 1500);                              // warm the first frame
+    }
   }
   const sampleOn = () => { try { return Services.prefs.getBoolPref(PREFIX + "sidebar.sample", false); } catch { return false; } };
   // A new tab in front: re-read now if shown, or warm a frame for it if not.
   const syncSampleNow = () => { sampleSig = null; if (sampleOn()) sampleOnce(!sampleTimer); };
   function stopSampling() {
+    samplingEpoch++;
     try { sampleObserver?.disconnect(); } catch {}
     sampleObserver = null;
     try { gBrowser.tabContainer.removeEventListener("TabSelect", syncSampleNow); } catch {}
     if (sampleTimer) { clearTimeout(sampleTimer); sampleTimer = null; }
+    if (warmSampleTimer) { clearTimeout(warmSampleTimer); warmSampleTimer = null; }
     cancelAnimationFrame(trackRaf); trackRaf = 0;
     clearSample();
     try { sampleEl?.remove(); } catch {}

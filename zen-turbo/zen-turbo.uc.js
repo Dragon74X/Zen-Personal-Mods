@@ -305,6 +305,8 @@
 
   let hovering = [];                     // the surfaces this copy is listening on
   let warmupTimer = null;
+  const startupWarmTimers = new Set();
+  let retired = false;
   const hoverSurfaces = () =>
     [gBrowser?.tabContainer, document.getElementById("PersonalToolbar")].filter(Boolean);
 
@@ -345,10 +347,18 @@
         `SELECT prefix, host FROM moz_origins
          WHERE prefix IN ('https://', 'http://')
          ORDER BY frecency DESC LIMIT :n`, { n });
+      // The query can outlive either this script generation or a live
+      // settings change. In both cases its result is stale and must not
+      // enqueue a fresh batch of timers.
+      if (retired || !bool("startup-warmup", true)) return;
       let delay = 0;
       for (const row of rows) {
         const origin = row.getResultByName("prefix") + row.getResultByName("host");
-        setTimeout(() => warm(origin), delay);
+        const id = setTimeout(() => {
+          startupWarmTimers.delete(id);
+          if (!retired && bool("startup-warmup", true)) warm(origin);
+        }, delay);
+        startupWarmTimers.add(id);
         delay += 250;                    // spread, not burst
       }
       note(`startup warmup queued for ${rows.length} origins`);
@@ -486,7 +496,6 @@
     // own unload listener below is the second invocation, not the first.
     // Running twice is how one window's copy used to rip out the patch
     // another window had just taken over.
-    let retired = false;
     const cleanup = () => {
       if (retired) return;
       retired = true;
@@ -495,6 +504,8 @@
       for (const el of hovering) { try { el.removeEventListener("mouseover", onHover); } catch {} }
       hovering = [];
       clearTimeout(warmupTimer); warmupTimer = null;
+      for (const id of startupWarmTimers) clearTimeout(id);
+      startupWarmTimers.clear();
       try { unhookOverLink(); } catch {}
       try { clearTimeout(dwellTimer); dwellTimer = null; } catch {}
       try { gBrowser.removeTabsProgressListener(navListener); } catch {}

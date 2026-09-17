@@ -52,6 +52,40 @@ which settings rows are hidden because the pref their condition names has never
 been written. Paste it into the Browser Console (Ctrl+Shift+J); it reads only
 and copies its report to the clipboard.
 
+## Sine update recovery
+
+Each mod includes the same `sine-update-guard.sys.mjs` background script.
+It installs once per Sine session, independently of which of the 6 mods are
+enabled. It serializes top-level installs/update batches and the mods within
+each batch, preventing collisions in Sine's shared `sine-mods/temp` folder.
+Preference reads wait until file replacement finishes; unreadable files still
+produce Sine's original error. No browser preference values or engine files
+are changed. The guard remains active until restart, including after disabling
+its originating mod, so closing a window or updating that mod cannot abandon
+an operation. Sine's recursive dependency-install behavior is retained.
+
+One-time bootstrap from an older installation:
+
+1. Let any current update finish. Update/reinstall **Tab Router only** first
+   if installed (this also removes its old folder-moving repair). Otherwise
+   install/update any one of these mods; do not start concurrent installs.
+2. Restart Zen. Run `tools/check.js` and confirm `sineUpdateGuard` says `active`.
+3. Update the remaining mods. If files were already lost, reinstall those
+   affected mods once. Back up your profile first; the guard does not recover
+   deleted files or move unknown/stray folders.
+
+Requires `sine.allow-unsafe-js=true`, as do the existing scripts. The guard
+only activates when the installed Sine API still contains the shared-temp
+implementation; newer/unrecognized implementations are left unchanged. It
+cannot protect an update that started before the guard was loaded.
+
+Regression checks (Node.js 18+): `node --test tools/sine-update-guard.test.mjs`.
+The test also checks that all 6 shipped guard copies and manifest entries match.
+For native updater coverage (Node.js 20+), set `SINE_MANAGER_SOURCE` to a local
+Sine `src/core/manager.sys.mjs`, then run `node --test tools/sine-native-update.test.mjs`.
+That test runs upstream updater methods with in-memory filesystem/network
+substitutes; it is not a live Zen test.
+
 ## Shelved features
 
 `docs/SHELVED.md` records work that was removed on purpose -- what it did, why it

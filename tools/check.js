@@ -43,6 +43,12 @@
   };
 
   const report = { window: W?.location?.href, mods: {} };
+  try {
+    const manager = ChromeUtils.importESModule(
+      "chrome://userscripts/content/core/manager.sys.mjs").default;
+    report.sineUpdateGuard = manager.__zenPersonalModsUpdateGuardV1 === true
+      ? "active (session-scoped)" : "not active (restart, or engine no longer matches)";
+  } catch (e) { report.sineUpdateGuard = "could not inspect: " + e; }
 
   for (const [id, name, global] of MODS) {
     const out = { script: "(defines no global)", problems: [], hiddenRows: [] };
@@ -158,8 +164,8 @@
   // a fixed <sine-mods>/temp path, so two installs at once can leave a mod
   // nested inside another or stranded in temp. Sine then cannot read it
   // where it looks, which is the "failed to read preferences for mod <id>"
-  // toast on every rebuild. Tab Router repairs both on startup; this says
-  // whether there is anything to repair.
+  // toast on every rebuild. Report only: moving folders here could steal
+  // an active update's staging folder. The background guard prevents collisions.
   try {
     const dir = PathUtils.join(PathUtils.profileDir, "chrome", "sine-mods");
     const folders = [], strays = [];

@@ -153,6 +153,35 @@
     report.mods[name] = out;
   }
 
+  // Where Sine actually keeps the folders, and anything in the wrong place.
+  // Sine installs one mod out of a multi-mod repository by moving it through
+  // a fixed <sine-mods>/temp path, so two installs at once can leave a mod
+  // nested inside another or stranded in temp. Sine then cannot read it
+  // where it looks, which is the "failed to read preferences for mod <id>"
+  // toast on every rebuild. Tab Router repairs both on startup; this says
+  // whether there is anything to repair.
+  try {
+    const dir = PathUtils.join(PathUtils.profileDir, "chrome", "sine-mods");
+    const folders = [], strays = [];
+    for (const p of await IOUtils.getChildren(dir)) {
+      const name = PathUtils.filename(p);
+      folders.push(name);
+      if (name === "temp" && await IOUtils.exists(PathUtils.join(p, "theme.json"))) {
+        strays.push("temp holds a whole mod: an install was interrupted");
+      }
+      let kids = [];
+      try { kids = await IOUtils.getChildren(p); } catch { continue; }
+      for (const k of kids) {
+        if (!(await IOUtils.exists(PathUtils.join(k, "theme.json")))) continue;
+        let id = "(unreadable theme.json)";
+        try { id = (await IOUtils.readJSON(PathUtils.join(k, "theme.json")))?.id ?? id; } catch {}
+        strays.push(`${name}/${PathUtils.filename(k)} is the mod "${id}" sitting inside another mod`);
+      }
+    }
+    report.modFolders = folders;
+    report.strayFolders = strays.length ? strays : "none -- every mod is where Sine looks for it";
+  } catch (e) { report.modFolders = `could not read chrome/sine-mods: ${e}`; }
+
   const text = JSON.stringify(report, null, 2);
   console.log(text);
   try {

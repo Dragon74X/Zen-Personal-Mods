@@ -22,12 +22,14 @@
 
 
   // ---- pref variables at startup -----------------------------------------
-  // Sine injects string and number prefs as CSS variables, but not until
-  // something (the settings page, a mod reload) triggers it -- measured on a
-  // fresh launch, every one of them was absent while the sheet itself was
-  // loaded and working. So the CSS ran on its fallbacks and configured
-  // values only appeared after a reload. These are written here instead,
-  // from the prefs themselves, so they exist before first paint.
+  // Sine injects mod prefs as CSS variables, and current versions do it for
+  // every chrome window as it opens rather than only after the settings
+  // page or a reload (which is what made configured values appear only
+  // after a reload on older ones). Two reasons this still writes its own:
+  // that injection covers string prefs and dropdowns that ask for it, not
+  // the integer prefs behind every numeric dropdown here; and it lands
+  // after an async read of the mod store, where these are set synchronously
+  // as the script loads, before first paint.
   //
   // Naming matches Sine's own convention exactly: PREFIX.foo-bar becomes
   // --PREFIX-foo-bar, dots to dashes. Booleans are skipped -- those are read
@@ -427,7 +429,14 @@
         now: () => { sampleSig = null; return sampleOnce(); },
       },
     };
+    // Sine (and Cosine) call this on beforeunload as well, so the window's
+    // own unload listener below is the second invocation, not the first.
+    // Running twice is how one window's copy used to rip out the patch
+    // another window had just taken over.
+    let retired = false;
     const cleanup = () => {
+      if (retired) return;
+      retired = true;
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}
       stopSampling();
       try { gBrowser.removeTabsProgressListener(iconKeeper); } catch {}

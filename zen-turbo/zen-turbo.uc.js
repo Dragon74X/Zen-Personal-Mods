@@ -482,7 +482,14 @@
     };
     note("loaded");
 
+    // Sine (and Cosine) call this on beforeunload as well, so the window's
+    // own unload listener below is the second invocation, not the first.
+    // Running twice is how one window's copy used to rip out the patch
+    // another window had just taken over.
+    let retired = false;
     const cleanup = () => {
+      if (retired) return;
+      retired = true;
       try { Services.prefs.removeObserver(P, prefObserver); } catch {}
       try { delete window.ZenTurbo; } catch {}
       for (const el of hovering) { try { el.removeEventListener("mouseover", onHover); } catch {} }

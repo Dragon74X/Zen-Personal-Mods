@@ -1503,7 +1503,14 @@
     // does, so every registration above has to be released here or it leaks
     // across window open/close cycles. The capture flag must match the one
     // used to add, or removeEventListener silently does nothing.
+    // Sine (and Cosine) call this on beforeunload as well, so the window's
+    // own unload listener below is the second invocation, not the first.
+    // Running twice is how one window's copy used to rip out the patch
+    // another window had just taken over.
+    let retired = false;
     const cleanup = () => {
+      if (retired) return;
+      retired = true;
       try { delete window.TabRouter; } catch {}
       clearTimeout(orderTimer); orderTimer = null;
       for (const id of pendingIds) clearTimeout(id);
@@ -1552,21 +1559,63 @@
   // move a sibling's folder INSIDE this one (zz-tab-router/tab-unloader),
   // after which Sine cannot find that mod at all and warns about it on
   // every settings build. Put such a folder back where Sine expects it.
-  async function repairSiblings() {
-    const dir = PathUtils.join(PathUtils.profileDir, "chrome", "sine-mods");
-    let kids = [];
-    try { kids = await IOUtils.getChildren(PathUtils.join(dir, MOD_ID)); } catch { return; }
-    for (const p of kids) {
-      const name = PathUtils.filename(p);
-      if (!/^(download-prompt|glassflow|groupflow|tab-router|tab-unloader|zen-turbo)$/.test(name)) continue;
-      const dest = PathUtils.join(dir, "zz-" + name);
-      try {
-        if (await IOUtils.exists(dest)) continue;
-        if (!(await IOUtils.exists(PathUtils.join(p, "theme.json")))) continue;
-        await IOUtils.move(p, dest);
-        console.warn(`[TabRouter] moved the stray mod folder "${name}" back to "zz-${name}"; restart Zen once to load it`);
-        note(`moved stray mod folder ${name} back into place`);
-      } catch (e) { note(`sibling repair failed for ${name}: ${e}`); }
+  // ---- stray mod folders --------------------------------------------------
+  // Sine installs one mod out of a multi-mod repository by moving the folder
+  // it wants to <sine-mods>/temp, deleting the rest of the extracted repo,
+  // then moving temp into place. That temp path is a fixed name, so two
+  // installs running at once -- the startup auto-update is several at once,
+  // and every mod in this repository takes that path -- can leave one mod's
+  // folder nested inside another's, or stranded in temp. Sine then looks for
+  // it where it should be, finds nothing, and says "failed to read
+  // preferences for mod <id>" on every rebuild until it is reinstalled.
+  //
+  // Both shapes are put back here, by the id in the stray theme.json rather
+  // than by any list of names, so a third-party mod from someone else's
+  // multi-mod repository is repaired too.
+  const MODS_DIR = () => PathUtils.join(PathUtils.profileDir, "chrome", "sine-mods");
+
+  async function idOfMod(folder) {
+    try {
+      const data = await IOUtils.readJSON(PathUtils.join(folder, "theme.json"));
+      const id = typeof data?.id === "string" ? data.id.trim() : "";
+      // A mod id is a folder name; anything with a separator in it is not one.
+      return id && !/[\\/]/.test(id) && id !== "." && id !== ".." ? id : null;
+    } catch { return null; }
+  }
+
+  async function rehome(folder, dir, why) {
+    const id = await idOfMod(folder);
+    if (!id) return false;
+    const dest = PathUtils.join(dir, id);
+    if (folder === dest) return false;
+    try {
+      if (await IOUtils.exists(dest)) { note(`stray ${why} "${id}" left alone: ${id} is already installed`); return false; }
+      await IOUtils.move(folder, dest);
+      console.warn(`[TabRouter] moved ${why} back to "${id}"; restart Zen once to load it`);
+      note(`moved ${why} back to ${id}`);
+      return true;
+    } catch (e) { note(`could not move ${why} to ${id}: ${e}`); return false; }
+  }
+
+  async function repairStrays() {
+    const dir = MODS_DIR();
+    let mods = [];
+    try { mods = await IOUtils.getChildren(dir); } catch { return; }
+
+    // An install caught halfway leaves the whole mod sitting in temp.
+    const temp = PathUtils.join(dir, "temp");
+    if (mods.includes(temp)) await rehome(temp, dir, "the folder left in temp");
+
+    // A mod swallowed by another is a child folder with a theme.json of its
+    // own; a mod's own files never have one.
+    for (const mod of mods) {
+      if (mod === temp) continue;
+      let kids = [];
+      try { kids = await IOUtils.getChildren(mod); } catch { continue; }
+      for (const kid of kids) {
+        if (!(await IOUtils.exists(PathUtils.join(kid, "theme.json")))) continue;
+        await rehome(kid, dir, `the mod folder stranded inside ${PathUtils.filename(mod)}`);
+      }
     }
   }
   async function seedDefaults() {
@@ -1617,7 +1666,7 @@
   // Seed before starting where possible. start() reads prefs immediately, so
   // a mod that starts first would run one session on the wrong fallbacks.
   seedDefaults().catch(() => {});
-  repairSiblings().catch(() => {});
+  repairStrays().catch(() => {});
 
   const startOnce = () => {
     // A newer copy of this script may have claimed the window while this one

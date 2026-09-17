@@ -60,10 +60,21 @@
   function sessionStore() {
     if (SS) return SS;
     if (typeof SessionStore !== "undefined") { SS = SessionStore; return SS; }
+    // Firefox 156 moved the browser's own modules to moz-src:; the old
+    // resource:// path is gone there and the new one does not exist on
+    // 155, so both are tried before giving up. This is only the fallback
+    // anyway: browser.xhtml defines SessionStore as a window global.
+    const WHERE = [
+      "moz-src:///browser/components/sessionstore/SessionStore.sys.mjs",
+      "resource:///modules/sessionstore/SessionStore.sys.mjs",
+    ];
+    let err = null;
     try {
-      SS = ChromeUtils.importESModule(
-        "resource:///modules/sessionstore/SessionStore.sys.mjs"
-      ).SessionStore;
+      for (const uri of WHERE) {
+        try { SS = ChromeUtils.importESModule(uri).SessionStore; } catch (e) { err = e; continue; }
+        if (SS) return SS;
+      }
+      throw err ?? new Error("SessionStore not found");
     } catch (e) {
       if (!ssWarned) {
         ssWarned = true;

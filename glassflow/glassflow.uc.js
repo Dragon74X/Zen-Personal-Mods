@@ -143,12 +143,24 @@
       (tb.hasAttribute("zen-has-hover") || tb.hasAttribute("zen-user-show") || tb.hasAttribute("has-popup-menu"));
   };
 
+  // The layout already computed, rather than forcing a fresh one. Zen
+  // switched its own measurements to this in the Firefox 156 sync. Every
+  // read through here happens once the panel has settled, so there is
+  // nothing newer to miss; placeLayers() below keeps the exact call,
+  // because it runs DURING the slide and a frame of lag there is the
+  // picture drifting behind the panel.
+  const boxOf = (el) => {
+    if (!el) return null;
+    try { return window.windowUtils.getBoundsWithoutFlushing(el); }
+    catch { return el.getBoundingClientRect(); }
+  };
+
   // The part of the page's box a panel box covers, in chrome px from the
   // page's top left; bw is the page box's width, to scale into the picture.
   function overlap(panel) {
     const browser = gBrowser?.selectedBrowser;
     if (!panel || !browser) return null;
-    const b = browser.getBoundingClientRect();
+    const b = boxOf(browser);
     const left = Math.max(panel.left, b.left), top = Math.max(panel.top, b.top);
     const right = Math.min(panel.right, b.right), bottom = Math.min(panel.bottom, b.bottom);
     if (right - left < 8 || bottom - top < 8) return null;
@@ -227,8 +239,8 @@
     if (sampling && Date.now() - samplingSince > 2000) sampling = false;
     if (sampling) return;
     if (trackRaf && !warm) return;            // still sliding; track() reads once it settles
-    const panel = warm ? (lastSample?.panel ?? (sidebarShown() ? sidebarEl()?.getBoundingClientRect() : null))
-                       : sidebarEl()?.getBoundingClientRect();
+    const panel = warm ? (lastSample?.panel ?? (sidebarShown() ? boxOf(sidebarEl()) : null))
+                       : boxOf(sidebarEl());
     // No overlap right now (docked, or the panel has not been over the page
     // yet): keep the frames that are up, so the next show has one at once.
     const strip = overlap(panel);
@@ -408,7 +420,7 @@
     // and what strip of the page it last read; .now() forces one read.
     window.Glassflow = {
       sample: {
-        status: () => ({ active: !!sampleTimer, shown: sidebarShown(), sliding: !!trackRaf, strip: overlap(sidebarEl()?.getBoundingClientRect()),
+        status: () => ({ active: !!sampleTimer, shown: sidebarShown(), sliding: !!trackRaf, strip: overlap(boxOf(sidebarEl())),
                          last: lastSample, lastError, opaquePage, ticks, busy: sampling,
                          painted: !!(sampleEl?.isConnected && layers.some(l => l.style.backgroundImage)),
                          marked: !!sidebarEl()?.hasAttribute("zzglass-sample") }),

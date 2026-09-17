@@ -3,7 +3,7 @@
   "name": "Tab Unloader",
   "description": "Time-based tab unloading with per-category exclusions. Unloads, never closes.",
   "author": "Dragon74X",
-  "version": "1.12.2",
+  "version": "1.12.3",
   "homepage": "https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/tab-unloader",
   "readme": "https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/main/tab-unloader/README.md",
   "style": {
@@ -11,6 +11,11 @@
     "content": "userContent.css"
   },
   "scripts": {
+    "sine-update-guard.sys.mjs": {
+      "name": "Sine Update Guard",
+      "description": "Serialize installs/updates and wait for replacement files before reading preferences.",
+      "loadOrder": 1
+    },
     "tab-unloader.uc.js": {
       "name": "Tab Unloader",
       "description": "Time-based tab unloading with exclusions.",

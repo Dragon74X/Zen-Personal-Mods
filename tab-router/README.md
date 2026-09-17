@@ -167,11 +167,11 @@ that path -- can leave one mod's folder nested inside another's, or stranded
 in `temp`. Sine then looks for it where it should be, finds nothing, and warns
 `Failed to read preferences for mod <id>` on every rebuild.
 
-Tab Router puts both shapes back on startup, reading the id out of the stray
-`theme.json` rather than guessing from folder names, so a third-party mod from
-someone else's multi-mod repository is repaired too. It never overwrites an
-id that is already installed. Restart Zen once after it reports a move, and
-run `tools/check.js` to see the folders it found.
+Every mod now includes a session-scoped Sine update guard. It serializes
+install/update operations and waits for file replacement before preference
+reads. Tab Router no longer moves stray folders: that scan could steal an
+active update's staging folder. See [update recovery](../README.md#sine-update-recovery)
+for the one-time bootstrap and existing missing folders.
 
 ## License
 

@@ -3,7 +3,7 @@
   "name": "Glassflow",
   "description": "Per-state glass theming for tabs, sidebar and window buttons. Colourless glass, independent gradients.",
   "author": "Dragon74X",
-  "version": "3.45.3",
+  "version": "3.45.4",
   "homepage": "https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/glassflow",
   "readme": "https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/main/glassflow/README.md",
   "style": {
@@ -22,6 +22,11 @@
     "zen"
   ],
   "scripts": {
+    "sine-update-guard.sys.mjs": {
+      "name": "Sine Update Guard",
+      "description": "Serialize installs/updates and wait for replacement files before reading preferences.",
+      "loadOrder": 1
+    },
     "glassflow.uc.js": {
       "name": "Glassflow",
       "description": "Writes preference variables at startup, so configured values apply on launch rather than after a mod reload.",

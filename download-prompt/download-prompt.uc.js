@@ -327,7 +327,14 @@
       log: () => log.slice(),
     };
 
+    // Sine (and Cosine) call this on beforeunload as well, so the window's
+    // own unload listener below is the second invocation, not the first.
+    // Running twice is how one window's copy used to rip out the patch
+    // another window had just taken over.
+    let retired = false;
     const cleanup = () => {
+      if (retired) return;
+      retired = true;
       for (const finish of [...asking.values()]) { try { finish(KEEP); } catch {} }
       try { uninstall(); } catch {}
       try { if (window.DownloadPrompt?.install === install) delete window.DownloadPrompt; } catch {}

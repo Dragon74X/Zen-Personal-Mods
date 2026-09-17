@@ -157,6 +157,22 @@ Uses `gBrowser.tabGroups` and `gBrowser.addTabGroup`. Subgroup creation relies o
 
 If group creation is unavailable on your build, the log says so explicitly rather than failing silently. Turn off **Create groups that do not exist yet** to only ever use groups you made by hand.
 
+## When Sine says it cannot read a mod's preferences
+
+Sine installs one mod out of a multi-mod repository by moving the folder it
+wants through a fixed `chrome/sine-mods/temp` path, deleting the rest of the
+extracted repository, then moving it into place. Two installs at once -- the
+startup auto-update is several at once, and every mod in this repository takes
+that path -- can leave one mod's folder nested inside another's, or stranded
+in `temp`. Sine then looks for it where it should be, finds nothing, and warns
+`Failed to read preferences for mod <id>` on every rebuild.
+
+Tab Router puts both shapes back on startup, reading the id out of the stray
+`theme.json` rather than guessing from folder names, so a third-party mod from
+someone else's multi-mod repository is repaired too. It never overwrites an
+id that is already installed. Restart Zen once after it reports a move, and
+run `tools/check.js` to see the folders it found.
+
 ## License
 
 MIT

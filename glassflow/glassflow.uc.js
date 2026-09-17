@@ -116,6 +116,7 @@
   // nothing at all while the sidebar is hidden or docked.
   const SAMPLE_SCALE = 0.1;                   // the viewport at a tenth
   let sampleTimer = null;
+  let sampleChain = 0;                        // which chain owns sampleTimer
   let sampleMs = 250, lastPush = 0;
   const FAST_MS = 80;                         // read rate while the strip keeps changing (a scroll, a video)
   let sampleObserver = null;
@@ -124,6 +125,15 @@
   let lastSample = null;                      // { panel, at }: the panel's last settled box, for warm reads
   let opaquePage = null;                      // settled: could the backdrop blur see this page?
   let opaqueLast = null;                      // the read before, for the two-in-a-row rule
+
+  const isPrivate = () => {
+    try {
+      return ChromeUtils.importESModule("resource://gre/modules/PrivateBrowsingUtils.sys.mjs")
+        .PrivateBrowsingUtils.isWindowPrivate(window);
+    } catch { return false; }
+  };
+  // Forget the page the moment the user asks the browser to forget it.
+  const purgeObserver = () => { try { clearSample(); } catch {} };
 
   // #titlebar is the floating panel in compact mode; the sample hangs on it.
   const sidebarEl = () => document.getElementById("titlebar");
@@ -265,27 +275,30 @@
       if (opaquePage) { if (sidebarEl()?.hasAttribute("zzglass-sample")) clearSample(); return; }
       // Unchanged strip -> unchanged picture: no new blob, no repaint.
       if (sig === sampleSig) return false;
+      // The host is taken BEFORE the blob: a panel that went away between
+      // the read and the paint used to leave a whole viewport PNG with no
+      // reference to revoke it, and a signature already advanced so the
+      // frame was never retried.
+      const host = sampleHost();
+      if (!host) return false;
       sampleSig = sig;
       const url = URL.createObjectURL(await c.convertToBlob({ type: "image/png" }));
-      const host = sampleHost();
-      if (host) {
-        const back = 1 - front;
-        layers[back].style.backgroundImage = `url("${url}")`;
-        layers[back].setAttribute("front", "");
-        layers[front].removeAttribute("front");
-        if (urls[back]) { try { URL.revokeObjectURL(urls[back]); } catch {} }
-        urls[back] = url;
-        front = back;
-        placeLayers();
-        // The first frame lands at once; later frames fade in -- briefly
-        // while frames keep coming (a scroll should not trail), at the
-        // idle rate after a pause.
-        const now = Date.now(), moving = now - lastPush < 2 * sampleMs;
-        lastPush = now;
-        host.style.setProperty("--zzglass-sample-fade", (moving ? FAST_MS : sampleMs) + "ms");
-        if (urls[1 - front]) host.setAttribute("zzglass-fade", "");
-        sidebarEl().setAttribute("zzglass-sample", "");
-      }
+      const back = 1 - front;
+      layers[back].style.backgroundImage = `url("${url}")`;
+      layers[back].setAttribute("front", "");
+      layers[front].removeAttribute("front");
+      if (urls[back]) { try { URL.revokeObjectURL(urls[back]); } catch {} }
+      urls[back] = url;
+      front = back;
+      placeLayers();
+      // The first frame lands at once; later frames fade in -- briefly
+      // while frames keep coming (a scroll should not trail), at the
+      // idle rate after a pause.
+      const now = Date.now(), moving = now - lastPush < 2 * sampleMs;
+      lastPush = now;
+      host.style.setProperty("--zzglass-sample-fade", (moving ? FAST_MS : sampleMs) + "ms");
+      if (urls[1 - front]) host.setAttribute("zzglass-fade", "");
+      sidebarEl()?.setAttribute("zzglass-sample", "");
       lastError = null;
       return true;
     } catch (e) {
@@ -305,12 +318,25 @@
       sampleOnce(true);                      // the strip about to be covered, before the slide
       // The idle rate is the setting; a read that found a change is
       // followed quickly, so a scroll is tracked and a still page is not.
-      const next = (delay) => { sampleTimer = setTimeout(async () => { const changed = await sampleOnce(); if (sampleTimer) next(changed ? FAST_MS : sampleMs); }, delay); };
+      // A hide and re-show during a read starts a second chain while the
+      // first is still awaiting. Without this token the first one wakes up,
+      // sees a live timer that belongs to the second, and re-arms: two
+      // chains, two readbacks per interval, for the rest of the session.
+      const chain = ++sampleChain;
+      const next = (delay) => {
+        sampleTimer = setTimeout(async () => {
+          const changed = await sampleOnce();
+          if (sampleTimer && chain === sampleChain) next(changed ? FAST_MS : sampleMs);
+        }, delay);
+      };
       next(sampleMs);
     } else if (!want && sampleTimer) {
       // The last frame stays up while hidden, so the next show is instant;
-      // the next read replaces it.
+      // the next read replaces it. Not in a private window: a picture of
+      // the page outliving the tab is exactly what those windows promise
+      // not to do, and one extra read on the next hover is the price.
       clearTimeout(sampleTimer); sampleTimer = null;
+      if (isPrivate()) clearSample();
     }
     // Shown or hidden, the panel is about to slide: keep the picture put.
     if (on && sampleEl?.isConnected) track();
@@ -359,6 +385,11 @@
   const hostOf = (uri) => { try { return /^https?$/.test(uri?.scheme) ? uri.host : null; } catch { return null; } };
   const iconKeeper = {
     onLocationChange(browser, webProgress, request, location) {
+      // Subframes report here too -- tabbrowser.js says so in as many
+      // words. An ad frame navigating would otherwise overwrite the tab's
+      // host, and the next same-site load would look like a new site and
+      // lose the icon: the hold quietly stopped working on half the web.
+      if (!webProgress?.isTopLevel) return;
       const prev = lastHost.get(browser), host = hostOf(location);
       lastHost.set(browser, host);
       if (!keepIconOn() || !host || host !== prev || browser.mIconURL) return;
@@ -372,6 +403,7 @@
     Services.prefs.addObserver(PREFIX, prefVarObserver);
     try { startSampling(); } catch (e) { console.error("[Glassflow] sampled glass failed to start:", e); }
     try { gBrowser.addTabsProgressListener(iconKeeper); } catch (e) { console.error("[Glassflow] favicon hold failed to start:", e); }
+    try { Services.obs.addObserver(purgeObserver, "browser:purge-session-history"); } catch {}
     // Glassflow.sample.status() says whether the sampled glass is running
     // and what strip of the page it last read; .now() forces one read.
     window.Glassflow = {
@@ -387,6 +419,7 @@
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}
       stopSampling();
       try { gBrowser.removeTabsProgressListener(iconKeeper); } catch {}
+      try { Services.obs.removeObserver(purgeObserver, "browser:purge-session-history"); } catch {}
       try { delete window.Glassflow; } catch {}
     };
     window.addEventListener("unload", cleanup, { once: true });

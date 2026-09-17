@@ -61,7 +61,7 @@
   // Glassflow token on :root -- roundness, corner shape, sheen, rim, the
   // sidebar panel's colour recipe -- applies to it directly.
   const XH = "http://www.w3.org/1999/xhtml";
-  let open = null;                            // the dialog currently up, if any
+  const asking = new Map();                   // window -> the question up in it
 
   // The window the download came from, if it is a browser window; the one in
   // front otherwise. A window of some other kind has none of the styling.
@@ -71,6 +71,15 @@
     try { if (w?.document?.documentElement?.getAttribute("windowtype") !== "navigator:browser") w = null; }
     catch { w = null; }
     try { return w || Services.wm.getMostRecentWindow("navigator:browser"); } catch { return w; }
+  }
+
+  // The look lives in userChrome.css; this is only what it takes to be
+  // seen and clicked when that sheet has not been loaded yet.
+  function plainly(host, panel) {
+    host.style.cssText = "position:fixed;inset:0;z-index:2147483000;display:flex;" +
+      "align-items:center;justify-content:center;background:rgba(0,0,0,0.45)";
+    panel.style.cssText = "min-width:320px;max-width:460px;padding:18px;border-radius:12px;" +
+      "background:Field;color:FieldText;box-shadow:0 18px 56px rgba(0,0,0,0.5)";
   }
 
   function ask(win, target, folderPath) {
@@ -90,14 +99,15 @@
       add(panel, "zzdl-where", folderPath);
       const row = add(panel, "zzdl-buttons");
 
-      let done = false;
+      let done = false, bail = null;
       const finish = (choice) => {
         if (done) return;
         done = true;
+        try { win.clearTimeout(bail); } catch {}
         try { win.removeEventListener("keydown", onKey, true); } catch {}
         try { win.removeEventListener("unload", onGone); } catch {}
         try { host.remove(); } catch {}
-        if (open === finish) open = null;
+        if (asking.get(win) === finish) asking.delete(win);
         resolve(choice);
       };
       // Escape keeps both: the answer that cannot lose a file is the one a
@@ -124,7 +134,15 @@
       win.addEventListener("keydown", onKey, true);
       win.addEventListener("unload", onGone, { once: true });
       doc.documentElement.appendChild(host);
-      open = finish;
+      asking.set(win, finish);
+      // A fresh install runs this script before its stylesheet is loaded.
+      // Unstyled, this is a plain block inside a XUL box with no position
+      // of its own -- quite possibly invisible, and an invisible question
+      // is a download that never starts. Lay it out here if so.
+      try { if (win.getComputedStyle(host).position !== "fixed") plainly(host, panel); } catch {}
+      // And nothing gets to hold a download open forever on a question the
+      // user may never have seen.
+      try { bail = win.setTimeout(() => finish(KEEP), 120000); } catch {}
       try { keep.focus(); } catch {}
     });
   }
@@ -143,20 +161,22 @@
     const { Downloads } = ChromeUtils.importESModule("resource://gre/modules/Downloads.sys.mjs");
     const { FileUtils } = ChromeUtils.importESModule("resource://gre/modules/FileUtils.sys.mjs");
     const dir = new FileUtils.File(await Downloads.getPreferredDownloadsDirectory());
+    const target = dir.clone();
+    target.append(dialog?.getFinalLeafName ? dialog.getFinalLeafName(name, ext) : name);
+    // Nearly every download has a free name, and that costs one look at
+    // the disk. Everything else is only worth asking about on a collision.
+    if (!target.exists() || !target.isFile()) return false;   // free name, or a folder in the way
     // The same test the browser makes before using the folder. When it
     // fails the browser falls back to its save dialog, which asks anyway.
     if (!dir.exists() || !dir.isDirectory() || !dir.isWritable()) return false;
 
-    const target = dir.clone();
-    target.append(dialog?.getFinalLeafName ? dialog.getFinalLeafName(name, ext) : name);
-    if (!target.exists() || !target.isFile()) return false;   // free name, or a folder in the way
-
     if (m !== REPLACE) {
       const win = browserWindow(context);
       if (!win?.document) return false;
-      // A second download colliding while the question is up answers
-      // itself: keeping both is what the browser does anyway.
-      m = open ? KEEP : await ask(win, target, dir.path);
+      // A second download colliding while a question is up IN THAT WINDOW
+      // answers itself: keeping both is what the browser does anyway. A
+      // download in another window gets its own question.
+      m = asking.has(win) ? KEEP : await ask(win, target, dir.path);
     }
     note(`${target.leafName} is taken -> ${NAMES[m]}`);
     if (m === KEEP) return false;
@@ -170,7 +190,7 @@
   }
 
   // ---- the patch ---------------------------------------------------------
-  let mine = null;
+  const mine = new Set();                     // the patches this window installed
 
   // The prototype the browser's own component actually uses. Importing the
   // module a second time is meant to hand back the same object, but a copy
@@ -204,11 +224,20 @@
         try { handled = await preflight(this, launcher, context, name, ext, forcePrompt); }
         catch (e) { note(`failed while deciding: ${e}`); }
         if (handled) return undefined;
-        return orig.apply(this, arguments);
+        try {
+          return orig.apply(this, arguments);
+        } catch (e) {
+          // Inside an async function this would be a rejected promise
+          // nobody reads, where the browser used to see the failure and
+          // cancel: the download would sit forever with no destination.
+          console.error("[DownloadPrompt] the browser's own save handler threw:", e);
+          try { launcher?.saveDestinationAvailable(null); } catch {}
+          return undefined;
+        }
       };
       Object.defineProperty(proto, MARK, { value: { fn, orig }, configurable: true });
       proto.promptForSaveToFileAsync = fn;
-      mine = fn;
+      mine.add(fn);
       done++;
     }
     note(`install: ${done} patched, ${held} already had one`);
@@ -216,7 +245,7 @@
   }
 
   function uninstall() {
-    mine = null;
+    mine.clear();
     for (const proto of targets()) {
       const held = proto[MARK];
       if (!held || proto.promptForSaveToFileAsync !== held.fn) continue;   // gone, or something on top
@@ -282,7 +311,7 @@
           hook: !proto ? "the browser's download module could not be read"
               : !held ? "not installed"
               : held.fn !== proto.promptForSaveToFileAsync ? "installed, but another patch sits on top"
-              : held.fn === mine ? "installed (this window)" : "installed (another window)",
+              : mine.has(held.fn) ? "installed (this window)" : "installed (another window)",
           // With this off the browser opens the system save dialog for every
           // download, that dialog asks about replacing itself, and nothing
           // here ever runs.
@@ -299,7 +328,7 @@
     };
 
     const cleanup = () => {
-      try { open?.(KEEP); } catch {}
+      for (const finish of [...asking.values()]) { try { finish(KEEP); } catch {} }
       try { uninstall(); } catch {}
       try { if (window.DownloadPrompt?.install === install) delete window.DownloadPrompt; } catch {}
     };

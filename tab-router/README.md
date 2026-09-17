@@ -60,6 +60,9 @@ What the request is, exactly, because it is a network request:
   is not visible from any other container.
 - **Anonymous.** `LOAD_ANONYMOUS` strips cookies in both directions: YouTube
   cannot tie the lookup to your account, and it writes no cookie back.
+- **Bounded.** A lookup reads at most 512 KB of a response and gives up
+  after fifteen seconds, and a picture that decodes larger than 4096
+  square is refused before it is drawn.
 - **Never from a private window.**
 - **Once per video.** Answers are remembered by video id, so `&t=` timestamps
   do not fragment one video into many entries. A failed lookup is not retried

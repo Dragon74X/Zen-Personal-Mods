@@ -153,6 +153,10 @@ down and let this own it.
 `Glassflow.sample.status()` in the console says whether sampling is running
 and which strip of the page it last read.
 
+In a private window the last frame is dropped as soon as the sidebar
+hides, rather than kept for a quick re-show, and clearing recent history
+drops it in every window.
+
 Two optional page-side effects, both off:
 
 - **Blur the page when the sidebar shows** — blurs the whole page while the

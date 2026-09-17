@@ -24,7 +24,9 @@ It is built inside the browser window, not opened as a dialog window of its own,
 
 **Cancel** stops the download.
 
-Focus starts on **Keep both**, and Enter and Escape both choose it. The answer that cannot lose a file is the one a stray keypress gives you.
+Focus starts on **Keep both**, and Enter and Escape both choose it. The answer that cannot lose a file is the one a stray keypress gives you. A question left unanswered for two minutes chooses it too, so a download can never be held open by a window you never looked at.
+
+If the mod's stylesheet has not loaded yet, which happens on a fresh install before a restart, the question lays itself out inline instead. Plain, but never invisible.
 
 `DownloadPrompt.preview()` in the console shows the question against a made-up name, so you can see the styling without downloading anything.
 

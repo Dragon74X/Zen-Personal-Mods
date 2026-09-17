@@ -244,6 +244,13 @@
   // this mod for a socket the browser had already closed.
   const warmTtlMs = () => prefNum("network.http.keep-alive.timeout", 115) * 1000;
   const stats = { warmed: 0, hits: 0, cold: 0, byOrigin: new Map() };
+  const ORIGIN_MAX = 200;                // as bounded as recentWarm, and for the same reason
+  function bumpOrigin(prePath, field) {
+    const e = stats.byOrigin.get(prePath) || { warmed: 0, hits: 0 };
+    e[field]++;
+    stats.byOrigin.set(prePath, e);
+    if (stats.byOrigin.size > ORIGIN_MAX) stats.byOrigin.delete(stats.byOrigin.keys().next().value);
+  }
 
   function recordHit(uri, userContextId) {
     if (!bool("measure", true)) return;
@@ -253,8 +260,7 @@
       const at = recentWarm.get(key);
       const hit = at !== undefined && Date.now() - at < warmTtlMs();
       if (hit) stats.hits++; else stats.cold++;
-      const e = stats.byOrigin.get(uri.prePath) || { warmed: 0, hits: 0 };
-      if (hit) { e.hits++; stats.byOrigin.set(uri.prePath, e); }
+      if (hit) bumpOrigin(uri.prePath, "hits");
       if (bool("debug", false)) note(`${hit ? "HIT" : "cold"} ${uri.prePath}`);
     } catch {}
   }
@@ -292,12 +298,13 @@
         Services.io.speculativeConnect(uri, principal, null, false);
       }
       stats.warmed++;
-      const e = stats.byOrigin.get(uri.prePath) || { warmed: 0, hits: 0 };
-      e.warmed++; stats.byOrigin.set(uri.prePath, e);
+      bumpOrigin(uri.prePath, "warmed");
       note(`warmed ${uri.prePath}${userContextId ? ` [container ${userContextId}]` : ""}`);
     } catch (e) { note(`warm failed: ${e}`); }
   }
 
+  let hovering = [];                     // the surfaces this copy is listening on
+  let warmupTimer = null;
   const hoverSurfaces = () =>
     [gBrowser?.tabContainer, document.getElementById("PersonalToolbar")].filter(Boolean);
 
@@ -405,7 +412,10 @@
   // Every navigation is checked against what was warmed, so the hit rate is
   // measured rather than asserted.
   const navListener = {
-    onLocationChange(browser, _wp, _req, uri, flags) {
+    onLocationChange(browser, wp, _req, uri, flags) {
+      // Subframes report here too, and an ad frame is not the navigation
+      // the warmup was for: counting them made the hit rate a fiction.
+      if (!wp?.isTopLevel) return;
       if (flags & Ci.nsIWebProgressListener.LOCATION_CHANGE_SAME_DOCUMENT) return;
       let ctx = 0;
       try { ctx = browser?.getAttribute?.("usercontextid") | 0; } catch {}
@@ -429,12 +439,15 @@
     // every element boundary the pointer crossed anywhere in the chrome --
     // a pref read and two closest() walks per crossing -- which is the only
     // thing in these mods that runs on mouse movement at all.
-    for (const el of hoverSurfaces()) el.addEventListener("mouseover", onHover, { passive: true });
+    // Held, rather than looked up again at cleanup: a toolbar rebuilt in
+    // between would leave the old element listening for good.
+    hovering = hoverSurfaces();
+    for (const el of hovering) el.addEventListener("mouseover", onHover, { passive: true });
     hookOverLink();
     try { gBrowser.addTabsProgressListener(navListener); } catch {}
 
     if (bool("startup-warmup", true) && isMainAppWindow()) {
-      setTimeout(startupWarmup, Math.max(0, num("startup-warm-delay-ms", 4000)));
+      warmupTimer = setTimeout(startupWarmup, Math.max(0, num("startup-warm-delay-ms", 4000)));
     }
 
     window.ZenTurbo = {
@@ -471,7 +484,10 @@
 
     const cleanup = () => {
       try { Services.prefs.removeObserver(P, prefObserver); } catch {}
-      for (const el of hoverSurfaces()) { try { el.removeEventListener("mouseover", onHover); } catch {} }
+      try { delete window.ZenTurbo; } catch {}
+      for (const el of hovering) { try { el.removeEventListener("mouseover", onHover); } catch {} }
+      hovering = [];
+      clearTimeout(warmupTimer); warmupTimer = null;
       try { unhookOverLink(); } catch {}
       try { clearTimeout(dwellTimer); dwellTimer = null; } catch {}
       try { gBrowser.removeTabsProgressListener(navListener); } catch {}

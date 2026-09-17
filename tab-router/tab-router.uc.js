@@ -344,10 +344,22 @@
 
   const inFlight = new Map();            // videoId -> true while a request is out
   const failed = new Map();              // videoId -> when it last failed (memory only)
+  const FAILED_MAX = 200;
+  const noteFail = (k) => {
+    failed.set(k, Date.now());
+    if (failed.size > FAILED_MAX) failed.delete(failed.keys().next().value);
+  };
   const RETRY_FAIL_MS = 10 * 60 * 1000;
 
   // One request, built inside the tab's container and sent anonymously (see
   // above). cb(bytes) gets the raw body as a byte string, or null.
+  // A page is read for one <meta> tag and an icon is a few tens of KB;
+  // neither is a reason to hold a whole response in the parent process,
+  // and a server that simply never answers must not wedge the slot it
+  // holds in inFlight.
+  const MAX_FETCH_BYTES = 512 * 1024;
+  const FETCH_TIMEOUT_MS = 15000;
+  const NS_BINDING_ABORTED = 0x804b0002;
   function fetchAnon(url, ctx, cb) {
     const { NetUtil } = ChromeUtils.importESModule("resource://gre/modules/NetUtil.sys.mjs");
     const principal = Services.scriptSecurityManager
@@ -359,12 +371,27 @@
       contentPolicyType: Ci.nsIContentPolicy.TYPE_OTHER,
     });
     channel.loadFlags |= Ci.nsIRequest.LOAD_ANONYMOUS;
+    let done = false;
+    let timer = null;
+    const finish = (body) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      cb(body);
+    };
+    timer = setTimeout(() => {
+      try { channel.cancel(NS_BINDING_ABORTED); } catch {}
+      note(`gave up on ${url.slice(0, 60)} after ${FETCH_TIMEOUT_MS / 1000}s`);
+      finish(null);
+    }, FETCH_TIMEOUT_MS);
     NetUtil.asyncFetch(channel, (stream, status) => {
       let body = null;
       try {
-        if (Components.isSuccessCode(status)) body = NetUtil.readInputStreamToString(stream, stream.available());
+        if (Components.isSuccessCode(status)) {
+          body = NetUtil.readInputStreamToString(stream, Math.min(stream.available(), MAX_FETCH_BYTES));
+        }
       } catch {}
-      cb(body);
+      finish(body);
     });
   }
   // Byte string -> JS string, for text bodies.
@@ -382,7 +409,7 @@
     const ctx = parseInt(tab.getAttribute("usercontextid") || "0", 10);
     const done = (name, channelUrl) => {
       inFlight.delete(id);
-      if (!name) { failed.set(id, Date.now()); return; }
+      if (!name) { noteFail(id); return; }
       creatorMap().set(id, name);
       saveCreators();
       note(`creator ${id}: ${name}`);
@@ -453,6 +480,9 @@
   // the validation: bytes that are not an image never get this far.
   async function toIcon(bytes) {
     const bmp = await createImageBitmap(new Blob([Uint8Array.from(bytes, c => c.charCodeAt(0))]));
+    // A small file can still decode to an enormous surface, and this one
+    // is about to become 64 square anyway.
+    if (bmp.width > 4096 || bmp.height > 4096) { bmp.close(); return null; }
     const aspect = bmp.width / bmp.height;
     if (aspect < ICON_ASPECT[0] || aspect > ICON_ASPECT[1]) { bmp.close(); return null; }
     const side = Math.min(bmp.width, bmp.height);
@@ -476,7 +506,7 @@
     // null), so it is asked once; a page that did not answer is retried.
     const done = (icon, answered = true) => {
       inFlight.delete(slot);
-      if (!icon && !answered) { failed.set(slot, Date.now()); return; }
+      if (!icon && !answered) { noteFail(slot); return; }
       iconMap().set(key, { d: icon, s: shape });
       saveIcons();
       note(icon ? `icon for "${label}"` : `no usable picture for "${label}"; favicon stays`);
@@ -988,6 +1018,7 @@
   }
 
   let orderTimer = null;
+  const startupTimers = [];
   const MAX_ORDER_DEFER_MS = 10000;
   let orderDeferredSince = 0;
   function scheduleOrder() {
@@ -1089,16 +1120,27 @@
   // route per tab, restarted on each change, means only the final URL is
   // ever processed.
   const pendingRoute = new WeakMap();
+  // The ids as well, because a WeakMap cannot be emptied at cleanup and a
+  // retired copy still routing tabs from its own caches is a second mod
+  // fighting the live one.
+  const pendingIds = new Set();
   function queueRoute(tab, why) {
     if (!bool("enabled", false)) return;
-    clearTimeout(pendingRoute.get(tab));
-    pendingRoute.set(tab, setTimeout(() => {
-      pendingRoute.delete(tab);
+    const prev = pendingRoute.get(tab);
+    if (prev) { clearTimeout(prev); pendingIds.delete(prev); }
+    const id = setTimeout(() => {
+      pendingRoute.delete(tab); pendingIds.delete(id);
       route(tab, why);
-    }, num("delay-ms", 400)));
+    }, num("delay-ms", 400));
+    pendingRoute.set(tab, id);
+    pendingIds.add(id);
   }
   const progress = {
-    onLocationChange(browser, _wp, _req, _loc, _flags) {
+    onLocationChange(browser, wp, _req, _loc, _flags) {
+      // Subframes report here too, and an ad frame reloading every second
+      // would reset the debounce below for as long as it kept going: the
+      // tab's own route would never land.
+      if (!wp?.isTopLevel) return;
       // Same-document changes are NOT skipped: SPAs like YouTube and Nexus
       // navigate by pushState, which is exactly that. Hash/query churn is
       // harmless -- the debounce coalesces it and an unchanged target path
@@ -1451,10 +1493,10 @@
       },
     };
 
-    if (bool("sort-on-startup", false)) setTimeout(() => sweepAll("startup"), num("startup-delay-ms", 2500));
+    if (bool("sort-on-startup", false)) startupTimers.push(setTimeout(() => sweepAll("startup"), num("startup-delay-ms", 2500)));
     // Restored creator subgroups get their avatar back whether or not the
     // startup sort runs.
-    setTimeout(() => { try { stampIcons(); } catch {} }, num("startup-delay-ms", 2500) + 500);
+    startupTimers.push(setTimeout(() => { try { stampIcons(); } catch {} }, num("startup-delay-ms", 2500) + 500));
     note("loaded");
 
     // This script is injected per window and lives as long as the window
@@ -1462,6 +1504,12 @@
     // across window open/close cycles. The capture flag must match the one
     // used to add, or removeEventListener silently does nothing.
     const cleanup = () => {
+      try { delete window.TabRouter; } catch {}
+      clearTimeout(orderTimer); orderTimer = null;
+      for (const id of pendingIds) clearTimeout(id);
+      pendingIds.clear();
+      for (const id of startupTimers) clearTimeout(id);
+      startupTimers.length = 0;
       try { gBrowser.removeTabsProgressListener(progress); } catch {}
       try { gBrowser.tabContainer.removeEventListener("TabAttrModified", onAttrModified); } catch {}
       try { Services.prefs.removeObserver(P, prefObserver); } catch {}

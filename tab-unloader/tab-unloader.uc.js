@@ -361,6 +361,7 @@
     note("loaded");
 
     const cleanup = () => {
+      try { delete window.TabUnloader; } catch {}
       try { Services.prefs.removeObserver(P, observer); } catch {}
       try { gBrowser.tabContainer.removeEventListener("TabSelect", onTabSelect); } catch {}
       try { gBrowser.tabContainer.removeEventListener("TabClose", onTabClose); } catch {}

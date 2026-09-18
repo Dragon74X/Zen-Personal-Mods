@@ -10,17 +10,20 @@
    this follows. Every one of them has a fallback, so the mod looks
    right on its own too.
 
-   The page behind is DIMMED rather than blurred. Chrome CSS cannot
-   blur web content -- the page composites its own surface, which is
-   the whole reason Glassflow samples the page for its sidebar. The
-   backdrop-filter below is real all the same: it blurs the browser's
-   own chrome behind the panel, and with Glassflow's "Blur through
-   transparent pages" turned on it starts blurring the page as well.
+   The full-window modal dims the page. The panel's native backdrop
+   filter uses the layers available to Firefox's compositor.
    ============================================================ */
 
 #zzdl-ask {
   position: fixed;
   inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  padding: 0;
   z-index: 2147483000;
   display: flex;
   align-items: center;
@@ -30,6 +33,8 @@
   -moz-window-dragging: no-drag;
   animation: zzdl-fade 120ms ease-out;
 }
+
+#zzdl-ask::backdrop { background: transparent; }
 
 #zzdl-ask .zzdl-panel {
   /* The sidebar panel's recipe, verbatim: a toned accent over a

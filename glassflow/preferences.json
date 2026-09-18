@@ -2535,7 +2535,7 @@
   {
     "type": "checkbox",
     "property": "zzglass.sidebar.blur",
-    "label": "Blur behind the floating panel *A real backdrop-filter on the compact panel, like Arc's. Firefox limit, shared by every mod: it cannot see the web page, only the window behind it, so it goes flat once a page has painted. Sampled glass below is the fix for that.*",
+    "label": "Blur behind the floating panel *Live native backdrop-filter, with no snapshots. Blurs the pixels Zen makes available behind the panel. Transparent pages and other themes can affect the result. Disable Sampled glass to use only this mode.*",
     "defaultValue": false,
     "conditions": [
       {
@@ -2615,8 +2615,7 @@
   {
     "type": "checkbox",
     "property": "zzglass.sidebar.blur-through-transparent",
-    "restart": true,
-    "label": "Blur through transparent pages *A page the Zen Internet extension made see-through is drawn on its own surface, which no chrome blur can read; an opaque page is not, which is why the blur works there and goes flat here. This keeps the page in the shared surface with a clip-path on the browser, Arc's own force-blur trick, so the blur behind the panel sees it. Costs the page its own presentation path: video may lose its overlay fast path. Restart to take effect. If it does not help on your machine, the sampled glass below sees every page regardless.*",
+    "label": "Native blur through transparent pages *Blurs the live page region covered by the compact sidebar using an SVG filter. Tracks sidebar geometry, then stops its animation-frame tracker. No page snapshots. Use with panel blur on and Sampled glass off; applies immediately.*",
     "defaultValue": false,
     "conditions": [
       {
@@ -2637,7 +2636,7 @@
   {
     "type": "checkbox",
     "property": "zzglass.sidebar.sample",
-    "label": "Sampled glass: blur the page itself (experimental) *No chrome blur can see a see-through page: it is drawn on its own surface. On such a page this takes a tiny snapshot of the strip under the floating panel a few times a second while the panel is shown, and paints it blurred behind the panel, crossfading between reads. On an opaque page it stands down automatically and the real blur above, which is per-frame, does the work. Nothing runs while the sidebar is hidden or docked.*",
+    "label": "Sampled glass (fallback) *Reads a downscaled viewport and crossfades it behind the sidebar. Disable to use native blur through transparent pages. Captures page pixels, not the complete window backdrop. Stops when sidebar styling is disabled.*",
     "defaultValue": false,
     "conditions": [
       {

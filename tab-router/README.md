@@ -1,7 +1,5 @@
 # Tab Router
 
-> Scope: source at commit `7528d67`; runtime compatibility requires testing against installed Zen, Firefox, and Sine versions.
-
 Sorts tabs into nested tab groups -- groups and subgroups -- by domain and URL path, using rules you write once, or with automatic rules.
 
 Requires `sine.allow-unsafe-js` set to `true`.
@@ -44,7 +42,13 @@ Separate from routing, and applied after it. **Order groups and subgroups**
 sorts alphabetically (default), by creation date, or not at all. **Loose tabs
 above subgroups** (on) keeps a group's own tabs above any subgroups it
 contains, rather than interleaved. **Follow Zen routes and containers** (on)
-respects Zen's own container routing rather than fighting it.
+uses the destination workspace's container when a reload can be performed safely.
+
+A container change flushes session state first. Tabs with back history, form
+state, session storage, POST data, frames, or an ongoing load keep their current
+container. The native close veto remains active. Group/workspace filing can
+still proceed without replacing the tab. `sortAll()` now returns a Promise;
+use `await TabRouter.sortAll()` when you need completion.
 
 `TabRouter.applyOrder()` re-runs just the ordering pass.
 
@@ -61,7 +65,8 @@ What the request is, exactly, because it is a network request:
   `userContextId`, so its cache entry lives in that container's partition and
   is not visible from any other container.
 - **Anonymous.** `LOAD_ANONYMOUS` strips cookies in both directions: YouTube
-  cannot tie the lookup to your account, and it writes no cookie back.
+  receives no account cookies from this lookup and it writes no cookie back.
+  The request still exposes your network address and the requested resource.
 - **Bounded.** A lookup reads at most 512 KB of a response and gives up
   after fifteen seconds, and a picture that decodes larger than 4096
   square is refused before it is drawn.
@@ -76,6 +81,8 @@ TabRouter.forgetCreators()    // empty it
 TabRouter.forgetCreators(id)  // drop one
 ```
 
+Literal IPs, local-only hostnames, credentials in URLs and non-HTTPS targets are rejected for lookups and redirects. This hostname check does not classify DNS results.
+
 That store is a record of which videos you opened. It lives in
 `zzrouter.creators`, is capped at 300 oldest-out, and `status()` reports only
 its size.
@@ -86,7 +93,7 @@ its size.
 TabRouter.status()       // what routed, what did not, and why -- copied to the clipboard
 TabRouter.preview()      // every tab and the group it WOULD go to -- moves nothing
 TabRouter.explain()      // how the selected tab resolves: host, base, path segments, target
-TabRouter.sortAll()      // run one routing pass now
+await TabRouter.sortAll() // run a routing pass and wait for container checks
 TabRouter.applyOrder()   // re-sort groups and push loose tabs above subgroups
 TabRouter.groups()       // group names currently in this window
 TabRouter.groupTree()    // the nesting as text, copied to the clipboard

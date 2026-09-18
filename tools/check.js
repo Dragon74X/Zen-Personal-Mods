@@ -42,6 +42,22 @@
     } catch (e) { return { type: t, value: "ERROR " + e }; }
   };
 
+  // Sine uses OR at the row level, AND inside an unlabelled nested group,
+  // and typed false/0/"" defaults for unset dependencies.
+  function conditionsPass(conditions, operator = "AND") {
+    const rows = Array.isArray(conditions) ? conditions : [conditions];
+    if (!rows.length) return true;
+    const values = rows.map(cond => {
+      const c = cond?.if || cond?.not;
+      if (!c) return cond?.conditions ? conditionsPass(cond.conditions, cond.operator || "AND") : false;
+      const actual = typeof c.value === "boolean" ? P.getBoolPref(c.property, false)
+        : typeof c.value === "number" ? P.getIntPref(c.property, 0)
+        : P.getCharPref(c.property, "");
+      return cond.not ? actual !== c.value : actual === c.value;
+    });
+    return operator === "OR" ? values.some(Boolean) : values.every(Boolean);
+  }
+
   const report = { window: W?.location?.href, mods: {} };
   try {
     const manager = ChromeUtils.importESModule(
@@ -96,22 +112,12 @@
           `wants ${want}, stored as ${got.type} (${JSON.stringify(got.value)})`);
       }
 
-      // A row whose condition names a pref that is unset, or set against it,
-      // will not be shown in the settings panel.
-      for (const cond of [].concat(pref.conditions ?? [])) {
-        const c = cond?.if ?? cond?.not;
-        if (!c?.property) continue;
-        const dep = read(c.property);
-        const fails = dep.type === "unset"
-          ? c.value === true || (typeof c.value === "number" && c.value !== 0)
-          : cond.if ? dep.value !== c.value : dep.value === c.value;
-        if (fails) {
-          out.hiddenRows.push(
-            `${pref.property} hidden: needs ${c.property}` +
-            `${cond.not ? "!=" : "="}${JSON.stringify(c.value)}, ` +
-            (dep.type === "unset" ? "but it has never been set (default not applied)"
-                                  : `but it is ${JSON.stringify(dep.value)}`));
-        }
+      if (pref.conditions) {
+        try {
+          if (!conditionsPass(pref.conditions, pref.operator || "OR")) {
+            out.hiddenRows.push(`${pref.property} hidden: ${pref.operator || "OR"} ${JSON.stringify(pref.conditions)}`);
+          }
+        } catch (e) { out.problems.push(`${pref.property}: cannot evaluate visibility: ${e}`); }
       }
     }
     // Named explicitly: if one of these is absent the installed copy predates
@@ -130,6 +136,10 @@
 
     // Live state of the creator/avatar pipeline: counts only, never contents.
     try {
+      if (id === "zz-glassflow" && W.Glassflow?.native?.status) {
+        out.nativeBlur = W.Glassflow.native.status();
+        out.sampledBlur = W.Glassflow.sample.status();
+      }
       if (id === "zz-tab-router" && W.TabRouter?.status) {
         const st = W.TabRouter.status();
         out.creators = { remembered: st.creatorsRemembered, sectionIcons: st.sectionIconsRemembered,
@@ -153,7 +163,7 @@
     }
 
     out.prefsChecked = checked;
-    out.prefsNeverSet = `${unset} of ${checked} still on their declared default`;
+    out.prefsNeverSet = `${unset} of ${checked} unset; behavior depends on each reader's fallback`;
     if (!out.problems.length) out.problems = "none -- every stored pref matches its declared type";
     if (!out.hiddenRows.length) out.hiddenRows = "none -- every row's condition is satisfied";
     report.mods[name] = out;
@@ -173,7 +183,7 @@
       const name = PathUtils.filename(p);
       folders.push(name);
       if (name === "temp" && await IOUtils.exists(PathUtils.join(p, "theme.json"))) {
-        strays.push("temp holds a whole mod: an install was interrupted");
+        strays.push("temp holds a mod: active or interrupted install");
       }
       let kids = [];
       try { kids = await IOUtils.getChildren(p); } catch { continue; }
@@ -181,11 +191,11 @@
         if (!(await IOUtils.exists(PathUtils.join(k, "theme.json")))) continue;
         let id = "(unreadable theme.json)";
         try { id = (await IOUtils.readJSON(PathUtils.join(k, "theme.json")))?.id ?? id; } catch {}
-        strays.push(`${name}/${PathUtils.filename(k)} is the mod "${id}" sitting inside another mod`);
+        strays.push(`${name}/${PathUtils.filename(k)} contains mod "${id}": extraction in progress or leftover files`);
       }
     }
     report.modFolders = folders;
-    report.strayFolders = strays.length ? strays : "none -- every mod is where Sine looks for it";
+    report.strayFolders = strays.length ? strays : "none observed";
   } catch (e) { report.modFolders = `could not read chrome/sine-mods: ${e}`; }
 
   const text = JSON.stringify(report, null, 2);

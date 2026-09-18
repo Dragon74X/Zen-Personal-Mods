@@ -1,12 +1,10 @@
 # Tab Unloader
 
-> Scope: source at commit `7528d67`; runtime compatibility requires testing against installed Zen, Firefox, and Sine versions.
-
 Time-based tab unloading for [Zen Browser](https://zen-browser.app/) via [Sine](https://github.com/CosmoCreeper/Sine).
 
 Zen removed its own unload timer and now uses Firefox's native unloader, which only runs under memory pressure. `browser.tabs.min_inactive_duration_before_unload` is a minimum-age filter applied when that unloader runs -- it is not an interval, and on a machine that never runs low on memory it is never consulted. This mod supplies the missing timer.
 
-**Operation:** unloads tabs without closing them. The call is `gBrowser.discardBrowser(tab)`, the same one behind the tab context menu's *Unload Tab*. Tab, title, favicon, history and scroll position all survive; the page reloads when you return to it.
+**Operation:** unloads tabs without closing them. Each candidate first awaits `gBrowser.prepareDiscardBrowser(tab)` to flush session state, then rechecks exclusions before calling `gBrowser.discardBrowser(tab)`. The native discard gate can refuse; only successful discards consume the sweep budget. The page reloads when selected. Firefox's session store controls which page state is restored.
 
 ## Install
 
@@ -37,35 +35,29 @@ Every sweep, each tab is checked in order and kept if any rule matches:
 | Essential | `zen-essential="true"` | on |
 | Pinned | `tab.pinned` | on |
 | Glance | `zen-glance-tab` | on |
-| Split view | `zen-split` | on |
+| Split view | `splitView`, `split-view`, or a `split-view-group` parent | on |
+| Native browser protection | `undiscardable` or `zenModeActive` | always |
 | Unsubmitted form data | a real field entry in `SessionStore.getTabState().formdata`, unless the site is exempted | on |
 | URL matches your exclusion list | substring match | list is empty by default |
 
-Whatever survives is sorted oldest-idle-first and discarded up to the per-sweep cap, respecting the minimum-loaded floor.
+Candidates are sorted oldest-idle-first; eligibility is evaluated only until the successful-discard budget is filled. A concurrent sweep is skipped. After each state flush, selection, protection settings and the loaded-tab floor are checked again.
 
 Every toggleable category is independent, and all of them default to on.
 
 **Last tab per workspace** is worth understanding, because it is the one rule that is not a plain attribute check. Switching workspaces leaves the tab you were on still selected in *its* workspace, so the tab last selected in each workspace is exactly "the one you switched away from" -- and coming back to a workspace to find it blank is the thing this prevents. The anchor is a specific tab, dropped when that tab closes, so a closed tab never passes its protection on to whatever takes its place. `TabUnloader.anchors()` shows the current one per workspace.
 
-Sweeps are skipped entirely while a workspace slide or trackpad swipe is in progress -- `discardBrowser` mid-animation contributes to stutter, and the next tick picks it up.
+A workspace animation defers a sweep for at most 10 seconds. A stale animation marker therefore cannot disable unloading indefinitely.
 
 ## Safety
 
-The form-data check needs `SessionStore`. If it is unavailable the check is **skipped** and logged once, rather than treating every tab as dirty. Treating it as dirty is what kept every tab loaded in 1.0.
+The form-data check uses `SessionStore`. If it is unavailable or unreadable,
+form protection keeps the tab loaded. Empty strings, booleans and select-box
+state do not count as drafts. Non-empty `id`/`xpath` fields, frame records and
+`innerHTML` from designMode documents do count.
 
-The rule counts **values, not fields**. SessionStore records any field it
-considers changed, which is far more than text you would lose -- measured on a
-real profile, YouTube stores its *empty* comment textarea, Nexus stores 28
-empty reply boxes, and `about:preferences` stores around 300 checkboxes and
-dropdowns. Every one of those pinned its tab permanently under the old reading,
-which is why YouTube tabs never unloaded however long they sat.
-
-What separates real work from that noise is the value. A checkbox stores a
-boolean, a `<select>` stores `{ selectedIndex, value }`, a touched-but-empty
-textarea stores `""`. Only a non-empty string counts, so a half-written comment
-still protects its tab and an untouched comment box does not.
-
-It also has to read that record precisely. A formdata record is `{ id, xpath, children, url }`, and `url` is stamped on whenever anything is recorded at all -- purely so the data can be checked against the page it came from before being restored. Counting the record's keys therefore reads "SessionStore looked at this page" as "the user typed something", which keeps such a tab loaded forever; YouTube's search box qualifies on sight. Only real field entries count: `id` and `xpath` hold them, and `children` holds one record per frame, so a draft inside an iframe still protects the tab.
+This checks data Firefox serializes, not every web application's in-memory
+state. Native unload vetoes still apply. Use URL exclusions for editors whose
+drafts are not represented in session form data.
 
 Each discard is wrapped individually, so one failure cannot abort the sweep.
 
@@ -73,7 +65,7 @@ Each discard is wrapped individually, so one failure cannot abort the sweep.
 
 The sweep is an attribute scan over open tabs on a `setInterval`. There is no per-tab observer, no MutationObserver, and no work at all while disabled -- the interval is not scheduled until the master switch is on, and a pref observer reschedules it rather than polling.
 
-The form-data check is the only non-trivial part, since it serialises tab state. It runs last, only on tabs that have already passed every cheaper test.
+The form-data check serializes tab state and runs after URL and attribute checks. An eligible tab also incurs a native asynchronous state flush before discard.
 
 ## Inspecting it
 

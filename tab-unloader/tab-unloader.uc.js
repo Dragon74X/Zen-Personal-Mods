@@ -50,6 +50,7 @@
   let log = [];
   let SS = null;          // SessionStore, resolved once
   let ssWarned = false;
+  let sweeping = false, retired = false;
 
   function note(msg) {
     log.push(`${new Date().toLocaleTimeString()}  ${msg}`);
@@ -78,16 +79,14 @@
     } catch (e) {
       if (!ssWarned) {
         ssWarned = true;
-        note(`SessionStore unavailable (${e}); form-data check disabled`);
+        note(`SessionStore unavailable (${e}); keeping tabs while form protection is enabled`);
       }
       SS = null;
     }
     return SS;
   }
 
-  // Returns true only when we positively found stored form data.
-  // If SessionStore is missing the check is skipped rather than treating
-  // every tab as dirty -- doing that kept every tab loaded in v1.0.
+  // Keep tabs when form protection is enabled but session state is unreadable.
   // SessionStore records any field it considers changed -- which is far more
   // than "text the user would lose". Measured on a real profile: YouTube stores
   // its EMPTY comment textarea, Nexus stores 28 empty reply boxes,
@@ -116,6 +115,7 @@
 
   function hasFields(fd) {
     if (!fd || typeof fd !== "object") return false;
+    if (meaningful(fd.innerHTML)) return true; // Firefox's designMode documents.
     if (Object.values(fd.id || {}).some(meaningful)) return true;
     if (Object.values(fd.xpath || {}).some(meaningful)) return true;
     return Array.isArray(fd.children) && fd.children.some(hasFields);
@@ -123,11 +123,11 @@
 
   function hasFormData(tab) {
     const ss = sessionStore();
-    if (!ss) return false;
+    if (!ss) return true;
     try {
       return hasFields(JSON.parse(ss.getTabState(tab))?.formdata);
     } catch {
-      return false;
+      return true;
     }
   }
 
@@ -200,6 +200,7 @@
     if (!tab || !tab.isConnected) return "gone";
     if (tab.closing) return "closing";
     if (tab.selected) return "active tab";
+    if (tab.undiscardable || tab.zenModeActive) return "browser-protected tab";
     if (tab.hasAttribute("pending")) return "already unloaded";
     if (!tab.linkedBrowser) return "no browser";
     if (tab.hasAttribute("zen-empty-tab")) return "empty tab";
@@ -216,12 +217,12 @@
     if (cfg.essentials && tab.getAttribute("zen-essential") === "true") return "essential";
     if (cfg.pinned && tab.pinned) return "pinned";
     if (cfg.glance && tab.hasAttribute("zen-glance-tab")) return "glance";
-    if (cfg.split && tab.hasAttribute("zen-split")) return "split view";
-    // Last on purpose: this is the only check that costs real work.
-    // SessionStore.getTabState() serialises the tab's whole state to JSON.
+    if (cfg.split && (tab.splitView || tab.hasAttribute("split-view") ||
+        tab.group?.hasAttribute("split-view-group"))) return "split view";
+    if (urlExcluded(tab)) return "url excluded";
+    // Last: SessionStore.getTabState() serialises the tab's whole state.
     if (cfg.forms && !formExempt(tab) && hasFormData(tab))
       return "unsubmitted form data";
-    if (urlExcluded(tab)) return "url excluded";
 
     return null;
   }
@@ -250,8 +251,8 @@
   const MAX_DEFER_MS = 10000;
   let deferredSince = 0;
 
-  function sweep() {
-    if (!bool("enabled", false)) return;
+  async function sweep() {
+    if (sweeping || retired || !bool("enabled", false)) return;
     // discardBrowser mid workspace-slide contributes to animation stutter;
     // Zen marks the slide on :root. Skip this tick, the interval retries.
     if (document.documentElement.hasAttribute("animating-background") ||
@@ -293,20 +294,30 @@
       .sort((a, b) => (a.lastAccessed || 0) - (b.lastAccessed || 0));
 
     let done = 0, examined = 0;
-    for (const tab of byAge) {
-      if (done >= budget) break;
-      examined++;
-      if (whyKeep(tab, now, cfg) !== null) continue;
-      try { gBrowser.discardBrowser(tab); done++; note(`unloaded: ${tab.label}`); }
-      catch (e) { note(`failed on ${tab.label}: ${e}`); }
-    }
+    sweeping = true;
+    try {
+      for (const tab of byAge) {
+        if (done >= budget) break;
+        examined++;
+        if (whyKeep(tab, now, cfg) !== null) continue;
+        try {
+          // Firefox's native unloader flushes current form/session state first.
+          await gBrowser.prepareDiscardBrowser(tab);
+          if (retired || !bool("enabled", false)) break;
+          if (whyKeep(tab, Date.now(), sweepConfig()) !== null) continue;
+          if (floor > 0 && allTabs().filter(t => !t.hasAttribute("pending") && !t.closing).length <= floor) break;
+          if (gBrowser.discardBrowser(tab)) { done++; note(`unloaded: ${tab.label}`); }
+        }
+        catch (e) { note(`failed on ${tab.label}: ${e}`); }
+      }
 
-    if (done >= budget && examined < byAge.length) {
-      note(`throttled at ${budget} (cap ${cap || "none"}, floor ${floor || "none"}) ` +
-        `-- raise 'Unload at most' to go faster`);
-    }
-    note(`sweep: unloaded ${done}, examined ${examined} of ${byAge.length} candidates, ` +
-      `${tabs.length} tabs total`);
+      if (done >= budget && examined < byAge.length) {
+        note(`throttled at ${budget} (cap ${cap || "none"}, floor ${floor || "none"}) ` +
+          `-- raise 'Unload at most' to go faster`);
+      }
+      note(`sweep: unloaded ${done}, examined ${examined} of ${byAge.length} candidates, ` +
+        `${tabs.length} tabs total`);
+    } finally { sweeping = false; }
   }
 
   function reschedule(firstDelay = 500) {
@@ -371,11 +382,7 @@
     };
     note("loaded");
 
-    // Sine (and Cosine) call this on beforeunload as well, so the window's
-    // own unload listener below is the second invocation, not the first.
-    // Running twice is how one window's copy used to rip out the patch
-    // another window had just taken over.
-    let retired = false;
+    // Sine cleanup and window unload can both run; retire this copy once.
     const cleanup = () => {
       if (retired) return;
       retired = true;

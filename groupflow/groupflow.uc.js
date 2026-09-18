@@ -69,7 +69,7 @@
     observe(_s, _t, data) {
       if (!data || !data.startsWith(PREFIX)) return;
       iconRules = null;                    // reparsed on the next refresh
-      if (["icon-rules", "section-icons", "icon-shape"].some(k => data === PREFIX + k)) schedule();
+      if (["favicons", "icon-rules", "section-icons", "icon-shape"].some(k => data === PREFIX + k)) schedule();
       const name = "--" + data.replace(/\./g, "-");
       const value = readPrefValue(data);
       try {
@@ -243,7 +243,7 @@
   function refreshDirty() {
     if (everything) { everything = false; dirty.clear(); refreshAll(); return; }
     if (!bool("favicons", true)) { dirty.clear(); return; }
-    for (const g of dirty) if (g.isConnected && !g.isZenFolder) refreshGroup(g);
+    for (const g of dirty) if (g.isConnected && !g.isZenFolder && !g.hasAttribute("split-view-group")) refreshGroup(g);
     dirty.clear();
   }
 
@@ -285,10 +285,7 @@
     // does, so every registration has to be released here or it leaks
     // across window open/close cycles. The capture flag must match the
     // one used to add, or removeEventListener silently does nothing.
-    // Sine (and Cosine) call this on beforeunload as well, so the window's
-    // own unload listener below is the second invocation, not the first.
-    // Running twice is how one window's copy used to rip out the patch
-    // another window had just taken over.
+    // Sine cleanup and window unload can both run; retire this copy once.
     let retired = false;
     const cleanup = () => {
       if (retired) return;

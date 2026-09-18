@@ -61,7 +61,7 @@
   // Glassflow token on :root -- roundness, corner shape, sheen, rim, the
   // sidebar panel's colour recipe -- applies to it directly.
   const XH = "http://www.w3.org/1999/xhtml";
-  const asking = new Map();                   // window -> the question up in it
+  const QUESTION = "__zzdlQuestion";           // shared across hook ownership changes
 
   // The window the download came from, if it is a browser window; the one in
   // front otherwise. A window of some other kind has none of the styling.
@@ -77,6 +77,7 @@
   // seen and clicked when that sheet has not been loaded yet.
   function plainly(host, panel) {
     host.style.cssText = "position:fixed;inset:0;z-index:2147483000;display:flex;" +
+      "width:100%;height:100%;max-width:none;max-height:none;margin:0;padding:0;border:0;" +
       "align-items:center;justify-content:center;background:rgba(0,0,0,0.45)";
     panel.style.cssText = "min-width:320px;max-width:460px;padding:18px;border-radius:12px;" +
       "background:Field;color:FieldText;box-shadow:0 18px 56px rgba(0,0,0,0.5)";
@@ -84,9 +85,12 @@
 
   function ask(win, target, folderPath) {
     return new Promise((resolve) => {
+      win[QUESTION]?.(KEEP);
       const doc = win.document;
-      const host = doc.createElementNS(XH, "div");
+      const host = doc.createElementNS(XH, "dialog");
       host.id = "zzdl-ask";
+      host.setAttribute("aria-labelledby", "zzdl-title");
+      host.setAttribute("aria-describedby", "zzdl-name zzdl-where");
       const add = (parent, cls, text) => {
         const e = parent.appendChild(doc.createElementNS(XH, "div"));
         e.className = cls;
@@ -94,9 +98,9 @@
         return e;
       };
       const panel = add(host, "zzdl-panel");
-      add(panel, "zzdl-title", "That name is already taken");
-      add(panel, "zzdl-name", target.leafName);
-      add(panel, "zzdl-where", folderPath);
+      add(panel, "zzdl-title", "That name is already taken").id = "zzdl-title";
+      add(panel, "zzdl-name", target.leafName).id = "zzdl-name";
+      add(panel, "zzdl-where", folderPath).id = "zzdl-where";
       const row = add(panel, "zzdl-buttons");
 
       let done = false, bail = null;
@@ -104,20 +108,19 @@
         if (done) return;
         done = true;
         try { win.clearTimeout(bail); } catch {}
-        try { win.removeEventListener("keydown", onKey, true); } catch {}
         try { win.removeEventListener("unload", onGone); } catch {}
+        try { host.close(); } catch {}
         try { host.remove(); } catch {}
-        if (asking.get(win) === finish) asking.delete(win);
+        if (win[QUESTION] === finish) delete win[QUESTION];
         resolve(choice);
       };
       // Escape keeps both: the answer that cannot lose a file is the one a
       // stray keypress gives you. Enter presses whatever button has focus,
       // which starts on Keep both for the same reason.
-      const onKey = (e) => {
-        if (e.key !== "Escape") return;
-        e.preventDefault(); e.stopPropagation();
+      host.addEventListener("cancel", (e) => {
+        e.preventDefault();
         finish(KEEP);
-      };
+      });
       const onGone = () => finish(KEEP);
 
       const button = (label, cls, choice) => {
@@ -131,15 +134,16 @@
       const keep = button("Keep both", "zzdl-keep", KEEP);
       button("Cancel", "zzdl-cancel", CANCEL);
 
-      win.addEventListener("keydown", onKey, true);
       win.addEventListener("unload", onGone, { once: true });
-      doc.documentElement.appendChild(host);
-      asking.set(win, finish);
+      (doc.body ?? doc.documentElement).appendChild(host);
+      win[QUESTION] = finish;
       // A fresh install runs this script before its stylesheet is loaded.
       // Unstyled, this is a plain block inside a XUL box with no position
       // of its own -- quite possibly invisible, and an invisible question
       // is a download that never starts. Lay it out here if so.
       try { if (win.getComputedStyle(host).position !== "fixed") plainly(host, panel); } catch {}
+      // Native modal focus/inert handling, including focus restoration on close.
+      try { host.showModal(); } catch { finish(KEEP); return; }
       // And nothing gets to hold a download open forever on a question the
       // user may never have seen.
       try { bail = win.setTimeout(() => finish(KEEP), 120000); } catch {}
@@ -176,7 +180,7 @@
       // A second download colliding while a question is up IN THAT WINDOW
       // answers itself: keeping both is what the browser does anyway. A
       // download in another window gets its own question.
-      m = asking.has(win) ? KEEP : await ask(win, target, dir.path);
+      m = win[QUESTION] ? KEEP : await ask(win, target, dir.path);
     }
     note(`${target.leafName} is taken -> ${NAMES[m]}`);
     if (m === KEEP) return false;
@@ -192,13 +196,8 @@
   // ---- the patch ---------------------------------------------------------
   const mine = new Set();                     // the patches this window installed
 
-  // The prototype the browser's own component actually uses. Importing the
-  // module a second time is meant to hand back the same object, but a copy
-  // living in another global would take the patch and change nothing, which
-  // looks exactly like the mod not working. So the object is taken from an
-  // instance of the very component the download code creates, and the
-  // import is kept as a second candidate: if the two are not the same
-  // object, both are patched.
+  // Probe the component wrapper and imported prototype. Distinct candidates
+  // do not prove which one Firefox invokes; keep both until runtime tracing.
   function targets() {
     const found = [];
     const keep = (p) => {
@@ -245,13 +244,16 @@
   }
 
   function uninstall() {
-    mine.clear();
+    let removed = false;
     for (const proto of targets()) {
       const held = proto[MARK];
-      if (!held || proto.promptForSaveToFileAsync !== held.fn) continue;   // gone, or something on top
+      if (!held || !mine.has(held.fn) || proto.promptForSaveToFileAsync !== held.fn) continue;   // gone, or something on top
       proto.promptForSaveToFileAsync = held.orig;
       delete proto[MARK];
+      removed = true;
     }
+    mine.clear();
+    if (!removed) return;
     // The patch is shared by every window but its code lives in this one.
     // Hand it to a window that is staying, so the feature survives and
     // nothing of this window is kept alive by the browser's module.
@@ -300,18 +302,20 @@
       // Is the hook in, and would a download reach it at all?
       status: () => {
         const found = targets();
-        const proto = found[0];
-        const held = proto?.[MARK];
+        const hooks = found.map(proto => {
+          const held = proto[MARK];
+          return !held ? "not installed"
+            : held.fn !== proto.promptForSaveToFileAsync ? "installed, but another patch sits on top"
+            : mine.has(held.fn) ? "installed (this window)" : "installed (another window)";
+        });
         const m = mode();
         let toFolder = null;
         try { toFolder = Services.prefs.getBoolPref("browser.download.useDownloadDir", true); } catch {}
         return {
           setting: m === REPLACE ? "always replace" : m === KEEP ? "always keep both" : "ask",
-          hookedCopies: found.length,
-          hook: !proto ? "the browser's download module could not be read"
-              : !held ? "not installed"
-              : held.fn !== proto.promptForSaveToFileAsync ? "installed, but another patch sits on top"
-              : mine.has(held.fn) ? "installed (this window)" : "installed (another window)",
+          candidateCopies: found.length,
+          hookedCopies: found.filter(proto => proto[MARK]?.fn === proto.promptForSaveToFileAsync).length,
+          hook: hooks.length ? hooks.join("; ") : "the browser's download module could not be read",
           // With this off the browser opens the system save dialog for every
           // download, that dialog asks about replacing itself, and nothing
           // here ever runs.
@@ -327,15 +331,13 @@
       log: () => log.slice(),
     };
 
-    // Sine (and Cosine) call this on beforeunload as well, so the window's
-    // own unload listener below is the second invocation, not the first.
-    // Running twice is how one window's copy used to rip out the patch
-    // another window had just taken over.
+    // Sine cleanup and window unload can both run; retire this copy once.
     let retired = false;
     const cleanup = () => {
       if (retired) return;
       retired = true;
-      for (const finish of [...asking.values()]) { try { finish(KEEP); } catch {} }
+      // Questions in other windows retain their own handlers and timeout.
+      try { window[QUESTION]?.(KEEP); } catch {}
       try { uninstall(); } catch {}
       try { if (window.DownloadPrompt?.install === install) delete window.DownloadPrompt; } catch {}
     };

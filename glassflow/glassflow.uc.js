@@ -79,55 +79,65 @@
   // Restored: cd192ee deleted this body while leaving both call sites, so
   // start() threw ReferenceError on every window from then on. See the note
   // on startOnce() for why that took the other four mods down with it.
+  let instantOverride = null;
+  function restoreInstantUI() {
+    if (!instantOverride) return;
+    const { cfg, value, had } = instantOverride;
+    if (cfg.instantAnimations === true) {
+      if (had) cfg.instantAnimations = value;
+      else delete cfg.instantAnimations;
+    }
+    instantOverride = null;
+  }
   function syncInstantUI() {
     const cfg = window.Motion?.MotionGlobalConfig;
     if (!cfg) return;                      // not on this build; nothing to do
     let want = false;
     try { want = Services.prefs.getBoolPref(PREFIX + "instant-ui", false); } catch {}
-    if (cfg.instantAnimations !== want) cfg.instantAnimations = want;
+    if (!want) { restoreInstantUI(); return; }
+    if (!instantOverride) {
+      instantOverride = { cfg, value: cfg.instantAnimations,
+        had: Object.hasOwn(cfg, "instantAnimations") };
+      cfg.instantAnimations = true;
+    }
   }
 
   const prefVarObserver = {
     observe(_s, _t, data) {
       if (!data || !data.startsWith(PREFIX)) return;
       if (data === PREFIX + "instant-ui") { syncInstantUI(); return; }
-      if (data === PREFIX + "sidebar.sample" || data === PREFIX + "sidebar.sample-interval") {
-        if (sampleTimer) { clearTimeout(sampleTimer); sampleTimer = null; }
-        syncSampling();
-      }
       const name = "--" + data.replace(/\./g, "-");
       const value = readPrefValue(data);
       try {
         if (value === null) document.documentElement.style.removeProperty(name);
         else document.documentElement.style.setProperty(name, value);
       } catch {}
+      if (["sidebar.enabled", "sidebar.sample", "sidebar.sample-interval", "sidebar.blur",
+           "sidebar.blur-through-transparent", "sidebar.blur-radius", "sidebar.blur-radius-corner"].some(k => data === PREFIX + k)) {
+        if (sampleTimer) { clearTimeout(sampleTimer); sampleTimer = null; }
+        syncSampling();
+      } else trackNativeBlur(); // Shared corner/radius controls also affect the mask.
     },
   };
 
 
   // ---- sampled sidebar glass ----------------------------------------------
-  // backdrop-filter in chrome cannot see web content: the content process
-  // composites its own surface, so every "sidebar blur" mod blurs the window
-  // background and goes flat once the page has painted. drawSnapshot() on
-  // the content's WindowGlobalParent can: it hands back a bitmap of any
-  // rectangle of the page. So while the compact sidebar floats over the
-  // page, the strip beneath it is snapped at a small scale a few times a
-  // second, and painted -- blurred, tinted -- behind the sidebar as a
-  // background image, the whole viewport laid over the page's own box so
-  // the panel is only ever a window onto it. A tiny readback, a tiny image, no per-frame pass;
-  // nothing at all while the sidebar is hidden or docked.
+  // Optional snapshot fallback when native sidebar blur is insufficient.
+  // Read the visible page at a small scale and paint it behind the panel.
+  // This captures page pixels, not the complete composed window backdrop.
+  // Native-only mode (sidebar.sample=false) needs no snapshot loop.
   const SAMPLE_SCALE = 0.1;                   // the viewport at a tenth
   let sampleTimer = null;
   let warmSampleTimer = null;
   let sampleChain = 0;                        // which chain owns sampleTimer
   let samplingEpoch = 0;                      // invalidates reads across cleanup
-  let sampleMs = 250, lastPush = 0;
+  let sampleMs = 250, lastPush = 0, frames = 0;
   const FAST_MS = 80;                         // read rate while the strip keeps changing (a scroll, a video)
   let sampleObserver = null;
   let sampleSig = null;
   let sampling = false;
   let lastSample = null;                      // { panel, at }: the panel's last settled box, for warm reads
-  let opaquePage = null;                      // settled: could the backdrop blur see this page?
+  let opaquePage = null;                      // settled strip-opacity heuristic
   let opaqueLast = null;                      // the read before, for the two-in-a-row rule
 
   const isPrivate = () => {
@@ -141,10 +151,13 @@
 
   // #titlebar is the floating panel in compact mode; the sample hangs on it.
   const sidebarEl = () => document.getElementById("titlebar");
+  const SIDEBAR_SHOW_ATTRS = ["zen-has-hover", "zen-user-show", "zen-has-empty-tab",
+    "flash-popup", "has-popup-menu", "movingtab", "zen-compact-mode-active"];
   const sidebarShown = () => {
     const root = document.documentElement, tb = document.getElementById("navigator-toolbox");
     return root.getAttribute("zen-compact-mode") === "true" && !!tb &&
-      (tb.hasAttribute("zen-has-hover") || tb.hasAttribute("zen-user-show") || tb.hasAttribute("has-popup-menu"));
+      !root.hasAttribute("customizing") && root.getAttribute("inDOMFullscreen") !== "true" &&
+      (SIDEBAR_SHOW_ATTRS.some(a => tb.hasAttribute(a)) || root.getAttribute("zen-renaming-tab") === "true");
   };
 
   // The layout already computed, rather than forcing a fresh one. Zen
@@ -158,6 +171,85 @@
     try { return window.windowUtils.getBoundsWithoutFlushing(el); }
     catch { return el.getBoundingClientRect(); }
   };
+
+  // Native content-side blur for transparent pages. Replace only the covered
+  // strip of SourceGraphic; preserving alpha lets the chrome backdrop show
+  // through. Firefox repaints the filter as content changes: no readbacks,
+  // PNGs or polling. Geometry tracking stops once the sidebar settles.
+  let nativeSVG = null, nativeFilter, nativeBlur, nativeMask, nativeBox;
+  let nativeRaf = 0, nativeResize = null, nativeGeometry = "";
+  function updateNativeBlur() {
+    const pref = k => Services.prefs.getBoolPref(PREFIX + k, false);
+    const box = document.getElementById("tabbrowser-tabbox");
+    const on = box && !document.hidden && sidebarShown() && pref("sidebar.enabled") &&
+      pref("sidebar.blur") && pref("sidebar.blur-through-transparent") && !sampleOn();
+    if (!on) {
+      nativeBox?.removeAttribute("zzglass-native-strip");
+      nativeGeometry = "";
+      return "";
+    }
+    const panel = document.getElementById("zen-toolbar-background") ?? sidebarEl();
+    const r = panel.getBoundingClientRect(), b = box.getBoundingClientRect();
+    const width = b.right - b.left, height = b.bottom - b.top;
+    const x = r.left - b.left, y = r.top - b.top, w = r.right - r.left, h = r.bottom - r.top;
+    if (width <= 0 || height <= 0 || w <= 0 || h <= 0 || x >= width || y >= height || x + w <= 0 || y + h <= 0) {
+      nativeBox?.removeAttribute("zzglass-native-strip");
+      nativeGeometry = "";
+      return "";
+    }
+    const css = getComputedStyle(panel);
+    const requested = parseFloat(css.getPropertyValue("--zzglass-sidebar-blur-radius"));
+    const radius = Math.max(0, Math.min(80, Number.isFinite(requested) ? requested : 25));
+    const corner = Math.max(0, parseFloat(css.borderTopLeftRadius) || 0);
+    const geometry = [x, y, w, h, width, height, radius, corner].join(",");
+    if (geometry === nativeGeometry) return geometry;
+    if (!nativeSVG) {
+      const ns = "http://www.w3.org/2000/svg";
+      const add = (parent, tag, attrs) => {
+        const el = parent.appendChild(document.createElementNS(ns, tag));
+        for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+        return el;
+      };
+      nativeSVG = document.createElementNS(ns, "svg");
+      nativeSVG.style.cssText = "position:absolute;width:0;height:0;pointer-events:none";
+      nativeSVG.setAttribute("aria-hidden", "true");
+      nativeFilter = add(nativeSVG, "filter", { id: "zzglass-native-strip-filter", x: 0, y: 0,
+        filterUnits: "userSpaceOnUse", primitiveUnits: "userSpaceOnUse", "color-interpolation-filters": "sRGB" });
+      nativeBlur = add(nativeFilter, "feGaussianBlur", { in: "SourceGraphic", result: "blurred" });
+      nativeMask = add(nativeFilter, "feImage", { result: "mask", preserveAspectRatio: "none" });
+      add(nativeFilter, "feComposite", { in: "blurred", in2: "mask", operator: "in", result: "inside" });
+      add(nativeFilter, "feComposite", { in: "SourceGraphic", in2: "mask", operator: "out", result: "outside" });
+      // Add complementary masks, including their antialiased edges.
+      add(nativeFilter, "feComposite", { in: "inside", in2: "outside", operator: "arithmetic", k2: 1, k3: 1 });
+      (document.body ?? document.documentElement).appendChild(nativeSVG);
+    }
+    nativeFilter.setAttribute("width", width); nativeFilter.setAttribute("height", height);
+    nativeBlur.setAttribute("stdDeviation", radius);
+    // Only the blurred result near the covered strip is needed.
+    nativeBlur.setAttribute("x", x - 3 * radius); nativeBlur.setAttribute("y", y - 3 * radius);
+    nativeBlur.setAttribute("width", w + 6 * radius); nativeBlur.setAttribute("height", h + 6 * radius);
+    for (const [k, v] of Object.entries({ x, y, width: w, height: h })) nativeMask.setAttribute(k, v);
+    const mask = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="100%" height="100%" rx="${corner}" fill="white"/></svg>`;
+    const href = "data:image/svg+xml," + encodeURIComponent(mask);
+    if (nativeMask.getAttribute("href") !== href) nativeMask.setAttribute("href", href);
+    nativeBox = box;
+    box.setAttribute("zzglass-native-strip", "");
+    nativeGeometry = geometry;
+    return geometry;
+  }
+  function trackNativeBlur() {
+    cancelAnimationFrame(nativeRaf);
+    const began = Date.now(), deadline = began + 1500;
+    let last = null, still = 0;
+    const step = () => {
+      nativeRaf = 0;
+      const geometry = updateNativeBlur();
+      still = geometry === last ? still + 1 : 0;
+      last = geometry;
+      if (geometry && (still < 2 || Date.now() - began < 250) && Date.now() < deadline) nativeRaf = requestAnimationFrame(step);
+    };
+    step();
+  }
 
   // The part of the page's box a panel box covers, in chrome px from the
   // page's top left; bw is the page box's width, to scale into the picture.
@@ -196,6 +288,8 @@
   }
   const urls = [null, null];
   function clearSample() {
+    samplingEpoch++;
+    sampling = false;
     try { sidebarEl()?.removeAttribute("zzglass-sample"); } catch {}
     for (const l of layers) { try { l.style.backgroundImage = ""; l.removeAttribute("front"); } catch {} }
     try { sampleEl?.removeAttribute("zzglass-fade"); } catch {}
@@ -213,7 +307,10 @@
     if (!host?.isConnected || !browser) return null;
     const h = host.getBoundingClientRect(), b = browser.getBoundingClientRect();
     const css = { left: b.left - h.left, top: b.top - h.top, width: b.right - b.left, height: b.bottom - b.top };
-    for (const l of layers) for (const k in css) l.style[k] = css[k].toFixed(2) + "px";
+    for (const l of layers) for (const k in css) {
+      const value = css[k].toFixed(2) + "px";
+      if (l.style[k] !== value) l.style[k] = value;
+    }
     return h;
   }
   // Zen slides the panel with a plain CSS transition (no attribute marks
@@ -238,11 +335,12 @@
   // the strip it covered last, so the frame is up before the slide.
   let ticks = 0, samplingSince = 0;
   async function sampleOnce(warm = false) {
-    const epoch = samplingEpoch;
+    if (!sampleOn() || document.hidden || (isPrivate() && !sidebarShown())) return false;
     // A read that never came back (a tab torn down mid-snapshot) must not
     // wedge every read after it.
     if (sampling && Date.now() - samplingSince > 2000) sampling = false;
     if (sampling) return;
+    const epoch = ++samplingEpoch;
     if (trackRaf && !warm) return;            // still sliding; track() reads once it settles
     const panel = warm ? (lastSample?.panel ?? (sidebarShown() ? boxOf(sidebarEl()) : null))
                        : boxOf(sidebarEl());
@@ -255,11 +353,13 @@
     try {
       const wg = gBrowser.selectedBrowser.browsingContext?.currentWindowGlobal;
       if (!wg?.drawSnapshot) return;
+      const current = () => epoch === samplingEpoch && !document.hidden &&
+        gBrowser.selectedBrowser.browsingContext?.currentWindowGlobal === wg;
       // A rect given to drawSnapshot is taken relative to the PAGE, not the
       // visible viewport; null is the viewport as seen. At a tenth scale
       // the whole viewport is a couple of hundred pixels a side.
       const bmp = await wg.drawSnapshot(null, SAMPLE_SCALE, "transparent");
-      if (epoch !== samplingEpoch) { bmp.close(); return false; }
+      if (!current()) { bmp.close(); return false; }
       const c = new OffscreenCanvas(bmp.width, bmp.height);
       const ctx = c.getContext("2d");
       ctx.drawImage(bmp, 0, 0);
@@ -272,16 +372,16 @@
       const cw = Math.max(1, Math.min(c.width - cx, Math.ceil(strip.width * k)));
       const ch = Math.max(1, Math.min(c.height - cy, Math.ceil(strip.height * k)));
       const px = ctx.getImageData(cx, cy, cw, ch).data;
-      // An opaque page is one the real backdrop blur can see, and that blur
-      // is per-frame where this is a few reads a second. So the sample
-      // stands down there and the backdrop rule takes over; it steps in
-      // only on a see-through page, where the backdrop has nothing to see.
+      // Prefer native blur when the strip is mostly opaque. This is an
+      // opacity heuristic, not a test of compositor/backdrop availability.
       // Every pixel, colour and alpha: on a see-through page most pixels
       // are transparent black, so a sparse sample of one channel missed a
       // scroll entirely.
       let sig = 0, solid = 0, n = 0;
       for (let i = 0; i < px.length; i += 4) {
-        sig = (Math.imul(sig, 31) + px[i] + px[i + 1] + px[i + 2] + px[i + 3]) | 0;
+        // Preserve channel order: red and green with equal brightness differ.
+        const rgba = (px[i] << 24) | (px[i + 1] << 16) | (px[i + 2] << 8) | px[i + 3];
+        sig = (Math.imul(sig, 31) + rgba) | 0;
         n++; if (px[i + 3] === 255) solid++;
       }
       // Two reads in a row have to agree before the panel flips between the
@@ -304,7 +404,7 @@
       // A live reinjection can retire this copy while either await above is
       // pending. Never let the stale read recreate the host or paint over the
       // new generation; the just-created URL is ours to release.
-      if (epoch !== samplingEpoch) { URL.revokeObjectURL(url); return false; }
+      if (!current()) { URL.revokeObjectURL(url); sampleSig = null; return false; }
       const back = 1 - front;
       layers[back].style.backgroundImage = `url("${url}")`;
       layers[back].setAttribute("front", "");
@@ -318,6 +418,7 @@
       // idle rate after a pause.
       const now = Date.now(), moving = now - lastPush < 2 * sampleMs;
       lastPush = now;
+      frames++;
       host.style.setProperty("--zzglass-sample-fade", (moving ? FAST_MS : sampleMs) + "ms");
       if (urls[1 - front]) host.setAttribute("zzglass-fade", "");
       sidebarEl()?.setAttribute("zzglass-sample", "");
@@ -328,12 +429,13 @@
       lastError = String(e);
       console.warn("[Glassflow] sample failed:", e);
       clearSample();
-    } finally { sampling = false; }
+    } finally { if (epoch === samplingEpoch) sampling = false; }
   }
 
   function syncSampling() {
+    trackNativeBlur();
     const on = sampleOn();
-    const want = on && sidebarShown();
+    const want = on && !document.hidden && sidebarShown();
     // Disabling the feature must also retire a snapshot already across an
     // await. Clearing only the visible frame allowed that read to paint the
     // frame straight back after the setting had been switched off.
@@ -355,8 +457,15 @@
       const chain = ++sampleChain;
       const next = (delay) => {
         sampleTimer = setTimeout(async () => {
+          // Keep ticking while a snapshot/encoding is pending. Otherwise its
+          // stall prevents sampleOnce's 2-second recovery check from running.
+          if (!sampleTimer || chain !== sampleChain) return;
+          next(sampleMs);
           const changed = await sampleOnce();
-          if (sampleTimer && chain === sampleChain) next(changed ? FAST_MS : sampleMs);
+          if (changed && sampleTimer && chain === sampleChain) {
+            clearTimeout(sampleTimer);
+            next(FAST_MS);
+          }
         }, delay);
       };
       next(sampleMs);
@@ -379,9 +488,13 @@
     // Zen flips these attributes as the compact sidebar shows and hides;
     // the observer is the only thing that runs while it is hidden.
     sampleObserver = new MutationObserver(syncSampling);
-    sampleObserver.observe(tb, { attributes: true, attributeFilter: ["zen-has-hover", "zen-user-show", "has-popup-menu"] });
-    sampleObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["zen-compact-mode"] });
+    sampleObserver.observe(tb, { attributes: true, attributeFilter: SIDEBAR_SHOW_ATTRS });
+    sampleObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["zen-compact-mode", "zen-renaming-tab", "zen-right-side", "customizing", "inDOMFullscreen"] });
+    nativeResize = new ResizeObserver(trackNativeBlur);
+    for (const el of [sidebarEl(), document.getElementById("tabbrowser-tabbox")]) if (el) nativeResize.observe(el);
+    window.addEventListener("resize", trackNativeBlur);
     gBrowser.tabContainer.addEventListener("TabSelect", syncSampleNow);
+    document.addEventListener("visibilitychange", syncSampling);
     syncSampling();
     if (sampleOn()) {
       warmSampleTimer = setTimeout(() => {
@@ -390,14 +503,25 @@
       }, 1500);                              // warm the first frame
     }
   }
-  const sampleOn = () => { try { return Services.prefs.getBoolPref(PREFIX + "sidebar.sample", false); } catch { return false; } };
+  const sampleOn = () => {
+    try { return document.documentElement.getAttribute("zen-compact-mode") === "true" &&
+      Services.prefs.getBoolPref(PREFIX + "sidebar.enabled", false) &&
+      Services.prefs.getBoolPref(PREFIX + "sidebar.sample", false); }
+    catch { return false; }
+  };
   // A new tab in front: re-read now if shown, or warm a frame for it if not.
-  const syncSampleNow = () => { sampleSig = null; if (sampleOn()) sampleOnce(!sampleTimer); };
+  const syncSampleNow = () => { clearSample(); if (sampleOn()) sampleOnce(!sampleTimer); };
   function stopSampling() {
     samplingEpoch++;
     try { sampleObserver?.disconnect(); } catch {}
     sampleObserver = null;
+    nativeResize?.disconnect(); nativeResize = null;
+    window.removeEventListener("resize", trackNativeBlur);
+    cancelAnimationFrame(nativeRaf); nativeRaf = 0;
+    nativeBox?.removeAttribute("zzglass-native-strip");
+    nativeSVG?.remove(); nativeSVG = null; nativeGeometry = "";
     try { gBrowser.tabContainer.removeEventListener("TabSelect", syncSampleNow); } catch {}
+    document.removeEventListener("visibilitychange", syncSampling);
     if (sampleTimer) { clearTimeout(sampleTimer); sampleTimer = null; }
     if (warmSampleTimer) { clearTimeout(warmSampleTimer); warmSampleTimer = null; }
     cancelAnimationFrame(trackRaf); trackRaf = 0;
@@ -444,23 +568,25 @@
     // Glassflow.sample.status() says whether the sampled glass is running
     // and what strip of the page it last read; .now() forces one read.
     window.Glassflow = {
+      native: { status: () => ({ active: !!nativeBox?.hasAttribute("zzglass-native-strip"),
+        tracking: !!nativeRaf, geometry: nativeGeometry || null }) },
       sample: {
         status: () => ({ active: !!sampleTimer, shown: sidebarShown(), sliding: !!trackRaf, strip: overlap(boxOf(sidebarEl())),
-                         last: lastSample, lastError, opaquePage, ticks, busy: sampling,
+                         last: lastSample, lastError, opaquePage, ticks, frames, busy: sampling,
+                         busyForMs: sampling ? Date.now() - samplingSince : 0,
+                         frameAgeMs: frames ? Date.now() - lastPush : null,
                          painted: !!(sampleEl?.isConnected && layers.some(l => l.style.backgroundImage)),
                          marked: !!sidebarEl()?.hasAttribute("zzglass-sample") }),
         now: () => { sampleSig = null; return sampleOnce(); },
       },
     };
-    // Sine (and Cosine) call this on beforeunload as well, so the window's
-    // own unload listener below is the second invocation, not the first.
-    // Running twice is how one window's copy used to rip out the patch
-    // another window had just taken over.
+    // Sine cleanup and window unload can both run; retire this copy once.
     let retired = false;
     const cleanup = () => {
       if (retired) return;
       retired = true;
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}
+      restoreInstantUI();
       stopSampling();
       try { gBrowser.removeTabsProgressListener(iconKeeper); } catch {}
       try { Services.obs.removeObserver(purgeObserver, "browser:purge-session-history"); } catch {}

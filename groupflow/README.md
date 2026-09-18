@@ -1,5 +1,7 @@
 # Groupflow
 
+> Scope: source at commit `7528d67`; runtime compatibility requires testing against installed Zen, Firefox, and Sine versions.
+
 Per-state glass theming for tab groups and subgroups, in
 [Glassflow](../glassflow)'s visual language. A sibling mod, not a fork:
 Glassflow's live tokens (roundness, accent tone, sheen recipe, rim strength,

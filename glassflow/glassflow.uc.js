@@ -106,16 +106,10 @@
 
 
   // ---- sampled sidebar glass ----------------------------------------------
-  // backdrop-filter in chrome cannot see web content: the content process
-  // composites its own surface, so every "sidebar blur" mod blurs the window
-  // background and goes flat once the page has painted. drawSnapshot() on
-  // the content's WindowGlobalParent can: it hands back a bitmap of any
-  // rectangle of the page. So while the compact sidebar floats over the
-  // page, the strip beneath it is snapped at a small scale a few times a
-  // second, and painted -- blurred, tinted -- behind the sidebar as a
-  // background image, the whole viewport laid over the page's own box so
-  // the panel is only ever a window onto it. A tiny readback, a tiny image, no per-frame pass;
-  // nothing at all while the sidebar is hidden or docked.
+  // Optional snapshot fallback when native sidebar blur is insufficient.
+  // Read the visible page at a small scale and paint it behind the panel.
+  // This captures page pixels, not the complete composed window backdrop.
+  // Native-only mode (sidebar.sample=false) needs no snapshot loop.
   const SAMPLE_SCALE = 0.1;                   // the viewport at a tenth
   let sampleTimer = null;
   let warmSampleTimer = null;
@@ -127,7 +121,7 @@
   let sampleSig = null;
   let sampling = false;
   let lastSample = null;                      // { panel, at }: the panel's last settled box, for warm reads
-  let opaquePage = null;                      // settled: could the backdrop blur see this page?
+  let opaquePage = null;                      // settled strip-opacity heuristic
   let opaqueLast = null;                      // the read before, for the two-in-a-row rule
 
   const isPrivate = () => {
@@ -280,10 +274,8 @@
       const cw = Math.max(1, Math.min(c.width - cx, Math.ceil(strip.width * k)));
       const ch = Math.max(1, Math.min(c.height - cy, Math.ceil(strip.height * k)));
       const px = ctx.getImageData(cx, cy, cw, ch).data;
-      // An opaque page is one the real backdrop blur can see, and that blur
-      // is per-frame where this is a few reads a second. So the sample
-      // stands down there and the backdrop rule takes over; it steps in
-      // only on a see-through page, where the backdrop has nothing to see.
+      // Prefer native blur when the strip is mostly opaque. This is an
+      // opacity heuristic, not a test of compositor/backdrop availability.
       // Every pixel, colour and alpha: on a see-through page most pixels
       // are transparent black, so a sparse sample of one channel missed a
       // scroll entirely.

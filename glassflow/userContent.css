@@ -336,17 +336,9 @@
 /* ============================================================
    Under-sidebar page blur (v3.25)
 
-   DISCLOSURE -- this is a different mechanism, not a change to the
-   chrome-side glass. Browser chrome cannot blur a web page: once the
-   content process composites the page, a backdrop-filter in chrome has
-   nothing in its backdrop root, which is why Arc's compact sidebar
-   "blurs while loading, then goes clear" (their issues #54, #43, #59).
-
-   So the blur is placed INSIDE the page instead. This paints a fixed
-   strip down the page's own left edge, in the content process, where
-   backdrop-filter does work on page pixels. The sidebar then floats over
-   an already-blurred region, which is what makes the text under it go
-   soft.
+   Optional content-side alternative when native chrome blur is insufficient.
+   This paints a fixed strip inside the page; it does not capture the
+   complete window backdrop visible through transparent page pixels.
 
    Consequences, stated plainly:
      - the strip exists on every page, whether or not the sidebar is

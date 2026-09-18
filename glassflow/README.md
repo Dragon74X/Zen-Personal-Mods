@@ -148,9 +148,34 @@ down and let this own it.
 | Panel accent tint / corner radius | `10%` / `12px` | |
 | Blur behind the floating panel | off | Native `backdrop-filter`; result depends on Zen and transparency settings |
 | Blur radius / contrast / saturation | `25px` / `1` / `1` | |
-| Blur through transparent pages | off | Arc's clip-path trick; restart. For pages the Zen Internet extension made see-through |
+| Blur through transparent pages | off | Experimental clip-path workaround for native blur; restart. Rendering-dependent |
 | Sampled glass (experimental) | off | Downscales the viewport to 10% per axis, then paints it blurred behind the panel. Idle delay defaults to 250 ms; changed frames use 80 ms. Hidden windows start no snapshots; hidden private sidebars retain no sample |
 | Sample blur / opacity / interval | `18px` / `1` / `250` | the last frame stays up while the sidebar is hidden, so it shows at once |
+
+### Live blur without snapshots
+
+For the floating compact sidebar, enable **Enable sidebar styling** and
+**Blur behind the floating panel**, and disable **Sampled glass**. Leave
+**Blur the page when the sidebar shows** and the static page-strip effect off
+if you want only the area behind the sidebar blurred. Keep panel opacity
+below 100% so the backdrop is visible.
+
+For transparent pages, try **Blur through transparent pages**, then restart.
+It applies the existing clip-path compatibility workaround; success depends
+on Zen's rendering path. It is not a verified fix for every transparency
+setup. Native blur has no snapshot timer and follows rendered changes.
+
+The target is the combined backdrop: page text/images plus whatever browser
+background shows through transparent gaps. A native filter can only use the
+backdrop exposed to it; ancestor backdrop roots can limit that area
+([MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/backdrop-filter#backdrop_root)).
+Page transparency alone does not prove native blur is unavailable. Conversely,
+the sampler's opaque-pixel heuristic does not prove it works. A page snapshot
+also cannot reproduce the complete window backdrop through transparent gaps.
+
+Verify with scrolling text, moving video, and transparent gaps over the window
+background while the sidebar stays open, then during its slide. This needs a
+live Zen check; automated sampler tests do not verify compositor output.
 
 Pending samples are discarded after a tab/document change, history clearing, or script retirement. The pixel signature preserves RGBA channel order, so equal-total red/green changes refresh the sample. These lifecycle checks do not measure frame-time improvements.
 

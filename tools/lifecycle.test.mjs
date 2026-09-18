@@ -161,12 +161,13 @@ async function glassEnv(privateWindow = false) {
   const root = element(), toolbox = element(), panel = element(), browser = element();
   root.setAttribute("zen-compact-mode", "true"); toolbox.setAttribute("zen-has-hover", "");
   const snapshot = deferred(), blob = deferred(), blobStarted = deferred(), c = clock();
-  let snapshots = 0, closed = 0, conversions = 0;
+  let snapshots = 0, closed = 0, conversions = 0, now = 10000;
+  const snapshotQueue = [], blobQueue = [];
   const pixels = [0, 0, 0, 0];
-  browser.browsingContext = { currentWindowGlobal: { drawSnapshot() { snapshots++; return snapshot.promise; } } };
+  browser.browsingContext = { currentWindowGlobal: { drawSnapshot() { snapshots++; return snapshotQueue.length ? snapshotQueue.shift() : snapshot.promise; } } };
   const revoked = [];
   const h = await load("glassflow", "sampleOnce, clearSample, syncSampleNow, syncSampling, hide: () => document.hidden = true, navigate: () => gBrowser.selectedBrowser.browsingContext.currentWindowGlobal = {}", {
-    ...c, window: { windowUtils: { getBoundsWithoutFlushing: el => el.getBoundingClientRect() } },
+    ...c, Date: { now: () => now }, window: { windowUtils: { getBoundsWithoutFlushing: el => el.getBoundingClientRect() } },
     document: { documentElement: root, getElementById: id => ({ titlebar: panel, "navigator-toolbox": toolbox })[id], createElementNS: element },
     gBrowser: { selectedBrowser: browser },
     Services: { prefs: { getBoolPref: () => true } },
@@ -174,12 +175,18 @@ async function glassEnv(privateWindow = false) {
     OffscreenCanvas: class {
       width = 10; height = 10;
       getContext() { return { drawImage() {}, getImageData: () => ({ data: pixels }) }; }
-      convertToBlob() { conversions++; blobStarted.resolve(); return blob.promise; }
+      convertToBlob() { conversions++; blobStarted.resolve(); return blobQueue.length ? blobQueue.shift() : blob.promise; }
     },
-    URL: { createObjectURL: () => "blob:test", revokeObjectURL: url => revoked.push(url) },
+    URL: { createObjectURL: () => `blob:test-${conversions}`, revokeObjectURL: url => revoked.push(url) },
     cancelAnimationFrame() {}, requestAnimationFrame: () => 1,
   });
-  return { h, panel, toolbox, snapshot, blob, blobStarted, revoked, pixels, get conversions() { return conversions; }, get snapshots() { return snapshots; },
+  return { h, panel, toolbox, snapshot, blob, blobStarted, revoked, pixels, timers: c.timers,
+    snapshotQueue, blobQueue, advance: ms => { now += ms; },
+    fireTimer() {
+      const [id, fn] = c.timers.entries().next().value;
+      c.timers.delete(id);
+      return fn();
+    }, get conversions() { return conversions; }, get snapshots() { return snapshots; },
     bitmap: { width: 10, height: 10, close() { closed++; } }, get closed() { return closed; } };
 }
 
@@ -196,7 +203,7 @@ test("history purge invalidates pending blob conversion and revokes its URL", as
   e.snapshot.resolve(e.bitmap); await e.blobStarted.promise;
   e.h.clearSample(); e.blob.resolve({}); await sample;
   assert.equal(e.panel.hasAttribute("zzglass-sample"), false);
-  assert.deepEqual(e.revoked, ["blob:test"]);
+  assert.deepEqual(e.revoked, ["blob:test-1"]);
 });
 
 test("hidden private sidebar does not warm a snapshot", async () => {
@@ -366,4 +373,78 @@ test("router cancels the stream at 512 KiB and completes once", async () => {
   assert.equal(results[0].length, 512 * 1024);
   assert.equal(e.cancelled, 1);
   assert.equal(e.c.timers.size, 0);
+});
+
+test("sidebar loop keeps refreshing without reopening the panel", async () => {
+  const e = await glassEnv();
+  e.snapshot.resolve(e.bitmap); e.blob.resolve({});
+  e.h.syncSampling();
+  await new Promise(resolve => setImmediate(resolve));
+  for (let frame = 1; frame <= 3; frame++) {
+    e.pixels[0] = frame;
+    await e.fireTimer();
+    assert.equal(e.conversions, frame + 1);
+    assert.equal(e.timers.size, 1);
+  }
+});
+
+test("sidebar loop recovers when a later snapshot stalls", async () => {
+  const e = await glassEnv(), stalled = deferred();
+  e.snapshot.resolve(e.bitmap); e.blob.resolve({});
+  e.h.syncSampling();
+  await new Promise(resolve => setImmediate(resolve));
+  e.snapshotQueue.push(stalled.promise);
+  const pending = e.fireTimer();
+  assert.equal(e.timers.size, 1, "next tick must exist while snapshot is pending");
+  e.advance(2001); e.pixels[0] = 42;
+  await e.fireTimer();
+  assert.equal(e.conversions, 2);
+  const front = e.panel.children[0].children.find(layer => layer.hasAttribute("front"));
+  assert.equal(front.style.backgroundImage, 'url("blob:test-2")');
+  stalled.resolve(e.bitmap); await pending;
+  assert.equal(e.conversions, 2, "late stale snapshot must not paint");
+  assert.equal(e.timers.size, 1);
+});
+
+test("sidebar loop recovers when a later PNG encoding stalls", async () => {
+  const e = await glassEnv(), stalled = deferred();
+  e.snapshot.resolve(e.bitmap); e.blob.resolve({});
+  e.h.syncSampling();
+  await new Promise(resolve => setImmediate(resolve));
+  e.pixels[0] = 1; e.blobQueue.push(stalled.promise);
+  const pending = e.fireTimer();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(e.timers.size, 1, "next tick must exist while encoding is pending");
+  e.advance(2001); e.pixels[0] = 2;
+  await e.fireTimer();
+  assert.equal(e.conversions, 3);
+  stalled.resolve({}); await pending;
+  assert.equal(e.timers.size, 1);
+});
+
+test("hiding the sidebar stops retries even if an old snapshot completes", async () => {
+  const e = await glassEnv(), stalled = deferred();
+  e.snapshot.resolve(e.bitmap); e.blob.resolve({});
+  e.h.syncSampling();
+  await new Promise(resolve => setImmediate(resolve));
+  e.snapshotQueue.push(stalled.promise); e.pixels[0] = 7;
+  const pending = e.fireTimer();
+  e.toolbox.removeAttribute("zen-has-hover"); e.h.syncSampling();
+  assert.equal(e.timers.size, 0);
+  stalled.resolve(e.bitmap); await pending;
+  assert.equal(e.timers.size, 0);
+});
+
+test("hide/reopen during a pending read leaves one refresh timer", async () => {
+  const e = await glassEnv(), stalled = deferred();
+  e.snapshot.resolve(e.bitmap); e.blob.resolve({});
+  e.h.syncSampling();
+  await new Promise(resolve => setImmediate(resolve));
+  e.snapshotQueue.push(stalled.promise); e.pixels[0] = 7;
+  const pending = e.fireTimer();
+  e.toolbox.removeAttribute("zen-has-hover"); e.h.syncSampling();
+  e.toolbox.setAttribute("zen-has-hover", ""); e.h.syncSampling();
+  assert.equal(e.timers.size, 1);
+  stalled.resolve(e.bitmap); await pending;
+  assert.equal(e.timers.size, 1);
 });

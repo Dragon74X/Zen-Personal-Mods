@@ -121,7 +121,7 @@
   let warmSampleTimer = null;
   let sampleChain = 0;                        // which chain owns sampleTimer
   let samplingEpoch = 0;                      // invalidates reads across cleanup
-  let sampleMs = 250, lastPush = 0;
+  let sampleMs = 250, lastPush = 0, frames = 0;
   const FAST_MS = 80;                         // read rate while the strip keeps changing (a scroll, a video)
   let sampleObserver = null;
   let sampleSig = null;
@@ -328,6 +328,7 @@
       // idle rate after a pause.
       const now = Date.now(), moving = now - lastPush < 2 * sampleMs;
       lastPush = now;
+      frames++;
       host.style.setProperty("--zzglass-sample-fade", (moving ? FAST_MS : sampleMs) + "ms");
       if (urls[1 - front]) host.setAttribute("zzglass-fade", "");
       sidebarEl()?.setAttribute("zzglass-sample", "");
@@ -365,8 +366,15 @@
       const chain = ++sampleChain;
       const next = (delay) => {
         sampleTimer = setTimeout(async () => {
+          // Keep ticking while a snapshot/encoding is pending. Otherwise its
+          // stall prevents sampleOnce's 2-second recovery check from running.
+          if (!sampleTimer || chain !== sampleChain) return;
+          next(sampleMs);
           const changed = await sampleOnce();
-          if (sampleTimer && chain === sampleChain) next(changed ? FAST_MS : sampleMs);
+          if (changed && sampleTimer && chain === sampleChain) {
+            clearTimeout(sampleTimer);
+            next(FAST_MS);
+          }
         }, delay);
       };
       next(sampleMs);
@@ -458,7 +466,9 @@
     window.Glassflow = {
       sample: {
         status: () => ({ active: !!sampleTimer, shown: sidebarShown(), sliding: !!trackRaf, strip: overlap(boxOf(sidebarEl())),
-                         last: lastSample, lastError, opaquePage, ticks, busy: sampling,
+                         last: lastSample, lastError, opaquePage, ticks, frames, busy: sampling,
+                         busyForMs: sampling ? Date.now() - samplingSince : 0,
+                         frameAgeMs: frames ? Date.now() - lastPush : null,
                          painted: !!(sampleEl?.isConnected && layers.some(l => l.style.backgroundImage)),
                          marked: !!sidebarEl()?.hasAttribute("zzglass-sample") }),
         now: () => { sampleSig = null; return sampleOnce(); },

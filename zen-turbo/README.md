@@ -1,5 +1,7 @@
 # Zen Turbo
 
+> Scope: source at commit `7528d67`; runtime compatibility requires testing against installed Zen, Firefox, and Sine versions.
+
 Real, reversible performance tuning for Zen. Requires `sine.allow-unsafe-js`
 set to `true`.
 
@@ -13,8 +15,8 @@ https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/zen-turbo
 
 **Pref packs** -- tuned network, IO, graphics and scrolling settings, each its
 own toggle. Every value is snapshotted before being changed. Turning a pack off
-restores your profile exactly, including "no user value at all". A pref you
-later change by hand is recognized as yours and never touched again.
+restores captured preference values, including "no user value at all". A pref you
+later change by hand is recognized as yours and left unchanged.
 
 | Pack | Default | What it changes |
 |---|---|---|

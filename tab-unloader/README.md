@@ -1,10 +1,12 @@
 # Tab Unloader
 
+> Scope: source at commit `7528d67`; runtime compatibility requires testing against installed Zen, Firefox, and Sine versions.
+
 Time-based tab unloading for [Zen Browser](https://zen-browser.app/) via [Sine](https://github.com/CosmoCreeper/Sine).
 
 Zen removed its own unload timer and now uses Firefox's native unloader, which only runs under memory pressure. `browser.tabs.min_inactive_duration_before_unload` is a minimum-age filter applied when that unloader runs -- it is not an interval, and on a machine that never runs low on memory it is never consulted. This mod supplies the missing timer.
 
-**It unloads, it never closes.** The call is `gBrowser.discardBrowser(tab)`, the same one behind the tab context menu's *Unload Tab*. Tab, title, favicon, history and scroll position all survive; the page reloads when you return to it.
+**Operation:** unloads tabs without closing them. The call is `gBrowser.discardBrowser(tab)`, the same one behind the tab context menu's *Unload Tab*. Tab, title, favicon, history and scroll position all survive; the page reloads when you return to it.
 
 ## Install
 

@@ -1,5 +1,7 @@
 # Download Prompt
 
+> Scope: source at commit `7528d67`; runtime compatibility requires testing against installed Zen, Firefox, and Sine versions.
+
 A replace-or-keep-both question for downloads, for [Zen Browser](https://zen-browser.app/) via [Sine](https://github.com/CosmoCreeper/Sine).
 
 Download a file whose name is already in your downloads folder and Firefox says nothing: it saves the new one as `report(1).pdf` and leaves you to work out, later, which of the two is the one you wanted. Every other program on your machine asks. This mod asks, in the browser window, wearing Glassflow's glass.
@@ -24,9 +26,9 @@ It is built inside the browser window, not opened as a dialog window of its own,
 
 **Cancel** stops the download.
 
-Focus starts on **Keep both**, and Enter and Escape both choose it. The answer that cannot lose a file is the one a stray keypress gives you. A question left unanswered for two minutes chooses it too, so a download can never be held open by a window you never looked at.
+Focus starts on **Keep both**, and Enter and Escape both choose it. The answer that cannot lose a file is the one a stray keypress gives you. A question left unanswered for two minutes chooses it too, so a download is released after the two-minute timeout.
 
-If the mod's stylesheet has not loaded yet, which happens on a fresh install before a restart, the question lays itself out inline instead. Plain, but never invisible.
+If the mod's stylesheet has not loaded yet, which happens on a fresh install before a restart, the question lays itself out inline instead. The fallback uses inline layout.
 
 `DownloadPrompt.preview()` in the console shows the question against a made-up name, so you can see the styling without downloading anything.
 

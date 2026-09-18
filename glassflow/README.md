@@ -1,5 +1,7 @@
 # Glassflow
 
+> Scope: source at commit `7528d67`; runtime compatibility requires testing against installed Zen, Firefox, and Sine versions.
+
 A [Zen Browser](https://zen-browser.app/) mod for [Sine](https://github.com/CosmoCreeper/Sine).
 
 Glass theming for the browser chrome, built out of one shared colour and glass

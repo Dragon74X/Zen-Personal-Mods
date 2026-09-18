@@ -1,6 +1,8 @@
 # Tab Router
 
-Sorts tabs into nested tab groups -- groups and subgroups -- by domain and URL path, using rules you write once, or fully automatically.
+> Scope: source at commit `7528d67`; runtime compatibility requires testing against installed Zen, Firefox, and Sine versions.
+
+Sorts tabs into nested tab groups -- groups and subgroups -- by domain and URL path, using rules you write once, or with automatic rules.
 
 Requires `sine.allow-unsafe-js` set to `true`.
 

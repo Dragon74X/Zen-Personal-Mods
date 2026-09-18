@@ -19,13 +19,14 @@ function clock() {
 function element() {
   const attrs = new Map(), events = new Map();
   return {
-    children: [], style: { setProperty() {} }, isConnected: true,
+    children: [], style: { setProperty() {}, removeProperty() {}, getPropertyValue: () => "" }, isConnected: true,
     setAttribute: (k, v) => attrs.set(k, v), getAttribute: k => attrs.get(k),
     hasAttribute: k => attrs.has(k), removeAttribute: k => attrs.delete(k),
     addEventListener: (k, fn) => events.set(k, fn), removeEventListener: k => events.delete(k),
     appendChild(child) { this.children.push(child); child.parentNode = this; return child; },
     insertBefore(child) { return this.appendChild(child); },
     remove() { this.isConnected = false; }, focus() {},
+    showModal() { this.open = true; }, close() { this.open = false; },
     getBoundingClientRect: () => ({ left: 0, top: 0, right: 100, bottom: 100 }),
     fire: k => events.get(k)?.({}),
   };
@@ -106,13 +107,15 @@ async function routerEnv(extra = {}) {
       asyncOpen(listener) { NetUtil.open(this, listener); } }),
     open: (channel, listener) => callbacks.push([channel, listener]),
     readInputStreamToString: (s, count) => s.body.slice(0, count) };
-  const h = await load("tab-router", "fetchAnon, fetchCreator, fetchSectionIcon, creatorMap, iconMap, forgetAll, cancelLookups, rules, suggestRules", {
+  const h = await load("tab-router", "fetchAnon, fetchCreator, fetchSectionIcon, creatorMap, iconMap, learnedMap, saveLearned, saveCreators, saveIcons, forgetAll, cancelLookups, rules, suggestRules, route, skip, targetPath, reopenInContainer, resolveDestination, prefObserver", {
     ...c, window: {}, gBrowser: { tabGroups: [], tabs: [] }, document: { querySelectorAll: () => [] },
     ChromeUtils: { generateQI: () => () => {}, importESModule: name => name.includes("NetUtil") ? { NetUtil }
       : { PrivateBrowsingUtils: { isWindowPrivate: () => false } } },
-    Services: { prefs: { getBoolPref: (_k, d) => d, getStringPref: (k, d) => prefs.get(k) ?? d,
+    Services: { prefs: { PREF_INT: 64, PREF_STRING: 32, getPrefType: k => typeof prefs.get(k) === "number" ? 64 : 32,
+      getIntPref: k => prefs.get(k), getBoolPref: (k, d) => prefs.get(k) ?? d, getStringPref: (k, d) => prefs.get(k) ?? d,
       setStringPref: (k, v) => prefs.set(k, v) },
-      io: { newURI: url => url }, scriptSecurityManager: { createContentPrincipal() {} } },
+      io: { newURI: url => { const u = new URL(url); return { scheme: u.protocol.slice(0, -1), host: u.hostname, userPass: u.username + u.password }; } },
+      scriptSecurityManager: { createContentPrincipal() {} } },
     Ci: { nsILoadInfo: {}, nsIContentPolicy: {}, nsIRequest: {} },
     Components: { isSuccessCode: s => s === 0 },
     URLSearchParams, Blob, Uint8Array, OffscreenCanvas: class {}, ...extra,
@@ -165,12 +168,12 @@ async function glassEnv(privateWindow = false) {
   const snapshotQueue = [], blobQueue = [];
   const pixels = [0, 0, 0, 0];
   browser.browsingContext = { currentWindowGlobal: { drawSnapshot() { snapshots++; return snapshotQueue.length ? snapshotQueue.shift() : snapshot.promise; } } };
-  const revoked = [];
-  const h = await load("glassflow", "sampleOnce, clearSample, syncSampleNow, syncSampling, hide: () => document.hidden = true, navigate: () => gBrowser.selectedBrowser.browsingContext.currentWindowGlobal = {}", {
+  const revoked = [], prefs = new Map();
+  const h = await load("glassflow", "sampleOnce, clearSample, syncSampleNow, syncSampling, sidebarShown, hide: () => document.hidden = true, navigate: () => gBrowser.selectedBrowser.browsingContext.currentWindowGlobal = {}", {
     ...c, Date: { now: () => now }, window: { windowUtils: { getBoundsWithoutFlushing: el => el.getBoundingClientRect() } },
     document: { documentElement: root, getElementById: id => ({ titlebar: panel, "navigator-toolbox": toolbox })[id], createElementNS: element },
     gBrowser: { selectedBrowser: browser },
-    Services: { prefs: { getBoolPref: () => true } },
+    Services: { prefs: { getBoolPref: k => prefs.get(k) ?? true } },
     ChromeUtils: { importESModule: () => ({ PrivateBrowsingUtils: { isWindowPrivate: () => privateWindow } }) },
     OffscreenCanvas: class {
       width = 10; height = 10;
@@ -180,7 +183,7 @@ async function glassEnv(privateWindow = false) {
     URL: { createObjectURL: () => `blob:test-${conversions}`, revokeObjectURL: url => revoked.push(url) },
     cancelAnimationFrame() {}, requestAnimationFrame: () => 1,
   });
-  return { h, panel, toolbox, snapshot, blob, blobStarted, revoked, pixels, timers: c.timers,
+  return { h, panel, toolbox, root, prefs, snapshot, blob, blobStarted, revoked, pixels, timers: c.timers,
     snapshotQueue, blobQueue, advance: ms => { now += ms; },
     fireTimer() {
       const [id, fn] = c.timers.entries().next().value;
@@ -265,24 +268,26 @@ async function turboEnv({ privateWindow = false, rows = Promise.resolve([]), fai
     setBoolPref: (k, v) => values.set(k, v), clearUserPref: k => values.delete(k),
     prefHasUserValue: k => values.has(k), addObserver() {}, removeObserver() {},
   };
-  const tabContainer = element();
+  const tabContainer = element(), root = element();
   w.XULBrowserWindow = { setOverLink: (...args) => args };
-  const h = await load("zen-turbo", "start, applyPack, revertPack, startupWarmup, forgetWarmups, warmAfterDwell, cancelDwell, onHover, hookOverLink, unhookOverLink", {
+  const h = await load("zen-turbo", "start, applyPack, revertPack, reclaimOrphans, startupWarmup, forgetWarmups, warmAfterDwell, cancelDwell, onHover, syncSmoothing", {
     ...c, window: w, gBrowser: { tabContainer, addTabsProgressListener() {}, removeTabsProgressListener() {} },
-    document: { getElementById: () => null },
+    document: { documentElement: root, getElementById: () => null },
+    MutationObserver: class { observe() {} disconnect() {} },
     Services: { prefs: pref, wm: { getMostRecentWindow: () => w },
       obs: { addObserver() {}, removeObserver() {} },
+      scriptSecurityManager: { createContentPrincipal: (uri, attrs) => ({ uri, originAttributes: attrs }) },
       io: { newURI: url => ({ scheme: new URL(url).protocol.slice(0, -1), prePath: new URL(url).origin }),
-        speculativeConnectWithOriginAttributes(uri, attrs) {
+        speculativeConnect(uri, principal) {
           if (failConnect) throw new Error("connection unavailable");
-          connects.push({ origin: uri.prePath, attrs });
+          connects.push({ origin: uri.prePath, attrs: principal.originAttributes });
         } },
     },
     ChromeUtils: { importESModule: uri => uri.includes("PrivateBrowsing")
       ? { PrivateBrowsingUtils: { isWindowPrivate: () => privateWindow } }
       : { PlacesUtils: { promiseDBConnection: async () => ({ executeCached() { queries++; return rows; } }) } } },
   });
-  return { h, w, c, values, connects, tabContainer, get queries() { return queries; } };
+  return { h, w, c, root, values, connects, tabContainer, get queries() { return queries; } };
 }
 
 test("Turbo re-sync and disable preserve a managed preference edited by the user", async () => {
@@ -324,14 +329,12 @@ test("Turbo cancels hover requests after leaving the surface or entering a loade
   assert.equal(e.c.timers.size, 0);
 });
 
-test("Turbo retirement preserves later wrappers and their original call chain", async () => {
-  const e = await turboEnv(); e.h.start();
-  const ours = e.w.XULBrowserWindow.setOverLink;
-  const later = (...args) => ours(...args);
-  e.w.XULBrowserWindow.setOverLink = later;
+test("Turbo leaves Firefox's native page-link hover handler unchanged", async () => {
+  const e = await turboEnv(), original = e.w.XULBrowserWindow.setOverLink;
+  e.h.start();
+  assert.equal(e.w.XULBrowserWindow.setOverLink, original);
   e.w.__zzturboInstance.retire();
-  assert.equal(e.w.XULBrowserWindow.setOverLink, later);
-  assert.deepEqual(later("https://example.com", null, "extra"), ["https://example.com", null, "extra"]);
+  assert.equal(e.w.XULBrowserWindow.setOverLink, original);
   assert.equal(e.c.timers.size, 0);
 });
 
@@ -447,4 +450,253 @@ test("hide/reopen during a pending read leaves one refresh timer", async () => {
   assert.equal(e.timers.size, 1);
   stalled.resolve(e.bitmap); await pending;
   assert.equal(e.timers.size, 1);
+});
+
+test("download question uses a labelled native modal", async () => {
+  const e = await downloadEnv(), a = await e.add();
+  const question = a.w.DownloadPrompt.preview();
+  const host = a.w.document.body.children[0];
+  assert.equal(host.open, true);
+  assert.equal(host.getAttribute("aria-labelledby"), "zzdl-title");
+  assert.equal(host.getAttribute("aria-describedby"), "zzdl-name zzdl-where");
+  a.w.__zzdlQuestion(2);
+  assert.equal(await question, "keep both");
+  assert.equal(host.open, false);
+});
+
+test("Glassflow stops sampling when its sidebar master switch is disabled", async () => {
+  const e = await glassEnv();
+  e.h.syncSampling();
+  e.prefs.set("zzglass.sidebar.enabled", false);
+  e.h.syncSampling();
+  e.snapshot.resolve(e.bitmap);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(e.timers.size, 0);
+  assert.equal(e.panel.hasAttribute("zzglass-sample"), false);
+  const before = e.snapshots;
+  await e.h.sampleOnce(true);
+  assert.equal(e.snapshots, before);
+});
+
+test("Glassflow recognises all Zen compact-sidebar reveal states", async () => {
+  const e = await glassEnv(); e.toolbox.removeAttribute("zen-has-hover");
+  for (const attr of ["zen-has-hover", "zen-user-show", "zen-has-empty-tab", "flash-popup", "has-popup-menu", "movingtab", "zen-compact-mode-active"]) {
+    e.toolbox.setAttribute(attr, ""); assert.equal(e.h.sidebarShown(), true, attr);
+    e.toolbox.removeAttribute(attr); assert.equal(e.h.sidebarShown(), false, attr);
+  }
+  e.root.setAttribute("zen-renaming-tab", "true"); assert.equal(e.h.sidebarShown(), true);
+  e.root.setAttribute("inDOMFullscreen", "true"); assert.equal(e.h.sidebarShown(), false);
+});
+
+test("Glassflow restores only the animation setting it changed", async () => {
+  const cfg = {}, values = new Map();
+  const h = await load("glassflow", "syncInstantUI, restoreInstantUI", {
+    window: { Motion: { MotionGlobalConfig: cfg } },
+    Services: { prefs: { getBoolPref: (k, d) => values.get(k) ?? d } },
+  });
+  h.syncInstantUI(); assert.equal(Object.hasOwn(cfg, "instantAnimations"), false);
+  values.set("zzglass.instant-ui", true); h.syncInstantUI(); assert.equal(cfg.instantAnimations, true);
+  h.restoreInstantUI(); assert.equal(Object.hasOwn(cfg, "instantAnimations"), false);
+  cfg.instantAnimations = false; h.syncInstantUI(); cfg.instantAnimations = false;
+  h.restoreInstantUI(); assert.equal(cfg.instantAnimations, false);
+});
+
+test("Turbo passes a content principal with container/private attributes", async () => {
+  const e = await turboEnv({ privateWindow: true }); e.h.start();
+  e.w.ZenTurbo.warm("https://example.com", 7);
+  assert.equal(e.connects.length, 1);
+  assert.deepEqual({ ...e.connects[0].attrs }, { userContextId: 7, privateBrowsingId: 1 });
+});
+
+test("Turbo orphan restoration preserves manual changes and removes retired prefetch overrides", async () => {
+  const e = await turboEnv(), key = "layout.css.corner-shape.enabled";
+  e.values.set(key, true);
+  e.values.set("zzturbo.saved-prefs", JSON.stringify({ [key]: { had: true, v: false } }));
+  e.h.reclaimOrphans();
+  assert.equal(e.values.get(key), true);
+  assert.deepEqual(JSON.parse(e.values.get("zzturbo.saved-prefs")), {});
+  e.values.set("network.predictor.enable-prefetch", true);
+  e.values.set("zzturbo.saved-prefs", JSON.stringify({ "network.predictor.enable-prefetch": { had: false } }));
+  e.h.reclaimOrphans();
+  assert.equal(e.values.has("network.predictor.enable-prefetch"), false);
+});
+
+test("Router rejects image targets and redirects to local or non-HTTPS URLs", async () => {
+  const e = await routerEnv();
+  for (const url of ["https://127.0.0.1/icon", "https://localhost/icon", "http://example.com/icon", "https://user:pass@example.com/icon"]) {
+    assert.throws(() => e.h.fetchAnon(url, 0, () => {}), /public HTTPS/);
+  }
+  let channel;
+  e.NetUtil.open = c => { channel = c; };
+  e.h.fetchAnon("https://example.com/icon", 0, () => {});
+  for (const [scheme, host, code] of [["https", "localhost", 0x804b0002], ["http", "example.com", 0x804b0002], ["https", "cdn.example.com", 0]]) {
+    let actual;
+    channel.notificationCallbacks.asyncOnChannelRedirect(null, { URI: { scheme, host } }, 0, { onRedirectVerifyCallback: v => { actual = v; } });
+    assert.equal(actual, code);
+  }
+  e.h.cancelLookups();
+});
+
+function tab(url = "https://example.com/crimsondesert") {
+  const u = new URL(url);
+  return { ...element(), label: url, lastAccessed: Date.now() - 3600000,
+    linkedBrowser: { contentPrincipal: {}, currentURI: { spec: url, host: u.hostname, filePath: u.pathname, scheme: u.protocol.slice(0, -1), query: u.search.slice(1) } } };
+}
+
+test("Router recomputes a naming path when the title arrives at the same URL", async () => {
+  const e = await routerEnv(), t = tab();
+  for (const [k, v] of Object.entries({ "auto-unmatched": true, "auto-path-depth": 1, "auto-path-domains": "example.com", "section-icons": false })) e.prefs.set("zzrouter." + k, v);
+  assert.equal(e.h.targetPath(t).at(-1), "Crimsondesert");
+  t.label = "Crimson Desert - Example";
+  assert.equal(e.h.targetPath(t).at(-1), "Crimson Desert");
+});
+
+test("Router skips split/pinned tabs before starting network lookups", async () => {
+  const e = await routerEnv(); e.prefs.set("zzrouter.enabled", true);
+  e.prefs.set("zzrouter.media-subgroups", true); e.prefs.set("zzrouter.auto-unmatched", true);
+  for (const type of ["split-view", "pinned"]) {
+    const t = tab("https://www.youtube.com/watch?v=video");
+    if (type === "pinned") t.pinned = true; else t.setAttribute(type, "true");
+    await e.h.route(t, "test");
+  }
+  assert.equal(e.c.timers.size, 0);
+});
+
+test("Router keeps its live learned/creator caches within their persisted limits", async () => {
+  const e = await routerEnv();
+  for (let i = 0; i < 350; i++) { e.h.learnedMap().set(String(i), "Name"); e.h.creatorMap().set(String(i), "Creator"); }
+  e.h.saveLearned(); e.h.saveCreators();
+  assert.equal(e.h.learnedMap().size, 200); assert.equal(e.h.creatorMap().size, 300);
+});
+
+async function unloaderEnv() {
+  const tabs = [tab("https://example.com/old"), tab("https://example.com/new")];
+  const values = new Map([["zzunload.enabled", true], ["zzunload.max-per-sweep", 1], ["zzunload.exclude-workspace-anchor", false]]);
+  const states = new Map(), calls = [];
+  const gBrowser = { tabs, async prepareDiscardBrowser(t) { calls.push(["prepare", t]); },
+    discardBrowser(t) { calls.push(["discard", t]); t.setAttribute("pending", ""); return true; } };
+  const h = await load("tab-unloader", "sweep, hasFields, whyKeep, retire: () => retired = true", {
+    window: {}, document: { documentElement: element(), querySelectorAll: () => tabs }, gBrowser,
+    SessionStore: { getTabState: t => JSON.stringify(states.get(t) ?? {}) },
+    Services: { prefs: { PREF_INT: 64, getPrefType: () => 64, getIntPref: k => values.get(k),
+      getBoolPref: (k, d) => values.get(k) ?? d, getStringPref: (_k, d) => d } },
+  });
+  return { h, tabs, values, states, calls, gBrowser };
+}
+
+test("Unloader flushes state and counts only successful native discards", async () => {
+  const e = await unloaderEnv();
+  e.gBrowser.discardBrowser = t => { e.calls.push(["discard", t]); return t === e.tabs[1]; };
+  await e.h.sweep();
+  assert.deepEqual(e.calls.map(c => c[0]), ["prepare", "discard", "prepare", "discard"]);
+});
+
+test("Unloader protects newly flushed forms and Firefox designMode data", async () => {
+  const e = await unloaderEnv();
+  e.gBrowser.prepareDiscardBrowser = async t => { e.states.set(t, { formdata: { innerHTML: "<p>Draft</p>" } }); };
+  assert.equal(e.h.hasFields({ children: [{ innerHTML: "Draft" }] }), true);
+  assert.equal(e.h.hasFields({ id: { empty: "", choice: { selectedIndex: 1, value: "Option" } } }), false);
+  await e.h.sweep(); assert.equal(e.calls.length, 0);
+});
+
+test("Unloader serialises sweeps and rechecks selection/retirement after flushing", async () => {
+  for (const retire of [false, true]) {
+    const e = await unloaderEnv(), flush = deferred();
+    e.gBrowser.prepareDiscardBrowser = async t => { e.calls.push(["prepare", t]); await flush.promise; };
+    const first = e.h.sweep(); await e.h.sweep();
+    assert.equal(e.calls.length, 1);
+    if (retire) e.h.retire(); else e.tabs.forEach(t => { t.selected = true; });
+    flush.resolve(); await first;
+    assert.equal(e.calls.some(c => c[0] === "discard"), false);
+  }
+});
+
+test("Unloader protects actual Zen split and native protected tabs", async () => {
+  const e = await unloaderEnv(), t = e.tabs[0];
+  t.setAttribute("split-view", "true"); assert.equal(e.h.whyKeep(t, Date.now()), "split view");
+  t.removeAttribute("split-view"); t.zenModeActive = true;
+  assert.equal(e.h.whyKeep(t, Date.now()), "browser-protected tab");
+});
+
+test("Router container changes preserve forms, history, POSTs and vetoed closes", async () => {
+  for (const state of [{ entries: [{}, {}] }, { entries: [{}], formdata: { id: { draft: "text" } } }, { entries: [{ postdata: "encoded" }] }, { entries: [{}], storage: {} }]) {
+    let added = 0, flushed = 0;
+    const e = await routerEnv({ window: { SessionStore: { getTabState: () => JSON.stringify(state) } },
+      gBrowser: { async prepareDiscardBrowser() { flushed++; }, addTab() { added++; } } });
+    e.prefs.set("zzrouter.enabled", true);
+    const t = tab(); assert.equal(await e.h.reopenInContainer(t, 2, null), t);
+    assert.equal(flushed, 1); assert.equal(added, 0);
+  }
+  const t = tab(), fresh = tab(), removed = [];
+  const e = await routerEnv({ window: { SessionStore: { getTabState: () => JSON.stringify({ entries: [{}] }) } },
+    gBrowser: { async prepareDiscardBrowser() {}, addTab: () => fresh, removeTab: t => removed.push(t) } });
+  e.prefs.set("zzrouter.enabled", true);
+  assert.equal(await e.h.reopenInContainer(t, 2, null), t);
+  assert.deepEqual(removed, [t, fresh], "a veto must remove the unused replacement");
+});
+
+test("Router aborts a container reopen when disabled during state flush", async () => {
+  const flush = deferred(); let added = false;
+  const e = await routerEnv({ gBrowser: { prepareDiscardBrowser: () => flush.promise, addTab() { added = true; } } });
+  e.prefs.set("zzrouter.enabled", true);
+  const pending = e.h.reopenInContainer(tab(), 2, null);
+  e.prefs.set("zzrouter.enabled", false); flush.resolve();
+  assert.equal(await pending, null); assert.equal(added, false);
+});
+
+test("Router replaces a simple page only after flush and keeps its selection", async () => {
+  const t = tab(), fresh = tab(), calls = [];
+  t.selected = true;
+  const gBrowser = { async prepareDiscardBrowser() { calls.push("flush"); },
+    addTab(_url, options) { calls.push("add"); assert.equal(options.userContextId, 2); return fresh; },
+    removeTab(old) { calls.push("close"); old.closing = true; } };
+  const e = await routerEnv({ window: { SessionStore: { getTabState() {
+    calls.push("state"); return JSON.stringify({ entries: [{}] });
+  } } }, gBrowser });
+  e.prefs.set("zzrouter.enabled", true);
+  assert.equal(await e.h.reopenInContainer(t, 2, null), fresh);
+  assert.deepEqual(calls, ["flush", "state", "add", "close"]);
+  assert.equal(gBrowser.selectedTab, fresh);
+});
+
+test("Groupflow ignores split groups in dirty refreshes and refreshes on enabling favicons", async () => {
+  const c = clock(); let writes = 0;
+  const g = { ...element(), tagName: "tab-group", style: { removeProperty() { writes++; } } };
+  g.setAttribute("split-view-group", "true");
+  const h = await load("groupflow", "schedule, prefVarObserver", { ...c, window: {},
+    Services: { prefs: { getBoolPref: (_k, d) => d, getPrefType: () => 0 } },
+    document: { documentElement: element() }, gBrowser: {},
+  });
+  h.schedule({ target: { tagName: "tab", group: g } });
+  [...c.timers.values()][0](); c.timers.clear(); assert.equal(writes, 0);
+  h.prefVarObserver.observe(null, null, "zzgroup.favicons"); assert.equal(c.timers.size, 1);
+});
+
+test("Router diagnostic path calculation learns nothing and starts no lookups", async () => {
+  const e = await routerEnv();
+  for (const [k, v] of Object.entries({ "auto-unmatched": true, "auto-path-depth": 1, "auto-path-domains": "example.com", "media-subgroups": true })) e.prefs.set("zzrouter." + k, v);
+  const t = tab(); t.label = "Crimson Desert - Example";
+  assert.equal(e.h.targetPath(t, false).at(-1), "Crimson Desert");
+  e.h.targetPath(tab("https://www.youtube.com/watch?v=video"), false);
+  assert.equal(e.h.learnedMap().size, 0); assert.equal(e.h.creatorMap().size, 0);
+  assert.equal(e.c.timers.size, 0);
+});
+
+test("Router starts no creator or icon requests in private windows", async () => {
+  const e = await routerEnv({ ChromeUtils: { importESModule: () => ({ PrivateBrowsingUtils: { isWindowPrivate: () => true } }) } });
+  e.h.fetchCreator(tab(), "video"); e.h.fetchSectionIcon("Icon", "https://example.com/icon", 0, "round");
+  assert.equal(e.c.timers.size, 0); assert.equal(e.h.creatorMap().size, 0);
+});
+
+test("Turbo resumes tab effects after a stuck workspace marker and on retirement", async () => {
+  const e = await turboEnv(); e.values.set("zzturbo.startup-warmup", false); e.h.start();
+  e.root.setAttribute("animating-background", "true"); e.h.syncSmoothing();
+  assert.equal(e.root.hasAttribute("zzturbo-smoothing"), true);
+  [...e.c.timers.values()][0]();
+  assert.equal(e.root.hasAttribute("zzturbo-smoothing"), false);
+  e.h.syncSmoothing(); assert.equal(e.root.hasAttribute("zzturbo-smoothing"), false);
+  e.root.removeAttribute("animating-background"); e.h.syncSmoothing();
+  e.root.setAttribute("swipe-gesture", "true"); e.h.syncSmoothing();
+  assert.equal(e.root.hasAttribute("zzturbo-smoothing"), true);
+  e.w.__zzturboInstance.retire(); assert.equal(e.root.hasAttribute("zzturbo-smoothing"), false);
 });

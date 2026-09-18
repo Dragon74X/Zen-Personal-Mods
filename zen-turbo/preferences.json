@@ -14,7 +14,7 @@
   {
     "type": "checkbox",
     "property": "zzturbo.pack-predictor",
-    "label": "HTTPS hover predictor and prefetch *Enables network.predictor.enable-hover-on-ssl and network.predictor.enable-prefetch when those preferences exist. Requests may consume bandwidth without a later navigation.*",
+    "label": "Native HTTPS link-hover preconnection *Enables Firefox's built-in speculative connections from HTTPS page-link hover. Turbo does not wrap the page-link status handler. Requests can occur without a later navigation.*",
     "defaultValue": true
   },
   {
@@ -38,7 +38,7 @@
   {
     "type": "checkbox",
     "property": "zzturbo.smooth-workspace-switch",
-    "label": "Suspend effects during workspace animations *Disables selected chrome blur effects, transitions, and sidebar video rendering while Zen animation attributes are present. Frame-time impact is not measured; stale attributes can keep these CSS rules active.*",
+    "label": "Suspend tab effects during workspace animations *Temporarily disables tab-strip blur and transitions and hides sidebar videos. Keeps the floating sidebar and native page-strip blur active. Restores effects after 1500 ms even if Zen leaves an animation marker set. Frame-time impact is not measured.*",
     "defaultValue": true
   },
   {
@@ -58,20 +58,6 @@
     "property": "zzturbo.hover-warmup",
     "label": "Request connections on hover *Requests a speculative connection after dwelling on an unloaded tab or bookmark. Unloaded tabs use their container; bookmarks use container 0. Request throttle is half network.http.keep-alive.timeout; no connection reuse is measured.*",
     "defaultValue": true
-  },
-  {
-    "type": "checkbox",
-    "property": "zzturbo.hover-links",
-    "label": "Request connections on page-link hover *Uses Firefox status-link updates to schedule speculative requests in the selected tab container. Leaving the link cancels a pending request.*",
-    "defaultValue": true,
-    "conditions": [
-      {
-        "if": {
-          "property": "zzturbo.hover-warmup",
-          "value": true
-        }
-      }
-    ]
   },
   {
     "type": "string",

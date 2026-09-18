@@ -30,7 +30,7 @@ The mod wraps `promptForSaveToFileAsync` from `resource://gre/modules/HelperAppD
 
 Forced save dialogs and `browser.download.useDownloadDir=false` use Firefox's original handler. Missing or unwritable directories also fall back to that handler. Download entry points that bypass this method are outside the hook's scope.
 
-The question is appended to `document.body`, with a document-root fallback. Its stylesheet uses Glassflow tokens with fallback values; inline positioning is applied if the stylesheet has not loaded.
+The question is a labelled native HTML modal dialog appended to `document.body`, with a document-root fallback. Firefox contains keyboard focus and restores it on close. Its stylesheet uses Glassflow tokens with fallback values; inline positioning is applied if the stylesheet has not loaded.
 
 ## Hook ownership and diagnostics
 

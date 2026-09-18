@@ -196,3 +196,32 @@ test("standalone reload=false install still queues behind updates", async () => 
   assert.equal(f.maxActive, 1);
   assert.equal(Object.keys(f.registry).length, 7);
 });
+
+test("failed batch waits for producers still awaiting marketplace data", { timeout: 2000 }, async () => {
+  const f = fixture(), marketplace = deferred();
+  f.manager.updateMods = async function () {
+    await Promise.all([
+      this.processModUpdate({ id: "fail" }, {}),
+      marketplace.promise.then(() => this.processModUpdate({ id: "late" }, {})),
+    ]);
+  };
+  installSineUpdateGuard(f.manager, f.utils);
+  const batch = f.manager.updateMods();
+  const rejected = assert.rejects(batch, /download failed/);
+  const next = f.manager.installMod("manual");
+  for (let n = 0; n < 8; n++) await tick();
+  assert.equal(f.events.includes("start:manual"), false);
+  marketplace.resolve();
+  await rejected; await next;
+  assert.ok(f.events.indexOf("start:manual") > f.events.indexOf("end:late"));
+});
+
+test("remove and toggle wait for installs; toggle uses the current registry", async () => {
+  const f = fixture(); let seen;
+  f.manager.removeMod = async id => f.events.push("remove:" + id);
+  f.manager.toggleTheme = async registry => { seen = registry; f.events.push("toggle"); };
+  installSineUpdateGuard(f.manager, f.utils);
+  await Promise.all([f.manager.installMod("new"), f.manager.removeMod("old"), f.manager.toggleTheme({})]);
+  assert.ok(seen.new);
+  assert.ok(f.events.indexOf("remove:old") > f.events.indexOf("end:new"));
+});

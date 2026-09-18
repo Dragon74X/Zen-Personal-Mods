@@ -627,12 +627,12 @@
     }
   }
 
-  /* Opt-in clip-path compatibility workaround for native blur. Whether it
-     helps depends on Zen's rendering path; it does not guarantee access to
-     every transparent page/background layer. Restart after changing it. */
+  /* Live native filter on the page region covered by the compact sidebar.
+     The script supplies geometry; Firefox supplies changing content pixels.
+     The sidebar's backdrop filter still handles the chrome behind it. */
   @media (-moz-pref("zzglass.sidebar.blur-through-transparent")) {
-    #tabbrowser-tabpanels browser[type="content"] {
-      clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+    #tabbrowser-tabbox[zzglass-native-strip] {
+      filter: url("chrome://browser/content/browser.xhtml#zzglass-native-strip-filter") !important;
     }
   }
 

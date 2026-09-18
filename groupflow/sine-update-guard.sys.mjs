@@ -29,12 +29,20 @@ export function installSineUpdateGuard(manager, utils) {
   };
   const operations = serial();
   const updates = serial();
+  let batchErrors = null;
   // Queue before updateMods/installMod read mods.json, preventing stale copies
   // from separate user actions overwriting each other's installed-mod entries.
   manager.updateMods = function (...args) {
     return operations(async () => {
-      try { return await original.updateMods.apply(this, args); }
-      finally { await updates.drain(); } // Promise.all can reject before queued mods finish.
+      batchErrors = [];
+      try {
+        const result = await original.updateMods.apply(this, args);
+        if (batchErrors.length) throw batchErrors[0];
+        return result;
+      } finally {
+        await updates.drain();
+        batchErrors = null;
+      }
     });
   };
   manager.installMod = function (...args) {
@@ -44,10 +52,30 @@ export function installSineUpdateGuard(manager, utils) {
     return updates(async () => {
       // Earlier mods may have installed dependencies absent from the batch's
       // original registry snapshot. Preserve those entries in the next write.
-      args[1] = await utils.getMods();
-      return original.processModUpdate.apply(this, args);
+      try {
+        args[1] = await utils.getMods();
+        return await original.processModUpdate.apply(this, args);
+      }
+      catch (error) {
+        if (!batchErrors) throw error;
+        // Let native Promise.all await producers still fetching marketplace
+        // data before releasing the outer operation queue; report afterward.
+        batchErrors.push(error);
+        return { changed: false };
+      }
     });
   };
+  // These UI actions also write mods.json and can overlap auto-updates.
+  for (const name of ["removeMod", "toggleTheme"]) {
+    const fn = manager[name];
+    if (typeof fn !== "function") continue;
+    manager[name] = function (...args) {
+      return operations(async () => {
+        if (name === "toggleTheme") args[0] = await utils.getMods();
+        return fn.apply(this, args);
+      });
+    };
+  }
   manager.syncModData = function (...args) {
     // Native sync starts sibling dependencies with Promise.all. Serialize
     // siblings inside this transaction; each child gets its own queue for

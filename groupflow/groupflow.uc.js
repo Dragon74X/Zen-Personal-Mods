@@ -69,7 +69,7 @@
     observe(_s, _t, data) {
       if (!data || !data.startsWith(PREFIX)) return;
       iconRules = null;                    // reparsed on the next refresh
-      if (["icon-rules", "section-icons", "icon-shape"].some(k => data === PREFIX + k)) schedule();
+      if (["favicons", "icon-rules", "section-icons", "icon-shape"].some(k => data === PREFIX + k)) schedule();
       const name = "--" + data.replace(/\./g, "-");
       const value = readPrefValue(data);
       try {
@@ -243,7 +243,7 @@
   function refreshDirty() {
     if (everything) { everything = false; dirty.clear(); refreshAll(); return; }
     if (!bool("favicons", true)) { dirty.clear(); return; }
-    for (const g of dirty) if (g.isConnected && !g.isZenFolder) refreshGroup(g);
+    for (const g of dirty) if (g.isConnected && !g.isZenFolder && !g.hasAttribute("split-view-group")) refreshGroup(g);
     dirty.clear();
   }
 

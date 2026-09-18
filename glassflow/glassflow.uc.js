@@ -79,28 +79,44 @@
   // Restored: cd192ee deleted this body while leaving both call sites, so
   // start() threw ReferenceError on every window from then on. See the note
   // on startOnce() for why that took the other four mods down with it.
+  let instantOverride = null;
+  function restoreInstantUI() {
+    if (!instantOverride) return;
+    const { cfg, value, had } = instantOverride;
+    if (cfg.instantAnimations === true) {
+      if (had) cfg.instantAnimations = value;
+      else delete cfg.instantAnimations;
+    }
+    instantOverride = null;
+  }
   function syncInstantUI() {
     const cfg = window.Motion?.MotionGlobalConfig;
     if (!cfg) return;                      // not on this build; nothing to do
     let want = false;
     try { want = Services.prefs.getBoolPref(PREFIX + "instant-ui", false); } catch {}
-    if (cfg.instantAnimations !== want) cfg.instantAnimations = want;
+    if (!want) { restoreInstantUI(); return; }
+    if (!instantOverride) {
+      instantOverride = { cfg, value: cfg.instantAnimations,
+        had: Object.hasOwn(cfg, "instantAnimations") };
+      cfg.instantAnimations = true;
+    }
   }
 
   const prefVarObserver = {
     observe(_s, _t, data) {
       if (!data || !data.startsWith(PREFIX)) return;
       if (data === PREFIX + "instant-ui") { syncInstantUI(); return; }
-      if (data === PREFIX + "sidebar.sample" || data === PREFIX + "sidebar.sample-interval") {
-        if (sampleTimer) { clearTimeout(sampleTimer); sampleTimer = null; }
-        syncSampling();
-      }
       const name = "--" + data.replace(/\./g, "-");
       const value = readPrefValue(data);
       try {
         if (value === null) document.documentElement.style.removeProperty(name);
         else document.documentElement.style.setProperty(name, value);
       } catch {}
+      if (["sidebar.enabled", "sidebar.sample", "sidebar.sample-interval", "sidebar.blur",
+           "sidebar.blur-through-transparent", "sidebar.blur-radius", "sidebar.blur-radius-corner"].some(k => data === PREFIX + k)) {
+        if (sampleTimer) { clearTimeout(sampleTimer); sampleTimer = null; }
+        syncSampling();
+      } else trackNativeBlur(); // Shared corner/radius controls also affect the mask.
     },
   };
 
@@ -135,10 +151,13 @@
 
   // #titlebar is the floating panel in compact mode; the sample hangs on it.
   const sidebarEl = () => document.getElementById("titlebar");
+  const SIDEBAR_SHOW_ATTRS = ["zen-has-hover", "zen-user-show", "zen-has-empty-tab",
+    "flash-popup", "has-popup-menu", "movingtab", "zen-compact-mode-active"];
   const sidebarShown = () => {
     const root = document.documentElement, tb = document.getElementById("navigator-toolbox");
     return root.getAttribute("zen-compact-mode") === "true" && !!tb &&
-      (tb.hasAttribute("zen-has-hover") || tb.hasAttribute("zen-user-show") || tb.hasAttribute("has-popup-menu"));
+      !root.hasAttribute("customizing") && root.getAttribute("inDOMFullscreen") !== "true" &&
+      (SIDEBAR_SHOW_ATTRS.some(a => tb.hasAttribute(a)) || root.getAttribute("zen-renaming-tab") === "true");
   };
 
   // The layout already computed, rather than forcing a fresh one. Zen
@@ -152,6 +171,85 @@
     try { return window.windowUtils.getBoundsWithoutFlushing(el); }
     catch { return el.getBoundingClientRect(); }
   };
+
+  // Native content-side blur for transparent pages. Replace only the covered
+  // strip of SourceGraphic; preserving alpha lets the chrome backdrop show
+  // through. Firefox repaints the filter as content changes: no readbacks,
+  // PNGs or polling. Geometry tracking stops once the sidebar settles.
+  let nativeSVG = null, nativeFilter, nativeBlur, nativeMask, nativeBox;
+  let nativeRaf = 0, nativeResize = null, nativeGeometry = "";
+  function updateNativeBlur() {
+    const pref = k => Services.prefs.getBoolPref(PREFIX + k, false);
+    const box = document.getElementById("tabbrowser-tabbox");
+    const on = box && !document.hidden && sidebarShown() && pref("sidebar.enabled") &&
+      pref("sidebar.blur") && pref("sidebar.blur-through-transparent") && !sampleOn();
+    if (!on) {
+      nativeBox?.removeAttribute("zzglass-native-strip");
+      nativeGeometry = "";
+      return "";
+    }
+    const panel = document.getElementById("zen-toolbar-background") ?? sidebarEl();
+    const r = panel.getBoundingClientRect(), b = box.getBoundingClientRect();
+    const width = b.right - b.left, height = b.bottom - b.top;
+    const x = r.left - b.left, y = r.top - b.top, w = r.right - r.left, h = r.bottom - r.top;
+    if (width <= 0 || height <= 0 || w <= 0 || h <= 0 || x >= width || y >= height || x + w <= 0 || y + h <= 0) {
+      nativeBox?.removeAttribute("zzglass-native-strip");
+      nativeGeometry = "";
+      return "";
+    }
+    const css = getComputedStyle(panel);
+    const requested = parseFloat(css.getPropertyValue("--zzglass-sidebar-blur-radius"));
+    const radius = Math.max(0, Math.min(80, Number.isFinite(requested) ? requested : 25));
+    const corner = Math.max(0, parseFloat(css.borderTopLeftRadius) || 0);
+    const geometry = [x, y, w, h, width, height, radius, corner].join(",");
+    if (geometry === nativeGeometry) return geometry;
+    if (!nativeSVG) {
+      const ns = "http://www.w3.org/2000/svg";
+      const add = (parent, tag, attrs) => {
+        const el = parent.appendChild(document.createElementNS(ns, tag));
+        for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+        return el;
+      };
+      nativeSVG = document.createElementNS(ns, "svg");
+      nativeSVG.style.cssText = "position:absolute;width:0;height:0;pointer-events:none";
+      nativeSVG.setAttribute("aria-hidden", "true");
+      nativeFilter = add(nativeSVG, "filter", { id: "zzglass-native-strip-filter", x: 0, y: 0,
+        filterUnits: "userSpaceOnUse", primitiveUnits: "userSpaceOnUse", "color-interpolation-filters": "sRGB" });
+      nativeBlur = add(nativeFilter, "feGaussianBlur", { in: "SourceGraphic", result: "blurred" });
+      nativeMask = add(nativeFilter, "feImage", { result: "mask", preserveAspectRatio: "none" });
+      add(nativeFilter, "feComposite", { in: "blurred", in2: "mask", operator: "in", result: "inside" });
+      add(nativeFilter, "feComposite", { in: "SourceGraphic", in2: "mask", operator: "out", result: "outside" });
+      // Add complementary masks, including their antialiased edges.
+      add(nativeFilter, "feComposite", { in: "inside", in2: "outside", operator: "arithmetic", k2: 1, k3: 1 });
+      (document.body ?? document.documentElement).appendChild(nativeSVG);
+    }
+    nativeFilter.setAttribute("width", width); nativeFilter.setAttribute("height", height);
+    nativeBlur.setAttribute("stdDeviation", radius);
+    // Only the blurred result near the covered strip is needed.
+    nativeBlur.setAttribute("x", x - 3 * radius); nativeBlur.setAttribute("y", y - 3 * radius);
+    nativeBlur.setAttribute("width", w + 6 * radius); nativeBlur.setAttribute("height", h + 6 * radius);
+    for (const [k, v] of Object.entries({ x, y, width: w, height: h })) nativeMask.setAttribute(k, v);
+    const mask = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="100%" height="100%" rx="${corner}" fill="white"/></svg>`;
+    const href = "data:image/svg+xml," + encodeURIComponent(mask);
+    if (nativeMask.getAttribute("href") !== href) nativeMask.setAttribute("href", href);
+    nativeBox = box;
+    box.setAttribute("zzglass-native-strip", "");
+    nativeGeometry = geometry;
+    return geometry;
+  }
+  function trackNativeBlur() {
+    cancelAnimationFrame(nativeRaf);
+    const began = Date.now(), deadline = began + 1500;
+    let last = null, still = 0;
+    const step = () => {
+      nativeRaf = 0;
+      const geometry = updateNativeBlur();
+      still = geometry === last ? still + 1 : 0;
+      last = geometry;
+      if (geometry && (still < 2 || Date.now() - began < 250) && Date.now() < deadline) nativeRaf = requestAnimationFrame(step);
+    };
+    step();
+  }
 
   // The part of the page's box a panel box covers, in chrome px from the
   // page's top left; bw is the page box's width, to scale into the picture.
@@ -335,6 +433,7 @@
   }
 
   function syncSampling() {
+    trackNativeBlur();
     const on = sampleOn();
     const want = on && !document.hidden && sidebarShown();
     // Disabling the feature must also retire a snapshot already across an
@@ -389,8 +488,11 @@
     // Zen flips these attributes as the compact sidebar shows and hides;
     // the observer is the only thing that runs while it is hidden.
     sampleObserver = new MutationObserver(syncSampling);
-    sampleObserver.observe(tb, { attributes: true, attributeFilter: ["zen-has-hover", "zen-user-show", "has-popup-menu"] });
-    sampleObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["zen-compact-mode"] });
+    sampleObserver.observe(tb, { attributes: true, attributeFilter: SIDEBAR_SHOW_ATTRS });
+    sampleObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["zen-compact-mode", "zen-renaming-tab", "zen-right-side", "customizing", "inDOMFullscreen"] });
+    nativeResize = new ResizeObserver(trackNativeBlur);
+    for (const el of [sidebarEl(), document.getElementById("tabbrowser-tabbox")]) if (el) nativeResize.observe(el);
+    window.addEventListener("resize", trackNativeBlur);
     gBrowser.tabContainer.addEventListener("TabSelect", syncSampleNow);
     document.addEventListener("visibilitychange", syncSampling);
     syncSampling();
@@ -401,13 +503,23 @@
       }, 1500);                              // warm the first frame
     }
   }
-  const sampleOn = () => { try { return Services.prefs.getBoolPref(PREFIX + "sidebar.sample", false); } catch { return false; } };
+  const sampleOn = () => {
+    try { return document.documentElement.getAttribute("zen-compact-mode") === "true" &&
+      Services.prefs.getBoolPref(PREFIX + "sidebar.enabled", false) &&
+      Services.prefs.getBoolPref(PREFIX + "sidebar.sample", false); }
+    catch { return false; }
+  };
   // A new tab in front: re-read now if shown, or warm a frame for it if not.
   const syncSampleNow = () => { clearSample(); if (sampleOn()) sampleOnce(!sampleTimer); };
   function stopSampling() {
     samplingEpoch++;
     try { sampleObserver?.disconnect(); } catch {}
     sampleObserver = null;
+    nativeResize?.disconnect(); nativeResize = null;
+    window.removeEventListener("resize", trackNativeBlur);
+    cancelAnimationFrame(nativeRaf); nativeRaf = 0;
+    nativeBox?.removeAttribute("zzglass-native-strip");
+    nativeSVG?.remove(); nativeSVG = null; nativeGeometry = "";
     try { gBrowser.tabContainer.removeEventListener("TabSelect", syncSampleNow); } catch {}
     document.removeEventListener("visibilitychange", syncSampling);
     if (sampleTimer) { clearTimeout(sampleTimer); sampleTimer = null; }
@@ -456,6 +568,8 @@
     // Glassflow.sample.status() says whether the sampled glass is running
     // and what strip of the page it last read; .now() forces one read.
     window.Glassflow = {
+      native: { status: () => ({ active: !!nativeBox?.hasAttribute("zzglass-native-strip"),
+        tracking: !!nativeRaf, geometry: nativeGeometry || null }) },
       sample: {
         status: () => ({ active: !!sampleTimer, shown: sidebarShown(), sliding: !!trackRaf, strip: overlap(boxOf(sidebarEl())),
                          last: lastSample, lastError, opaquePage, ticks, frames, busy: sampling,
@@ -472,6 +586,7 @@
       if (retired) return;
       retired = true;
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}
+      restoreInstantUI();
       stopSampling();
       try { gBrowser.removeTabsProgressListener(iconKeeper); } catch {}
       try { Services.obs.removeObserver(purgeObserver, "browser:purge-session-history"); } catch {}

@@ -148,7 +148,7 @@ down and let this own it.
 | Panel accent tint / corner radius | `10%` / `12px` | |
 | Blur behind the floating panel | off | Native `backdrop-filter`; result depends on Zen and transparency settings |
 | Blur radius / contrast / saturation | `25px` / `1` / `1` | |
-| Blur through transparent pages | off | Experimental clip-path workaround for native blur; restart. Rendering-dependent |
+| Native blur through transparent pages | off | Native SVG filter restricted to the page region covered by the compact sidebar; no snapshots. Applies live |
 | Sampled glass (experimental) | off | Downscales the viewport to 10% per axis, then paints it blurred behind the panel. Idle delay defaults to 250 ms; changed frames use 80 ms. Hidden windows start no snapshots; hidden private sidebars retain no sample |
 | Sample blur / opacity / interval | `18px` / `1` / `250` | the last frame stays up while the sidebar is hidden, so it shows at once |
 
@@ -160,10 +160,19 @@ For the floating compact sidebar, enable **Enable sidebar styling** and
 if you want only the area behind the sidebar blurred. Keep panel opacity
 below 100% so the backdrop is visible.
 
-For transparent pages, try **Blur through transparent pages**, then restart.
-It applies the existing clip-path compatibility workaround; success depends
-on Zen's rendering path. It is not a verified fix for every transparency
-setup. Native blur has no snapshot timer and follows rendered changes.
+For Zen Internet transparency, enable **Native blur through transparent pages**.
+This replaces the old clip-path workaround. An SVG filter blurs the rendered
+page region underneath the sidebar and preserves the original pixels outside
+that region. Transparent pixels retain their alpha; the sidebar's native
+backdrop filter still handles the browser background. The page updates through
+Firefox's rendering pipeline without snapshot reads or image encoding.
+
+Geometry is recomputed during sidebar movement and resize. Its animation-frame
+tracker stops after the panel settles, with a 1500 ms cap. Disabling sidebar
+styling, hiding the panel, entering content fullscreen, or retiring the script
+removes the content filter. `Glassflow.native.status()` reports the active
+filter and geometry-tracking state. In this mode `Glassflow.sample.status()`
+should show no active sampling and no new ticks or frames.
 
 The target is the combined backdrop: page text/images plus whatever browser
 background shows through transparent gaps. A native filter can only use the
@@ -173,9 +182,10 @@ Page transparency alone does not prove native blur is unavailable. Conversely,
 the sampler's opaque-pixel heuristic does not prove it works. A page snapshot
 also cannot reproduce the complete window backdrop through transparent gaps.
 
-Verify with scrolling text, moving video, and transparent gaps over the window
-background while the sidebar stays open, then during its slide. This needs a
-live Zen check; automated sampler tests do not verify compositor output.
+The isolated Zen 1.22.2b/Firefox 156 check with Arc verifies changing transparent
+page content, unchanged pixels outside the strip, zero snapshot calls, and
+cleanup. It does not measure Windows GPU frame time or OS acrylic rendering.
+See the [audit and source references](../docs/AUDIT-2026-09-18.md).
 
 Pending samples are discarded after a tab/document change, history clearing, or script retirement. The pixel signature preserves RGBA channel order, so equal-total red/green changes refresh the sample. These lifecycle checks do not measure frame-time improvements.
 
@@ -332,9 +342,13 @@ user-origin `!important` outranks author-origin `!important`.
 state first. `backdrop-filter` composes poorly when several mods each
 contribute their own blur pass.
 
+**Transparent Zen** — use its *Normal* compact-sidebar mode for glass over
+the page. *Mask* deliberately hides the page under the sidebar; *Push* moves
+it away. Neither leaves the same page content beneath the panel to blur.
+
 **Zen Turbo** — its *Smooth workspace switching* suspends Glassflow's blurs
-for the duration of a workspace slide and restores them the instant it ends,
-which is worth having if switching feels framey.
+inside the tab strip during a workspace slide, with a 1500 ms limit if Zen's
+animation marker sticks. The floating sidebar and native page filter stay active.
 
 **Desktop blur** — `backdrop-filter` can only blur what the browser itself
 painted; it cannot blur the desktop. Real glass on Windows needs a
@@ -362,14 +376,14 @@ tooltip field in `preferences.json`, so each explanation is written in
 `[id^="zzglass-"]`, matching only this mod's preference rows, so other mods'
 settings panels are untouched.
 
-`glassflow.uc.js` exists only to write string and number prefs as CSS variables
-at startup. Sine injects them itself, but not until something (the settings
-page, a mod reload) triggers it, so without the script the sheet runs on its
-fallbacks until the first reload. Booleans are skipped — those are read with
-`-moz-pref()`, never as variables.
+`glassflow.uc.js` initializes string and numeric CSS variables synchronously,
+tracks native blur geometry, owns the optional snapshot fallback and restores
+the Motion animation override. Current Sine also injects string variables,
+asynchronously; Glassflow additionally covers numeric dropdowns. Booleans use
+`-moz-pref()` directly.
 
-Built against Zen 1.22b (Firefox 155) with Sine 2.3.4c2. Uses the parenthesised
-`@media (-moz-pref("..."))` form throughout.
+Runtime checked in Zen 1.22.2b (Firefox 156). See the
+[audit](../docs/AUDIT-2026-09-18.md) for source versions and rendering limits.
 
 ## License
 

@@ -19,6 +19,7 @@
   window[INSTANCE_KEY] = instance;
 
   const P = "zzrouter.";
+  let retired = false;
   const bool = (k, d) => { try { return Services.prefs.getBoolPref(P + k, d); } catch { return d; } };
   const str  = (k, d) => { try { return Services.prefs.getStringPref(P + k, d); } catch { return d; } };
   // Types are CHECKED, never guessed by attempting reads. Calling
@@ -66,7 +67,7 @@
   const prefObserver = { observe(_s, _t, data) {
     if (writing) return;
     if (data === P + "learned-names") { learnedCache = null; targetGen++; return; }
-    if (data === P + "creators") { creatorCache = null; return; }
+    if (data === P + "creators") { creatorCache = null; targetGen++; return; }
     if (data === P + "avatars") { iconCache = null; stampIcons(); return; }
     if (data === P + "section-icons") { stampIcons(); return; }
     for (const k of Object.keys(parsed)) delete parsed[k]; learnedCache = null; targetGen++;
@@ -138,8 +139,9 @@
     return learnedCache;
   }
   function saveLearned() {
+    learnedCache = new Map([...learnedMap()].slice(-200));
     if (isPrivate()) return;            // a private window learns for its session only
-    write("learned-names", JSON.stringify(Object.fromEntries([...learnedMap()].slice(-200))));
+    write("learned-names", JSON.stringify(Object.fromEntries(learnedCache)));
   }
 
   function titleNameFor(tab, slug) {
@@ -159,7 +161,7 @@
   }
 
   // alias > learned > learn-from-title-now > prettify
-  function segName(tab, seg) {
+  function segName(tab, seg, learn = true) {
     const slug = seg.trim().replace(/^@/, "").toLowerCase();
     const a = aliasMap().get(slug);
     if (a) return a;
@@ -167,10 +169,12 @@
     if (l) return l;
     const t = titleNameFor(tab, slug);
     if (t) {
-      learnedMap().set(slug, t);
-      targetGen++;                       // other tabs' cached paths may now differ
-      saveLearned();
-      note(`learned name: ${slug} = ${t}`);
+      if (learn) {
+        learnedMap().set(slug, t);
+        targetGen++;
+        saveLearned();
+        note(`learned name: ${slug} = ${t}`);
+      }
       return t;
     }
     return prettify(seg.replace(/^@/, ""));
@@ -223,7 +227,7 @@
     "share,embed,api,static,assets,cdn,images,img,media,files,download,downloads")
     .split(","));
 
-  function pathParts(tab) {
+  function pathParts(tab, learn = true) {
     const depth = num("auto-path-depth", 0);
     if (depth < 1) return [];
     // The domain list is read either way round: only these sites, or
@@ -254,32 +258,33 @@
         !/^\d+$/.test(d) && !/\.[a-z0-9]{2,4}$/i.test(d) && !/[=?&]/.test(d);
     };
     const segs = raw.filter(keep).map(s => decode(s).trim());
-    const parts = segs.slice(0, depth).map(s => segName(tab, s));
+    const parts = segs.slice(0, depth).map(s => segName(tab, s, learn));
     // The page the first subgroup is named after: the URL up to that segment.
     const at = raw.findIndex(keep);
-    if (parts.length && at >= 0) wantSectionIcon(tab, host, "/" + raw.slice(0, at + 1).join("/"), segs[0], parts[0]);
+    if (learn && parts.length && at >= 0) wantSectionIcon(tab, host, "/" + raw.slice(0, at + 1).join("/"), segs[0], parts[0]);
     return parts;
   }
 
   // Retitle events repeat for an unchanged URL; the full computation
   // (eTLD, rules, path parsing, alias/learned lookups) is cached per tab by
-  // URI spec. Invalidated by URL change per tab, and by any pref change.
+  // URI and title. Invalidated by URL/title changes and naming preferences.
   const targetCache = new WeakMap();
   let targetGen = 0;
 
-  function targetPath(tab) {
+  function targetPath(tab, learn = true) {
+    if (!learn) return withCreator(tab, computeTargetPath(tab, false), false);
     let spec = null;
     try { spec = tab.linkedBrowser?.currentURI?.spec ?? null; } catch {}
     if (spec) {
       const hit = targetCache.get(tab);
-      if (hit && hit.spec === spec && hit.gen === targetGen) return hit.parts;
+      if (hit && hit.spec === spec && hit.label === tab.label && hit.gen === targetGen) return hit.parts;
       const parts = withCreator(tab, computeTargetPath(tab));
       // A path still waiting on its creator must be recomputed next pass,
       // or the tab sits in the base group for as long as its URL is
       // unchanged -- on a watch page, the whole time it is open.
       const id = videoId(tab);
       if (!id || !bool("media-subgroups", false) || creatorMap().has(id)) {
-        targetCache.set(tab, { spec, gen: targetGen, parts });
+        targetCache.set(tab, { spec, label: tab.label, gen: targetGen, parts });
       }
       return parts;
     }
@@ -295,14 +300,8 @@
   // oEmbed endpoint answers for any video: one ~1KB JSON request, no key,
   // returns author_name. One request per new video, then remembered.
   //
-  // The request is built INSIDE the tab's container and sent anonymously.
-  // Container: the channel carries the tab's userContextId in its origin
-  // attributes, so its cache entry lives in that container's partition and
-  // nothing about it is visible from another container. Anonymous:
-  // LOAD_ANONYMOUS strips cookies both ways, so YouTube cannot tie the
-  // lookup to an account and the lookup writes no cookie back. A private
-  // window asks too, from the private partition, and what it learns is
-  // remembered like everything else -- names and pictures, never URLs.
+  // Requests carry the tab's container and omit cookies via LOAD_ANONYMOUS.
+  // Private windows reuse cached names but start no creator/icon requests.
   const OEMBED = "https://www.youtube.com/oembed?format=json&url=";
   const isPrivate = () => {
     try {
@@ -336,10 +335,11 @@
     return creatorCache;
   }
   function saveCreators() {
+    creatorCache = new Map([...creatorMap()].slice(-300));
     if (isPrivate()) return;            // a private window learns for its session only
     // Bounded, oldest out. This is a record of which videos were opened, so
     // it is kept small and forgetCreators() empties it.
-    write("creators", JSON.stringify(Object.fromEntries([...creatorMap()].slice(-300))));
+    write("creators", JSON.stringify(Object.fromEntries(creatorCache)));
   }
 
   let lookupEpoch = 0;
@@ -368,10 +368,13 @@
   const MAX_FETCH_BYTES = 512 * 1024;
   const FETCH_TIMEOUT_MS = 15000;
   const NS_BINDING_ABORTED = 0x804b0002;
+  const lookupURIAllowed = uri => uri.scheme === "https" && !uri.userPass && !INTERNAL_HOST.test(uri.host);
   function fetchAnon(url, ctx, cb) {
     const { NetUtil } = ChromeUtils.importESModule("resource://gre/modules/NetUtil.sys.mjs");
+    const uri = Services.io.newURI(url);
+    if (!lookupURIAllowed(uri)) throw new Error("Lookup requires a public HTTPS hostname");
     const principal = Services.scriptSecurityManager
-      .createContentPrincipal(Services.io.newURI(url), originOf(ctx));
+      .createContentPrincipal(uri, originOf(ctx));
     const channel = NetUtil.newChannel({
       uri: url,
       loadingPrincipal: principal,
@@ -379,6 +382,15 @@
       contentPolicyType: Ci.nsIContentPolicy.TYPE_OTHER,
     });
     channel.loadFlags |= Ci.nsIRequest.LOAD_ANONYMOUS;
+    channel.notificationCallbacks = {
+      QueryInterface: ChromeUtils.generateQI(["nsIInterfaceRequestor", "nsIChannelEventSink"]),
+      getInterface(iid) { return this.QueryInterface(iid); },
+      asyncOnChannelRedirect(_old, next, _flags, callback) {
+        let allowed = false;
+        try { allowed = lookupURIAllowed(next.URI); } catch {}
+        callback.onRedirectVerifyCallback(allowed ? 0 : NS_BINDING_ABORTED);
+      },
+    };
     let done = false;
     let timer = null;
     const finish = (body) => {
@@ -431,6 +443,7 @@
   const utf8 = (bytes) => decodeURIComponent(escape(bytes));
 
   function fetchCreator(tab, id) {
+    if (isPrivate()) return;
     if (inFlight.has(id)) return;
     const lastFail = failed.get(id);
     if (lastFail && Date.now() - lastFail < RETRY_FAIL_MS) return;
@@ -447,6 +460,7 @@
       if (!name) { noteFail(id); return; }
       creatorMap().set(id, name);
       saveCreators();
+      targetGen++;
       note(`creator ${id}: ${name}`);
       if (tab.isConnected && !tab.closing) queueRoute(tab, "creator");
       if (channelUrl) fetchSectionIcon(name, channelUrl, ctx, "round");
@@ -501,13 +515,13 @@
     return iconCache;
   }
   function saveIcons() {
-    if (isPrivate()) return;            // a private window learns for its session only
     // A pref string is capped at 1 MB by Firefox; 100 icons at 64px are a
     // few hundred KB. Oldest out first if it ever gets close.
     const entries = [...iconMap()].slice(-ICON_MAX);
     let text = JSON.stringify(Object.fromEntries(entries));
     while (text.length > 900000 && entries.length) { entries.shift(); text = JSON.stringify(Object.fromEntries(entries)); }
     iconCache = new Map(entries);
+    if (isPrivate()) return;
     write("avatars", text);
   }
 
@@ -531,7 +545,7 @@
 
   // label: the group name this section files under (the store key).
   function fetchSectionIcon(label, pageUrl, ctx, shape) {
-    if (!bool("section-icons", true) || !pageUrl) return;
+    if (isPrivate() || !bool("section-icons", true) || !pageUrl) return;
     const key = label.trim().toLowerCase(), slot = "icon:" + key;
     if (!key || iconMap().has(key) || inFlight.has(slot)) return;
     const lastFail = failed.get(slot);
@@ -571,9 +585,8 @@
 
   // Called from pathParts() with the URL prefix that ends at the naming
   // segment, that segment, and the label it became.
-  // Routers, NAS boxes and dev servers: a picture lookup must never turn
-  // into a request at the local network. Bare addresses and local-only
-  // suffixes are skipped before any URL is built.
+  // Reject literal addresses and local-only hostnames, including image URLs
+  // and redirects. This does not classify the IPs returned by DNS.
   const INTERNAL_HOST = /^(?:localhost|[^.]+|\d{1,3}(?:\.\d{1,3}){3}|\[[^\]]*\]|.+\.(?:local|localhost|internal|lan|home|corp|intranet))$/i;
 
   function wantSectionIcon(tab, host, prefix, seg, label) {
@@ -610,27 +623,27 @@
 
   // The creator for this tab if known; otherwise starts the lookup and
   // returns null so the tab files under its base path for now.
-  function creatorOf(tab) {
+  function creatorOf(tab, learn = true) {
     if (!bool("media-subgroups", false)) return null;
     const id = videoId(tab);
     if (!id) return null;
     const known = creatorMap().get(id);
     if (known) return known;
-    fetchCreator(tab, id);
+    if (learn) fetchCreator(tab, id);
     return null;
   }
 
   // Appends the creator to whatever path was computed, rule-made or
   // automatic: youtube.com > Watch becomes Watch / Creator. Unknown yet:
   // base path, and the route re-runs when the answer lands.
-  function withCreator(tab, parts) {
+  function withCreator(tab, parts, learn = true) {
     if (!parts?.length) return parts;
-    const who = creatorOf(tab);
+    const who = creatorOf(tab, learn);
     if (!who || parts.some(p => p.toLowerCase() === who.toLowerCase())) return parts;
     return [...parts, who];
   }
 
-  function computeTargetPath(tab) {
+  function computeTargetPath(tab, learn = true) {
     const host = hostOf(tab);
     if (!host) return null;
     for (const r of rules()) {
@@ -656,7 +669,7 @@
         }
       }
 
-      const all = [domainName(base), ...subParts, ...pathParts(tab)];
+      const all = [domainName(base), ...subParts, ...pathParts(tab, learn)];
       // Redundancy killer: search.brave.com/search must not become
       // Brave > Search > Search. Any repeat of an earlier part is dropped.
       const out = [];
@@ -799,7 +812,7 @@
   const startsWithPath = (chain, want) =>
     want.length && chain.length >= want.length && samePath(chain.slice(0, want.length), want);
 
-  function placeInPath(tab, parts) {
+  async function placeInPath(tab, parts) {
     if (!parts?.length) return false;
     const cap = num("max-depth", 0);
     if (cap > 0) parts = parts.slice(0, cap);
@@ -823,7 +836,8 @@
     const haveCtx = parseInt(tab.getAttribute("usercontextid") || "0", 10);
 
     if (bool("follow-containers", true) && dest.ctx != null && dest.ctx !== haveCtx) {
-      const fresh = reopenInContainer(tab, dest.ctx, dest.ws);
+      const fresh = await reopenInContainer(tab, dest.ctx, dest.ws);
+      if (!fresh) return false;
       if (fresh !== tab) { bustGroups(); return file(fresh, parts); }
     }
     if (dest.ws && dest.ws !== tabWs) {
@@ -867,9 +881,8 @@
     //    its members' container is the next container fallback.
     const tabWs = wsOf(tab) || window.gZenWorkspaces?.activeWorkspace;
     const roots = rootGroupsNamed(parts[0]);
-    const root = (ws && roots.find(g => wsOfEl(g) === ws))
-              ?? roots.find(g => wsOfEl(g) === tabWs)
-              ?? (stay ? null : roots[0] ?? null);
+    const root = ws ? roots.find(g => wsOfEl(g) === ws)
+      : roots.find(g => wsOfEl(g) === tabWs) ?? (stay ? null : roots[0] ?? null);
     if (!ws && !stay && root && wsOfEl(root) !== tabWs) {
       ws = wsOfEl(root);
       why = `the workspace holding "${parts[0]}"`;
@@ -903,20 +916,36 @@
   // Reopens the tab with the given container (and workspace, when given);
   // returns the tab to keep filing -- the fresh one, or the original on
   // failure.
-  function reopenInContainer(tab, wantCtx, targetWs) {
+  async function reopenInContainer(tab, wantCtx, targetWs) {
     const url = (() => { try { return tab.linkedBrowser?.currentURI?.spec; } catch { return null; } })();
     if (!url || !/^https?:/i.test(url)) return tab;
-    let fresh = null;
+    let fresh = null, wasSelected = false;
     try {
+      // Routing runs after load. Unlike Zen's navigation-time redirect, a
+      // reload here can erase back history, a POST result or an edited form.
+      await gBrowser.prepareDiscardBrowser(tab);
+      if (retired || window[INSTANCE_KEY] !== instance || !bool("enabled", false) || skip(tab)) return null;
+      if (tab.linkedBrowser.currentURI.spec !== url) {
+        queueRoute(tab, "navigation changed while routing");
+        return null;
+      }
+      const state = JSON.parse(window.SessionStore.getTabState(tab));
+      const entry = state.entries?.[0];
+      if (state.entries?.length !== 1 || state.formdata || state.storage ||
+          entry?.postdata || entry?.children || tab.hasAttribute("busy")) {
+        note(`kept container for "${tab.label}": page has session state or is loading`);
+        return tab;
+      }
       // The navigating page's own principal, like Zen's routing redirect
       // uses; null principal as the safe fallback. Never the system
       // principal for a web URL.
       const principal = tab.linkedBrowser?.contentPrincipal ||
         Services.scriptSecurityManager.createNullPrincipal({});
+      wasSelected = tab.selected;
       fresh = gBrowser.addTab(url, {
         userContextId: wantCtx,
         triggeringPrincipal: principal,
-        inBackground: !tab.selected,
+        inBackground: !wasSelected,
         skipRoute: true,
       });
     } catch (e) { note(`container reopen failed: ${e}`); return tab; }
@@ -924,6 +953,12 @@
       if (targetWs) window.gZenWorkspaces.moveTabToWorkspace(fresh, targetWs);
     } catch {}
     try { gBrowser.removeTab(tab); } catch {}
+    if (tab.isConnected && !tab.closing) {
+      // A beforeunload veto keeps the original. Do not leave a duplicate.
+      try { gBrowser.removeTab(fresh); } catch {}
+      return tab;
+    }
+    if (wasSelected) gBrowser.selectedTab = fresh;
     note(`reopened "${url.slice(0, 60)}" in container ${wantCtx}`);
     return fresh;
   }
@@ -1116,11 +1151,11 @@
     // null for them rather than throwing.
     if (tab.hasAttribute("zen-empty-tab")) return "empty tab";
     if (tab.hasAttribute("_forZenEmptyTab")) return "empty tab";
-    if (tab.hasAttribute("zen-split")) return "split view";
+    if (tab.splitView || tab.hasAttribute("split-view") ||
+        tab.group?.hasAttribute("split-view-group")) return "split view";
     if (bool("skip-essentials", true) && tab.getAttribute("zen-essential") === "true") return "essential";
     if (bool("skip-pinned", true) && tab.pinned) return "pinned";
     if (bool("skip-grouped", true) && tab.group) {
-      healWorkspace(tab);   // ghost repair is safe and cheap; always do it
       // A link opened from a grouped tab inherits that group, even when it
       // goes somewhere unrelated. With this on, a tab whose group path no
       // longer matches where it belongs gets re-filed instead of stranded.
@@ -1134,21 +1169,26 @@
     return null;
   }
 
-  function route(tab, why) {
-    if (!bool("enabled", false)) return;
-    const parts = targetPath(tab);          // computed once, reused by skip()
-    const s = skip(tab, parts);
-    if (s) { note(`skip ${tab.label}: ${s}`); return; }
+  const routing = new WeakSet();
+  async function route(tab, why) {
+    if (retired || !bool("enabled", false) || routing.has(tab)) return;
+    const s = skip(tab);                    // excluded tabs must not trigger lookups
+    if (s) {
+      if (s === "already in a group") healWorkspace(tab);
+      note(`skip ${tab.label}: ${s}`); return;
+    }
+    const parts = targetPath(tab);          // skip() may already have cached this
     if (!parts?.length) { note(`no rule for ${hostOf(tab) ?? tab.label}`); return; }
     const host = hostOf(tab);               // the tab may be reopened below
+    routing.add(tab);
     try {
-      if (placeInPath(tab, parts)) {
+      if (await placeInPath(tab, parts)) {
         note(`${why}: ${host} -> ${parts.join(SEP())}`);
         scheduleOrder();
       }
     } catch (e) {
       note(`failed routing ${tab.label}: ${e}`);
-    }
+    } finally { routing.delete(tab); }
   }
 
   // ---- events ------------------------------------------------------------
@@ -1198,12 +1238,12 @@
     if (tab?.linkedBrowser) queueRoute(tab, "retitle");
   }
 
-  function sweepAll(why = "sweep") {
+  async function sweepAll(why = "sweep") {
     if (!bool("enabled", false)) return 0;
     let n = 0;
     for (const tab of allTabs()) {
       const before = tab.group;
-      route(tab, why);
+      await route(tab, why);
       if (tab.group !== before) n++;
     }
     note(`${why}: moved ${n}`);
@@ -1287,7 +1327,7 @@
     saveCreators(); saveIcons(); saveLearned();
     stampIcons();
     targetGen++;
-    note("forgot every learned name, creator and picture");
+    log = [];
   }
 
   function start() {
@@ -1306,13 +1346,12 @@
     window.TabRouter = {
       sortAll: () => sweepAll("manual"),
       preview() {
-        return allTabs().map(t => ({
-          title: t.label,
-          host: hostOf(t) ?? "-",
-          currentGroup: chainOf(t).join(SEP()) || "-",
-          wouldGo: skip(t) ? `skipped (${skip(t)})`
-                           : (targetPath(t)?.join(SEP()) ?? "no rule"),
-        }));
+        return allTabs().map(t => {
+          const parts = targetPath(t, false), why = skip(t, parts);
+          return { title: t.label, host: hostOf(t) ?? "-",
+            currentGroup: chainOf(t).join(SEP()) || "-",
+            wouldGo: why ? `skipped (${why})` : (parts?.join(SEP()) ?? "no rule") };
+        });
       },
       rules,
       // suggestRules()                        -> one rule per domain
@@ -1386,15 +1425,16 @@
         if (!t) return "no tab";
         let uri = "";
         try { uri = t.linkedBrowser?.currentURI?.spec ?? ""; } catch {}
+        const parts = targetPath(t, false), why = skip(t, parts);
         return {
           title: t.label,
           url: uri.slice(0, 90),
           host: hostOf(t),
           base: hostOf(t) ? baseDomain(hostOf(t)) : null,
           pathDepthPref: num("auto-path-depth", 0),
-          pathSegments: pathParts(t),
+          pathSegments: pathParts(t, false),
           currentGroup: chainOf(t).join(SEP()) || null,
-          wouldGo: skip(t) ? `skipped (${skip(t)})` : targetPath(t)?.join(SEP()),
+          wouldGo: why ? `skipped (${why})` : parts?.join(SEP()),
         };
       },
       // Runs the eject experiment on the SELECTED tab and reports every
@@ -1441,6 +1481,7 @@
         if (slug) learnedMap().delete(slug.toLowerCase());
         else learnedCache = new Map();
         saveLearned();
+        targetGen++;
         return slug ? `forgot "${slug}"` : "forgot all learned names";
       },
       // videoId -> creator, everything looked up so far. A record of which
@@ -1471,7 +1512,7 @@
         const stalled = [];
         let withTarget = 0;
         for (const t of allTabs()) {
-          const parts = targetPath(t);
+          const parts = targetPath(t, false);
           if (parts?.length) withTarget++;
           const why = skip(t, parts);
           if (why) { reasons[why] = (reasons[why] ?? 0) + 1; continue; }
@@ -1497,7 +1538,7 @@
         } catch {}
 
         const r = {
-          version: "1.30.0",
+          version: "1.34.0",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The
@@ -1542,7 +1583,6 @@
     // across window open/close cycles. The capture flag must match the one
     // used to add, or removeEventListener silently does nothing.
     // Sine cleanup and window unload can both run; retire this copy once.
-    let retired = false;
     const cleanup = () => {
       if (retired) return;
       retired = true;

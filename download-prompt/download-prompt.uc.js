@@ -77,6 +77,7 @@
   // seen and clicked when that sheet has not been loaded yet.
   function plainly(host, panel) {
     host.style.cssText = "position:fixed;inset:0;z-index:2147483000;display:flex;" +
+      "width:100%;height:100%;max-width:none;max-height:none;margin:0;padding:0;border:0;" +
       "align-items:center;justify-content:center;background:rgba(0,0,0,0.45)";
     panel.style.cssText = "min-width:320px;max-width:460px;padding:18px;border-radius:12px;" +
       "background:Field;color:FieldText;box-shadow:0 18px 56px rgba(0,0,0,0.5)";
@@ -86,8 +87,10 @@
     return new Promise((resolve) => {
       win[QUESTION]?.(KEEP);
       const doc = win.document;
-      const host = doc.createElementNS(XH, "div");
+      const host = doc.createElementNS(XH, "dialog");
       host.id = "zzdl-ask";
+      host.setAttribute("aria-labelledby", "zzdl-title");
+      host.setAttribute("aria-describedby", "zzdl-name zzdl-where");
       const add = (parent, cls, text) => {
         const e = parent.appendChild(doc.createElementNS(XH, "div"));
         e.className = cls;
@@ -95,9 +98,9 @@
         return e;
       };
       const panel = add(host, "zzdl-panel");
-      add(panel, "zzdl-title", "That name is already taken");
-      add(panel, "zzdl-name", target.leafName);
-      add(panel, "zzdl-where", folderPath);
+      add(panel, "zzdl-title", "That name is already taken").id = "zzdl-title";
+      add(panel, "zzdl-name", target.leafName).id = "zzdl-name";
+      add(panel, "zzdl-where", folderPath).id = "zzdl-where";
       const row = add(panel, "zzdl-buttons");
 
       let done = false, bail = null;
@@ -105,8 +108,8 @@
         if (done) return;
         done = true;
         try { win.clearTimeout(bail); } catch {}
-        try { win.removeEventListener("keydown", onKey, true); } catch {}
         try { win.removeEventListener("unload", onGone); } catch {}
+        try { host.close(); } catch {}
         try { host.remove(); } catch {}
         if (win[QUESTION] === finish) delete win[QUESTION];
         resolve(choice);
@@ -114,11 +117,10 @@
       // Escape keeps both: the answer that cannot lose a file is the one a
       // stray keypress gives you. Enter presses whatever button has focus,
       // which starts on Keep both for the same reason.
-      const onKey = (e) => {
-        if (e.key !== "Escape") return;
-        e.preventDefault(); e.stopPropagation();
+      host.addEventListener("cancel", (e) => {
+        e.preventDefault();
         finish(KEEP);
-      };
+      });
       const onGone = () => finish(KEEP);
 
       const button = (label, cls, choice) => {
@@ -132,7 +134,6 @@
       const keep = button("Keep both", "zzdl-keep", KEEP);
       button("Cancel", "zzdl-cancel", CANCEL);
 
-      win.addEventListener("keydown", onKey, true);
       win.addEventListener("unload", onGone, { once: true });
       (doc.body ?? doc.documentElement).appendChild(host);
       win[QUESTION] = finish;
@@ -141,6 +142,8 @@
       // of its own -- quite possibly invisible, and an invisible question
       // is a download that never starts. Lay it out here if so.
       try { if (win.getComputedStyle(host).position !== "fixed") plainly(host, panel); } catch {}
+      // Native modal focus/inert handling, including focus restoration on close.
+      try { host.showModal(); } catch { finish(KEEP); return; }
       // And nothing gets to hold a download open forever on a question the
       // user may never have seen.
       try { bail = win.setTimeout(() => finish(KEEP), 120000); } catch {}

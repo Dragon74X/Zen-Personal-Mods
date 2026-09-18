@@ -72,11 +72,9 @@
       ["network.dnsCacheExpiration", 3600],
       ["network.ssl_tokens_cache_capacity", 32768],
     ],
-    // Firefox's predictor learns which subresources a site needs and
-    // preconnects for them; these extend it to hover on https links.
+    // Reuse Firefox's native page-link hover preconnect on HTTPS pages.
     predictor: [
       ["network.predictor.enable-hover-on-ssl", true],
-      ["network.predictor.enable-prefetch", true],
     ],
     // Session state is written to disk every 15s by default; that write is
     // a periodic jank source on HDDs and busy systems. 30s halves it. Cost:
@@ -163,7 +161,7 @@
       if (getAny(name) === v || name in saved) continue;
       const before = Services.prefs.prefHasUserValue(name)
         ? { had: true, v: getAny(name) } : { had: false };
-      try { setAny(name, v); saved[name] = before; }
+      try { setAny(name, v); saved[name] = { ...before, applied: v }; }
       catch (e) { note(`set ${name} failed: ${e}`); }
     }
     writeSaved(saved);
@@ -201,11 +199,17 @@
     for (const name of Object.keys(saved)) {
       if (owned.has(name)) continue;
       const s = saved[name];
+      // Older builds only recorded the original value. The removed
+      // squircle pack's applied value is known; other unknown entries stay.
+      const legacyApplied = { "layout.css.corner-shape.enabled": false, "network.predictor.enable-prefetch": true };
+      const applied = s?.applied ?? legacyApplied[name];
+      if (applied === undefined) continue;
+      if (getAny(name) !== applied) { delete saved[name]; changed = true; continue; }
       try {
         if (s?.had) setAny(name, s.v);
         else Services.prefs.clearUserPref(name);
         note(`reclaimed ${name}: no pack owns it any more, profile value restored`);
-      } catch (e) { note(`reclaim ${name} failed: ${e}`); }
+      } catch (e) { note(`reclaim ${name} failed: ${e}`); continue; }
       delete saved[name];
       changed = true;
     }
@@ -272,18 +276,12 @@
       const last = recentWarm.get(key) || 0;
       // Throttle repeat requests using half the configured keep-alive value.
       // No socket state is observed here.
-      if (now - last < warmTtlMs() / 2) return;
-      // nsISpeculativeConnect offers this exact call: origin attributes, which
-      // is all the network layer wants, rather than a content principal built
-      // per warm purely to carry the container id. Falls back where the newer
-      // entry point is missing.
+      if (recentWarm.has(key) && now - last < warmTtlMs() / 2) return;
+      // The principal-taking API derives the destination partition key,
+      // including after HSTS upgrade. WithOriginAttributes uses it verbatim.
       const oa = { userContextId, privateBrowsingId: isPrivate() ? 1 : 0 };
-      if (typeof Services.io.speculativeConnectWithOriginAttributes === "function") {
-        Services.io.speculativeConnectWithOriginAttributes(uri, oa, null, false);
-      } else {
-        const principal = Services.scriptSecurityManager.createContentPrincipal(uri, oa);
-        Services.io.speculativeConnect(uri, principal, null, false);
-      }
+      const principal = Services.scriptSecurityManager.createContentPrincipal(uri, oa);
+      Services.io.speculativeConnect(uri, principal, null, false);
       recentWarm.set(key, now);
       if (recentWarm.size > 200) recentWarm.delete(recentWarm.keys().next().value);
       stats.warmed++;
@@ -360,19 +358,7 @@
     } catch (e) { note(`startup warmup failed: ${e}`); }
   }
 
-  // ---- link hover warmup --------------------------------------------------
-  // A chrome-context mouseover listener cannot see into web content, so
-  // hovering a link on a page is invisible to the handler above. Firefox
-  // already computes that though: XULBrowserWindow.setOverLink(url) is what
-  // fills the little status panel in the corner, and it fires on every link
-  // hover in content. Wrapping it is the supported way to learn the URL the
-  // pointer is on. Zen does not patch it and performs no speculative connect
-  // of its own, so nothing here is duplicated.
-  //
-  // The container is the hovered TAB's, not the link's: a link opens in the
-  // tab it was clicked from, and warming the wrong container pool would warm a
-  // connection the real request never uses.
-  let overLinkOriginal = null, overLinkWrapper = null;
+  // ---- tab/bookmark hover warmup ------------------------------------------
   let dwellTimer = null;
   function cancelDwell() {
     clearTimeout(dwellTimer);
@@ -399,31 +385,6 @@
     }, delay);
   }
 
-  function hookOverLink() {
-    const XBW = window.XULBrowserWindow;
-    if (overLinkOriginal || !XBW || typeof XBW.setOverLink !== "function") return;
-    const original = overLinkOriginal = XBW.setOverLink;
-    overLinkWrapper = XBW.setOverLink = function (url, anchorElt) {
-      try {
-        // setOverLink("") fires when the pointer leaves a link; nothing to do.
-        if (!retired && bool("hover-warmup", true) && bool("hover-links", true)) {
-          let ctx = 0;
-          try { ctx = parseInt(gBrowser.selectedTab?.getAttribute("usercontextid") || "0", 10); } catch {}
-          // "" arrives when the pointer leaves a link, which cancels a pending warm.
-          warmAfterDwell(url, ctx);
-        }
-      } catch {}
-      return original.apply(this, arguments);
-    };
-    note("link hover warmup active");
-  }
-
-  function unhookOverLink() {
-    const XBW = window.XULBrowserWindow;
-    if (overLinkOriginal && XBW?.setOverLink === overLinkWrapper) XBW.setOverLink = overLinkOriginal;
-    overLinkOriginal = overLinkWrapper = null;
-  }
-
   // Match top-level navigations to recent origin/container request records.
   const navListener = {
     onLocationChange(browser, wp, _req, uri, flags) {
@@ -438,15 +399,37 @@
   };
 
   // ---- wiring -------------------------------------------------------------
+  let smoothingObserver = null, smoothingTimer = null, smoothingMarked = false;
+  function stopSmoothing() {
+    clearTimeout(smoothingTimer); smoothingTimer = null;
+    document.documentElement.removeAttribute("zzturbo-smoothing");
+  }
+  function syncSmoothing() {
+    const root = document.documentElement;
+    const marked = root.hasAttribute("animating-background") || root.hasAttribute("swipe-gesture");
+    if (!marked || !bool("smooth-workspace-switch", true)) {
+      stopSmoothing(); smoothingMarked = false; return;
+    }
+    if (smoothingMarked) return;
+    smoothingMarked = true;
+    root.setAttribute("zzturbo-smoothing", "");
+    // A stuck native animation marker must not freeze tab effects indefinitely.
+    smoothingTimer = setTimeout(stopSmoothing, 1500);
+  }
   const prefObserver = {
     observe(_s, _t, data) {
       if (data.startsWith(P + "pack-")) syncPacks();
-      if ([P + "hover-warmup", P + "hover-links", P + "hover-dwell-ms"].includes(data)) cancelDwell();
+      if (data === P + "smooth-workspace-switch") syncSmoothing();
+      if ([P + "hover-warmup", P + "hover-dwell-ms"].includes(data)) cancelDwell();
       if (data === P + "startup-warmup" && !bool("startup-warmup", true)) cancelStartupWarmup();
     },
   };
 
   function start() {
+    smoothingObserver = new MutationObserver(syncSmoothing);
+    smoothingObserver.observe(document.documentElement, { attributes: true,
+      attributeFilter: ["animating-background", "swipe-gesture"] });
+    syncSmoothing();
     Services.prefs.addObserver(P, prefObserver);
     syncPacks();
     Services.obs.addObserver(forgetWarmups, "browser:purge-session-history");
@@ -463,7 +446,6 @@
       el.addEventListener("mouseover", onHover, { passive: true });
       el.addEventListener("mouseleave", cancelDwell, { passive: true });
     }
-    hookOverLink();
     try { gBrowser.addTabsProgressListener(navListener); } catch {}
 
     if (bool("startup-warmup", true) && !isPrivate() && isMainAppWindow()) {
@@ -508,6 +490,8 @@
     const cleanup = () => {
       if (retired) return;
       retired = true;
+      smoothingObserver?.disconnect(); smoothingObserver = null;
+      stopSmoothing();
       try { Services.prefs.removeObserver(P, prefObserver); } catch {}
       try { delete window.ZenTurbo; } catch {}
       try { Services.obs.removeObserver(forgetWarmups, "browser:purge-session-history"); } catch {}
@@ -516,7 +500,6 @@
       }
       hovering = [];
       cancelStartupWarmup();
-      try { unhookOverLink(); } catch {}
       try { cancelDwell(); } catch {}
       try { gBrowser.removeTabsProgressListener(navListener); } catch {}
     };

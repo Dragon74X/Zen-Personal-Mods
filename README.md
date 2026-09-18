@@ -18,3 +18,14 @@ Each mod contains a `.uc.js` script and requires Sine user-script loading. Compa
 Run `tools/check.js` in Firefox Browser Console (`Ctrl+Shift+J`). It requires Firefox chrome globals and does not run under Node.
 
 Individual READMEs define settings, exclusions, and known limits.
+
+## Regression checks
+
+```sh
+node --test tools/*.test.mjs
+SINE_MANAGER_SOURCE=/path/to/Sine/src/core/manager.sys.mjs node --test tools/*.test.mjs
+```
+
+The second command also executes upstream Sine's update/install methods with mocked filesystem and network APIs. Tests target Sine commit `fb0bd4ca6af888f10648e126947f7d1f82228433`; browser API fakes do not verify live Zen compatibility.
+
+Each mod ships the same Sine update guard so it can install independently. The guard serializes updates, installs, and sibling dependencies while upstream uses one shared `temp` directory. Restart Zen after updating this guard: its replacement takes effect in the next browser session.

@@ -8,25 +8,25 @@
   {
     "type": "checkbox",
     "property": "zzturbo.pack-network",
-    "label": "Network tuning *More parallel connections per server (10 instead of 6), request pacing off (Firefox inserts small deliberate delays between request bursts; on a fast line they are pure latency), more speculative connections, and larger DNS and TLS-session caches so repeat visits skip lookups and handshakes. Every value is snapshotted before it is changed; turning this off restores your profile exactly, and any pref you later change by hand is left alone as yours.*",
+    "label": "Network preferences *Requests 10 persistent connections per server, disables request pacing, sets speculative limit 12, and changes DNS/TLS cache limits. Captures prior values before changes; re-sync preserves later manual edits. No load-time improvement has been measured by this mod.*",
     "defaultValue": true
   },
   {
     "type": "checkbox",
     "property": "zzturbo.pack-predictor",
-    "label": "Predictor on https hover *Firefox's network predictor learns which connections a page will need. This extends it to act on link hover over https and to prefetch what it is confident about, so the click lands on work already done.*",
+    "label": "HTTPS hover predictor and prefetch *Enables network.predictor.enable-hover-on-ssl and network.predictor.enable-prefetch when those preferences exist. Requests may consume bandwidth without a later navigation.*",
     "defaultValue": true
   },
   {
     "type": "checkbox",
     "property": "zzturbo.pack-io-jank",
-    "label": "Less session-store disk churn *Session state is written to disk every 15 seconds by default, a periodic jank source on hard drives and busy systems. This halves the cadence to every 30 seconds. The trade: after a hard crash, up to 30 seconds of very recent tab changes are lost instead of 15. Zen's window sync is unaffected.*",
+    "label": "Session-store interval *Sets browser.sessionstore.interval to 30000 milliseconds. Fewer scheduled writes can also leave more recent session changes unpersisted after a crash.*",
     "defaultValue": true
   },
   {
     "type": "checkbox",
     "property": "zzturbo.pack-media",
-    "label": "Bigger in-memory media cache *64 MB of RAM for streamed media, so small seeks in video replay from memory instead of re-fetching from the network. Memory-for-network trade; turn off on low-RAM machines.*",
+    "label": "Media memory cache *Sets media.memory_cache_max_size to 65536 KiB (64 MiB). Actual allocation and reuse depend on Firefox and the media workload.*",
     "defaultValue": true
   },
   {
@@ -38,13 +38,13 @@
   {
     "type": "checkbox",
     "property": "zzturbo.smooth-workspace-switch",
-    "label": "Smooth workspace switching *Suspends tab blur effects and transitions ONLY for the duration of the workspace slide animation, using the marker attribute Zen itself sets while it runs. Blurred tab backgrounds re-render their blur every frame while the strip moves, which is what makes switching feel framey with glass themes; parked, they cost little and come straight back the instant the slide ends. Resting visuals are pixel-identical.*",
+    "label": "Suspend effects during workspace animations *Disables selected chrome blur effects, transitions, and sidebar video rendering while Zen animation attributes are present. Frame-time impact is not measured; stale attributes can keep these CSS rules active.*",
     "defaultValue": true
   },
   {
     "type": "checkbox",
     "property": "zzturbo.pack-gfx",
-    "label": "Force GPU rendering paths *Enables WebRender and accelerated canvas on hardware where Mozilla's blocklist keeps them off conservatively. Changes nothing on machines where they already run -- ZenTurbo.status() shows whether this pack is managing any prefs. If you see visual glitches, turn it off; your profile is restored exactly.*",
+    "label": "Request GPU rendering paths *Sets gfx.webrender.all and gfx.canvas.accelerated when present. Effect depends on Firefox and the graphics driver. Disabled by default.*",
     "defaultValue": false
   },
   {
@@ -56,13 +56,13 @@
   {
     "type": "checkbox",
     "property": "zzturbo.hover-warmup",
-    "label": "Warm connections on hover *Hovering an unloaded tab or a bookmark pre-opens the TCP and TLS connection to its site, in the right container, so DNS, handshake and certificate work happen during the hover instead of after the click. Pairs with Tab Unloader: unloaded tabs reload onto an already-open socket. Throttled to once per site per minute; loaded tabs cost nothing.*",
+    "label": "Request connections on hover *Requests a speculative connection after dwelling on an unloaded tab or bookmark. Unloaded tabs use their container; bookmarks use container 0. Request throttle is half network.http.keep-alive.timeout; no connection reuse is measured.*",
     "defaultValue": true
   },
   {
     "type": "checkbox",
     "property": "zzturbo.hover-links",
-    "label": "Warm connections on link hover *Extends hover warmup into web pages: hovering a link opens the TCP and TLS connection to wherever it points, so a click lands on a socket that already exists. A chrome script cannot see mouse events inside a page, so this hooks the function Firefox already calls to show a link's target in the corner status panel -- it fires on every link hover there is. The connection is opened in the container of the tab you are hovering in, since that is where the link would open. Same throttle as the rest: an origin is not re-warmed while its socket is still alive.*",
+    "label": "Request connections on page-link hover *Uses Firefox status-link updates to schedule speculative requests in the selected tab container. Leaving the link cancels a pending request.*",
     "defaultValue": true,
     "conditions": [
       {
@@ -76,7 +76,7 @@
   {
     "type": "string",
     "property": "zzturbo.hover-dwell-ms",
-    "label": "Hover before warming (milliseconds) *How long the pointer has to rest on something before its connection is opened. This is what keeps hover warming cheap: sweeping across a page of links, or down the tab strip, warms nothing, while pausing on one warms it. It matters because a socket, once opened, is Firefox's to close -- there is no way to cancel a speculative connection, so one you never click sits in the pool until keep-alive reaps it 115 seconds later. Not opening it is the only real economy. 0 warms instantly and is wasteful; 200 catches deliberate hovers without a perceptible delay; raise it if you tend to read with the pointer resting on links.*",
+    "label": "Hover dwell (milliseconds) *Delay before requesting a speculative connection. Default 200; 0 requests immediately. Leaving before the delay expires cancels the pending request.*",
     "defaultValue": "200",
     "placeholder": "200",
     "conditions": [
@@ -91,13 +91,13 @@
   {
     "type": "checkbox",
     "property": "zzturbo.startup-warmup",
-    "label": "Warm frequent sites at startup *The first visit of a session pays DNS and TLS cold. Shortly after startup this reads your most-visited sites from history (read-only, local) and pre-opens connections to them, spread out a quarter second apart. Your first real navigation of the day lands warm.*",
+    "label": "Request frequent origins at window startup *Queries local history and schedules speculative requests 250 ms apart. Disabled in private windows. Requests can consume network resources without a later navigation.*",
     "defaultValue": true
   },
   {
     "type": "string",
     "property": "zzturbo.startup-warm-count",
-    "label": "How many sites to warm at startup *Top sites by visit frequency. Each warm connection is one open socket; more than a dozen is rarely useful.*",
+    "label": "Startup origin count *Selects up to this many origins by history frecency. Default 6; maximum 20.*",
     "defaultValue": "6",
     "placeholder": "6",
     "conditions": [
@@ -112,7 +112,7 @@
   {
     "type": "string",
     "property": "zzturbo.startup-warm-delay-ms",
-    "label": "Startup warmup delay (milliseconds) *How long after the window is ready before warming begins, so it never competes with session restore for the network.*",
+    "label": "Startup delay (milliseconds) *Delay after window initialization before querying history. Default 4000. Does not guarantee session restore has finished.*",
     "defaultValue": "4000",
     "placeholder": "4000",
     "conditions": [
@@ -133,13 +133,13 @@
   {
     "type": "checkbox",
     "property": "zzturbo.measure",
-    "label": "Measure whether warming actually helps *Counts every connection this mod opens ahead of time, then checks each navigation against it: did a real request land on that socket before the browser closed it? `ZenTurbo.stats()` reports the hit rate and the worst offenders by origin. A warmed socket only survives `network.http.keep-alive.timeout` -- 115 seconds by default -- and anything later is counted as a miss, so the number is not flattered. This exists because \"it feels faster\" is exactly the claim this mod refuses to make: if the rate is low, the warming is aimed wrong and should be turned off. Costs one lookup per page load.*",
+    "label": "Count navigation matches *Correlates navigation origins and containers with recent warmup requests. ZenTurbo.stats().hitRate is a navigation-match percentage, not socket reuse or time saved.*",
     "defaultValue": true
   },
   {
     "type": "checkbox",
     "property": "zzturbo.debug",
-    "label": "Log what it is doing *Prints to the Browser Console (Ctrl+Shift+J) under [ZenTurbo]. ZenTurbo.status() lists active packs and every pref currently managed; ZenTurbo.log() shows recent activity including each warmed connection.*",
+    "label": "Log activity *Prints request and preference activity to Browser Console under [ZenTurbo].*",
     "defaultValue": false
   }
 ]

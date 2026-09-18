@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Zen Turbo
-// @description    Real, reversible performance tuning: network prefs, hover connection warmup, startup warmup of frequent sites.
+// @description    Preference packs and speculative connection requests on hover or startup.
 // @include        chrome://browser/content/browser.xhtml
 // ==/UserScript==
 
@@ -63,9 +63,7 @@
   // current value no longer matches what this mod set is left alone -- the
   // user changed it by hand and owns it now.
   const PACKS = {
-    // More parallel connections, no request pacing, bigger DNS/TLS caches.
-    // The pacing pref removes small deliberate delays Firefox inserts
-    // between bursts of requests; on fast lines it is pure latency.
+    // Connection limits, pacing, and DNS/TLS cache values; no timing claim.
     network: [
       ["network.http.max-persistent-connections-per-server", 10],
       ["network.http.pacing.requests.enabled", false],
@@ -87,8 +85,7 @@
     "io-jank": [
       ["browser.sessionstore.interval", 30000],
     ],
-    // Larger in-memory media cache keeps streamed video from re-fetching
-    // on small seeks. 64 MB, memory-for-network trade.
+    // Requests a 64 MiB media memory cache; actual reuse depends on workload.
     media: [
       ["media.memory_cache_max_size", 65536],
     ],
@@ -112,8 +109,10 @@
   const SAVED = P + "saved-prefs";   // JSON: { prefName: {had:bool, v:value} }
 
   function readSaved() {
-    try { return JSON.parse(Services.prefs.getStringPref(SAVED, "{}")); }
-    catch { return {}; }
+    try {
+      const saved = JSON.parse(Services.prefs.getStringPref(SAVED, "{}"));
+      return saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
+    } catch { return {}; }
   }
   function writeSaved(obj) {
     try { Services.prefs.setStringPref(SAVED, JSON.stringify(obj)); } catch {}
@@ -159,13 +158,13 @@
         }
         continue;
       }
-      if (getAny(name) === v) continue;              // already there
-      if (!(name in saved)) {
-        saved[name] = Services.prefs.prefHasUserValue(name)
-          ? { had: true, v: getAny(name) }
-          : { had: false };
-      }
-      try { setAny(name, v); } catch (e) { note(`set ${name} failed: ${e}`); }
+      // An existing snapshot means this pack already applied. Re-syncing
+      // must not overwrite a later user edit, including after a restart.
+      if (getAny(name) === v || name in saved) continue;
+      const before = Services.prefs.prefHasUserValue(name)
+        ? { had: true, v: getAny(name) } : { had: false };
+      try { setAny(name, v); saved[name] = before; }
+      catch (e) { note(`set ${name} failed: ${e}`); }
     }
     writeSaved(saved);
     note(`pack on: ${packName}`);
@@ -181,8 +180,8 @@
       try {
         if (s.had) setAny(name, s.v);
         else Services.prefs.clearUserPref(name);
+        delete saved[name];
       } catch (e) { note(`revert ${name} failed: ${e}`); }
-      delete saved[name];
     }
     writeSaved(saved);
     note(`pack off: ${packName} (restored)`);
@@ -230,18 +229,9 @@
   // request never uses.
   const recentWarm = new Map();          // origin|ctx -> last warm time
 
-  // Warm-hit measurement. A warmed socket is only worth opening if a real
-  // request lands on it before it goes cold, and nothing in this mod could
-  // tell you whether that ever happened -- "it feels faster" is exactly the
-  // claim the README refuses to make. So each warm is counted, each navigation
-  // is checked against what was warmed, and ZenTurbo.stats() reports the rate.
-  // Costs one Map lookup per navigation.
-  // How long a warmed socket actually survives, rather than a number picked to
-  // flatter the result. A speculative connection is an ordinary idle
-  // persistent connection once it is open, so Firefox reaps it on
-  // network.http.keep-alive.timeout -- 115 seconds by default, and Zen does
-  // not override it. Counting a navigation past that as a "hit" would credit
-  // this mod for a socket the browser had already closed.
+  // Correlates navigation origin/container with recent warmup requests.
+  // The keep-alive pref is a heuristic window, not an observed socket lifetime;
+  // these counters cannot establish connection reuse or time saved.
   const warmTtlMs = () => prefNum("network.http.keep-alive.timeout", 115) * 1000;
   const stats = { warmed: 0, hits: 0, cold: 0, byOrigin: new Map() };
   const ORIGIN_MAX = 200;                // as bounded as recentWarm, and for the same reason
@@ -280,12 +270,9 @@
       const key = uri.prePath + "|" + userContextId;
       const now = Date.now();
       const last = recentWarm.get(key) || 0;
-      // Re-warming an origin whose socket is still alive is wasted work, so the
-      // throttle tracks the socket lifetime rather than a fixed minute: half
-      // of keep-alive leaves room to re-warm once before it is reaped.
+      // Throttle repeat requests using half the configured keep-alive value.
+      // No socket state is observed here.
       if (now - last < warmTtlMs() / 2) return;
-      recentWarm.set(key, now);
-      if (recentWarm.size > 200) recentWarm.delete(recentWarm.keys().next().value);
       // nsISpeculativeConnect offers this exact call: origin attributes, which
       // is all the network layer wants, rather than a content principal built
       // per warm purely to carry the container id. Falls back where the newer
@@ -297,23 +284,31 @@
         const principal = Services.scriptSecurityManager.createContentPrincipal(uri, oa);
         Services.io.speculativeConnect(uri, principal, null, false);
       }
+      recentWarm.set(key, now);
+      if (recentWarm.size > 200) recentWarm.delete(recentWarm.keys().next().value);
       stats.warmed++;
       bumpOrigin(uri.prePath, "warmed");
-      note(`warmed ${uri.prePath}${userContextId ? ` [container ${userContextId}]` : ""}`);
+      note(`requested ${uri.prePath}${userContextId ? ` [container ${userContextId}]` : ""}`);
     } catch (e) { note(`warm failed: ${e}`); }
   }
 
   let hovering = [];                     // the surfaces this copy is listening on
   let warmupTimer = null;
   const startupWarmTimers = new Set();
+  let warmupEpoch = 0;
+  function cancelStartupWarmup() {
+    warmupEpoch++;
+    clearTimeout(warmupTimer); warmupTimer = null;
+    for (const id of startupWarmTimers) clearTimeout(id);
+    startupWarmTimers.clear();
+  }
   let retired = false;
   const hoverSurfaces = () =>
     [gBrowser?.tabContainer, document.getElementById("PersonalToolbar")].filter(Boolean);
 
-  // Hover over an UNLOADED tab: by the time it is clicked and the page
-  // starts reloading, the connection already exists. Loaded tabs need
-  // nothing. Also warms bookmark hovers.
+  // Schedule requests for unloaded tabs and bookmarks; loaded tabs are skipped.
   function onHover(event) {
+    cancelDwell();
     if (!bool("hover-warmup", true)) return;
     const t = event.target;
     const tab = t?.closest?.(".tabbrowser-tab");
@@ -332,11 +327,11 @@
   }
 
   // ---- startup warmup -----------------------------------------------------
-  // The first visit of the session to a favorite site pays DNS + TLS cold.
-  // Reading the top origins by frecency from Places and warming them right
-  // after startup makes that first navigation land warm. Read-only query,
-  // small N, spread out to avoid a burst.
+  // Read up to 20 history origins and space requests 250 ms apart.
+  // Successful handshakes and later connection reuse are not observed.
   async function startupWarmup() {
+    if (retired || isPrivate() || !bool("startup-warmup", true)) return;
+    const epoch = warmupEpoch;
     const n = Math.max(0, Math.min(20, num("startup-warm-count", 6)));
     if (!n) return;
     try {
@@ -350,13 +345,13 @@
       // The query can outlive either this script generation or a live
       // settings change. In both cases its result is stale and must not
       // enqueue a fresh batch of timers.
-      if (retired || !bool("startup-warmup", true)) return;
+      if (retired || epoch !== warmupEpoch || !bool("startup-warmup", true)) return;
       let delay = 0;
       for (const row of rows) {
         const origin = row.getResultByName("prefix") + row.getResultByName("host");
         const id = setTimeout(() => {
           startupWarmTimers.delete(id);
-          if (!retired && bool("startup-warmup", true)) warm(origin);
+          if (!retired && epoch === warmupEpoch && bool("startup-warmup", true)) warm(origin);
         }, delay);
         startupWarmTimers.add(id);
         delay += 250;                    // spread, not burst
@@ -377,50 +372,59 @@
   // The container is the hovered TAB's, not the link's: a link opens in the
   // tab it was clicked from, and warming the wrong container pool would warm a
   // connection the real request never uses.
-  let overLinkOriginal = null;
+  let overLinkOriginal = null, overLinkWrapper = null;
   let dwellTimer = null;
-
-  // A socket, once opened, is Firefox's to close: there is no API to cancel a
-  // speculative connection, so an unclicked one sits in the pool for the full
-  // keep-alive. The fix is therefore not to open it for a hover that was never
-  // going to convert. Sweeping the pointer across a page of links, or down the
-  // tab strip, warms nothing; resting on one does. This is the whole reason
-  // the cost of link warming stays bounded.
-  function warmAfterDwell(url, ctx) {
+  function cancelDwell() {
     clearTimeout(dwellTimer);
     dwellTimer = null;
+  }
+  function forgetWarmups() {
+    cancelStartupWarmup();
+    cancelDwell();
+    recentWarm.clear();
+    stats.warmed = stats.hits = stats.cold = 0;
+    stats.byOrigin.clear();
+    log = [];
+  }
+
+  // Cancel a scheduled request when hover ends. Issued connections remain
+  // under Firefox's control; their lifetime is not measured here.
+  function warmAfterDwell(url, ctx) {
+    cancelDwell();
     if (!url) return;                    // pointer left the link
     const delay = Math.max(0, num("hover-dwell-ms", 200));
-    dwellTimer = setTimeout(() => { dwellTimer = null; warm(url, ctx); }, delay);
+    dwellTimer = setTimeout(() => {
+      dwellTimer = null;
+      if (!retired && bool("hover-warmup", true)) warm(url, ctx);
+    }, delay);
   }
 
   function hookOverLink() {
     const XBW = window.XULBrowserWindow;
     if (overLinkOriginal || !XBW || typeof XBW.setOverLink !== "function") return;
-    overLinkOriginal = XBW.setOverLink;
-    XBW.setOverLink = function (url, anchorElt) {
+    const original = overLinkOriginal = XBW.setOverLink;
+    overLinkWrapper = XBW.setOverLink = function (url, anchorElt) {
       try {
         // setOverLink("") fires when the pointer leaves a link; nothing to do.
-        if (bool("hover-warmup", true) && bool("hover-links", true)) {
+        if (!retired && bool("hover-warmup", true) && bool("hover-links", true)) {
           let ctx = 0;
           try { ctx = parseInt(gBrowser.selectedTab?.getAttribute("usercontextid") || "0", 10); } catch {}
           // "" arrives when the pointer leaves a link, which cancels a pending warm.
           warmAfterDwell(url, ctx);
         }
       } catch {}
-      return overLinkOriginal.call(this, url, anchorElt);
+      return original.apply(this, arguments);
     };
     note("link hover warmup active");
   }
 
   function unhookOverLink() {
     const XBW = window.XULBrowserWindow;
-    if (overLinkOriginal && XBW) XBW.setOverLink = overLinkOriginal;
-    overLinkOriginal = null;
+    if (overLinkOriginal && XBW?.setOverLink === overLinkWrapper) XBW.setOverLink = overLinkOriginal;
+    overLinkOriginal = overLinkWrapper = null;
   }
 
-  // Every navigation is checked against what was warmed, so the hit rate is
-  // measured rather than asserted.
+  // Match top-level navigations to recent origin/container request records.
   const navListener = {
     onLocationChange(browser, wp, _req, uri, flags) {
       // Subframes report here too, and an ad frame is not the navigation
@@ -437,12 +441,15 @@
   const prefObserver = {
     observe(_s, _t, data) {
       if (data.startsWith(P + "pack-")) syncPacks();
+      if ([P + "hover-warmup", P + "hover-links", P + "hover-dwell-ms"].includes(data)) cancelDwell();
+      if (data === P + "startup-warmup" && !bool("startup-warmup", true)) cancelStartupWarmup();
     },
   };
 
   function start() {
     Services.prefs.addObserver(P, prefObserver);
     syncPacks();
+    Services.obs.addObserver(forgetWarmups, "browser:purge-session-history");
 
     // onHover only ever acts on a tab or a bookmark, so it listens on the two
     // surfaces that hold them rather than on document. On document it ran on
@@ -452,11 +459,14 @@
     // Held, rather than looked up again at cleanup: a toolbar rebuilt in
     // between would leave the old element listening for good.
     hovering = hoverSurfaces();
-    for (const el of hovering) el.addEventListener("mouseover", onHover, { passive: true });
+    for (const el of hovering) {
+      el.addEventListener("mouseover", onHover, { passive: true });
+      el.addEventListener("mouseleave", cancelDwell, { passive: true });
+    }
     hookOverLink();
     try { gBrowser.addTabsProgressListener(navListener); } catch {}
 
-    if (bool("startup-warmup", true) && isMainAppWindow()) {
+    if (bool("startup-warmup", true) && !isPrivate() && isMainAppWindow()) {
       warmupTimer = setTimeout(startupWarmup, Math.max(0, num("startup-warm-delay-ms", 4000)));
     }
 
@@ -472,12 +482,14 @@
           unknownPrefs: [...unknown],
           hoverWarmup: bool("hover-warmup", true),
           startupWarmup: bool("startup-warmup", true),
-          warmedThisSession: recentWarm.size,
+          warmupRequests: stats.warmed,
+          recentOriginContexts: recentWarm.size,
         };
       },
-      // Measured, not claimed: how many warmed sockets a real request landed
-      // on before they went cold. A low rate means the warming is aimed wrong.
+      // Navigation correlation only; no socket-reuse or timing measurements.
       stats: () => ({
+        measurement: "origin/container matches after warmup requests; not socket reuse or time saved",
+        windowMs: warmTtlMs(),
         warmed: stats.warmed,
         hits: stats.hits,
         cold: stats.cold,
@@ -492,22 +504,20 @@
     };
     note("loaded");
 
-    // Sine (and Cosine) call this on beforeunload as well, so the window's
-    // own unload listener below is the second invocation, not the first.
-    // Running twice is how one window's copy used to rip out the patch
-    // another window had just taken over.
+    // Sine cleanup and window unload can both run; retire this copy once.
     const cleanup = () => {
       if (retired) return;
       retired = true;
       try { Services.prefs.removeObserver(P, prefObserver); } catch {}
       try { delete window.ZenTurbo; } catch {}
-      for (const el of hovering) { try { el.removeEventListener("mouseover", onHover); } catch {} }
+      try { Services.obs.removeObserver(forgetWarmups, "browser:purge-session-history"); } catch {}
+      for (const el of hovering) {
+        try { el.removeEventListener("mouseover", onHover); el.removeEventListener("mouseleave", cancelDwell); } catch {}
+      }
       hovering = [];
-      clearTimeout(warmupTimer); warmupTimer = null;
-      for (const id of startupWarmTimers) clearTimeout(id);
-      startupWarmTimers.clear();
+      cancelStartupWarmup();
       try { unhookOverLink(); } catch {}
-      try { clearTimeout(dwellTimer); dwellTimer = null; } catch {}
+      try { cancelDwell(); } catch {}
       try { gBrowser.removeTabsProgressListener(navListener); } catch {}
     };
     window.addEventListener("unload", cleanup, { once: true });

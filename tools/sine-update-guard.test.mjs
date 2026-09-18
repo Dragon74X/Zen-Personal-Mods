@@ -21,6 +21,7 @@ function fixture() {
   const PathUtils = { join: (...parts) => parts.join("/") };
   const utils = {
     modsDir: "/test/sine-mods",
+    async getMods() { return { ...registry }; },
     async getModPreferences(mod) {
       prefReads++;
       assert.equal(this, utils);
@@ -186,4 +187,12 @@ test("6 standalone manifests ship identical guards; all declared scripts exist",
   }
   const router = await readFile(new URL("tab-router/tab-router.uc.js", root), "utf8");
   assert.ok(!router.includes("repairStrays") && !router.includes("IOUtils.move"));
+});
+
+test("standalone reload=false install still queues behind updates", async () => {
+  const f = fixture();
+  installSineUpdateGuard(f.manager, f.utils);
+  await Promise.all([f.manager.updateMods(), f.manager.installMod("manual", null, false)]);
+  assert.equal(f.maxActive, 1);
+  assert.equal(Object.keys(f.registry).length, 7);
 });

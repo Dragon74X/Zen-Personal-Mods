@@ -128,3 +128,18 @@ test("native Sine: update and reinstall queued together retain all 6 mods", { sk
   assert.equal((await env.lastLoad).length, 6);
   assert.equal(Object.keys(env.registry).length, 6);
 });
+
+test("native Sine: sibling and nested dependencies retain every mod", { skip: !upstream, timeout: 2000 }, async () => {
+  const env = await environment();
+  const parent = env.manifests["zz-glassflow"];
+  const child = env.manifests["zz-groupflow"];
+  parent.modules = [child.homepage, env.manifests["zz-tab-router"].homepage];
+  child.modules = [env.manifests["zz-tab-unloader"].homepage];
+  for (const id of ["zz-groupflow", "zz-tab-router", "zz-tab-unloader"]) delete env.registry[id];
+  installSineUpdateGuard(env.manager, env.utils);
+  await env.manager.updateMods();
+  assert.equal((await env.lastLoad).length, 6);
+  assert.equal(Object.keys(env.registry).length, 6);
+  for (const mod of Object.values(env.registry)) await env.utils.getModPreferences(mod);
+  assert.ok(![...env.fs.keys()].some(p => p.startsWith("/sine-mods/temp/")));
+});

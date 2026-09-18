@@ -196,6 +196,8 @@
   }
   const urls = [null, null];
   function clearSample() {
+    samplingEpoch++;
+    sampling = false;
     try { sidebarEl()?.removeAttribute("zzglass-sample"); } catch {}
     for (const l of layers) { try { l.style.backgroundImage = ""; l.removeAttribute("front"); } catch {} }
     try { sampleEl?.removeAttribute("zzglass-fade"); } catch {}
@@ -213,7 +215,10 @@
     if (!host?.isConnected || !browser) return null;
     const h = host.getBoundingClientRect(), b = browser.getBoundingClientRect();
     const css = { left: b.left - h.left, top: b.top - h.top, width: b.right - b.left, height: b.bottom - b.top };
-    for (const l of layers) for (const k in css) l.style[k] = css[k].toFixed(2) + "px";
+    for (const l of layers) for (const k in css) {
+      const value = css[k].toFixed(2) + "px";
+      if (l.style[k] !== value) l.style[k] = value;
+    }
     return h;
   }
   // Zen slides the panel with a plain CSS transition (no attribute marks
@@ -238,11 +243,12 @@
   // the strip it covered last, so the frame is up before the slide.
   let ticks = 0, samplingSince = 0;
   async function sampleOnce(warm = false) {
-    const epoch = samplingEpoch;
+    if (!sampleOn() || document.hidden || (isPrivate() && !sidebarShown())) return false;
     // A read that never came back (a tab torn down mid-snapshot) must not
     // wedge every read after it.
     if (sampling && Date.now() - samplingSince > 2000) sampling = false;
     if (sampling) return;
+    const epoch = ++samplingEpoch;
     if (trackRaf && !warm) return;            // still sliding; track() reads once it settles
     const panel = warm ? (lastSample?.panel ?? (sidebarShown() ? boxOf(sidebarEl()) : null))
                        : boxOf(sidebarEl());
@@ -255,11 +261,13 @@
     try {
       const wg = gBrowser.selectedBrowser.browsingContext?.currentWindowGlobal;
       if (!wg?.drawSnapshot) return;
+      const current = () => epoch === samplingEpoch && !document.hidden &&
+        gBrowser.selectedBrowser.browsingContext?.currentWindowGlobal === wg;
       // A rect given to drawSnapshot is taken relative to the PAGE, not the
       // visible viewport; null is the viewport as seen. At a tenth scale
       // the whole viewport is a couple of hundred pixels a side.
       const bmp = await wg.drawSnapshot(null, SAMPLE_SCALE, "transparent");
-      if (epoch !== samplingEpoch) { bmp.close(); return false; }
+      if (!current()) { bmp.close(); return false; }
       const c = new OffscreenCanvas(bmp.width, bmp.height);
       const ctx = c.getContext("2d");
       ctx.drawImage(bmp, 0, 0);
@@ -281,7 +289,9 @@
       // scroll entirely.
       let sig = 0, solid = 0, n = 0;
       for (let i = 0; i < px.length; i += 4) {
-        sig = (Math.imul(sig, 31) + px[i] + px[i + 1] + px[i + 2] + px[i + 3]) | 0;
+        // Preserve channel order: red and green with equal brightness differ.
+        const rgba = (px[i] << 24) | (px[i + 1] << 16) | (px[i + 2] << 8) | px[i + 3];
+        sig = (Math.imul(sig, 31) + rgba) | 0;
         n++; if (px[i + 3] === 255) solid++;
       }
       // Two reads in a row have to agree before the panel flips between the
@@ -304,7 +314,7 @@
       // A live reinjection can retire this copy while either await above is
       // pending. Never let the stale read recreate the host or paint over the
       // new generation; the just-created URL is ours to release.
-      if (epoch !== samplingEpoch) { URL.revokeObjectURL(url); return false; }
+      if (!current()) { URL.revokeObjectURL(url); sampleSig = null; return false; }
       const back = 1 - front;
       layers[back].style.backgroundImage = `url("${url}")`;
       layers[back].setAttribute("front", "");
@@ -328,12 +338,12 @@
       lastError = String(e);
       console.warn("[Glassflow] sample failed:", e);
       clearSample();
-    } finally { sampling = false; }
+    } finally { if (epoch === samplingEpoch) sampling = false; }
   }
 
   function syncSampling() {
     const on = sampleOn();
-    const want = on && sidebarShown();
+    const want = on && !document.hidden && sidebarShown();
     // Disabling the feature must also retire a snapshot already across an
     // await. Clearing only the visible frame allowed that read to paint the
     // frame straight back after the setting had been switched off.
@@ -382,6 +392,7 @@
     sampleObserver.observe(tb, { attributes: true, attributeFilter: ["zen-has-hover", "zen-user-show", "has-popup-menu"] });
     sampleObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["zen-compact-mode"] });
     gBrowser.tabContainer.addEventListener("TabSelect", syncSampleNow);
+    document.addEventListener("visibilitychange", syncSampling);
     syncSampling();
     if (sampleOn()) {
       warmSampleTimer = setTimeout(() => {
@@ -392,12 +403,13 @@
   }
   const sampleOn = () => { try { return Services.prefs.getBoolPref(PREFIX + "sidebar.sample", false); } catch { return false; } };
   // A new tab in front: re-read now if shown, or warm a frame for it if not.
-  const syncSampleNow = () => { sampleSig = null; if (sampleOn()) sampleOnce(!sampleTimer); };
+  const syncSampleNow = () => { clearSample(); if (sampleOn()) sampleOnce(!sampleTimer); };
   function stopSampling() {
     samplingEpoch++;
     try { sampleObserver?.disconnect(); } catch {}
     sampleObserver = null;
     try { gBrowser.tabContainer.removeEventListener("TabSelect", syncSampleNow); } catch {}
+    document.removeEventListener("visibilitychange", syncSampling);
     if (sampleTimer) { clearTimeout(sampleTimer); sampleTimer = null; }
     if (warmSampleTimer) { clearTimeout(warmSampleTimer); warmSampleTimer = null; }
     cancelAnimationFrame(trackRaf); trackRaf = 0;
@@ -452,10 +464,7 @@
         now: () => { sampleSig = null; return sampleOnce(); },
       },
     };
-    // Sine (and Cosine) call this on beforeunload as well, so the window's
-    // own unload listener below is the second invocation, not the first.
-    // Running twice is how one window's copy used to rip out the patch
-    // another window had just taken over.
+    // Sine cleanup and window unload can both run; retire this copy once.
     let retired = false;
     const cleanup = () => {
       if (retired) return;

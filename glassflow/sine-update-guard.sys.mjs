@@ -7,7 +7,7 @@ export function installSineUpdateGuard(manager, utils) {
   if (manager[marker]) return true;
   const names = ["updateMods", "processModUpdate", "installMod", "syncModData"];
   if (names.some(name => typeof manager[name] !== "function") ||
-      typeof utils.getModPreferences !== "function") return false;
+      typeof utils.getModPreferences !== "function" || typeof utils.getMods !== "function") return false;
   // Do not wrap an engine that no longer uses the shared staging path.
   if (!/PathUtils\.join\(\s*utils\.modsDir,\s*["']temp["']\s*\)/.test(
     Function.prototype.toString.call(manager.syncModData))) return false;
@@ -38,16 +38,28 @@ export function installSineUpdateGuard(manager, utils) {
     });
   };
   manager.installMod = function (...args) {
-    // Sine installs dependency modules recursively with reload=false. They
-    // already run inside the parent's operation; queueing them would deadlock.
-    if (args[2] === false) return original.installMod.apply(this, args);
     return operations(() => original.installMod.apply(this, args));
   };
   manager.processModUpdate = function (...args) {
-    return updates(() => original.processModUpdate.apply(this, args));
+    return updates(async () => {
+      // Earlier mods may have installed dependencies absent from the batch's
+      // original registry snapshot. Preserve those entries in the next write.
+      args[1] = await utils.getMods();
+      return original.processModUpdate.apply(this, args);
+    });
   };
   manager.syncModData = function (...args) {
-    const result = (async () => original.syncModData.apply(this, args))();
+    // Native sync starts sibling dependencies with Promise.all. Serialize
+    // siblings inside this transaction; each child gets its own queue for
+    // grandchildren, avoiding both shared-temp races and recursive deadlock.
+    const dependencies = serial();
+    const receiver = Object.create(this);
+    receiver.installMod = (...childArgs) =>
+      dependencies(() => original.installMod.apply(this, childArgs));
+    const result = (async () => {
+      try { return await original.syncModData.apply(receiver, args); }
+      finally { await dependencies.drain(); }
+    })();
     writes.add(result);
     const done = () => writes.delete(result);
     result.then(done, done);

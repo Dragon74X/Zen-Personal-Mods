@@ -173,7 +173,7 @@
       const name = PathUtils.filename(p);
       folders.push(name);
       if (name === "temp" && await IOUtils.exists(PathUtils.join(p, "theme.json"))) {
-        strays.push("temp holds a whole mod: an install was interrupted");
+        strays.push("temp holds a mod: active or interrupted install");
       }
       let kids = [];
       try { kids = await IOUtils.getChildren(p); } catch { continue; }
@@ -181,11 +181,11 @@
         if (!(await IOUtils.exists(PathUtils.join(k, "theme.json")))) continue;
         let id = "(unreadable theme.json)";
         try { id = (await IOUtils.readJSON(PathUtils.join(k, "theme.json")))?.id ?? id; } catch {}
-        strays.push(`${name}/${PathUtils.filename(k)} is the mod "${id}" sitting inside another mod`);
+        strays.push(`${name}/${PathUtils.filename(k)} contains mod "${id}": extraction in progress or leftover files`);
       }
     }
     report.modFolders = folders;
-    report.strayFolders = strays.length ? strays : "none -- every mod is where Sine looks for it";
+    report.strayFolders = strays.length ? strays : "none observed";
   } catch (e) { report.modFolders = `could not read chrome/sine-mods: ${e}`; }
 
   const text = JSON.stringify(report, null, 2);

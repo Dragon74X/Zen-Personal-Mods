@@ -285,10 +285,7 @@
     // does, so every registration has to be released here or it leaks
     // across window open/close cycles. The capture flag must match the
     // one used to add, or removeEventListener silently does nothing.
-    // Sine (and Cosine) call this on beforeunload as well, so the window's
-    // own unload listener below is the second invocation, not the first.
-    // Running twice is how one window's copy used to rip out the patch
-    // another window had just taken over.
+    // Sine cleanup and window unload can both run; retire this copy once.
     let retired = false;
     const cleanup = () => {
       if (retired) return;

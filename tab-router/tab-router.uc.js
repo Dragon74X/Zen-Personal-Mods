@@ -342,6 +342,14 @@
     write("creators", JSON.stringify(Object.fromEntries([...creatorMap()].slice(-300))));
   }
 
+  let lookupEpoch = 0;
+  const requests = new Set();
+  function cancelLookups() {
+    lookupEpoch++;
+    for (const cancel of [...requests]) cancel();
+    inFlight.clear();
+    failed.clear();
+  }
   const inFlight = new Map();            // videoId -> true while a request is out
   const failed = new Map();              // videoId -> when it last failed (memory only)
   const FAILED_MAX = 200;
@@ -377,22 +385,47 @@
       if (done) return;
       done = true;
       clearTimeout(timer);
+      requests.delete(cancel);
       cb(body);
     };
+    const cancel = () => {
+      done = true;
+      clearTimeout(timer);
+      requests.delete(cancel);
+      try { channel.cancel(NS_BINDING_ABORTED); } catch {}
+    };
+    requests.add(cancel);
     timer = setTimeout(() => {
       try { channel.cancel(NS_BINDING_ABORTED); } catch {}
       note(`gave up on ${url.slice(0, 60)} after ${FETCH_TIMEOUT_MS / 1000}s`);
       finish(null);
     }, FETCH_TIMEOUT_MS);
-    NetUtil.asyncFetch(channel, (stream, status) => {
-      let body = null;
-      try {
-        if (Components.isSuccessCode(status)) {
-          body = NetUtil.readInputStreamToString(stream, Math.min(stream.available(), MAX_FETCH_BYTES));
+    let body = "";
+    try { channel.asyncOpen({
+      QueryInterface: ChromeUtils.generateQI(["nsIStreamListener", "nsIRequestObserver"]),
+      onStartRequest() {},
+      onDataAvailable(_request, stream, _offset, count) {
+        if (done) return;
+        try {
+          body += NetUtil.readInputStreamToString(stream, Math.min(count, MAX_FETCH_BYTES - body.length));
+          // Retain the same prefix as before, but stop receiving at the cap.
+          // NetUtil.asyncFetch buffered the entire response before truncation.
+          if (body.length === MAX_FETCH_BYTES) {
+            finish(body);
+            try { channel.cancel(NS_BINDING_ABORTED); } catch {}
+          }
+        } catch {
+          finish(null);
+          try { channel.cancel(NS_BINDING_ABORTED); } catch {}
         }
-      } catch {}
-      finish(body);
-    });
+      },
+      onStopRequest(_request, status) {
+        finish(Components.isSuccessCode(status) ? body : null);
+      },
+    }); } catch (error) {
+      cancel();
+      throw error; // Caller's catch completes once; no timeout remains.
+    }
   }
   // Byte string -> JS string, for text bodies.
   const utf8 = (bytes) => decodeURIComponent(escape(bytes));
@@ -402,12 +435,14 @@
     const lastFail = failed.get(id);
     if (lastFail && Date.now() - lastFail < RETRY_FAIL_MS) return;
     inFlight.set(id, true);
+    const epoch = lookupEpoch;
 
     // The id is all oEmbed needs. The tab's full URL would also carry the
     // timestamp, the playlist and YouTube's si= share-tracking token.
     const watch = `https://www.youtube.com/watch?v=${id}`;
     const ctx = parseInt(tab.getAttribute("usercontextid") || "0", 10);
     const done = (name, channelUrl) => {
+      if (epoch !== lookupEpoch) return;
       inFlight.delete(id);
       if (!name) { noteFail(id); return; }
       creatorMap().set(id, name);
@@ -502,9 +537,11 @@
     const lastFail = failed.get(slot);
     if (lastFail && Date.now() - lastFail < RETRY_FAIL_MS) return;
     inFlight.set(slot, true);
+    const epoch = lookupEpoch;
     // A page that answered with nothing usable is remembered as such (d:
     // null), so it is asked once; a page that did not answer is retried.
     const done = (icon, answered = true) => {
+      if (epoch !== lookupEpoch) return;
       inFlight.delete(slot);
       if (!icon && !answered) { noteFail(slot); return; }
       iconMap().set(key, { d: icon, s: shape });
@@ -1220,11 +1257,10 @@
         .filter(([h]) => h !== base && h !== "www." + base)
         .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 
-      for (const [host, n] of subs) {
+      for (const [host] of subs) {
         const leaf = host.slice(0, host.length - base.length - 1)
                          .split(".").reverse().map(prettify).join(separator);
-        lines.push(`${host} > ${parent}${separator}${leaf}` +
-                   `   ${"#"} ${n} tab${n === 1 ? "" : "s"}`);
+        lines.push(`${host} > ${parent}${separator}${leaf}`);
       }
       lines.push(`${base} > ${parent}`);
     }
@@ -1246,6 +1282,7 @@
   // learned from browsing: creator names, section pictures, learned names.
   const purgeObserver = () => { try { forgetAll(); } catch {} };
   function forgetAll() {
+    cancelLookups();
     creatorCache = new Map(); iconCache = new Map(); learnedCache = new Map();
     saveCreators(); saveIcons(); saveLearned();
     stampIcons();
@@ -1295,7 +1332,7 @@
           try { path = t.linkedBrowser?.currentURI?.filePath ?? ""; } catch { continue; }
           const skipW = new Set(str("auto-path-ignore", "").split(",")
             .map(s => s.trim().toLowerCase()).filter(Boolean));
-          const seg = path.split("/").map(s => decodeURIComponent(s).trim())
+          const seg = path.split("/").map(s => { try { return decodeURIComponent(s).trim(); } catch { return s.trim(); } })
             .filter(Boolean).filter(s => !skipW.has(s.toLowerCase()))
             .filter(s => !/^\d+$/.test(s) && !/\.[a-z0-9]{2,4}$/i.test(s))[0];
           if (!seg) continue;
@@ -1410,6 +1447,7 @@
       // videos were opened: bounded to 300 and emptied by forgetCreators().
       creators: () => Object.fromEntries(creatorMap()),
       forgetCreators(id) {
+        cancelLookups();
         if (id) creatorMap().delete(id); else { creatorCache = new Map(); iconCache = new Map(); saveIcons(); }
         saveCreators();
         stampIcons();
@@ -1503,14 +1541,12 @@
     // does, so every registration above has to be released here or it leaks
     // across window open/close cycles. The capture flag must match the one
     // used to add, or removeEventListener silently does nothing.
-    // Sine (and Cosine) call this on beforeunload as well, so the window's
-    // own unload listener below is the second invocation, not the first.
-    // Running twice is how one window's copy used to rip out the patch
-    // another window had just taken over.
+    // Sine cleanup and window unload can both run; retire this copy once.
     let retired = false;
     const cleanup = () => {
       if (retired) return;
       retired = true;
+      cancelLookups();
       try { delete window.TabRouter; } catch {}
       clearTimeout(orderTimer); orderTimer = null;
       for (const id of pendingIds) clearTimeout(id);

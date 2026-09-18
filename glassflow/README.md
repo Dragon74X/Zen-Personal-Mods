@@ -1,6 +1,6 @@
 # Glassflow
 
-> Scope: source at commit `7528d67`; runtime compatibility requires testing against installed Zen, Firefox, and Sine versions.
+> Runtime compatibility requires testing against installed Zen, Firefox, and Sine versions.
 
 A [Zen Browser](https://zen-browser.app/) mod for [Sine](https://github.com/CosmoCreeper/Sine).
 
@@ -146,11 +146,13 @@ down and let this own it.
 | Workspace gradient through the panel | `0` | `1` lets Zen's gradient through, lighter and hazier |
 | Panel shadow | on | Zen's own |
 | Panel accent tint / corner radius | `10%` / `12px` | |
-| Blur behind the floating panel | off | Real `backdrop-filter`. Cannot see the web page; no chrome blur can |
+| Blur behind the floating panel | off | Native `backdrop-filter`; result depends on Zen and transparency settings |
 | Blur radius / contrast / saturation | `25px` / `1` / `1` | |
 | Blur through transparent pages | off | Arc's clip-path trick; restart. For pages the Zen Internet extension made see-through |
-| Sampled glass (experimental) | off | Snaps the viewport a few times a second and paints it blurred behind the panel, laid over the page so the panel is a window onto it; nothing is read while the panel slides. The only way to blur the page itself |
+| Sampled glass (experimental) | off | Downscales the viewport to 10% per axis, then paints it blurred behind the panel. Idle delay defaults to 250 ms; changed frames use 80 ms. Hidden windows start no snapshots; hidden private sidebars retain no sample |
 | Sample blur / opacity / interval | `18px` / `1` / `250` | the last frame stays up while the sidebar is hidden, so it shows at once |
+
+Pending samples are discarded after a tab/document change, history clearing, or script retirement. The pixel signature preserves RGBA channel order, so equal-total red/green changes refresh the sample. These lifecycle checks do not measure frame-time improvements.
 
 `Glassflow.sample.status()` in the console says whether sampling is running
 and which strip of the page it last read.

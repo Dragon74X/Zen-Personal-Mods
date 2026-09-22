@@ -672,6 +672,124 @@ test("Groupflow ignores split groups in dirty refreshes and refreshes on enablin
   h.prefVarObserver.observe(null, null, "zzgroup.favicons"); assert.equal(c.timers.size, 1);
 });
 
+async function groupflowStartupEnv() {
+  const c = clock(), w = browser(), ready = deferred(), groups = [], writes = [];
+  w.gZenStartup = { promiseInitialized: ready.promise };
+  const document = { documentElement: element(), querySelectorAll: selector =>
+    groups.filter(g => selector.split(", ").includes(g.tagName)) };
+  const gBrowser = { tabGroups: groups, selectedTab: { label: "selected tab" } };
+  const Services = { prefs: {
+    getBoolPref: () => false, getPrefType: () => 0,
+    addObserver() {}, removeObserver() {},
+  } };
+  function group(name, { parent = null, folder = false, collapsed = false, split = false } = {}) {
+    const g = { ...element(), tagName: folder ? "zen-folder" : "tab-group",
+      isZenFolder: folder, parentElement: { closest: () => parent },
+      get collapsed() { return collapsed; },
+      set collapsed(value) { writes.push(name); collapsed = value; },
+    };
+    if (split) g.setAttribute("split-view-group", "true");
+    groups.push(g);
+    return g;
+  }
+  async function inject() {
+    const h = await load("groupflow", "start, schedule, prefVarObserver", {
+      ...c, window: w, document, gBrowser, Services,
+    });
+    h.start();
+    return h;
+  }
+  function tick() {
+    for (const [id, fn] of [...c.timers]) { c.clearTimeout(id); fn(); }
+  }
+  return { c, w, ready, group, groups, writes, inject, tick, gBrowser };
+}
+
+test("Groupflow waits for restore, opens roots and folds every nested depth with favicons disabled", async () => {
+  const e = await groupflowStartupEnv();
+  const selected = e.gBrowser.selectedTab;
+  await e.inject();
+  e.tick();
+  assert.equal(e.w.__zzgroupInstance.startupFolded, false);
+  const root = e.group("root", { folder: true, collapsed: true });
+  const child = e.group("child", { parent: root, folder: true });
+  const grandchild = e.group("grandchild", { parent: child });
+  const otherRoot = e.group("other-workspace", { collapsed: true });
+  const otherChild = e.group("other-child", { parent: otherRoot, folder: true });
+  const split = e.group("split", { parent: child, split: true });
+  const rootSplit = e.group("root-split", { split: true });
+  assert.deepEqual(e.writes, []);
+  // Zen queues saved collapse states while constructing restored folders.
+  e.c.setTimeout(() => { child.collapsed = false; });
+  e.ready.resolve();
+  await Promise.resolve();
+  assert.equal(root.collapsed, true);
+  e.tick();
+  assert.deepEqual([root, child, grandchild, otherRoot, otherChild, split, rootSplit].map(g => g.collapsed),
+    [false, true, true, false, true, false, false]);
+  assert.ok(e.writes.indexOf("grandchild") < e.writes.lastIndexOf("child"));
+  assert.ok(e.writes.lastIndexOf("child") < e.writes.indexOf("root"));
+  assert.ok(!e.writes.includes("split") && !e.writes.includes("root-split"));
+  assert.equal(e.gBrowser.selectedTab, selected);
+  assert.equal(e.c.timers.size, 0);
+});
+
+test("Groupflow leaves manual toggles and later groups unchanged across events and reinjection", async () => {
+  const e = await groupflowStartupEnv();
+  const root = e.group("root"), child = e.group("child", { parent: root });
+  e.ready.resolve();
+  const h = await e.inject();
+  await Promise.resolve(); e.tick();
+  assert.equal(child.collapsed, true);
+  child.collapsed = false;
+  root.collapsed = true;
+  const later = e.group("later", { parent: root });
+  e.writes.length = 0;
+  h.schedule({ target: child });
+  h.prefVarObserver.observe(null, null, "zzgroup.favicons");
+  e.tick();
+  await e.inject();
+  await Promise.resolve(); e.tick();
+  assert.deepEqual(e.writes, []);
+  assert.deepEqual([root, child, later].map(g => g.collapsed), [true, false, false]);
+});
+
+test("Groupflow reinjection during restoration leaves one startup pass", async () => {
+  const e = await groupflowStartupEnv();
+  const root = e.group("root"); e.group("child", { parent: root });
+  await e.inject();
+  await e.inject();
+  e.ready.resolve();
+  await Promise.resolve(); e.tick();
+  assert.deepEqual(e.writes, ["child", "root"]);
+});
+
+test("Groupflow retirement cancels pending restore callbacks and queued folding", async () => {
+  for (const afterRestore of [false, true]) {
+    const e = await groupflowStartupEnv();
+    const root = e.group("root"); e.group("child", { parent: root });
+    await e.inject();
+    if (afterRestore) { e.ready.resolve(); await Promise.resolve(); }
+    e.w.__zzgroupInstance.retire();
+    e.ready.resolve();
+    await Promise.resolve(); e.tick();
+    assert.deepEqual(e.writes, []);
+    assert.equal(e.c.timers.size, 0);
+  }
+});
+
+test("Groupflow updating a pre-feature instance defers folding until next window", async () => {
+  const e = await groupflowStartupEnv();
+  const root = e.group("root"); e.group("child", { parent: root });
+  let retired = 0;
+  e.w.__zzgroupInstance = { generation: 1, retire() { retired++; } };
+  e.ready.resolve();
+  await e.inject();
+  await Promise.resolve(); e.tick();
+  assert.equal(retired, 1);
+  assert.deepEqual(e.writes, []);
+});
+
 test("Router diagnostic path calculation learns nothing and starts no lookups", async () => {
   const e = await routerEnv();
   for (const [k, v] of Object.entries({ "auto-unmatched": true, "auto-path-depth": 1, "auto-path-domains": "example.com", "media-subgroups": true })) e.prefs.set("zzrouter." + k, v);

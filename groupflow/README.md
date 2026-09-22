@@ -1,6 +1,6 @@
 # Groupflow
 
-> Scope: source at commit `7528d67`; runtime compatibility requires testing against installed Zen, Firefox, and Sine versions.
+Runtime compatibility requires testing against installed Zen, Firefox, and Sine versions.
 
 Per-state glass theming for tab groups and subgroups, in
 [Glassflow](../glassflow)'s visual language. A sibling mod, not a fork:
@@ -21,6 +21,21 @@ Requires `sine.allow-unsafe-js` set to `true` in `about:config`. Group
 styling is on out of the box; **Turn on group styling** is the master switch
 if you want it off.
 
+## Startup folding
+
+After each window restores its session, top-level groups/folders open and all
+nested groups/subfolders fold. This covers `tab-group` and `zen-folder` elements
+across workspaces; split-view groups are excluded. Zen retains its native handling
+of selected tabs inside collapsed folders.
+
+Folding runs once per window, independently of styling and favicon settings.
+Manual toggles, groups created later, and Sine reinjections do not repeat the pass.
+When updating an already-running copy, restart Zen to apply the new startup behavior.
+
+The pass waits for [Zen startup initialization](https://github.com/zen-browser/desktop/blob/4c92731b2dbbcf3f5a4dad79c09d13c38f91f774/src/zen/common/modules/ZenStartup.mjs),
+then uses the native `collapsed` setter, including its accessibility updates and
+collapse/expand events. Regression check: `node --test tools/lifecycle.test.mjs`.
+
 ## What it styles
 
 **Headers** — accent tint and gradient, roundness, optional sheen, rim light
@@ -39,7 +54,7 @@ caps, sheen, rim, glow, shadow and blur; plus per-tab and per-subgroup
 membership marks with their own shading, glow, shadow, size and opacity.
 Headers can shrink per depth level.
 
-Zen folders are untouched — `zen-folder` is a different element and Folder
+Zen folder styling is untouched — `zen-folder` is a different element and Folder
 Tree Connectors owns it. Split-view groups are excluded throughout.
 
 ## Favicons as group icons
@@ -52,7 +67,7 @@ from the first one, so it still gets an icon.
 Icons come from `page-icon:`, Firefox's own favicon protocol, served out of
 the local favicon store — no network fetch happens.
 
-The pass is entirely event-driven; there is no timer. Zen patches a
+Favicon refreshes use a 500 ms debounce and a 2-second startup pass. Zen patches a
 `ZenTabIconChanged` event into `tabbrowser.setIcon()`, so it fires for every
 tab whose favicon is set and it bubbles — which is exactly the signal this
 needs, since a member navigating to another domain is only interesting because
@@ -60,7 +75,7 @@ its favicon changes. It used to poll once a minute for that, which meant a
 group icon could sit wrong for up to sixty seconds and a timer ran in every
 window for the life of the session.
 
-Turn off **Favicon as group icon** and the script does nothing.
+Turn off **Favicon as group icon** to stop favicon assignment; startup folding remains active.
 
 ### Pictures from Tab Router
 
@@ -103,8 +118,8 @@ Prefer a local file for artwork the browser has no favicon for. Values
 containing a quote, a bracket or a backslash are ignored rather than allowed to
 break the stylesheet.
 
-Zen **folders** (`<zen-folder>`) are a different element and this mod does not
-touch them; they carry Zen's own icon, set from the folder's right-click menu.
+Zen **folders** (`<zen-folder>`) keep Zen's own icon, set from the folder's
+right-click menu.
 
 ## How it overrides Advanced Tab Groups and Arc
 

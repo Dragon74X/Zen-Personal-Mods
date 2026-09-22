@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Groupflow
-// @description    Assigns each tab group's dominant-domain favicon to --zzgf-icon.
+// @description    Assigns group favicons and folds nested groups/folders at startup.
 // @include        chrome://browser/content/browser.xhtml
 // ==/UserScript==
 
@@ -15,7 +15,12 @@
   const INSTANCE_KEY = "__zzgroupInstance";
   const previous = window[INSTANCE_KEY];
   try { previous?.retire?.(); } catch {}
-  const instance = { generation: (previous?.generation | 0) + 1, retire: () => {} };
+  const instance = {
+    generation: (previous?.generation | 0) + 1,
+    // A live update from an older version waits until the next window startup.
+    startupFolded: previous?.startupFolded ?? !!previous,
+    retire: () => {},
+  };
   window[INSTANCE_KEY] = instance;
 
   const PREFIX = "zzgroup.";
@@ -257,6 +262,17 @@
                   "TabGroupRemoved", "TabGroupRemovedFromDOM", "TabGroupUpdate",
                   "SSTabRestored", "ZenTabIconChanged"];
 
+  function foldStartupGroups() {
+    if (instance.startupFolded) return;
+    // Descendants first: expanding a parent must see its children's final state.
+    const selector = "tab-group, zen-folder";
+    for (const group of [...document.querySelectorAll(selector)].reverse()) {
+      if (group.hasAttribute("split-view-group")) continue;
+      group.collapsed = !!group.parentElement?.closest(selector);
+    }
+    instance.startupFolded = true;
+  }
+
   function start() {
     Services.prefs.addObserver(PREFIX, prefVarObserver);
     for (const ev of EVENTS) window.addEventListener(ev, schedule, true);
@@ -280,6 +296,7 @@
       },
     };
     const boot = setTimeout(refreshAll, 2000);
+    let foldTimer = null;
 
     // This script is injected per window and lives as long as the window
     // does, so every registration has to be released here or it leaks
@@ -295,6 +312,7 @@
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}
       clearTimeout(timer);
       clearTimeout(boot);
+      clearTimeout(foldTimer);
       dirty.clear();
     };
     window.addEventListener("unload", cleanup, { once: true });
@@ -306,6 +324,17 @@
     // releases everything when the window closes.
     try { window.addUnloadListener?.(cleanup); } catch {}
     instance.retire = cleanup;
+
+    if (!instance.startupFolded) {
+      // Zen resolves this after workspace/session restoration. Its folder
+      // creation code also queues collapsed-state writes on the next task.
+      window.gZenStartup.promiseInitialized.then(() => {
+        if (retired) return;
+        foldTimer = setTimeout(() => {
+          if (!retired) foldStartupGroups();
+        }, 0);
+      }).catch(e => console.error("[Groupflow] startup folding failed:", e));
+    }
   }
 
   // Written the moment this script is injected, not from start(). These

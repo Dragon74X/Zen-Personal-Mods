@@ -8,7 +8,7 @@
   {
     "type": "checkbox",
     "property": "zzgroup.enabled",
-    "label": "Turn on group styling *Per-state glass theming for tab groups and subgroups, in Glassflow's visual language. Every Glassflow token -- roundness, accent tone, sheen recipe, rim strength, glass intensity -- is inherited live, so knobs turned there carry over here automatically. Zen folders are untouched.*",
+    "label": "Turn on group styling *Per-state glass theming for tab groups and subgroups, in Glassflow's visual language. Every Glassflow token -- roundness, accent tone, sheen recipe, rim strength, glass intensity -- is inherited live, so knobs turned there carry over here automatically. Zen folder styling is untouched.*",
     "defaultValue": true
   },
   {

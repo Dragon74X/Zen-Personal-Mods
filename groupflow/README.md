@@ -33,8 +33,12 @@ Manual toggles, groups created later, and Sine reinjections do not repeat the pa
 When updating an already-running copy, restart Zen to apply the new startup behavior.
 
 The pass waits for [Zen startup initialization](https://github.com/zen-browser/desktop/blob/4c92731b2dbbcf3f5a4dad79c09d13c38f91f774/src/zen/common/modules/ZenStartup.mjs),
-then uses the native `collapsed` setter, including its accessibility updates and
-collapse/expand events. Regression check: `node --test tools/lifecycle.test.mjs`.
+restores Advanced Tab Groups' saved nesting, then uses the native `collapsed`
+setter, including its accessibility updates and collapse/expand events. It also
+updates ATG's saved collapse states so its delayed restore agrees. While loaded,
+Groupflow overrides ATG's Arc collapse behavior, which otherwise forces every
+group open; Arc appearance preferences stay as configured. Cleanup restores the
+original method. Regression check: `node --test tools/lifecycle.test.mjs`.
 
 ## What it styles
 
@@ -64,8 +68,10 @@ Tree Connectors owns it. Split-view groups are excluded throughout.
 computes its own; a parent whose direct children are all subgroups borrows
 from the first one, so it still gets an icon.
 
-Icons come from `page-icon:`, Firefox's own favicon protocol, served out of
-the local favicon store — no network fetch happens.
+Icons use the member tab's cached favicon, including restored and unloaded tabs.
+If unavailable, `page-icon:` reads Firefox's local favicon store for the dominant
+host. Groups with no eligible web tabs show a native folder icon instead of an
+empty backing plate. Icon rules and Tab Router's section pictures still take priority.
 
 Favicon refreshes use a 500 ms debounce and a 2-second startup pass. Zen patches a
 `ZenTabIconChanged` event into `tabbrowser.setIcon()`, so it fires for every

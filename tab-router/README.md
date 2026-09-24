@@ -44,10 +44,14 @@ above subgroups** (on) keeps a group's own tabs above any subgroups it
 contains, rather than interleaved. **Follow Zen routes and containers** (on)
 uses the destination workspace's container when a reload can be performed safely.
 
-A container change flushes session state first. Tabs with back history, form
-state, session storage, POST data, frames, or an ongoing load keep their current
+A container change waits for the top-level load to finish, then flushes session
+state. Ordinary iframes do not block it. Tabs with back history, form state,
+session storage, or POST data (including nested frames) keep their current
 container. The native close veto remains active. Group/workspace filing can
-still proceed without replacing the tab. `sortAll()` now returns a Promise;
+still proceed for those protected pages without replacing the tab. Loading tabs
+retry automatically on network completion. Already-filed tabs with a matching
+rule can also repair a container mismatch; deeper manual subgroups are preserved.
+`sortAll()` returns a Promise;
 use `await TabRouter.sortAll()` when you need completion.
 
 `TabRouter.applyOrder()` re-runs just the ordering pass.

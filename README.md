@@ -40,6 +40,16 @@ python tools/zen-smoke.py --zen /path/to/zen --arc /path/to/Arc-2.0 --transparen
 
 This starts all six scripts, checks the native transparent-page blur and modal dialog, and verifies cleanup. It does not benchmark the GPU or contact an existing browser profile. Arc and Transparent Zen are optional.
 
+For folder restoration and container routing with Advanced Tab Groups installed locally:
+
+```sh
+python tools/zen-routing-smoke.py --zen /path/to/zen --atg /path/to/Advanced-Tab-Groups
+```
+
+This uses a local fixture server and a disposable profile across three launches.
+It checks nested folding with ATG's Arc mode, cached/custom icons, manual toggles,
+loading iframe pages, and container repairs that preserve deeper subgroups.
+
 ## Sine update recovery
 
 The guard prevents overlapping install/update operations while loaded. It cannot reconstruct files already missing from an interrupted install. Restart after obtaining the updated guard. If a mod still has missing files, reinstall affected mods one at a time from their folder URLs, waiting for each install to finish. Install a working guard copy and restart before attempting another batch update. Do not move Sine's `temp` or extracted subfolders during a running install; those paths can be legitimate staging files.

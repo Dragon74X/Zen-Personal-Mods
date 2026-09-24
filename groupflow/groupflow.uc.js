@@ -182,29 +182,34 @@
     setShape(g, picture);
     const ruled = rule ?? picture;
     if (ruled) { setIcon(g, `url("${ruled}")`); return; }
-    const counts = new Map();
+    const counts = new Map(), icons = new Map();
+    const count = tab => {
+      const h = hostOf(tab);
+      if (!h) return;
+      counts.set(h, (counts.get(h) || 0) + 1);
+      // Zen retains the tab's actual favicon across restore/unloading. A
+      // synthetic https://host/ lookup can miss icons stored for another URL.
+      const icon = gBrowser.getIcon?.(tab) || tab.getAttribute("image");
+      if (icon && !/["'()\\]/.test(icon)) icons.set(h, icon);
+    };
     for (const el of g.groupContainer?.children ?? []) {
       if (!el.matches?.("tab")) continue;
-      const h = hostOf(el);
-      if (h) counts.set(h, (counts.get(h) || 0) + 1);
+      count(el);
     }
     // A parent whose direct children are all subgroups: borrow the first
     // subgroup's members so the parent still gets an icon.
     if (!counts.size) {
       for (const el of g.groupContainer?.children ?? []) {
         if (!gBrowser.isTabGroup?.(el)) continue;
-        for (const t of el.tabs ?? []) {
-          const h = hostOf(t);
-          if (h) counts.set(h, (counts.get(h) || 0) + 1);
-        }
+        for (const t of el.tabs ?? []) count(t);
         if (counts.size) break;
       }
     }
-    if (!counts.size) { g.style.removeProperty("--zzgf-icon"); return; }
+    if (!counts.size) { setIcon(g, 'url("chrome://browser/skin/zen-icons/folder.svg")'); return; }
     const host = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
     // page-icon: is Firefox's own favicon protocol, served from the local
     // favicon store -- no network fetch happens here.
-    setIcon(g, `url("page-icon:https://${host}/")`);
+    setIcon(g, `url("${icons.get(host) ?? `page-icon:https://${host}/`}")`);
   }
 
   // refreshAll runs half a second after any tab's favicon changes -- so
@@ -264,16 +269,30 @@
 
   function foldStartupGroups() {
     if (instance.startupFolded) return;
+    // Plain tab-group nesting is restored by ATG, after Zen's own startup.
+    // Restore it now, before deciding which groups are roots.
+    const atg = window.advancedTabGroups;
+    atg?.applySavedParents?.();
     // Descendants first: expanding a parent must see its children's final state.
     const selector = "tab-group, zen-folder";
     for (const group of [...document.querySelectorAll(selector)].reverse()) {
       if (group.hasAttribute("split-view-group")) continue;
       group.collapsed = !!group.parentElement?.closest(selector);
+      // ATG also reapplies its saved states later, even if its observers have
+      // not started yet. Give that restore the same startup state.
+      if (group.tagName === "tab-group") atg?.saveGroupCollapsedState?.(group.id, group.collapsed);
     }
     instance.startupFolded = true;
   }
 
   function start() {
+    // ATG's Arc behavior forcibly removes every collapsed attribute. Its
+    // isArcMode method only controls collapse restoration/observers; the
+    // appearance still follows the user's unchanged CSS preferences.
+    const atg = window.advancedTabGroups;
+    const arcMode = atg?.isArcMode;
+    const allowCollapse = () => false;
+    if (typeof arcMode === "function") atg.isArcMode = allowCollapse;
     Services.prefs.addObserver(PREFIX, prefVarObserver);
     for (const ev of EVENTS) window.addEventListener(ev, schedule, true);
 
@@ -307,6 +326,7 @@
     const cleanup = () => {
       if (retired) return;
       retired = true;
+      if (atg?.isArcMode === allowCollapse) atg.isArcMode = arcMode;
       try { delete window.Groupflow; } catch {}
       for (const ev of EVENTS) window.removeEventListener(ev, schedule, true);
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}

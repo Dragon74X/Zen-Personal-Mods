@@ -817,10 +817,8 @@
     const cap = num("max-depth", 0);
     if (cap > 0) parts = parts.slice(0, cap);
 
-    if (startsWithPath(chainOf(tab), parts)) {        // filed right (or deeper)
-      healWorkspace(tab);
-      return false;
-    }
+    const chain = chainOf(tab);
+    const filed = startsWithPath(chain, parts);
 
     // ---- destination resolution, systemic and in strict order ----------
     // Workspace:  Zen space-routing rule  >  workspace already holding the
@@ -838,8 +836,9 @@
     if (bool("follow-containers", true) && dest.ctx != null && dest.ctx !== haveCtx) {
       const fresh = await reopenInContainer(tab, dest.ctx, dest.ws);
       if (!fresh) return false;
-      if (fresh !== tab) { bustGroups(); return file(fresh, parts); }
+      if (fresh !== tab) { bustGroups(); return file(fresh, filed ? chain : parts); }
     }
+    if (filed) { healWorkspace(tab); return false; }
     if (dest.ws && dest.ws !== tabWs) {
       try {
         window.gZenWorkspaces.moveTabToWorkspace(tab, dest.ws);
@@ -919,6 +918,9 @@
   async function reopenInContainer(tab, wantCtx, targetWs) {
     const url = (() => { try { return tab.linkedBrowser?.currentURI?.spec; } catch { return null; } })();
     if (!url || !/^https?:/i.test(url)) return tab;
+    // Wait for network STOP; filing now would make skip-grouped hide the
+    // pending container change on the next route.
+    if (tab.hasAttribute("busy")) return null;
     let fresh = null, wasSelected = false;
     try {
       // Routing runs after load. Unlike Zen's navigation-time redirect, a
@@ -929,11 +931,13 @@
         queueRoute(tab, "navigation changed while routing");
         return null;
       }
+      if (tab.hasAttribute("busy")) return null;
       const state = JSON.parse(window.SessionStore.getTabState(tab));
       const entry = state.entries?.[0];
+      const hasPost = e => !!e && (!!e.postdata || e.children?.some(hasPost));
       if (state.entries?.length !== 1 || state.formdata || state.storage ||
-          entry?.postdata || entry?.children || tab.hasAttribute("busy")) {
-        note(`kept container for "${tab.label}": page has session state or is loading`);
+          hasPost(entry)) {
+        note(`kept container for "${tab.label}": page has session state`);
         return tab;
       }
       // The navigating page's own principal, like Zen's routing redirect
@@ -1162,7 +1166,13 @@
       if (bool("refile-mismatched", true)) {
         const want = precomputedParts !== undefined ? precomputedParts : targetPath(tab);
         const have = chainOf(tab);
-        if (want?.length && have.length && !startsWithPath(have, want)) return null;
+        if (want?.length && have.length) {
+          if (!startsWithPath(have, want)) return null;
+          // The previous version could file a tab before changing its
+          // container. Also repair that case without flattening subgroups.
+          const ctx = bool("follow-containers", true) ? resolveDestination(tab, want).ctx : null;
+          if (ctx != null && ctx !== parseInt(tab.getAttribute("usercontextid") || "0", 10)) return null;
+        }
       }
       return "already in a group";
     }
@@ -1213,6 +1223,12 @@
     pendingIds.add(id);
   }
   const progress = {
+    onStateChange(browser, wp, _req, flags) {
+      if (!wp?.isTopLevel || !(flags & Ci.nsIWebProgressListener.STATE_STOP) ||
+          !(flags & Ci.nsIWebProgressListener.STATE_IS_NETWORK)) return;
+      const tab = gBrowser.getTabForBrowser(browser);
+      if (tab) queueRoute(tab, "loaded");
+    },
     onLocationChange(browser, wp, _req, _loc, _flags) {
       // Subframes report here too, and an ad frame reloading every second
       // would reset the debounce below for as long as it kept going: the
@@ -1538,7 +1554,7 @@
         } catch {}
 
         const r = {
-          version: "1.34.0",
+          version: "1.34.1",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The

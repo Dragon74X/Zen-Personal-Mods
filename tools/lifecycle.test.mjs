@@ -107,7 +107,7 @@ async function routerEnv(extra = {}) {
       asyncOpen(listener) { NetUtil.open(this, listener); } }),
     open: (channel, listener) => callbacks.push([channel, listener]),
     readInputStreamToString: (s, count) => s.body.slice(0, count) };
-  const h = await load("tab-router", "fetchAnon, fetchCreator, fetchSectionIcon, creatorMap, iconMap, learnedMap, saveLearned, saveCreators, saveIcons, forgetAll, cancelLookups, rules, suggestRules, route, skip, targetPath, reopenInContainer, resolveDestination, prefObserver", {
+  const h = await load("tab-router", "fetchAnon, fetchCreator, fetchSectionIcon, creatorMap, iconMap, learnedMap, saveLearned, saveCreators, saveIcons, forgetAll, cancelLookups, rules, suggestRules, route, skip, targetPath, reopenInContainer, resolveDestination, prefObserver, progress, placeInPath", {
     ...c, window: {}, gBrowser: { tabGroups: [], tabs: [] }, document: { querySelectorAll: () => [] },
     ChromeUtils: { generateQI: () => () => {}, importESModule: name => name.includes("NetUtil") ? { NetUtil }
       : { PrivateBrowsingUtils: { isWindowPrivate: () => false } } },
@@ -116,7 +116,7 @@ async function routerEnv(extra = {}) {
       setStringPref: (k, v) => prefs.set(k, v) },
       io: { newURI: url => { const u = new URL(url); return { scheme: u.protocol.slice(0, -1), host: u.hostname, userPass: u.username + u.password }; } },
       scriptSecurityManager: { createContentPrincipal() {} } },
-    Ci: { nsILoadInfo: {}, nsIContentPolicy: {}, nsIRequest: {} },
+    Ci: { nsILoadInfo: {}, nsIContentPolicy: {}, nsIRequest: {}, nsIWebProgressListener: { STATE_STOP: 16, STATE_IS_NETWORK: 0x40000 } },
     Components: { isSuccessCode: s => s === 0 },
     URLSearchParams, Blob, Uint8Array, OffscreenCanvas: class {}, ...extra,
   });
@@ -619,7 +619,7 @@ test("Unloader protects actual Zen split and native protected tabs", async () =>
 });
 
 test("Router container changes preserve forms, history, POSTs and vetoed closes", async () => {
-  for (const state of [{ entries: [{}, {}] }, { entries: [{}], formdata: { id: { draft: "text" } } }, { entries: [{ postdata: "encoded" }] }, { entries: [{}], storage: {} }]) {
+  for (const state of [{ entries: [{}, {}] }, { entries: [{}], formdata: { id: { draft: "text" } } }, { entries: [{ postdata: "encoded" }] }, { entries: [{ children: [null, { children: [{ postdata: "encoded" }] }] }] }, { entries: [{}], storage: {} }]) {
     let added = 0, flushed = 0;
     const e = await routerEnv({ window: { SessionStore: { getTabState: () => JSON.stringify(state) } },
       gBrowser: { async prepareDiscardBrowser() { flushed++; }, addTab() { added++; } } });
@@ -651,12 +651,51 @@ test("Router replaces a simple page only after flush and keeps its selection", a
     addTab(_url, options) { calls.push("add"); assert.equal(options.userContextId, 2); return fresh; },
     removeTab(old) { calls.push("close"); old.closing = true; } };
   const e = await routerEnv({ window: { SessionStore: { getTabState() {
-    calls.push("state"); return JSON.stringify({ entries: [{}] });
+    calls.push("state"); return JSON.stringify({ entries: [{ children: [null, { url: "https://example.com/frame" }] }] });
   } } }, gBrowser });
   e.prefs.set("zzrouter.enabled", true);
   assert.equal(await e.h.reopenInContainer(t, 2, null), fresh);
   assert.deepEqual(calls, ["flush", "state", "add", "close"]);
   assert.equal(gBrowser.selectedTab, fresh);
+});
+
+test("Router defers loading tabs and retries on top-level network completion", async () => {
+  const t = tab(); t.setAttribute("busy", "true");
+  let flushed = false;
+  const e = await routerEnv({ gBrowser: {
+    getTabForBrowser: () => t, prepareDiscardBrowser() { flushed = true; },
+  } });
+  e.prefs.set("zzrouter.enabled", true);
+  assert.equal(await e.h.reopenInContainer(t, 2, null), null);
+  assert.equal(flushed, false);
+  e.h.progress.onStateChange({}, { isTopLevel: false }, null, 0x40010);
+  e.h.progress.onStateChange({}, { isTopLevel: true }, null, 16);
+  assert.equal(e.c.timers.size, 0);
+  t.removeAttribute("busy");
+  e.h.progress.onStateChange({}, { isTopLevel: true }, null, 0x40010);
+  assert.equal(e.c.timers.size, 1);
+});
+
+test("Router repairs an already-filed container mismatch without flattening the path", async () => {
+  const t = tab(), fresh = tab(); t.setAttribute("usercontextid", "1");
+  const root = { ...element(), tagName: "tab-group", label: "Target", parentElement: { closest: () => null },
+    querySelectorAll: () => [{ getAttribute: () => "2" }] };
+  const child = { ...element(), tagName: "tab-group", label: "Manual subgroup", parentElement: { closest: () => root },
+    addTabs(tabs) { tabs.forEach(t => { t.group = child; }); } };
+  t.group = child;
+  const e = await routerEnv({ document: { querySelectorAll: () => [root, child] },
+    window: { SessionStore: { getTabState: () => JSON.stringify({ entries: [{}] }) } },
+    gBrowser: { tabGroups: [root, child], async prepareDiscardBrowser() {}, addTab: () => fresh,
+      removeTab(t) { t.closing = true; } },
+  });
+  e.prefs.set("zzrouter.enabled", true);
+  e.prefs.set("zzrouter.rules", "example.com > Target");
+  assert.equal(e.h.skip(t), null);
+  await e.h.placeInPath(t, ["Target"]);
+  assert.equal(fresh.group, child);
+  e.prefs.set("zzrouter.follow-containers", false);
+  t.closing = false;
+  assert.equal(e.h.skip(t), "already in a group");
 });
 
 test("Groupflow ignores split groups in dirty refreshes and refreshes on enabling favicons", async () => {
@@ -670,6 +709,23 @@ test("Groupflow ignores split groups in dirty refreshes and refreshes on enablin
   h.schedule({ target: { tagName: "tab", group: g } });
   [...c.timers.values()][0](); c.timers.clear(); assert.equal(writes, 0);
   h.prefVarObserver.observe(null, null, "zzgroup.favicons"); assert.equal(c.timers.size, 1);
+});
+
+test("Groupflow uses the restored tab favicon and gives iconless groups a folder fallback", async () => {
+  const t = tab("http://example.com/specific-page");
+  t.matches = name => name === "tab";
+  t.setAttribute("image", "data:image/png;base64,YQ==");
+  const styles = new Map();
+  const g = { ...element(), tagName: "tab-group", groupContainer: { children: [t] },
+    style: { setProperty: (k, v) => styles.set(k, v), getPropertyValue: k => styles.get(k) } };
+  const h = await load("groupflow", "refreshGroup", { window: {}, gBrowser: {},
+    Services: { prefs: { getBoolPref: (_k, d) => d, getStringPref: (_k, d) => d } },
+  });
+  h.refreshGroup(g);
+  assert.equal(styles.get("--zzgf-icon"), 'url("data:image/png;base64,YQ==")');
+  g.groupContainer.children = [];
+  h.refreshGroup(g);
+  assert.equal(styles.get("--zzgf-icon"), 'url("chrome://browser/skin/zen-icons/folder.svg")');
 });
 
 async function groupflowStartupEnv() {
@@ -788,6 +844,28 @@ test("Groupflow updating a pre-feature instance defers folding until next window
   await Promise.resolve(); e.tick();
   assert.equal(retired, 1);
   assert.deepEqual(e.writes, []);
+});
+
+test("Groupflow restores ATG nesting before folding and releases its Arc override", async () => {
+  const e = await groupflowStartupEnv();
+  const root = e.group("root", { collapsed: true }), child = e.group("child");
+  root.id = "root"; child.id = "child";
+  const saved = new Map(), arcMode = () => true;
+  e.w.advancedTabGroups = {
+    isArcMode: arcMode,
+    applySavedParents() { child.parentElement.closest = () => root; },
+    saveGroupCollapsedState(id, value) { saved.set(id, value); },
+  };
+  e.ready.resolve(); await e.inject(); await Promise.resolve(); e.tick();
+  assert.equal(root.collapsed, false); assert.equal(child.collapsed, true);
+  assert.equal(e.w.advancedTabGroups.isArcMode(), false);
+  assert.deepEqual([...saved], [["child", true], ["root", false]]);
+  child.collapsed = false;
+  await e.inject(); await Promise.resolve(); e.tick();
+  assert.equal(child.collapsed, false, "reinjection must keep a manual expansion");
+  assert.equal(e.w.advancedTabGroups.isArcMode(), false);
+  e.w.__zzgroupInstance.retire();
+  assert.equal(e.w.advancedTabGroups.isArcMode, arcMode);
 });
 
 test("Router diagnostic path calculation learns nothing and starts no lookups", async () => {

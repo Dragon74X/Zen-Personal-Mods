@@ -122,13 +122,10 @@ If unavailable, `page-icon:` reads Firefox's local favicon store for the dominan
 host. Groups with no eligible web tabs show a native folder icon instead of an
 empty backing plate. Icon rules and Tab Router's section pictures still take priority.
 
-Favicon refreshes use a 500 ms debounce and a 2-second startup pass. Zen patches a
-`ZenTabIconChanged` event into `tabbrowser.setIcon()`, so it fires for every
-tab whose favicon is set and it bubbles — which is exactly the signal this
-needs, since a member navigating to another domain is only interesting because
-its favicon changes. It used to poll once a minute for that, which meant a
-group icon could sit wrong for up to sixty seconds and a timer ran in every
-window for the life of the session.
+Favicon changes and new Tab Router pictures share a 500 ms debounce, with a
+2-second startup pass. Standalone group lifecycle changes refresh during their
+metadata update. Collapse/expand does not scan or serialize Groupflow metadata.
+Icon removal and history clearing refresh immediately and cancel queued refreshes.
 
 Turn off **Favicon as group icon** to stop favicon assignment; startup folding remains active.
 

@@ -20,7 +20,6 @@
 
   const P = "zzturbo.";
   const bool = (k, d) => { try { return Services.prefs.getBoolPref(P + k, d); } catch { return d; } };
-  const str  = (k, d) => { try { return Services.prefs.getStringPref(P + k, d); } catch { return d; } };
   // Types are CHECKED, never guessed by attempting reads. Calling
   // getIntPref on a string pref (or getStringPref on a bool) throws
   // NS_ERROR_UNEXPECTED, and Firefox logs every one even when it is
@@ -146,8 +145,8 @@
 
   const unknown = new Set();
 
-  function applyPack(packName) {
-    const saved = readSaved();
+  function applyPack(packName, saved) {
+    let changed = false;
     for (const [name, v] of PACKS[packName]) {
       if (!prefExists(name)) {
         if (!unknown.has(name)) {
@@ -158,31 +157,33 @@
       }
       // An existing snapshot means this pack already applied. Re-syncing
       // must not overwrite a later user edit, including after a restart.
-      if (getAny(name) === v || name in saved) continue;
+      const current = getAny(name);
+      if (current === v || name in saved) continue;
       const before = Services.prefs.prefHasUserValue(name)
-        ? { had: true, v: getAny(name) } : { had: false };
-      try { setAny(name, v); saved[name] = { ...before, applied: v }; }
+        ? { had: true, v: current } : { had: false };
+      try { setAny(name, v); saved[name] = { ...before, applied: v }; changed = true; }
       catch (e) { note(`set ${name} failed: ${e}`); }
     }
-    writeSaved(saved);
     note(`pack on: ${packName}`);
+    return changed;
   }
 
-  function revertPack(packName) {
-    const saved = readSaved();
+  function revertPack(packName, saved) {
+    let changed = false;
     for (const [name, v] of PACKS[packName]) {
       const s = saved[name];
       if (s === undefined) continue;                 // never touched by us
       // The user changed it since we set it; it is theirs now.
-      if (getAny(name) !== v) { delete saved[name]; continue; }
+      if (getAny(name) !== v) { delete saved[name]; changed = true; continue; }
       try {
         if (s.had) setAny(name, s.v);
         else Services.prefs.clearUserPref(name);
         delete saved[name];
+        changed = true;
       } catch (e) { note(`revert ${name} failed: ${e}`); }
     }
-    writeSaved(saved);
     note(`pack off: ${packName} (restored)`);
+    return changed;
   }
 
   // A pack that no longer exists can still own prefs in the snapshot written by
@@ -191,8 +192,7 @@
   // that enabled it holds layout.css.corner-shape.enabled = false plus a
   // snapshot entry, and with the pack gone nothing would ever revert it. Give
   // back anything the current packs no longer claim.
-  function reclaimOrphans() {
-    const saved = readSaved();
+  function reclaimOrphans(saved) {
     const owned = new Set();
     for (const list of Object.values(PACKS)) for (const [name] of list) owned.add(name);
     let changed = false;
@@ -213,16 +213,19 @@
       delete saved[name];
       changed = true;
     }
-    if (changed) writeSaved(saved);
+    return changed;
   }
 
   function syncPacks() {
     if (!isMainAppWindow()) return;
-    reclaimOrphans();
+    const saved = readSaved();
+    let changed = reclaimOrphans(saved);
     for (const packName of Object.keys(PACKS)) {
-      if (bool("pack-" + packName, PACK_DEFAULTS[packName] ?? true)) applyPack(packName);
-      else revertPack(packName);
+      const updated = bool("pack-" + packName, PACK_DEFAULTS[packName] ?? true)
+        ? applyPack(packName, saved) : revertPack(packName, saved);
+      changed ||= updated;
     }
+    if (changed) writeSaved(saved);
   }
 
   // ---- speculative connection warmup -------------------------------------
@@ -490,6 +493,7 @@
     const cleanup = () => {
       if (retired) return;
       retired = true;
+      window.removeEventListener("unload", cleanup);
       smoothingObserver?.disconnect(); smoothingObserver = null;
       stopSmoothing();
       try { Services.prefs.removeObserver(P, prefObserver); } catch {}

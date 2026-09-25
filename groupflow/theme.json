@@ -3,7 +3,7 @@
   "name": "Groupflow",
   "description": "Nested tab-group persistence, icons, native controls and startup folding, with per-state glass styling inherited from Glassflow.",
   "author": "Dragon74X",
-  "version": "1.43.0",
+  "version": "1.43.1",
   "homepage": "https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/groupflow",
   "readme": "https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/main/groupflow/README.md",
   "style": {

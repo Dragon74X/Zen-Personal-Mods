@@ -192,7 +192,7 @@ Pending samples are discarded after a tab/document change, history clearing, or 
 `Glassflow.sample.status()` in the console says whether sampling is running
 and which strip of the page it last read. `ticks` counts reads started; `frames` counts frames painted; `busyForMs` and `frameAgeMs` report pending-read duration and displayed-frame age.
 
-The refresh timer continues while a snapshot or PNG encoding is pending. A read pending for more than 2000 ms is superseded on the next timer tick; late results cannot overwrite a newer frame. Changed frames request the next read after 80 ms; unchanged or pending reads use the configured interval (250 ms by default).
+The refresh timer continues while a snapshot or PNG encoding is pending. A read pending for more than 2000 ms is superseded on the next timer tick; late results cannot overwrite a newer frame. Pixel signatures are committed only after painting, so stalled encoding remains retryable even when pixels are unchanged. Changed frames request the next read after 80 ms; unchanged or pending reads use the configured interval (250 ms by default).
 
 In a private window the last frame is dropped as soon as the sidebar
 hides, rather than kept for a quick re-show, and clearing recent history

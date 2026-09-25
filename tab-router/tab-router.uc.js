@@ -606,7 +606,7 @@
   // stamps come off and Groupflow falls back to favicons.
   function stampIcons(recover = false) {
     const on = bool("section-icons", true);
-    let changed = 0;
+    let changed = 0, removed = false;
     for (const g of groups()) {
       const want = on && parentOf(g) ? iconMap().get((g.label ?? "").trim().toLowerCase()) : null;
       if (recover && on && bool("enabled", false) && parentOf(g) && !want?.d && !isPrivate()) {
@@ -628,10 +628,11 @@
       } else if (g.hasAttribute("data-zzrouter-icon")) {
         g.removeAttribute("data-zzrouter-icon");
         g.removeAttribute("data-zzrouter-icon-shape");
+        removed = true;
         changed++;
       }
     }
-    if (changed) try { window.Groupflow?.refresh?.(); } catch {}
+    if (changed) try { window.Groupflow?.refresh?.(!removed); } catch {}
   }
 
   // The creator for this tab if known; otherwise starts the lookup and
@@ -712,19 +713,16 @@
   // animation (tabgroup-js.patch: TabGroupRemoved, then animateItemClose(),
   // then remove()). isConnected is true the whole time, so on its own it let
   // findChild() file a tab into a group that was already on its way out.
-  // `tabs` is recursive on Zen -- a parent holding only subgroups counts
-  // its grandchildren -- so zero means genuinely empty.
-  const live = (g) => g.isConnected && (g.tabs?.length ?? 1) > 0;
+  // A descendant query includes nested groups and stops at the first tab;
+  // Zen's `tabs` getter instead collects every descendant into new arrays.
+  const live = (g) => g.isConnected && !!g.querySelector("tab");
 
   function groups() {
     if (groupsCache && groupsCache.every(live)) return groupsCache;
-    const set = new Set();
-    try { for (const g of gBrowser.tabGroups) set.add(g); } catch {}
-    try { for (const g of document.querySelectorAll("tab-group")) set.add(g); } catch {}
     // Zen folders subclass tab-group but live pinned; split-view wrappers
     // are positional artifacts. Leave both alone.
-    groupsCache = [...set].filter(g => g.tagName === "tab-group" && !g.isZenFolder &&
-                                       !g.hasAttribute("split-view-group") && live(g));
+    groupsCache = [...document.querySelectorAll("tab-group")].filter(g =>
+      !g.isZenFolder && !g.hasAttribute("split-view-group") && live(g));
     return groupsCache;
   }
 
@@ -789,14 +787,9 @@
   const samePath = (a, b) =>
     a.length === b.length && a.every((s, i) => s.toLowerCase() === b[i].toLowerCase());
 
-  // gBrowser.tabs does not cover everything in Zen: on a real profile it
-  // reported 13 while the document held 56 .tabbrowser-tab elements, 25 of
-  // them Essentials. Union both sources, de-duplicated.
+  // DOM tabs include all workspaces and Essentials; gBrowser.tabs is a subset.
   function allTabs() {
-    const set = new Set();
-    try { for (const t of gBrowser.tabs) set.add(t); } catch {}
-    try { for (const t of document.querySelectorAll(".tabbrowser-tab")) set.add(t); } catch {}
-    return [...set];
+    return [...document.querySelectorAll(".tabbrowser-tab")];
   }
 
   // ---- ancestry ----------------------------------------------------------
@@ -921,8 +914,11 @@
       const c = parseInt(t.getAttribute("usercontextid") || "0", 10);
       counts.set(c, (counts.get(c) || 0) + 1);
     }
-    if (!counts.size) return null;
-    return [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    let context = null, most = 0;
+    for (const [c, count] of counts) {
+      if (count > most) { context = c; most = count; }
+    }
+    return context;
   }
 
   // Reopens the tab with the given container (and workspace, when given);
@@ -1066,8 +1062,10 @@
   const sameOrder = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
 
   function reorderBlock(parentNode, els, sorted) {
-    if (els.length < 2 || sameOrder(domOrder(els), sorted)) return;
-    const next = domOrder(els).at(-1).nextSibling;
+    if (els.length < 2) return;
+    const current = domOrder(els);
+    if (sameOrder(current, sorted)) return;
+    const next = current.at(-1).nextSibling;
     for (const el of sorted) mvEl(el, () => parentNode.insertBefore(el, next));
   }
 
@@ -1099,7 +1097,7 @@
       // tabs; zenHandleTabMove throws on it (previousTabStates[0]).
       const subs = [...c.children].filter(el => el.tagName === "tab-group" && live(el));
       if (!subs.length) continue;
-      const sorted = mode === 2 ? domOrder(subs) : subs.slice().sort(cmp);
+      const sorted = mode === 2 ? subs : subs.slice().sort(cmp);
       if (tabsFirst) {
         // Appending every subgroup to the container end leaves all loose
         // tabs above them, in their existing order -- including tabs that
@@ -1610,7 +1608,7 @@
         } catch {}
 
         const r = {
-          version: "1.34.3",
+          version: "1.34.4",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The
@@ -1624,8 +1622,7 @@
           groupsCached: groupsCache ? groupsCache.length : "(cold)",
           // A count, not the contents: status() gets pasted into bug reports.
           creatorsRemembered: creatorMap().size,
-          sectionIconsRemembered: [...iconMap().values()].filter(v => v.d).length,
-          sectionsWithoutPicture: [...iconMap().values()].filter(v => !v.d).length,
+          sectionIconsRemembered: iconMap().size,
           creatorLookupsInFlight: inFlight.size,
           tabs: allTabs().length,
           tabsWithATarget: withTarget,
@@ -1658,6 +1655,7 @@
     const cleanup = () => {
       if (retired) return;
       retired = true;
+      window.removeEventListener("unload", cleanup);
       cancelLookups();
       try { delete window.TabRouter; } catch {}
       clearTimeout(orderTimer); orderTimer = null;

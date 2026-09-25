@@ -3,7 +3,7 @@
   "name": "Download Prompt",
   "description": "When a download's name is already taken, asks whether to replace the file or keep both, instead of quietly saving it as name(1).ext.",
   "author": "Dragon74X",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "homepage": "https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/download-prompt",
   "readme": "https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/main/download-prompt/README.md",
   "style": {

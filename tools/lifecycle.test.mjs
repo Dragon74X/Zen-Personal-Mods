@@ -107,7 +107,7 @@ async function routerEnv(extra = {}) {
       asyncOpen(listener) { NetUtil.open(this, listener); } }),
     open: (channel, listener) => callbacks.push([channel, listener]),
     readInputStreamToString: (s, count) => s.body.slice(0, count) };
-  const h = await load("tab-router", "fetchAnon, fetchCreator, fetchSectionIcon, creatorMap, iconMap, stampIcons, live, majorityContext, learnedMap, saveLearned, saveCreators, saveIcons, forgetAll, cancelLookups, rules, suggestRules, route, skip, targetPath, reopenInContainer, resolveDestination, prefObserver, progress, placeInPath, initialRequest, retire: () => retired = true", {
+  const h = await load("tab-router", "fetchAnon, fetchCreator, fetchSectionIcon, creatorMap, iconMap, stampIcons, live, majorityContext, learnedMap, saveLearned, saveCreators, saveIcons, forgetAll, cancelLookups, rules, suggestRules, route, queueRoute, onAttrModified, skip, targetPath, reopenInContainer, resolveDestination, prefObserver, progress, placeInPath, initialRequest, retire: () => retired = true", {
     ...c, window: {}, gBrowser: { tabGroups: [], tabs: [] }, document: { querySelectorAll: () => [] },
     ChromeUtils: { generateQI: () => () => {}, importESModule: name => name.includes("NetUtil") ? { NetUtil }
       : { PrivateBrowsingUtils: { isWindowPrivate: () => false } } },
@@ -725,6 +725,113 @@ test("Router defers loading tabs and retries on top-level network completion", a
   assert.equal(e.c.timers.size, 1);
 });
 
+async function immediateRouterEnv({ flush = async () => {}, state = { entries: [{}] } } = {}) {
+  const c = clock(), delays = new Map(), groups = [], added = [], t = tab();
+  t.setAttribute("usercontextid", "1"); t.setAttribute("zen-workspace-id", "source");
+  const detach = t => {
+    if (t.group) t.group.tabs = t.group.tabs.filter(member => member !== t);
+    t.group = null;
+  };
+  const gBrowser = { tabGroups: groups, tabs: [t], getTabForBrowser: () => t,
+    prepareDiscardBrowser: flush, ungroupTab: detach,
+    addTabGroup(tabs, { label }) {
+      const g = { ...element(), tagName: "tab-group", label, tabs: [], parentElement: { closest: () => null },
+        querySelector: () => g.tabs[0] || null, querySelectorAll: () => g.tabs,
+        addTabs(tabs) { for (const t of tabs) { detach(t); g.tabs.push(t); t.group = g; } } };
+      g.addTabs(tabs); groups.push(g); return g;
+    },
+    addTab(url, options) {
+      const fresh = tab(url); fresh.setAttribute("usercontextid", String(options.userContextId));
+      added.push(fresh); return fresh;
+    },
+    removeTab(t) { detach(t); t.closing = true; },
+  };
+  const e = await routerEnv({ ...c,
+    setTimeout(fn, ms) { const id = c.setTimeout(fn); delays.set(id, ms); return id; },
+    clearTimeout(id) { c.clearTimeout(id); delays.delete(id); },
+    gBrowser, document: { querySelectorAll: () => groups },
+    window: { SessionStore: { getTabState: () => JSON.stringify(state) },
+      gZenSpaceRoutingManager: { getAllRoutes: () => [{ openIn: "destination" }], isRouteMatching: () => true },
+      gZenWorkspaces: { activeWorkspace: "source", getWorkspaceFromId: uuid => ({ uuid, containerTabId: 2 }),
+        moveTabToWorkspace(t, id) { t.setAttribute("zen-workspace-id", id); } } },
+  });
+  e.prefs.set("zzrouter.enabled", true); e.prefs.set("zzrouter.rules", "example.com > Target");
+  const pending = () => [...c.timers.keys()].filter(id => delays.get(id) === 0);
+  const tick = async () => {
+    for (const id of pending()) { const fn = c.timers.get(id); c.clearTimeout(id); delays.delete(id); fn(); }
+    await new Promise(resolve => setImmediate(resolve));
+  };
+  return { ...e, c, t, groups, added, pending, tick };
+}
+
+test("Router coalesces navigation bursts at 0 ms without resetting or routing an older URL", async () => {
+  const e = await immediateRouterEnv();
+  e.prefs.set("zzrouter.follow-containers", false);
+  e.prefs.set("zzrouter.delay-ms", "400");
+  e.prefs.set("zzrouter.rules", "example.com > Old\nfinal.example > Final");
+  e.h.progress.onLocationChange({}, { isTopLevel: true });
+  const first = [...e.c.timers.keys()]; assert.equal(first.length, 1);
+  assert.deepEqual(e.pending(), first, "stored delay must not postpone routing");
+  e.t.linkedBrowser.currentURI = tab("https://final.example/page").linkedBrowser.currentURI;
+  e.t.label = "Final page";
+  e.h.onAttrModified({ target: e.t, detail: { changed: ["label"] } });
+  e.h.progress.onStateChange({}, { isTopLevel: true }, null, 0x40010);
+  assert.deepEqual([...e.c.timers.keys()], first, "later events retain the original timer");
+  await e.tick();
+  assert.equal(e.t.group.label, "Final"); assert.equal(e.groups.length, 1);
+});
+
+test("Router files busy tabs immediately, excludes their old container vote and finishes despite skip-grouped", async () => {
+  let flushes = 0;
+  const e = await immediateRouterEnv({ flush: async () => { flushes++; } });
+  e.prefs.set("zzrouter.refile-mismatched", false); e.t.setAttribute("busy", "true");
+  await e.h.route(e.t, "navigation");
+  assert.equal(e.t.group.label, "Target");
+  assert.equal(e.t.getAttribute("zen-workspace-id"), "destination");
+  assert.equal(e.t.getAttribute("usercontextid"), "1");
+  assert.equal(flushes, 0); assert.equal(e.added.length, 0);
+  assert.equal(e.h.majorityContext(e.t.group), null, "pending tab cannot establish the destination container");
+  const resident = tab(); resident.setAttribute("usercontextid", "0"); e.t.group.tabs.push(resident);
+  assert.equal(e.h.majorityContext(e.t.group), 0, "settled container 0 still votes");
+  e.t.removeAttribute("busy");
+  e.h.progress.onStateChange({}, { isTopLevel: true }, null, 0x40010);
+  await e.tick();
+  assert.equal(flushes, 1); assert.equal(e.added.length, 1); assert.equal(e.t.closing, true);
+  assert.equal(e.added[0].getAttribute("usercontextid"), "2");
+  assert.equal(e.added[0].group.label, "Target");
+  assert.equal(e.h.skip(e.added[0]), "already in a group");
+});
+
+test("Router retains one reroute during session flush without polling or bypassing form protection", async () => {
+  const flush = deferred(); let flushes = 0;
+  const e = await immediateRouterEnv({ flush: () => { flushes++; return flush.promise; },
+    state: { entries: [{}], formdata: { id: { draft: "unsaved" } } } });
+  const routing = e.h.route(e.t, "navigation");
+  e.h.onAttrModified({ target: e.t, detail: { changed: ["label"] } });
+  await e.tick();
+  e.h.queueRoute(e.t, "creator"); await e.tick();
+  assert.equal(e.pending().length, 0, "in-flight routing must not poll");
+  assert.equal(flushes, 1); assert.equal(e.added.length, 0);
+  flush.resolve(); await routing;
+  assert.equal(e.pending().length, 1, "flush completion retains exactly one reroute");
+  await e.tick();
+  assert.equal(e.pending().length, 0); assert.equal(e.added.length, 0);
+  assert.equal(e.t.closing, undefined); assert.equal(e.t.group.label, "Target");
+});
+
+test("Router retries a redirect during session flush without reopening or filing the old URL", async () => {
+  const flush = deferred(), e = await immediateRouterEnv({ flush: () => flush.promise });
+  e.prefs.set("zzrouter.rules", "example.com > Old\nfinal.example > Final");
+  const routing = e.h.route(e.t, "navigation");
+  e.t.linkedBrowser.currentURI = tab("https://final.example/page").linkedBrowser.currentURI;
+  e.h.progress.onLocationChange({}, { isTopLevel: true }); await e.tick();
+  flush.resolve(); await routing;
+  assert.equal(e.added.length, 0); assert.equal(e.groups.length, 0); assert.equal(e.pending().length, 1);
+  await e.tick();
+  assert.equal(e.added.length, 1); assert.equal(e.added[0].linkedBrowser.currentURI.spec, "https://final.example/page");
+  assert.equal(e.added[0].group.label, "Final"); assert.equal(e.groups.length, 1);
+});
+
 test("Router repairs an already-filed container mismatch without flattening the path", async () => {
   const t = tab(), fresh = tab(); t.setAttribute("usercontextid", "1");
   const root = { ...element(), tagName: "tab-group", label: "Target", parentElement: { closest: () => null },
@@ -813,13 +920,60 @@ test("Router first-request routing excludes existing/restoring/foreign tabs and 
   }
 });
 
+test("Router follows an initial unmatched GET into a matched redirect before document commit", async () => {
+  const e = await initialRouteEnv();
+  e.channel.URI.spec = "https://source.example/start";
+  e.channel.originalURI = { spec: e.channel.URI.spec };
+  e.dest.isRouteFound = false; e.t.setAttribute("busy", "true"); e.observe();
+  assert.deepEqual(e.calls, []);
+  e.context.currentWindowGlobal.isInitialDocument = false;
+  e.h.progress.onLocationChange(e.t.linkedBrowser, { isTopLevel: true });
+  e.h.progress.onStateChange(e.t.linkedBrowser, { isTopLevel: true }, null, 0x40010);
+  e.channel.URI.spec = "https://github.com/project"; e.dest.isRouteFound = true; e.observe();
+  assert.equal(e.calls[0].url, "https://github.com/project");
+  assert.equal(e.calls[0].options.userContextId, 2);
+  assert.equal(e.calls[1], "cancel"); assert.deepEqual(e.removed, [e.t]);
+});
+
+test("Router rejects redirect-chain reuse by another original URL or a loaded document", async () => {
+  const exclusions = [
+    e => e.channel.originalURI.spec = "https://unrelated.example/start",
+    e => e.t.linkedBrowser.currentURI = tab("https://already-loaded.example/").linkedBrowser.currentURI,
+  ];
+  for (const exclude of exclusions) {
+    const e = await initialRouteEnv();
+    e.channel.originalURI = { spec: e.channel.URI.spec }; e.dest.isRouteFound = false; e.observe();
+    e.context.currentWindowGlobal.isInitialDocument = false;
+    e.channel.URI.spec = "https://github.com/project"; e.dest.isRouteFound = true; exclude(e); e.observe();
+    assert.deepEqual(e.calls, [], String(exclude)); assert.deepEqual(e.removed, []);
+  }
+});
+
+test("Router forgets initial redirect chains after document commit or completed network load", async () => {
+  for (const event of ["location", "stop"]) {
+    const e = await initialRouteEnv();
+    e.channel.originalURI = { spec: e.channel.URI.spec }; e.dest.isRouteFound = false; e.observe();
+    e.context.currentWindowGlobal.isInitialDocument = false;
+    if (event === "location") {
+      e.t.linkedBrowser.currentURI = tab("https://committed.example/").linkedBrowser.currentURI;
+      e.h.progress.onLocationChange(e.t.linkedBrowser, { isTopLevel: true });
+    } else e.h.progress.onStateChange(e.t.linkedBrowser, { isTopLevel: true }, null, 0x40010);
+    e.t.linkedBrowser.currentURI = tab("about:blank").linkedBrowser.currentURI;
+    e.channel.URI.spec = "https://github.com/project"; e.dest.isRouteFound = true; e.observe();
+    assert.deepEqual(e.calls, [], event); assert.deepEqual(e.removed, []);
+  }
+});
+
 test("Router leaves POSTs, form submissions and their GET redirects untouched", async () => {
   for (const method of ["POST", "GET"]) {
     const e = await initialRouteEnv();
+    e.channel.originalURI = { spec: e.channel.URI.spec };
     e.channel.requestMethod = method;
     e.channel.loadInfo.isFormSubmission = method === "GET";
     e.observe();
     e.channel.requestMethod = "GET"; e.channel.loadInfo.isFormSubmission = false;
+    e.channel.URI.spec = "https://github.com/project";
+    e.context.currentWindowGlobal.isInitialDocument = false;
     e.observe();
     assert.deepEqual(e.calls, []);
   }

@@ -32,7 +32,11 @@ Glance tabs, split-view tabs and Zen's blank placeholder tabs are skipped uncond
 
 **Re-file tabs that drifted** (on) is the one exception to *skip grouped*. A link opened from a grouped tab inherits that group even when it goes somewhere unrelated, so a tab whose group path no longer matches where it belongs gets re-filed rather than stranded. A tab that ends up suffix-filed under junk gets exactly one repair attempt, then is left alone.
 
-Routing happens on page load, not tab open — a new tab has no URL yet. A short configurable delay (400ms) avoids chasing redirects and filing a tab under the redirector instead of the destination.
+Routing starts as soon as the tab's URL is known, without waiting for page load.
+Events within one event-loop turn share a single route using the latest URL;
+title changes cannot postpone it. Redirects and SPA navigation route again as
+their destination becomes known. The old **Wait before routing** setting is
+removed; saved values no longer add a delay. Group ordering has its own timer.
 
 Only `http` and `https` tabs are considered. `about:`, `file:` and `chrome:` are ignored.
 
@@ -51,13 +55,20 @@ This also covers `target="_blank"` links, whose destination is unknown when Zen
 creates the initial `about:blank` tab. It works without a Tab Router group rule;
 Zen's domain matcher selects the destination. POSTs, form submissions, their
 redirects, and session restoration are excluded from this first-request path.
+External links that redirect to a matching domain follow that same path: the
+router remembers the original request until the first page commits. Zen clears
+its initial-document flag at a redirect, so relying on that flag alone missed
+these container changes. Only that recorded redirect chain can use this path;
+later navigation in a loaded page still gets the session-state checks.
 
 For already-loaded pages, a container change waits for the load to finish, then flushes session
 state. Ordinary iframes do not block it. Tabs with back history, form state,
 session storage, or POST data (including nested frames) keep their current
-container. The native close veto remains active. Group/workspace filing can
-still proceed for those protected pages without replacing the tab. Loading tabs
-retry automatically on network completion. Already-filed tabs with a matching
+container. The native close veto remains active. Group/workspace filing
+proceeds immediately, including while a page is loading. A pending
+container check retries on network completion even if the tab has already been
+filed and **Re-file tabs that drifted** is off. Pending tabs do not influence
+their destination group's container choice. Already-filed tabs with a matching
 rule can also repair a container mismatch; deeper manual subgroups are preserved.
 `sortAll()` returns a Promise;
 use `await TabRouter.sortAll()` when you need completion.

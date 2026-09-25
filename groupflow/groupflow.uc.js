@@ -245,7 +245,10 @@
       }
     }
     if (!counts.size) { setIcon(g, 'url("chrome://browser/skin/zen-icons/folder.svg")'); return; }
-    const host = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    let host, most = 0;
+    for (const [candidate, count] of counts) {
+      if (count > most) { host = candidate; most = count; }
+    }
     // page-icon: is Firefox's own favicon protocol, served from the local
     // favicon store -- no network fetch happens here.
     setIcon(g, `url("${icons.get(host) ?? `page-icon:https://${host}/`}")`);
@@ -262,13 +265,7 @@
 
   function refreshAll() {
     if (!savedGroupIcons && !bool("favicons", true) && num("color-source", 0) !== 3) return;
-    const seen = new Set();
-    try { for (const g of gBrowser.tabGroups) seen.add(g); } catch {}
-    try { for (const g of document.querySelectorAll("tab-group")) seen.add(g); } catch {}
-    for (const g of seen) {
-      if (g.tagName !== "tab-group" || g.isZenFolder || g.hasAttribute("split-view-group")) continue;
-      refreshGroup(g);
-    }
+    for (const g of plainGroups()) refreshGroup(g);
   }
 
   // A favicon change or a session restore names one tab; only that tab's
@@ -479,13 +476,16 @@
       refreshGroup(group);
     }
 
-    function saveParents() {
+    function updateParents(groups) {
       if (!parents) return;
-      for (const group of plainGroups()) {
+      for (const group of groups) {
         const parent = group.parentElement?.closest("tab-group");
         if (plainGroup(parent)) parents[group.id] = parent.id;
         else delete parents[group.id];
       }
+    }
+    function saveParents() {
+      updateParents(plainGroups());
       writeGroupData("tabGroupParents", parents);
     }
 
@@ -521,12 +521,18 @@
       let groups = plainGroups();
       // Closed-group restoration creates new elements; ordinary drag/reparenting
       // keeps the same element and must not replay its previous saved parent.
-      restoreParents(parents, groups.filter(group => !known.has(group)), details);
-      groups = plainGroups();
+      const added = groups.filter(group => !known.has(group));
+      if (parents && added.length) {
+        restoreParents(parents, added, details);
+        groups = plainGroups();
+      }
       known = new Set(groups);
       for (const group of groups) decorate(group);
-      saveParents();
-      try { pruneClosedState(groups); } catch (error) { console.error("[Groupflow] Retaining closed group data:", error); }
+      updateParents(groups);
+      try { pruneClosedState(groups); } catch (error) {
+        console.error("[Groupflow] Retaining closed group data:", error);
+        writeGroupData("tabGroupParents", parents);
+      }
     }
     function changed() {
       if (pending === null) pending = setTimeout(sync, 0);
@@ -583,7 +589,7 @@
     }
     function beforeClose() { saveParents(); closing = true; }
     const events = ["TabGroupCreate", "TabGroupUpdate", "TabGroupRemoved", "TabGroupRemovedFromDOM",
-      "TabGrouped", "TabUngrouped", "FolderGrouped", "FolderUngrouped", "TabGroupCollapse", "TabGroupExpand"];
+      "TabGrouped", "TabUngrouped", "FolderGrouped", "FolderUngrouped"];
     for (const event of events) window.addEventListener(event, changed, true);
     window.addEventListener("click", click, true);
     window.addEventListener("contextmenu", edit, true);
@@ -654,13 +660,19 @@
     const allowCollapse = () => false;
     if (typeof arcMode === "function") atg.isArcMode = allowCollapse;
     Services.prefs.addObserver(PREFIX, prefVarObserver);
-    for (const ev of EVENTS) window.addEventListener(ev, schedule, true);
+    // Standalone sync refreshes group lifecycle changes in its existing pass.
+    const iconEvents = atg ? EVENTS : ["SSTabRestored", "ZenTabIconChanged"];
+    for (const ev of iconEvents) window.addEventListener(ev, schedule, true);
     window.addEventListener("click", toggleSubgroups);
     try { Services.obs.addObserver(schedule, "contextual-identity-updated"); } catch {}
 
     window.Groupflow = {
-      // Recompute every group icon now.
-      refresh: refreshAll,
+      // Additions may batch; removals/history purge and console calls stay immediate.
+      refresh(defer = false) {
+        if (defer) { schedule(); return; }
+        clearTimeout(timer); dirty.clear(); everything = false;
+        refreshAll();
+      },
       // Which group would get which icon, and from where. Reads only.
       explain() {
         const out = [];
@@ -693,7 +705,7 @@
       retired = true;
       if (atg?.isArcMode === allowCollapse) atg.isArcMode = arcMode;
       try { delete window.Groupflow; } catch {}
-      for (const ev of EVENTS) window.removeEventListener(ev, schedule, true);
+      for (const ev of iconEvents) window.removeEventListener(ev, schedule, true);
       window.removeEventListener("click", toggleSubgroups);
       try { Services.obs.removeObserver(schedule, "contextual-identity-updated"); } catch {}
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}

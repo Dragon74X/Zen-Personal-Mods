@@ -336,6 +336,7 @@
     const cleanup = () => {
       if (retired) return;
       retired = true;
+      window.removeEventListener("unload", cleanup);
       // Questions in other windows retain their own handlers and timeout.
       try { window[QUESTION]?.(KEEP); } catch {}
       try { uninstall(); } catch {}

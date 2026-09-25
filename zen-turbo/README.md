@@ -22,7 +22,7 @@ Restart Zen after updating the bundled Sine update guard. Its replacement takes 
 
 A value is changed only if the preference exists and differs from the requested value. Existence does not establish that the installed browser still reads that preference. Settings already at the requested value need no write.
 
-Before changing a preference, the mod captures its user value, or records that no user value existed. Re-syncing skips previously captured preferences, preserving later manual edits. Disabling a pack restores captured values only while the current value still equals the pack's value. Failed restorations retain their snapshots for retry.
+Before changing a preference, the mod captures its user value, or records that no user value existed. Each sync reads one restoration snapshot and writes it at most once, only if changed. Re-syncing skips previously captured preferences, preserving later manual edits. Disabling a pack restores captured values only while the current value still equals the pack's value. Failed restorations retain their snapshots for retry.
 
 These values are configuration choices, not measured speed improvements. Increasing caches trades memory for potential reuse; speculative requests can consume network resources without a later navigation. The 30-second session-store interval changes session persistence timing. Graphics overrides remain disabled by default.
 

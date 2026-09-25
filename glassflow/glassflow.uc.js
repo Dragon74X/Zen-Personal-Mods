@@ -399,12 +399,11 @@
       // frame was never retried.
       const host = sampleHost();
       if (!host) return false;
-      sampleSig = sig;
       const url = URL.createObjectURL(await c.convertToBlob({ type: "image/png" }));
       // A live reinjection can retire this copy while either await above is
       // pending. Never let the stale read recreate the host or paint over the
       // new generation; the just-created URL is ours to release.
-      if (!current()) { URL.revokeObjectURL(url); sampleSig = null; return false; }
+      if (!current()) { URL.revokeObjectURL(url); return false; }
       const back = 1 - front;
       layers[back].style.backgroundImage = `url("${url}")`;
       layers[back].setAttribute("front", "");
@@ -412,6 +411,8 @@
       if (urls[back]) { try { URL.revokeObjectURL(urls[back]); } catch {} }
       urls[back] = url;
       front = back;
+      // Commit only a painted frame: a stalled encoding must remain retryable.
+      sampleSig = sig;
       placeLayers();
       // The first frame lands at once; later frames fade in -- briefly
       // while frames keep coming (a scroll should not trail), at the
@@ -585,6 +586,7 @@
     const cleanup = () => {
       if (retired) return;
       retired = true;
+      window.removeEventListener("unload", cleanup);
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}
       restoreInstantUI();
       stopSampling();

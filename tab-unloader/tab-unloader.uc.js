@@ -132,7 +132,7 @@
   }
 
   // Two comma-separated URL-fragment lists, parsed once each; the pref
-  // observer drops the cache on any change.
+  // observer drops only the changed list.
   const lists = {};
   function urlMatches(tab, prefKey) {
     const list = lists[prefKey] ??= str(prefKey, "").split(",").map(s => s.trim()).filter(Boolean);
@@ -228,16 +228,9 @@
   }
 
   function allTabs() {
-    // gBrowser.tabs does NOT cover other workspaces on Zen: measured on a
-    // real profile it reported 13 tabs while the document held 56
-    // .tabbrowser-tab elements. The DOM query sees every workspace in this
-    // window, open or not; union both, de-duplicated. Other windows run
-    // their own copy of this script (Sine injects per window), so they
-    // sweep themselves -- enumerating windows here would double-sweep.
-    const set = new Set();
-    try { for (const t of gBrowser?.tabs ?? []) set.add(t); } catch {}
-    try { for (const t of document.querySelectorAll(".tabbrowser-tab")) set.add(t); } catch {}
-    return [...set];
+    // Native tabs all have this class. Querying the document includes every
+    // workspace and Glance; gBrowser.tabs covers only the current workspace.
+    return [...document.querySelectorAll(".tabbrowser-tab")];
   }
 
   // Deferring on Zen's animation markers has to be BOUNDED. Zen sets
@@ -305,7 +298,8 @@
           await gBrowser.prepareDiscardBrowser(tab);
           if (retired || !bool("enabled", false)) break;
           if (whyKeep(tab, Date.now(), sweepConfig()) !== null) continue;
-          if (floor > 0 && allTabs().filter(t => !t.hasAttribute("pending") && !t.closing).length <= floor) break;
+          const currentFloor = num("keep-loaded", 0);
+          if (currentFloor > 0 && allTabs().filter(t => !t.hasAttribute("pending") && !t.closing).length <= currentFloor) break;
           if (gBrowser.discardBrowser(tab)) { done++; note(`unloaded: ${tab.label}`); }
         }
         catch (e) { note(`failed on ${tab.label}: ${e}`); }
@@ -340,7 +334,7 @@
 
   const observer = {
     observe(_s, _t, data) {
-      for (const k of Object.keys(lists)) delete lists[k];
+      delete lists[data.slice(P.length)];
       if (data === P + "enabled" || data === P + "check-seconds") reschedule();
     },
   };
@@ -386,6 +380,7 @@
     const cleanup = () => {
       if (retired) return;
       retired = true;
+      window.removeEventListener("unload", cleanup);
       try { delete window.TabUnloader; } catch {}
       try { Services.prefs.removeObserver(P, observer); } catch {}
       try { gBrowser.tabContainer.removeEventListener("TabSelect", onTabSelect); } catch {}

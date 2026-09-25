@@ -107,7 +107,7 @@ async function routerEnv(extra = {}) {
       asyncOpen(listener) { NetUtil.open(this, listener); } }),
     open: (channel, listener) => callbacks.push([channel, listener]),
     readInputStreamToString: (s, count) => s.body.slice(0, count) };
-  const h = await load("tab-router", "fetchAnon, fetchCreator, fetchSectionIcon, creatorMap, iconMap, stampIcons, learnedMap, saveLearned, saveCreators, saveIcons, forgetAll, cancelLookups, rules, suggestRules, route, skip, targetPath, reopenInContainer, resolveDestination, prefObserver, progress, placeInPath, initialRequest, retire: () => retired = true", {
+  const h = await load("tab-router", "fetchAnon, fetchCreator, fetchSectionIcon, creatorMap, iconMap, stampIcons, live, majorityContext, learnedMap, saveLearned, saveCreators, saveIcons, forgetAll, cancelLookups, rules, suggestRules, route, skip, targetPath, reopenInContainer, resolveDestination, prefObserver, progress, placeInPath, initialRequest, retire: () => retired = true", {
     ...c, window: {}, gBrowser: { tabGroups: [], tabs: [] }, document: { querySelectorAll: () => [] },
     ChromeUtils: { generateQI: () => () => {}, importESModule: name => name.includes("NetUtil") ? { NetUtil }
       : { PrivateBrowsingUtils: { isWindowPrivate: () => false } } },
@@ -258,19 +258,19 @@ test("question ownership remains visible after shared hook handoff", async () =>
 
 async function turboEnv({ privateWindow = false, rows = Promise.resolve([]), failConnect = false } = {}) {
   const c = clock(), w = browser(), values = new Map(), connects = [];
-  let queries = 0;
+  let queries = 0, savedWrites = 0;
   const pref = {
     PREF_INVALID: 0, PREF_STRING: 32, PREF_INT: 64, PREF_BOOL: 128,
     getPrefType: k => !values.has(k) ? 0 : ({ string: 32, number: 64, boolean: 128 })[typeof values.get(k)],
     getStringPref: (k, d) => values.get(k) ?? d, getIntPref: (k, d) => values.get(k) ?? d,
     getBoolPref: (k, d) => values.get(k) ?? d,
-    setStringPref: (k, v) => values.set(k, v), setIntPref: (k, v) => values.set(k, v),
+    setStringPref: (k, v) => { if (k === "zzturbo.saved-prefs") savedWrites++; values.set(k, v); }, setIntPref: (k, v) => values.set(k, v),
     setBoolPref: (k, v) => values.set(k, v), clearUserPref: k => values.delete(k),
     prefHasUserValue: k => values.has(k), addObserver() {}, removeObserver() {},
   };
   const tabContainer = element(), root = element();
   w.XULBrowserWindow = { setOverLink: (...args) => args };
-  const h = await load("zen-turbo", "start, applyPack, revertPack, reclaimOrphans, startupWarmup, forgetWarmups, warmAfterDwell, cancelDwell, onHover, syncSmoothing", {
+  const h = await load("zen-turbo", "start, syncPacks, startupWarmup, forgetWarmups, warmAfterDwell, cancelDwell, onHover, syncSmoothing", {
     ...c, window: w, gBrowser: { tabContainer, addTabsProgressListener() {}, removeTabsProgressListener() {} },
     document: { documentElement: root, getElementById: () => null },
     MutationObserver: class { observe() {} disconnect() {} },
@@ -287,17 +287,29 @@ async function turboEnv({ privateWindow = false, rows = Promise.resolve([]), fai
       ? { PrivateBrowsingUtils: { isWindowPrivate: () => privateWindow } }
       : { PlacesUtils: { promiseDBConnection: async () => ({ executeCached() { queries++; return rows; } }) } } },
   });
-  return { h, w, c, root, values, connects, tabContainer, get queries() { return queries; } };
+  return { h, w, c, root, values, connects, tabContainer, get queries() { return queries; }, get savedWrites() { return savedWrites; } };
 }
 
 test("Turbo re-sync and disable preserve a managed preference edited by the user", async () => {
   const e = await turboEnv();
   const pref = "network.http.max-persistent-connections-per-server";
   e.values.set(pref, 6);
-  e.h.applyPack("network"); assert.equal(e.values.get(pref), 10);
+  e.h.syncPacks(); assert.equal(e.values.get(pref), 10);
   e.values.set(pref, 7);
-  e.h.applyPack("network"); assert.equal(e.values.get(pref), 7);
-  e.h.revertPack("network"); assert.equal(e.values.get(pref), 7);
+  e.h.syncPacks(); assert.equal(e.values.get(pref), 7);
+  e.values.set("zzturbo.pack-network", false);
+  e.h.syncPacks(); assert.equal(e.values.get(pref), 7);
+});
+
+test("Turbo writes one restoration snapshot per changed sync and none for unchanged packs", async () => {
+  const e = await turboEnv(), pref = "network.http.max-persistent-connections-per-server";
+  e.values.set(pref, 6);
+  e.h.syncPacks(); assert.equal(e.savedWrites, 1);
+  e.h.syncPacks(); assert.equal(e.savedWrites, 1);
+  e.values.set("zzturbo.pack-network", false);
+  e.h.syncPacks(); assert.equal(e.values.get(pref), 6);
+  assert.equal(e.savedWrites, 2);
+  assert.deepEqual(JSON.parse(e.values.get("zzturbo.saved-prefs")), {});
 });
 
 test("Turbo private startup never queries normal browsing history", async () => {
@@ -425,6 +437,19 @@ test("sidebar loop recovers when a later PNG encoding stalls", async () => {
   assert.equal(e.timers.size, 1);
 });
 
+test("stalled encoding retries unchanged pixels without invalidating the newer painted frame", async () => {
+  const e = await glassEnv();
+  const stale = e.h.sampleOnce();
+  e.snapshot.resolve(e.bitmap); await e.blobStarted.promise;
+  e.advance(2001); e.blobQueue.push(Promise.resolve({}));
+  await e.h.sampleOnce();
+  assert.equal(e.conversions, 2);
+  assert.equal(e.panel.hasAttribute("zzglass-sample"), true);
+  e.blob.resolve({}); await stale;
+  await e.h.sampleOnce();
+  assert.equal(e.conversions, 2, "stale encoding must not clear the newer signature");
+});
+
 test("hiding the sidebar stops retries even if an old snapshot completes", async () => {
   const e = await glassEnv(), stalled = deferred();
   e.snapshot.resolve(e.bitmap); e.blob.resolve({});
@@ -512,12 +537,12 @@ test("Turbo orphan restoration preserves manual changes and removes retired pref
   const e = await turboEnv(), key = "layout.css.corner-shape.enabled";
   e.values.set(key, true);
   e.values.set("zzturbo.saved-prefs", JSON.stringify({ [key]: { had: true, v: false } }));
-  e.h.reclaimOrphans();
+  e.h.syncPacks();
   assert.equal(e.values.get(key), true);
   assert.deepEqual(JSON.parse(e.values.get("zzturbo.saved-prefs")), {});
   e.values.set("network.predictor.enable-prefetch", true);
   e.values.set("zzturbo.saved-prefs", JSON.stringify({ "network.predictor.enable-prefetch": { had: false } }));
-  e.h.reclaimOrphans();
+  e.h.syncPacks();
   assert.equal(e.values.has("network.predictor.enable-prefetch"), false);
 });
 
@@ -611,6 +636,30 @@ test("Unloader serialises sweeps and rechecks selection/retirement after flushin
   }
 });
 
+test("Unloader observes a keep-loaded floor raised during session flush", async () => {
+  const e = await unloaderEnv(), flush = deferred();
+  e.gBrowser.prepareDiscardBrowser = async () => { await flush.promise; };
+  Object.defineProperty(e.gBrowser, "tabs", { get() { throw new Error("Use all-workspace DOM tabs"); } });
+  const pending = e.h.sweep();
+  e.values.set("zzunload.keep-loaded", 2);
+  flush.resolve(); await pending;
+  assert.equal(e.calls.some(c => c[0] === "discard"), false);
+});
+
+test("Router rejects empty or disconnected groups without collecting descendant tab arrays", async () => {
+  const e = await routerEnv(), t = tab();
+  const g = { isConnected: true, querySelector: () => t,
+    get tabs() { throw new Error("Descendant arrays must not be rebuilt for existence checks"); } };
+  assert.equal(e.h.live(g), true);
+  g.querySelector = () => null; assert.equal(e.h.live(g), false);
+  g.querySelector = () => t; g.isConnected = false; assert.equal(e.h.live(g), false);
+  const members = [], group = { querySelectorAll: () => members };
+  assert.equal(e.h.majorityContext(group), null);
+  for (const id of [0, 2, 2, 0]) { const t = tab(); t.setAttribute("usercontextid", String(id)); members.push(t); }
+  assert.equal(e.h.majorityContext(group), 0, "first container wins a tie, including container 0");
+  members.push(members[1]); assert.equal(e.h.majorityContext(group), 2);
+});
+
 test("Unloader protects actual Zen split and native protected tabs", async () => {
   const e = await unloaderEnv(), t = e.tabs[0];
   t.setAttribute("split-view", "true"); assert.equal(e.h.whyKeep(t, Date.now()), "split view");
@@ -679,8 +728,10 @@ test("Router defers loading tabs and retries on top-level network completion", a
 test("Router repairs an already-filed container mismatch without flattening the path", async () => {
   const t = tab(), fresh = tab(); t.setAttribute("usercontextid", "1");
   const root = { ...element(), tagName: "tab-group", label: "Target", parentElement: { closest: () => null },
+    querySelector: () => t,
     querySelectorAll: () => [{ getAttribute: () => "2" }] };
   const child = { ...element(), tagName: "tab-group", label: "Manual subgroup", parentElement: { closest: () => root },
+    querySelector: () => t,
     addTabs(tabs) { tabs.forEach(t => { t.group = child; }); } };
   t.group = child;
   const e = await routerEnv({ document: { querySelectorAll: () => [root, child] },
@@ -837,11 +888,12 @@ test("Groupflow container accent counts descendants, resolves ties and clears mi
 
 test("Router restores a missing avatar for a cached creator without rerouting or clearing history", async () => {
   const t = tab("https://www.youtube.com/watch?v=video");
-  const parent = { ...element(), tagName: "tab-group", label: "Youtube", tabs: [t] };
-  const child = { ...element(), tagName: "tab-group", label: "Channel", tabs: [t], parentElement: { closest: () => parent } };
-  let refreshes = 0, opened = 0;
+  const parent = { ...element(), tagName: "tab-group", label: "Youtube", tabs: [t], querySelector: () => t };
+  const child = { ...element(), tagName: "tab-group", label: "Channel", tabs: [t], querySelector: () => t, parentElement: { closest: () => parent } };
+  const refreshes = []; let opened = 0;
   const e = await routerEnv({ gBrowser: { tabGroups: [parent, child], tabs: [t] },
-    window: { Groupflow: { refresh() { refreshes++; } } },
+    document: { querySelectorAll: selector => selector === "tab-group" ? [parent, child] : [t] },
+    window: { Groupflow: { refresh(defer) { refreshes.push(defer); } } },
     createImageBitmap: async () => ({ width: 64, height: 64, close() {} }),
     OffscreenCanvas: class {
       getContext() { return { drawImage() {} }; }
@@ -856,12 +908,13 @@ test("Router restores a missing avatar for a cached creator without rerouting or
   e.answer(JSON.stringify({ author_name: "Channel", author_url: "https://www.youtube.com/@channel" }));
   e.answer("<meta content='https://example.com/avatar.png?a=1&amp;b=2' property='og:image'>");
   e.answer("image bytes"); await new Promise(resolve => setImmediate(resolve));
-  assert.equal(opened, 3); assert.equal(refreshes, 1);
+  assert.equal(opened, 3); assert.deepEqual(refreshes, [true]);
   assert.equal(child.getAttribute("data-zzrouter-icon"), "data:image/webp;base64,AQ==");
   assert.equal(e.h.creatorMap().get("video"), "Channel");
   assert.equal(e.c.timers.size, 0, "cached creator recovery must not queue routing");
   e.h.stampIcons(true); assert.equal(opened, 3, "reuse successful avatar");
   e.h.forgetAll(); assert.equal(opened, 3, "history purge must not start recovery");
+  assert.deepEqual(refreshes, [true, false], "history purge must remove rendered icons immediately");
 });
 
 test("Router retries missing metadata after 10 minutes without persisting a permanent null avatar", async () => {
@@ -918,6 +971,46 @@ async function groupflowStartupEnv() {
   }
   return { c, w, ready, group, groups, writes, inject, tick, gBrowser };
 }
+
+test("Groupflow coalesces requested refreshes and immediate refresh cancels queued work", async () => {
+  const e = await groupflowStartupEnv();
+  await e.inject(); e.ready.resolve(); await Promise.resolve(); e.tick();
+  e.c.timers.clear();
+  e.w.Groupflow.refresh(true); e.w.Groupflow.refresh(true);
+  assert.equal(e.c.timers.size, 1);
+  e.w.Groupflow.refresh();
+  assert.equal(e.c.timers.size, 0, "immediate purge must cancel queued avatar rendering");
+});
+
+test("Groupflow skips metadata work on collapse and reuses one scan for existing-group updates", async () => {
+  const c = clock(), w = browser(), stored = new Map();
+  let scans = 0, serializations = 0, reads = 0, unavailable = false;
+  const h = await load("groupflow", "startStandaloneGroups", { ...c, window: w,
+    document: { documentElement: element(), querySelectorAll() { scans++; return []; } },
+    gBrowser: { createTabsForSessionRestore() {} },
+    Services: { prefs: { prefHasUserValue: () => true } },
+    JSON: { parse: JSON.parse, stringify(value) { serializations++; return JSON.stringify(value); } },
+    SessionStore: {
+      getCustomWindowValue: (_w, k) => stored.get(k) || "{}",
+      setCustomWindowValue: (_w, k, v) => stored.set(k, v),
+      getClosedTabGroups() { reads++; if (unavailable) throw new Error("Store unavailable"); return []; },
+      getSavedTabGroups() { reads++; return []; }, getClosedTabData() { reads++; return []; },
+    }, console: { error() {} },
+  });
+  const cleanup = h.startStandaloneGroups({});
+  scans = serializations = reads = 0;
+  w.fire("TabGroupCollapse"); w.fire("TabGroupExpand");
+  assert.equal(c.timers.size, 0);
+  assert.deepEqual([scans, serializations, reads], [0, 0, 0]);
+  w.fire("TabGroupUpdate");
+  for (const [id, fn] of [...c.timers]) { c.clearTimeout(id); fn(); }
+  assert.deepEqual([scans, serializations, reads], [1, 4, 3]);
+  unavailable = true; stored.set("tabGroupParents", "previous");
+  w.fire("FolderGrouped");
+  for (const [id, fn] of [...c.timers]) { c.clearTimeout(id); fn(); }
+  assert.equal(stored.get("tabGroupParents"), "{}", "persist parent updates if pruning cannot read closed state");
+  cleanup();
+});
 
 test("Groupflow waits for restore, opens roots and folds every nested depth with favicons disabled", async () => {
   const e = await groupflowStartupEnv();

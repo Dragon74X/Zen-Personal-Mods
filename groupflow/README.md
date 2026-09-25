@@ -39,14 +39,41 @@ Groupflow also saves parent labels, colours and workspace IDs in `groupflowGroup
 Zen does not recreate plain groups containing only subgroups on its own.
 
 Clicking a top-level group/folder header keeps the parent open and alternates
-between collapsing and expanding all its nested subgroups/subfolders. If any
-subfolder is open, the click collapses them all; if all are collapsed, it opens
-them all. Nested headers and groups without subfolders still toggle individually.
+between collapsing and expanding its nested subgroups/subfolders. The selected
+tab's entire folder path stays open. If any other subfolder is open, the click
+collapses those other subfolders; the next click opens them. Nested headers and
+groups without subfolders still toggle individually.
 Close and reset controls retain their existing actions.
 This works with or without ATG and does not change startup folding.
 
 Folder labels retain the theme's toolbar text colour when a tab inside is selected.
 The Label colour setting overrides this foreground without changing the header fill.
+Subfolder state labels can override that shared setting.
+
+## Subfolder states
+
+**Separate subfolder styling** enables 3 profiles for nested group headers:
+
+- **Active:** contains the selected tab, including deeper subfolders. Takes priority over hover.
+- **Hovered:** inactive header under the pointer. Hovering a tab or subfolder body does not highlight its ancestors.
+- **Inactive:** neither active nor hovered.
+
+Each profile controls tint, background opacity, gradient direction, end mode,
+end tint, spread, sheen, rim, glow, blur, blur radius and label colour.
+Background opacity leaves text and icons unchanged. Shared collapsed dimming
+still applies to inactive collapsed headers. Colour source, icon settings,
+roundness and connector geometry remain shared.
+
+**Icon shape → Match folder corners** applies the header's corner shape to icon
+crops and scales the radius to the icon size. Existing Circle, Rounded square,
+Squircle, Square and Auto choices remain available.
+
+Profiles reuse Glassflow's shared sheen, rim colours, glass intensity and filter
+tokens. They work without Glassflow using fallback values. Top-level groups and
+native `zen-folder` styling are unchanged. Turning the switch off restores the
+shared Header/States settings and saved gradients for subfolders.
+For a saved ATG gradient, tint controls use its first valid colour stop;
+an invalid colour falls back to the theme accent.
 
 ## Without Advanced Tab Groups
 
@@ -69,7 +96,8 @@ Groupflow supplies group persistence and controls when ATG is absent:
   Split groups and native pinned folders keep their native controls.
 
 ATG's gradient editor, favicon-colour resampling, group/folder conversion and Zen
-Library integration are not included. Existing gradients remain visible; new
+Library integration are not included. Existing gradients remain visible where
+subfolder state profiles are off; new
 colour selections use Firefox's palette. Groupflow icon rules override saved icons,
 followed by Tab Router section icons and tab favicons.
 

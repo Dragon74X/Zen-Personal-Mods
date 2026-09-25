@@ -131,6 +131,115 @@ def check_native_routes(m, root):
     return results
 
 
+def check_subfolder_styles(m):
+    profiles = {
+        "inactive": {"tint": "31%", "opacity": "0.32", "direction": 1, "end-mode": 0,
+                     "end-tint": "41%", "spread": "53%", "sheen": False, "rim": False,
+                     "glow": False, "blur": False, "blur-radius": "4px", "label-color": "#a1b2c3"},
+        "hover": {"tint": "47%", "opacity": "0.54", "direction": 4, "end-mode": 1,
+                  "end-tint": "23%", "spread": "79%", "sheen": True, "rim": True,
+                  "glow": True, "blur": True, "blur-radius": "7px", "label-color": "#b2c3d4"},
+        "active": {"tint": "63%", "opacity": "0.76", "direction": 3, "end-mode": 3,
+                   "end-tint": "35%", "spread": "91%", "sheen": False, "rim": True,
+                   "glow": False, "blur": True, "blur-radius": "11px", "label-color": "#c3d4e5"},
+    }
+    baseline = m.script("return (async()=>{" + HELPERS + """
+      const outside=add('about:blank'),selected=gBrowser.selectedTab;
+      gBrowser.selectedTab=outside;await pause(250);
+      const read=g=>{
+        const h=g.labelContainerElement,s=getComputedStyle(h),p=getComputedStyle(h,'::before');
+        return {tokens:Object.fromEntries(['--zzgf-accent','--zzgf-raw','--tab-group-color',
+            '--zzgf-state-a','--zzgf-state-b','--zzgf-state-dir','--zzgf-state-spread','--zzgf-state-sheen']
+            .map(k=>[k,s.getPropertyValue(k)])),background:s.backgroundImage,paint:p.backgroundImage,opacity:p.opacity,
+          shadow:p.boxShadow,blur:p.backdropFilter,width:parseFloat(p.width),
+          label:getComputedStyle(g.labelElement).color,
+          labelOpacity:getComputedStyle(g.labelElement).opacity,headerOpacity:s.opacity};
+      };
+      const nativeFolder=[...document.querySelectorAll('zen-folder')].find(g=>g.label==='Folder');
+      const baseline={root:read(group('Root')),folder:read(nativeFolder),child:read(group('Child'))};
+      const prefs=[];
+      for(const [state,values] of Object.entries(""" + json.dumps(profiles) + """)) {
+        for(const [name,value] of Object.entries(values)) {
+          const key='zzgroup.subfolder.'+state+'.'+name;
+          const type=typeof value==='boolean'?'Bool':typeof value==='number'?'Int':'String';
+          prefs.push([key,type,Services.prefs.prefHasUserValue(key),Services.prefs['get'+type+'Pref'](key,value)]);
+          Services.prefs['set'+type+'Pref'](key,value);
+        }
+      }
+      window.subfolderStyleFixture={outside,selected,read,baseline,prefs,nativeFolder};
+      Services.prefs.setBoolPref('zzgroup.subfolder.states',true);await pause(100);
+      const current={root:read(group('Root')),folder:read(nativeFolder)};
+      return {untouched:JSON.stringify(current.root)===JSON.stringify(baseline.root) &&
+        JSON.stringify(current.folder)===JSON.stringify(baseline.folder),
+        labelOpacity:baseline.child.labelOpacity,headerOpacity:baseline.child.headerOpacity};
+    })();""")
+    assert baseline['untouched'], 'Subfolder states changed a root or native folder'
+
+    def point(group_name=None):
+        xy = m.script(HELPERS + """
+          const name=""" + json.dumps(group_name) + """;
+          if(!name) return {x:800,y:400};
+          const r=group(name).labelContainerElement.getBoundingClientRect();
+          return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)};
+        """)
+        m.call('WebDriver:PerformActions', {'actions': [{'type': 'pointer', 'id': 'mouse',
+            'parameters': {'pointerType': 'mouse'}, 'actions': [
+                {'type': 'pointerMove', 'duration': 0, 'x': xy['x'], 'y': xy['y']}]}]})
+        return m.script("return (async()=>{" + HELPERS + """
+          await pause(250);
+          return Object.fromEntries(['Child','Grandchild'].map(name=>[name,subfolderStyleFixture.read(group(name))]));
+        })();""")
+
+    def matches(value, state):
+        p = profiles[state]
+        colour = {"inactive": "rgb(161, 178, 195)", "hover": "rgb(178, 195, 212)", "active": "rgb(195, 212, 229)"}[state]
+        direction = {"inactive": "to left", "hover": "135deg", "active": "to top"}[state]
+        assert value['label'] == colour, (state, value)
+        assert value['opacity'] == p['opacity'] and value['headerOpacity'] == baseline['headerOpacity'] and value['labelOpacity'] == baseline['labelOpacity'], (state, value)
+        assert value['width'] > 0 and direction in value['paint'] and p['spread'] in value['paint'], (state, value)
+        assert value['blur'] == (f"blur({p['blur-radius']})" if p['blur'] else 'none'), (state, value)
+
+    try:
+        inactive = point()['Child']
+        matches(inactive, 'inactive')
+        hover = point('Child')
+        matches(hover['Child'], 'hover')
+        matches(hover['Grandchild'], 'inactive')
+        descendant_hover = point('Grandchild')
+        matches(descendant_hover['Child'], 'inactive')
+        matches(descendant_hover['Grandchild'], 'hover')
+        m.script(HELPERS + "gBrowser.selectedTab=group('Grandchild').tabs[0];return true;")
+        active = point('Child')
+        matches(active['Child'], 'active')
+        matches(active['Grandchild'], 'active')
+        assert len({inactive['paint'], hover['Child']['paint'], active['Child']['paint']}) == 3
+        assert len({inactive['shadow'], hover['Child']['shadow'], active['Child']['shadow']}) == 3
+        assert m.script("return (async()=>{" + HELPERS + """
+          const original=Services.prefs.getStringPref('zzgroup.label.color');
+          try {
+            Services.prefs.setStringPref('zzgroup.label.color','inherit');
+            Services.prefs.setStringPref('zzgroup.subfolder.active.label-color','var(--zzgroup-label-color, inherit)');
+            await pause(100);
+            const expected=getComputedStyle(subfolderStyleFixture.nativeFolder.labelElement).color;
+            return ['Child','Grandchild'].every(name=>getComputedStyle(group(name).labelElement).color===expected);
+          } finally { Services.prefs.setStringPref('zzgroup.label.color',original); }
+        })();"""), 'Active subfolder default label colour differs from native folder foreground'
+        m.script("gBrowser.selectedTab=subfolderStyleFixture.outside;Services.prefs.setBoolPref('zzgroup.subfolder.states',false);return true;")
+        point()
+        assert m.script(HELPERS + "return JSON.stringify(subfolderStyleFixture.read(group('Child')))===JSON.stringify(subfolderStyleFixture.baseline.child);"), 'Disabling subfolder states did not restore legacy styling'
+        return {"subfolderStateStyles": True, "subfolderActivePrecedence": True,
+                "subfolderHoverIsolation": True, "subfolderLegacyFallback": True, "subfolderDefaultForeground": True}
+    finally:
+        m.script("""const f=window.subfolderStyleFixture;
+          Services.prefs.setBoolPref('zzgroup.subfolder.states',false);
+          for(const [key,type,had,value] of f.prefs) {
+            if(had) Services.prefs['set'+type+'Pref'](key,value);else Services.prefs.clearUserPref(key);
+          }
+          gBrowser.selectedTab=f.selected;gBrowser.removeTab(f.outside);
+          delete window.subfolderStyleFixture;return true;
+        """)
+
+
 def check(m, root, atg, port, first):
     m.script("return gZenStartup.promiseInitialized.then(()=>true);")
     m.script("window.fixtureURL=" + json.dumps(f"http://127.0.0.1:{port}") + "; return true;")
@@ -225,6 +334,19 @@ def check(m, root, atg, port, first):
       click(child);await pause(100);
       const recursiveFolders=await cycle(folder);
       const otherTreeUnchanged=tree(root).every(g=>!g.collapsed);
+      const siblingTab=add('about:blank');
+      const sibling=gBrowser.addTabGroup([siblingTab],{label:'Inactive branch',insertBefore:siblingTab});
+      root.groupContainer.appendChild(sibling);
+      gBrowser.selectedTab=grandchild.tabs[0];
+      for(const g of tree(root)) g.collapsed=false;
+      await pause(100);
+      click(root);await pause(100);
+      const activePathOpen=[root,child,grandchild].every(g=>!g.collapsed &&
+        g.labelElement.getAttribute('aria-expanded')==='true') && sibling.collapsed &&
+        sibling.labelElement.getAttribute('aria-expanded')==='false';
+      click(root);await pause(100);
+      const otherBranchesReopen=tree(root).every(g=>!g.collapsed);
+      gBrowser.selectedTab=selected;gBrowser.removeTab(siblingTab);
       const tab=add('about:blank'), leaf=gBrowser.addTabGroup([tab],{label:'Leaf toggle fixture',insertBefore:tab});
       leaf.collapsed=false;
       click(leaf);await pause(100);
@@ -233,7 +355,7 @@ def check(m, root, atg, port, first):
       const leafIndependent=leafCollapsed && !leaf.collapsed;
       gBrowser.removeTab(tab);
       return {recursiveGroups,recursiveFolders,separateTree,nestedIndependent,otherTreeUnchanged,
-        leafIndependent,selectedTabRetained:gBrowser.selectedTab===selected};
+        leafIndependent,activePathOpen,otherBranchesReopen,selectedTabRetained:gBrowser.selectedTab===selected};
     })();""")
     assert all(recursive.values()), recursive
     result.update(recursive)
@@ -293,6 +415,7 @@ def check(m, root, atg, port, first):
       }
     })();""")
     assert result['labelForeground'], 'Group label colour changed with selection, collapse or accent source'
+    result.update(check_subfolder_styles(m))
     if not atg:
         controls = m.script("return (async()=>{" + HELPERS + """
           await pause(100);
@@ -420,6 +543,34 @@ def check(m, root, atg, port, first):
             Math.abs(parseFloat(image.width)-width)<1 && Math.abs(parseFloat(image.height)-height)<1;
         """)
         assert result['nativeCloseImageSize'], 'Folder close image differs from native tab close image'
+        result['iconMatchesFolderCorners'] = m.script("return (async()=>{" + HELPERS + """
+          const g=group('Child'),h=g.labelContainerElement,icon=h.querySelector('.zzgf-icon');
+          const prefs=[['icon-shape','Int'],['corner.mode','Int'],['header-roundness','String'],['icon-size','String']]
+            .map(([name,type])=>['zzgroup.'+name,type,Services.prefs['get'+type+'Pref']('zzgroup.'+name)]);
+          try {
+            Services.prefs.setIntPref('zzgroup.icon-shape',5);Groupflow.refresh();
+            for(const [shape,radius,size] of [[1,12,14],[1,18,14],[5,18,24]]) {
+              Services.prefs.setIntPref('zzgroup.corner.mode',shape);
+              Services.prefs.setStringPref('zzgroup.header-roundness',radius+'px');
+              Services.prefs.setStringPref('zzgroup.icon-size',size+'px');await pause(50);
+              const image=getComputedStyle(icon,'::before'),header=getComputedStyle(h);
+              const expected=parseFloat(header.borderTopLeftRadius)*size/36;
+              if(g.getAttribute('zzgf-shape')!=='folder' || image.cornerShape!==header.cornerShape ||
+                Math.abs(parseFloat(image.width)-size)>.1 ||
+                Math.abs(parseFloat(image.borderTopLeftRadius)-expected)>.1) throw new Error(JSON.stringify({
+                  shape,radius,size,expected,mode:g.getAttribute('zzgf-shape'),imageShape:image.cornerShape,
+                  headerShape:header.cornerShape,width:image.width,iconRadius:image.borderTopLeftRadius,
+                  headerRadius:header.borderTopLeftRadius}));
+            }
+            Services.prefs.setIntPref('zzgroup.icon-shape',1);Groupflow.refresh();await pause(50);
+            const image=getComputedStyle(icon,'::before');
+            return g.getAttribute('zzgf-shape')==='circle' && ['round','superellipse(1)'].includes(image.cornerShape) && image.borderTopLeftRadius==='50%';
+          } finally {
+            for(const [key,type,value] of prefs) Services.prefs['set'+type+'Pref'](key,value);
+            Groupflow.refresh();
+          }
+        })();""")
+        assert result['iconMatchesFolderCorners'], 'Folder icon crop does not follow header shape, radius or icon size'
     if first:
         m.script("return (async()=>{" + HELPERS + """
           const target=add(fixtureURL.replace('127.0.0.1','localhost')+'/target',2);
@@ -502,7 +653,8 @@ def main():
                     prefs[pref["property"]] = pref["defaultValue"]
         prefs.update({"zzrouter.enabled": False, "zzrouter.sort-on-startup": False,
                       "zzrouter.delay-ms": 100, "zzrouter.auto-unmatched": False,
-                      "zzrouter.media-subgroups": False, "zzrouter.section-icons": False})
+                      "zzrouter.media-subgroups": False, "zzrouter.section-icons": False,
+                      "zzgroup.subfolder.states": False})
         (profile / "user.js").write_text("\n".join(f"user_pref({json.dumps(k)}, {json.dumps(v)});" for k, v in prefs.items()))
         for launch in range(3):
             with (profile / "browser.log").open("w") as log:

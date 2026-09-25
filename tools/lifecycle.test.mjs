@@ -855,9 +855,11 @@ test("Groupflow uses the restored tab favicon and gives iconless groups a folder
   t.setAttribute("image", "data:image/png;base64,YQ==");
   const styles = new Map();
   const g = { ...element(), tagName: "tab-group", groupContainer: { children: [t] },
-    style: { setProperty: (k, v) => styles.set(k, v), getPropertyValue: k => styles.get(k) } };
+    style: { setProperty: (k, v) => styles.set(k, v), getPropertyValue: k => styles.get(k) || "",
+      removeProperty: k => styles.delete(k) } };
   const h = await load("groupflow", "refreshGroup", { window: {}, gBrowser: {},
     Services: { prefs: { getBoolPref: (_k, d) => d, getStringPref: (_k, d) => d } },
+    getComputedStyle: () => ({ getPropertyValue: () => "" }), CSS: { supports: () => false },
   });
   h.refreshGroup(g);
   assert.equal(styles.get("--zzgf-icon"), 'url("data:image/png;base64,YQ==")');
@@ -884,6 +886,34 @@ test("Groupflow container accent counts descendants, resolves ties and clears mi
   g.tabs = [a, b]; h.refreshGroup(g); assert.equal(styles.get("--zzgf-container-color"), "#00f");
   a.setAttribute("usercontextid", "0"); h.refreshGroup(g); assert.ok(!styles.has("--zzgf-container-color"));
   g.tabs = []; h.refreshGroup(g); assert.ok(!styles.has("--zzgf-container-color"));
+});
+
+test("Groupflow derives a solid gradient accent, prefers native colours and clears invalid values", async () => {
+  for (const atg of [true, false]) {
+    const saved = { group: { gradientColors: [null, { c: "invalid" }, { c: [0, NaN, 0] },
+      { c: [0, 0] }, { c: [51, 102, 153] }, { c: "#0000ff" }] } };
+    const styles = new Map();
+    const group = { ...element(), id: "group", tagName: "tab-group", style: {
+      getPropertyValue: key => styles.get(key) || "", setProperty: (key, value) => styles.set(key, value),
+      removeProperty: key => styles.delete(key) } };
+    let native = "linear-gradient(red, blue)";
+    const h = await load("groupflow", "refreshAll, setColors(value) { savedGroupColors = value; }", {
+      window: atg ? { advancedTabGroups: { savedColors: saved } } : {}, gBrowser: {},
+      document: { querySelectorAll: () => [group] },
+      Services: { prefs: { getBoolPref: () => false, getStringPref: (_k, d) => d } },
+      getComputedStyle: () => ({ getPropertyValue: () => native }),
+      CSS: { supports: (_property, value) => /^(?:#[0-9a-f]{6}|rgb\(\d+ \d+ \d+\))$/i.test(value) },
+    });
+    if (!atg) h.setColors(saved);
+    h.refreshAll(); assert.equal(styles.get("--zzgf-group-color"), "rgb(51 102 153)");
+    saved.group.gradientColors = [{ c: "#ff0000" }];
+    h.refreshAll(); assert.equal(styles.get("--zzgf-group-color"), "#ff0000");
+    native = "#00ff00";
+    h.refreshAll(); assert.equal(styles.get("--zzgf-group-color"), "#00ff00", "native colour beats old saved gradient");
+    native = "linear-gradient(red, blue)";
+    saved.group.gradientColors = [{ c: "invalid" }];
+    h.refreshAll(); assert.ok(!styles.has("--zzgf-group-color"), "invalid colours leave the CSS fallback available");
+  }
 });
 
 test("Router restores a missing avatar for a cached creator without rerouting or clearing history", async () => {
@@ -939,7 +969,7 @@ test("Groupflow parent click alternates descendants without collapsing the paren
   });
   const writes = [];
   function group(name, collapsed = false, split = false) {
-    return { hasAttribute: () => split, matches: () => true,
+    return { hasAttribute: () => split, matches: () => true, contains: () => false,
       parentElement: { closest: () => null },
       get collapsed() { return collapsed; },
       set collapsed(value) { writes.push([name, value]); collapsed = value; } };
@@ -959,6 +989,33 @@ test("Groupflow parent click alternates descendants without collapsing the paren
   assert.deepEqual(writes, [["grandchild", false], ["child", false], ["root", false]]);
   assert.equal(prevented, 2); assert.equal(stopped, 2);
   assert.equal(menuClosed, 2);
+});
+
+test("Groupflow bulk collapse preserves the selected tab's ancestor path and still alternates", async () => {
+  const firstTab = {}, secondTab = {};
+  const gBrowser = { selectedTab: firstTab, tabGroupMenu: { close() {} } };
+  const h = await load("groupflow", "toggleSubgroups", { window: {}, gBrowser });
+  const child = { collapsed: false, hasAttribute: () => false, contains: tab => tab === firstTab };
+  const grandchild = { ...child };
+  const sibling = { collapsed: false, hasAttribute: () => false, contains: tab => tab === secondTab };
+  const root = { collapsed: false, matches: () => true, hasAttribute: () => false,
+    parentElement: { closest: () => null }, querySelectorAll: () => [child, grandchild, sibling] };
+  const event = { button: 0, target: { closest: selector =>
+    selector === ".tab-group-label-container" ? { parentElement: root } : null },
+    preventDefault() {}, stopPropagation() {} };
+  const state = () => [root, child, grandchild, sibling].map(group => group.collapsed);
+
+  h.toggleSubgroups(event);
+  assert.deepEqual(state(), [false, false, false, true]);
+  h.toggleSubgroups(event);
+  assert.deepEqual(state(), [false, false, false, false]);
+
+  gBrowser.selectedTab = secondTab;
+  h.toggleSubgroups(event);
+  assert.deepEqual(state(), [false, true, true, false]);
+  h.toggleSubgroups(event);
+  assert.deepEqual(state(), [false, false, false, false]);
+  assert.equal(gBrowser.selectedTab, secondTab);
 });
 
 test("Groupflow leaves nested and leaf headers, controls and other mouse buttons to Zen", async () => {
@@ -1004,6 +1061,7 @@ async function groupflowStartupEnv() {
   async function inject() {
     const h = await load("groupflow", "start, schedule, prefVarObserver", {
       ...c, window: w, document, gBrowser, Services, SessionStore,
+      getComputedStyle: () => ({ getPropertyValue: () => "" }), CSS: { supports: () => false },
     });
     h.start();
     return h;

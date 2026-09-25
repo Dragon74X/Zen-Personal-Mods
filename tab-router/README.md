@@ -83,9 +83,15 @@ What the request is, exactly, because it is a network request:
   after fifteen seconds, and a picture that decodes larger than 4096
   square is refused before it is drawn.
 - **Never from a private window.**
-- **Once per video.** Answers are remembered by video id, so `&t=` timestamps
-  do not fragment one video into many entries. A failed lookup is not retried
-  for ten minutes.
+- Creator names are cached by video ID, so `&t=` timestamps do not create extra
+  entries. Missing avatars can repeat the oEmbed lookup for the channel URL.
+  Failed requests or unusable metadata have a 10-minute retry cooldown.
+
+With routing and **Section icons** enabled, restored YouTube subgroups recover
+missing avatars even when the creator name was already cached. Old empty avatar
+entries no longer block recovery. Successful images remain cached; startup and
+group-order refreshes retry missing ones after the cooldown. Clearing history
+cancels lookups and does not immediately start another recovery pass.
 
 ```js
 TabRouter.creators()          // videoId -> creator, everything remembered

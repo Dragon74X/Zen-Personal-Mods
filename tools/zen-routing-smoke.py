@@ -195,6 +195,56 @@ def check(m, root, atg, port, first):
     m.script("[...document.querySelectorAll('tab-group')].find(g=>g.label==='Child').collapsed=false; return true;")
     m.script(groupflow + "\nreturn true;")
     assert m.script("return ![...document.querySelectorAll('tab-group')].find(g=>g.label==='Child').collapsed;")
+    recursive = m.script("return (async()=>{" + HELPERS + """
+      const click=g=>g.labelElement.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,button:0}));
+      const tree=g=>[g,...g.querySelectorAll('tab-group:not([split-view-group]), zen-folder')];
+      const root=group('Root'), child=group('Child'), grandchild=group('Grandchild');
+      const folder=[...document.querySelectorAll('zen-folder')].find(g=>g.label==='Folder');
+      const selected=gBrowser.selectedTab;
+      const cycle=async g=>{
+        click(g);await pause(100);
+        const folded=tree(g).every(n=>n.collapsed && n.labelElement.getAttribute('aria-expanded')==='false');
+        click(g);await pause(100);
+        return folded && tree(g).every(n=>!n.collapsed && n.labelElement.getAttribute('aria-expanded')==='true');
+      };
+      const recursiveGroups=await cycle(root);
+      const separateTree=tree(folder).every(g=>g.collapsed===(g!==folder));
+      click(child);await pause(100);
+      const nestedIndependent=child.collapsed && !root.collapsed && !grandchild.collapsed;
+      click(child);await pause(100);
+      const recursiveFolders=await cycle(folder);
+      const otherTreeUnchanged=tree(root).every(g=>!g.collapsed);
+      return {recursiveGroups,recursiveFolders,separateTree,nestedIndependent,otherTreeUnchanged,
+        selectedTabRetained:gBrowser.selectedTab===selected};
+    })();""")
+    assert all(recursive.values()), recursive
+    result.update(recursive)
+    colours = m.script("return (async()=>{" + HELPERS + """
+      const nodes=['Root','Child','Grandchild'].map(group);
+      const oldBackground=getComputedStyle(nodes[1].labelContainerElement).backgroundImage;
+      Services.prefs.setIntPref('zzgroup.color-source',3);
+      Services.prefs.setBoolPref('zzgroup.favicons',false);
+      Groupflow.refresh();await pause(100);
+      const expected=getComputedStyle(nodes[0].tabs[0]).getPropertyValue('--identity-tab-color').trim();
+      const containerColour=!!expected && nodes.every(g=>getComputedStyle(g).getPropertyValue('--zzgf-raw').trim()===expected);
+      const gradientOverride=getComputedStyle(nodes[1].labelContainerElement).backgroundImage!==oldBackground;
+      const {ContextualIdentityService:identities}=ChromeUtils.importESModule('moz-src:///toolkit/components/contextualidentity/ContextualIdentityService.sys.mjs');
+      const original={...identities.getPublicIdentityFromId(1),name:identities.getUserContextLabel(1)};
+      let liveColour=false;
+      try {
+        identities.update(1,original.name,original.icon,original.color==='red'?'blue':'red');
+        await until(()=>nodes.every(g=>g.style.getPropertyValue('--zzgf-container-color')!==expected));
+        liveColour=nodes.every(g=>g.style.getPropertyValue('--zzgf-container-color')===
+          getComputedStyle(g.tabs[0]).getPropertyValue('--identity-tab-color').trim());
+      } finally {
+        identities.update(1,original.name,original.icon,original.color);
+        Services.prefs.setBoolPref('zzgroup.favicons',true);
+        Services.prefs.setIntPref('zzgroup.color-source',0);Groupflow.refresh();
+      }
+      return {containerColour,gradientOverride,liveColour};
+    })();""")
+    assert all(colours.values()), colours
+    result.update(colours)
     if not atg:
         controls = m.script("return (async()=>{" + HELPERS + """
           await pause(100);
@@ -236,11 +286,30 @@ def check(m, root, atg, port, first):
           await until(()=>!outer.isConnected);
           const ungroup=inner.isConnected && !inner.group && a.group===inner && !b.group;
           const picker=gZenEmojiPicker.open;
+          let pickerCalls=0;
           try {
-            gZenEmojiPicker.open=async()=>'chrome://browser/skin/zen-icons/folder.svg';
-            inner.labelContainerElement.querySelector('.zzgf-icon').click(); await pause(100);
+            gZenEmojiPicker.open=async()=>{pickerCalls++;return null;};
+            const before=inner.collapsed;
+            inner.labelContainerElement.querySelector('.zzgf-icon').click();await pause(100);
+            if(inner.collapsed===before) throw new Error('Favicon click did not toggle the group');
           } finally { gZenEmojiPicker.open=picker; }
           const id=inner.id;
+          // Replay a saved ATG icon through the same live-update path as Sine.
+          const icons=JSON.parse(SessionStore.getCustomWindowValue(window,'tabGroupIcons'));
+          icons[id]='chrome://browser/skin/zen-icons/folder.svg';
+          SessionStore.setCustomWindowValue(window,'tabGroupIcons',JSON.stringify(icons));
+          return {toggled,manual,customIconDecoded:image.naturalWidth>0,editor,veto,moved,
+            ungroup,iconClickToggles:pickerCalls===0,
+            savedColour:colour===savedColour && refreshedColour===savedColour,
+            savedGradient:gradient.includes('linear-gradient'),
+            oneSet:header.querySelectorAll('.zzgf-control').length===2 && !header.querySelector('.zzgf-toggle'),
+            standalone:!window.advancedTabGroups};
+        })();""")
+        m.script(groupflow + "\nreturn true;")
+        controls.update(m.script("return (async()=>{" + HELPERS + """
+          await pause(100);
+          const inner=group('Retained child'), id=inner.id;
+          const b=[...document.querySelectorAll('tab')].find(t=>t.linkedBrowser?.currentURI?.spec.endsWith('/ungroup-b'));
           await gBrowser.removeTabGroup(inner); await until(()=>!inner.isConnected); await pause(100);
           const kept=JSON.parse(SessionStore.getCustomWindowValue(window,'tabGroupIcons'))[id];
           const reopened=SessionStore.undoCloseTabGroup(window,id,window); await pause(200);
@@ -256,13 +325,8 @@ def check(m, root, atg, port, first):
           const undoNested=restored?.tabs.length===2 && restoredChild?.group===restored &&
             restoredChild.style.getPropertyValue('--zzgf-icon').includes(kept);
           if (restored) gBrowser.removeTabs([...restored.tabs]);
-          return {toggled,manual,customIconDecoded:image.naturalWidth>0,editor,veto,moved,
-            ungroup,undo,undoNested,
-            savedColour:colour===savedColour && refreshedColour===savedColour,
-            savedGradient:gradient.includes('linear-gradient'),
-            oneSet:header.querySelectorAll('.zzgf-control').length===2 && !header.querySelector('.zzgf-toggle'),
-            standalone:!window.advancedTabGroups};
-        })();""")
+          return {undo,undoNested};
+        })();"""))
         assert all(controls.values()), controls
         result.update(controls)
         # Drive real pointer movement: .click() cannot detect a hidden hover control.
@@ -276,14 +340,19 @@ def check(m, root, atg, port, first):
                     'parameters': {'pointerType': 'mouse'}, 'actions': [
                         {'type': 'pointerMove', 'duration': 0, 'x': x, 'y': y}]}]})
                 m.script("return (async()=>{" + HELPERS + """
-                  const h=group('Root').labelContainerElement,b=h.querySelector('.zzgf-close');
+                  const h=group('Root').labelContainerElement,b=h.querySelector('.zzgf-close'),icon=h.querySelector('.zzgf-icon');
                   const visible=""" + json.dumps(visible) + """;
                   await until(()=>{
                     const s=getComputedStyle(b);
                     return visible ? h.matches(':hover') && s.visibility==='visible' &&
-                      +s.opacity>.99 && b.getBoundingClientRect().width>0 : +s.opacity<.01;
+                      +s.opacity>.99 && b.getBoundingClientRect().width>0 && +getComputedStyle(icon).opacity<.01 : +s.opacity<.01;
                   }); return true;
                 })();""")
+            assert m.script(HELPERS + """
+              const h=group('Root').labelContainerElement;
+              const a=h.querySelector('.zzgf-icon').getBoundingClientRect(),b=h.querySelector('.zzgf-close').getBoundingClientRect();
+              return Math.abs(a.x-b.x)<1 && Math.abs(a.y-b.y)<1 && Math.abs(a.width-b.width)<1 && Math.abs(a.height-b.height)<1;
+            """), 'Close button moved outside the favicon slot'
             assert m.script("return (async()=>{" + HELPERS + """
               const b=group('Root').labelContainerElement.querySelector('.zzgf-close');b.focus();
               await until(()=>getComputedStyle(b).opacity==='1' && b.getBoundingClientRect().width>0);
@@ -329,6 +398,20 @@ def check(m, root, atg, port, first):
         assert all(routed.values()), routed
         result.update(routed)
         result.update(check_native_routes(m, root))
+    else:
+        m.script((root / "tab-router/tab-router.uc.js").read_text() + "\nreturn true;")
+    result['channelAvatarRendered'] = m.script("return (async()=>{" + HELPERS + """
+      const canvas=new OffscreenCanvas(64,64),ctx=canvas.getContext('2d');
+      ctx.fillStyle='#f80';ctx.fillRect(0,0,64,64);
+      const bytes=new Uint8Array(await (await canvas.convertToBlob({type:'image/png'})).arrayBuffer());
+      const avatar='data:image/png;base64,'+btoa(String.fromCharCode(...bytes));
+      Services.prefs.setBoolPref('zzrouter.section-icons',true);
+      Services.prefs.setStringPref('zzrouter.avatars',JSON.stringify({grandchild:{d:avatar,s:'round'}}));
+      const g=group('Grandchild');await until(()=>g.style.getPropertyValue('--zzgf-icon').includes(avatar));
+      const image=new Image();image.src=avatar;await image.decode();
+      return g.getAttribute('zzgf-shape')==='circle' && image.naturalWidth===64;
+    })();""")
+    assert result['channelAvatarRendered'], result
     # Leave the child open in the saved session: the next launch must fold it again.
     m.script("""Services.prefs.setBoolPref('zzrouter.enabled',false);
       const root=[...document.querySelectorAll('tab-group')].find(g=>g.label==='Root');

@@ -107,7 +107,7 @@ async function routerEnv(extra = {}) {
       asyncOpen(listener) { NetUtil.open(this, listener); } }),
     open: (channel, listener) => callbacks.push([channel, listener]),
     readInputStreamToString: (s, count) => s.body.slice(0, count) };
-  const h = await load("tab-router", "fetchAnon, fetchCreator, fetchSectionIcon, creatorMap, iconMap, learnedMap, saveLearned, saveCreators, saveIcons, forgetAll, cancelLookups, rules, suggestRules, route, skip, targetPath, reopenInContainer, resolveDestination, prefObserver, progress, placeInPath, initialRequest, retire: () => retired = true", {
+  const h = await load("tab-router", "fetchAnon, fetchCreator, fetchSectionIcon, creatorMap, iconMap, stampIcons, learnedMap, saveLearned, saveCreators, saveIcons, forgetAll, cancelLookups, rules, suggestRules, route, skip, targetPath, reopenInContainer, resolveDestination, prefObserver, progress, placeInPath, initialRequest, retire: () => retired = true", {
     ...c, window: {}, gBrowser: { tabGroups: [], tabs: [] }, document: { querySelectorAll: () => [] },
     ChromeUtils: { generateQI: () => () => {}, importESModule: name => name.includes("NetUtil") ? { NetUtil }
       : { PrivateBrowsingUtils: { isWindowPrivate: () => false } } },
@@ -224,7 +224,7 @@ test("purge ignores an icon whose image decode completes afterward", async () =>
       async convertToBlob() { return { arrayBuffer: async () => new Uint8Array([1]).buffer }; }
     }, btoa: s => Buffer.from(s).toString("base64") });
   e.h.fetchSectionIcon("channel", "https://example.com/channel", 0, "round");
-  e.answer('<meta property="og:image" content="https://example.com/avatar.png"');
+  e.answer('<meta property="og:image" content="https://example.com/avatar.png">');
   e.answer("image bytes");
   e.h.forgetAll();
   decode.resolve({ width: 64, height: 64, close() {} });
@@ -813,6 +813,70 @@ test("Groupflow uses the restored tab favicon and gives iconless groups a folder
   g.groupContainer.children = [];
   h.refreshGroup(g);
   assert.equal(styles.get("--zzgf-icon"), 'url("chrome://browser/skin/zen-icons/folder.svg")');
+});
+
+test("Groupflow container accent counts descendants, resolves ties and clears missing colours", async () => {
+  const a = tab(), b = tab(), c = tab();
+  a.setAttribute("usercontextid", "1");
+  b.setAttribute("usercontextid", "2"); c.setAttribute("usercontextid", "2");
+  const styles = new Map();
+  const g = { ...element(), tabs: [a, b, c], style: {
+    setProperty: (k, v) => styles.set(k, v), getPropertyValue: k => styles.get(k) || "",
+    removeProperty: k => styles.delete(k) } };
+  const h = await load("groupflow", "refreshGroup", { window: {}, gBrowser: {},
+    Services: { prefs: { getIntPref: k => k === "zzgroup.color-source" ? 3 : 0,
+      getBoolPref: () => false, getStringPref: (_k, d) => d } },
+    getComputedStyle: t => ({ getPropertyValue: () => ({ 1: "#00f", 2: "#f00" })[t.getAttribute("usercontextid")] || "" }),
+    CSS: { supports: (_p, v) => /^#[0-9a-f]+$/i.test(v) },
+  });
+  h.refreshGroup(g); assert.equal(styles.get("--zzgf-container-color"), "#f00");
+  g.tabs = [a, b]; h.refreshGroup(g); assert.equal(styles.get("--zzgf-container-color"), "#00f");
+  a.setAttribute("usercontextid", "0"); h.refreshGroup(g); assert.ok(!styles.has("--zzgf-container-color"));
+  g.tabs = []; h.refreshGroup(g); assert.ok(!styles.has("--zzgf-container-color"));
+});
+
+test("Router restores a missing avatar for a cached creator without rerouting or clearing history", async () => {
+  const t = tab("https://www.youtube.com/watch?v=video");
+  const parent = { ...element(), tagName: "tab-group", label: "Youtube", tabs: [t] };
+  const child = { ...element(), tagName: "tab-group", label: "Channel", tabs: [t], parentElement: { closest: () => parent } };
+  let refreshes = 0, opened = 0;
+  const e = await routerEnv({ gBrowser: { tabGroups: [parent, child], tabs: [t] },
+    window: { Groupflow: { refresh() { refreshes++; } } },
+    createImageBitmap: async () => ({ width: 64, height: 64, close() {} }),
+    OffscreenCanvas: class {
+      getContext() { return { drawImage() {} }; }
+      async convertToBlob() { return { arrayBuffer: async () => new Uint8Array([1]).buffer }; }
+    }, btoa: s => Buffer.from(s).toString("base64") });
+  const open = e.NetUtil.open;
+  e.NetUtil.open = (...args) => { opened++; open(...args); };
+  e.prefs.set("zzrouter.enabled", true);
+  e.prefs.set("zzrouter.creators", JSON.stringify({ video: "Channel" }));
+  e.prefs.set("zzrouter.avatars", JSON.stringify({ channel: { d: null, s: "round" } }));
+  e.h.stampIcons(true); assert.equal(opened, 1);
+  e.answer(JSON.stringify({ author_name: "Channel", author_url: "https://www.youtube.com/@channel" }));
+  e.answer("<meta content='https://example.com/avatar.png?a=1&amp;b=2' property='og:image'>");
+  e.answer("image bytes"); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(opened, 3); assert.equal(refreshes, 1);
+  assert.equal(child.getAttribute("data-zzrouter-icon"), "data:image/webp;base64,AQ==");
+  assert.equal(e.h.creatorMap().get("video"), "Channel");
+  assert.equal(e.c.timers.size, 0, "cached creator recovery must not queue routing");
+  e.h.stampIcons(true); assert.equal(opened, 3, "reuse successful avatar");
+  e.h.forgetAll(); assert.equal(opened, 3, "history purge must not start recovery");
+});
+
+test("Router retries missing metadata after 10 minutes without persisting a permanent null avatar", async () => {
+  let now = 1000000, opened = 0;
+  const e = await routerEnv({ Date: { now: () => now } });
+  const open = e.NetUtil.open;
+  e.NetUtil.open = (...args) => { opened++; open(...args); };
+  e.h.fetchSectionIcon("Channel", "https://www.youtube.com/@channel", 2, "round");
+  e.answer("<title>Consent</title>");
+  assert.equal(e.h.iconMap().size, 0);
+  e.h.fetchSectionIcon("Channel", "https://www.youtube.com/@channel", 2, "round");
+  assert.equal(opened, 1);
+  now += 600000;
+  e.h.fetchSectionIcon("Channel", "https://www.youtube.com/@channel", 2, "round");
+  assert.equal(opened, 2); e.h.cancelLookups();
 });
 
 async function groupflowStartupEnv() {

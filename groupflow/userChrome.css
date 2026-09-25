@@ -110,6 +110,7 @@
    then Zen's primary. Per group, so mixed-color groups each keep their
    identity -- same resolution order Glassflow uses for tabs. */
 #navigator-toolbox tab-group:not([split-view-group]) {
+  --zzgf-container-color: initial;
   --zzgf-raw: var(--tab-group-color, var(--zzg-accent, var(--zen-primary-color, #7c8cf8)));
   --zzgf-accent: color-mix(in srgb, var(--zzgf-raw), black var(--zzg-tone, 25%));
   --zzgf-line: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-line-strength, 40%), transparent);
@@ -208,6 +209,11 @@
 @media (-moz-pref("zzgroup.color-source", 2)) {
   #navigator-toolbox tab-group:not([split-view-group]) {
     --zzgf-raw: var(--zzgroup-custom-color, #7c8cf8);
+  }
+}
+@media (-moz-pref("zzgroup.color-source", 3)) {
+  #navigator-toolbox tab-group:not([split-view-group]) {
+    --zzgf-raw: var(--zzgf-container-color, var(--tab-group-color, var(--zen-primary-color, #7c8cf8)));
   }
 }
 
@@ -1475,8 +1481,8 @@
 
 /* Group controls remain usable with the optional glass styling switched off. */
 :root[zzgf-standalone] #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
-  display: flex !important;
-  flex-direction: row !important;
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center !important;
   height: 36px;
 }
@@ -1489,24 +1495,27 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  align-content: center;
+  align-self: center !important;
+  align-content: center !important;
   line-height: normal !important;
-  order: 1;
+  grid-area: 1 / 2;
 }
 :root[zzgf-standalone] #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container > .tab-group-label::before {
   display: none !important;
 }
-:root[zzgf-standalone] #navigator-toolbox .zzgf-control {
+:root[zzgf-standalone] #navigator-toolbox tab-group > .tab-group-label-container > .zzgf-control {
   appearance: none;
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
-  flex: 0 0 auto;
-  min-width: 20px;
-  width: 20px;
-  height: 24px;
-  padding: 2px;
-  margin: 0 2px;
+  grid-area: 1 / 1;
+  order: 0 !important;
+  min-width: 0 !important;
+  width: calc(var(--zzgroup-icon-size, 14px) + 8px) !important;
+  height: max(24px, calc(var(--zzgroup-icon-size, 14px) + 8px));
+  padding: 2px !important;
+  margin-inline: 0 6px !important;
+  box-sizing: border-box;
   border: 0;
   border-radius: 4px;
   background: transparent;
@@ -1517,10 +1526,7 @@
 :root[zzgf-standalone] #navigator-toolbox .zzgf-control:hover { background-color: color-mix(in srgb, currentColor 12%, transparent); }
 :root[zzgf-standalone] #navigator-toolbox .zzgf-control:focus-visible { outline: 2px solid var(--focus-outline-color); outline-offset: 1px; }
 :root[zzgf-standalone] #navigator-toolbox .zzgf-icon {
-  order: 0;
-  width: calc(var(--zzgroup-icon-size, 14px) + 8px);
-  height: max(24px, calc(var(--zzgroup-icon-size, 14px) + 8px));
-  margin-inline: 0 6px;
+  pointer-events: none;
   -moz-context-properties: fill;
   fill: currentColor;
 }
@@ -1533,25 +1539,24 @@
   background: var(--zzgf-icon, url("chrome://browser/skin/zen-icons/folder.svg")) center / contain no-repeat;
 }
 :root[zzgf-standalone] #navigator-toolbox .zzgf-close {
-  order: 4;
   font-size: 18px;
   list-style-image: none;
   visibility: visible !important;
   opacity: 0;
+  pointer-events: none;
 }
 :root[zzgf-standalone] #navigator-toolbox .tab-group-label-container:is(:hover, :focus-within) > .zzgf-close {
   opacity: 1;
+  pointer-events: auto;
 }
-:root[zzgf-standalone] #navigator-toolbox tab-group[zzgf-saved-gradient] > .tab-group-label-container {
-  background-image: var(--zzgf-saved-background) !important;
+:root[zzgf-standalone] #navigator-toolbox .tab-group-label-container:is(:hover, :focus-within) > .zzgf-icon {
+  opacity: 0;
+}
+@media (-moz-pref("zzgroup.color-source", 0)) {
+  :root[zzgf-standalone] #navigator-toolbox tab-group[zzgf-saved-gradient] > .tab-group-label-container {
+    background-image: var(--zzgf-saved-background) !important;
+  }
 }
 :root[zzgf-standalone] #navigator-toolbox tab-group[collapsed]:not([split-view-group]) > .tab-group-container {
   display: none !important;
-}
-@media (-moz-pref("zzgroup.close-left")) {
-  :root[zzgf-standalone] #navigator-toolbox .zzgf-close { order: -1 !important; }
-  :root[zzgf-standalone] #navigator-toolbox .tab-group-label-container:focus-within > .zzgf-close {
-    width: 20px !important;
-    opacity: 1;
-  }
 }

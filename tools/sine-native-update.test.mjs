@@ -13,7 +13,7 @@ const upstream = process.env.SINE_MANAGER_SOURCE;
 const root = new URL("../", import.meta.url);
 const mods = ["download-prompt", "glassflow", "groupflow", "tab-router", "tab-unloader", "zen-turbo"];
 
-async function environment() {
+async function environment({ realMetadata = false } = {}) {
   const source = await readFile(upstream, "utf8");
   const repo = new Map(), manifests = {};
   for (const mod of mods) {
@@ -21,7 +21,7 @@ async function environment() {
       repo.set(mod + "/" + name, await readFile(new URL(mod + "/" + name, root), "utf8"));
     }
     const theme = JSON.parse(repo.get(mod + "/theme.json"));
-    manifests[theme.id] = { ...theme, enabled: true, updatedAt: "2026-09-17T00:00:00Z" };
+    manifests[theme.id] = { ...theme, enabled: true };
   }
   const fs = new Map();
   let registry = Object.fromEntries(Object.entries(manifests).map(([id, m]) => [id, { ...m, updatedAt: "2020-01-01T00:00:00Z" }]));
@@ -66,12 +66,18 @@ async function environment() {
       registry = structuredClone(json);
     },
   };
+  const metadataRequests = [], updatedMods = [];
+  const sharedRepoDate = "2026-09-17T00:00:00Z";
   const ucAPI = {
+    utils: { generateUUID: () => "unused-generated-id" },
     async fetch(url) {
+      metadataRequests.push(url);
+      if (url.startsWith("https://api.github.com/")) return { updated_at: sharedRepoDate };
       const mod = url.split("/").at(-2);
       return structuredClone(manifests["zz-" + mod]);
     },
     async unpackRemoteArchive({ id, extractDir }) {
+      updatedMods.push(id);
       await tick();
       for (const [p, contents] of repo) fs.set(extractDir + "/" + id + "/" + p, contents);
       return [...repo.keys()].map(p => id + "/" + p);
@@ -85,17 +91,52 @@ async function environment() {
   vm.runInContext(source.replace(/^import .*;\r?\n/gm, "")
     .replace("export default new Manager();", "globalThis.manager = new Manager();"), context);
   const manager = context.manager;
-  manager.createThemeJSON = async (_url, _mods, data, minimal) =>
-    minimal ? { theme: structuredClone(data), githubAPI: {} } : structuredClone(data);
+  if (!realMetadata) {
+    manager.createThemeJSON = async (_url, _mods, data, minimal) =>
+      minimal ? { theme: structuredClone(data), githubAPI: {} } : structuredClone(data);
+  }
   let lastLoad = Promise.resolve();
   manager.rebuildMods = () => {};
   manager.loadMods = () => {
     lastLoad = Promise.all(Object.values(registry).map(mod => utils.getModPreferences(mod)));
     return lastLoad;
   };
-  return { manager, utils, fs, manifests, get lastLoad() { return lastLoad; },
+  return { manager, utils, fs, manifests, metadataRequests, updatedMods, sharedRepoDate,
+    get lastLoad() { return lastLoad; },
     get registry() { return registry; } };
 }
+
+test("native Sine: newer version is skipped when the shared repository timestamp is unchanged", { skip: !upstream }, async () => {
+  const env = await environment({ realMetadata: true });
+  const id = "zz-groupflow";
+  delete env.manifests[id].updatedAt;
+  env.registry[id].version = "0.0.0";
+  env.registry[id].updatedAt = env.sharedRepoDate;
+  const list = await env.utils.getMods();
+  const result = await env.manager.processModUpdate(list[id], list, null);
+  assert.equal(result.changed, false);
+  assert.equal(env.registry[id].version, "0.0.0");
+  assert.deepEqual(env.updatedMods, []);
+  assert.equal(env.metadataRequests.filter(url => url.startsWith("https://api.github.com/")).length, 1);
+});
+
+test("native Sine: authored release dates update Groupflow alone without GitHub API metadata", { skip: !upstream }, async () => {
+  const env = await environment({ realMetadata: true });
+  for (const [id, manifest] of Object.entries(env.manifests)) {
+    assert.ok(Number.isFinite(Date.parse(manifest.updatedAt)), id + " needs an authored release date");
+    env.registry[id].updatedAt = manifest.updatedAt;
+  }
+  env.registry["zz-groupflow"].version = "0.0.0";
+  env.registry["zz-groupflow"].updatedAt = env.sharedRepoDate;
+  installSineUpdateGuard(env.manager, env.utils);
+  assert.equal(await env.manager.updateMods("auto"), true);
+  await env.lastLoad;
+  assert.deepEqual(env.updatedMods, ["zz-groupflow"]);
+  assert.equal(env.registry["zz-groupflow"].version, env.manifests["zz-groupflow"].version);
+  assert.equal(env.registry["zz-groupflow"].updatedAt, env.manifests["zz-groupflow"].updatedAt);
+  assert.equal(env.metadataRequests.length, 6);
+  assert.ok(env.metadataRequests.every(url => url.endsWith("/theme.json")));
+});
 
 test("native Sine: unguarded parallel update reproduces folder loss", { skip: !upstream }, async () => {
   const env = await environment();

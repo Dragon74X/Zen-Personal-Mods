@@ -57,4 +57,12 @@ links with session storage, opener links, reverse routing, and a POST redirect.
 
 ## Sine update recovery
 
+Sine discovers releases by `theme.json.updatedAt`, not by version number. Each
+mod supplies its own release timestamp so updates do not depend on GitHub's
+shared repository timestamp. Releases must advance both fields; see [AGENTS.md](AGENTS.md).
+Sine skips disabled mods and mods with **Disable updates** selected, including
+manual update checks. Updating the repository cannot override that local setting.
+`tools/check.js` reports each installed mod's update flag, source, version and
+timestamp alongside the version actually installed on disk.
+
 The guard prevents overlapping install/update operations while loaded. It cannot reconstruct files already missing from an interrupted install. Restart after obtaining the updated guard. If a mod still has missing files, reinstall affected mods one at a time from their folder URLs, waiting for each install to finish. Install a working guard copy and restart before attempting another batch update. Do not move Sine's `temp` or extracted subfolders during a running install; those paths can be legitimate staging files.

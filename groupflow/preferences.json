@@ -15,7 +15,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.color-source",
-    "label": "Accent source *Where each group's accent color comes from. Group's own color is the chip you picked when creating the group, so mixed-color groups keep their identity; the other options unify everything under one accent.*",
+    "label": "Accent source *Group's own color uses the group's saved colour. Tab container colour uses the most common container among its tabs, including subgroups; ties use the first encountered tied container. Without a container colour, it falls back to the group colour. Glassflow accent and Custom use one accent for all groups.*",
     "defaultValue": 0,
     "options": [
       {
@@ -29,6 +29,10 @@
       {
         "label": "Custom color",
         "value": 2
+      },
+      {
+        "label": "Tab container colour",
+        "value": 3
       }
     ],
     "conditions": [
@@ -348,7 +352,7 @@
   {
     "type": "checkbox",
     "property": "zzgroup.close-left",
-    "label": "Close button on the left *Shows the group close button before the favicon on header hover. Works with or without ATG.*",
+    "label": "ATG close button on the left *Moves ATG's close button before the favicon. Without ATG, the X replaces the favicon on hover or keyboard focus.*",
     "defaultValue": false,
     "conditions": [
       {

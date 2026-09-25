@@ -69,7 +69,7 @@
     if (data === P + "learned-names") { learnedCache = null; targetGen++; return; }
     if (data === P + "creators") { creatorCache = null; targetGen++; return; }
     if (data === P + "avatars") { iconCache = null; stampIcons(); return; }
-    if (data === P + "section-icons") { stampIcons(); return; }
+    if (data === P + "section-icons") { stampIcons(true); return; }
     for (const k of Object.keys(parsed)) delete parsed[k]; learnedCache = null; targetGen++;
   } };
   function write(key, text) {
@@ -458,12 +458,12 @@
       if (epoch !== lookupEpoch) return;
       inFlight.delete(id);
       if (!name) { noteFail(id); return; }
-      creatorMap().set(id, name);
-      saveCreators();
-      targetGen++;
+      const changed = creatorMap().get(id) !== name;
+      if (changed) { creatorMap().set(id, name); saveCreators(); targetGen++; }
       note(`creator ${id}: ${name}`);
-      if (tab.isConnected && !tab.closing) queueRoute(tab, "creator");
+      if (changed && tab.isConnected && !tab.closing) queueRoute(tab, "creator");
       if (channelUrl) fetchSectionIcon(name, channelUrl, ctx, "round");
+      else noteFail("icon:" + name.trim().toLowerCase());
     };
     try {
       fetchAnon(OEMBED + encodeURIComponent(watch), ctx, (body) => {
@@ -510,7 +510,8 @@
     if (iconCache) return iconCache;
     try {
       iconCache = new Map(Object.entries(JSON.parse(str("avatars", "{}")))
-        .map(([k, v]) => [k, typeof v === "string" ? { d: v, s: "round" } : v]));   // 1.25.x stored bare avatars
+        .map(([k, v]) => [k, typeof v === "string" ? { d: v, s: "round" } : v])
+        .filter(([, v]) => v?.d)); // Old null entries must not suppress recovery forever.
     } catch { iconCache = new Map(); }
     return iconCache;
   }
@@ -552,28 +553,30 @@
     if (lastFail && Date.now() - lastFail < RETRY_FAIL_MS) return;
     inFlight.set(slot, true);
     const epoch = lookupEpoch;
-    // A page that answered with nothing usable is remembered as such (d:
-    // null), so it is asked once; a page that did not answer is retried.
-    const done = (icon, answered = true) => {
+    // Consent pages, missing metadata and decode failures use the same bounded
+    // retry delay as network errors; only successful pictures persist.
+    const done = (icon) => {
       if (epoch !== lookupEpoch) return;
       inFlight.delete(slot);
-      if (!icon && !answered) { noteFail(slot); return; }
+      if (!icon) { noteFail(slot); note(`no usable picture for "${label}"; favicon stays`); return; }
       iconMap().set(key, { d: icon, s: shape });
       saveIcons();
-      note(icon ? `icon for "${label}"` : `no usable picture for "${label}"; favicon stays`);
-      if (icon) stampIcons();
+      note(`icon for "${label}"`);
+      stampIcons();
     };
     try {
       fetchAnon(pageUrl, ctx, (html) => {
         // og:image read with a string search, never parsed as a document.
         // A consent interstitial has none; the lookup is retried later.
-        if (!html) return done(null, false);
-        const m = /<meta property="og:image" content="([^"]{1,400})"/.exec(html);
-        const img = m ? m[1].replace(/=s\d+/, "=s256") : null;   // YouTube sizes by suffix
+        if (!html) return done(null);
+        const meta = (html.match(/<meta\b[^>]{0,2048}>/gi) || [])
+          .find(tag => /\bproperty\s*=\s*(["'])og:image\1/i.test(tag));
+        const m = meta && /\bcontent\s*=\s*(["'])(.{1,400}?)\1/i.exec(meta);
+        const img = m ? m[2].replace(/&amp;/g, "&").replace(/=s\d+/, "=s256") : null;
         if (!img || !/^https:\/\/[^\s"'<>\\]+$/.test(img)) return done(null);
         try {
           fetchAnon(img, ctx, (bytes) => {
-            if (!bytes) return done(null, false);
+            if (!bytes) return done(null);
             if (bytes.length > 400000) return done(null);
             toIcon(bytes).then((icon) => { if (!icon) note(`picture for "${label}" is a banner, not a portrait`); done(icon); },
                                (e) => { note(`icon convert failed for "${label}": ${e}`); done(null); });
@@ -601,11 +604,21 @@
   // recomputes on request. Root groups are never stamped, so a section
   // named like a top-level group cannot take it over. Switched off: the
   // stamps come off and Groupflow falls back to favicons.
-  function stampIcons() {
+  function stampIcons(recover = false) {
     const on = bool("section-icons", true);
     let changed = 0;
     for (const g of groups()) {
       const want = on && parentOf(g) ? iconMap().get((g.label ?? "").trim().toLowerCase()) : null;
+      if (recover && on && bool("enabled", false) && parentOf(g) && !want?.d && !isPrivate()) {
+        const key = (g.label ?? "").trim().toLowerCase(), slot = "icon:" + key;
+        if (!inFlight.has(slot) && Date.now() - (failed.get(slot) || 0) >= RETRY_FAIL_MS) {
+          const tab = g.tabs?.find(t => {
+            const id = videoId(t), known = creatorMap().get(id);
+            return id && (!known || known.toLowerCase() === key);
+          });
+          if (tab) fetchCreator(tab, videoId(tab));
+        }
+      }
       if (want?.d) {
         if (g.getAttribute("data-zzrouter-icon") !== want.d) {
           g.setAttribute("data-zzrouter-icon", want.d);
@@ -1125,7 +1138,7 @@
       }
       orderDeferredSince = 0;
       try { applyOrder(); } catch (e) { note(`applyOrder: ${e}`); }
-      try { stampIcons(); } catch (e) { note(`stampIcons: ${e}`); }
+      try { stampIcons(true); } catch (e) { note(`stampIcons: ${e}`); }
     }, num("order-delay-ms", 150));
   }
 
@@ -1597,7 +1610,7 @@
         } catch {}
 
         const r = {
-          version: "1.34.2",
+          version: "1.34.3",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The
@@ -1634,7 +1647,7 @@
     if (bool("sort-on-startup", false)) startupTimers.push(setTimeout(() => sweepAll("startup"), num("startup-delay-ms", 2500)));
     // Restored creator subgroups get their avatar back whether or not the
     // startup sort runs.
-    startupTimers.push(setTimeout(() => { try { stampIcons(); } catch {} }, num("startup-delay-ms", 2500) + 500));
+    startupTimers.push(setTimeout(() => { try { stampIcons(true); } catch {} }, num("startup-delay-ms", 2500) + 500));
     note("loaded");
 
     // This script is injected per window and lives as long as the window

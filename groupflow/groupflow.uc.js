@@ -74,7 +74,7 @@
     observe(_s, _t, data) {
       if (!data || !data.startsWith(PREFIX)) return;
       iconRules = null;                    // reparsed on the next refresh
-      if (["favicons", "icon-rules", "section-icons", "icon-shape"].some(k => data === PREFIX + k)) schedule();
+      if (["favicons", "icon-rules", "section-icons", "icon-shape", "color-source"].some(k => data === PREFIX + k)) schedule();
       const name = "--" + data.replace(/\./g, "-");
       const value = readPrefValue(data);
       try {
@@ -192,6 +192,27 @@
   }
 
   function refreshGroup(g) {
+    if (num("color-source", 0) === 3) {
+      const counts = new Map();
+      let dominant = null, most = 0;
+      for (const tab of g.tabs ?? []) {
+        if (tab.closing || tab.hasAttribute("zen-empty-tab")) continue;
+        const id = tab.getAttribute("usercontextid") || "0";
+        const entry = counts.get(id) || { tab, count: 0 };
+        entry.count++;
+        counts.set(id, entry);
+      }
+      for (const { tab, count } of counts.values()) {
+        if (count > most) { dominant = tab; most = count; }
+      }
+      const color = Number(dominant?.getAttribute("usercontextid")) > 0
+        ? getComputedStyle(dominant).getPropertyValue("--identity-tab-color").trim() : "";
+      const value = color && CSS.supports("color", color) ? color : "";
+      if (g.style.getPropertyValue("--zzgf-container-color") !== value) {
+        if (value) g.style.setProperty("--zzgf-container-color", value);
+        else g.style.removeProperty("--zzgf-container-color");
+      }
+    }
     const rule = ruledIcon(g) ?? customIcon(g);
     const picture = !rule && bool("section-icons", true) ? stampedIcon(g) : null;
     setShape(g, picture);
@@ -240,7 +261,7 @@
   }
 
   function refreshAll() {
-    if (!savedGroupIcons && !bool("favicons", true)) return;
+    if (!savedGroupIcons && !bool("favicons", true) && num("color-source", 0) !== 3) return;
     const seen = new Set();
     try { for (const g of gBrowser.tabGroups) seen.add(g); } catch {}
     try { for (const g of document.querySelectorAll("tab-group")) seen.add(g); } catch {}
@@ -270,7 +291,7 @@
   };
   function refreshDirty() {
     if (everything) { everything = false; dirty.clear(); refreshAll(); return; }
-    if (!savedGroupIcons && !bool("favicons", true)) { dirty.clear(); return; }
+    if (!savedGroupIcons && !bool("favicons", true) && num("color-source", 0) !== 3) { dirty.clear(); return; }
     for (const g of dirty) if (g.isConnected && !g.isZenFolder && !g.hasAttribute("split-view-group")) refreshGroup(g);
     dirty.clear();
   }
@@ -439,15 +460,17 @@
       if (!decorated.has(group)) {
         decorated.add(group);
         header.classList.add("zen-drop-target");
-        for (const [action, label] of [["icon", "Choose group icon"], ["close", "Close group"]]) {
-          const button = document.createElementNS("http://www.w3.org/1999/xhtml", "button");
-          button.type = "button";
-          button.className = "zzgf-control zzgf-" + action + (action === "close" ? " tab-close-button" : "");
-          button.dataset.zzgfAction = action;
-          button.setAttribute("aria-label", label);
-          button.title = label;
-          if (action === "close") button.textContent = "×";
-          header.appendChild(button);
+        for (const action of ["icon", "close"]) {
+          const close = action === "close";
+          const control = document.createElementNS("http://www.w3.org/1999/xhtml", close ? "button" : "span");
+          control.className = "zzgf-control zzgf-" + action + (close ? " tab-close-button" : "");
+          if (close) {
+            control.type = "button";
+            control.setAttribute("aria-label", "Close group");
+            control.title = "Close group";
+            control.textContent = "×";
+          } else control.setAttribute("aria-hidden", "true");
+          header.appendChild(control);
         }
       }
       const ws = workspaceOf(group);
@@ -510,26 +533,14 @@
     }
 
     async function click(event) {
-      const button = event.target.closest?.(".zzgf-control");
+      const button = event.target.closest?.(".zzgf-close");
       const group = button?.closest("tab-group");
       if (!plainGroup(group)) return;
       event.preventDefault(); event.stopPropagation();
       try {
-        switch (button.dataset.zzgfAction) {
-          case "close": await gBrowser.removeTabGroup(group); break;
-          case "icon": {
-            if (!icons) return;
-            const value = await window.gZenEmojiPicker.open(button, { emojiAsSVG: true });
-            if (retired || !group.isConnected) return;
-            if (value) icons[group.id] = value;
-            else delete icons[group.id];
-            writeGroupData("tabGroupIcons", icons);
-            refreshGroup(group);
-            break;
-          }
-        }
+        await gBrowser.removeTabGroup(group);
       } catch (error) {
-        if (error.message !== "Emoji picker closed without selection") console.error("[Groupflow] Group control failed:", error);
+        console.error("[Groupflow] Group close failed:", error);
       }
     }
 
@@ -603,6 +614,19 @@
     };
   }
 
+  function toggleSubgroups(event) {
+    if (event.button !== 0) return;
+    const group = event.target.closest?.(".tab-group-label-container")?.parentElement;
+    const selector = "tab-group, zen-folder";
+    if (!group?.matches(selector) || group.hasAttribute("split-view-group") ||
+        group.parentElement?.closest(selector)) return;
+    // Bubble after Zen toggles the root. Controls stop propagation themselves.
+    // Use native setters so nested visibility and accessibility stay in sync.
+    for (const child of [...group.querySelectorAll(selector)].reverse()) {
+      if (!child.hasAttribute("split-view-group")) child.collapsed = group.collapsed;
+    }
+  }
+
   function foldStartupGroups() {
     if (instance.startupFolded) return;
     // Finish ATG's restore when it is present. Standalone nesting is already
@@ -631,6 +655,8 @@
     if (typeof arcMode === "function") atg.isArcMode = allowCollapse;
     Services.prefs.addObserver(PREFIX, prefVarObserver);
     for (const ev of EVENTS) window.addEventListener(ev, schedule, true);
+    window.addEventListener("click", toggleSubgroups);
+    try { Services.obs.addObserver(schedule, "contextual-identity-updated"); } catch {}
 
     window.Groupflow = {
       // Recompute every group icon now.
@@ -668,6 +694,8 @@
       if (atg?.isArcMode === allowCollapse) atg.isArcMode = arcMode;
       try { delete window.Groupflow; } catch {}
       for (const ev of EVENTS) window.removeEventListener(ev, schedule, true);
+      window.removeEventListener("click", toggleSubgroups);
+      try { Services.obs.removeObserver(schedule, "contextual-identity-updated"); } catch {}
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}
       clearTimeout(timer);
       clearTimeout(boot);

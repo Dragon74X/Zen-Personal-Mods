@@ -38,15 +38,21 @@ Hierarchy updates follow group events and flush before SessionStore closes the w
 Groupflow also saves parent labels, colours and workspace IDs in `groupflowGroups`:
 Zen does not recreate plain groups containing only subgroups on its own.
 
+Clicking a top-level group/folder header collapses its whole tree. The next click
+opens the parent and every nested subgroup/subfolder. Nested headers still toggle
+individually. Close and reset controls retain their existing actions.
+This works with or without ATG and does not change startup folding.
+
 ## Without Advanced Tab Groups
 
 Groupflow supplies group persistence and controls when ATG is absent:
 
-- Click the header to fold/expand; click the icon to open Zen's icon/emoji picker.
+- Click the header or favicon to fold/expand. Icon changes use Sine's Groupflow
+  settings, including Icon rules; left-click does not open a picker.
 - Right-click a header for Firefox's group editor: rename, 9 native colours,
   new tab, close and ungroup. Ungroup moves direct items out while retaining subgroups.
-- Close buttons appear on header hover or keyboard focus and use the native close
-  API, including beforeunload cancellation.
+- On header hover or keyboard focus, the X replaces the favicon in the same slot.
+  It uses the native close API, including beforeunload cancellation.
 - Native drag handling supplies nesting and movement; header edges accept insertion.
 - Saved ATG parents, icons and colours use the existing `tabGroupParents`,
   `tabGroupIcons` and `tabGroupColors` window values. Emoji, SVG icons, saved favicon
@@ -82,9 +88,13 @@ and `python tools/zen-routing-smoke.py --zen /path/to/zen`.
 ## What it styles
 
 **Headers** — accent tint and gradient, roundness, optional sheen, rim light
-and glass blur, close button on either side. The accent comes from the group's
-own colour chip by default, so mixed-colour groups keep their identity;
-Glassflow's accent or a custom colour unify everything instead.
+and glass blur. The accent uses the group's own colour by default. **Tab container
+colour** uses the most common container across all member tabs, including nested
+groups; ties use the first encountered tied container. It reads Firefox's container
+colour and follows container-colour edits. Empty groups and a majority of
+non-container tabs fall back to the group colour. Glassflow accent and Custom
+apply one colour across groups. Saved ATG gradients apply only with **Group's own
+color**, so they cannot override a selected container or custom accent.
 
 **Label text** — alignment, weight, size, colour, italic, underline,
 uppercase, and a favicon in place of the group icon.

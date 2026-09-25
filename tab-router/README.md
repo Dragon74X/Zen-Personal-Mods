@@ -42,9 +42,17 @@ Separate from routing, and applied after it. **Order groups and subgroups**
 sorts alphabetically (default), by creation date, or not at all. **Loose tabs
 above subgroups** (on) keeps a group's own tabs above any subgroups it
 contains, rather than interleaved. **Follow Zen routes and containers** (on)
-uses the destination workspace's container when a reload can be performed safely.
+uses the destination workspace's container.
 
-A container change waits for the top-level load to finish, then flushes session
+For a new tab's first HTTP GET, the native request observer checks Zen's domain
+rule before the response loads. If the tab inherited another container, it
+opens the request in the routed workspace's container and closes the blank tab.
+This also covers `target="_blank"` links, whose destination is unknown when Zen
+creates the initial `about:blank` tab. It works without a Tab Router group rule;
+Zen's domain matcher selects the destination. POSTs, form submissions, their
+redirects, and session restoration are excluded from this first-request path.
+
+For already-loaded pages, a container change waits for the load to finish, then flushes session
 state. Ordinary iframes do not block it. Tabs with back history, form state,
 session storage, or POST data (including nested frames) keep their current
 container. The native close veto remains active. Group/workspace filing can

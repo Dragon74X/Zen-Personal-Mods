@@ -49,6 +49,8 @@ python tools/zen-routing-smoke.py --zen /path/to/zen --atg /path/to/Advanced-Tab
 This uses a local fixture server and a disposable profile across three launches.
 It checks nested folding with ATG's Arc mode, cached/custom icons, manual toggles,
 loading iframe pages, and container repairs that preserve deeper subgroups.
+It also exercises Zen domain rules across two workspaces/containers: new-tab
+links with session storage, opener links, reverse routing, and a POST redirect.
 
 ## Sine update recovery
 

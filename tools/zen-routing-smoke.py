@@ -19,14 +19,30 @@ Marionette = runpy.run_path(str(Path(__file__).with_name("zen-smoke.py")))["Mari
 
 
 class Page(BaseHTTPRequestHandler):
+    posts = []
+
+    def do_POST(self):
+        self.posts.append(self.rfile.read(int(self.headers.get("Content-Length", 0))).decode())
+        self.send_response(302)
+        self.send_header("Location", "/native-result")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
     def do_GET(self):
         if self.path == "/slowframe":
             time.sleep(1.5)
         frame = '<iframe src="/slowframe"></iframe>' if self.path == "/frames" else ""
+        port = self.server.server_port
+        links = (f'<a id="native" target="_blank" href="http://localhost:{port}/native-state">Route</a>'
+                 f'<a id="opener" target="_blank" rel="opener" href="http://localhost:{port}/native-opener">Opener</a>'
+                 f'<a id="reverse" target="_blank" href="http://127.0.0.1:{port}/native-back">Reverse</a>'
+                 f'<form id="post" method="post" target="_blank" action="http://localhost:{port}/native-post">'
+                 '<input name="draft" value="keep this"></form>')
+        state = '<script>sessionStorage.setItem("site-state","keep")</script>' if self.path.startswith("/native-") else ""
         body = ('<title>Routing fixture</title><link rel="icon" href="data:image/svg+xml,'
                 '%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22%3E'
                 '%3Crect width=%2216%22 height=%2216%22 fill=%22red%22/%3E%3C/svg%3E">'
-                '<input id="draft">' + frame).encode()
+                '<input id="draft">' + frame + links + state).encode()
         self.send_response(200)
         self.send_header("Content-Type", "text/html")
         self.send_header("Content-Length", str(len(body)))
@@ -53,6 +69,66 @@ HELPERS = """
     await until(() => /^http:/.test(t.linkedBrowser.currentURI.spec) && !t.hasAttribute('busy') && t.getAttribute('image'));
   };
 """
+
+
+def check_native_routes(m, root):
+    m.script("return (async()=>{" + HELPERS + """
+      window.routeSource=group('Source').tabs[0];
+      const source=gZenWorkspaces.getWorkspaceFromId(routeSource.getAttribute('zen-workspace-id'));
+      source.containerTabId=1; gZenWorkspaces.saveWorkspace(source);
+      window.routeSourceID=source.uuid;
+      window.routeTarget=await gZenWorkspaces.createAndSaveWorkspace('Native destination',undefined,false,2);
+      for(const [reference,matchType,openIn] of [
+        ['localhost','contains',routeTarget.uuid],
+        [fixtureURL+'/native-back','equal-to',source.uuid],
+      ]) {
+        const rule=gZenSpaceRoutingManager.createNewRoute();
+        Object.assign(rule,{reference,matchType,openIn});gZenSpaceRoutingManager.updateRoute(rule);
+      }
+      gZenSpaceRoutingManager.saveRoutes();
+      await gZenWorkspaces.changeWorkspace(source);gBrowser.selectedTab=routeSource;
+      return true;
+    })();""")
+    results = {}
+    for name, source, action, path, ctx in [
+        ("nativeBlankLink", "/source", "native", "/native-state", 2),
+        ("nativeOpenerLink", "/source", "opener", "/native-opener", 2),
+        ("nativeReverseRule", "/native-state", "reverse", "/native-back", 1),
+        ("nativePostRedirect", "/source", "post", "/native-result", 1),
+    ]:
+        # Select the content handle, not merely gBrowser.selectedTab: Marionette
+        # otherwise keeps addressing the original about:blank document.
+        m.script("return (async()=>{ const suffix=" + json.dumps(source) + """;
+          const tab=[...document.querySelectorAll('tab')].find(t=>t.linkedBrowser?.currentURI?.spec.endsWith(suffix));
+          await gZenWorkspaces.changeWorkspace(gZenWorkspaces.getWorkspaceFromId(tab.getAttribute('zen-workspace-id')));
+          gBrowser.selectedTab=tab;return true; })();""")
+        m.call("Marionette:SetContext", {"value": "content"})
+        for handle in m.call("WebDriver:GetWindowHandles"):
+            m.call("WebDriver:SwitchToWindow", {"handle": handle})
+            if m.script("return document.URL;", "content").endswith(source):
+                break
+        else:
+            raise AssertionError("Fixture source tab missing: " + source)
+        method = "submit" if action == "post" else "click"
+        m.script(f"document.getElementById({json.dumps(action)}).{method}(); return true;", "content")
+        result = m.script("return (async()=>{" + HELPERS + """
+          const path=""" + json.dumps(path) + """;
+          const matches=()=>[...document.querySelectorAll('tab')].filter(t=>!t.closing && t.linkedBrowser?.currentURI?.spec.endsWith(path));
+          await until(()=>matches().length && !matches()[0].hasAttribute('busy'));
+          await pause(500);
+          const tabs=matches(), t=tabs[0];await gBrowser.prepareDiscardBrowser(t);
+          const state=JSON.parse(SessionStore.getTabState(t));
+          return {count:tabs.length,ctx:t.userContextId,
+            workspace:t.getAttribute('zen-workspace-id')===(path==='/native-back'?routeSourceID:routeTarget.uuid),
+            storage:Object.keys(state.storage||{}).some(key=>key.endsWith('^userContextId='+t.userContextId))};
+        })();""")
+        assert result == {"count": 1, "ctx": ctx, "workspace": True, "storage": True}, (name, result)
+        results[name] = True
+        if action == "opener":
+            # Reinject between link tests to exercise observer retirement.
+            m.script((root / "tab-router/tab-router.uc.js").read_text() + "\nreturn true;")
+    assert Page.posts == ["draft=keep+this"], Page.posts
+    return results
 
 
 def check(m, root, atg, port, first):
@@ -133,6 +209,7 @@ def check(m, root, atg, port, first):
         })();""")
         assert all(routed.values()), routed
         result.update(routed)
+        result.update(check_native_routes(m, root))
     # Leave the child open in the saved session: the next launch must fold it again.
     m.script("""Services.prefs.setBoolPref('zzrouter.enabled',false);
       const root=[...document.querySelectorAll('tab-group')].find(g=>g.label==='Root');

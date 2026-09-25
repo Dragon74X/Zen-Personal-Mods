@@ -107,7 +107,7 @@ async function routerEnv(extra = {}) {
       asyncOpen(listener) { NetUtil.open(this, listener); } }),
     open: (channel, listener) => callbacks.push([channel, listener]),
     readInputStreamToString: (s, count) => s.body.slice(0, count) };
-  const h = await load("tab-router", "fetchAnon, fetchCreator, fetchSectionIcon, creatorMap, iconMap, learnedMap, saveLearned, saveCreators, saveIcons, forgetAll, cancelLookups, rules, suggestRules, route, skip, targetPath, reopenInContainer, resolveDestination, prefObserver, progress, placeInPath", {
+  const h = await load("tab-router", "fetchAnon, fetchCreator, fetchSectionIcon, creatorMap, iconMap, learnedMap, saveLearned, saveCreators, saveIcons, forgetAll, cancelLookups, rules, suggestRules, route, skip, targetPath, reopenInContainer, resolveDestination, prefObserver, progress, placeInPath, initialRequest, retire: () => retired = true", {
     ...c, window: {}, gBrowser: { tabGroups: [], tabs: [] }, document: { querySelectorAll: () => [] },
     ChromeUtils: { generateQI: () => () => {}, importESModule: name => name.includes("NetUtil") ? { NetUtil }
       : { PrivateBrowsingUtils: { isWindowPrivate: () => false } } },
@@ -116,8 +116,8 @@ async function routerEnv(extra = {}) {
       setStringPref: (k, v) => prefs.set(k, v) },
       io: { newURI: url => { const u = new URL(url); return { scheme: u.protocol.slice(0, -1), host: u.hostname, userPass: u.username + u.password }; } },
       scriptSecurityManager: { createContentPrincipal() {} } },
-    Ci: { nsILoadInfo: {}, nsIContentPolicy: {}, nsIRequest: {}, nsIWebProgressListener: { STATE_STOP: 16, STATE_IS_NETWORK: 0x40000 } },
-    Components: { isSuccessCode: s => s === 0 },
+    Ci: { nsILoadInfo: {}, nsIContentPolicy: { TYPE_DOCUMENT: 6 }, nsIRequest: {}, nsIWebProgressListener: { STATE_STOP: 16, STATE_IS_NETWORK: 0x40000 } },
+    Components: { isSuccessCode: s => s === 0, results: { NS_BINDING_ABORTED: 0x804b0002 } },
     URLSearchParams, Blob, Uint8Array, OffscreenCanvas: class {}, ...extra,
   });
   const answer = body => {
@@ -696,6 +696,93 @@ test("Router repairs an already-filed container mismatch without flattening the 
   e.prefs.set("zzrouter.follow-containers", false);
   t.closing = false;
   assert.equal(e.h.skip(t), "already in a group");
+});
+
+async function initialRouteEnv() {
+  const t = tab("about:blank"), fresh = tab(), calls = [], removed = [];
+  t.setAttribute("usercontextid", "1"); t.selected = true;
+  const dest = { isRouteFound: true, userContextId: 2, targetRoute: "destination" };
+  const context = { currentWindowGlobal: { isInitialDocument: true }, embedderElement: t.linkedBrowser };
+  const channel = { URI: { spec: "https://example.com/target" }, requestMethod: "GET",
+    loadInfo: { externalContentPolicyType: 6, browsingContext: context, triggeringPrincipal: { web: true } },
+    referrerInfo: { referrer: "https://source.example/" },
+    QueryInterface() { return this; }, cancel() { calls.push("cancel"); },
+  };
+  const w = { SessionStore: { isTabRestoring: () => false },
+    gZenSpaceRoutingManager: { onBeforeAddTab: () => dest },
+    gZenWorkspaces: { moveTabToWorkspace(t, ws) { t.setAttribute("zen-workspace-id", ws); } },
+  };
+  const gBrowser = { getTabForBrowser: b => b === t.linkedBrowser ? t : null,
+    addTab(url, options) { calls.push({ url, options }); return fresh; },
+    removeTab(t) { removed.push(t); t.closing = true; },
+  };
+  const e = await routerEnv({ window: w, gBrowser });
+  e.prefs.set("zzrouter.enabled", true);
+  return { ...e, w, gBrowser, t, fresh, calls, removed, dest, context, channel,
+    observe: () => e.h.initialRequest.observe(channel) };
+}
+
+test("Router applies native rules to first requests before a page can create session state", async () => {
+  for (const [url, ctx] of [["https://github.com/project", 2], ["https://nexusmods.com/mod", 3], ["https://example.org/", 0]]) {
+    const e = await initialRouteEnv();
+    e.channel.URI.spec = url; e.dest.userContextId = ctx;
+    e.observe();
+    assert.equal(e.calls[0].url, url);
+    assert.equal(e.calls[0].options.userContextId, ctx);
+    assert.equal(e.calls[0].options.triggeringPrincipal, e.channel.loadInfo.triggeringPrincipal);
+    assert.equal(e.calls[0].options.referrerInfo, e.channel.referrerInfo);
+    assert.equal(e.calls[1], "cancel");
+    assert.equal(e.fresh.getAttribute("zen-workspace-id"), "destination");
+    assert.equal(e.gBrowser.selectedTab, e.fresh);
+    assert.deepEqual(e.removed, [e.t]);
+  }
+});
+
+test("Router first-request routing excludes existing/restoring/foreign tabs and opt-outs", async () => {
+  const exclusions = [
+    e => e.context.currentWindowGlobal.isInitialDocument = false,
+    e => e.w.SessionStore.isTabRestoring = () => true,
+    e => e.context.embedderElement = {},
+    e => e.channel.loadInfo.externalContentPolicyType = 7,
+    e => e.t.pinned = true,
+    e => e.t.setAttribute("zen-glance-tab", "true"),
+    e => e.t.setAttribute("split-view", "true"),
+    e => e.prefs.set("zzrouter.enabled", false),
+    e => e.prefs.set("zzrouter.follow-containers", false),
+    e => { e.t.group = {}; e.prefs.set("zzrouter.refile-mismatched", false); },
+    e => e.dest.isRouteFound = false,
+    e => e.dest.userContextId = 1,
+    e => e.dest.userContextId = -1,
+    e => e.h.retire(),
+  ];
+  for (const exclude of exclusions) {
+    const e = await initialRouteEnv(); exclude(e); e.observe();
+    assert.deepEqual(e.calls, [], String(exclude));
+    assert.deepEqual(e.removed, []);
+  }
+});
+
+test("Router leaves POSTs, form submissions and their GET redirects untouched", async () => {
+  for (const method of ["POST", "GET"]) {
+    const e = await initialRouteEnv();
+    e.channel.requestMethod = method;
+    e.channel.loadInfo.isFormSubmission = method === "GET";
+    e.observe();
+    e.channel.requestMethod = "GET"; e.channel.loadInfo.isFormSubmission = false;
+    e.observe();
+    assert.deepEqual(e.calls, []);
+  }
+});
+
+test("Router keeps the first request when replacement fails or closing is vetoed", async () => {
+  for (const fail of ["creation", "veto"]) {
+    const e = await initialRouteEnv();
+    if (fail === "creation") e.gBrowser.addTab = () => null;
+    else e.gBrowser.removeTab = t => e.removed.push(t);
+    e.observe();
+    assert.ok(!e.calls.includes("cancel"));
+    assert.deepEqual(e.removed, fail === "veto" ? [e.t, e.fresh] : []);
+  }
 });
 
 test("Groupflow ignores split groups in dirty refreshes and refreshes on enabling favicons", async () => {

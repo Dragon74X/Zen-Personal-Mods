@@ -59,15 +59,30 @@
   }
 
   const report = { window: W?.location?.href, mods: {} };
+  let installed = null;
   try {
     const manager = ChromeUtils.importESModule(
       "chrome://userscripts/content/core/manager.sys.mjs").default;
     report.sineUpdateGuard = manager.__zenPersonalModsUpdateGuardV1 === true
       ? "active (session-scoped)" : "not active (restart, or engine no longer matches)";
   } catch (e) { report.sineUpdateGuard = "could not inspect: " + e; }
+  try {
+    const utils = ChromeUtils.importESModule(
+      "chrome://userscripts/content/core/utils.sys.mjs").default;
+    installed = await utils.getMods();
+    report.sineAutoUpdates = utils.autoUpdate;
+  } catch (e) { report.sineUpdateSettings = "could not inspect: " + e; }
 
   for (const [id, name, global] of MODS) {
     const out = { script: "(defines no global)", problems: [], hiddenRows: [] };
+    if (installed) {
+      const mod = installed[id];
+      out.updates = mod ? {
+        enabled: !!mod.enabled, blocked: !!mod["no-updates"],
+        version: mod.version, updatedAt: mod.updatedAt,
+        source: mod.homepage, origin: mod.origin,
+      } : "not in Sine's installed-mod registry";
+    }
 
     if (global) {
       out.script = typeof W[global] === "object" ? "alive" : "NOT RUNNING";

@@ -3,7 +3,8 @@
   "name": "Glassflow",
   "description": "Per-state glass theming for tabs, sidebar and window buttons. Colourless glass, independent gradients.",
   "author": "Dragon74X",
-  "version": "3.46.2",
+  "version": "3.46.3",
+  "updatedAt": "2026-09-25T20:17:30Z",
   "homepage": "https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/glassflow",
   "readme": "https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/main/glassflow/README.md",
   "style": {

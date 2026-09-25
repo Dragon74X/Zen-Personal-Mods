@@ -1,11 +1,9 @@
 /* ============================================================
    Groupflow v1.0 -- per-state glass theming for tab groups
 
-   Sibling to Glassflow: reuses its live tokens (--zzg-round,
-   --zzg-accent, --zzg-sheen, --zzg-rim-*, --zzg-fx) so every knob
-   turned in Glassflow propagates here automatically. Where Glassflow
-   is absent the fallbacks reproduce its defaults, so the mod stands
-   alone too.
+   Reuses Glassflow's root sheen, rim, intensity and filter tokens.
+   Per-tab state tokens do not propagate into sibling group headers.
+   Fallbacks keep Groupflow usable without Glassflow.
 
    The id zz-groupflow imports AFTER advanced-tab-groups, Arc-2.0 and
    zz-glassflow in Sine's lexicographic order, so at equal specificity
@@ -71,11 +69,8 @@
 @media (-moz-pref("zzgroup.gradient-direction", 5)) { :root { --zzgf-rimA: 135deg; --zzgf-rimB: -45deg; } }
 @media (-moz-pref("zzgroup.gradient-direction", 6)) { :root { --zzgf-rimA: 45deg; --zzgf-rimB: 225deg; } }
 
-/* Follow Glassflow's edge settings. Its per-state rim strengths live on
-   the tab elements themselves, so they reach this mod automatically
-   through --zzg-rim-top and --zzg-rim-all; only its fade AXIS and REACH
-   need adopting, since those are its own tokens. Opt-in, because a
-   deliberately different group axis is a legitimate choice. */
+/* Follow Glassflow's root edge axis and reach. Its per-state rim strengths
+   live on individual tabs and do not propagate into group headers. */
 @media (-moz-pref("zzgroup.match-glassflow-edges")) {
   :root {
     --zzgf-rimA: var(--zzg-edge-dir, var(--zzg-dir, 135deg));
@@ -110,7 +105,8 @@
    identity -- same resolution order Glassflow uses for tabs. */
 #navigator-toolbox tab-group:not([split-view-group]) {
   --zzgf-container-color: initial;
-  --zzgf-raw: var(--tab-group-color, var(--zzg-accent, var(--zen-primary-color, #7c8cf8)));
+  --zzgf-group-color: initial;
+  --zzgf-raw: var(--zzgf-group-color, var(--zzg-accent, var(--zen-primary-color, #7c8cf8)));
   --zzgf-accent: color-mix(in srgb, var(--zzgf-raw), black var(--zzg-tone, 25%));
   --zzgf-line: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-line-strength, 40%), transparent);
   --zzgf-junction: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-junction-tint, 25%), transparent);
@@ -212,7 +208,7 @@
 }
 @media (-moz-pref("zzgroup.color-source", 3)) {
   #navigator-toolbox tab-group:not([split-view-group]) {
-    --zzgf-raw: var(--zzgf-container-color, var(--tab-group-color, var(--zen-primary-color, #7c8cf8)));
+    --zzgf-raw: var(--zzgf-container-color, var(--zzgf-group-color, var(--zen-primary-color, #7c8cf8)));
   }
 }
 
@@ -991,6 +987,7 @@
     background-repeat: no-repeat;
     background-position: center;
     background-origin: content-box;
+    corner-shape: round !important;
   }
   /* Backing plate: many favicons (GitHub's transparent cat) vanish on a
      dark sidebar. A small plate behind the icon fixes readability for
@@ -1033,9 +1030,20 @@
   }
   #navigator-toolbox tab-group[zzgf-shape="squircle"]:not([split-view-group]) > .tab-group-label-container > :is(.tab-group-label, .zzgf-icon)::before {
     border-radius: 38%;
+    corner-shape: squircle !important;
   }
   #navigator-toolbox tab-group[zzgf-shape="square"]:not([split-view-group]) > .tab-group-label-container > :is(.tab-group-label, .zzgf-icon)::before {
     border-radius: 0;
+  }
+  #navigator-toolbox tab-group[zzgf-shape="folder"]:not([split-view-group]) > .tab-group-label-container > :is(.tab-group-label, .zzgf-icon)::before {
+    /* Equal-unit atan2/tan scales the 36px row radius without CSS typed division. */
+    border-radius: calc(var(--zzgf-round) * tan(atan2(var(--zzgroup-icon-size, 14px), 36px)));
+    corner-shape: var(--zzgf-corner) !important;
+  }
+  @media (-moz-pref("zzgroup.connector", 5)) {
+    #navigator-toolbox tab-group[zzgf-shape="folder"]:not([split-view-group]) > .tab-group-label-container > :is(.tab-group-label, .zzgf-icon)::before {
+      border-bottom-left-radius: 0;
+    }
   }
 }
 
@@ -1595,4 +1603,126 @@
 }
 :root[zzgf-standalone] #navigator-toolbox tab-group[collapsed]:not([split-view-group]) > .tab-group-container {
   display: none !important;
+}
+
+/* Subfolder profiles paint one background layer. Header-local tokens cannot
+   leak into descendant groups; their headers are siblings of the tab bodies. */
+@media (-moz-pref("zzgroup.enabled")) and (-moz-pref("zzgroup.subfolder.states")) {
+  :root #navigator-toolbox :is(tab-group, zen-folder):not([split-view-group]) tab-group:not([split-view-group]) > .tab-group-label-container {
+    position: relative;
+    isolation: isolate;
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+
+    /* Inactive is the baseline. Each override resets all optional effects. */
+    --zzgf-state-a: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-subfolder-inactive-tint, 12%), transparent);
+    --zzgf-state-b: transparent;
+    --zzgf-state-dir: to right;
+    --zzgf-state-spread: var(--zzgroup-subfolder-inactive-spread, 100%);
+    --zzgf-state-opacity: var(--zzgroup-subfolder-inactive-opacity, 1);
+    --zzgf-state-label-color: var(--zzgroup-subfolder-inactive-label-color, var(--zzgroup-label-color, inherit));
+    --zzgf-state-sheen: none;
+    --zzgf-state-rim-top: transparent;
+    --zzgf-state-rim-all: transparent;
+    --zzgf-state-glow: 0 0 0 transparent;
+    --zzgf-state-blur: none;
+    @media (-moz-pref("zzgroup.subfolder.inactive.direction", 1)) { --zzgf-state-dir: to left; }
+    @media (-moz-pref("zzgroup.subfolder.inactive.direction", 2)) { --zzgf-state-dir: to bottom; }
+    @media (-moz-pref("zzgroup.subfolder.inactive.direction", 3)) { --zzgf-state-dir: to top; }
+    @media (-moz-pref("zzgroup.subfolder.inactive.direction", 4)) { --zzgf-state-dir: 135deg; }
+    @media (-moz-pref("zzgroup.subfolder.inactive.direction", 5)) { --zzgf-state-dir: 315deg; }
+    @media (-moz-pref("zzgroup.subfolder.inactive.direction", 6)) { --zzgf-state-dir: 45deg; }
+    @media (-moz-pref("zzgroup.subfolder.inactive.direction", 7)) { --zzgf-state-dir: 225deg; }
+    @media (-moz-pref("zzgroup.subfolder.inactive.end-mode", 1)) { --zzgf-state-b: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-subfolder-inactive-end-tint, 4%), transparent); }
+    @media (-moz-pref("zzgroup.subfolder.inactive.end-mode", 2)) { --zzgf-state-b: color-mix(in srgb, var(--zzg-second, #1b1b2b) var(--zzgroup-subfolder-inactive-end-tint, 4%), transparent); }
+    @media (-moz-pref("zzgroup.subfolder.inactive.end-mode", 3)) { --zzgf-state-b: var(--zzgf-state-a); }
+    @media (-moz-pref("zzgroup.subfolder.inactive.sheen")) { --zzgf-state-sheen: var(--zzgf-sheen); }
+    @media (-moz-pref("zzgroup.subfolder.inactive.rim")) { --zzgf-state-rim-top: var(--zzgf-rim-top); --zzgf-state-rim-all: var(--zzgf-rim-all); }
+    @media (-moz-pref("zzgroup.subfolder.inactive.glow")) { --zzgf-state-glow: 0 2px 12px color-mix(in srgb, var(--zzgf-accent) 35%, transparent); }
+    @media (-moz-pref("zzgroup.subfolder.inactive.blur")) { --zzgf-state-blur: blur(var(--zzgroup-subfolder-inactive-blur-radius, 20px)) var(--zzgf-fx); }
+
+    /* Hover belongs to this header, never its descendant tabs or headers. */
+    tab-group:not(:has(.tabbrowser-tab:is([selected], [visuallyselected]))) > &:hover {
+      --zzgf-state-a: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-subfolder-hover-tint, 24%), transparent);
+      --zzgf-state-b: transparent;
+      --zzgf-state-dir: to right;
+      --zzgf-state-spread: var(--zzgroup-subfolder-hover-spread, 100%);
+      --zzgf-state-opacity: var(--zzgroup-subfolder-hover-opacity, 1);
+      --zzgf-state-label-color: var(--zzgroup-subfolder-hover-label-color, var(--zzgroup-label-color, inherit));
+      --zzgf-state-sheen: none;
+      --zzgf-state-rim-top: transparent;
+      --zzgf-state-rim-all: transparent;
+      --zzgf-state-glow: 0 0 0 transparent;
+      --zzgf-state-blur: none;
+      @media (-moz-pref("zzgroup.subfolder.hover.direction", 1)) { --zzgf-state-dir: to left; }
+      @media (-moz-pref("zzgroup.subfolder.hover.direction", 2)) { --zzgf-state-dir: to bottom; }
+      @media (-moz-pref("zzgroup.subfolder.hover.direction", 3)) { --zzgf-state-dir: to top; }
+      @media (-moz-pref("zzgroup.subfolder.hover.direction", 4)) { --zzgf-state-dir: 135deg; }
+      @media (-moz-pref("zzgroup.subfolder.hover.direction", 5)) { --zzgf-state-dir: 315deg; }
+      @media (-moz-pref("zzgroup.subfolder.hover.direction", 6)) { --zzgf-state-dir: 45deg; }
+      @media (-moz-pref("zzgroup.subfolder.hover.direction", 7)) { --zzgf-state-dir: 225deg; }
+      @media (-moz-pref("zzgroup.subfolder.hover.end-mode", 1)) { --zzgf-state-b: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-subfolder-hover-end-tint, 9%), transparent); }
+      @media (-moz-pref("zzgroup.subfolder.hover.end-mode", 2)) { --zzgf-state-b: color-mix(in srgb, var(--zzg-second, #1b1b2b) var(--zzgroup-subfolder-hover-end-tint, 9%), transparent); }
+      @media (-moz-pref("zzgroup.subfolder.hover.end-mode", 3)) { --zzgf-state-b: var(--zzgf-state-a); }
+      @media (-moz-pref("zzgroup.subfolder.hover.sheen")) { --zzgf-state-sheen: var(--zzgf-sheen); }
+      @media (-moz-pref("zzgroup.subfolder.hover.rim")) { --zzgf-state-rim-top: var(--zzgf-rim-top); --zzgf-state-rim-all: var(--zzgf-rim-all); }
+      @media (-moz-pref("zzgroup.subfolder.hover.glow")) { --zzgf-state-glow: 0 2px 12px color-mix(in srgb, var(--zzgf-accent) 35%, transparent); }
+      @media (-moz-pref("zzgroup.subfolder.hover.blur")) { --zzgf-state-blur: blur(var(--zzgroup-subfolder-hover-blur-radius, 20px)) var(--zzgf-fx); }
+    }
+
+    /* Every ancestor of the selected tab retains the active breadcrumb. */
+    tab-group:has(.tabbrowser-tab:is([selected], [visuallyselected])) > & {
+      opacity: 1 !important;
+      filter: none !important;
+      --zzgf-state-a: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-subfolder-active-tint, 42%), transparent);
+      --zzgf-state-b: transparent;
+      --zzgf-state-dir: to right;
+      --zzgf-state-spread: var(--zzgroup-subfolder-active-spread, 100%);
+      --zzgf-state-opacity: var(--zzgroup-subfolder-active-opacity, 1);
+      --zzgf-state-label-color: var(--zzgroup-subfolder-active-label-color, var(--zzgroup-label-color, inherit));
+      --zzgf-state-sheen: none;
+      --zzgf-state-rim-top: transparent;
+      --zzgf-state-rim-all: transparent;
+      --zzgf-state-glow: 0 0 0 transparent;
+      --zzgf-state-blur: none;
+      @media (-moz-pref("zzgroup.subfolder.active.direction", 1)) { --zzgf-state-dir: to left; }
+      @media (-moz-pref("zzgroup.subfolder.active.direction", 2)) { --zzgf-state-dir: to bottom; }
+      @media (-moz-pref("zzgroup.subfolder.active.direction", 3)) { --zzgf-state-dir: to top; }
+      @media (-moz-pref("zzgroup.subfolder.active.direction", 4)) { --zzgf-state-dir: 135deg; }
+      @media (-moz-pref("zzgroup.subfolder.active.direction", 5)) { --zzgf-state-dir: 315deg; }
+      @media (-moz-pref("zzgroup.subfolder.active.direction", 6)) { --zzgf-state-dir: 45deg; }
+      @media (-moz-pref("zzgroup.subfolder.active.direction", 7)) { --zzgf-state-dir: 225deg; }
+      @media (-moz-pref("zzgroup.subfolder.active.end-mode", 1)) { --zzgf-state-b: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-subfolder-active-end-tint, 17%), transparent); }
+      @media (-moz-pref("zzgroup.subfolder.active.end-mode", 2)) { --zzgf-state-b: color-mix(in srgb, var(--zzg-second, #1b1b2b) var(--zzgroup-subfolder-active-end-tint, 17%), transparent); }
+      @media (-moz-pref("zzgroup.subfolder.active.end-mode", 3)) { --zzgf-state-b: var(--zzgf-state-a); }
+      @media (-moz-pref("zzgroup.subfolder.active.sheen")) { --zzgf-state-sheen: var(--zzgf-sheen); }
+      @media (-moz-pref("zzgroup.subfolder.active.rim")) { --zzgf-state-rim-top: var(--zzgf-rim-top); --zzgf-state-rim-all: var(--zzgf-rim-all); }
+      @media (-moz-pref("zzgroup.subfolder.active.glow")) { --zzgf-state-glow: 0 2px 12px color-mix(in srgb, var(--zzgf-accent) 35%, transparent); }
+      @media (-moz-pref("zzgroup.subfolder.active.blur")) { --zzgf-state-blur: blur(var(--zzgroup-subfolder-active-blur-radius, 20px)) var(--zzgf-fx); }
+    }
+
+    & > .tab-group-label {
+      color: var(--zzgf-state-label-color, var(--zzgroup-label-color, inherit)) !important;
+    }
+
+    /* Opacity affects glass only; labels and favicon/close controls stay legible.
+       Existing collapsed dimming remains on inactive headers. */
+    &::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      border-radius: inherit;
+      corner-shape: inherit;
+      opacity: var(--zzgf-state-opacity);
+      background-image: var(--zzgf-state-sheen),
+        linear-gradient(var(--zzgf-state-dir), var(--zzgf-state-a) 0%, var(--zzgf-state-b) var(--zzgf-state-spread));
+      box-shadow: inset 0 var(--zzgroup-rim-thickness, 1px) 0 var(--zzgf-state-rim-top),
+        inset 0 0 0 var(--zzgroup-rim-ring-width, 1px) var(--zzgf-state-rim-all), var(--zzgf-state-glow);
+      backdrop-filter: var(--zzgf-state-blur);
+    }
+  }
 }

@@ -167,8 +167,9 @@
   // and everything else as a rounded square; the other settings apply to
   // every icon alike. The CSS selects on attributes since it cannot read
   // a custom property.
-  const SHAPES = ["", "circle", "rounded", "squircle", "square"];
+  const SHAPES = ["", "circle", "rounded", "squircle", "square", "folder"];
   let savedGroupIcons = null;
+  let savedGroupColors = null;
 
   function customIcon(g) {
     const value = savedGroupIcons?.[g.id];
@@ -192,6 +193,21 @@
   }
 
   function refreshGroup(g) {
+    // ATG may put a full gradient in this token; colour mixing needs one colour.
+    let groupColor = getComputedStyle(g).getPropertyValue("--tab-group-color").trim();
+    if (!CSS.supports("color", groupColor)) {
+      const saved = window.advancedTabGroups?.savedColors?.[g.id] ?? savedGroupColors?.[g.id];
+      groupColor = "";
+      for (const stop of Array.isArray(saved?.gradientColors) ? saved.gradientColors : []) {
+        const color = Array.isArray(stop?.c) && stop.c.length === 3 && stop.c.every(Number.isFinite)
+          ? `rgb(${stop.c.join(" ")})` : stop?.c;
+        if (typeof color === "string" && CSS.supports("color", color)) { groupColor = color; break; }
+      }
+    }
+    if (g.style.getPropertyValue("--zzgf-group-color") !== groupColor) {
+      if (groupColor) g.style.setProperty("--zzgf-group-color", groupColor);
+      else g.style.removeProperty("--zzgf-group-color");
+    }
     if (num("color-source", 0) === 3) {
       const counts = new Map();
       let dominant = null, most = 0;
@@ -264,7 +280,6 @@
   }
 
   function refreshAll() {
-    if (!savedGroupIcons && !bool("favicons", true) && num("color-source", 0) !== 3) return;
     for (const g of plainGroups()) refreshGroup(g);
   }
 
@@ -288,7 +303,6 @@
   };
   function refreshDirty() {
     if (everything) { everything = false; dirty.clear(); refreshAll(); return; }
-    if (!savedGroupIcons && !bool("favicons", true) && num("color-source", 0) !== 3) { dirty.clear(); return; }
     for (const g of dirty) if (g.isConnected && !g.isZenFolder && !g.hasAttribute("split-view-group")) refreshGroup(g);
     dirty.clear();
   }
@@ -382,6 +396,7 @@
     const icons = readGroupData("tabGroupIcons");
     const colors = readGroupData("tabGroupColors");
     savedGroupIcons = icons || {};
+    savedGroupColors = colors;
     const decorated = new WeakSet(), appliedColors = new WeakMap(), colorCache = new Map();
     let known = new Set(), pending = null, retired = false, closing = false;
     // A native closed/saved parent records all descendant tabs but only its own
@@ -616,6 +631,7 @@
       }
       root.removeAttribute("zzgf-standalone");
       savedGroupIcons = null;
+      savedGroupColors = null;
     };
   }
 
@@ -631,8 +647,10 @@
     // Capture before Zen toggles the parent: this header controls its subfolders.
     event.preventDefault();
     event.stopPropagation();
-    const collapse = children.some(child => !child.collapsed);
-    for (const child of children.reverse()) child.collapsed = collapse;
+    const selected = gBrowser.selectedTab;
+    const collapse = children.some(child => !child.contains(selected) && !child.collapsed);
+    // Keep the selected tab's whole path open without blocking the next expand.
+    for (const child of children.reverse()) child.collapsed = collapse && !child.contains(selected);
     group.collapsed = false;
     gBrowser.tabGroupMenu.close();
   }

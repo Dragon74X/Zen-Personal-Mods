@@ -8,7 +8,7 @@
   {
     "type": "checkbox",
     "property": "zzgroup.enabled",
-    "label": "Turn on group styling *Per-state glass theming for tab groups and subgroups, in Glassflow's visual language. Every Glassflow token -- roundness, accent tone, sheen recipe, rim strength, glass intensity -- is inherited live, so knobs turned there carry over here automatically. Zen folder styling is untouched.*",
+    "label": "Turn on group styling *Styles tab groups and subgroups. Reuses Glassflow's shared accent tone, sheen recipe, rim colours and glass intensity. Subfolder states have separate controls below. Native Zen folder styling is untouched.*",
     "defaultValue": true
   },
   {
@@ -75,7 +75,7 @@
   {
     "type": "string",
     "property": "zzgroup.header-tint",
-    "label": "Header tint *How strongly the accent fills the group header, as a percentage. Matches Glassflow's unselected tab default.*",
+    "label": "Header tint *Accent percentage for the shared header style. Subfolder state profiles have separate tint values.*",
     "defaultValue": "25%",
     "placeholder": "25%",
     "conditions": [
@@ -274,7 +274,7 @@
   {
     "type": "checkbox",
     "property": "zzgroup.match-glassflow-edges",
-    "label": "Follow Glassflow's edge fade *Takes the fade axis and reach from Glassflow's Tab edges section, so group headers and tabs light and fade on the same axis. Its per-state rim strengths already reach this mod on their own; only the axis and reach need adopting. Off by default, since a different axis for groups is a fair choice.*",
+    "label": "Follow Glassflow's edge fade *Uses Glassflow's shared edge axis and reach for the shared header style. Subfolder state profiles use their own gradient direction and shared rim colours.*",
     "defaultValue": false,
     "conditions": [
       {
@@ -492,7 +492,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.icon-shape",
-    "label": "Icon shape *Applies to every group icon. Auto draws avatars round, as their pages do, and everything else as a rounded square. Size is the setting above.*",
+    "label": "Icon shape *Applies to every group icon. Auto draws avatars round and other icons as rounded squares. Match folder corners follows the header's corner shape and scales its radius to the icon size.*",
     "defaultValue": 0,
     "options": [
       {
@@ -514,6 +514,10 @@
       {
         "label": "Square",
         "value": 4
+      },
+      {
+        "label": "Match folder corners",
+        "value": 5
       }
     ],
     "conditions": [
@@ -734,6 +738,1067 @@
       {
         "if": {
           "property": "zzgroup.collapsed.dim",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "separator",
+    "label": "Subfolder states",
+    "size": "17px",
+    "margin": "22px 0 10px 0"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.subfolder.states",
+    "label": "Separate subfolder styling *Three sets below control nested group headers. Active contains the selected tab, including deeper subfolders. Active takes priority over hover; hover applies only to the header under the pointer. Off uses the shared Header and States settings. Top-level groups and native Zen folders keep their existing styling.*",
+    "defaultValue": true,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
+    "type": "separator",
+    "label": "Active subfolder",
+    "size": "17px",
+    "margin": "22px 0 10px 0"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.subfolder.active.tint",
+    "label": "Tint strength *Accent percentage at the start of the gradient.*",
+    "defaultValue": "42%",
+    "placeholder": "42%",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.subfolder.active.opacity",
+    "label": "Background opacity *0–1. Applies to the background, sheen, rim and glow; text and icons keep their opacity.*",
+    "defaultValue": "1",
+    "placeholder": "1",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.subfolder.active.direction",
+    "label": "Gradient direction",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Left to right",
+        "value": 0
+      },
+      {
+        "label": "Right to left",
+        "value": 1
+      },
+      {
+        "label": "Top to bottom",
+        "value": 2
+      },
+      {
+        "label": "Bottom to top",
+        "value": 3
+      },
+      {
+        "label": "Diagonal (down-right)",
+        "value": 4
+      },
+      {
+        "label": "Diagonal (up-left)",
+        "value": 5
+      },
+      {
+        "label": "Diagonal (up-right)",
+        "value": 6
+      },
+      {
+        "label": "Diagonal (down-left)",
+        "value": 7
+      }
+    ],
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.subfolder.active.end-mode",
+    "label": "Gradient end *Fade to transparent, keep the accent, use Glassflow's secondary colour, or fill with the starting tint.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Fade to transparent",
+        "value": 0
+      },
+      {
+        "label": "Fade to a weaker tint",
+        "value": 1
+      },
+      {
+        "label": "Fade to the second colour",
+        "value": 2
+      },
+      {
+        "label": "Flat, no gradient",
+        "value": 3
+      }
+    ],
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.subfolder.active.end-tint",
+    "label": "End tint *Accent or secondary-colour percentage at the end of the gradient.*",
+    "defaultValue": "17%",
+    "placeholder": "17%",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      },
+      {
+        "conditions": [
+          {
+            "if": {
+              "property": "zzgroup.subfolder.active.end-mode",
+              "value": 1
+            }
+          },
+          {
+            "if": {
+              "property": "zzgroup.subfolder.active.end-mode",
+              "value": 2
+            }
+          }
+        ],
+        "operator": "OR"
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.subfolder.active.spread",
+    "label": "Gradient spread *Percentage of the header at which the end colour is reached.*",
+    "defaultValue": "100%",
+    "placeholder": "100%",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      },
+      {
+        "not": {
+          "property": "zzgroup.subfolder.active.end-mode",
+          "value": 3
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.subfolder.active.sheen",
+    "label": "Glass sheen *Uses Glassflow's shared sheen recipe, with a built-in fallback.*",
+    "defaultValue": true,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.subfolder.active.rim",
+    "label": "Glass rim *Uses the shared rim colour and Groupflow's rim thickness settings.*",
+    "defaultValue": true,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.subfolder.active.glow",
+    "label": "Outer glow",
+    "defaultValue": false,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.subfolder.active.blur",
+    "label": "Frosted blur",
+    "defaultValue": true,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.subfolder.active.blur-radius",
+    "label": "Blur strength *CSS length, for example 14px.*",
+    "defaultValue": "20px",
+    "placeholder": "20px",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.active.blur",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.subfolder.active.label-color",
+    "label": "Label colour *Any CSS colour. Default follows the shared Label colour setting and theme foreground.*",
+    "defaultValue": "var(--zzgroup-label-color, inherit)",
+    "placeholder": "var(--zzgroup-label-color, inherit)",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "separator",
+    "label": "Inactive subfolder",
+    "size": "17px",
+    "margin": "22px 0 10px 0"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.subfolder.inactive.tint",
+    "label": "Tint strength *Accent percentage at the start of the gradient.*",
+    "defaultValue": "12%",
+    "placeholder": "12%",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.subfolder.inactive.opacity",
+    "label": "Background opacity *0–1. Applies to the background, sheen, rim and glow; text and icons keep their opacity.*",
+    "defaultValue": "1",
+    "placeholder": "1",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.subfolder.inactive.direction",
+    "label": "Gradient direction",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Left to right",
+        "value": 0
+      },
+      {
+        "label": "Right to left",
+        "value": 1
+      },
+      {
+        "label": "Top to bottom",
+        "value": 2
+      },
+      {
+        "label": "Bottom to top",
+        "value": 3
+      },
+      {
+        "label": "Diagonal (down-right)",
+        "value": 4
+      },
+      {
+        "label": "Diagonal (up-left)",
+        "value": 5
+      },
+      {
+        "label": "Diagonal (up-right)",
+        "value": 6
+      },
+      {
+        "label": "Diagonal (down-left)",
+        "value": 7
+      }
+    ],
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.subfolder.inactive.end-mode",
+    "label": "Gradient end *Fade to transparent, keep the accent, use Glassflow's secondary colour, or fill with the starting tint.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Fade to transparent",
+        "value": 0
+      },
+      {
+        "label": "Fade to a weaker tint",
+        "value": 1
+      },
+      {
+        "label": "Fade to the second colour",
+        "value": 2
+      },
+      {
+        "label": "Flat, no gradient",
+        "value": 3
+      }
+    ],
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.subfolder.inactive.end-tint",
+    "label": "End tint *Accent or secondary-colour percentage at the end of the gradient.*",
+    "defaultValue": "4%",
+    "placeholder": "4%",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      },
+      {
+        "conditions": [
+          {
+            "if": {
+              "property": "zzgroup.subfolder.inactive.end-mode",
+              "value": 1
+            }
+          },
+          {
+            "if": {
+              "property": "zzgroup.subfolder.inactive.end-mode",
+              "value": 2
+            }
+          }
+        ],
+        "operator": "OR"
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.subfolder.inactive.spread",
+    "label": "Gradient spread *Percentage of the header at which the end colour is reached.*",
+    "defaultValue": "100%",
+    "placeholder": "100%",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      },
+      {
+        "not": {
+          "property": "zzgroup.subfolder.inactive.end-mode",
+          "value": 3
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.subfolder.inactive.sheen",
+    "label": "Glass sheen *Uses Glassflow's shared sheen recipe, with a built-in fallback.*",
+    "defaultValue": false,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.subfolder.inactive.rim",
+    "label": "Glass rim *Uses the shared rim colour and Groupflow's rim thickness settings.*",
+    "defaultValue": false,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.subfolder.inactive.glow",
+    "label": "Outer glow",
+    "defaultValue": false,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.subfolder.inactive.blur",
+    "label": "Frosted blur",
+    "defaultValue": false,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.subfolder.inactive.blur-radius",
+    "label": "Blur strength *CSS length, for example 14px.*",
+    "defaultValue": "20px",
+    "placeholder": "20px",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.inactive.blur",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.subfolder.inactive.label-color",
+    "label": "Label colour *Any CSS colour. Default follows the shared Label colour setting and theme foreground.*",
+    "defaultValue": "var(--zzgroup-label-color, inherit)",
+    "placeholder": "var(--zzgroup-label-color, inherit)",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "separator",
+    "label": "Hovered subfolder",
+    "size": "17px",
+    "margin": "22px 0 10px 0"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.subfolder.hover.tint",
+    "label": "Tint strength *Accent percentage at the start of the gradient.*",
+    "defaultValue": "24%",
+    "placeholder": "24%",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.subfolder.hover.opacity",
+    "label": "Background opacity *0–1. Applies to the background, sheen, rim and glow; text and icons keep their opacity.*",
+    "defaultValue": "1",
+    "placeholder": "1",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.subfolder.hover.direction",
+    "label": "Gradient direction",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Left to right",
+        "value": 0
+      },
+      {
+        "label": "Right to left",
+        "value": 1
+      },
+      {
+        "label": "Top to bottom",
+        "value": 2
+      },
+      {
+        "label": "Bottom to top",
+        "value": 3
+      },
+      {
+        "label": "Diagonal (down-right)",
+        "value": 4
+      },
+      {
+        "label": "Diagonal (up-left)",
+        "value": 5
+      },
+      {
+        "label": "Diagonal (up-right)",
+        "value": 6
+      },
+      {
+        "label": "Diagonal (down-left)",
+        "value": 7
+      }
+    ],
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.subfolder.hover.end-mode",
+    "label": "Gradient end *Fade to transparent, keep the accent, use Glassflow's secondary colour, or fill with the starting tint.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Fade to transparent",
+        "value": 0
+      },
+      {
+        "label": "Fade to a weaker tint",
+        "value": 1
+      },
+      {
+        "label": "Fade to the second colour",
+        "value": 2
+      },
+      {
+        "label": "Flat, no gradient",
+        "value": 3
+      }
+    ],
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.subfolder.hover.end-tint",
+    "label": "End tint *Accent or secondary-colour percentage at the end of the gradient.*",
+    "defaultValue": "9%",
+    "placeholder": "9%",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      },
+      {
+        "conditions": [
+          {
+            "if": {
+              "property": "zzgroup.subfolder.hover.end-mode",
+              "value": 1
+            }
+          },
+          {
+            "if": {
+              "property": "zzgroup.subfolder.hover.end-mode",
+              "value": 2
+            }
+          }
+        ],
+        "operator": "OR"
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.subfolder.hover.spread",
+    "label": "Gradient spread *Percentage of the header at which the end colour is reached.*",
+    "defaultValue": "100%",
+    "placeholder": "100%",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      },
+      {
+        "not": {
+          "property": "zzgroup.subfolder.hover.end-mode",
+          "value": 3
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.subfolder.hover.sheen",
+    "label": "Glass sheen *Uses Glassflow's shared sheen recipe, with a built-in fallback.*",
+    "defaultValue": false,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.subfolder.hover.rim",
+    "label": "Glass rim *Uses the shared rim colour and Groupflow's rim thickness settings.*",
+    "defaultValue": false,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.subfolder.hover.glow",
+    "label": "Outer glow",
+    "defaultValue": false,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.subfolder.hover.blur",
+    "label": "Frosted blur",
+    "defaultValue": false,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.subfolder.hover.blur-radius",
+    "label": "Blur strength *CSS length, for example 14px.*",
+    "defaultValue": "20px",
+    "placeholder": "20px",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.hover.blur",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.subfolder.hover.label-color",
+    "label": "Label colour *Any CSS colour. Default follows the shared Label colour setting and theme foreground.*",
+    "defaultValue": "var(--zzgroup-label-color, inherit)",
+    "placeholder": "var(--zzgroup-label-color, inherit)",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
           "value": true
         }
       }

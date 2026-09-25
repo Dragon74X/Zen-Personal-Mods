@@ -40,6 +40,11 @@ Groupflow overrides ATG's Arc collapse behavior, which otherwise forces every
 group open; Arc appearance preferences stay as configured. Cleanup restores the
 original method. Regression check: `node --test tools/lifecycle.test.mjs`.
 
+The script explicitly loads after ATG and its folder-look script. Sine's script
+order is separate from stylesheet order: without `loadOrder`, it can start
+Groupflow before ATG when mod loading finishes after browser startup. That misses
+the Arc override, so ATG immediately reopens the subgroups after they fold.
+
 ## What it styles
 
 **Headers** — accent tint and gradient, roundness, optional sheen, rim light
@@ -129,7 +134,7 @@ right-click menu.
 
 ## How it overrides Advanced Tab Groups and Arc
 
-The mod id `zz-groupflow` imports after `advanced-tab-groups`, `Arc-2.0` and
+The stylesheet for mod id `zz-groupflow` imports after `advanced-tab-groups`, `Arc-2.0` and
 `zz-glassflow` in Sine's lexicographic order, so header styling wins by plain
 source order -- no `!important` escalation. Their group-body chrome can
 additionally be stripped with **Strip other mods' group chrome**, off by

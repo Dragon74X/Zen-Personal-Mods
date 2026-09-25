@@ -1,9 +1,9 @@
 {
   "id": "zz-groupflow",
   "name": "Groupflow",
-  "description": "Per-state glass theming for tab groups and subgroups, in Glassflow's visual language. Inherits Glassflow's tokens live; overrides Advanced Tab Groups and Arc group chrome by load order.",
+  "description": "Nested tab-group persistence, icons, native controls and startup folding, with per-state glass styling inherited from Glassflow.",
   "author": "Dragon74X",
-  "version": "1.41.2",
+  "version": "1.42.0",
   "homepage": "https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/groupflow",
   "readme": "https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/main/groupflow/README.md",
   "style": {
@@ -27,7 +27,7 @@
     },
     "groupflow.uc.js": {
       "name": "Groupflow",
-      "description": "Per-group favicons and startup folder folding.",
+      "description": "Nested group persistence, native controls, icons and startup folder folding.",
       "loadOrder": 30,
       "include": [
         "chrome://browser/content/browser.xhtml"

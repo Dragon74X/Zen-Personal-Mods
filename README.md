@@ -6,7 +6,7 @@ Source-targeted Zen Browser modifications.
 |---|---|
 | [Download Prompt](download-prompt/) | Handles duplicate download filenames |
 | [Glassflow](glassflow/) | Shared UI token and surface styles |
-| [Groupflow](groupflow/) | Tab-group icons and styling |
+| [Groupflow](groupflow/) | Nested-group persistence, controls, icons and styling |
 | [Tab Router](tab-router/) | Rule-based tab grouping |
 | [Tab Unloader](tab-unloader/) | Time-based tab unloading |
 | [Zen Turbo](zen-turbo/) | Preference packs with captured-value restoration |
@@ -40,17 +40,18 @@ python tools/zen-smoke.py --zen /path/to/zen --arc /path/to/Arc-2.0 --transparen
 
 This starts all six scripts, checks the native transparent-page blur and modal dialog, and verifies cleanup. It does not benchmark the GPU or contact an existing browser profile. Arc and Transparent Zen are optional.
 
-For folder restoration and container routing with Advanced Tab Groups installed locally:
+For standalone group restoration and container routing:
 
 ```sh
-python tools/zen-routing-smoke.py --zen /path/to/zen --atg /path/to/Advanced-Tab-Groups
+python tools/zen-routing-smoke.py --zen /path/to/zen
 ```
 
 This uses a local fixture server and a disposable profile across three launches.
-Scripts follow Sine's metadata order with Groupflow installed first and injected
-after native startup, exercising the loading-order race that reopened subgroups.
-It checks nested folding with ATG's Arc mode, cached/custom icons, manual toggles,
-loading iframe pages, and container repairs that preserve deeper subgroups.
+Add `--atg /path/to/Advanced-Tab-Groups` to load ATG on launch 1 and test its removal
+on launches 2 and 3. Script order follows Sine metadata. Checks cover three nesting
+levels, parents without direct tabs, pinned folders, cached/custom icons, saved
+colours/gradients, manual toggles, cancelled closes, ungrouping and undo-close state.
+Routing checks cover loading iframe pages and container repairs that retain subgroups.
 It also exercises Zen domain rules across two workspaces/containers: new-tab
 links with session storage, opener links, reverse routing, and a POST redirect.
 

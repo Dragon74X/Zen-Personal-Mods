@@ -940,7 +940,7 @@
     flex-direction: row !important;
     align-items: center !important;
   }
-  #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label::before {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container > :is(.tab-group-label, .zzgf-icon)::before {
     content: "" !important;
     display: inline-block !important;
     flex: 0 0 auto;
@@ -958,21 +958,21 @@
      dark sidebar. A small plate behind the icon fixes readability for
      every icon uniformly, locally -- no favicon service, no network. */
   @media (-moz-pref("zzgroup.icon-plate", 1)) {
-    #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label::before {
+    #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container > :is(.tab-group-label, .zzgf-icon)::before {
       background-color: rgb(255 255 255 / 0.92);
       padding: 2px;
       border-radius: 4px;
     }
   }
   @media (-moz-pref("zzgroup.icon-plate", 2)) {
-    #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label::before {
+    #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container > :is(.tab-group-label, .zzgf-icon)::before {
       background-color: rgb(20 20 24 / 0.85);
       padding: 2px;
       border-radius: 4px;
     }
   }
   @media (-moz-pref("zzgroup.icon-plate", 3)) {
-    #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label::before {
+    #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container > :is(.tab-group-label, .zzgf-icon)::before {
       background-color: light-dark(rgb(20 20 24 / 0.85), rgb(255 255 255 / 0.92));
       padding: 2px;
       border-radius: 4px;
@@ -980,23 +980,23 @@
   }
   /* Pictures (groupflow.uc.js marks a group whose icon is one) fill the
      slot edge to edge, no plate showing at the corners. */
-  #navigator-toolbox tab-group[zzgf-picture]:not([split-view-group]) .tab-group-label::before {
+  #navigator-toolbox tab-group[zzgf-picture]:not([split-view-group]) > .tab-group-label-container > :is(.tab-group-label, .zzgf-icon)::before {
     padding: 0;
     background-origin: border-box;
     background-color: transparent;
   }
   /* Shape, chosen in settings or automatic per icon. After the plate
      rules on purpose, so these win at equal specificity. */
-  #navigator-toolbox tab-group[zzgf-shape="circle"]:not([split-view-group]) .tab-group-label::before {
+  #navigator-toolbox tab-group[zzgf-shape="circle"]:not([split-view-group]) > .tab-group-label-container > :is(.tab-group-label, .zzgf-icon)::before {
     border-radius: 50%;
   }
-  #navigator-toolbox tab-group[zzgf-shape="rounded"]:not([split-view-group]) .tab-group-label::before {
+  #navigator-toolbox tab-group[zzgf-shape="rounded"]:not([split-view-group]) > .tab-group-label-container > :is(.tab-group-label, .zzgf-icon)::before {
     border-radius: 4px;
   }
-  #navigator-toolbox tab-group[zzgf-shape="squircle"]:not([split-view-group]) .tab-group-label::before {
+  #navigator-toolbox tab-group[zzgf-shape="squircle"]:not([split-view-group]) > .tab-group-label-container > :is(.tab-group-label, .zzgf-icon)::before {
     border-radius: 38%;
   }
-  #navigator-toolbox tab-group[zzgf-shape="square"]:not([split-view-group]) .tab-group-label::before {
+  #navigator-toolbox tab-group[zzgf-shape="square"]:not([split-view-group]) > .tab-group-label-container > :is(.tab-group-label, .zzgf-icon)::before {
     border-radius: 0;
   }
 }
@@ -1471,3 +1471,75 @@
 }
 
 } /* zzgroup.enabled */
+
+/* Group controls remain usable with the optional glass styling switched off. */
+:root[zzgf-standalone] #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  min-height: 32px;
+}
+:root[zzgf-standalone] #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container > .tab-group-label {
+  display: block !important;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  order: 1;
+}
+:root[zzgf-standalone] #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container > .tab-group-label::before {
+  display: none !important;
+}
+:root[zzgf-standalone] #navigator-toolbox .zzgf-control {
+  appearance: none;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: 20px;
+  width: 20px;
+  height: 24px;
+  padding: 2px;
+  margin: 0 2px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  -moz-window-dragging: no-drag;
+}
+:root[zzgf-standalone] #navigator-toolbox .zzgf-control:hover { background-color: color-mix(in srgb, currentColor 12%, transparent); }
+:root[zzgf-standalone] #navigator-toolbox .zzgf-control:focus-visible { outline: 2px solid var(--focus-outline-color); outline-offset: 1px; }
+:root[zzgf-standalone] #navigator-toolbox .zzgf-icon {
+  order: 0;
+  width: calc(var(--zzgroup-icon-size, 14px) + 8px);
+  height: max(24px, calc(var(--zzgroup-icon-size, 14px) + 8px));
+  -moz-context-properties: fill;
+  fill: currentColor;
+}
+:root[zzgf-standalone] #navigator-toolbox .zzgf-icon::before {
+  content: "";
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-inline-end: 0 !important;
+  background: var(--zzgf-icon, url("chrome://browser/skin/zen-icons/folder.svg")) center / contain no-repeat;
+}
+:root[zzgf-standalone] #navigator-toolbox .zzgf-toggle { order: 3; }
+:root[zzgf-standalone] #navigator-toolbox .zzgf-close { order: 4; font-size: 18px; list-style-image: none; }
+:root[zzgf-standalone] #navigator-toolbox tab-group[zzgf-saved-gradient] > .tab-group-label-container {
+  background-image: var(--zzgf-saved-background) !important;
+}
+:root[zzgf-standalone] #navigator-toolbox tab-group[collapsed]:not([split-view-group]) > .tab-group-container {
+  display: none !important;
+}
+@media (-moz-pref("zzgroup.close-left")) {
+  :root[zzgf-standalone] #navigator-toolbox .zzgf-close { order: -1 !important; }
+  :root[zzgf-standalone] #navigator-toolbox .tab-group-label-container:focus-within > .zzgf-close {
+    width: 20px !important;
+    opacity: 1;
+  }
+}

@@ -921,7 +921,6 @@
     // Wait for network STOP; filing now would make skip-grouped hide the
     // pending container change on the next route.
     if (tab.hasAttribute("busy")) return null;
-    let fresh = null, wasSelected = false;
     try {
       // Routing runs after load. Unlike Zen's navigation-time redirect, a
       // reload here can erase back history, a POST result or an edited form.
@@ -940,19 +939,26 @@
         note(`kept container for "${tab.label}": page has session state`);
         return tab;
       }
-      // The navigating page's own principal, like Zen's routing redirect
-      // uses; null principal as the safe fallback. Never the system
-      // principal for a web URL.
-      const principal = tab.linkedBrowser?.contentPrincipal ||
-        Services.scriptSecurityManager.createNullPrincipal({});
-      wasSelected = tab.selected;
+    } catch (e) { note(`container state check failed: ${e}`); return tab; }
+    return replaceInContainer(tab, url, wantCtx, targetWs);
+  }
+
+  function replaceInContainer(tab, url, wantCtx, targetWs, loadOptions = {}) {
+    let fresh;
+    const wasSelected = tab.selected;
+    try {
+      // Keep the navigation's principal/referrer when intercepting a first
+      // request; otherwise use the loaded page's principal. Never system.
       fresh = gBrowser.addTab(url, {
+        triggeringPrincipal: tab.linkedBrowser?.contentPrincipal ||
+          Services.scriptSecurityManager.createNullPrincipal({}),
+        ...loadOptions,
         userContextId: wantCtx,
-        triggeringPrincipal: principal,
         inBackground: !wasSelected,
         skipRoute: true,
       });
     } catch (e) { note(`container reopen failed: ${e}`); return tab; }
+    if (!fresh) return tab;
     try {
       if (targetWs) window.gZenWorkspaces.moveTabToWorkspace(fresh, targetWs);
     } catch {}
@@ -1202,6 +1208,42 @@
   }
 
   // ---- events ------------------------------------------------------------
+  // Zen's addTab preserves an inherited userContextId. target=_blank also
+  // creates about:blank first, so the domain is unknown at tab creation.
+  // Route that first GET before any response/session storage reaches the
+  // wrong container. Loaded/restoring tabs retain the state checks above.
+  const initialPosts = new WeakSet();
+  const initialRequest = { observe(subject) {
+    if (retired) return;
+    try {
+      const channel = subject.QueryInterface(Ci.nsIHttpChannel);
+      const info = channel.loadInfo;
+      if (info.externalContentPolicyType !== Ci.nsIContentPolicy.TYPE_DOCUMENT) return;
+      const context = info.browsingContext;
+      if (!context?.currentWindowGlobal?.isInitialDocument) return;
+      const tab = gBrowser.getTabForBrowser(context.embedderElement);
+      if (!tab || window.SessionStore.isTabRestoring(tab)) return;
+      // A POST -> GET redirect still belongs to the submitted form's
+      // container. Do not turn it into a fresh GET in another container.
+      if (channel.requestMethod !== "GET" || info.isFormSubmission) {
+        initialPosts.add(tab); return;
+      }
+      if (initialPosts.has(tab) || !bool("enabled", false) || !bool("follow-containers", true)) return;
+      const why = skip(tab, []);
+      if (why && !(why === "already in a group" && bool("refile-mismatched", true))) return;
+      const url = channel.URI.spec;
+      const dest = window.gZenSpaceRoutingManager.onBeforeAddTab(url, {}, window);
+      if (!dest.isRouteFound || !Number.isInteger(dest.userContextId) || dest.userContextId < 0 ||
+          dest.userContextId === parseInt(tab.getAttribute("usercontextid") || "0", 10)) return;
+      const fresh = replaceInContainer(tab, url, dest.userContextId, dest.targetRoute, {
+        triggeringPrincipal: info.triggeringPrincipal,
+        referrerInfo: channel.referrerInfo,
+      });
+      // Creation failure/close veto leaves the original request untouched.
+      if (fresh !== tab) channel.cancel(Components.results.NS_BINDING_ABORTED);
+    } catch (e) { note(`initial container route failed: ${e}`); }
+  } };
+
   // Route on load rather than on open: a brand new tab has no URL yet.
   // Redirect chains fire several location changes in a row; one pending
   // route per tab, restarted on each change, means only the final URL is
@@ -1351,6 +1393,7 @@
     gBrowser.tabContainer.addEventListener("TabAttrModified", onAttrModified);
     try { Services.prefs.addObserver(P, prefObserver); } catch {}
     try { Services.obs.addObserver(purgeObserver, "browser:purge-session-history"); } catch {}
+    Services.obs.addObserver(initialRequest, "http-on-modify-request");
     // Groups made or removed by hand must invalidate the cache too.
     // TabGroupUngroup does not exist in Zen 1.22b -- it was a dead listener.
     // TabGroupUpdate and TabGroupRemovedFromDOM are the real Zen events for a
@@ -1554,7 +1597,7 @@
         } catch {}
 
         const r = {
-          version: "1.34.1",
+          version: "1.34.2",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The
@@ -1613,6 +1656,7 @@
       try { gBrowser.tabContainer.removeEventListener("TabAttrModified", onAttrModified); } catch {}
       try { Services.prefs.removeObserver(P, prefObserver); } catch {}
       try { Services.obs.removeObserver(purgeObserver, "browser:purge-session-history"); } catch {}
+      try { Services.obs.removeObserver(initialRequest, "http-on-modify-request"); } catch {}
       for (const ev of groupEvents) {
         try { window.removeEventListener(ev, bustGroups, true); } catch {}
       }

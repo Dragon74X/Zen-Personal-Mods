@@ -932,6 +932,48 @@ test("Router retries missing metadata after 10 minutes without persisting a perm
   assert.equal(opened, 2); e.h.cancelLookups();
 });
 
+test("Groupflow parent click alternates descendants without collapsing the parent", async () => {
+  let menuClosed = 0;
+  const h = await load("groupflow", "toggleSubgroups", {
+    window: {}, gBrowser: { tabGroupMenu: { close() { menuClosed++; } } },
+  });
+  const writes = [];
+  function group(name, collapsed = false, split = false) {
+    return { hasAttribute: () => split, matches: () => true,
+      parentElement: { closest: () => null },
+      get collapsed() { return collapsed; },
+      set collapsed(value) { writes.push([name, value]); collapsed = value; } };
+  }
+  const root = group("root"), child = group("child"), grandchild = group("grandchild", true);
+  const split = group("split", false, true);
+  root.querySelectorAll = () => [child, grandchild, split];
+  let prevented = 0, stopped = 0;
+  const event = { button: 0, target: { closest: selector =>
+    selector === ".tab-group-label-container" ? { parentElement: root } : null },
+    preventDefault() { prevented++; }, stopPropagation() { stopped++; } };
+  h.toggleSubgroups(event);
+  assert.deepEqual(writes, [["grandchild", true], ["child", true], ["root", false]]);
+  assert.equal(split.collapsed, false);
+  writes.length = 0;
+  h.toggleSubgroups(event);
+  assert.deepEqual(writes, [["grandchild", false], ["child", false], ["root", false]]);
+  assert.equal(prevented, 2); assert.equal(stopped, 2);
+  assert.equal(menuClosed, 2);
+});
+
+test("Groupflow leaves nested and leaf headers, controls and other mouse buttons to Zen", async () => {
+  const h = await load("groupflow", "toggleSubgroups", { window: {} });
+  for (const kind of ["nested", "leaf", "split", "control", "right", "prevented", "outside"]) {
+    const group = { matches: () => true, hasAttribute: () => kind === "split",
+      parentElement: { closest: () => kind === "nested" ? {} : null }, querySelectorAll: () => [] };
+    h.toggleSubgroups({ button: kind === "right" ? 2 : 0, defaultPrevented: kind === "prevented",
+      target: { closest: selector => selector === ".tab-group-label-container"
+        ? kind === "outside" ? null : { parentElement: group } : kind === "control" ? {} : null },
+      preventDefault() { assert.fail(kind + " was intercepted"); },
+      stopPropagation() { assert.fail(kind + " was intercepted"); } });
+  }
+});
+
 async function groupflowStartupEnv() {
   const c = clock(), w = browser(), ready = deferred(), groups = [], writes = [];
   w.gZenStartup = { promiseInitialized: ready.promise };

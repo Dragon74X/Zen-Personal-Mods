@@ -219,6 +219,8 @@
 /* ---- header ------------------------------------------------------- */
 
 #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
+  /* The translucent header needs toolbar foreground, not native colour-pill text. */
+  color: var(--toolbar-color, var(--toolbox-textcolor)) !important;
   /* Neutralize whatever ATG / Arc put here; we import after them, so
      these unqualified declarations win by source order. */
   background: none !important;
@@ -301,7 +303,7 @@
 
 #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label {
   background: none !important;
-  color: var(--zzgroup-label-color, inherit);
+  color: var(--zzgroup-label-color, inherit) !important;
   font-size: var(--zzgroup-label-size, 1em) !important;
   font-weight: 600 !important;
   opacity: 0.95;
@@ -1567,11 +1569,17 @@
   background: var(--zzgf-icon, url("chrome://browser/skin/zen-icons/folder.svg")) center / contain no-repeat;
 }
 :root[zzgf-standalone] #navigator-toolbox .zzgf-close {
-  font-size: 18px;
-  list-style-image: none;
   visibility: visible !important;
   opacity: 0;
   pointer-events: none;
+}
+/* Match Zen's tab close image; a text glyph inherits the label's font size. */
+:root[zzgf-standalone] #navigator-toolbox .zzgf-close::before {
+  content: "";
+  flex-shrink: 0;
+  width: calc(var(--size-item-medium, 24px) - 2 * var(--tab-close-button-padding, 4px));
+  height: calc(var(--size-item-medium, 24px) - 2 * var(--tab-close-button-padding, 4px));
+  background: url("chrome://browser/skin/zen-icons/close.svg") center / contain no-repeat;
 }
 :root[zzgf-standalone] #navigator-toolbox .tab-group-label-container:is(:hover, :focus-within) > .zzgf-close {
   opacity: 1;

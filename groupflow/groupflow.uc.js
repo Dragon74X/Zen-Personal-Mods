@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Groupflow
-// @description    Assigns group favicons and folds nested groups/folders at startup.
+// @description    Persists nested groups, supplies native group controls, and folds subgroups at startup.
 // @include        chrome://browser/content/browser.xhtml
 // ==/UserScript==
 
@@ -168,6 +168,21 @@
   // every icon alike. The CSS selects on attributes since it cannot read
   // a custom property.
   const SHAPES = ["", "circle", "rounded", "squircle", "square"];
+  let savedGroupIcons = null;
+
+  function customIcon(g) {
+    const value = savedGroupIcons?.[g.id];
+    if (typeof value !== "string" || !value) return null;
+    if (/^[a-z][a-z0-9+.\-]*:/i.test(value)) {
+      return /^(?:chrome|resource|file|https?|page-icon|moz-anno):|^data:image\//i.test(value) &&
+        !/["'()\\]/.test(value) ? value : null;
+    }
+    // ATG stored emoji as text. Escape it before constructing an image URI.
+    const text = value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return "data:image/svg+xml," + encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><text x="0" y="28" font-size="28">${text}</text></svg>`);
+  }
+
   function setShape(g, picture) {
     const mode = num("icon-shape", 0);
     const shape = SHAPES[mode] ||
@@ -177,11 +192,14 @@
   }
 
   function refreshGroup(g) {
-    const rule = ruledIcon(g);
+    const rule = ruledIcon(g) ?? customIcon(g);
     const picture = !rule && bool("section-icons", true) ? stampedIcon(g) : null;
     setShape(g, picture);
     const ruled = rule ?? picture;
     if (ruled) { setIcon(g, `url("${ruled}")`); return; }
+    if (!bool("favicons", true)) {
+      setIcon(g, 'url("chrome://browser/skin/zen-icons/folder.svg")'); return;
+    }
     const counts = new Map(), icons = new Map();
     const count = tab => {
       const h = hostOf(tab);
@@ -222,7 +240,7 @@
   }
 
   function refreshAll() {
-    if (!bool("favicons", true)) return;
+    if (!savedGroupIcons && !bool("favicons", true)) return;
     const seen = new Set();
     try { for (const g of gBrowser.tabGroups) seen.add(g); } catch {}
     try { for (const g of document.querySelectorAll("tab-group")) seen.add(g); } catch {}
@@ -252,7 +270,7 @@
   };
   function refreshDirty() {
     if (everything) { everything = false; dirty.clear(); refreshAll(); return; }
-    if (!bool("favicons", true)) { dirty.clear(); return; }
+    if (!savedGroupIcons && !bool("favicons", true)) { dirty.clear(); return; }
     for (const g of dirty) if (g.isConnected && !g.isZenFolder && !g.hasAttribute("split-view-group")) refreshGroup(g);
     dirty.clear();
   }
@@ -267,10 +285,331 @@
                   "TabGroupRemoved", "TabGroupRemovedFromDOM", "TabGroupUpdate",
                   "SSTabRestored", "ZenTabIconChanged"];
 
+  const plainGroup = g => g?.tagName === "tab-group" && !g.isZenFolder && !g.hasAttribute("split-view-group");
+  const plainGroups = () => [...document.querySelectorAll("tab-group")].filter(plainGroup);
+  const workspaceOf = g => g.closest("zen-workspace")?.id || g.getAttribute("zen-workspace-id");
+
+  function readGroupData(key) {
+    try {
+      const data = JSON.parse(SessionStore.getCustomWindowValue(window, key) || "{}");
+      if (data && typeof data === "object" && !Array.isArray(data)) return Object.assign(Object.create(null), data);
+      throw new Error("Expected an object");
+    } catch (error) {
+      // Preserve malformed stored data instead of replacing it with an empty map.
+      console.error(`[Groupflow] Cannot read ${key}:`, error);
+      return null;
+    }
+  }
+
+  function writeGroupData(key, data) {
+    if (!data) return;
+    const value = JSON.stringify(data);
+    if (SessionStore.getCustomWindowValue(window, key) !== value) {
+      SessionStore.setCustomWindowValue(window, key, value);
+    }
+  }
+
+  function trackGroupDetails() {
+    // Firefox restores only groups referenced directly by a tab. Keep the few
+    // fields needed to rebuild parents containing only subgroups, also while
+    // ATG is still installed so a live update can prepare the migration.
+    const data = readGroupData("groupflowGroups");
+    let timer = null, closed = false;
+    function save() {
+      if (!data || closed) return;
+      for (const group of plainGroups()) data[group.id] = {
+        label: group.label, color: group.color, workspace: workspaceOf(group),
+      };
+      writeGroupData("groupflowGroups", data);
+    }
+    function changed() { if (timer === null) timer = setTimeout(() => { timer = null; save(); }, 0); }
+    function closing() { save(); closed = true; }
+    const events = ["TabGroupCreate", "TabGroupUpdate", "FolderGrouped", "FolderUngrouped"];
+    for (const event of events) window.addEventListener(event, changed, true);
+    window.addEventListener("SSWindowClosing", closing, true);
+    return { data, save, retire() {
+      save(); clearTimeout(timer);
+      for (const event of events) window.removeEventListener(event, changed, true);
+      window.removeEventListener("SSWindowClosing", closing, true);
+    } };
+  }
+
+  function restoreParents(parents, candidates = plainGroups(), details = null) {
+    if (!parents) return;
+    for (const group of candidates) {
+      if (!plainGroup(group)) continue;
+      const seen = new Set([group.id]), chain = [];
+      let id = parents[group.id];
+      while (typeof id === "string" && id && !seen.has(id)) { seen.add(id); chain.push(id); id = parents[id]; }
+      if (id) continue; // Reject saved cycles before creating or moving anything.
+      let child = group;
+      for (const parentId of chain) {
+        let parent = document.getElementById(parentId);
+        if (!parent) {
+          const saved = details?.[parentId];
+          if (!saved || saved.workspace !== workspaceOf(child) || typeof saved.label !== "string") break;
+          parent = document.createXULElement("tab-group");
+          parent.id = parentId; parent.label = saved.label; parent.color = saved.color;
+          child.before(parent);
+        }
+        if (!plainGroup(parent) || child.contains(parent) || workspaceOf(child) !== workspaceOf(parent)) break;
+        if (child.group !== parent) parent.groupContainer.appendChild(child);
+        child = parent;
+      }
+    }
+  }
+
+  function startStandaloneGroups(details) {
+    const parents = readGroupData("tabGroupParents");
+    const icons = readGroupData("tabGroupIcons");
+    const colors = readGroupData("tabGroupColors");
+    savedGroupIcons = icons || {};
+    const decorated = new WeakSet(), appliedColors = new WeakMap(), colorCache = new Map();
+    let known = new Set(), pending = null, retired = false, closing = false;
+    // A native closed/saved parent records all descendant tabs but only its own
+    // group descriptor. Supply the missing descriptors to the native restorer.
+    const nativeRestore = gBrowser.createTabsForSessionRestore;
+    function restoreTabs(...args) {
+      const groups = [...args[3]], included = new Set(groups.map(group => group.id));
+      for (const { groupId } of args[2]) {
+        const saved = details?.[groupId];
+        if (included.has(groupId) || !saved) continue;
+        const seen = new Set([groupId]);
+        let parent = parents?.[groupId];
+        while (parent && !included.has(parent) && !seen.has(parent)) { seen.add(parent); parent = parents?.[parent]; }
+        if (!included.has(parent)) continue;
+        groups.push({ id: groupId, name: saved.label, color: saved.color, collapsed: false });
+        included.add(groupId);
+      }
+      args[3] = groups;
+      return nativeRestore.apply(this, args);
+    }
+    gBrowser.createTabsForSessionRestore = restoreTabs;
+    const root = document.documentElement;
+    root.setAttribute("zzgf-standalone", "");
+    // Native tab-group creation/dragging is disabled by Zen's default preference.
+    // An explicit user choice still wins.
+    if (!Services.prefs.prefHasUserValue("browser.tabs.groups.enabled")) {
+      Services.prefs.setBoolPref("browser.tabs.groups.enabled", true);
+    }
+
+    function applyColor(group) {
+      if (appliedColors.has(group) && appliedColors.get(group) === group.color) return;
+      const saved = colors?.[group.id];
+      group.style.removeProperty("--zzgf-saved-background");
+      group.removeAttribute("zzgf-saved-gradient");
+      if (!saved || !String(group.color || "").startsWith(group.id)) { appliedColors.set(group, group.color); return; }
+      let value = colorCache.get(group.id);
+      if (!value) {
+        if (typeof saved === "string") value = saved;
+        else if (typeof saved.favicon === "string") value = saved.favicon;
+        else if (Array.isArray(saved.gradientColors)) {
+          const picker = window.gZenThemePicker;
+          const opacity = picker.currentOpacity, algorithm = picker.useAlgo;
+          try {
+            picker.currentOpacity = saved.opacity ?? 1;
+            value = picker.getGradient(saved.gradientColors);
+          } finally {
+            picker.currentOpacity = opacity;
+            const theme = gZenWorkspaces.getWorkspaceFromId(gZenWorkspaces.activeWorkspace)?.theme;
+            picker.getGradient(theme?.gradientColors || []);
+            picker.useAlgo = algorithm;
+          }
+        }
+        if (typeof value !== "string") return;
+        colorCache.set(group.id, value);
+      }
+      if (CSS.supports("color", value)) {
+        group.style.setProperty("--tab-group-color", value);
+        group.style.setProperty("--tab-group-color-invert", value);
+      } else if (value.includes("gradient(") && !/url\s*\(/i.test(value) && CSS.supports("background-image", value)) {
+        group.style.setProperty("--zzgf-saved-background", value);
+        group.setAttribute("zzgf-saved-gradient", "");
+      }
+      appliedColors.set(group, group.color);
+    }
+
+    function decorate(group) {
+      const header = group.labelContainerElement;
+      if (!header) return;
+      if (!decorated.has(group)) {
+        decorated.add(group);
+        header.classList.add("zen-drop-target");
+        for (const [action, label] of [["icon", "Choose group icon"], ["toggle", "Toggle group"], ["close", "Close group"]]) {
+          const button = document.createElementNS("http://www.w3.org/1999/xhtml", "button");
+          button.type = "button";
+          button.className = "zzgf-control zzgf-" + action + (action === "close" ? " tab-close-button" : "");
+          button.dataset.zzgfAction = action;
+          button.setAttribute("aria-label", label);
+          button.title = label;
+          if (action === "close") button.textContent = "×";
+          header.appendChild(button);
+        }
+      }
+      const toggle = header.querySelector(".zzgf-toggle");
+      const expanded = String(!group.collapsed);
+      if (toggle.getAttribute("aria-expanded") !== expanded) {
+        toggle.textContent = group.collapsed ? "▸" : "▾";
+        toggle.setAttribute("aria-expanded", expanded);
+      }
+      const ws = workspaceOf(group);
+      if (ws && group.getAttribute("zen-workspace-id") !== ws) group.setAttribute("zen-workspace-id", ws);
+      try { applyColor(group); } catch (error) { console.error("[Groupflow] Cannot restore group colour:", error); }
+      refreshGroup(group);
+    }
+
+    function saveParents() {
+      if (!parents) return;
+      for (const group of plainGroups()) {
+        const parent = group.parentElement?.closest("tab-group");
+        if (plainGroup(parent)) parents[group.id] = parent.id;
+        else delete parents[group.id];
+      }
+      writeGroupData("tabGroupParents", parents);
+    }
+
+    function pruneClosedState(groups) {
+      // Retain metadata while Firefox can undo the close, including descendants
+      // of a closed parent. Never prune against an unavailable closed-tabs store.
+      const closed = [...SessionStore.getClosedTabGroups({ sourceWindow: window,
+        closedTabsFromAllWindows: false, closedTabsFromClosedWindows: false }), ...SessionStore.getSavedTabGroups()];
+      const retained = new Set(closed.map(group => group.id));
+      for (const group of closed) for (const tab of group.tabs) if (tab.state?.groupId) retained.add(tab.state.groupId);
+      for (const tab of SessionStore.getClosedTabData(window)) if (tab.state?.groupId) retained.add(tab.state.groupId);
+      let size;
+      do {
+        size = retained.size;
+        for (const [child, parent] of Object.entries(parents || {})) if (retained.has(parent)) retained.add(child);
+      } while (size !== retained.size);
+      for (const group of groups) retained.add(group.id);
+      do {
+        size = retained.size;
+        for (const [child, parent] of Object.entries(parents || {})) if (retained.has(child)) retained.add(parent);
+      } while (size !== retained.size);
+      for (const [key, data] of [["tabGroupParents", parents], ["tabGroupIcons", icons],
+        ["tabGroupColors", colors], ["groupflowGroups", details]]) {
+        if (!data) continue;
+        for (const id of Object.keys(data)) if (!retained.has(id)) { delete data[id]; colorCache.delete(id); }
+        writeGroupData(key, data);
+      }
+    }
+
+    function sync() {
+      pending = null;
+      if (retired) return;
+      let groups = plainGroups();
+      // Closed-group restoration creates new elements; ordinary drag/reparenting
+      // keeps the same element and must not replay its previous saved parent.
+      restoreParents(parents, groups.filter(group => !known.has(group)), details);
+      groups = plainGroups();
+      known = new Set(groups);
+      for (const group of groups) decorate(group);
+      saveParents();
+      try { pruneClosedState(groups); } catch (error) { console.error("[Groupflow] Retaining closed group data:", error); }
+    }
+    function changed() {
+      if (pending === null) pending = setTimeout(sync, 0);
+    }
+
+    async function click(event) {
+      const button = event.target.closest?.(".zzgf-control");
+      const group = button?.closest("tab-group");
+      if (!plainGroup(group)) return;
+      event.preventDefault(); event.stopPropagation();
+      try {
+        switch (button.dataset.zzgfAction) {
+          case "toggle": group.collapsed = !group.collapsed; break;
+          case "close": await gBrowser.removeTabGroup(group); break;
+          case "icon": {
+            if (!icons) return;
+            const value = await window.gZenEmojiPicker.open(button, { emojiAsSVG: true });
+            if (retired || !group.isConnected) return;
+            if (value) icons[group.id] = value;
+            else delete icons[group.id];
+            writeGroupData("tabGroupIcons", icons);
+            refreshGroup(group);
+            break;
+          }
+        }
+      } catch (error) {
+        if (error.message !== "Emoji picker closed without selection") console.error("[Groupflow] Group control failed:", error);
+      }
+    }
+
+    function edit(event) {
+      const header = event.target.closest?.(".tab-group-label-container");
+      const group = header?.parentElement;
+      if (!plainGroup(group)) return;
+      event.preventDefault(); event.stopPropagation();
+      gBrowser.tabGroupMenu.openEditModal(group);
+    }
+
+    function ungroup(event) {
+      const group = gBrowser.tabGroupMenu.activeGroup;
+      if (event.target.id !== "tabGroupEditor_ungroupTabs" || !plainGroup(group)) return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      gBrowser.tabGroupMenu.close();
+      // Firefox's ungroupTabs reads direct children of <tab-group>. Zen moved
+      // them into groupContainer. Move each direct item out through native APIs,
+      // retaining nested groups and split views as units.
+      for (const item of [...group.groupContainer.children]) {
+        if (gBrowser.isTab(item) || gBrowser.isTabGroup(item) || gBrowser.isSplitViewWrapper(item)) {
+          gBrowser.moveTabBefore(item, group);
+        }
+      }
+    }
+
+    // Native drag code handles the move. Header edges request insertion;
+    // the middle retains Zen's drop-into target, matching native folders.
+    function drag(event) {
+      const header = event.target.closest?.(".tab-group-label-container");
+      if (!plainGroup(header?.parentElement)) return;
+      const rect = header.getBoundingClientRect();
+      const threshold = Math.max(0, Math.min(45,
+        Services.prefs.getIntPref("zen.tabs.folder-dragover-threshold-percent", 20))) / 100;
+      const fraction = rect.height ? (event.clientY - rect.top) / rect.height : 0.5;
+      header.classList.toggle("zen-drop-target", fraction >= threshold && fraction <= 1 - threshold);
+    }
+    function resetDrag() {
+      for (const group of plainGroups()) group.labelContainerElement?.classList.add("zen-drop-target");
+    }
+    function beforeClose() { saveParents(); closing = true; }
+    const events = ["TabGroupCreate", "TabGroupUpdate", "TabGroupRemoved", "TabGroupRemovedFromDOM",
+      "TabGrouped", "TabUngrouped", "FolderGrouped", "FolderUngrouped", "TabGroupCollapse", "TabGroupExpand"];
+    for (const event of events) window.addEventListener(event, changed, true);
+    window.addEventListener("click", click, true);
+    window.addEventListener("contextmenu", edit, true);
+    window.addEventListener("command", ungroup, true);
+    window.addEventListener("dragover", drag, true);
+    window.addEventListener("dragend", resetDrag, true);
+    window.addEventListener("drop", resetDrag, true);
+    window.addEventListener("SSWindowClosing", beforeClose, true);
+    sync();
+    return () => {
+      retired = true;
+      if (gBrowser.createTabsForSessionRestore === restoreTabs) gBrowser.createTabsForSessionRestore = nativeRestore;
+      if (!closing) saveParents();
+      clearTimeout(pending);
+      for (const event of events) window.removeEventListener(event, changed, true);
+      for (const [event, fn] of [["click", click], ["contextmenu", edit], ["command", ungroup], ["dragover", drag],
+        ["dragend", resetDrag], ["drop", resetDrag], ["SSWindowClosing", beforeClose]]) {
+        window.removeEventListener(event, fn, true);
+      }
+      for (const group of plainGroups()) {
+        for (const button of group.querySelectorAll(":scope > .tab-group-label-container > .zzgf-control")) button.remove();
+        group.labelContainerElement?.classList.remove("zen-drop-target");
+        group.style.removeProperty("--zzgf-saved-background");
+        group.removeAttribute("zzgf-saved-gradient");
+      }
+      root.removeAttribute("zzgf-standalone");
+      savedGroupIcons = null;
+    };
+  }
+
   function foldStartupGroups() {
     if (instance.startupFolded) return;
-    // Plain tab-group nesting is restored by ATG, after Zen's own startup.
-    // Restore it now, before deciding which groups are roots.
+    // Finish ATG's restore when it is present. Standalone nesting is already
+    // restored before this pass decides which groups are roots.
     const atg = window.advancedTabGroups;
     atg?.applySavedParents?.();
     // Descendants first: expanding a parent must see its children's final state.
@@ -307,7 +646,8 @@
           out.push({
             group: (g.label ?? "").trim(),
             icon: (g.style.getPropertyValue("--zzgf-icon") || "(none)").slice(0, 60),
-            from: ruledIcon(g) ? "icon rule" : (bool("section-icons", true) && stampedIcon(g)) ? "Tab Router section icon" : "favicon",
+            from: ruledIcon(g) ? "icon rule" : customIcon(g) ? "saved group icon" :
+              (bool("section-icons", true) && stampedIcon(g)) ? "Tab Router section icon" : "favicon",
           });
         }
         console.log(out);
@@ -316,6 +656,8 @@
     };
     const boot = setTimeout(refreshAll, 2000);
     let foldTimer = null;
+    let cleanupGroups = null;
+    let groupDetails = null;
 
     // This script is injected per window and lives as long as the window
     // does, so every registration has to be released here or it leaks
@@ -333,6 +675,9 @@
       clearTimeout(timer);
       clearTimeout(boot);
       clearTimeout(foldTimer);
+      cleanupGroups?.();
+      groupDetails?.retire();
+      window.removeEventListener("unload", cleanup);
       dirty.clear();
     };
     window.addEventListener("unload", cleanup, { once: true });
@@ -345,16 +690,19 @@
     try { window.addUnloadListener?.(cleanup); } catch {}
     instance.retire = cleanup;
 
-    if (!instance.startupFolded) {
-      // Zen resolves this after workspace/session restoration. Its folder
-      // creation code also queues collapsed-state writes on the next task.
-      window.gZenStartup.promiseInitialized.then(() => {
+    // Zen resolves this after workspace/session restoration. Its folder
+    // creation code also queues collapsed-state writes on the next task.
+    window.gZenStartup.promiseInitialized.then(() => {
+      if (retired) return;
+      foldTimer = setTimeout(() => {
         if (retired) return;
-        foldTimer = setTimeout(() => {
-          if (!retired) foldStartupGroups();
-        }, 0);
-      }).catch(e => console.error("[Groupflow] startup folding failed:", e));
-    }
+        groupDetails = trackGroupDetails();
+        if (!atg) cleanupGroups = startStandaloneGroups(groupDetails.data);
+        else restoreParents(readGroupData("tabGroupParents"), plainGroups(), groupDetails.data);
+        foldStartupGroups();
+        groupDetails.save();
+      }, 0);
+    }).catch(e => console.error("[Groupflow] startup folding failed:", e));
   }
 
   // Written the moment this script is injected, not from start(). These

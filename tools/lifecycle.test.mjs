@@ -818,15 +818,22 @@ test("Groupflow uses the restored tab favicon and gives iconless groups a folder
 async function groupflowStartupEnv() {
   const c = clock(), w = browser(), ready = deferred(), groups = [], writes = [];
   w.gZenStartup = { promiseInitialized: ready.promise };
+  // These cases exercise the existing ATG coexistence path; the native smoke
+  // check covers Groupflow's standalone controller and its persisted state.
+  w.advancedTabGroups = {};
   const document = { documentElement: element(), querySelectorAll: selector =>
     groups.filter(g => selector.split(", ").includes(g.tagName)) };
   const gBrowser = { tabGroups: groups, selectedTab: { label: "selected tab" } };
+  const stored = new Map();
+  const SessionStore = { getCustomWindowValue: (_w, k) => stored.get(k) || "",
+    setCustomWindowValue: (_w, k, v) => stored.set(k, v) };
   const Services = { prefs: {
     getBoolPref: () => false, getPrefType: () => 0,
     addObserver() {}, removeObserver() {},
   } };
   function group(name, { parent = null, folder = false, collapsed = false, split = false } = {}) {
     const g = { ...element(), tagName: folder ? "zen-folder" : "tab-group",
+      id: name, label: name, closest: () => ({ id: "workspace" }),
       isZenFolder: folder, parentElement: { closest: () => parent },
       get collapsed() { return collapsed; },
       set collapsed(value) { writes.push(name); collapsed = value; },
@@ -837,7 +844,7 @@ async function groupflowStartupEnv() {
   }
   async function inject() {
     const h = await load("groupflow", "start, schedule, prefVarObserver", {
-      ...c, window: w, document, gBrowser, Services,
+      ...c, window: w, document, gBrowser, Services, SessionStore,
     });
     h.start();
     return h;
@@ -953,6 +960,47 @@ test("Groupflow restores ATG nesting before folding and releases its Arc overrid
   assert.equal(e.w.advancedTabGroups.isArcMode(), false);
   e.w.__zzgroupInstance.retire();
   assert.equal(e.w.advancedTabGroups.isArcMode, arcMode);
+});
+
+test("Groupflow restores saved parents without cycles, cross-workspace moves or split changes", async () => {
+  const groups = new Map();
+  function group(id, workspace = "one", split = false) {
+    const g = { ...element(), id, tagName: "tab-group", group: null,
+      closest: () => ({ id: workspace }),
+      contains(other) { for (let p = other; p; p = p.group) if (p === this) return true; return false; },
+      groupContainer: { appendChild(child) { child.group = g; } },
+    };
+    if (split) g.setAttribute("split-view-group", "true");
+    groups.set(id, g); return g;
+  }
+  const root = group("root"), child = group("child"), grandchild = group("grandchild");
+  const foreign = group("foreign", "two"), split = group("split", "one", true);
+  const h = await load("groupflow", "restoreParents, readGroupData, writeGroupData", {
+    window: {}, document: { getElementById: id => groups.get(id), querySelectorAll: () => [...groups.values()] },
+    SessionStore: { getCustomWindowValue: () => "[1,2]", setCustomWindowValue() { throw new Error("Invalid data overwritten"); } },
+    console: { error() {} },
+  });
+  h.restoreParents({ grandchild: "child", child: "root", foreign: "root", split: "root" });
+  assert.equal(child.group, root); assert.equal(grandchild.group, child);
+  assert.equal(foreign.group, null); assert.equal(split.group, null);
+  h.restoreParents({ root: "grandchild", child: "root", grandchild: "child" });
+  assert.equal(root.group, null);
+  child.group = null; grandchild.group = null;
+  h.restoreParents({ child: "grandchild", grandchild: "child", root: "root" });
+  assert.equal(child.group, null); assert.equal(grandchild.group, null);
+  assert.equal(h.readGroupData("tabGroupParents"), null);
+  h.writeGroupData("tabGroupParents", null);
+});
+
+test("Groupflow imports emoji as escaped images and rejects executable or CSS-breaking icon URIs", async () => {
+  const h = await load("groupflow", "customIcon, setIcons(value) { savedGroupIcons = value; }", { window: {} });
+  h.setIcons({ emoji: "🦊<&>", native: "chrome://browser/skin/zen-icons/folder.svg",
+    bad: 'https://example.com/"icon', script: "javascript:alert(1)" });
+  const svg = decodeURIComponent(h.customIcon({ id: "emoji" }).split(",")[1]);
+  assert.ok(svg.includes("🦊&lt;&amp;&gt;"));
+  assert.equal(h.customIcon({ id: "native" }), "chrome://browser/skin/zen-icons/folder.svg");
+  assert.equal(h.customIcon({ id: "bad" }), null);
+  assert.equal(h.customIcon({ id: "script" }), null);
 });
 
 test("Router diagnostic path calculation learns nothing and starts no lookups", async () => {

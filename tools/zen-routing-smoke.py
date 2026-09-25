@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Native folder/container regression check in a disposable profile.
 
-python tools/zen-routing-smoke.py --zen /path/to/zen --atg /path/to/Advanced-Tab-Groups
+python tools/zen-routing-smoke.py --zen /path/to/zen [--atg /path/to/Advanced-Tab-Groups]
 Requires the same Pillow dependency as zen-smoke.py. Never uses a real profile.
 """
 import argparse
@@ -136,16 +136,26 @@ def check(m, root, atg, port, first):
     m.script("window.fixtureURL=" + json.dumps(f"http://127.0.0.1:{port}") + "; return true;")
     if first:
         m.script("return (async()=>{" + HELPERS + """
-          const rt=add(fixtureURL+'/root'), ct=add(fixtureURL+'/child');
-          await loaded(rt); await loaded(ct); gBrowser.selectedTab=rt;
+          const rt=add(fixtureURL+'/root'), ct=add(fixtureURL+'/child'), gt=add(fixtureURL+'/grandchild');
+          await loaded(rt); await loaded(ct); await loaded(gt); gBrowser.selectedTab=rt;
           const root=gBrowser.addTabGroup([rt],{label:'Root',insertBefore:rt});
           const child=gBrowser.addTabGroup([ct],{label:'Child',insertBefore:ct});
-          SessionStore.setCustomWindowValue(window,'tabGroupParents',JSON.stringify({[child.id]:root.id}));
+          const grandchild=gBrowser.addTabGroup([gt],{label:'Grandchild',insertBefore:gt});
+          child.groupContainer.appendChild(grandchild);
+          grandchild.addTabs([ct]); // Parent with no direct tabs must also survive restart.
+          const folder=gZenFolders.createFolder([],{label:'Folder',renameFolder:false});
+          gZenFolders.createFolder([],{label:'Subfolder',renameFolder:false,insertAfter:folder.groupContainer.lastElementChild});
+          SessionStore.setCustomWindowValue(window,'tabGroupParents',JSON.stringify({[child.id]:root.id,[grandchild.id]:child.id}));
           SessionStore.setCustomWindowValue(window,'tabGroupIcons',JSON.stringify({[root.id]:'📁',[child.id]:'🦊'}));
+          root.color=root.id+'-favicon'; child.color=child.id;
+          SessionStore.setCustomWindowValue(window,'tabGroupColors',JSON.stringify({
+            [root.id]:{favicon:'rgb(72, 120, 180)'},
+            [child.id]:{gradientColors:[{c:'#336699',isCustom:true},{c:'#993366',isCustom:true}],opacity:0.6},
+          }));
           root.collapsed=true;
           return true;
         })();""")
-    sheets = [atg / "userChrome.css", root / "groupflow/userChrome.css"]
+    sheets = ([atg / "userChrome.css"] if atg else []) + [root / "groupflow/userChrome.css"]
     m.script("""const ss=Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService);
       for(const url of """ + json.dumps([p.resolve().as_uri() for p in sheets]) + """)
         ss.loadAndRegisterSheet(Services.io.newURI(url),ss.USER_SHEET);
@@ -154,7 +164,7 @@ def check(m, root, atg, port, first):
     # Start with Groupflow installed first and inject after Zen is ready: this
     # reproduced ATG undoing the fold when Groupflow had no explicit loadOrder.
     scripts = []
-    for directory in [root / "groupflow", atg]:
+    for directory in [root / "groupflow"] + ([atg] if atg else []):
         for filename, options in json.loads((directory / "theme.json").read_text())["scripts"].items():
             if filename.endswith(".uc.js"):
                 scripts.append((options.get("loadOrder") or 10, directory / filename))
@@ -166,20 +176,92 @@ def check(m, root, atg, port, first):
     groupflow = (root / "groupflow/groupflow.uc.js").read_text()
     result = m.script("return (async()=>{" + HELPERS + """
       await pause(2200); // Past both ATG delayed restore passes and Groupflow's icon refresh.
-      const root=group('Root'), child=group('Child');
-      if(!root || !child) throw new Error('Session did not restore fixture groups');
-      const ct=child.tabs[0], icon=child.style.getPropertyValue('--zzgf-icon');
+      const root=group('Root'), child=group('Child'), grandchild=group('Grandchild');
+      if(!root || !child || !grandchild) throw new Error('Session did not restore fixture groups: '+
+        JSON.stringify([...document.querySelectorAll('tab-group')].map(g=>[g.id,g.label])));
+      const ct=grandchild.tabs[0], icon=grandchild.style.getPropertyValue('--zzgf-icon');
       const image=new Image(); image.src=icon.slice(5,-2); await image.decode();
+      const folders=[...document.querySelectorAll('zen-folder')].filter(g=>['Folder','Subfolder'].includes(g.label));
       return {zen:Services.appinfo.version, rootOpen:!root.collapsed, childFolded:child.collapsed,
-        nested:child.parentElement.closest('tab-group')===root,
+        nested:child.parentElement.closest('tab-group')===root && grandchild.group===child,
+        grandchildFolded:grandchild.collapsed,
+        nativeFolders:folders.length===2 && folders.every(g=>g.collapsed===(g.label==='Subfolder')),
         bodyHidden:getComputedStyle(child.groupContainer).display==='none', iconDecoded:image.naturalWidth>0,
-        cachedIcon:icon.includes(gBrowser.getIcon(ct)), savedIcon:advancedTabGroups.savedIcons[child.id]==='🦊'};
+        cachedIcon:icon.includes(gBrowser.getIcon(ct)),
+        savedIcon:JSON.parse(SessionStore.getCustomWindowValue(window,'tabGroupIcons'))[child.id]==='🦊'};
     })();""")
     assert all(value is True for key, value in result.items() if key != "zen"), result
     # Manual expansion survives a Sine-style reinjection.
     m.script("[...document.querySelectorAll('tab-group')].find(g=>g.label==='Child').collapsed=false; return true;")
     m.script(groupflow + "\nreturn true;")
     assert m.script("return ![...document.querySelectorAll('tab-group')].find(g=>g.label==='Child').collapsed;")
+    if not atg:
+        controls = m.script("return (async()=>{" + HELPERS + """
+          await pause(100);
+          const root=group('Root'), child=group('Child'), grandchild=group('Grandchild');
+          const toggle=child.labelContainerElement.querySelector('.zzgf-toggle');
+          toggle.click(); await pause(50);
+          const toggled=child.collapsed && toggle.getAttribute('aria-expanded')==='false';
+          toggle.click(); await pause(50);
+          const manual=!child.collapsed;
+          const icon=child.style.getPropertyValue('--zzgf-icon');
+          const image=new Image(); image.src=icon.slice(5,-2); await image.decode();
+          const colour=getComputedStyle(root).getPropertyValue('--tab-group-color').trim();
+          const savedColour=JSON.parse(SessionStore.getCustomWindowValue(window,'tabGroupColors'))[root.id].favicon;
+          const gradient=getComputedStyle(child.labelContainerElement).backgroundImage;
+          child.labelContainerElement.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,button:2}));
+          await pause(100);
+          const editor=gBrowser.tabGroupMenu.activeGroup===child && gBrowser.tabGroupMenu.panel.state==='open';
+          gBrowser.tabGroupMenu.close();
+          // A cancelled native close must retain tabs and all saved state.
+          const before=child.tabs.length, permit=gBrowser.runBeforeUnloadForTabs;
+          try {
+            gBrowser.runBeforeUnloadForTabs=async()=>true;
+            child.labelContainerElement.querySelector('.zzgf-close').click(); await pause(100);
+          } finally { gBrowser.runBeforeUnloadForTabs=permit; }
+          const veto=child.isConnected && child.tabs.length===before &&
+            JSON.parse(SessionStore.getCustomWindowValue(window,'tabGroupIcons'))[child.id]==='🦊';
+          root.before(child); await pause(100);
+          const moved=!JSON.parse(SessionStore.getCustomWindowValue(window,'tabGroupParents'))[child.id];
+          root.groupContainer.appendChild(child); await pause(100);
+          const a=add(fixtureURL+'/ungroup-a'), b=add(fixtureURL+'/ungroup-b');
+          await loaded(a); await loaded(b);
+          const outer=gBrowser.addTabGroup([a,b],{label:'Ungroup fixture',insertBefore:a});
+          const inner=gBrowser.addTabGroup([a],{label:'Retained child',insertBefore:a});
+          await pause(100);
+          gBrowser.tabGroupMenu.openEditModal(outer);
+          document.getElementById('tabGroupEditor_ungroupTabs').dispatchEvent(new Event('command',{bubbles:true,cancelable:true}));
+          await until(()=>!outer.isConnected);
+          const ungroup=inner.isConnected && !inner.group && a.group===inner && !b.group;
+          const picker=gZenEmojiPicker.open;
+          try {
+            gZenEmojiPicker.open=async()=>'chrome://browser/skin/zen-icons/folder.svg';
+            inner.labelContainerElement.querySelector('.zzgf-icon').click(); await pause(100);
+          } finally { gZenEmojiPicker.open=picker; }
+          const id=inner.id;
+          await gBrowser.removeTabGroup(inner); await until(()=>!inner.isConnected); await pause(100);
+          const kept=JSON.parse(SessionStore.getCustomWindowValue(window,'tabGroupIcons'))[id];
+          const reopened=SessionStore.undoCloseTabGroup(window,id,window); await pause(200);
+          const undo=kept==='chrome://browser/skin/zen-icons/folder.svg' &&
+            reopened.style.getPropertyValue('--zzgf-icon').includes(kept);
+          const parent=gBrowser.addTabGroup([b],{label:'Undo parent',insertBefore:b});
+          parent.groupContainer.appendChild(reopened); reopened.addTabs([b]);
+          await pause(100);
+          const parentId=parent.id;
+          await gBrowser.removeTabGroup(parent); await until(()=>!parent.isConnected); await pause(100);
+          SessionStore.undoCloseTabGroup(window,parentId,window); await pause(200);
+          const restored=document.getElementById(parentId), restoredChild=document.getElementById(id);
+          const undoNested=restored?.tabs.length===2 && restoredChild?.group===restored &&
+            restoredChild.style.getPropertyValue('--zzgf-icon').includes(kept);
+          if (restored) gBrowser.removeTabs([...restored.tabs]);
+          return {toggled,manual,customIconDecoded:image.naturalWidth>0,editor,veto,moved,
+            ungroup,undo,undoNested,
+            savedColour:colour===savedColour,savedGradient:gradient.includes('linear-gradient'),
+            oneSet:child.labelContainerElement.querySelectorAll('.zzgf-control').length===3,
+            standalone:!window.advancedTabGroups};
+        })();""")
+        assert all(controls.values()), controls
+        result.update(controls)
     if first:
         m.script("return (async()=>{" + HELPERS + """
           const target=add(fixtureURL.replace('127.0.0.1','localhost')+'/target',2);
@@ -206,7 +288,7 @@ def check(m, root, atg, port, first):
           Services.prefs.setBoolPref('zzrouter.enabled',false);
           const old=add(fixtureURL.replace('127.0.0.1','localhost')+'/filed');
           const child=gBrowser.addTabGroup([old],{label:'Manual subgroup',insertBefore:old});
-          advancedTabGroups.nestGroupUnder(child,group('Destination'));
+          group('Destination').groupContainer.appendChild(child);
           await loaded(old);
           Services.prefs.setBoolPref('zzrouter.enabled',true);
           await TabRouter.sortAll();
@@ -229,7 +311,7 @@ def check(m, root, atg, port, first):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--zen", type=Path, required=True)
-    parser.add_argument("--atg", type=Path, required=True)
+    parser.add_argument("--atg", type=Path, help="Load ATG on launch 1, then test migration without it on launches 2 and 3")
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
     server = ThreadingHTTPServer(("127.0.0.1", 0), Page)
@@ -261,10 +343,11 @@ def main():
                                 break
                         except OSError:
                             if process.poll() is not None:
-                                raise RuntimeError((profile / "browser.log").read_text()[-2000:])
+                                raise RuntimeError(f"Zen exited {process.returncode}: " + (profile / "browser.log").read_text()[-2000:])
                             time.sleep(.2)
                     m = Marionette(port)
-                    print(json.dumps({"launch": launch + 1, **check(m, root, args.atg, server.server_port, launch == 0)}), flush=True)
+                    atg = args.atg if launch == 0 else None
+                    print(json.dumps({"launch": launch + 1, **check(m, root, atg, server.server_port, launch == 0)}), flush=True)
                     m.call("Marionette:Quit", {"flags": ["eAttemptQuit"]})
                     process.wait(timeout=20)
                     m.sock.close()

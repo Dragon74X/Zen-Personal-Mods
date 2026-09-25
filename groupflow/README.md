@@ -2,8 +2,8 @@
 
 Runtime compatibility requires testing against installed Zen, Firefox, and Sine versions.
 
-Per-state glass theming for tab groups and subgroups, in
-[Glassflow](../glassflow)'s visual language. A sibling mod, not a fork:
+Nested-group persistence, native controls and startup folding, with glass theming
+for groups and subgroups in [Glassflow](../glassflow)'s visual language.
 Glassflow's live tokens (roundness, accent tone, sheen recipe, rim strength,
 glass intensity) are inherited directly, so knobs turned there carry over here
 automatically. Without Glassflow installed, the fallbacks reproduce its
@@ -32,18 +32,46 @@ Folding runs once per window, independently of styling and favicon settings.
 Manual toggles, groups created later, and Sine reinjections do not repeat the pass.
 When updating an already-running copy, restart Zen to apply the new startup behavior.
 
-The pass waits for [Zen startup initialization](https://github.com/zen-browser/desktop/blob/4c92731b2dbbcf3f5a4dad79c09d13c38f91f774/src/zen/common/modules/ZenStartup.mjs),
-restores Advanced Tab Groups' saved nesting, then uses the native `collapsed`
-setter, including its accessibility updates and collapse/expand events. It also
-updates ATG's saved collapse states so its delayed restore agrees. While loaded,
-Groupflow overrides ATG's Arc collapse behavior, which otherwise forces every
-group open; Arc appearance preferences stay as configured. Cleanup restores the
-original method. Regression check: `node --test tools/lifecycle.test.mjs`.
+The pass waits for Zen startup initialization, restores saved nesting, then uses
+the native `collapsed` setter, including accessibility updates and collapse events.
+Hierarchy updates follow group events and flush before SessionStore closes the window.
+Groupflow also saves parent labels, colours and workspace IDs in `groupflowGroups`:
+Zen does not recreate plain groups containing only subgroups on its own.
 
-The script explicitly loads after ATG and its folder-look script. Sine's script
-order is separate from stylesheet order: without `loadOrder`, it can start
-Groupflow before ATG when mod loading finishes after browser startup. That misses
-the Arc override, so ATG immediately reopens the subgroups after they fold.
+## Without Advanced Tab Groups
+
+Groupflow 1.42.0 supplies group persistence and controls when ATG is absent:
+
+- Click the arrow to fold/expand; click the icon to open Zen's icon/emoji picker.
+- Right-click a header for Firefox's group editor: rename, 9 native colours,
+  new tab, close and ungroup. Ungroup moves direct items out while retaining subgroups.
+- Close buttons use the native close API, including beforeunload cancellation.
+- Native drag handling supplies nesting and movement; header edges accept insertion.
+- Saved ATG parents, icons and colours use the existing `tabGroupParents`,
+  `tabGroupIcons` and `tabGroupColors` window values. Emoji, SVG icons, saved favicon
+  colours and gradients are restored. Native colour selections take precedence
+  over previous ATG colours. Malformed maps are retained without overwriting them.
+- Metadata remains while a group is open, saved or available in Firefox's
+  closed-tab/group history. Restoring a closed parent retains its subgroups.
+  Split groups and native pinned folders keep their native controls.
+
+ATG's gradient editor, favicon-colour resampling, group/folder conversion and Zen
+Library integration are not included. Existing gradients remain visible; new
+colour selections use Firefox's palette. Groupflow icon rules override saved icons,
+followed by Tab Router section icons and tab favicons.
+
+When ATG is still loaded, it continues supplying these controls and persistence.
+Groupflow loads after its scripts, disables ATG's force-open Arc behaviour and
+updates its saved collapse states. Cleanup restores ATG's original method.
+
+To switch: update Groupflow while ATG is still active so it records the existing
+parents, disable ATG in Sine, then fully quit and reopen Zen.
+Check the restored hierarchy and icons before uninstalling ATG. Restart after
+uninstalling as well. ATG does not provide a complete live-unload path.
+
+Groupflow enables native `browser.tabs.groups.enabled` when no user value exists;
+an explicit user value is preserved. Checks: `node --test tools/lifecycle.test.mjs`
+and `python tools/zen-routing-smoke.py --zen /path/to/zen`.
 
 ## What it styles
 

@@ -369,7 +369,7 @@
   const FETCH_TIMEOUT_MS = 15000;
   const NS_BINDING_ABORTED = 0x804b0002;
   const lookupURIAllowed = uri => uri.scheme === "https" && !uri.userPass && !INTERNAL_HOST.test(uri.host);
-  function fetchAnon(url, ctx, cb) {
+  function fetchAnon(url, ctx, cb, maxBytes = MAX_FETCH_BYTES) {
     const { NetUtil } = ChromeUtils.importESModule("resource://gre/modules/NetUtil.sys.mjs");
     const uri = Services.io.newURI(url);
     if (!lookupURIAllowed(uri)) throw new Error("Lookup requires a public HTTPS hostname");
@@ -419,10 +419,10 @@
       onDataAvailable(_request, stream, _offset, count) {
         if (done) return;
         try {
-          body += NetUtil.readInputStreamToString(stream, Math.min(count, MAX_FETCH_BYTES - body.length));
+          body += NetUtil.readInputStreamToString(stream, Math.min(count, maxBytes - body.length));
           // Retain the same prefix as before, but stop receiving at the cap.
           // NetUtil.asyncFetch buffered the entire response before truncation.
-          if (body.length === MAX_FETCH_BYTES) {
+          if (body.length === maxBytes) {
             finish(body);
             try { channel.cancel(NS_BINDING_ABORTED); } catch {}
           }
@@ -582,7 +582,7 @@
                                (e) => { note(`icon convert failed for "${label}": ${e}`); done(null); });
           });
         } catch { done(null); }
-      });
+      }, 1024 * 1024); // YouTube channel metadata follows roughly 750 KiB of inline CSS.
     } catch (e) { note(`icon setup failed for "${label}": ${e}`); done(null); }
   }
 
@@ -604,10 +604,10 @@
   // recomputes on request. Root groups are never stamped, so a section
   // named like a top-level group cannot take it over. Switched off: the
   // stamps come off and Groupflow falls back to favicons.
-  function stampIcons(recover = false) {
+  function stampIcons(recover = false, targets = groups()) {
     const on = bool("section-icons", true);
     let changed = 0, removed = false;
-    for (const g of groups()) {
+    for (const g of targets) {
       const want = on && parentOf(g) ? iconMap().get((g.label ?? "").trim().toLowerCase()) : null;
       if (recover && on && bool("enabled", false) && parentOf(g) && !want?.d && !isPrivate()) {
         const key = (g.label ?? "").trim().toLowerCase(), slot = "icon:" + key;
@@ -1201,7 +1201,12 @@
     if (retired || !bool("enabled", false) || routing.has(tab)) return;
     const s = skip(tab);                    // excluded tabs must not trigger lookups
     if (s) {
-      if (s === "already in a group") healWorkspace(tab);
+      if (s === "already in a group") {
+        healWorkspace(tab);
+        // Cached paths bypass creator lookup; retry a missing picture on
+        // normal tab activity even when this tab already belongs here.
+        stampIcons(true, [tab.group]);
+      }
       note(`skip ${tab.label}: ${s}`); return;
     }
     const parts = targetPath(tab);          // skip() may already have cached this
@@ -1608,7 +1613,7 @@
         } catch {}
 
         const r = {
-          version: "1.34.4",
+          version: "1.34.5",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The

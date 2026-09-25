@@ -202,10 +202,21 @@ def check(m, root, atg, port, first):
       const folder=[...document.querySelectorAll('zen-folder')].find(g=>g.label==='Folder');
       const selected=gBrowser.selectedTab;
       const cycle=async g=>{
-        click(g);await pause(100);
-        const folded=tree(g).every(n=>n.collapsed && n.labelElement.getAttribute('aria-expanded')==='false');
-        click(g);await pause(100);
-        return folded && tree(g).every(n=>!n.collapsed && n.labelElement.getAttribute('aria-expanded')==='true');
+        const children=tree(g).slice(1), first=children.some(n=>!n.collapsed);
+        let parentChanges=0;
+        const observer=new MutationObserver(records=>parentChanges+=records.length);
+        observer.observe(g,{attributes:true,attributeFilter:['collapsed']});
+        try {
+          for(const folded of [first,!first]) {
+            click(g);await pause(100);
+            if(g.collapsed || g.labelElement.getAttribute('aria-expanded')!=='true' ||
+              !children.every(n=>n.collapsed===folded &&
+                n.labelElement.getAttribute('aria-expanded')===String(!folded))) return false;
+          }
+          // Leave every tree open for the independent nested-header checks.
+          if(!first) { click(g);await pause(100); }
+          return parentChanges===0 && tree(g).every(n=>!n.collapsed);
+        } finally { observer.disconnect(); }
       };
       const recursiveGroups=await cycle(root);
       const separateTree=tree(folder).every(g=>g.collapsed===(g!==folder));
@@ -214,8 +225,15 @@ def check(m, root, atg, port, first):
       click(child);await pause(100);
       const recursiveFolders=await cycle(folder);
       const otherTreeUnchanged=tree(root).every(g=>!g.collapsed);
+      const tab=add('about:blank'), leaf=gBrowser.addTabGroup([tab],{label:'Leaf toggle fixture',insertBefore:tab});
+      leaf.collapsed=false;
+      click(leaf);await pause(100);
+      const leafCollapsed=leaf.collapsed;
+      click(leaf);await pause(100);
+      const leafIndependent=leafCollapsed && !leaf.collapsed;
+      gBrowser.removeTab(tab);
       return {recursiveGroups,recursiveFolders,separateTree,nestedIndependent,otherTreeUnchanged,
-        selectedTabRetained:gBrowser.selectedTab===selected};
+        leafIndependent,selectedTabRetained:gBrowser.selectedTab===selected};
     })();""")
     assert all(recursive.values()), recursive
     result.update(recursive)
@@ -245,6 +263,36 @@ def check(m, root, atg, port, first):
     })();""")
     assert all(colours.values()), colours
     result.update(colours)
+    result['labelForeground'] = m.script("return (async()=>{" + HELPERS + """
+      const nodes=['Root','Child','Grandchild'].map(group), selected=gBrowser.selectedTab;
+      const folder=[...document.querySelectorAll('zen-folder')].find(g=>g.label==='Folder');
+      const original=Services.prefs.getStringPref('zzgroup.label.color');
+      const source=Services.prefs.getIntPref('zzgroup.color-source');
+      const outside=add('about:blank');
+      try {
+        for(const label of ['inherit','#dbb4ff']) {
+          Services.prefs.setStringPref('zzgroup.label.color',label);
+          for(const accent of [0,2,3]) {
+            Services.prefs.setIntPref('zzgroup.color-source',accent);
+            for(const tab of [outside,nodes[2].tabs[0]]) {
+              gBrowser.selectedTab=tab;
+              for(const collapsed of [true,false]) {
+                nodes[2].collapsed=collapsed;await pause(50);
+                // Zen folders already use toolbar foreground, independent of group colours.
+                const expected=label==='inherit'?getComputedStyle(folder.labelElement).color:'rgb(219, 180, 255)';
+                if(!nodes.every(g=>getComputedStyle(g.labelElement).color===expected)) return false;
+              }
+            }
+          }
+        }
+        return true;
+      } finally {
+        nodes[2].collapsed=false;gBrowser.selectedTab=selected;gBrowser.removeTab(outside);
+        Services.prefs.setStringPref('zzgroup.label.color',original);
+        Services.prefs.setIntPref('zzgroup.color-source',source);
+      }
+    })();""")
+    assert result['labelForeground'], 'Group label colour changed with selection, collapse or accent source'
     if not atg:
         controls = m.script("return (async()=>{" + HELPERS + """
           await pause(100);
@@ -359,6 +407,19 @@ def check(m, root, atg, port, first):
               const visible=getComputedStyle(b).visibility==='visible';b.blur();return visible;
             })();""")
         result['hoverAndFocusClose'] = True
+        result['nativeCloseImageSize'] = m.script(HELPERS + """
+          const close=group('Root').labelContainerElement.querySelector('.zzgf-close');
+          const image=getComputedStyle(close,'::before');
+          const native=getComputedStyle(group('Root').tabs[0].querySelector('.tab-close-button'));
+          const width=parseFloat(native.width)-parseFloat(native.paddingLeft)-parseFloat(native.paddingRight);
+          const height=parseFloat(native.height)-parseFloat(native.paddingTop)-parseFloat(native.paddingBottom);
+          return !close.textContent && image.backgroundImage.includes('zen-icons/close.svg') &&
+            native.listStyleImage.includes('zen-icons/close.svg') && width>0 && height>0 &&
+            image.getPropertyValue('-moz-context-properties').includes('fill') &&
+            image.fill===getComputedStyle(close).color &&
+            Math.abs(parseFloat(image.width)-width)<1 && Math.abs(parseFloat(image.height)-height)<1;
+        """)
+        assert result['nativeCloseImageSize'], 'Folder close image differs from native tab close image'
     if first:
         m.script("return (async()=>{" + HELPERS + """
           const target=add(fixtureURL.replace('127.0.0.1','localhost')+'/target',2);

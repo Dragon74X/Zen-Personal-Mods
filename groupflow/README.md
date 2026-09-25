@@ -38,10 +38,15 @@ Hierarchy updates follow group events and flush before SessionStore closes the w
 Groupflow also saves parent labels, colours and workspace IDs in `groupflowGroups`:
 Zen does not recreate plain groups containing only subgroups on its own.
 
-Clicking a top-level group/folder header collapses its whole tree. The next click
-opens the parent and every nested subgroup/subfolder. Nested headers still toggle
-individually. Close and reset controls retain their existing actions.
+Clicking a top-level group/folder header keeps the parent open and alternates
+between collapsing and expanding all its nested subgroups/subfolders. If any
+subfolder is open, the click collapses them all; if all are collapsed, it opens
+them all. Nested headers and groups without subfolders still toggle individually.
+Close and reset controls retain their existing actions.
 This works with or without ATG and does not change startup folding.
+
+Folder labels retain the theme's toolbar text colour when a tab inside is selected.
+The Label colour setting overrides this foreground without changing the header fill.
 
 ## Without Advanced Tab Groups
 

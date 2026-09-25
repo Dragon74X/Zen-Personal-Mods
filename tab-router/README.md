@@ -79,7 +79,8 @@ What the request is, exactly, because it is a network request:
 - **Anonymous.** `LOAD_ANONYMOUS` strips cookies in both directions: YouTube
   receives no account cookies from this lookup and it writes no cookie back.
   The request still exposes your network address and the requested resource.
-- **Bounded.** A lookup reads at most 512 KB of a response and gives up
+- **Bounded.** Section pages read at most 1 MiB so metadata after a site's
+  inline styles is reachable; other requests remain capped at 512 KiB. Each gives up
   after fifteen seconds, and a picture that decodes larger than 4096
   square is refused before it is drawn.
 - **Never from a private window.**
@@ -89,8 +90,9 @@ What the request is, exactly, because it is a network request:
 
 With routing and **Section icons** enabled, restored YouTube subgroups recover
 missing avatars even when the creator name was already cached. Old empty avatar
-entries no longer block recovery. Successful images remain cached; startup and
-group-order refreshes retry missing ones after the cooldown. Clearing history
+entries no longer block recovery. Successful images remain cached; startup,
+group-order refreshes and activity in already-filed tabs retry missing ones after
+the cooldown. Clearing history
 cancels lookups and does not immediately start another recovery pass.
 
 ```js

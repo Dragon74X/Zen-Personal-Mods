@@ -465,7 +465,6 @@
             control.type = "button";
             control.setAttribute("aria-label", "Close group");
             control.title = "Close group";
-            control.textContent = "×";
           } else control.setAttribute("aria-hidden", "true");
           header.appendChild(control);
         }
@@ -621,16 +620,21 @@
   }
 
   function toggleSubgroups(event) {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || event.defaultPrevented || event.target.closest?.(
+      "button, toolbarbutton, input, textarea, a, [contenteditable], .tab-close-button, .tab-reset-button, .tab-group-folder-button, .group-marker")) return;
     const group = event.target.closest?.(".tab-group-label-container")?.parentElement;
     const selector = "tab-group, zen-folder";
     if (!group?.matches(selector) || group.hasAttribute("split-view-group") ||
         group.parentElement?.closest(selector)) return;
-    // Bubble after Zen toggles the root. Controls stop propagation themselves.
-    // Use native setters so nested visibility and accessibility stay in sync.
-    for (const child of [...group.querySelectorAll(selector)].reverse()) {
-      if (!child.hasAttribute("split-view-group")) child.collapsed = group.collapsed;
-    }
+    const children = [...group.querySelectorAll(selector)].filter(child => !child.hasAttribute("split-view-group"));
+    if (!children.length) return;
+    // Capture before Zen toggles the parent: this header controls its subfolders.
+    event.preventDefault();
+    event.stopPropagation();
+    const collapse = children.some(child => !child.collapsed);
+    for (const child of children.reverse()) child.collapsed = collapse;
+    group.collapsed = false;
+    gBrowser.tabGroupMenu.close();
   }
 
   function foldStartupGroups() {
@@ -663,7 +667,7 @@
     // Standalone sync refreshes group lifecycle changes in its existing pass.
     const iconEvents = atg ? EVENTS : ["SSTabRestored", "ZenTabIconChanged"];
     for (const ev of iconEvents) window.addEventListener(ev, schedule, true);
-    window.addEventListener("click", toggleSubgroups);
+    window.addEventListener("click", toggleSubgroups, true);
     try { Services.obs.addObserver(schedule, "contextual-identity-updated"); } catch {}
 
     window.Groupflow = {
@@ -706,7 +710,7 @@
       if (atg?.isArcMode === allowCollapse) atg.isArcMode = arcMode;
       try { delete window.Groupflow; } catch {}
       for (const ev of iconEvents) window.removeEventListener(ev, schedule, true);
-      window.removeEventListener("click", toggleSubgroups);
+      window.removeEventListener("click", toggleSubgroups, true);
       try { Services.obs.removeObserver(schedule, "contextual-identity-updated"); } catch {}
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}
       clearTimeout(timer);

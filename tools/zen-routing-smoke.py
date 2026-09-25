@@ -29,9 +29,15 @@ class Page(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        if self.path == "/external-short":
+            self.send_response(302)
+            self.send_header("Location", f"http://localhost:{self.server.server_port}/native-external-redirect")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
         if self.path == "/slowframe":
             time.sleep(1.5)
-        frame = '<iframe src="/slowframe"></iframe>' if self.path == "/frames" else ""
+        frame = '<iframe src="/slowframe"></iframe>' if self.path.startswith("/frames") else ""
         port = self.server.server_port
         links = (f'<a id="native" target="_blank" href="http://localhost:{port}/native-state">Route</a>'
                  f'<a id="opener" target="_blank" rel="opener" href="http://localhost:{port}/native-opener">Opener</a>'
@@ -95,6 +101,8 @@ def check_native_routes(m, root):
         ("nativeOpenerLink", "/source", "opener", "/native-opener", 2),
         ("nativeReverseRule", "/native-state", "reverse", "/native-back", 1),
         ("nativePostRedirect", "/source", "post", "/native-result", 1),
+        ("nativeExternal", "/source", "external", "/native-external", 2),
+        ("nativeExternalRedirect", "/source", "external-redirect", "/native-external-redirect", 2),
     ]:
         # Select the content handle, not merely gBrowser.selectedTab: Marionette
         # otherwise keeps addressing the original about:blank document.
@@ -102,15 +110,25 @@ def check_native_routes(m, root):
           const tab=[...document.querySelectorAll('tab')].find(t=>t.linkedBrowser?.currentURI?.spec.endsWith(suffix));
           await gZenWorkspaces.changeWorkspace(gZenWorkspaces.getWorkspaceFromId(tab.getAttribute('zen-workspace-id')));
           gBrowser.selectedTab=tab;return true; })();""")
-        m.call("Marionette:SetContext", {"value": "content"})
-        for handle in m.call("WebDriver:GetWindowHandles"):
-            m.call("WebDriver:SwitchToWindow", {"handle": handle})
-            if m.script("return document.URL;", "content").endswith(source):
-                break
+        if action.startswith("external"):
+            # Firefox's OS-link entry point, with a source tab in container 1.
+            m.script("""
+              const url=""" + ("fixtureURL+'/external-short'" if action == "external-redirect" else
+                    "fixtureURL.replace('127.0.0.1','localhost')+" + json.dumps(path)) + """;
+              window.browserDOMWindow.openURI(Services.io.newURI(url),null,
+                Ci.nsIBrowserDOMWindow.OPEN_NEWTAB,Ci.nsIBrowserDOMWindow.OPEN_EXTERNAL,
+                Services.scriptSecurityManager.getSystemPrincipal());return true;
+            """)
         else:
-            raise AssertionError("Fixture source tab missing: " + source)
-        method = "submit" if action == "post" else "click"
-        m.script(f"document.getElementById({json.dumps(action)}).{method}(); return true;", "content")
+            m.call("Marionette:SetContext", {"value": "content"})
+            for handle in m.call("WebDriver:GetWindowHandles"):
+                m.call("WebDriver:SwitchToWindow", {"handle": handle})
+                if m.script("return document.URL;", "content").endswith(source):
+                    break
+            else:
+                raise AssertionError("Fixture source tab missing: " + source)
+            method = "submit" if action == "post" else "click"
+            m.script(f"document.getElementById({json.dumps(action)}).{method}(); return true;", "content")
         result = m.script("return (async()=>{" + HELPERS + """
           const path=""" + json.dumps(path) + """;
           const matches=()=>[...document.querySelectorAll('tab')].filter(t=>!t.closing && t.linkedBrowser?.currentURI?.spec.endsWith(path));
@@ -575,6 +593,9 @@ def check(m, root, atg, port, first):
         m.script("return (async()=>{" + HELPERS + """
           const target=add(fixtureURL.replace('127.0.0.1','localhost')+'/target',2);
           const source=add(fixtureURL+'/source'); await loaded(target); await loaded(source);
+          const destination=await gZenWorkspaces.createAndSaveWorkspace('Folder destination',undefined,false,2);
+          gZenWorkspaces.moveTabToWorkspace(target,destination.uuid);
+          window.fixtureDestinationID=destination.uuid;
           gBrowser.addTabGroup([target],{label:'Destination',insertBefore:target});
           gBrowser.addTabGroup([source],{label:'Source',insertBefore:source});
           Services.prefs.setStringPref('zzrouter.rules','localhost > Destination');
@@ -584,15 +605,49 @@ def check(m, root, atg, port, first):
         m.script((root / "tab-router/tab-router.uc.js").read_text() + "\nreturn true;")
         routed = m.script("return (async()=>{" + HELPERS + """
           const url=fixtureURL.replace('127.0.0.1','localhost')+'/frames';
-          const t=add(url); group('Source').addTabs([t]); gBrowser.selectedTab=t;
-          await until(()=>t.linkedBrowser.currentURI.spec===url && t.hasAttribute('busy'));
-          await pause(300);
-          const deferred=t.isConnected && t.getAttribute('usercontextid')==='1' && t.group===group('Source');
+          // A legacy delay preference and continuous title events must not
+          // postpone group/workspace filing until a slow subframe finishes.
+          Services.prefs.setIntPref('zzrouter.delay-ms',5000);
+          const t=add(url);group('Source').addTabs([t]);gBrowser.selectedTab=t;
+          let labels=0;
+          const chatter=setInterval(()=>{
+            labels++;
+            t.dispatchEvent(new CustomEvent('TabAttrModified',{bubbles:true,detail:{changed:['label']}}));
+          },20);
+          let routeBeforeLoad;
+          try {
+            await until(()=>t.linkedBrowser.currentURI.spec===url && t.hasAttribute('busy'));
+            await pause(100);
+            routeBeforeLoad=t.isConnected && t.hasAttribute('busy') && t.userContextId===1 &&
+              t.group===group('Destination') && t.getAttribute('zen-workspace-id')===fixtureDestinationID;
+          } finally { clearInterval(chatter); }
+          if(!routeBeforeLoad) throw new Error('Busy tab did not file immediately with delay-ms=5000 and title events');
           await until(()=>!t.isConnected);
           await until(()=>[...document.querySelectorAll('tab')].some(t=>t.linkedBrowser?.currentURI?.spec===url));
           const fresh=[...document.querySelectorAll('tab')].find(t=>t.linkedBrowser?.currentURI?.spec===url);
           await loaded(fresh);
-          const routed=fresh.getAttribute('usercontextid')==='2' && fresh.group===group('Destination');
+          const routed=fresh.userContextId===2 && fresh.group===group('Destination');
+          // Once filed, pending container repair must survive skip-grouped
+          // even when refile-mismatched is disabled.
+          Services.prefs.setBoolPref('zzrouter.skip-grouped',true);
+          Services.prefs.setBoolPref('zzrouter.refile-mismatched',false);
+          let strictRepair;
+          try {
+            const strictURL=url+'?strict',strict=add(strictURL);
+            await until(()=>strict.linkedBrowser.currentURI.spec===strictURL && strict.hasAttribute('busy'));
+            await pause(100);
+            if(strict.group!==group('Destination') || !strict.hasAttribute('busy') || strict.userContextId!==1)
+              throw new Error('Ungrouped busy tab did not file before strict container retry');
+            await until(()=>!strict.isConnected);
+            await until(()=>[...document.querySelectorAll('tab')].some(t=>t.linkedBrowser?.currentURI?.spec===strictURL));
+            const replacement=[...document.querySelectorAll('tab')].find(t=>t.linkedBrowser?.currentURI?.spec===strictURL);
+            await loaded(replacement);
+            strictRepair=replacement.userContextId===2 && replacement.group===group('Destination') &&
+              replacement.getAttribute('zen-workspace-id')===fixtureDestinationID;
+          } finally {
+            Services.prefs.setBoolPref('zzrouter.refile-mismatched',true);
+            Services.prefs.clearUserPref('zzrouter.delay-ms');
+          }
           // Reproduce an old-version tab already filed in the right group with the wrong container.
           Services.prefs.setBoolPref('zzrouter.enabled',false);
           const old=add(fixtureURL.replace('127.0.0.1','localhost')+'/filed');
@@ -605,7 +660,8 @@ def check(m, root, atg, port, first):
           await until(()=>[...document.querySelectorAll('tab')].some(t=>t.linkedBrowser?.currentURI?.spec.endsWith('/filed')));
           const repaired=[...document.querySelectorAll('tab')].find(t=>t.linkedBrowser?.currentURI?.spec.endsWith('/filed'));
           await loaded(repaired);
-          return {deferred,routed,repaired:repaired.getAttribute('usercontextid')==='2' && repaired.group.label==='Manual subgroup'};
+          return {routeBeforeLoad,retitleNoStarvation:labels>0,routed,strictRepair,
+            repaired:repaired.getAttribute('usercontextid')==='2' && repaired.group.label==='Manual subgroup'};
         })();""")
         assert all(routed.values()), routed
         result.update(routed)

@@ -377,7 +377,7 @@
   {
     "type": "checkbox",
     "property": "zzrouter.follow-containers",
-    "label": "Follow Zen routes and containers *Destination is resolved in strict order on every filing move. Workspace: a matching Zen Space Routing rule (the Add Route for Domain entries) wins, then the workspace already holding the group, then the current one. Container: the routed workspace's default, then whatever the tabs already in the destination group use, then the workspace default, then unchanged. Firefox cannot change a live tab's container, so a container change reopens the tab -- the same mechanism Zen's own routing uses; that one tab's back-history is not carried over. Off: tabs keep their container, like Zen's Move to Space menu.*",
+    "label": "Follow Zen routes and containers *Destination is resolved in strict order on every filing move. Workspace: a matching Zen Space Routing rule (the Add Route for Domain entries) wins, then the workspace already holding the group, then the current one. Container: the routed workspace's default, then whatever the tabs already in the destination group use, then the workspace default, then unchanged. New tabs follow Zen's container rule before the first response. For loaded tabs, a container change reopens the tab only after checking for history, forms, POST data and session storage; protected pages retain their container. Folder/workspace moves can happen while pages are loading. Off: tabs keep their container, like Zen's Move to Space menu.*",
     "defaultValue": true,
     "conditions": [
       {
@@ -461,21 +461,6 @@
     "property": "zzrouter.sort-on-startup",
     "label": "Sort everything at startup *Runs one pass a few seconds after the window opens. Off by default, since a session restore moving dozens of tabs at once is jarring.*",
     "defaultValue": false,
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.enabled",
-          "value": true
-        }
-      }
-    ]
-  },
-  {
-    "type": "string",
-    "property": "zzrouter.delay-ms",
-    "label": "Wait before routing (milliseconds) *How long to wait after a page loads before moving its tab. A short delay avoids chasing redirects, which would otherwise file a tab under the redirector instead of the destination.*",
-    "defaultValue": "400",
-    "placeholder": "400",
     "conditions": [
       {
         "if": {

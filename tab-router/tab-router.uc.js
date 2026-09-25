@@ -818,6 +818,7 @@
   const startsWithPath = (chain, want) =>
     want.length && chain.length >= want.length && samePath(chain.slice(0, want.length), want);
 
+  const deferredContainers = new WeakSet();
   async function placeInPath(tab, parts) {
     if (!parts?.length) return false;
     const cap = num("max-depth", 0);
@@ -840,10 +841,16 @@
     const haveCtx = parseInt(tab.getAttribute("usercontextid") || "0", 10);
 
     if (bool("follow-containers", true) && dest.ctx != null && dest.ctx !== haveCtx) {
-      const fresh = await reopenInContainer(tab, dest.ctx, dest.ws);
-      if (!fresh) return false;
-      if (fresh !== tab) { bustGroups(); return file(fresh, filed ? chain : parts); }
-    }
+      if (tab.hasAttribute("busy")) {
+        // Filing can happen now; only replacing a loaded page needs to wait.
+        deferredContainers.add(tab);
+      } else {
+        const fresh = await reopenInContainer(tab, dest.ctx, dest.ws);
+        if (!fresh) return false;
+        deferredContainers.delete(tab);
+        if (fresh !== tab) { bustGroups(); return file(fresh, filed ? chain : parts); }
+      }
+    } else deferredContainers.delete(tab);
     if (filed) { healWorkspace(tab); return false; }
     if (dest.ws && dest.ws !== tabWs) {
       try {
@@ -911,6 +918,8 @@
   function majorityContext(group) {
     const counts = new Map();
     for (const t of group.querySelectorAll(".tabbrowser-tab")) {
+      // A tab filed before its container check must not vote for that old container.
+      if (deferredContainers.has(t)) continue;
       const c = parseInt(t.getAttribute("usercontextid") || "0", 10);
       counts.set(c, (counts.get(c) || 0) + 1);
     }
@@ -927,8 +936,7 @@
   async function reopenInContainer(tab, wantCtx, targetWs) {
     const url = (() => { try { return tab.linkedBrowser?.currentURI?.spec; } catch { return null; } })();
     if (!url || !/^https?:/i.test(url)) return tab;
-    // Wait for network STOP; filing now would make skip-grouped hide the
-    // pending container change on the next route.
+    // Only container replacement waits for network STOP and session state.
     if (tab.hasAttribute("busy")) return null;
     try {
       // Routing runs after load. Unlike Zen's navigation-time redirect, a
@@ -1177,6 +1185,8 @@
     if (bool("skip-essentials", true) && tab.getAttribute("zen-essential") === "true") return "essential";
     if (bool("skip-pinned", true) && tab.pinned) return "pinned";
     if (bool("skip-grouped", true) && tab.group) {
+      // Finish our own pending container check even when grouped tabs are skipped.
+      if (deferredContainers.has(tab) && !tab.hasAttribute("busy")) return null;
       // A link opened from a grouped tab inherits that group, even when it
       // goes somewhere unrelated. With this on, a tab whose group path no
       // longer matches where it belongs gets re-filed instead of stranded.
@@ -1197,8 +1207,10 @@
   }
 
   const routing = new WeakSet();
+  const reroute = new WeakMap();
   async function route(tab, why) {
-    if (retired || !bool("enabled", false) || routing.has(tab)) return;
+    if (retired || !bool("enabled", false)) return;
+    if (routing.has(tab)) { reroute.set(tab, why); return; }
     const s = skip(tab);                    // excluded tabs must not trigger lookups
     if (s) {
       if (s === "already in a group") {
@@ -1220,7 +1232,12 @@
       }
     } catch (e) {
       note(`failed routing ${tab.label}: ${e}`);
-    } finally { routing.delete(tab); }
+    } finally {
+      routing.delete(tab);
+      const again = reroute.get(tab);
+      reroute.delete(tab);
+      if (again) queueRoute(tab, again);
+    }
   }
 
   // ---- events ------------------------------------------------------------
@@ -1229,6 +1246,7 @@
   // Route that first GET before any response/session storage reaches the
   // wrong container. Loaded/restoring tabs retain the state checks above.
   const initialPosts = new WeakSet();
+  const initialNavigations = new WeakMap();
   const initialRequest = { observe(subject) {
     if (retired) return;
     try {
@@ -1236,9 +1254,15 @@
       const info = channel.loadInfo;
       if (info.externalContentPolicyType !== Ci.nsIContentPolicy.TYPE_DOCUMENT) return;
       const context = info.browsingContext;
-      if (!context?.currentWindowGlobal?.isInitialDocument) return;
-      const tab = gBrowser.getTabForBrowser(context.embedderElement);
+      const browser = context?.embedderElement;
+      if (!browser) return;
+      const tab = gBrowser.getTabForBrowser(browser);
       if (!tab || window.SessionStore.isTabRestoring(tab)) return;
+      const original = channel.originalURI?.spec ?? channel.URI.spec;
+      // A 302 clears isInitialDocument before a real page commits. Follow
+      // only the request chain we saw start in this tab's initial document.
+      if (context.currentWindowGlobal?.isInitialDocument) initialNavigations.set(tab, original);
+      else if (initialNavigations.get(tab) !== original || browser.currentURI?.spec !== "about:blank") return;
       // A POST -> GET redirect still belongs to the submitted form's
       // container. Do not turn it into a fresh GET in another container.
       if (channel.requestMethod !== "GET" || info.isFormSubmission) {
@@ -1260,23 +1284,19 @@
     } catch (e) { note(`initial container route failed: ${e}`); }
   } };
 
-  // Route on load rather than on open: a brand new tab has no URL yet.
-  // Redirect chains fire several location changes in a row; one pending
-  // route per tab, restarted on each change, means only the final URL is
-  // ever processed.
+  // File as soon as a URL is known. Coalesce only the current event turn;
+  // title/redirect bursts must not keep postponing a tab's move.
   const pendingRoute = new WeakMap();
   // The ids as well, because a WeakMap cannot be emptied at cleanup and a
   // retired copy still routing tabs from its own caches is a second mod
   // fighting the live one.
   const pendingIds = new Set();
   function queueRoute(tab, why) {
-    if (!bool("enabled", false)) return;
-    const prev = pendingRoute.get(tab);
-    if (prev) { clearTimeout(prev); pendingIds.delete(prev); }
+    if (retired || !bool("enabled", false) || pendingRoute.has(tab)) return;
     const id = setTimeout(() => {
       pendingRoute.delete(tab); pendingIds.delete(id);
       route(tab, why);
-    }, num("delay-ms", 400));
+    }, 0);
     pendingRoute.set(tab, id);
     pendingIds.add(id);
   }
@@ -1285,26 +1305,30 @@
       if (!wp?.isTopLevel || !(flags & Ci.nsIWebProgressListener.STATE_STOP) ||
           !(flags & Ci.nsIWebProgressListener.STATE_IS_NETWORK)) return;
       const tab = gBrowser.getTabForBrowser(browser);
-      if (tab) queueRoute(tab, "loaded");
+      if (tab) {
+        if (!tab.hasAttribute("busy")) initialNavigations.delete(tab);
+        queueRoute(tab, "loaded");
+      }
     },
     onLocationChange(browser, wp, _req, _loc, _flags) {
-      // Subframes report here too, and an ad frame reloading every second
-      // would reset the debounce below for as long as it kept going: the
-      // tab's own route would never land.
+      // Subframes report here too; only the tab's own URL decides its route.
       if (!wp?.isTopLevel) return;
       // Same-document changes are NOT skipped: SPAs like YouTube and Nexus
       // navigate by pushState, which is exactly that. Hash/query churn is
-      // harmless -- the debounce coalesces it and an unchanged target path
+      // harmless -- the queue coalesces it and an unchanged target path
       // no-ops in placeInPath.
       const tab = gBrowser.getTabForBrowser(browser);
-      if (tab) queueRoute(tab, "navigate");
+      if (tab) {
+        if (browser.currentURI?.spec !== "about:blank") initialNavigations.delete(tab);
+        queueRoute(tab, "navigate");
+      }
     },
   };
 
   // Second trigger for SPA navigation: sites like YouTube retitle the tab
   // on every pushState, and TabAttrModified(label) reliably fires for that
   // even when the same-document location change never reaches a tabs
-  // progress listener. Converges on the same per-tab debounce; a title
+  // progress listener. Converges on the same per-tab queue; a title
   // change with an unchanged target path no-ops in placeInPath.
   function onAttrModified(event) {
     if (!event.detail?.changed?.includes("label")) return;
@@ -1501,6 +1525,7 @@
         let uri = "";
         try { uri = t.linkedBrowser?.currentURI?.spec ?? ""; } catch {}
         const parts = targetPath(t, false), why = skip(t, parts);
+        const dest = parts?.length ? resolveDestination(t, parts) : null;
         return {
           title: t.label,
           url: uri.slice(0, 90),
@@ -1509,6 +1534,11 @@
           pathDepthPref: num("auto-path-depth", 0),
           pathSegments: pathParts(t, false),
           currentGroup: chainOf(t).join(SEP()) || null,
+          currentContainer: parseInt(t.getAttribute("usercontextid") || "0", 10),
+          targetContainer: bool("follow-containers", true) ? dest?.ctx ?? null : null,
+          currentWorkspace: wsOf(t),
+          targetWorkspace: dest?.ws ?? null,
+          pendingContainerCheck: deferredContainers.has(t),
           wouldGo: why ? `skipped (${why})` : parts?.join(SEP()),
         };
       },
@@ -1613,7 +1643,7 @@
         } catch {}
 
         const r = {
-          version: "1.34.6",
+          version: "1.34.7",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The

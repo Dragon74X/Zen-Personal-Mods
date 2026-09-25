@@ -51,9 +51,11 @@ Add `--atg /path/to/Advanced-Tab-Groups` to load ATG on launch 1 and test its re
 on launches 2 and 3. Script order follows Sine metadata. Checks cover three nesting
 levels, parents without direct tabs, pinned folders, cached/custom icons, saved
 colours/gradients, manual toggles, cancelled closes, ungrouping and undo-close state.
-Routing checks cover loading iframe pages and container repairs that retain subgroups.
+Routing checks cover immediate filing during slow iframe loads, title-event bursts,
+and container repairs that retain subgroups even with grouped-tab skipping enabled.
 It also exercises Zen domain rules across two workspaces/containers: new-tab
-links with session storage, opener links, reverse routing, and a POST redirect.
+links with session storage, opener links, external URLs and redirects, reverse
+routing, and a POST redirect.
 
 ## Sine update recovery
 

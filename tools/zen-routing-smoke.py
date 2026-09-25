@@ -150,11 +150,20 @@ def check(m, root, atg, port, first):
       for(const url of """ + json.dumps([p.resolve().as_uri() for p in sheets]) + """)
         ss.loadAndRegisterSheet(Services.io.newURI(url),ss.USER_SHEET);
       return true;""")
-    m.script((atg / "advanced-tab-groups.uc.js").read_text() + "\nwindow.advancedTabGroups=globalThis.advancedTabGroups; return true;")
-    if (atg / "folder-look.uc.js").exists():
-        m.script((atg / "folder-look.uc.js").read_text() + "\nreturn true;")
+    # Sine sorts scripts by loadOrder, preserving installation order on ties.
+    # Start with Groupflow installed first and inject after Zen is ready: this
+    # reproduced ATG undoing the fold when Groupflow had no explicit loadOrder.
+    scripts = []
+    for directory in [root / "groupflow", atg]:
+        for filename, options in json.loads((directory / "theme.json").read_text())["scripts"].items():
+            if filename.endswith(".uc.js"):
+                scripts.append((options.get("loadOrder") or 10, directory / filename))
+    for _, path in sorted(scripts, key=lambda entry: entry[0]):
+        source = path.read_text()
+        if path.name == "advanced-tab-groups.uc.js":
+            source += "\nwindow.advancedTabGroups=globalThis.advancedTabGroups;"
+        m.script(source + "\nreturn true;")
     groupflow = (root / "groupflow/groupflow.uc.js").read_text()
-    m.script(groupflow + "\nreturn true;")
     result = m.script("return (async()=>{" + HELPERS + """
       await pause(2200); // Past both ATG delayed restore passes and Groupflow's icon refresh.
       const root=group('Root'), child=group('Child');

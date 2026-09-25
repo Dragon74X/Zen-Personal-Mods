@@ -276,6 +276,7 @@
 
 
 /* ---- corner shape (Zen 1.22b squircles); 0 = follow Zen ---- */
+@media (-moz-pref("zzglass.corner.disable-platform")) { :root { --zzgf-corner: round; } }
 @media (-moz-pref("zzgroup.corner.radius-source", 1)) { :root { --zzgf-rbase: var(--border-radius-medium, var(--zzgroup-header-roundness, 12px)); } }
 @media (-moz-pref("zzgroup.corner.radius-mode", 1)) { :root { --zzgf-rscale: var(--zen-squircle-value, 1); } }
 @media (-moz-pref("zzgroup.corner.radius-mode", 2)) { :root { --zzgf-rscale: var(--zzgroup-corner-radius-scale, 1); } }
@@ -297,14 +298,14 @@
   background: none !important;
   color: var(--zzgroup-label-color, inherit);
   font-size: var(--zzgroup-label-size, 1em) !important;
-  font-weight: 600;
+  font-weight: 600 !important;
   opacity: 0.95;
 }
 @media (-moz-pref("zzgroup.label.weight", 0)) {
-  #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label { font-weight: 400; }
+  #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label { font-weight: 400 !important; }
 }
 @media (-moz-pref("zzgroup.label.weight", 2)) {
-  #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label { font-weight: 700; }
+  #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label { font-weight: 700 !important; }
 }
 @media (-moz-pref("zzgroup.label.italic")) {
   #navigator-toolbox tab-group:not([split-view-group]) .tab-group-label { font-style: italic; }
@@ -1477,7 +1478,7 @@
   display: flex !important;
   flex-direction: row !important;
   align-items: center !important;
-  min-height: 32px;
+  height: 36px;
 }
 :root[zzgf-standalone] #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container > .tab-group-label {
   display: block !important;
@@ -1488,6 +1489,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  align-content: center;
+  line-height: normal !important;
   order: 1;
 }
 :root[zzgf-standalone] #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container > .tab-group-label::before {
@@ -1517,6 +1520,7 @@
   order: 0;
   width: calc(var(--zzgroup-icon-size, 14px) + 8px);
   height: max(24px, calc(var(--zzgroup-icon-size, 14px) + 8px));
+  margin-inline: 0 6px;
   -moz-context-properties: fill;
   fill: currentColor;
 }
@@ -1528,8 +1532,16 @@
   margin-inline-end: 0 !important;
   background: var(--zzgf-icon, url("chrome://browser/skin/zen-icons/folder.svg")) center / contain no-repeat;
 }
-:root[zzgf-standalone] #navigator-toolbox .zzgf-toggle { order: 3; }
-:root[zzgf-standalone] #navigator-toolbox .zzgf-close { order: 4; font-size: 18px; list-style-image: none; }
+:root[zzgf-standalone] #navigator-toolbox .zzgf-close {
+  order: 4;
+  font-size: 18px;
+  list-style-image: none;
+  visibility: visible !important;
+  opacity: 0;
+}
+:root[zzgf-standalone] #navigator-toolbox .tab-group-label-container:is(:hover, :focus-within) > .zzgf-close {
+  opacity: 1;
+}
 :root[zzgf-standalone] #navigator-toolbox tab-group[zzgf-saved-gradient] > .tab-group-label-container {
   background-image: var(--zzgf-saved-background) !important;
 }

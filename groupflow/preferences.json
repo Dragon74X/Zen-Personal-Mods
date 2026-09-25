@@ -348,7 +348,7 @@
   {
     "type": "checkbox",
     "property": "zzgroup.close-left",
-    "label": "Close button on the left *Moves ATG's group close button to the far left of the header, before the favicon. Only does anything when ATG is installed.*",
+    "label": "Close button on the left *Shows the group close button before the favicon on header hover. Works with or without ATG.*",
     "defaultValue": false,
     "conditions": [
       {
@@ -1676,7 +1676,7 @@
     "type": "dropdown",
     "property": "zzgroup.corner.mode",
     "value": "number",
-    "label": "Corner shape *Zen 1.22b reshapes every corner with CSS `corner-shape: superellipse()` -- 1.3 on most platforms, 2.3 on Windows -- through a rule on the universal selector, so it reshapes group headers too. Follow Zen mirrors whatever Zen is using and changes nothing. Round (classic) restores how headers looked before 1.22b. Set this to match Glassflow's corner shape so headers and tabs agree.*",
+    "label": "Corner shape *Zen 1.22b reshapes every corner with CSS `corner-shape: superellipse()` -- 1.3 on most platforms, 2.3 on Windows -- through a rule on the universal selector, so it reshapes group headers too. Follow Zen mirrors Zen, including Glassflow's Turn squircles off browser-wide setting. Round (classic) restores how headers looked before 1.22b. Set this to match Glassflow's corner shape so headers and tabs agree.*",
     "defaultValue": 0,
     "options": [
       {

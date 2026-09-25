@@ -436,6 +436,9 @@
 @media (-moz-pref("zzglass.corner.radius-mode", 1)) { :root { --zzg-rscale: var(--zen-squircle-value, 1); } }
 @media (-moz-pref("zzglass.corner.radius-mode", 2)) { :root { --zzg-rscale: var(--zzglass-corner-radius-scale, 1); } }
 
+/* Following the platform includes the browser-wide round-corner override.
+   Explicit surface choices below still take precedence. */
+@media (-moz-pref("zzglass.corner.disable-platform")) { :root { --zzg-corner: round; } }
 @media (-moz-pref("zzglass.corner.mode", 1)) { :root { --zzg-corner: round; } }
 @media (-moz-pref("zzglass.corner.mode", 2)) { :root { --zzg-corner: squircle; } }
 @media (-moz-pref("zzglass.corner.mode", 3)) { :root { --zzg-corner: superellipse(var(--zzglass-corner-value, 2.3)); } }

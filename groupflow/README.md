@@ -40,16 +40,18 @@ Zen does not recreate plain groups containing only subgroups on its own.
 
 ## Without Advanced Tab Groups
 
-Groupflow 1.42.0 supplies group persistence and controls when ATG is absent:
+Groupflow supplies group persistence and controls when ATG is absent:
 
-- Click the arrow to fold/expand; click the icon to open Zen's icon/emoji picker.
+- Click the header to fold/expand; click the icon to open Zen's icon/emoji picker.
 - Right-click a header for Firefox's group editor: rename, 9 native colours,
   new tab, close and ungroup. Ungroup moves direct items out while retaining subgroups.
-- Close buttons use the native close API, including beforeunload cancellation.
+- Close buttons appear on header hover or keyboard focus and use the native close
+  API, including beforeunload cancellation.
 - Native drag handling supplies nesting and movement; header edges accept insertion.
 - Saved ATG parents, icons and colours use the existing `tabGroupParents`,
   `tabGroupIcons` and `tabGroupColors` window values. Emoji, SVG icons, saved favicon
-  colours and gradients are restored. Native colour selections take precedence
+  colours and gradients are restored, including after Zen refreshes group colours.
+  Native colour selections take precedence
   over previous ATG colours. Malformed maps are retained without overwriting them.
 - Metadata remains while a group is open, saved or available in Firefox's
   closed-tab/group history. Restoring a closed parent retains its subgroups.
@@ -59,6 +61,10 @@ ATG's gradient editor, favicon-colour resampling, group/folder conversion and Ze
 Library integration are not included. Existing gradients remain visible; new
 colour selections use Firefox's palette. Groupflow icon rules override saved icons,
 followed by Tab Router section icons and tab favicons.
+
+**Label weight** now applies consistently with or without ATG. Choose **Regular**
+for ATG's usual 400 weight; Semibold is 600 and Bold is 700. Existing settings are
+retained.
 
 When ATG is still loaded, it continues supplying these controls and persistence.
 Groupflow loads after its scripts, disables ATG's force-open Arc behaviour and
@@ -200,7 +206,8 @@ universal selector — 1.3 on most platforms, 2.3 on Windows — so group header
 are reshaped along with everything else, and a roundness tuned before 1.22b
 reads squarer at the same number.
 
-**Corner shape** defaults to *Follow Zen* and changes nothing; *Round (classic)*
+**Corner shape** defaults to *Follow Zen*, including Glassflow's **Turn squircles
+off browser-wide** setting. Explicit shapes take precedence; *Round (classic)*
 restores the pre-1.22b look. **Radius source** can take the header radius from
 Zen's own `--border-radius-medium` rather than a pinned number, so headers
 track Zen's design language through future restyles. **Radius compensation** set to *Auto* keeps the

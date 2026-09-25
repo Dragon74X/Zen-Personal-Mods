@@ -3469,14 +3469,14 @@
   {
     "type": "checkbox",
     "property": "zzglass.corner.disable-platform",
-    "label": "Turn squircles off browser-wide *Rounds every corner in the rest of the chrome -- menus, panels, dialogs, the URL bar -- leaving nothing squircled except what the Corner shape settings above govern, which keep working independently. Applies and reverts instantly, no restart. It gets there by out-cascading Zen rather than switching the feature off: Sine injects this mod as a user stylesheet, and user-origin styling outranks the author-origin declarations Zen's own sheets carry. That is deliberate -- the obvious route, the `layout.css.corner-shape.enabled` pref, gates the property when stylesheets are PARSED, so flipping it leaves everything already parsed untouched until the browser restarts. Nothing in your profile is modified either way.*",
+    "label": "Turn squircles off browser-wide *Rounds menus, panels, dialogs and the URL bar, plus Glassflow and Groupflow surfaces set to Follow Zen. Explicit Corner shape choices still take precedence. Applies and reverts instantly, no restart.*",
     "defaultValue": false
   },
   {
     "type": "dropdown",
     "property": "zzglass.corner.mode",
     "value": "number",
-    "label": "Corner shape *Zen 1.22b reshapes every corner in the browser with CSS `corner-shape: superellipse()` -- 1.3 on most platforms, 2.3 on Windows. `squircle` is superellipse(2), so Windows sits past it, heading toward square. That rule targets the universal selector, so it reshapes this mod's tabs and buttons too, and a radius you tuned before 1.22b now reads square. Follow Zen mirrors whatever Zen is using and changes nothing. Round (classic) is superellipse(1) and restores exactly how these surfaces looked before 1.22b. Applies only to Glassflow's own surfaces; the rest of the browser keeps Zen's shape.*",
+    "label": "Corner shape *Zen 1.22b reshapes every corner in the browser with CSS `corner-shape: superellipse()` -- 1.3 on most platforms, 2.3 on Windows. `squircle` is superellipse(2), so Windows sits past it, heading toward square. That rule targets the universal selector, so it reshapes this mod's tabs and buttons too, and a radius you tuned before 1.22b now reads square. Follow Zen mirrors Zen, including Glassflow's Turn squircles off browser-wide setting. Round (classic) is superellipse(1) and restores exactly how these surfaces looked before 1.22b. Applies only to Glassflow's own surfaces; the rest of the browser keeps Zen's shape.*",
     "defaultValue": 0,
     "options": [
       {

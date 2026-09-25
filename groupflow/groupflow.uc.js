@@ -420,6 +420,10 @@
         colorCache.set(group.id, value);
       }
       if (CSS.supports("color", value)) {
+        // Zen reapplies these references even when the colour code is unchanged.
+        // Define its source tokens so a theme/workspace refresh retains the colour.
+        group.style.setProperty(`--tab-group-${group.color}`, value);
+        group.style.setProperty(`--tab-group-${group.color}-invert`, value);
         group.style.setProperty("--tab-group-color", value);
         group.style.setProperty("--tab-group-color-invert", value);
       } else if (value.includes("gradient(") && !/url\s*\(/i.test(value) && CSS.supports("background-image", value)) {
@@ -435,7 +439,7 @@
       if (!decorated.has(group)) {
         decorated.add(group);
         header.classList.add("zen-drop-target");
-        for (const [action, label] of [["icon", "Choose group icon"], ["toggle", "Toggle group"], ["close", "Close group"]]) {
+        for (const [action, label] of [["icon", "Choose group icon"], ["close", "Close group"]]) {
           const button = document.createElementNS("http://www.w3.org/1999/xhtml", "button");
           button.type = "button";
           button.className = "zzgf-control zzgf-" + action + (action === "close" ? " tab-close-button" : "");
@@ -445,12 +449,6 @@
           if (action === "close") button.textContent = "×";
           header.appendChild(button);
         }
-      }
-      const toggle = header.querySelector(".zzgf-toggle");
-      const expanded = String(!group.collapsed);
-      if (toggle.getAttribute("aria-expanded") !== expanded) {
-        toggle.textContent = group.collapsed ? "▸" : "▾";
-        toggle.setAttribute("aria-expanded", expanded);
       }
       const ws = workspaceOf(group);
       if (ws && group.getAttribute("zen-workspace-id") !== ws) group.setAttribute("zen-workspace-id", ws);
@@ -518,7 +516,6 @@
       event.preventDefault(); event.stopPropagation();
       try {
         switch (button.dataset.zzgfAction) {
-          case "toggle": group.collapsed = !group.collapsed; break;
           case "close": await gBrowser.removeTabGroup(group); break;
           case "icon": {
             if (!icons) return;

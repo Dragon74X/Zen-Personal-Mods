@@ -173,6 +173,14 @@ def check_subfolder_styles(m):
           label:getComputedStyle(g.labelElement).color,
           labelOpacity:getComputedStyle(g.labelElement).opacity,headerOpacity:s.opacity};
       };
+      const ownGradient=(g,header=false)=>{
+        const probe=document.createElement('span');
+        const raw=getComputedStyle(g).getPropertyValue('--zzgf-raw');
+        const end=header?`color-mix(in srgb,${raw} 0%,transparent)`:'transparent';
+        probe.style.backgroundImage=`linear-gradient(to right,color-mix(in srgb,${raw} 25%,transparent) 0%,${end} 50%)`;
+        document.documentElement.append(probe);
+        const expected=getComputedStyle(probe).backgroundImage;probe.remove();return expected;
+      };
       const nativeFolder=[...document.querySelectorAll('zen-folder')].find(g=>g.label==='Folder');
       const baseline={root:read(group('Root')),folder:read(nativeFolder),child:read(group('Child'))};
       const prefs=[];
@@ -180,16 +188,19 @@ def check_subfolder_styles(m):
         for(const [name,value] of Object.entries(values)) {
           const key='zzgroup.subfolder.'+state+'.'+name;
           const type=typeof value==='boolean'?'Bool':typeof value==='number'?'Int':'String';
-          prefs.push([key,type,Services.prefs.prefHasUserValue(key),Services.prefs['get'+type+'Pref'](key,value)]);
-          Services.prefs['set'+type+'Pref'](key,value);
+          prefs.push([key,type,Services.prefs.prefHasUserValue(key),Services.prefs['get'+type+'Pref'](key,value),value]);
         }
       }
-      window.subfolderStyleFixture={outside,selected,read,baseline,prefs,nativeFolder};
+      window.subfolderStyleFixture={outside,selected,read,baseline,prefs,nativeFolder,ownGradient,
+        source:Services.prefs.getIntPref('zzgroup.color-source'),
+        tone:document.documentElement.style.getPropertyValue('--zzg-tone'),
+        tonePriority:document.documentElement.style.getPropertyPriority('--zzg-tone')};
       Services.prefs.setBoolPref('zzgroup.subfolder.states',true);await pause(100);
       const current={root:read(group('Root')),folder:read(nativeFolder)};
       return {untouched:JSON.stringify(current.root)===JSON.stringify(baseline.root) &&
         JSON.stringify(current.folder)===JSON.stringify(baseline.folder),
-        labelOpacity:baseline.child.labelOpacity,headerOpacity:baseline.child.headerOpacity};
+        labelOpacity:baseline.child.labelOpacity,headerOpacity:baseline.child.headerOpacity,
+        savedImage:baseline.child.background,rootImage:ownGradient(group('Root'),true),plainImage:ownGradient(group('Grandchild'))};
     })();""")
     assert baseline['untouched'], 'Subfolder states changed a root or native folder'
 
@@ -205,7 +216,7 @@ def check_subfolder_styles(m):
                 {'type': 'pointerMove', 'duration': 0, 'x': xy['x'], 'y': xy['y']}]}]})
         return m.script("return (async()=>{" + HELPERS + """
           await pause(250);
-          return Object.fromEntries(['Child','Grandchild'].map(name=>[name,subfolderStyleFixture.read(group(name))]));
+          return Object.fromEntries(['Root','Child','Grandchild'].map(name=>[name,subfolderStyleFixture.read(group(name))]));
         })();""")
 
     def matches(value, state):
@@ -218,6 +229,37 @@ def check_subfolder_styles(m):
         assert value['blur'] == (f"blur({p['blur-radius']})" if p['blur'] else 'none'), (state, value)
 
     try:
+        # Defaults retain each folder's own palette across all three states.
+        # A saved multi-colour gradient is an image, not a tab accent colour.
+        normalize = lambda image: image.removeprefix('none, ')
+        default_inactive = point()
+        default_hover = point('Child')
+        default_plain_hover = point('Grandchild')
+        m.script(HELPERS + "gBrowser.selectedTab=group('Grandchild').tabs[0];return true;")
+        default_active = point('Grandchild')
+        for values in (default_inactive, default_hover, default_plain_hover, default_active):
+            assert normalize(values['Child']['paint']) == normalize(baseline['savedImage']), values
+            assert normalize(values['Grandchild']['paint']) == baseline['plainImage'], values
+            assert normalize(values['Root']['background']) == baseline['rootImage'], values
+            assert all(values[name]['opacity'] == '1' and values[name]['blur'] == 'none'
+                       for name in ('Child', 'Grandchild')), values
+        m.script("document.documentElement.style.setProperty('--zzg-tone','100%');return true;")
+        toned = point('Grandchild')
+        assert all(toned[name][prop] == default_active[name][prop]
+                   for name, prop in [('Root', 'background'), ('Child', 'paint'), ('Grandchild', 'paint')]), toned
+        container_image = m.script("return (async()=>{" + HELPERS + """
+          Services.prefs.setIntPref('zzgroup.color-source',3);Groupflow.refresh();await pause(100);
+          return subfolderStyleFixture.ownGradient(group('Child'));
+        })();""")
+        container = point('Child')
+        assert normalize(container['Child']['paint']) == container_image and container_image != normalize(baseline['savedImage']), container
+        m.script("""const f=subfolderStyleFixture;
+          Services.prefs.setIntPref('zzgroup.color-source',f.source);Groupflow.refresh();
+          document.documentElement.style.setProperty('--zzg-tone',f.tone,f.tonePriority);
+          gBrowser.selectedTab=f.outside;
+          for(const [key,type,,,value] of f.prefs) Services.prefs['set'+type+'Pref'](key,value);
+          return true;
+        """)
         inactive = point()['Child']
         matches(inactive, 'inactive')
         hover = point('Child')
@@ -246,10 +288,14 @@ def check_subfolder_styles(m):
         point()
         assert m.script(HELPERS + "return JSON.stringify(subfolderStyleFixture.read(group('Child')))===JSON.stringify(subfolderStyleFixture.baseline.child);"), 'Disabling subfolder states did not restore legacy styling'
         return {"subfolderStateStyles": True, "subfolderActivePrecedence": True,
-                "subfolderHoverIsolation": True, "subfolderLegacyFallback": True, "subfolderDefaultForeground": True}
+                "subfolderHoverIsolation": True, "subfolderLegacyFallback": True, "subfolderDefaultForeground": True,
+                "subfolderDefaultPalette": True, "subfolderSavedGradientStates": True,
+                "folderToneIndependent": True, "subfolderContainerOverride": True}
     finally:
         m.script("""const f=window.subfolderStyleFixture;
           Services.prefs.setBoolPref('zzgroup.subfolder.states',false);
+          Services.prefs.setIntPref('zzgroup.color-source',f.source);
+          document.documentElement.style.setProperty('--zzg-tone',f.tone,f.tonePriority);
           for(const [key,type,had,value] of f.prefs) {
             if(had) Services.prefs['set'+type+'Pref'](key,value);else Services.prefs.clearUserPref(key);
           }

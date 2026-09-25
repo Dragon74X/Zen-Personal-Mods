@@ -60,6 +60,12 @@ Subfolder state labels can override that shared setting.
 
 Each profile controls tint, background opacity, gradient direction, end mode,
 end tint, spread, sheen, rim, glow, blur, blur radius and label colour.
+Defaults retain the group's saved ATG colour or complete gradient. Without a
+saved gradient, all 3 states start at 25% tint, fading left to right to transparent
+at 50% of the header. Sheen, rim, glow and blur start off. Folder colours do not
+inherit Glassflow's darkening; selecting **Glassflow accent** enables that source.
+Choose another **Gradient end** mode to replace a saved gradient with the tint,
+direction and spread controls. Other state controls also apply to saved gradients.
 Background opacity leaves text and icons unchanged. Shared collapsed dimming
 still applies to inactive collapsed headers. Colour source, icon settings,
 roundness and connector geometry remain shared.
@@ -68,12 +74,13 @@ roundness and connector geometry remain shared.
 crops and scales the radius to the icon size. Existing Circle, Rounded square,
 Squircle, Square and Auto choices remain available.
 
-Profiles reuse Glassflow's shared sheen, rim colours, glass intensity and filter
-tokens. They work without Glassflow using fallback values. Top-level groups and
-native `zen-folder` styling are unchanged. Turning the switch off restores the
-shared Header/States settings and saved gradients for subfolders.
-For a saved ATG gradient, tint controls use its first valid colour stop;
-an invalid colour falls back to the theme accent.
+Optional effects reuse Glassflow's shared sheen, rim colours, glass intensity and
+filter tokens, with fallbacks when Glassflow is absent. Top-level groups use the
+same 25% starting tint; native `zen-folder` styling is unchanged. Turning the
+subfolder switch off uses the shared Header/States settings.
+When replacing a saved ATG gradient, tint controls use its first valid colour stop;
+an invalid colour falls back to the theme accent. Updating from 1.44.0 migrates
+unchanged state profiles once. Edited profiles retain all their values.
 
 ## Without Advanced Tab Groups
 
@@ -96,8 +103,7 @@ Groupflow supplies group persistence and controls when ATG is absent:
   Split groups and native pinned folders keep their native controls.
 
 ATG's gradient editor, favicon-colour resampling, group/folder conversion and Zen
-Library integration are not included. Existing gradients remain visible where
-subfolder state profiles are off; new
+Library integration are not included. Existing gradients remain visible by default; new
 colour selections use Firefox's palette. Groupflow icon rules override saved icons,
 followed by Tab Router section icons and tab favicons.
 

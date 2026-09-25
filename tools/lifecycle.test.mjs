@@ -22,6 +22,7 @@ function element() {
     children: [], style: { setProperty() {}, removeProperty() {}, getPropertyValue: () => "" }, isConnected: true,
     setAttribute: (k, v) => attrs.set(k, v), getAttribute: k => attrs.get(k),
     hasAttribute: k => attrs.has(k), removeAttribute: k => attrs.delete(k),
+    toggleAttribute(k, force = !attrs.has(k)) { if (force) attrs.set(k, ""); else attrs.delete(k); return force; },
     addEventListener: (k, fn) => events.set(k, fn), removeEventListener: k => events.delete(k),
     appendChild(child) { this.children.push(child); child.parentNode = this; return child; },
     insertBefore(child) { return this.appendChild(child); },
@@ -1056,18 +1057,80 @@ test("Groupflow derives a solid gradient accent, prefers native colours and clea
       document: { querySelectorAll: () => [group] },
       Services: { prefs: { getBoolPref: () => false, getStringPref: (_k, d) => d } },
       getComputedStyle: () => ({ getPropertyValue: () => native }),
-      CSS: { supports: (_property, value) => /^(?:#[0-9a-f]{6}|rgb\(\d+ \d+ \d+\))$/i.test(value) },
+      CSS: { supports: (property, value) => property === "background-image"
+        ? /^(?:linear|radial|conic)-gradient\(.+\)$/.test(value)
+        : /^(?:#[0-9a-f]{6}|rgb\(\d+ \d+ \d+\))$/i.test(value) },
     });
     if (!atg) h.setColors(saved);
     h.refreshAll(); assert.equal(styles.get("--zzgf-group-color"), "rgb(51 102 153)");
+    if (atg) {
+      assert.equal(styles.get("--zzgf-saved-background"), native, "ATG's complete gradient remains available");
+      assert.equal(group.hasAttribute("zzgf-saved-gradient"), true);
+    }
     saved.group.gradientColors = [{ c: "#ff0000" }];
     h.refreshAll(); assert.equal(styles.get("--zzgf-group-color"), "#ff0000");
     native = "#00ff00";
     h.refreshAll(); assert.equal(styles.get("--zzgf-group-color"), "#00ff00", "native colour beats old saved gradient");
+    assert.equal(styles.has("--zzgf-saved-background"), false);
+    assert.equal(group.hasAttribute("zzgf-saved-gradient"), false);
     native = "linear-gradient(red, blue)";
     saved.group.gradientColors = [{ c: "invalid" }];
     h.refreshAll(); assert.ok(!styles.has("--zzgf-group-color"), "invalid colours leave the CSS fallback available");
   }
+});
+
+async function folderDefaultsEnv() {
+  const declared = JSON.parse(await readFile(new URL("../groupflow/preferences.json", import.meta.url), "utf8"));
+  const defaults = new Map(declared.filter(p => p.property).map(p => [p.property, p.defaultValue]));
+  const stored = new Map([["zzgroup.gradient-direction", 0], ["zzgroup.active-tint", "42%"]]), writes = [];
+  for (const [state, tint, endTint, glass] of [["active", "42%", "17%", true], ["inactive", "12%", "4%", false], ["hover", "24%", "9%", false]]) {
+    const values = { tint, opacity: "1", direction: 0, "end-mode": 0, "end-tint": endTint,
+      spread: "100%", sheen: glass, rim: glass, glow: false, blur: glass,
+      "blur-radius": "20px", "label-color": "var(--zzgroup-label-color, inherit)" };
+    for (const [key, value] of Object.entries(values)) stored.set(`zzgroup.subfolder.${state}.${key}`, value);
+  }
+  const read = (key, fallback) => stored.has(key) ? stored.get(key) : fallback;
+  const write = (key, value) => { writes.push(key); stored.set(key, value); };
+  const h = await load("groupflow", "migrateFolderDefaults", { window: {}, Services: { prefs: {
+    getBoolPref: read, getIntPref: read, getStringPref: read,
+    setBoolPref: write, setIntPref: write, setStringPref: write,
+  } } });
+  return { h, declared, defaults, stored, writes };
+}
+
+test("Groupflow migrates unchanged folder profiles and shared defaults to declared values", async () => {
+  const e = await folderDefaultsEnv();
+  assert.equal(e.h.migrateFolderDefaults(e.declared), true);
+  for (const [key, value] of e.stored) {
+    assert.equal(value, key === "zzgroup.folder-defaults-v1" ? true : e.defaults.get(key), key);
+  }
+  assert.equal(e.stored.get("zzgroup.gradient-direction"), 3);
+  assert.equal(e.stored.get("zzgroup.active-tint"), "25%");
+});
+
+test("Groupflow retains every value in an edited folder profile and preserves shared edits", async () => {
+  for (const state of ["active", "inactive", "hover"]) {
+    const e = await folderDefaultsEnv(), prefix = `zzgroup.subfolder.${state}.`;
+    e.stored.set(prefix + "opacity", "0.75");
+    e.stored.set("zzgroup.gradient-direction", 1); e.stored.set("zzgroup.active-tint", "67%");
+    const before = [...e.stored].filter(([key]) => key.startsWith(prefix));
+    assert.equal(e.h.migrateFolderDefaults(e.declared), true);
+    assert.deepEqual([...e.stored].filter(([key]) => key.startsWith(prefix)), before);
+    assert.equal(e.stored.get("zzgroup.gradient-direction"), 1);
+    assert.equal(e.stored.get("zzgroup.active-tint"), "67%");
+    for (const other of ["active", "inactive", "hover"].filter(s => s !== state)) {
+      assert.equal(e.stored.get(`zzgroup.subfolder.${other}.tint`), "25%");
+    }
+  }
+});
+
+test("Groupflow never resets folder preferences after the migration marker", async () => {
+  const e = await folderDefaultsEnv(), oldValues = new Map(e.stored);
+  e.h.migrateFolderDefaults(e.declared);
+  for (const [key, value] of oldValues) e.stored.set(key, value);
+  const chosen = new Map(e.stored); e.writes.length = 0;
+  assert.equal(e.h.migrateFolderDefaults(e.declared), false);
+  assert.deepEqual(e.stored, chosen); assert.deepEqual(e.writes, []);
 });
 
 test("Router restores a missing avatar for a cached creator without rerouting or clearing history", async () => {

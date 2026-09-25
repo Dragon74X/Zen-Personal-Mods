@@ -36,7 +36,7 @@
 /* Gradient controls, Glassflow-style. Direction 0 inherits Glassflow's
    own tab gradient direction so both move together. */
 :root {
-  --zzgf-dir: var(--zzg-dir, 135deg);
+  --zzgf-dir: to right;
   /* Connector geometry derives from thickness: a fixed-size elbow with a
      thick border is a blob, not a curve. Radius grows with the line so the
      sweep stays a sweep at any width. */
@@ -93,6 +93,7 @@
 
 @media (-moz-pref("zzgroup.line-cap", 1)) { :root { --zzgf-cap: 0; } }
 @media (-moz-pref("zzgroup.line-cap", 2)) { :root { --zzgf-cap: calc(var(--zzgf-w) * 0.5); } }
+@media (-moz-pref("zzgroup.gradient-direction", 0)) { :root { --zzgf-dir: var(--zzg-dir, 135deg); } }
 @media (-moz-pref("zzgroup.gradient-direction", 1)) { :root { --zzgf-dir: to bottom; } }
 @media (-moz-pref("zzgroup.gradient-direction", 2)) { :root { --zzgf-dir: to top; } }
 @media (-moz-pref("zzgroup.gradient-direction", 3)) { :root { --zzgf-dir: to right; } }
@@ -100,14 +101,14 @@
 @media (-moz-pref("zzgroup.gradient-direction", 5)) { :root { --zzgf-dir: 135deg; } }
 @media (-moz-pref("zzgroup.gradient-direction", 6)) { :root { --zzgf-dir: 45deg; } }
 
-/* Accent: the group's own color chip first, then Glassflow's accent,
-   then Zen's primary. Per group, so mixed-color groups each keep their
-   identity -- same resolution order Glassflow uses for tabs. */
+/* Folder colours use their own saved/native colour, then Zen's accent.
+   Glassflow colour and tone apply only when that source is selected. */
 #navigator-toolbox tab-group:not([split-view-group]) {
   --zzgf-container-color: initial;
   --zzgf-group-color: initial;
-  --zzgf-raw: var(--zzgf-group-color, var(--zzg-accent, var(--zen-primary-color, #7c8cf8)));
-  --zzgf-accent: color-mix(in srgb, var(--zzgf-raw), black var(--zzg-tone, 25%));
+  --zzgf-saved-background: initial;
+  --zzgf-raw: var(--zzgf-group-color, var(--zen-primary-color, #7c8cf8));
+  --zzgf-accent: var(--zzgf-raw);
   --zzgf-line: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-line-strength, 40%), transparent);
   --zzgf-junction: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-junction-tint, 25%), transparent);
   /* Stops are percentages so a two-tab subgroup and a twenty-tab group
@@ -199,6 +200,7 @@
 @media (-moz-pref("zzgroup.color-source", 1)) {
   #navigator-toolbox tab-group:not([split-view-group]) {
     --zzgf-raw: var(--zzg-accent, var(--zen-primary-color, #7c8cf8));
+    --zzgf-accent: color-mix(in srgb, var(--zzgf-raw), black var(--zzg-tone, 25%));
   }
 }
 @media (-moz-pref("zzgroup.color-source", 2)) {
@@ -340,7 +342,7 @@
   #navigator-toolbox tab-group:not([split-view-group]):has(.tabbrowser-tab[selected]) > .tab-group-label-container {
     background-image:
       linear-gradient(var(--zzgf-dir),
-        color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-active-tint, 42%), transparent) 0%,
+        color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-active-tint, 25%), transparent) 0%,
         color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-end-tint, 0%), transparent) var(--zzgroup-spread, 50%)) !important;
   }
 }
@@ -1597,7 +1599,7 @@
   opacity: 0;
 }
 @media (-moz-pref("zzgroup.color-source", 0)) {
-  :root[zzgf-standalone] #navigator-toolbox tab-group[zzgf-saved-gradient] > .tab-group-label-container {
+  :root #navigator-toolbox tab-group[zzgf-saved-gradient] > .tab-group-label-container {
     background-image: var(--zzgf-saved-background) !important;
   }
 }
@@ -1617,10 +1619,11 @@
     backdrop-filter: none !important;
 
     /* Inactive is the baseline. Each override resets all optional effects. */
-    --zzgf-state-a: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-subfolder-inactive-tint, 12%), transparent);
+    --zzgf-state-a: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-subfolder-inactive-tint, 25%), transparent);
     --zzgf-state-b: transparent;
+    --zzgf-state-background: linear-gradient(var(--zzgf-state-dir), var(--zzgf-state-a) 0%, var(--zzgf-state-b) var(--zzgf-state-spread));
     --zzgf-state-dir: to right;
-    --zzgf-state-spread: var(--zzgroup-subfolder-inactive-spread, 100%);
+    --zzgf-state-spread: var(--zzgroup-subfolder-inactive-spread, 50%);
     --zzgf-state-opacity: var(--zzgroup-subfolder-inactive-opacity, 1);
     --zzgf-state-label-color: var(--zzgroup-subfolder-inactive-label-color, var(--zzgroup-label-color, inherit));
     --zzgf-state-sheen: none;
@@ -1635,9 +1638,12 @@
     @media (-moz-pref("zzgroup.subfolder.inactive.direction", 5)) { --zzgf-state-dir: 315deg; }
     @media (-moz-pref("zzgroup.subfolder.inactive.direction", 6)) { --zzgf-state-dir: 45deg; }
     @media (-moz-pref("zzgroup.subfolder.inactive.direction", 7)) { --zzgf-state-dir: 225deg; }
-    @media (-moz-pref("zzgroup.subfolder.inactive.end-mode", 1)) { --zzgf-state-b: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-subfolder-inactive-end-tint, 4%), transparent); }
-    @media (-moz-pref("zzgroup.subfolder.inactive.end-mode", 2)) { --zzgf-state-b: color-mix(in srgb, var(--zzg-second, #1b1b2b) var(--zzgroup-subfolder-inactive-end-tint, 4%), transparent); }
+    @media (-moz-pref("zzgroup.subfolder.inactive.end-mode", 1)) { --zzgf-state-b: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-subfolder-inactive-end-tint, 0%), transparent); }
+    @media (-moz-pref("zzgroup.subfolder.inactive.end-mode", 2)) { --zzgf-state-b: color-mix(in srgb, var(--zzg-second, #1b1b2b) var(--zzgroup-subfolder-inactive-end-tint, 0%), transparent); }
     @media (-moz-pref("zzgroup.subfolder.inactive.end-mode", 3)) { --zzgf-state-b: var(--zzgf-state-a); }
+    @media (-moz-pref("zzgroup.subfolder.inactive.end-mode", 4)) and (-moz-pref("zzgroup.color-source", 0)) {
+      --zzgf-state-background: var(--zzgf-saved-background, linear-gradient(var(--zzgf-state-dir), var(--zzgf-state-a) 0%, var(--zzgf-state-b) var(--zzgf-state-spread)));
+    }
     @media (-moz-pref("zzgroup.subfolder.inactive.sheen")) { --zzgf-state-sheen: var(--zzgf-sheen); }
     @media (-moz-pref("zzgroup.subfolder.inactive.rim")) { --zzgf-state-rim-top: var(--zzgf-rim-top); --zzgf-state-rim-all: var(--zzgf-rim-all); }
     @media (-moz-pref("zzgroup.subfolder.inactive.glow")) { --zzgf-state-glow: 0 2px 12px color-mix(in srgb, var(--zzgf-accent) 35%, transparent); }
@@ -1645,10 +1651,11 @@
 
     /* Hover belongs to this header, never its descendant tabs or headers. */
     tab-group:not(:has(.tabbrowser-tab:is([selected], [visuallyselected]))) > &:hover {
-      --zzgf-state-a: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-subfolder-hover-tint, 24%), transparent);
+      --zzgf-state-a: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-subfolder-hover-tint, 25%), transparent);
       --zzgf-state-b: transparent;
+      --zzgf-state-background: linear-gradient(var(--zzgf-state-dir), var(--zzgf-state-a) 0%, var(--zzgf-state-b) var(--zzgf-state-spread));
       --zzgf-state-dir: to right;
-      --zzgf-state-spread: var(--zzgroup-subfolder-hover-spread, 100%);
+      --zzgf-state-spread: var(--zzgroup-subfolder-hover-spread, 50%);
       --zzgf-state-opacity: var(--zzgroup-subfolder-hover-opacity, 1);
       --zzgf-state-label-color: var(--zzgroup-subfolder-hover-label-color, var(--zzgroup-label-color, inherit));
       --zzgf-state-sheen: none;
@@ -1663,9 +1670,12 @@
       @media (-moz-pref("zzgroup.subfolder.hover.direction", 5)) { --zzgf-state-dir: 315deg; }
       @media (-moz-pref("zzgroup.subfolder.hover.direction", 6)) { --zzgf-state-dir: 45deg; }
       @media (-moz-pref("zzgroup.subfolder.hover.direction", 7)) { --zzgf-state-dir: 225deg; }
-      @media (-moz-pref("zzgroup.subfolder.hover.end-mode", 1)) { --zzgf-state-b: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-subfolder-hover-end-tint, 9%), transparent); }
-      @media (-moz-pref("zzgroup.subfolder.hover.end-mode", 2)) { --zzgf-state-b: color-mix(in srgb, var(--zzg-second, #1b1b2b) var(--zzgroup-subfolder-hover-end-tint, 9%), transparent); }
+      @media (-moz-pref("zzgroup.subfolder.hover.end-mode", 1)) { --zzgf-state-b: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-subfolder-hover-end-tint, 0%), transparent); }
+      @media (-moz-pref("zzgroup.subfolder.hover.end-mode", 2)) { --zzgf-state-b: color-mix(in srgb, var(--zzg-second, #1b1b2b) var(--zzgroup-subfolder-hover-end-tint, 0%), transparent); }
       @media (-moz-pref("zzgroup.subfolder.hover.end-mode", 3)) { --zzgf-state-b: var(--zzgf-state-a); }
+      @media (-moz-pref("zzgroup.subfolder.hover.end-mode", 4)) and (-moz-pref("zzgroup.color-source", 0)) {
+        --zzgf-state-background: var(--zzgf-saved-background, linear-gradient(var(--zzgf-state-dir), var(--zzgf-state-a) 0%, var(--zzgf-state-b) var(--zzgf-state-spread)));
+      }
       @media (-moz-pref("zzgroup.subfolder.hover.sheen")) { --zzgf-state-sheen: var(--zzgf-sheen); }
       @media (-moz-pref("zzgroup.subfolder.hover.rim")) { --zzgf-state-rim-top: var(--zzgf-rim-top); --zzgf-state-rim-all: var(--zzgf-rim-all); }
       @media (-moz-pref("zzgroup.subfolder.hover.glow")) { --zzgf-state-glow: 0 2px 12px color-mix(in srgb, var(--zzgf-accent) 35%, transparent); }
@@ -1676,10 +1686,11 @@
     tab-group:has(.tabbrowser-tab:is([selected], [visuallyselected])) > & {
       opacity: 1 !important;
       filter: none !important;
-      --zzgf-state-a: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-subfolder-active-tint, 42%), transparent);
+      --zzgf-state-a: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-subfolder-active-tint, 25%), transparent);
       --zzgf-state-b: transparent;
+      --zzgf-state-background: linear-gradient(var(--zzgf-state-dir), var(--zzgf-state-a) 0%, var(--zzgf-state-b) var(--zzgf-state-spread));
       --zzgf-state-dir: to right;
-      --zzgf-state-spread: var(--zzgroup-subfolder-active-spread, 100%);
+      --zzgf-state-spread: var(--zzgroup-subfolder-active-spread, 50%);
       --zzgf-state-opacity: var(--zzgroup-subfolder-active-opacity, 1);
       --zzgf-state-label-color: var(--zzgroup-subfolder-active-label-color, var(--zzgroup-label-color, inherit));
       --zzgf-state-sheen: none;
@@ -1694,9 +1705,12 @@
       @media (-moz-pref("zzgroup.subfolder.active.direction", 5)) { --zzgf-state-dir: 315deg; }
       @media (-moz-pref("zzgroup.subfolder.active.direction", 6)) { --zzgf-state-dir: 45deg; }
       @media (-moz-pref("zzgroup.subfolder.active.direction", 7)) { --zzgf-state-dir: 225deg; }
-      @media (-moz-pref("zzgroup.subfolder.active.end-mode", 1)) { --zzgf-state-b: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-subfolder-active-end-tint, 17%), transparent); }
-      @media (-moz-pref("zzgroup.subfolder.active.end-mode", 2)) { --zzgf-state-b: color-mix(in srgb, var(--zzg-second, #1b1b2b) var(--zzgroup-subfolder-active-end-tint, 17%), transparent); }
+      @media (-moz-pref("zzgroup.subfolder.active.end-mode", 1)) { --zzgf-state-b: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-subfolder-active-end-tint, 0%), transparent); }
+      @media (-moz-pref("zzgroup.subfolder.active.end-mode", 2)) { --zzgf-state-b: color-mix(in srgb, var(--zzg-second, #1b1b2b) var(--zzgroup-subfolder-active-end-tint, 0%), transparent); }
       @media (-moz-pref("zzgroup.subfolder.active.end-mode", 3)) { --zzgf-state-b: var(--zzgf-state-a); }
+      @media (-moz-pref("zzgroup.subfolder.active.end-mode", 4)) and (-moz-pref("zzgroup.color-source", 0)) {
+        --zzgf-state-background: var(--zzgf-saved-background, linear-gradient(var(--zzgf-state-dir), var(--zzgf-state-a) 0%, var(--zzgf-state-b) var(--zzgf-state-spread)));
+      }
       @media (-moz-pref("zzgroup.subfolder.active.sheen")) { --zzgf-state-sheen: var(--zzgf-sheen); }
       @media (-moz-pref("zzgroup.subfolder.active.rim")) { --zzgf-state-rim-top: var(--zzgf-rim-top); --zzgf-state-rim-all: var(--zzgf-rim-all); }
       @media (-moz-pref("zzgroup.subfolder.active.glow")) { --zzgf-state-glow: 0 2px 12px color-mix(in srgb, var(--zzgf-accent) 35%, transparent); }
@@ -1718,8 +1732,7 @@
       border-radius: inherit;
       corner-shape: inherit;
       opacity: var(--zzgf-state-opacity);
-      background-image: var(--zzgf-state-sheen),
-        linear-gradient(var(--zzgf-state-dir), var(--zzgf-state-a) 0%, var(--zzgf-state-b) var(--zzgf-state-spread));
+      background-image: var(--zzgf-state-sheen), var(--zzgf-state-background);
       box-shadow: inset 0 var(--zzgroup-rim-thickness, 1px) 0 var(--zzgf-state-rim-top),
         inset 0 0 0 var(--zzgroup-rim-ring-width, 1px) var(--zzgf-state-rim-all), var(--zzgf-state-glow);
       backdrop-filter: var(--zzgf-state-blur);

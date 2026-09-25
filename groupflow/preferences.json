@@ -8,7 +8,7 @@
   {
     "type": "checkbox",
     "property": "zzgroup.enabled",
-    "label": "Turn on group styling *Styles tab groups and subgroups. Reuses Glassflow's shared accent tone, sheen recipe, rim colours and glass intensity. Subfolder states have separate controls below. Native Zen folder styling is untouched.*",
+    "label": "Turn on group styling *Styles tab groups and subgroups using their own saved colours and gradients. State profiles start from the same folder palette; tint, gradient and glass effects can be customized below. Native Zen folder styling is untouched.*",
     "defaultValue": true
   },
   {
@@ -91,8 +91,8 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.gradient-direction",
-    "label": "Gradient direction *Which way the header accent fades. Match Glassflow inherits its tab gradient direction live, so both move together when you change it there.*",
-    "defaultValue": 0,
+    "label": "Gradient direction *Folder colours fade left to right by default. Match Glassflow is optional.*",
+    "defaultValue": 3,
     "options": [
       {
         "label": "Match Glassflow",
@@ -115,11 +115,11 @@
         "value": 4
       },
       {
-        "label": "Diagonal 135°",
+        "label": "Diagonal 135\u00b0",
         "value": 5
       },
       {
-        "label": "Diagonal 45°",
+        "label": "Diagonal 45\u00b0",
         "value": 6
       }
     ],
@@ -135,7 +135,7 @@
   {
     "type": "string",
     "property": "zzgroup.spread",
-    "label": "Gradient spread *Where the fade ends, as a percentage of the header. 50% matches Glassflow's tabs; 100% fades across the whole header.*",
+    "label": "Gradient spread *Where the folder colour fades to transparent, as a percentage of the header.*",
     "defaultValue": "50%",
     "placeholder": "50%",
     "conditions": [
@@ -689,9 +689,9 @@
   {
     "type": "string",
     "property": "zzgroup.active-tint",
-    "label": "Active group tint *Matches Glassflow's selected-tab default.*",
-    "defaultValue": "42%",
-    "placeholder": "42%",
+    "label": "Active group tint *Starts at the same 25% tint as other folders. Change it to distinguish the folder containing the selected tab.*",
+    "defaultValue": "25%",
+    "placeholder": "25%",
     "conditions": [
       {
         "if": {
@@ -753,7 +753,7 @@
   {
     "type": "checkbox",
     "property": "zzgroup.subfolder.states",
-    "label": "Separate subfolder styling *Three sets below control nested group headers. Active contains the selected tab, including deeper subfolders. Active takes priority over hover; hover applies only to the header under the pointer. Off uses the shared Header and States settings. Top-level groups and native Zen folders keep their existing styling.*",
+    "label": "Separate subfolder styling *Three profiles start from the same folder palette, preserving saved ATG gradients. Active contains the selected tab and takes priority over hover. Hover applies only to the header under the pointer. Off uses the shared Header and States settings. Native Zen folders are unchanged.*",
     "defaultValue": true,
     "conditions": [
       {
@@ -774,8 +774,8 @@
     "type": "string",
     "property": "zzgroup.subfolder.active.tint",
     "label": "Tint strength *Accent percentage at the start of the gradient.*",
-    "defaultValue": "42%",
-    "placeholder": "42%",
+    "defaultValue": "25%",
+    "placeholder": "25%",
     "conditions": [
       {
         "if": {
@@ -795,7 +795,7 @@
   {
     "type": "string",
     "property": "zzgroup.subfolder.active.opacity",
-    "label": "Background opacity *0–1. Applies to the background, sheen, rim and glow; text and icons keep their opacity.*",
+    "label": "Background opacity *0\u20131. Applies to the background, sheen, rim and glow; text and icons keep their opacity.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [
@@ -874,8 +874,8 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.subfolder.active.end-mode",
-    "label": "Gradient end *Fade to transparent, keep the accent, use Glassflow's secondary colour, or fill with the starting tint.*",
-    "defaultValue": 0,
+    "label": "Gradient end *Default preserves the complete saved ATG gradient when Accent source is Group's own color. Without a saved gradient, fades to transparent. Choose another mode to replace it with the tint, direction and spread controls.*",
+    "defaultValue": 4,
     "options": [
       {
         "label": "Fade to transparent",
@@ -892,6 +892,10 @@
       {
         "label": "Flat, no gradient",
         "value": 3
+      },
+      {
+        "label": "Saved folder gradient, otherwise fade",
+        "value": 4
       }
     ],
     "conditions": [
@@ -914,8 +918,8 @@
     "type": "string",
     "property": "zzgroup.subfolder.active.end-tint",
     "label": "End tint *Accent or secondary-colour percentage at the end of the gradient.*",
-    "defaultValue": "17%",
-    "placeholder": "17%",
+    "defaultValue": "0%",
+    "placeholder": "0%",
     "conditions": [
       {
         "if": {
@@ -953,8 +957,8 @@
     "type": "string",
     "property": "zzgroup.subfolder.active.spread",
     "label": "Gradient spread *Percentage of the header at which the end colour is reached.*",
-    "defaultValue": "100%",
-    "placeholder": "100%",
+    "defaultValue": "50%",
+    "placeholder": "50%",
     "conditions": [
       {
         "if": {
@@ -981,7 +985,7 @@
     "type": "checkbox",
     "property": "zzgroup.subfolder.active.sheen",
     "label": "Glass sheen *Uses Glassflow's shared sheen recipe, with a built-in fallback.*",
-    "defaultValue": true,
+    "defaultValue": false,
     "conditions": [
       {
         "if": {
@@ -1002,7 +1006,7 @@
     "type": "checkbox",
     "property": "zzgroup.subfolder.active.rim",
     "label": "Glass rim *Uses the shared rim colour and Groupflow's rim thickness settings.*",
-    "defaultValue": true,
+    "defaultValue": false,
     "conditions": [
       {
         "if": {
@@ -1044,7 +1048,7 @@
     "type": "checkbox",
     "property": "zzgroup.subfolder.active.blur",
     "label": "Frosted blur",
-    "defaultValue": true,
+    "defaultValue": false,
     "conditions": [
       {
         "if": {
@@ -1121,8 +1125,8 @@
     "type": "string",
     "property": "zzgroup.subfolder.inactive.tint",
     "label": "Tint strength *Accent percentage at the start of the gradient.*",
-    "defaultValue": "12%",
-    "placeholder": "12%",
+    "defaultValue": "25%",
+    "placeholder": "25%",
     "conditions": [
       {
         "if": {
@@ -1142,7 +1146,7 @@
   {
     "type": "string",
     "property": "zzgroup.subfolder.inactive.opacity",
-    "label": "Background opacity *0–1. Applies to the background, sheen, rim and glow; text and icons keep their opacity.*",
+    "label": "Background opacity *0\u20131. Applies to the background, sheen, rim and glow; text and icons keep their opacity.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [
@@ -1221,8 +1225,8 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.subfolder.inactive.end-mode",
-    "label": "Gradient end *Fade to transparent, keep the accent, use Glassflow's secondary colour, or fill with the starting tint.*",
-    "defaultValue": 0,
+    "label": "Gradient end *Default preserves the complete saved ATG gradient when Accent source is Group's own color. Without a saved gradient, fades to transparent. Choose another mode to replace it with the tint, direction and spread controls.*",
+    "defaultValue": 4,
     "options": [
       {
         "label": "Fade to transparent",
@@ -1239,6 +1243,10 @@
       {
         "label": "Flat, no gradient",
         "value": 3
+      },
+      {
+        "label": "Saved folder gradient, otherwise fade",
+        "value": 4
       }
     ],
     "conditions": [
@@ -1261,8 +1269,8 @@
     "type": "string",
     "property": "zzgroup.subfolder.inactive.end-tint",
     "label": "End tint *Accent or secondary-colour percentage at the end of the gradient.*",
-    "defaultValue": "4%",
-    "placeholder": "4%",
+    "defaultValue": "0%",
+    "placeholder": "0%",
     "conditions": [
       {
         "if": {
@@ -1300,8 +1308,8 @@
     "type": "string",
     "property": "zzgroup.subfolder.inactive.spread",
     "label": "Gradient spread *Percentage of the header at which the end colour is reached.*",
-    "defaultValue": "100%",
-    "placeholder": "100%",
+    "defaultValue": "50%",
+    "placeholder": "50%",
     "conditions": [
       {
         "if": {
@@ -1468,8 +1476,8 @@
     "type": "string",
     "property": "zzgroup.subfolder.hover.tint",
     "label": "Tint strength *Accent percentage at the start of the gradient.*",
-    "defaultValue": "24%",
-    "placeholder": "24%",
+    "defaultValue": "25%",
+    "placeholder": "25%",
     "conditions": [
       {
         "if": {
@@ -1489,7 +1497,7 @@
   {
     "type": "string",
     "property": "zzgroup.subfolder.hover.opacity",
-    "label": "Background opacity *0–1. Applies to the background, sheen, rim and glow; text and icons keep their opacity.*",
+    "label": "Background opacity *0\u20131. Applies to the background, sheen, rim and glow; text and icons keep their opacity.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [
@@ -1568,8 +1576,8 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.subfolder.hover.end-mode",
-    "label": "Gradient end *Fade to transparent, keep the accent, use Glassflow's secondary colour, or fill with the starting tint.*",
-    "defaultValue": 0,
+    "label": "Gradient end *Default preserves the complete saved ATG gradient when Accent source is Group's own color. Without a saved gradient, fades to transparent. Choose another mode to replace it with the tint, direction and spread controls.*",
+    "defaultValue": 4,
     "options": [
       {
         "label": "Fade to transparent",
@@ -1586,6 +1594,10 @@
       {
         "label": "Flat, no gradient",
         "value": 3
+      },
+      {
+        "label": "Saved folder gradient, otherwise fade",
+        "value": 4
       }
     ],
     "conditions": [
@@ -1608,8 +1620,8 @@
     "type": "string",
     "property": "zzgroup.subfolder.hover.end-tint",
     "label": "End tint *Accent or secondary-colour percentage at the end of the gradient.*",
-    "defaultValue": "9%",
-    "placeholder": "9%",
+    "defaultValue": "0%",
+    "placeholder": "0%",
     "conditions": [
       {
         "if": {
@@ -1647,8 +1659,8 @@
     "type": "string",
     "property": "zzgroup.subfolder.hover.spread",
     "label": "Gradient spread *Percentage of the header at which the end colour is reached.*",
-    "defaultValue": "100%",
-    "placeholder": "100%",
+    "defaultValue": "50%",
+    "placeholder": "50%",
     "conditions": [
       {
         "if": {

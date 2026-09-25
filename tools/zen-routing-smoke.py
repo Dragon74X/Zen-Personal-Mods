@@ -199,15 +199,17 @@ def check(m, root, atg, port, first):
         controls = m.script("return (async()=>{" + HELPERS + """
           await pause(100);
           const root=group('Root'), child=group('Child'), grandchild=group('Grandchild');
-          const toggle=child.labelContainerElement.querySelector('.zzgf-toggle');
-          toggle.click(); await pause(50);
-          const toggled=child.collapsed && toggle.getAttribute('aria-expanded')==='false';
-          toggle.click(); await pause(50);
+          const header=child.labelContainerElement;
+          header.dispatchEvent(new MouseEvent('click',{bubbles:true,button:0})); await pause(50);
+          const toggled=child.collapsed && child.labelElement.getAttribute('aria-expanded')==='false';
+          header.dispatchEvent(new MouseEvent('click',{bubbles:true,button:0})); await pause(50);
           const manual=!child.collapsed;
           const icon=child.style.getPropertyValue('--zzgf-icon');
           const image=new Image(); image.src=icon.slice(5,-2); await image.decode();
           const colour=getComputedStyle(root).getPropertyValue('--tab-group-color').trim();
           const savedColour=JSON.parse(SessionStore.getCustomWindowValue(window,'tabGroupColors'))[root.id].favicon;
+          root.color=root.color; // Zen refreshes the same code without emitting TabGroupUpdate.
+          const refreshedColour=getComputedStyle(root).getPropertyValue('--tab-group-color').trim();
           const gradient=getComputedStyle(child.labelContainerElement).backgroundImage;
           child.labelContainerElement.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,button:2}));
           await pause(100);
@@ -256,12 +258,38 @@ def check(m, root, atg, port, first):
           if (restored) gBrowser.removeTabs([...restored.tabs]);
           return {toggled,manual,customIconDecoded:image.naturalWidth>0,editor,veto,moved,
             ungroup,undo,undoNested,
-            savedColour:colour===savedColour,savedGradient:gradient.includes('linear-gradient'),
-            oneSet:child.labelContainerElement.querySelectorAll('.zzgf-control').length===3,
+            savedColour:colour===savedColour && refreshedColour===savedColour,
+            savedGradient:gradient.includes('linear-gradient'),
+            oneSet:header.querySelectorAll('.zzgf-control').length===2 && !header.querySelector('.zzgf-toggle'),
             standalone:!window.advancedTabGroups};
         })();""")
         assert all(controls.values()), controls
         result.update(controls)
+        # Drive real pointer movement: .click() cannot detect a hidden hover control.
+        for left in (False, True):
+            xy = m.script("Services.prefs.setBoolPref('zzgroup.close-left'," + json.dumps(left) + ");" + HELPERS + """
+              const r=group('Root').labelContainerElement.getBoundingClientRect();
+              return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)};
+            """)
+            for x, y, visible in [(xy['x'], xy['y'], True), (800, 400, False)]:
+                m.call('WebDriver:PerformActions', {'actions': [{'type': 'pointer', 'id': 'mouse',
+                    'parameters': {'pointerType': 'mouse'}, 'actions': [
+                        {'type': 'pointerMove', 'duration': 0, 'x': x, 'y': y}]}]})
+                m.script("return (async()=>{" + HELPERS + """
+                  const h=group('Root').labelContainerElement,b=h.querySelector('.zzgf-close');
+                  const visible=""" + json.dumps(visible) + """;
+                  await until(()=>{
+                    const s=getComputedStyle(b);
+                    return visible ? h.matches(':hover') && s.visibility==='visible' &&
+                      +s.opacity>.99 && b.getBoundingClientRect().width>0 : +s.opacity<.01;
+                  }); return true;
+                })();""")
+            assert m.script("return (async()=>{" + HELPERS + """
+              const b=group('Root').labelContainerElement.querySelector('.zzgf-close');b.focus();
+              await until(()=>getComputedStyle(b).opacity==='1' && b.getBoundingClientRect().width>0);
+              const visible=getComputedStyle(b).visibility==='visible';b.blur();return visible;
+            })();""")
+        result['hoverAndFocusClose'] = True
     if first:
         m.script("return (async()=>{" + HELPERS + """
           const target=add(fixtureURL.replace('127.0.0.1','localhost')+'/target',2);

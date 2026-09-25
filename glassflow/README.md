@@ -297,9 +297,9 @@ them read as circles and capsules at all.
 *Round (classic)*. To keep the squircles but stop them reading as squares, set
 **Radius compensation** to *Auto* instead.
 
-**Turn squircles off browser-wide** rounds every corner in the rest of the
-chrome — menus, panels, dialogs, the URL bar — leaving nothing squircled except
-what the settings above govern, which keep working independently of it.
+**Turn squircles off browser-wide** rounds the chrome, including Glassflow and
+Groupflow surfaces set to **Follow Zen**. Explicit global or per-surface shape
+choices still take precedence.
 
 **It applies instantly, with no restart**, because it does not touch
 `layout.css.corner-shape.enabled`. That pref is the obvious route and it is a

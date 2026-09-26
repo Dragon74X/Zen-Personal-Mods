@@ -74,7 +74,7 @@
     observe(_s, _t, data) {
       if (!data || !data.startsWith(PREFIX)) return;
       iconRules = null;                    // reparsed on the next refresh
-      if (["favicons", "icon-rules", "section-icons", "icon-shape", "color-source"].some(k => data === PREFIX + k)) schedule();
+      if (["favicons", "icon-rules", "section-icons", "icon-shape", "color-source", "subfolder.include-folders"].some(k => data === PREFIX + k)) schedule();
       const name = "--" + data.replace(/\./g, "-");
       const value = readPrefValue(data);
       try {
@@ -192,17 +192,49 @@
     if (g.hasAttribute("zzgf-picture") !== !!picture) g.toggleAttribute("zzgf-picture", !!picture);
   }
 
+  function tintGradient(background) {
+    // The browser serializes colour stops, including names and nested colour
+    // functions, to flat computed colours. Keep every stop and gradient intact.
+    return background.replace(/\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([^()]*\)/gi,
+      color => `rgb(from ${color} r g b / calc(alpha * var(--zzgf-saved-tint-factor, 100%)))`);
+  }
+
+  function setSavedBackground(g, background) {
+    const header = g.labelContainerElement;
+    if (g.style.getPropertyValue("--zzgf-saved-background") === background &&
+        (!background || header?.style.getPropertyValue("--zzgf-saved-tint-background"))) return;
+    if (background) g.style.setProperty("--zzgf-saved-background", background);
+    else g.style.removeProperty("--zzgf-saved-background");
+    g.toggleAttribute("zzgf-saved-gradient", !!background);
+    header?.style.removeProperty("--zzgf-saved-tint-background");
+    if (!background || !header) return;
+    const probe = document.createElementNS("http://www.w3.org/1999/xhtml", "span");
+    probe.style.display = "none";
+    probe.style.backgroundImage = background;
+    header.appendChild(probe);
+    try {
+      const adjusted = tintGradient(getComputedStyle(probe).backgroundImage);
+      if (CSS.supports("background-image", adjusted)) {
+        // State tokens resolve on the header, never on its parent group.
+        header.style.setProperty("--zzgf-saved-tint-background", adjusted);
+      }
+    } finally { probe.remove(); }
+  }
+
   function refreshGroup(g) {
+    const header = g.labelContainerElement;
+    if (header && !header.querySelector(".zzgf-rim")) {
+      const rim = document.createElementNS("http://www.w3.org/1999/xhtml", "span");
+      rim.className = "zzgf-rim";
+      rim.setAttribute("aria-hidden", "true");
+      header.appendChild(rim);
+    }
     // ATG may put a full gradient in this token; colour mixing needs one colour.
     let groupColor = getComputedStyle(g).getPropertyValue("--tab-group-color").trim();
     if (window.advancedTabGroups) {
       const background = groupColor.includes("gradient(") && !/url\s*\(/i.test(groupColor) &&
         CSS.supports("background-image", groupColor) ? groupColor : "";
-      if (g.style.getPropertyValue("--zzgf-saved-background") !== background) {
-        if (background) g.style.setProperty("--zzgf-saved-background", background);
-        else g.style.removeProperty("--zzgf-saved-background");
-      }
-      g.toggleAttribute("zzgf-saved-gradient", !!background);
+      setSavedBackground(g, background);
     }
     if (!CSS.supports("color", groupColor)) {
       const saved = window.advancedTabGroups?.savedColors?.[g.id] ?? savedGroupColors?.[g.id];
@@ -230,14 +262,17 @@
       for (const { tab, count } of counts.values()) {
         if (count > most) { dominant = tab; most = count; }
       }
-      const color = Number(dominant?.getAttribute("usercontextid")) > 0
-        ? getComputedStyle(dominant).getPropertyValue("--identity-tab-color").trim() : "";
+      const style = Number(dominant?.getAttribute("usercontextid")) > 0 ? getComputedStyle(dominant) : null;
+      const token = style?.getPropertyValue("--identity-tab-color").trim();
+      const color = token?.toLowerCase() === "currentcolor" ? style.color : token;
       const value = color && CSS.supports("color", color) ? color : "";
       if (g.style.getPropertyValue("--zzgf-container-color") !== value) {
         if (value) g.style.setProperty("--zzgf-container-color", value);
         else g.style.removeProperty("--zzgf-container-color");
       }
     }
+    // Native folders keep their icon and controls; only their palette is shared.
+    if (g.isZenFolder || g.tagName === "zen-folder") return;
     const rule = ruledIcon(g) ?? customIcon(g);
     const picture = !rule && bool("section-icons", true) ? stampedIcon(g) : null;
     setShape(g, picture);
@@ -290,6 +325,13 @@
 
   function refreshAll() {
     for (const g of plainGroups()) refreshGroup(g);
+    refreshFolders();
+  }
+
+  function refreshFolders() {
+    if (bool("subfolder.include-folders", false)) {
+      for (const g of document.querySelectorAll("zen-folder")) refreshGroup(g);
+    }
   }
 
   // A favicon change or a session restore names one tab; only that tab's
@@ -303,7 +345,7 @@
   const schedule = (event) => {
     const t = event?.target;
     if (t?.tagName === "tab" && t.group) {
-      for (let g = t.group; g?.tagName === "tab-group"; g = g.parentElement?.closest("tab-group") ?? null) dirty.add(g);
+      for (let g = t.group; g; g = g.parentElement?.closest("tab-group, zen-folder") ?? null) dirty.add(g);
     } else {
       everything = true;
     }
@@ -312,7 +354,10 @@
   };
   function refreshDirty() {
     if (everything) { everything = false; dirty.clear(); refreshAll(); return; }
-    for (const g of dirty) if (g.isConnected && !g.isZenFolder && !g.hasAttribute("split-view-group")) refreshGroup(g);
+    for (const g of dirty) {
+      if (g.isConnected && !g.hasAttribute("split-view-group") &&
+          (plainGroup(g) || bool("subfolder.include-folders", false))) refreshGroup(g);
+    }
     dirty.clear();
   }
 
@@ -324,6 +369,7 @@
   // change what a group contains and neither was being watched.
   const EVENTS = ["TabGroupCreate", "TabGrouped", "TabUngrouped",
                   "TabGroupRemoved", "TabGroupRemovedFromDOM", "TabGroupUpdate",
+                  "FolderGrouped", "FolderUngrouped",
                   "SSTabRestored", "ZenTabIconChanged"];
 
   const plainGroup = g => g?.tagName === "tab-group" && !g.isZenFolder && !g.hasAttribute("split-view-group");
@@ -438,8 +484,7 @@
     function applyColor(group) {
       if (appliedColors.has(group) && appliedColors.get(group) === group.color) return;
       const saved = colors?.[group.id];
-      group.style.removeProperty("--zzgf-saved-background");
-      group.removeAttribute("zzgf-saved-gradient");
+      setSavedBackground(group, "");
       if (!saved || !String(group.color || "").startsWith(group.id)) { appliedColors.set(group, group.color); return; }
       let value = colorCache.get(group.id);
       if (!value) {
@@ -469,8 +514,7 @@
         group.style.setProperty("--tab-group-color", value);
         group.style.setProperty("--tab-group-color-invert", value);
       } else if (value.includes("gradient(") && !/url\s*\(/i.test(value) && CSS.supports("background-image", value)) {
-        group.style.setProperty("--zzgf-saved-background", value);
-        group.setAttribute("zzgf-saved-gradient", "");
+        setSavedBackground(group, value);
       }
       appliedColors.set(group, group.color);
     }
@@ -551,6 +595,7 @@
       }
       known = new Set(groups);
       for (const group of groups) decorate(group);
+      refreshFolders();
       updateParents(groups);
       try { pruneClosedState(groups); } catch (error) {
         console.error("[Groupflow] Retaining closed group data:", error);
@@ -745,6 +790,10 @@
       clearTimeout(foldTimer);
       cleanupGroups?.();
       groupDetails?.retire();
+      for (const rim of document.querySelectorAll(".tab-group-label-container > .zzgf-rim")) {
+        rim.parentElement.style.removeProperty("--zzgf-saved-tint-background");
+        rim.remove();
+      }
       window.removeEventListener("unload", cleanup);
       dirty.clear();
     };

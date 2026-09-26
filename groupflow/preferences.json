@@ -8,7 +8,7 @@
   {
     "type": "checkbox",
     "property": "zzgroup.enabled",
-    "label": "Turn on group styling *Styles tab groups and subgroups using their own saved colours and gradients. State profiles start from the same folder palette; tint, gradient and glass effects can be customized below. Native Zen folder styling is untouched.*",
+    "label": "Turn on group styling *Styles tab groups and subgroups using their own saved colours and gradients. State profiles start from the same folder palette; tint, gradient and glass effects can be customized below. Native folder headers can opt into the state profiles.*",
     "defaultValue": true
   },
   {
@@ -75,7 +75,7 @@
   {
     "type": "string",
     "property": "zzgroup.header-tint",
-    "label": "Header tint *Accent percentage for the shared header style. Subfolder state profiles have separate tint values.*",
+    "label": "Header tint *Accent percentage for the shared header style. For a saved palette, 25% keeps its original strength. State profiles have separate tint values.*",
     "defaultValue": "25%",
     "placeholder": "25%",
     "conditions": [
@@ -274,7 +274,7 @@
   {
     "type": "checkbox",
     "property": "zzgroup.match-glassflow-edges",
-    "label": "Follow Glassflow's edge fade *Uses Glassflow's shared edge axis and reach for the shared header style. Subfolder state profiles use their own gradient direction and shared rim colours.*",
+    "label": "Follow Glassflow's edge fade *Uses Glassflow's shared edge axis and reach for the shared header style. Folder state profiles have independent rim direction and reach, with shared rim colours.*",
     "defaultValue": false,
     "conditions": [
       {
@@ -746,14 +746,14 @@
   },
   {
     "type": "separator",
-    "label": "Subfolder states",
+    "label": "Folder and subfolder states",
     "size": "17px",
     "margin": "22px 0 10px 0"
   },
   {
     "type": "checkbox",
     "property": "zzgroup.subfolder.states",
-    "label": "Separate subfolder styling *Three profiles start from the same folder palette, preserving saved ATG gradients. Active contains the selected tab and takes priority over hover. Hover applies only to the header under the pointer. Off uses the shared Header and States settings. Native Zen folders are unchanged.*",
+    "label": "Separate folder state styling *Three profiles start from the same folder palette, preserving saved ATG gradients. Active contains the selected tab. Hover overrides active only on the header under the pointer. Off uses the shared Header and States settings.*",
     "defaultValue": true,
     "conditions": [
       {
@@ -765,15 +765,36 @@
     ]
   },
   {
+    "type": "checkbox",
+    "property": "zzgroup.subfolder.include-folders",
+    "label": "Apply profiles to main folders too *Includes top-level groups and native Zen folder headers. Off customizes nested tab groups only; native folder controls and rails are preserved.*",
+    "defaultValue": false,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
     "type": "separator",
-    "label": "Active subfolder",
+    "label": "Active profile",
     "size": "17px",
     "margin": "22px 0 10px 0"
   },
   {
     "type": "string",
     "property": "zzgroup.subfolder.active.tint",
-    "label": "Tint strength *Accent percentage at the start of the gradient.*",
+    "label": "Tint strength *Accent percentage at the start of the gradient. For a saved palette, 25% keeps its original strength; lower or higher values scale every colour together.*",
     "defaultValue": "25%",
     "placeholder": "25%",
     "conditions": [
@@ -818,7 +839,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.subfolder.active.direction",
-    "label": "Gradient direction",
+    "label": "Gradient direction *Saved folder gradients retain their original shape and direction; other gradients use this setting.*",
     "defaultValue": 0,
     "options": [
       {
@@ -874,7 +895,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.subfolder.active.end-mode",
-    "label": "Gradient end *Default preserves the complete saved ATG gradient when Accent source is Group's own color. Without a saved gradient, fades to transparent. Choose another mode to replace it with the tint, direction and spread controls.*",
+    "label": "Gradient end *Default preserves the saved ATG palette and gradient shape when Accent source is Group's own color. Tint strength adjusts the entire saved palette. Without a saved gradient, fades to transparent. Other modes use the direction and spread controls.*",
     "defaultValue": 4,
     "options": [
       {
@@ -956,7 +977,7 @@
   {
     "type": "string",
     "property": "zzgroup.subfolder.active.spread",
-    "label": "Gradient spread *Percentage of the header at which the end colour is reached.*",
+    "label": "Gradient spread *Percentage of the header at which the end colour is reached. Saved folder gradients retain their original shape.*",
     "defaultValue": "50%",
     "placeholder": "50%",
     "conditions": [
@@ -1005,7 +1026,7 @@
   {
     "type": "checkbox",
     "property": "zzgroup.subfolder.active.rim",
-    "label": "Glass rim *Uses the shared rim colour and Groupflow's rim thickness settings.*",
+    "label": "Glass rim *Uses the shared rim colour and thickness. Its fade direction and reach are independent of the fill.*",
     "defaultValue": false,
     "conditions": [
       {
@@ -1017,6 +1038,100 @@
       {
         "if": {
           "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.subfolder.active.rim-direction",
+    "label": "Rim fade direction *Which direction the rim fades around the folder. Follow gradient uses this state's fill direction.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow gradient",
+        "value": 0
+      },
+      {
+        "label": "Left to right",
+        "value": 1
+      },
+      {
+        "label": "Right to left",
+        "value": 2
+      },
+      {
+        "label": "Top to bottom",
+        "value": 3
+      },
+      {
+        "label": "Bottom to top",
+        "value": 4
+      },
+      {
+        "label": "Diagonal (down-right)",
+        "value": 5
+      },
+      {
+        "label": "Diagonal (up-left)",
+        "value": 6
+      },
+      {
+        "label": "Diagonal (up-right)",
+        "value": 7
+      },
+      {
+        "label": "Diagonal (down-left)",
+        "value": 8
+      }
+    ],
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.active.rim",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.subfolder.active.rim-reach",
+    "label": "Rim fade reach *Percentage of the header at which the rim disappears. Higher values carry the rim farther around the folder.*",
+    "defaultValue": "60%",
+    "placeholder": "60%",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.active.rim",
           "value": true
         }
       }
@@ -1117,14 +1232,14 @@
   },
   {
     "type": "separator",
-    "label": "Inactive subfolder",
+    "label": "Inactive profile",
     "size": "17px",
     "margin": "22px 0 10px 0"
   },
   {
     "type": "string",
     "property": "zzgroup.subfolder.inactive.tint",
-    "label": "Tint strength *Accent percentage at the start of the gradient.*",
+    "label": "Tint strength *Accent percentage at the start of the gradient. For a saved palette, 25% keeps its original strength; lower or higher values scale every colour together.*",
     "defaultValue": "25%",
     "placeholder": "25%",
     "conditions": [
@@ -1169,7 +1284,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.subfolder.inactive.direction",
-    "label": "Gradient direction",
+    "label": "Gradient direction *Saved folder gradients retain their original shape and direction; other gradients use this setting.*",
     "defaultValue": 0,
     "options": [
       {
@@ -1225,7 +1340,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.subfolder.inactive.end-mode",
-    "label": "Gradient end *Default preserves the complete saved ATG gradient when Accent source is Group's own color. Without a saved gradient, fades to transparent. Choose another mode to replace it with the tint, direction and spread controls.*",
+    "label": "Gradient end *Default preserves the saved ATG palette and gradient shape when Accent source is Group's own color. Tint strength adjusts the entire saved palette. Without a saved gradient, fades to transparent. Other modes use the direction and spread controls.*",
     "defaultValue": 4,
     "options": [
       {
@@ -1307,7 +1422,7 @@
   {
     "type": "string",
     "property": "zzgroup.subfolder.inactive.spread",
-    "label": "Gradient spread *Percentage of the header at which the end colour is reached.*",
+    "label": "Gradient spread *Percentage of the header at which the end colour is reached. Saved folder gradients retain their original shape.*",
     "defaultValue": "50%",
     "placeholder": "50%",
     "conditions": [
@@ -1356,7 +1471,7 @@
   {
     "type": "checkbox",
     "property": "zzgroup.subfolder.inactive.rim",
-    "label": "Glass rim *Uses the shared rim colour and Groupflow's rim thickness settings.*",
+    "label": "Glass rim *Uses the shared rim colour and thickness. Its fade direction and reach are independent of the fill.*",
     "defaultValue": false,
     "conditions": [
       {
@@ -1368,6 +1483,100 @@
       {
         "if": {
           "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.subfolder.inactive.rim-direction",
+    "label": "Rim fade direction *Which direction the rim fades around the folder. Follow gradient uses this state's fill direction.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow gradient",
+        "value": 0
+      },
+      {
+        "label": "Left to right",
+        "value": 1
+      },
+      {
+        "label": "Right to left",
+        "value": 2
+      },
+      {
+        "label": "Top to bottom",
+        "value": 3
+      },
+      {
+        "label": "Bottom to top",
+        "value": 4
+      },
+      {
+        "label": "Diagonal (down-right)",
+        "value": 5
+      },
+      {
+        "label": "Diagonal (up-left)",
+        "value": 6
+      },
+      {
+        "label": "Diagonal (up-right)",
+        "value": 7
+      },
+      {
+        "label": "Diagonal (down-left)",
+        "value": 8
+      }
+    ],
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.inactive.rim",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.subfolder.inactive.rim-reach",
+    "label": "Rim fade reach *Percentage of the header at which the rim disappears. Higher values carry the rim farther around the folder.*",
+    "defaultValue": "60%",
+    "placeholder": "60%",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.inactive.rim",
           "value": true
         }
       }
@@ -1468,14 +1677,14 @@
   },
   {
     "type": "separator",
-    "label": "Hovered subfolder",
+    "label": "Hovered profile",
     "size": "17px",
     "margin": "22px 0 10px 0"
   },
   {
     "type": "string",
     "property": "zzgroup.subfolder.hover.tint",
-    "label": "Tint strength *Accent percentage at the start of the gradient.*",
+    "label": "Tint strength *Accent percentage at the start of the gradient. For a saved palette, 25% keeps its original strength; lower or higher values scale every colour together.*",
     "defaultValue": "25%",
     "placeholder": "25%",
     "conditions": [
@@ -1520,7 +1729,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.subfolder.hover.direction",
-    "label": "Gradient direction",
+    "label": "Gradient direction *Saved folder gradients retain their original shape and direction; other gradients use this setting.*",
     "defaultValue": 0,
     "options": [
       {
@@ -1576,7 +1785,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.subfolder.hover.end-mode",
-    "label": "Gradient end *Default preserves the complete saved ATG gradient when Accent source is Group's own color. Without a saved gradient, fades to transparent. Choose another mode to replace it with the tint, direction and spread controls.*",
+    "label": "Gradient end *Default preserves the saved ATG palette and gradient shape when Accent source is Group's own color. Tint strength adjusts the entire saved palette. Without a saved gradient, fades to transparent. Other modes use the direction and spread controls.*",
     "defaultValue": 4,
     "options": [
       {
@@ -1658,7 +1867,7 @@
   {
     "type": "string",
     "property": "zzgroup.subfolder.hover.spread",
-    "label": "Gradient spread *Percentage of the header at which the end colour is reached.*",
+    "label": "Gradient spread *Percentage of the header at which the end colour is reached. Saved folder gradients retain their original shape.*",
     "defaultValue": "50%",
     "placeholder": "50%",
     "conditions": [
@@ -1707,7 +1916,7 @@
   {
     "type": "checkbox",
     "property": "zzgroup.subfolder.hover.rim",
-    "label": "Glass rim *Uses the shared rim colour and Groupflow's rim thickness settings.*",
+    "label": "Glass rim *Uses the shared rim colour and thickness. Its fade direction and reach are independent of the fill.*",
     "defaultValue": false,
     "conditions": [
       {
@@ -1719,6 +1928,100 @@
       {
         "if": {
           "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.subfolder.hover.rim-direction",
+    "label": "Rim fade direction *Which direction the rim fades around the folder. Follow gradient uses this state's fill direction.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow gradient",
+        "value": 0
+      },
+      {
+        "label": "Left to right",
+        "value": 1
+      },
+      {
+        "label": "Right to left",
+        "value": 2
+      },
+      {
+        "label": "Top to bottom",
+        "value": 3
+      },
+      {
+        "label": "Bottom to top",
+        "value": 4
+      },
+      {
+        "label": "Diagonal (down-right)",
+        "value": 5
+      },
+      {
+        "label": "Diagonal (up-left)",
+        "value": 6
+      },
+      {
+        "label": "Diagonal (up-right)",
+        "value": 7
+      },
+      {
+        "label": "Diagonal (down-left)",
+        "value": 8
+      }
+    ],
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.hover.rim",
+          "value": true
+        }
+      }
+    ],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.subfolder.hover.rim-reach",
+    "label": "Rim fade reach *Percentage of the header at which the rim disappears. Higher values carry the rim farther around the folder.*",
+    "defaultValue": "60%",
+    "placeholder": "60%",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.enabled",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.states",
+          "value": true
+        }
+      },
+      {
+        "if": {
+          "property": "zzgroup.subfolder.hover.rim",
           "value": true
         }
       }

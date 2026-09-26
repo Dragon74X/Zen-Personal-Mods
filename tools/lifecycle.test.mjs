@@ -1028,17 +1028,24 @@ test("Groupflow container accent counts descendants, resolves ties and clears mi
   a.setAttribute("usercontextid", "1");
   b.setAttribute("usercontextid", "2"); c.setAttribute("usercontextid", "2");
   const styles = new Map();
+  const colours = { 1: "#00f", 2: "#f00" };
   const g = { ...element(), tabs: [a, b, c], style: {
     setProperty: (k, v) => styles.set(k, v), getPropertyValue: k => styles.get(k) || "",
     removeProperty: k => styles.delete(k) } };
   const h = await load("groupflow", "refreshGroup", { window: {}, gBrowser: {},
     Services: { prefs: { getIntPref: k => k === "zzgroup.color-source" ? 3 : 0,
       getBoolPref: () => false, getStringPref: (_k, d) => d } },
-    getComputedStyle: t => ({ getPropertyValue: () => ({ 1: "#00f", 2: "#f00" })[t.getAttribute("usercontextid")] || "" }),
+    getComputedStyle: t => ({ color: "#123456", getPropertyValue: () => colours[t.getAttribute("usercontextid")] || "" }),
     CSS: { supports: (_p, v) => /^#[0-9a-f]+$/i.test(v) },
   });
   h.refreshGroup(g); assert.equal(styles.get("--zzgf-container-color"), "#f00");
   g.tabs = [a, b]; h.refreshGroup(g); assert.equal(styles.get("--zzgf-container-color"), "#00f");
+  colours[1] = "currentColor";
+  h.refreshGroup(g); assert.equal(styles.get("--zzgf-container-color"), "#123456", "gray uses the tab foreground, not the folder label");
+  g.tagName = "zen-folder"; g.isZenFolder = true;
+  styles.delete("--zzgf-icon");
+  h.refreshGroup(g); assert.equal(styles.get("--zzgf-container-color"), "#123456");
+  assert.ok(!styles.has("--zzgf-icon"), "native folders retain their own icons");
   a.setAttribute("usercontextid", "0"); h.refreshGroup(g); assert.ok(!styles.has("--zzgf-container-color"));
   g.tabs = []; h.refreshGroup(g); assert.ok(!styles.has("--zzgf-container-color"));
 });

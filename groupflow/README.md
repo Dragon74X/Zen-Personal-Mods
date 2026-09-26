@@ -52,20 +52,26 @@ Subfolder state labels can override that shared setting.
 
 ## Subfolder states
 
-**Separate subfolder styling** enables 3 profiles for nested group headers:
+**Separate folder state styling** enables 3 profiles for nested group headers.
+**Apply profiles to main folders too** applies them to top-level groups and native Zen folder
+headers too, while retaining native folder controls and connectors:
 
-- **Active:** contains the selected tab, including deeper subfolders. Takes priority over hover.
-- **Hovered:** inactive header under the pointer. Hovering a tab or subfolder body does not highlight its ancestors.
+- **Hovered:** header under the pointer, including an active folder. Takes priority over active. Hovering a tab or subfolder body does not highlight its ancestors.
+- **Active:** contains the selected tab, including deeper subfolders, while its header is not hovered.
 - **Inactive:** neither active nor hovered.
 
 Each profile controls tint, background opacity, gradient direction, end mode,
-end tint, spread, sheen, rim, glow, blur, blur radius and label colour.
+end tint, spread, sheen, rim, rim fade direction and reach, glow, blur, blur radius
+and label colour. Rim direction can follow the fill or fade independently toward
+any side or diagonal; its mask leaves the fill and connectors unchanged.
 Defaults retain the group's saved ATG colour or complete gradient. Without a
 saved gradient, all 3 states start at 25% tint, fading left to right to transparent
 at 50% of the header. Sheen, rim, glow and blur start off. Folder colours do not
 inherit Glassflow's darkening; selecting **Glassflow accent** enables that source.
-Choose another **Gradient end** mode to replace a saved gradient with the tint,
-direction and spread controls. Other state controls also apply to saved gradients.
+Tint also adjusts saved gradients: 25% retains their original strength, 0% removes
+the fill, and higher values strengthen it without changing its colours or shape.
+Choose another **Gradient end** mode to replace the saved shape with the direction
+and spread controls. Background opacity scales the fill and glass effects together.
 Background opacity leaves text and icons unchanged. Shared collapsed dimming
 still applies to inactive collapsed headers. Colour source, icon settings,
 roundness and connector geometry remain shared.
@@ -76,8 +82,9 @@ Squircle, Square and Auto choices remain available.
 
 Optional effects reuse Glassflow's shared sheen, rim colours, glass intensity and
 filter tokens, with fallbacks when Glassflow is absent. Top-level groups use the
-same 25% starting tint; native `zen-folder` styling is unchanged. Turning the
-subfolder switch off uses the shared Header/States settings.
+same 25% starting tint. Main groups and native folders join the state profiles
+only when **Apply profiles to main folders too** is enabled. Turning the subfolder switch off
+uses the shared Header/States settings and restores native folder styling.
 When replacing a saved ATG gradient, tint controls use its first valid colour stop;
 an invalid colour falls back to the theme accent. Updating from 1.44.0 migrates
 unchanged state profiles once. Edited profiles retain all their values.
@@ -130,7 +137,9 @@ and `python tools/zen-routing-smoke.py --zen /path/to/zen`.
 and glass blur. The accent uses the group's own colour by default. **Tab container
 colour** uses the most common container across all member tabs, including nested
 groups; ties use the first encountered tied container. It reads Firefox's container
-colour and follows container-colour edits. Empty groups and a majority of
+colour and follows container-colour edits. Select **Accent source → Tab container
+colour** to enable inheritance; **Group's own color** intentionally retains the saved
+folder palette. Empty groups and a majority of
 non-container tabs fall back to the group colour. Glassflow accent and Custom
 apply one colour across groups. Saved ATG gradients apply only with **Group's own
 color**, so they cannot override a selected container or custom accent.
@@ -146,8 +155,11 @@ caps, sheen, rim, glow, shadow and blur; plus per-tab and per-subgroup
 membership marks with their own shading, glow, shadow, size and opacity.
 Headers can shrink per depth level.
 
-Zen folder styling is untouched — `zen-folder` is a different element and Folder
-Tree Connectors owns it. Split-view groups are excluded throughout.
+Native Zen folder headers are styled only with **Apply profiles to main folders too** enabled.
+Their icons, controls and Folder Tree Connectors remain native. Split-view groups
+are excluded throughout. In the narrow icon-only sidebar, group labels and nesting
+insets are suppressed so icons, close buttons and header click targets stay inside
+the sidebar. Expanded docked and compact sidebars retain the full folder layout.
 
 ## Favicons as group icons
 

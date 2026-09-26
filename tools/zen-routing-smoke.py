@@ -153,31 +153,36 @@ def check_subfolder_styles(m):
     profiles = {
         "inactive": {"tint": "31%", "opacity": "0.32", "direction": 1, "end-mode": 0,
                      "end-tint": "41%", "spread": "53%", "sheen": False, "rim": False,
-                     "glow": False, "blur": False, "blur-radius": "4px", "label-color": "#a1b2c3"},
+                     "glow": False, "blur": False, "blur-radius": "4px", "label-color": "#a1b2c3",
+                     "rim-direction": 1, "rim-reach": "42%"},
         "hover": {"tint": "47%", "opacity": "0.54", "direction": 4, "end-mode": 1,
                   "end-tint": "23%", "spread": "79%", "sheen": True, "rim": True,
-                  "glow": True, "blur": True, "blur-radius": "7px", "label-color": "#b2c3d4"},
+                  "glow": True, "blur": True, "blur-radius": "7px", "label-color": "#b2c3d4",
+                  "rim-direction": 2, "rim-reach": "67%"},
         "active": {"tint": "63%", "opacity": "0.76", "direction": 3, "end-mode": 3,
                    "end-tint": "35%", "spread": "91%", "sheen": False, "rim": True,
-                   "glow": False, "blur": True, "blur-radius": "11px", "label-color": "#c3d4e5"},
+                   "glow": False, "blur": True, "blur-radius": "11px", "label-color": "#c3d4e5",
+                   "rim-direction": 4, "rim-reach": "83%"},
     }
     baseline = m.script("return (async()=>{" + HELPERS + """
       const outside=add('about:blank'),selected=gBrowser.selectedTab;
       gBrowser.selectedTab=outside;await pause(250);
       const read=g=>{
         const h=g.labelContainerElement,s=getComputedStyle(h),p=getComputedStyle(h,'::before');
+        const rim=h.querySelector('.zzgf-rim'),rs=rim&&getComputedStyle(rim);
         return {tokens:Object.fromEntries(['--zzgf-accent','--zzgf-raw','--tab-group-color',
             '--zzgf-state-a','--zzgf-state-b','--zzgf-state-dir','--zzgf-state-spread','--zzgf-state-sheen']
             .map(k=>[k,s.getPropertyValue(k)])),background:s.backgroundImage,paint:p.backgroundImage,opacity:p.opacity,
           shadow:p.boxShadow,blur:p.backdropFilter,width:parseFloat(p.width),
+          rim:rs?{display:rs.display,mask:rs.maskImage,shadow:rs.boxShadow}:null,
           label:getComputedStyle(g.labelElement).color,
           labelOpacity:getComputedStyle(g.labelElement).opacity,headerOpacity:s.opacity};
       };
-      const ownGradient=(g,header=false)=>{
+      const ownGradient=(g,header=false,tint='25%')=>{
         const probe=document.createElement('span');
         const raw=getComputedStyle(g).getPropertyValue('--zzgf-raw');
         const end=header?`color-mix(in srgb,${raw} 0%,transparent)`:'transparent';
-        probe.style.backgroundImage=`linear-gradient(to right,color-mix(in srgb,${raw} 25%,transparent) 0%,${end} 50%)`;
+        probe.style.backgroundImage=`linear-gradient(to right,color-mix(in srgb,${raw} ${tint},transparent) 0%,${end} 50%)`;
         document.documentElement.append(probe);
         const expected=getComputedStyle(probe).backgroundImage;probe.remove();return expected;
       };
@@ -193,13 +198,16 @@ def check_subfolder_styles(m):
       }
       window.subfolderStyleFixture={outside,selected,read,baseline,prefs,nativeFolder,ownGradient,
         source:Services.prefs.getIntPref('zzgroup.color-source'),
+        scope:Services.prefs.getBoolPref('zzgroup.subfolder.include-folders',false),
         tone:document.documentElement.style.getPropertyValue('--zzg-tone'),
         tonePriority:document.documentElement.style.getPropertyPriority('--zzg-tone')};
       Services.prefs.setBoolPref('zzgroup.subfolder.states',true);await pause(100);
       const current={root:read(group('Root')),folder:read(nativeFolder)};
-      return {untouched:JSON.stringify(current.root)===JSON.stringify(baseline.root) &&
-        JSON.stringify(current.folder)===JSON.stringify(baseline.folder),
+      const visible=({tokens,rim,...paint})=>({...paint,rim:rim?.display==='none'?null:rim});
+      return {untouched:JSON.stringify(visible(current.root))===JSON.stringify(visible(baseline.root)) &&
+        JSON.stringify(visible(current.folder))===JSON.stringify(visible(baseline.folder)),
         labelOpacity:baseline.child.labelOpacity,headerOpacity:baseline.child.headerOpacity,
+        folderLabelOpacity:baseline.folder.labelOpacity,folderHeaderOpacity:baseline.folder.headerOpacity,
         savedImage:baseline.child.background,rootImage:ownGradient(group('Root'),true),plainImage:ownGradient(group('Grandchild'))};
     })();""")
     assert baseline['untouched'], 'Subfolder states changed a root or native folder'
@@ -219,14 +227,17 @@ def check_subfolder_styles(m):
           return Object.fromEntries(['Root','Child','Grandchild'].map(name=>[name,subfolderStyleFixture.read(group(name))]));
         })();""")
 
-    def matches(value, state):
+    def matches(value, state, native=False):
         p = profiles[state]
         colour = {"inactive": "rgb(161, 178, 195)", "hover": "rgb(178, 195, 212)", "active": "rgb(195, 212, 229)"}[state]
         direction = {"inactive": "to left", "hover": "135deg", "active": "to top"}[state]
         assert value['label'] == colour, (state, value)
-        assert value['opacity'] == p['opacity'] and value['headerOpacity'] == baseline['headerOpacity'] and value['labelOpacity'] == baseline['labelOpacity'], (state, value)
+        opacity_keys = ('folderHeaderOpacity', 'folderLabelOpacity') if native else ('headerOpacity', 'labelOpacity')
+        assert value['opacity'] == p['opacity'] and value['headerOpacity'] == baseline[opacity_keys[0]] and value['labelOpacity'] == baseline[opacity_keys[1]], (state, value)
         assert value['width'] > 0 and direction in value['paint'] and p['spread'] in value['paint'], (state, value)
         assert value['blur'] == (f"blur({p['blur-radius']})" if p['blur'] else 'none'), (state, value)
+        rim_direction = {"inactive": "to right", "hover": "to left", "active": "to top"}[state]
+        assert value['rim'] and rim_direction in value['rim']['mask'] and p['rim-reach'] in value['rim']['mask'], (state, value)
 
     try:
         # Defaults retain each folder's own palette across all three states.
@@ -247,12 +258,56 @@ def check_subfolder_styles(m):
         toned = point('Grandchild')
         assert all(toned[name][prop] == default_active[name][prop]
                    for name, prop in [('Root', 'background'), ('Child', 'paint'), ('Grandchild', 'paint')]), toned
+        saved_tint = m.script("return (async()=>{" + HELPERS + """
+          const f=subfolderStyleFixture,h=group('Child').labelContainerElement;
+          const canvas=document.createElementNS('http://www.w3.org/1999/xhtml','canvas');
+          canvas.width=canvas.height=1;const ctx=canvas.getContext('2d');
+          const stops=(state=true)=>{
+            const image=getComputedStyle(h,state?'::before':null).backgroundImage;
+            const colors=image.match(/(?:rgba?|color)\\([^()]*\\)/g)||[];
+            return colors.map(color=>{
+              ctx.clearRect(0,0,1,1);ctx.fillStyle=color;ctx.fillRect(0,0,1,1);
+              return [...ctx.getImageData(0,0,1,1).data];
+            });
+          };
+          const normal=stops(),values=[];
+          for(const tint of ['0%','12.5%','50%']) {
+            for(const state of ['active','inactive','hover'])
+              Services.prefs.setStringPref('zzgroup.subfolder.'+state+'.tint',tint);
+            await pause(100);values.push(stops());
+          }
+          for(const state of ['active','inactive','hover'])
+            Services.prefs.setStringPref('zzgroup.subfolder.'+state+'.tint','25%');
+          const shared=['zzgroup.header-tint','zzgroup.active-tint'].map(k=>[k,Services.prefs.getStringPref(k)]);
+          let sharedHalf;
+          try {
+            Services.prefs.setBoolPref('zzgroup.subfolder.states',false);
+            for(const [key] of shared) Services.prefs.setStringPref(key,'12.5%');
+            await pause(100);sharedHalf=stops(false);
+          } finally {
+            for(const [key,value] of shared) Services.prefs.setStringPref(key,value);
+            Services.prefs.setBoolPref('zzgroup.subfolder.states',true);
+          }
+          return {normal,clear:values[0],half:values[1],strong:values[2],sharedHalf};
+        })();""")
+        assert len(saved_tint['normal']) >= 2 and all(c[3] == 0 for c in saved_tint['clear']), saved_tint
+        assert all(abs(a[i]-b[i]) <= 1 for a, b in zip(saved_tint['normal'], saved_tint['strong']) for i in range(3)), saved_tint
+        assert all(abs(b[3]-a[3]/2) <= 1 for a, b in zip(saved_tint['normal'], saved_tint['half'])), saved_tint
+        assert saved_tint['sharedHalf'] == saved_tint['half'], saved_tint
+        assert all(abs(b[3]-min(255,a[3]*2)) <= 1 for a, b in zip(saved_tint['normal'], saved_tint['strong'])), saved_tint
         container_image = m.script("return (async()=>{" + HELPERS + """
           Services.prefs.setIntPref('zzgroup.color-source',3);Groupflow.refresh();await pause(100);
           return subfolderStyleFixture.ownGradient(group('Child'));
         })();""")
         container = point('Child')
         assert normalize(container['Child']['paint']) == container_image and container_image != normalize(baseline['savedImage']), container
+        stronger_image = m.script("return (async()=>{" + HELPERS + """
+          for(const state of ['active','inactive','hover'])
+            Services.prefs.setStringPref('zzgroup.subfolder.'+state+'.tint','73%');
+          await pause(100);return subfolderStyleFixture.ownGradient(group('Child'),false,'73%');
+        })();""")
+        stronger = point('Child')
+        assert normalize(stronger['Child']['paint']) == stronger_image and stronger_image != container_image, stronger
         m.script("""const f=subfolderStyleFixture;
           Services.prefs.setIntPref('zzgroup.color-source',f.source);Groupflow.refresh();
           document.documentElement.style.setProperty('--zzg-tone',f.tone,f.tonePriority);
@@ -269,11 +324,36 @@ def check_subfolder_styles(m):
         matches(descendant_hover['Child'], 'inactive')
         matches(descendant_hover['Grandchild'], 'hover')
         m.script(HELPERS + "gBrowser.selectedTab=group('Grandchild').tabs[0];return true;")
-        active = point('Child')
+        active = point()
         matches(active['Child'], 'active')
         matches(active['Grandchild'], 'active')
+        hovered_active = point('Child')
+        matches(hovered_active['Child'], 'hover')
+        matches(hovered_active['Grandchild'], 'active')
+        point()
         assert len({inactive['paint'], hover['Child']['paint'], active['Child']['paint']}) == 3
-        assert len({inactive['shadow'], hover['Child']['shadow'], active['Child']['shadow']}) == 3
+        assert inactive['shadow'] != hover['Child']['shadow'], hover
+        scope = m.script("return (async()=>{" + HELPERS + """
+          Services.prefs.setBoolPref('zzgroup.subfolder.include-folders',true);
+          const f=subfolderStyleFixture;
+          await until(()=>f.nativeFolder.labelContainerElement.querySelector('.zzgf-rim'));
+          return {root:f.read(group('Root')),folder:f.read(f.nativeFolder)};
+        })();""")
+        matches(scope['root'], 'active')
+        matches(scope['folder'], 'inactive', native=True)
+        assert m.script("return (async()=>{" + HELPERS + """
+          const f=subfolderStyleFixture,tab=add('about:blank',2);
+          try {
+            f.nativeFolder.addTabs([tab]);
+            Services.prefs.setIntPref('zzgroup.color-source',3);Groupflow.refresh();await pause(100);
+            const expected=getComputedStyle(tab).getPropertyValue('--identity-tab-color').trim();
+            return !!expected && getComputedStyle(f.nativeFolder).getPropertyValue('--zzgf-raw').trim()===expected &&
+              f.read(f.nativeFolder).paint.includes('linear-gradient');
+          } finally {
+            gBrowser.removeTab(tab);Services.prefs.setIntPref('zzgroup.color-source',f.source);Groupflow.refresh();
+          }
+        })();"""), 'Native folder state profile did not inherit its tab container color'
+        m.script("Services.prefs.setBoolPref('zzgroup.subfolder.include-folders',false);return true;")
         assert m.script("return (async()=>{" + HELPERS + """
           const original=Services.prefs.getStringPref('zzgroup.label.color');
           try {
@@ -287,14 +367,17 @@ def check_subfolder_styles(m):
         m.script("gBrowser.selectedTab=subfolderStyleFixture.outside;Services.prefs.setBoolPref('zzgroup.subfolder.states',false);return true;")
         point()
         assert m.script(HELPERS + "return JSON.stringify(subfolderStyleFixture.read(group('Child')))===JSON.stringify(subfolderStyleFixture.baseline.child);"), 'Disabling subfolder states did not restore legacy styling'
-        return {"subfolderStateStyles": True, "subfolderActivePrecedence": True,
+        return {"subfolderStateStyles": True, "subfolderHoverPrecedence": True,
                 "subfolderHoverIsolation": True, "subfolderLegacyFallback": True, "subfolderDefaultForeground": True,
                 "subfolderDefaultPalette": True, "subfolderSavedGradientStates": True,
-                "folderToneIndependent": True, "subfolderContainerOverride": True}
+                "folderToneIndependent": True, "subfolderContainerOverride": True,
+                "subfolderTintStrength": True, "savedGradientTint": True, "nativeFolderContainer": True,
+                "folderStateScope": True, "directionalFolderRim": True}
     finally:
         m.script("""const f=window.subfolderStyleFixture;
           Services.prefs.setBoolPref('zzgroup.subfolder.states',false);
           Services.prefs.setIntPref('zzgroup.color-source',f.source);
+          Services.prefs.setBoolPref('zzgroup.subfolder.include-folders',f.scope);
           document.documentElement.style.setProperty('--zzg-tone',f.tone,f.tonePriority);
           for(const [key,type,had,value] of f.prefs) {
             if(had) Services.prefs['set'+type+'Pref'](key,value);else Services.prefs.clearUserPref(key);
@@ -302,6 +385,60 @@ def check_subfolder_styles(m):
           gBrowser.selectedTab=f.selected;gBrowser.removeTab(f.outside);
           delete window.subfolderStyleFixture;return true;
         """)
+
+
+def check_sidebar_modes(m, atg):
+    original = m.script("""return {compact:gZenCompactModeManager.preference,
+      expanded:Services.prefs.getBoolPref('zen.view.sidebar-expanded'),
+      selected:gBrowser.selectedTab.id};""")
+    try:
+        # Compact auto-hide and the narrower icon-only sidebar are independent
+        # Zen modes. Drive both through Zen's own manager and pref observer.
+        for compact, expanded in [(False, True), (True, True), (False, False), (True, False)]:
+            layout = m.script("return (async()=>{" + HELPERS + """
+              const compact=""" + json.dumps(compact) + ",expanded=" + json.dumps(expanded) + """;
+              Services.prefs.setBoolPref('zen.view.sidebar-expanded',expanded);
+              gZenCompactModeManager.preference=compact;
+              document.getElementById('navigator-toolbox').setAttribute('zen-user-show','true');
+              gBrowser.selectedTab=group('Root').tabs[0];
+              for(const name of ['Root','Child','Grandchild']) group(name).collapsed=false;
+              await pause(500);
+              const toolbox=document.getElementById('navigator-toolbox').getBoundingClientRect();
+              return ['Root','Child','Grandchild'].map(name=>{
+                const g=group(name),h=g.labelContainerElement,r=h.getBoundingClientRect();
+                const label=g.labelElement,ls=getComputedStyle(label),lr=label.getBoundingClientRect();
+                return {name,width:r.width,height:r.height,inside:r.left>=toolbox.left-1 && r.right<=toolbox.right+1,
+                  labelFits:expanded?lr.width>30:ls.visibility==='hidden'||ls.display==='none'||parseFloat(ls.fontSize)===0,
+                  x:Math.round(r.x+(expanded?r.width/2:3)),y:Math.round(r.y+r.height/2)};
+              });
+            })();""")
+            assert all(x['width'] > 20 and x['height'] >= 30 and x['inside'] and x['labelFits'] for x in layout), (compact, expanded, layout)
+            # Real pointer hit testing catches clipped headers and controls that
+            # synthetic .click() bypasses. A root press keeps the root visible.
+            target = layout[0]
+            for folded in (True, False):
+                m.call('WebDriver:PerformActions', {'actions': [{'type': 'pointer', 'id': 'mouse',
+                    'parameters': {'pointerType': 'mouse'}, 'actions': [
+                        {'type': 'pointerMove', 'duration': 0, 'x': target['x'], 'y': target['y']},
+                        {'type': 'pointerDown', 'button': 0}, {'type': 'pointerUp', 'button': 0}]}]})
+                value = m.script("return (async()=>{" + HELPERS + """
+                  await pause(100);return {root:group('Root').collapsed,child:group('Child').collapsed};
+                })();""")
+                assert value == {'root': False, 'child': folded}, (compact, expanded, value)
+            if not atg:
+                assert m.script(HELPERS + """
+                  const h=group('Root').labelContainerElement;
+                  const a=h.querySelector('.zzgf-icon').getBoundingClientRect(),b=h.querySelector('.zzgf-close').getBoundingClientRect();
+                  return Math.abs(a.x-b.x)<1 && Math.abs(a.y-b.y)<1 &&
+                    Math.abs(a.width-b.width)<1 && Math.abs(a.height-b.height)<1;
+                """), ('Close button left the icon slot', compact, expanded)
+        return {"compactSidebar": True, "expandedSidebar": True, "iconOnlySidebar": True}
+    finally:
+        m.script("""const old=""" + json.dumps(original) + """;
+          Services.prefs.setBoolPref('zen.view.sidebar-expanded',old.expanded);
+          gZenCompactModeManager.preference=old.compact;
+          document.getElementById('navigator-toolbox').removeAttribute('zen-user-show');
+          gBrowser.selectedTab=document.getElementById(old.selected);return true;""")
 
 
 def check(m, root, atg, port, first):
@@ -480,6 +617,7 @@ def check(m, root, atg, port, first):
     })();""")
     assert result['labelForeground'], 'Group label colour changed with selection, collapse or accent source'
     result.update(check_subfolder_styles(m))
+    result.update(check_sidebar_modes(m, atg))
     if not atg:
         controls = m.script("return (async()=>{" + HELPERS + """
           await pause(100);

@@ -1,5 +1,5 @@
 /* ============================================================
-   Groupflow v1.0 -- per-state glass theming for tab groups
+   Groupflow -- per-state glass theming for tab groups
 
    Reuses Glassflow's root sheen, rim, intensity and filter tokens.
    Per-tab state tokens do not propagate into sibling group headers.
@@ -10,8 +10,8 @@
    plain source order wins here -- overrides need no !important
    escalation unless the other mod used !important itself.
 
-   Scope: tab-group elements only. zen-folder is a different tag and
-   is deliberately untouched -- Folder Tree Connectors owns folders.
+   Scope: tab-group elements, with optional state styling for native
+   zen-folder headers. Folder Tree Connectors still owns native folder rails.
    ============================================================ */
 
 @media (-moz-pref("zzgroup.enabled")) {
@@ -217,6 +217,7 @@
 /* ---- header ------------------------------------------------------- */
 
 #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container {
+  --zzgf-saved-tint-factor: calc(var(--zzgroup-header-tint, 25%) * 4);
   /* The translucent header needs toolbar foreground, not native colour-pill text. */
   color: var(--toolbar-color, var(--toolbox-textcolor)) !important;
   /* Neutralize whatever ATG / Arc put here; we import after them, so
@@ -339,7 +340,8 @@
 
 /* The group holding the selected tab. */
 @media (-moz-pref("zzgroup.active.boost")) {
-  #navigator-toolbox tab-group:not([split-view-group]):has(.tabbrowser-tab[selected]) > .tab-group-label-container {
+  #navigator-toolbox tab-group:not([split-view-group]):where(:has(.tabbrowser-tab[selected])) > .tab-group-label-container:not(:hover) {
+    --zzgf-saved-tint-factor: calc(var(--zzgroup-active-tint, 25%) * 4);
     background-image:
       linear-gradient(var(--zzgf-dir),
         color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-active-tint, 25%), transparent) 0%,
@@ -1600,26 +1602,20 @@
 }
 @media (-moz-pref("zzgroup.color-source", 0)) {
   :root #navigator-toolbox tab-group[zzgf-saved-gradient] > .tab-group-label-container {
-    background-image: var(--zzgf-saved-background) !important;
+    background-image: var(--zzgf-saved-tint-background, var(--zzgf-saved-background)) !important;
   }
 }
 :root[zzgf-standalone] #navigator-toolbox tab-group[collapsed]:not([split-view-group]) > .tab-group-container {
   display: none !important;
 }
 
-/* Subfolder profiles paint one background layer. Header-local tokens cannot
-   leak into descendant groups; their headers are siblings of the tab bodies. */
+/* State tokens stay on headers, so a parent's active state cannot leak into
+   its descendants. Native folders and main groups opt into the same profiles. */
 @media (-moz-pref("zzgroup.enabled")) and (-moz-pref("zzgroup.subfolder.states")) {
-  :root #navigator-toolbox :is(tab-group, zen-folder):not([split-view-group]) tab-group:not([split-view-group]) > .tab-group-label-container {
-    position: relative;
-    isolation: isolate;
-    background: none !important;
-    border: none !important;
-    box-shadow: none !important;
-    backdrop-filter: none !important;
-
-    /* Inactive is the baseline. Each override resets all optional effects. */
-    --zzgf-state-a: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-subfolder-inactive-tint, 25%), transparent);
+  :root #navigator-toolbox :is(tab-group, zen-folder):not([split-view-group]) > .tab-group-label-container {
+    /* Inactive is the baseline. Each state resets every optional effect. */
+    --zzgf-state-tint: var(--zzgroup-subfolder-inactive-tint, 25%);
+    --zzgf-state-a: color-mix(in srgb, var(--zzgf-accent) var(--zzgf-state-tint), transparent);
     --zzgf-state-b: transparent;
     --zzgf-state-background: linear-gradient(var(--zzgf-state-dir), var(--zzgf-state-a) 0%, var(--zzgf-state-b) var(--zzgf-state-spread));
     --zzgf-state-dir: to right;
@@ -1629,6 +1625,8 @@
     --zzgf-state-sheen: none;
     --zzgf-state-rim-top: transparent;
     --zzgf-state-rim-all: transparent;
+    --zzgf-state-rim-dir: var(--zzgf-state-dir);
+    --zzgf-state-rim-reach: var(--zzgroup-subfolder-inactive-rim-reach, 60%);
     --zzgf-state-glow: 0 0 0 transparent;
     --zzgf-state-blur: none;
     @media (-moz-pref("zzgroup.subfolder.inactive.direction", 1)) { --zzgf-state-dir: to left; }
@@ -1642,51 +1640,24 @@
     @media (-moz-pref("zzgroup.subfolder.inactive.end-mode", 2)) { --zzgf-state-b: color-mix(in srgb, var(--zzg-second, #1b1b2b) var(--zzgroup-subfolder-inactive-end-tint, 0%), transparent); }
     @media (-moz-pref("zzgroup.subfolder.inactive.end-mode", 3)) { --zzgf-state-b: var(--zzgf-state-a); }
     @media (-moz-pref("zzgroup.subfolder.inactive.end-mode", 4)) and (-moz-pref("zzgroup.color-source", 0)) {
-      --zzgf-state-background: var(--zzgf-saved-background, linear-gradient(var(--zzgf-state-dir), var(--zzgf-state-a) 0%, var(--zzgf-state-b) var(--zzgf-state-spread)));
+      --zzgf-state-background: var(--zzgf-saved-tint-background, var(--zzgf-saved-background, linear-gradient(var(--zzgf-state-dir), var(--zzgf-state-a) 0%, var(--zzgf-state-b) var(--zzgf-state-spread))));
     }
     @media (-moz-pref("zzgroup.subfolder.inactive.sheen")) { --zzgf-state-sheen: var(--zzgf-sheen); }
     @media (-moz-pref("zzgroup.subfolder.inactive.rim")) { --zzgf-state-rim-top: var(--zzgf-rim-top); --zzgf-state-rim-all: var(--zzgf-rim-all); }
+    @media (-moz-pref("zzgroup.subfolder.inactive.rim-direction", 1)) { --zzgf-state-rim-dir: to right; }
+    @media (-moz-pref("zzgroup.subfolder.inactive.rim-direction", 2)) { --zzgf-state-rim-dir: to left; }
+    @media (-moz-pref("zzgroup.subfolder.inactive.rim-direction", 3)) { --zzgf-state-rim-dir: to bottom; }
+    @media (-moz-pref("zzgroup.subfolder.inactive.rim-direction", 4)) { --zzgf-state-rim-dir: to top; }
+    @media (-moz-pref("zzgroup.subfolder.inactive.rim-direction", 5)) { --zzgf-state-rim-dir: 135deg; }
+    @media (-moz-pref("zzgroup.subfolder.inactive.rim-direction", 6)) { --zzgf-state-rim-dir: 315deg; }
+    @media (-moz-pref("zzgroup.subfolder.inactive.rim-direction", 7)) { --zzgf-state-rim-dir: 45deg; }
+    @media (-moz-pref("zzgroup.subfolder.inactive.rim-direction", 8)) { --zzgf-state-rim-dir: 225deg; }
     @media (-moz-pref("zzgroup.subfolder.inactive.glow")) { --zzgf-state-glow: 0 2px 12px color-mix(in srgb, var(--zzgf-accent) 35%, transparent); }
     @media (-moz-pref("zzgroup.subfolder.inactive.blur")) { --zzgf-state-blur: blur(var(--zzgroup-subfolder-inactive-blur-radius, 20px)) var(--zzgf-fx); }
 
-    /* Hover belongs to this header, never its descendant tabs or headers. */
-    tab-group:not(:has(.tabbrowser-tab:is([selected], [visuallyselected]))) > &:hover {
-      --zzgf-state-a: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-subfolder-hover-tint, 25%), transparent);
-      --zzgf-state-b: transparent;
-      --zzgf-state-background: linear-gradient(var(--zzgf-state-dir), var(--zzgf-state-a) 0%, var(--zzgf-state-b) var(--zzgf-state-spread));
-      --zzgf-state-dir: to right;
-      --zzgf-state-spread: var(--zzgroup-subfolder-hover-spread, 50%);
-      --zzgf-state-opacity: var(--zzgroup-subfolder-hover-opacity, 1);
-      --zzgf-state-label-color: var(--zzgroup-subfolder-hover-label-color, var(--zzgroup-label-color, inherit));
-      --zzgf-state-sheen: none;
-      --zzgf-state-rim-top: transparent;
-      --zzgf-state-rim-all: transparent;
-      --zzgf-state-glow: 0 0 0 transparent;
-      --zzgf-state-blur: none;
-      @media (-moz-pref("zzgroup.subfolder.hover.direction", 1)) { --zzgf-state-dir: to left; }
-      @media (-moz-pref("zzgroup.subfolder.hover.direction", 2)) { --zzgf-state-dir: to bottom; }
-      @media (-moz-pref("zzgroup.subfolder.hover.direction", 3)) { --zzgf-state-dir: to top; }
-      @media (-moz-pref("zzgroup.subfolder.hover.direction", 4)) { --zzgf-state-dir: 135deg; }
-      @media (-moz-pref("zzgroup.subfolder.hover.direction", 5)) { --zzgf-state-dir: 315deg; }
-      @media (-moz-pref("zzgroup.subfolder.hover.direction", 6)) { --zzgf-state-dir: 45deg; }
-      @media (-moz-pref("zzgroup.subfolder.hover.direction", 7)) { --zzgf-state-dir: 225deg; }
-      @media (-moz-pref("zzgroup.subfolder.hover.end-mode", 1)) { --zzgf-state-b: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-subfolder-hover-end-tint, 0%), transparent); }
-      @media (-moz-pref("zzgroup.subfolder.hover.end-mode", 2)) { --zzgf-state-b: color-mix(in srgb, var(--zzg-second, #1b1b2b) var(--zzgroup-subfolder-hover-end-tint, 0%), transparent); }
-      @media (-moz-pref("zzgroup.subfolder.hover.end-mode", 3)) { --zzgf-state-b: var(--zzgf-state-a); }
-      @media (-moz-pref("zzgroup.subfolder.hover.end-mode", 4)) and (-moz-pref("zzgroup.color-source", 0)) {
-        --zzgf-state-background: var(--zzgf-saved-background, linear-gradient(var(--zzgf-state-dir), var(--zzgf-state-a) 0%, var(--zzgf-state-b) var(--zzgf-state-spread)));
-      }
-      @media (-moz-pref("zzgroup.subfolder.hover.sheen")) { --zzgf-state-sheen: var(--zzgf-sheen); }
-      @media (-moz-pref("zzgroup.subfolder.hover.rim")) { --zzgf-state-rim-top: var(--zzgf-rim-top); --zzgf-state-rim-all: var(--zzgf-rim-all); }
-      @media (-moz-pref("zzgroup.subfolder.hover.glow")) { --zzgf-state-glow: 0 2px 12px color-mix(in srgb, var(--zzgf-accent) 35%, transparent); }
-      @media (-moz-pref("zzgroup.subfolder.hover.blur")) { --zzgf-state-blur: blur(var(--zzgroup-subfolder-hover-blur-radius, 20px)) var(--zzgf-fx); }
-    }
-
-    /* Every ancestor of the selected tab retains the active breadcrumb. */
-    tab-group:has(.tabbrowser-tab:is([selected], [visuallyselected])) > & {
-      opacity: 1 !important;
-      filter: none !important;
-      --zzgf-state-a: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-subfolder-active-tint, 25%), transparent);
+    :is(tab-group, zen-folder):has(.tabbrowser-tab:is([selected], [visuallyselected])) > &:not(:hover) {
+      --zzgf-state-tint: var(--zzgroup-subfolder-active-tint, 25%);
+      --zzgf-state-a: color-mix(in srgb, var(--zzgf-accent) var(--zzgf-state-tint), transparent);
       --zzgf-state-b: transparent;
       --zzgf-state-background: linear-gradient(var(--zzgf-state-dir), var(--zzgf-state-a) 0%, var(--zzgf-state-b) var(--zzgf-state-spread));
       --zzgf-state-dir: to right;
@@ -1696,6 +1667,8 @@
       --zzgf-state-sheen: none;
       --zzgf-state-rim-top: transparent;
       --zzgf-state-rim-all: transparent;
+      --zzgf-state-rim-dir: var(--zzgf-state-dir);
+      --zzgf-state-rim-reach: var(--zzgroup-subfolder-active-rim-reach, 60%);
       --zzgf-state-glow: 0 0 0 transparent;
       --zzgf-state-blur: none;
       @media (-moz-pref("zzgroup.subfolder.active.direction", 1)) { --zzgf-state-dir: to left; }
@@ -1709,22 +1682,107 @@
       @media (-moz-pref("zzgroup.subfolder.active.end-mode", 2)) { --zzgf-state-b: color-mix(in srgb, var(--zzg-second, #1b1b2b) var(--zzgroup-subfolder-active-end-tint, 0%), transparent); }
       @media (-moz-pref("zzgroup.subfolder.active.end-mode", 3)) { --zzgf-state-b: var(--zzgf-state-a); }
       @media (-moz-pref("zzgroup.subfolder.active.end-mode", 4)) and (-moz-pref("zzgroup.color-source", 0)) {
-        --zzgf-state-background: var(--zzgf-saved-background, linear-gradient(var(--zzgf-state-dir), var(--zzgf-state-a) 0%, var(--zzgf-state-b) var(--zzgf-state-spread)));
+        --zzgf-state-background: var(--zzgf-saved-tint-background, var(--zzgf-saved-background, linear-gradient(var(--zzgf-state-dir), var(--zzgf-state-a) 0%, var(--zzgf-state-b) var(--zzgf-state-spread))));
       }
       @media (-moz-pref("zzgroup.subfolder.active.sheen")) { --zzgf-state-sheen: var(--zzgf-sheen); }
       @media (-moz-pref("zzgroup.subfolder.active.rim")) { --zzgf-state-rim-top: var(--zzgf-rim-top); --zzgf-state-rim-all: var(--zzgf-rim-all); }
+      @media (-moz-pref("zzgroup.subfolder.active.rim-direction", 1)) { --zzgf-state-rim-dir: to right; }
+      @media (-moz-pref("zzgroup.subfolder.active.rim-direction", 2)) { --zzgf-state-rim-dir: to left; }
+      @media (-moz-pref("zzgroup.subfolder.active.rim-direction", 3)) { --zzgf-state-rim-dir: to bottom; }
+      @media (-moz-pref("zzgroup.subfolder.active.rim-direction", 4)) { --zzgf-state-rim-dir: to top; }
+      @media (-moz-pref("zzgroup.subfolder.active.rim-direction", 5)) { --zzgf-state-rim-dir: 135deg; }
+      @media (-moz-pref("zzgroup.subfolder.active.rim-direction", 6)) { --zzgf-state-rim-dir: 315deg; }
+      @media (-moz-pref("zzgroup.subfolder.active.rim-direction", 7)) { --zzgf-state-rim-dir: 45deg; }
+      @media (-moz-pref("zzgroup.subfolder.active.rim-direction", 8)) { --zzgf-state-rim-dir: 225deg; }
       @media (-moz-pref("zzgroup.subfolder.active.glow")) { --zzgf-state-glow: 0 2px 12px color-mix(in srgb, var(--zzgf-accent) 35%, transparent); }
       @media (-moz-pref("zzgroup.subfolder.active.blur")) { --zzgf-state-blur: blur(var(--zzgroup-subfolder-active-blur-radius, 20px)) var(--zzgf-fx); }
+    }
+
+    /* Hover wins over active, and belongs to this header alone. */
+    &:hover {
+      --zzgf-state-tint: var(--zzgroup-subfolder-hover-tint, 25%);
+      --zzgf-state-a: color-mix(in srgb, var(--zzgf-accent) var(--zzgf-state-tint), transparent);
+      --zzgf-state-b: transparent;
+      --zzgf-state-background: linear-gradient(var(--zzgf-state-dir), var(--zzgf-state-a) 0%, var(--zzgf-state-b) var(--zzgf-state-spread));
+      --zzgf-state-dir: to right;
+      --zzgf-state-spread: var(--zzgroup-subfolder-hover-spread, 50%);
+      --zzgf-state-opacity: var(--zzgroup-subfolder-hover-opacity, 1);
+      --zzgf-state-label-color: var(--zzgroup-subfolder-hover-label-color, var(--zzgroup-label-color, inherit));
+      --zzgf-state-sheen: none;
+      --zzgf-state-rim-top: transparent;
+      --zzgf-state-rim-all: transparent;
+      --zzgf-state-rim-dir: var(--zzgf-state-dir);
+      --zzgf-state-rim-reach: var(--zzgroup-subfolder-hover-rim-reach, 60%);
+      --zzgf-state-glow: 0 0 0 transparent;
+      --zzgf-state-blur: none;
+      @media (-moz-pref("zzgroup.subfolder.hover.direction", 1)) { --zzgf-state-dir: to left; }
+      @media (-moz-pref("zzgroup.subfolder.hover.direction", 2)) { --zzgf-state-dir: to bottom; }
+      @media (-moz-pref("zzgroup.subfolder.hover.direction", 3)) { --zzgf-state-dir: to top; }
+      @media (-moz-pref("zzgroup.subfolder.hover.direction", 4)) { --zzgf-state-dir: 135deg; }
+      @media (-moz-pref("zzgroup.subfolder.hover.direction", 5)) { --zzgf-state-dir: 315deg; }
+      @media (-moz-pref("zzgroup.subfolder.hover.direction", 6)) { --zzgf-state-dir: 45deg; }
+      @media (-moz-pref("zzgroup.subfolder.hover.direction", 7)) { --zzgf-state-dir: 225deg; }
+      @media (-moz-pref("zzgroup.subfolder.hover.end-mode", 1)) { --zzgf-state-b: color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-subfolder-hover-end-tint, 0%), transparent); }
+      @media (-moz-pref("zzgroup.subfolder.hover.end-mode", 2)) { --zzgf-state-b: color-mix(in srgb, var(--zzg-second, #1b1b2b) var(--zzgroup-subfolder-hover-end-tint, 0%), transparent); }
+      @media (-moz-pref("zzgroup.subfolder.hover.end-mode", 3)) { --zzgf-state-b: var(--zzgf-state-a); }
+      @media (-moz-pref("zzgroup.subfolder.hover.end-mode", 4)) and (-moz-pref("zzgroup.color-source", 0)) {
+        --zzgf-state-background: var(--zzgf-saved-tint-background, var(--zzgf-saved-background, linear-gradient(var(--zzgf-state-dir), var(--zzgf-state-a) 0%, var(--zzgf-state-b) var(--zzgf-state-spread))));
+      }
+      @media (-moz-pref("zzgroup.subfolder.hover.sheen")) { --zzgf-state-sheen: var(--zzgf-sheen); }
+      @media (-moz-pref("zzgroup.subfolder.hover.rim")) { --zzgf-state-rim-top: var(--zzgf-rim-top); --zzgf-state-rim-all: var(--zzgf-rim-all); }
+      @media (-moz-pref("zzgroup.subfolder.hover.rim-direction", 1)) { --zzgf-state-rim-dir: to right; }
+      @media (-moz-pref("zzgroup.subfolder.hover.rim-direction", 2)) { --zzgf-state-rim-dir: to left; }
+      @media (-moz-pref("zzgroup.subfolder.hover.rim-direction", 3)) { --zzgf-state-rim-dir: to bottom; }
+      @media (-moz-pref("zzgroup.subfolder.hover.rim-direction", 4)) { --zzgf-state-rim-dir: to top; }
+      @media (-moz-pref("zzgroup.subfolder.hover.rim-direction", 5)) { --zzgf-state-rim-dir: 135deg; }
+      @media (-moz-pref("zzgroup.subfolder.hover.rim-direction", 6)) { --zzgf-state-rim-dir: 315deg; }
+      @media (-moz-pref("zzgroup.subfolder.hover.rim-direction", 7)) { --zzgf-state-rim-dir: 45deg; }
+      @media (-moz-pref("zzgroup.subfolder.hover.rim-direction", 8)) { --zzgf-state-rim-dir: 225deg; }
+      @media (-moz-pref("zzgroup.subfolder.hover.glow")) { --zzgf-state-glow: 0 2px 12px color-mix(in srgb, var(--zzgf-accent) 35%, transparent); }
+      @media (-moz-pref("zzgroup.subfolder.hover.blur")) { --zzgf-state-blur: blur(var(--zzgroup-subfolder-hover-blur-radius, 20px)) var(--zzgf-fx); }
+    }
+  }
+
+  :root #navigator-toolbox :is(tab-group, zen-folder):not([split-view-group]) tab-group:not([split-view-group]) > .tab-group-label-container {
+    position: relative;
+    isolation: isolate;
+    --zzgf-saved-tint-factor: calc(var(--zzgf-state-tint) * 4) !important;
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+
+    /* Keep the selected tab's breadcrumb legible, including while hovered. */
+    :is(tab-group, zen-folder):has(.tabbrowser-tab:is([selected], [visuallyselected])) > & {
+      opacity: 1 !important;
+      filter: none !important;
     }
 
     & > .tab-group-label {
       color: var(--zzgf-state-label-color, var(--zzgroup-label-color, inherit)) !important;
     }
 
-    /* Opacity affects glass only; labels and favicon/close controls stay legible.
-       Existing collapsed dimming remains on inactive headers. */
+    /* The fill owns opacity and blur; text and controls remain unchanged. */
     &::before {
-      content: "";
+      content: "" !important;
+      position: absolute !important;
+      inset: 0 !important;
+      width: auto !important;
+      height: auto !important;
+      z-index: -1;
+      pointer-events: none;
+      border-radius: inherit !important;
+      corner-shape: inherit !important;
+      opacity: var(--zzgf-state-opacity);
+      background-color: transparent !important;
+      background-image: var(--zzgf-state-sheen), var(--zzgf-state-background);
+      box-shadow: var(--zzgf-state-glow);
+      backdrop-filter: var(--zzgf-state-blur);
+    }
+
+    /* A separate masked rim leaves the fill and connector fades independent. */
+    & > .zzgf-rim {
+      display: block !important;
       position: absolute;
       inset: 0;
       z-index: -1;
@@ -1732,10 +1790,162 @@
       border-radius: inherit;
       corner-shape: inherit;
       opacity: var(--zzgf-state-opacity);
-      background-image: var(--zzgf-state-sheen), var(--zzgf-state-background);
       box-shadow: inset 0 var(--zzgroup-rim-thickness, 1px) 0 var(--zzgf-state-rim-top),
-        inset 0 0 0 var(--zzgroup-rim-ring-width, 1px) var(--zzgf-state-rim-all), var(--zzgf-state-glow);
-      backdrop-filter: var(--zzgf-state-blur);
+        inset 0 0 0 var(--zzgroup-rim-ring-width, 1px) var(--zzgf-state-rim-all);
+      mask-image: linear-gradient(var(--zzgf-state-rim-dir), black 0%, transparent var(--zzgf-state-rim-reach));
+    }
+  }
+
+  @media (-moz-pref("zzgroup.subfolder.include-folders")) {
+    /* Native folders also need their own palette boundary. Their rails and
+       controls remain native; only the header joins the state profiles. */
+    #navigator-toolbox zen-folder {
+      --zzgf-container-color: initial;
+      --zzgf-group-color: initial;
+      --zzgf-saved-background: initial;
+      --zzgf-raw: var(--zzgf-group-color, var(--zen-primary-color, #7c8cf8));
+      --zzgf-accent: var(--zzgf-raw);
+      @media (-moz-pref("zzgroup.color-source", 1)) {
+        --zzgf-raw: var(--zzg-accent, var(--zen-primary-color, #7c8cf8));
+        --zzgf-accent: color-mix(in srgb, var(--zzgf-raw), black var(--zzg-tone, 25%));
+      }
+      @media (-moz-pref("zzgroup.color-source", 2)) { --zzgf-raw: var(--zzgroup-custom-color, #7c8cf8); }
+      @media (-moz-pref("zzgroup.color-source", 3)) {
+        --zzgf-raw: var(--zzgf-container-color, var(--zzgf-group-color, var(--zen-primary-color, #7c8cf8)));
+      }
+      & > .tab-group-label-container {
+        color: var(--toolbar-color, var(--toolbox-textcolor)) !important;
+        border-radius: var(--zzgf-round) !important;
+        corner-shape: var(--zzgf-corner) !important;
+      }
+    }
+    :root #navigator-toolbox :is(tab-group, zen-folder):not([split-view-group]) > .tab-group-label-container {
+      position: relative;
+      isolation: isolate;
+      --zzgf-saved-tint-factor: calc(var(--zzgf-state-tint) * 4) !important;
+      background: none !important;
+      border: none !important;
+      box-shadow: none !important;
+      backdrop-filter: none !important;
+
+      :is(tab-group, zen-folder):has(.tabbrowser-tab:is([selected], [visuallyselected])) > & {
+        opacity: 1 !important;
+        filter: none !important;
+      }
+
+      & > .tab-group-label {
+        color: var(--zzgf-state-label-color, var(--zzgroup-label-color, inherit)) !important;
+      }
+
+      /* The fill owns opacity and blur; text and controls remain unchanged. */
+      &::before {
+        content: "" !important;
+        position: absolute !important;
+        inset: 0 !important;
+        width: auto !important;
+        height: auto !important;
+        z-index: -1;
+        pointer-events: none;
+        border-radius: inherit !important;
+        corner-shape: inherit !important;
+        opacity: var(--zzgf-state-opacity);
+        background-color: transparent !important;
+        background-image: var(--zzgf-state-sheen), var(--zzgf-state-background);
+        box-shadow: var(--zzgf-state-glow);
+        backdrop-filter: var(--zzgf-state-blur);
+      }
+
+      /* A separate masked rim leaves the fill and connector fades independent. */
+      & > .zzgf-rim {
+        display: block !important;
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
+        border-radius: inherit;
+        corner-shape: inherit;
+        opacity: var(--zzgf-state-opacity);
+        box-shadow: inset 0 var(--zzgroup-rim-thickness, 1px) 0 var(--zzgf-state-rim-top),
+          inset 0 0 0 var(--zzgroup-rim-ring-width, 1px) var(--zzgf-state-rim-all);
+        mask-image: linear-gradient(var(--zzgf-state-rim-dir), black 0%, transparent var(--zzgf-state-rim-reach));
+      }
+    }
+  }
+}
+
+/* Decorative children never participate in header layout. */
+.zzgf-rim { display: none !important; }
+
+/* Icon-only sidebars have one tab-width column, independent of compact mode.
+   Nested rails and text must not force that column wider than the sidebar. */
+@media (-moz-pref("zzgroup.enabled")) {
+  :root:not([zen-sidebar-expanded="true"]) #navigator-toolbox tab-group:not([split-view-group]) {
+    & > .tab-group-container {
+      margin-inline: 0 !important;
+      padding-inline: 0 !important;
+    }
+    & > .tab-group-container::before,
+    & > .tab-group-container::after,
+    & > .tab-group-container > .tabbrowser-tab::after,
+    & > .tab-group-label-container::after {
+      display: none !important;
+    }
+    & > .tab-group-label-container {
+      display: grid !important;
+      grid-template-columns: minmax(0, 1fr);
+      justify-items: center;
+      align-items: center !important;
+      min-width: 0 !important;
+      width: 100% !important;
+      box-sizing: border-box;
+      margin-inline: 0 !important;
+      padding-inline: 0 !important;
+    }
+    & > .tab-group-label-container > .tab-group-label {
+      grid-area: 1 / 1;
+      min-width: 0 !important;
+      width: 100% !important;
+      max-width: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      font-size: 0 !important;
+      line-height: 0 !important;
+      justify-content: center !important;
+      mask-image: none !important;
+    }
+    & > .tab-group-label-container > .tab-group-label::first-letter {
+      font-size: 0 !important;
+    }
+    & > .tab-group-label-container > .tab-group-label::before {
+      margin-inline: 0 !important;
+    }
+    & > .tab-group-label-container > :is(.tab-group-icon-container, .tab-group-folder-button) {
+      display: none !important;
+    }
+    & > .tab-group-label-container > :is(.zzgf-control, .tab-close-button) {
+      grid-area: 1 / 1;
+      position: static !important;
+      align-self: center !important;
+      justify-self: center;
+      width: max(24px, calc(var(--zzgroup-icon-size, 14px) + 8px)) !important;
+      height: max(24px, calc(var(--zzgroup-icon-size, 14px) + 8px)) !important;
+      margin: 0 !important;
+    }
+    & > .tab-group-label-container > .tab-close-button {
+      display: flex !important;
+      visibility: visible !important;
+      padding: 4px !important;
+      opacity: 0;
+      pointer-events: none;
+      background: transparent !important;
+      box-shadow: none !important;
+    }
+    & > .tab-group-label-container:is(:hover, :focus-within) > .tab-close-button {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    & > .tab-group-label-container:is(:hover, :focus-within) > .tab-group-label::before {
+      opacity: 0;
     }
   }
 }

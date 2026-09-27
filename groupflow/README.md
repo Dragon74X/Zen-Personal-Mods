@@ -25,7 +25,7 @@ if you want it off.
 
 After each window restores its session, top-level groups/folders open and all
 nested groups/subfolders fold. This covers `tab-group` and `zen-folder` elements
-across workspaces; split-view groups are excluded. The selected tab remains visible
+across workspaces; split-view groups are excluded. Loaded tabs remain visible
 inside collapsed folders, including through multiple collapsed ancestors.
 
 Folding runs once per window, independently of styling and favicon settings.
@@ -39,12 +39,14 @@ Groupflow also saves parent labels, colours and workspace IDs in `groupflowGroup
 Zen does not recreate plain groups containing only subgroups on its own.
 
 Clicking a top-level group/folder header keeps the parent open and alternates
-between collapsing and expanding all nested subgroups/subfolders. Collapsing keeps
-the selected tab and its ancestor headers visible, while hiding other tabs and
-branches, including loaded background tabs. The next click opens all subfolders.
+between collapsing and expanding all nested subgroups/subfolders. Collapsing hides
+unloaded tabs and keeps all loaded tabs visible. Each folder/subfolder also retains its last selected tab,
+even when unloaded. The next click shows all tabs in all subfolders.
 Nested headers and groups without subfolders still toggle individually.
-Visibility follows selection without opening plain groups. A selected split view
-retains its native row and both member tabs.
+Last-selected order uses Zen's native timestamps, including restored session history.
+History includes descendant tabs.
+If any split-view member remains visible, both member tabs retain their native row.
+Visible tabs and ancestor headers remain available to keyboard navigation.
 Close and reset controls retain their existing actions.
 This works with or without ATG, including when optional group styling is off.
 Collapse changes visibility only; it does not load, unload or close tabs.

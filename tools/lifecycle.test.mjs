@@ -29,7 +29,7 @@ function element() {
     remove() { this.isConnected = false; }, focus() {},
     showModal() { this.open = true; }, close() { this.open = false; },
     getBoundingClientRect: () => ({ left: 0, top: 0, right: 100, bottom: 100 }),
-    fire: k => events.get(k)?.({}),
+    fire: (k, event = {}) => events.get(k)?.(event),
   };
 }
 function browser() {
@@ -1255,6 +1255,135 @@ test("Groupflow leaves nested and leaf headers, controls and other mouse buttons
   }
 });
 
+async function collapsedVisibilityEnv() {
+  const tabs = [], groups = [], microtasks = [], w = element();
+  let observer, invalidations = 0;
+  const workspace = { hasCollapsedPinnedTabs: false, collapsiblePins: { activeTabs: [] } };
+  const groupMatches = (group, selector) => selector.split(", ").some(part =>
+    part.startsWith(group.tagName) && (!part.includes("[collapsed]") || group.collapsed) &&
+    (!part.includes(":not([split-view-group])") || !group.hasAttribute("split-view-group")));
+  class Group {
+    constructor(parent = null, folder = false) {
+      Object.assign(this, element(), { group: parent, tagName: folder ? "zen-folder" : "tab-group" });
+      this.parentElement = { closest: selector => this.group?.closest(selector) ?? null };
+      groups.push(this);
+    }
+    get tabs() { return tabs.filter(tab => { for (let g = tab.group; g; g = g.group) if (g === this) return true; return false; }); }
+    get collapsed() { return this.hasAttribute("collapsed"); }
+    set collapsed(value) { this.toggleAttribute("collapsed", value); }
+    closest(selector) { for (let g = this; g; g = g.group) if (groupMatches(g, selector)) return g; return null; }
+    querySelector(selector) { return this.tabs.find(tab => tab.matches(selector)) ?? null; }
+    get visible() { for (let g = this.group; g; g = g.group) if (g.collapsed) return false; return !(this.pinned && workspace.hasCollapsedPinnedTabs); }
+  }
+  class Tab {
+    constructor(group, lastSeenActive = 0, pending = false) {
+      Object.assign(this, element(), { group, lastSeenActive, tagName: "tab" });
+      this.toggleAttribute("pending", pending); tabs.push(this);
+    }
+    get selected() { return this.hasAttribute("selected"); }
+    get multiselected() { return this.hasAttribute("multiselected"); }
+    get hidden() { return this.hasAttribute("hidden"); }
+    get pinned() { return this.hasAttribute("pinned"); }
+    get isOpen() { return this.isConnected && !this.closing; }
+    closest(selector) { return this.group?.closest(selector) ?? null; }
+    matches(selector) { return selector.startsWith(".tabbrowser-tab") && (!selector.includes("[zzgf-visible]") || this.hasAttribute("zzgf-visible")); }
+    get visible() {
+      if (!this.isOpen || this.hidden || this.hasAttribute("zen-empty-tab")) return false;
+      if (this.selected || this.multiselected) return true;
+      for (let g = this.group; g; g = g.group) if (g.collapsed && !g.activeTabs?.includes(this)) return false;
+      return !(this.pinned && !this.hasAttribute("zen-essential") && workspace.hasCollapsedPinnedTabs &&
+        !workspace.collapsiblePins.activeTabs.includes(this));
+    }
+  }
+  const originals = [Tab, Group].map(type => Object.getOwnPropertyDescriptor(type.prototype, "visible").get);
+  const h = await load("groupflow", "startCollapsedVisibility", {
+    window: w, customElements: { get: name => name === "tabbrowser-tab" ? Tab : Group },
+    document: { querySelectorAll: selector => selector.startsWith(".tabbrowser-tab")
+      ? tabs.filter(tab => tab.matches(selector)) : groups.filter(group => groupMatches(group, selector)) },
+    gBrowser: { tabContainer: { _invalidateCachedVisibleTabs() { invalidations++; } } },
+    gZenWorkspaces: { activeWorkspaceElement: workspace }, queueMicrotask: fn => microtasks.push(fn),
+    MutationObserver: class {
+      constructor(callback) { observer = this; this.callback = callback; }
+      observe() {} disconnect() { this.disconnected = true; }
+    },
+  });
+  return { h, w, tabs, groups, Tab, Group, originals, workspace, microtasks,
+    get observer() { return observer; }, get invalidations() { return invalidations; },
+    flush() { while (microtasks.length) microtasks.shift()(); },
+    changed(tab) { observer.callback([{ target: tab }]); },
+  };
+}
+
+test("Groupflow collapsed folders retain loaded tabs and one last-used tab per subtree", async () => {
+  const e = await collapsedVisibilityEnv(), root = new e.Group(), child = new e.Group(root), sibling = new e.Group(root, true);
+  root.collapsed = child.collapsed = sibling.collapsed = true;
+  const older = new e.Tab(child, 10, true), loaded = new e.Tab(child, 20), last = new e.Tab(child, 30, true);
+  const otherLast = new e.Tab(sibling, 40, true), otherOld = new e.Tab(sibling, 5, true);
+  const direct = new e.Tab(root, 50, true);
+  const cleanup = e.h.startCollapsedVisibility();
+  assert.deepEqual(e.tabs.map(tab => tab.visible), [false, true, true, true, false, true]);
+  assert.deepEqual(e.tabs.map(tab => tab.getAttribute("aria-hidden")), ["true", undefined, undefined, undefined, "true", undefined]);
+  assert.equal(child.visible, true); assert.equal(sibling.visible, true);
+  loaded.setAttribute("pending", "true"); e.changed(loaded); e.flush();
+  assert.equal(loaded.visible, false, "unloading a non-last-used tab hides it");
+  loaded.removeAttribute("pending"); e.changed(loaded); e.flush();
+  assert.equal(loaded.visible, true, "restoring a background tab reveals it");
+  loaded.setAttribute("discarded", "true"); e.changed(loaded); e.flush();
+  assert.equal(loaded.visible, false, "explicit discard remains unloaded without pending");
+  loaded.removeAttribute("discarded"); e.changed(loaded); e.flush();
+  older.setAttribute("selected", "true"); older.lastSeenActive = last.lastSeenActive = 60;
+  e.w.fire("TabSelect", { type: "TabSelect", target: older }); older.removeAttribute("selected");
+  e.w.fire("TabSelect", { type: "TabSelect", target: { group: null } }); e.flush();
+  assert.equal(older.visible, true); assert.equal(last.visible, false, "same-tick select-away retains the selected winner despite equal timestamps");
+  older.group = sibling; e.w.fire("TabGrouped"); e.flush();
+  assert.equal(last.visible, true, "moving the last-used tab recomputes its former group");
+  assert.equal(otherLast.visible, false); assert.equal(older.visible, true);
+  older.closing = true; e.w.fire("TabClose"); e.flush();
+  assert.equal(older.visible, false); assert.equal(otherLast.visible, true, "closing recomputes the destination group");
+  cleanup();
+});
+
+test("Groupflow keeps hidden, closing and placeholder rows excluded while preserving split and pin rules", async () => {
+  const e = await collapsedVisibilityEnv(), root = new e.Group(), child = new e.Group(root), split = new e.Group(root);
+  root.collapsed = true; split.setAttribute("split-view-group", "true");
+  const hidden = new e.Tab(child, 1), closing = new e.Tab(child, 2), empty = new e.Tab(child, 3);
+  const last = new e.Tab(child, 4, true), multi = new e.Tab(child, 0, true);
+  hidden.setAttribute("hidden", "true"); closing.closing = true; empty.setAttribute("zen-empty-tab", "true");
+  multi.setAttribute("multiselected", "true");
+  const member = new e.Tab(split, 5), peer = new e.Tab(split, 0, true);
+  const wrapper = { ...element(), tabs: [member, peer] }; member.splitview = peer.splitview = wrapper;
+  wrapper.setAttribute("aria-hidden", "true");
+  const cleanup = e.h.startCollapsedVisibility();
+  assert.deepEqual([hidden, closing, empty].map(tab => tab.visible), [false, false, false]);
+  assert.equal(last.visible, true); assert.equal(multi.visible, true);
+  assert.equal(member.visible, true); assert.equal(peer.visible, true); assert.equal(wrapper.hasAttribute("aria-hidden"), false);
+  peer.setAttribute("hidden", "true"); e.changed(peer); e.flush();
+  assert.equal(peer.visible, false); assert.equal(member.visible, true);
+  assert.equal(wrapper.hasAttribute("aria-hidden"), false, "hidden split peer cannot hide the visible member from accessibility");
+  last.setAttribute("pinned", "true"); e.workspace.hasCollapsedPinnedTabs = true;
+  assert.equal(last.visible, false, "folder visibility cannot bypass collapsed pinned sections");
+  last.setAttribute("zen-essential", "true"); assert.equal(last.visible, true);
+  last.group = null; assert.equal(last.visible, true, "ungrouped tabs retain native visibility");
+  cleanup();
+});
+
+test("Groupflow coalesces visibility updates and retires queued work, attributes and owned getters", async () => {
+  const e = await collapsedVisibilityEnv(), root = new e.Group(); root.collapsed = true;
+  const tab = new e.Tab(root, 1), cleanup = e.h.startCollapsedVisibility();
+  assert.equal(e.invalidations, 1);
+  e.w.fire("TabSelect"); e.w.fire("TabGroupCollapse"); e.changed(tab);
+  assert.equal(e.microtasks.length, 1); e.flush(); assert.equal(e.invalidations, 2);
+  e.changed(tab); cleanup(); const invalidations = e.invalidations; e.flush();
+  assert.equal(e.invalidations, invalidations); assert.equal(e.observer.disconnected, true);
+  assert.equal(tab.hasAttribute("zzgf-visible"), false); assert.equal(tab.getAttribute("aria-hidden"), "true");
+  assert.deepEqual([e.Tab, e.Group].map(type => Object.getOwnPropertyDescriptor(type.prototype, "visible").get), e.originals);
+  e.w.fire("TabSelect"); assert.equal(e.microtasks.length, 0);
+  const laterGetter = () => true, cleanupAgain = e.h.startCollapsedVisibility();
+  Object.defineProperty(e.Tab.prototype, "visible", { configurable: true, get: laterGetter });
+  cleanupAgain();
+  assert.equal(Object.getOwnPropertyDescriptor(e.Tab.prototype, "visible").get, laterGetter, "retirement preserves a later mod's getter");
+});
+
 async function groupflowStartupEnv() {
   const c = clock(), w = browser(), ready = deferred(), groups = [], writes = [];
   w.gZenStartup = { promiseInitialized: ready.promise };
@@ -1263,7 +1392,11 @@ async function groupflowStartupEnv() {
   w.advancedTabGroups = {};
   const document = { documentElement: element(), querySelectorAll: selector =>
     groups.filter(g => selector.split(", ").includes(g.tagName)) };
-  const gBrowser = { tabGroups: groups, selectedTab: { label: "selected tab" } };
+  const gBrowser = { tabGroups: groups, selectedTab: { label: "selected tab" },
+    tabContainer: { _invalidateCachedVisibleTabs() {} } };
+  class StartupTab { get visible() { return true; } }
+  class StartupGroup { get visible() { return true; } }
+  const customElements = { get: name => name === "tabbrowser-tab" ? StartupTab : StartupGroup };
   const stored = new Map();
   const SessionStore = { getCustomWindowValue: (_w, k) => stored.get(k) || "",
     setCustomWindowValue: (_w, k, v) => stored.set(k, v) };
@@ -1273,7 +1406,7 @@ async function groupflowStartupEnv() {
   } };
   function group(name, { parent = null, folder = false, collapsed = false, split = false } = {}) {
     const g = { ...element(), tagName: folder ? "zen-folder" : "tab-group",
-      id: name, label: name, closest: () => ({ id: "workspace" }),
+      id: name, label: name, tabs: [], closest: () => ({ id: "workspace" }),
       isZenFolder: folder, parentElement: { closest: () => parent },
       get collapsed() { return collapsed; },
       set collapsed(value) { writes.push(name); collapsed = value; },
@@ -1284,7 +1417,8 @@ async function groupflowStartupEnv() {
   }
   async function inject() {
     const h = await load("groupflow", "start, schedule, prefVarObserver", {
-      ...c, window: w, document, gBrowser, Services, SessionStore,
+      ...c, window: w, document, gBrowser, Services, SessionStore, customElements, queueMicrotask,
+      gZenWorkspaces: {}, MutationObserver: class { observe() {} disconnect() {} },
       getComputedStyle: () => ({ getPropertyValue: () => "" }), CSS: { supports: () => false },
     });
     h.start();

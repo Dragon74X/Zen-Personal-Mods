@@ -441,7 +441,7 @@ def check_sidebar_modes(m, atg):
           gBrowser.selectedTab=document.getElementById(old.selected);return true;""")
 
 
-def check_collapsed_selected(m):
+def check_collapsed_loaded(m):
     result = m.script("return (async()=>{" + HELPERS + """
       const selected=gBrowser.selectedTab, root=group('Root'), child=group('Child'), deep=group('Grandchild');
       const compact=gZenCompactModeManager.preference;
@@ -449,87 +449,116 @@ def check_collapsed_selected(m):
       const visible=e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);
         return r.width>0 && r.height>=28 && s.visibility==='visible' && Number(s.opacity)>0;};
       const hidden=e=>e.getBoundingClientRect().height===0;
-      const addPair=()=>[add('about:blank'),add('about:blank')];
-      const leafTabs=addPair(), leaf=gBrowser.addTabGroup(leafTabs,{label:'Collapsed leaf fixture',insertBefore:leafTabs[0]});
-      const folderTabs=addPair(), subTabs=addPair();
+      const accessible=t=>t.visible && !t.hasAttribute('aria-hidden') && gBrowser.tabContainer.ariaFocusableItems.includes(t);
+      let serial=0;
+      const addTabs=()=>Array.from({length:3},()=>add(fixtureURL+'/collapse-'+serial++));
+      const leafTabs=addTabs(), leaf=gBrowser.addTabGroup(leafTabs,{label:'Collapsed leaf fixture',insertBefore:leafTabs[0]});
+      const folderTabs=addTabs(), subTabs=addTabs();
       const folder=gZenFolders.createFolder(folderTabs,{label:'Collapsed native fixture',renameFolder:false});
       const sub=gZenFolders.createFolder(subTabs,{label:'Collapsed native child',renameFolder:false,
         insertAfter:folder.groupContainer.lastElementChild});
-      const outside=add('about:blank'), fixtures=[...leafTabs,...folderTabs,...subTabs,outside];
-      const checks={collapsedLeafSelected:true,collapsedNestedSelected:true,collapsedNativeSelected:true,
-        collapsedInactiveLoadedHidden:true,collapsedSelectionMoves:true,collapsedMixedSelected:true,
-        expandedRestoresRows:true,collapsedSplitLayout:true};
+      const extra=add(fixtureURL+'/collapse-extra');deep.addTabs([extra]);
+      const deepTabs=[...deep.tabs], outside=add('about:blank');
+      const fixtures=[...leafTabs,...folderTabs,...subTabs,extra,outside];
+      const cases=[[[leaf],leafTabs,'collapsedLeafLoaded'],[[root,child,deep],deepTabs,'collapsedNestedLoaded'],
+        [[folder,sub],subTabs,'collapsedNativeLoaded']];
+      const checks={collapsedLeafLoaded:true,collapsedNestedLoaded:true,collapsedNativeLoaded:true,
+        collapsedPendingHidden:true,collapsedLastUsedUnloaded:true,collapsedSelectionMoves:true,
+        collapsedNativeAccessibility:true,collapsedMixedLoaded:true,expandedRestoresRows:true,
+        collapsedSplitLayout:true,collapsedHiddenGuard:true};
       const failures=[];
+      const discard=async tabs=>{
+        await Promise.all(tabs.map(t=>gBrowser.prepareDiscardBrowser(t)));
+        for(const t of tabs)if(!gBrowser.discardBrowser(t,true))throw new Error('Fixture discard rejected: '+t.id);
+        await until(()=>tabs.every(t=>t.hasAttribute('pending') && !t.linkedPanel));
+      };
       try {
-        for(const compactMode of [false,true]) for(const expandedMode of [true,false]) {
-          Services.prefs.setBoolPref('zen.view.sidebar-expanded',expandedMode);
-          gZenCompactModeManager.preference=compactMode;
-          document.getElementById('navigator-toolbox').setAttribute('zen-user-show','true');
-          for(const enabled of [true,false]) {
+        for(const t of [...leafTabs,...folderTabs,...subTabs,...deepTabs])await loaded(t);
+        for(const [,tabs] of cases){gBrowser.selectedTab=tabs[0];await pause(20);}
+        gBrowser.selectedTab=outside;
+        for(const unloaded of [false,true]) {
+          if(unloaded)await discard(cases.flatMap(([,tabs])=>tabs.slice(0,2)));
+          for(const compactMode of [false,true])for(const expandedMode of [true,false])for(const enabled of [true,false]) {
+            Services.prefs.setBoolPref('zen.view.sidebar-expanded',expandedMode);
+            gZenCompactModeManager.preference=compactMode;
             Services.prefs.setBoolPref('zzgroup.enabled',enabled);
-            for(const [path,tabs,key] of [
-              [[leaf],leafTabs,'collapsedLeafSelected'],
-              [[root,child,deep],deep.tabs,'collapsedNestedSelected'],
-              [[folder,sub],subTabs,'collapsedNativeSelected'],
-            ]) {
-              gBrowser.selectedTab=tabs[0];
-              for(const g of path)g.collapsed=false;
-              await pause(80);
-              const heights=path.map(g=>g.labelContainerElement.getBoundingClientRect().height);
-              for(const g of path.toReversed())g.collapsed=true;
-              await pause(250);
-              const shown=path.every((g,i)=>g.collapsed && visible(g.labelContainerElement) &&
-                Math.abs(g.labelContainerElement.getBoundingClientRect().height-heights[i])<1 &&
-                g.labelElement.getAttribute('aria-expanded')==='false') && visible(tabs[0]) &&
-                !tabs[0].hasAttribute('aria-hidden');
+            document.getElementById('navigator-toolbox').setAttribute('zen-user-show','true');
+            for(const [path] of cases)for(const g of path)g.collapsed=false;
+            await pause(80);
+            const heights=cases.map(([path])=>path.map(g=>g.labelContainerElement.getBoundingClientRect().height));
+            for(const [path] of cases)for(const g of path.toReversed())g.collapsed=true;
+            await pause(250);
+            for(const [i,[path,tabs,key]] of cases.entries()) {
+              const expected=unloaded?[tabs[0],tabs[2]]:tabs;
+              const shown=path.every((g,j)=>g.collapsed && visible(g.labelContainerElement) &&
+                Math.abs(g.labelContainerElement.getBoundingClientRect().height-heights[i][j])<1 &&
+                g.labelElement.getAttribute('aria-expanded')==='false') && expected.every(visible);
               checks[key] &&= shown;
-              if(!shown)failures.push({key,compactMode,expandedMode,enabled,
-                expandedHeights:heights,
-                path:path.map(g=>[g.label,g.collapsed,g.labelContainerElement.getBoundingClientRect().height,
-                  getComputedStyle(g.labelContainerElement).opacity,g.labelElement.getAttribute('aria-expanded')]),
-                tab:[tabs[0].getBoundingClientRect().height,tabs[0].getAttribute('aria-hidden')]});
-              const inactive=path[0].tabs.filter(t=>t!==tabs[0] && !t.hasAttribute('zen-empty-tab'));
-              checks.collapsedInactiveLoadedHidden &&= inactive.length>0 && inactive.every(hidden);
-              gBrowser.selectedTab=tabs[1];await pause(250);
-              checks.collapsedSelectionMoves &&= path.every(g=>g.collapsed) && visible(tabs[1]) && hidden(tabs[0]);
-              gBrowser.selectedTab=outside;await pause(250);
-              checks.collapsedSelectionMoves &&= path[0].tabs.every(hidden);
-              for(const g of path)g.collapsed=false;
-              await pause(250);
-              checks.expandedRestoresRows &&= tabs.every(visible);
+              checks.collapsedNativeAccessibility &&= expected.every(accessible);
+              if(unloaded) {
+                checks.collapsedPendingHidden &&= hidden(tabs[1]) && !tabs[1].visible &&
+                  !gBrowser.tabContainer.ariaFocusableItems.includes(tabs[1]);
+                checks.collapsedLastUsedUnloaded &&= tabs[0].hasAttribute('pending') && !tabs[0].linkedPanel;
+              }
+              if(!shown)failures.push({key,unloaded,compactMode,expandedMode,enabled,
+                heights:heights[i],rows:tabs.map(t=>[t.hasAttribute('pending'),t.getBoundingClientRect().height,t.visible,
+                  t.getAttribute('aria-hidden')])});
             }
           }
         }
         Services.prefs.setBoolPref('zzgroup.enabled',true);
         Services.prefs.setBoolPref('zen.view.sidebar-expanded',true);
-        // A native folder can contain a plain group; collapse must cross both types.
-        folder.groupContainer.appendChild(leaf);gBrowser.selectedTab=outside;
-        leaf.collapsed=false;folder.collapsed=true;await pause(250);
-        gBrowser.selectedTab=leafTabs[0];await pause(250);
-        checks.collapsedMixedSelected=visible(leafTabs[0]) && hidden(leafTabs[1]) &&
-          visible(leaf.labelContainerElement) && folderTabs.every(hidden) && subTabs.every(hidden);
-        folder.collapsed=false;await pause(250);
-        const splitTabs=addPair();fixtures.push(...splitTabs);
-        gZenViewSplitter.splitTabs(splitTabs,'grid');await pause(250);
+        // Selecting another unloaded member transfers the retained row without loading its predecessor.
+        for(const [path,tabs] of cases) {
+          await loaded(tabs[1]);gBrowser.selectedTab=outside;await discard([tabs[1]]);await pause(150);
+          checks.collapsedSelectionMoves &&= path.every(g=>g.collapsed) && visible(tabs[1]) &&
+            accessible(tabs[1]) && hidden(tabs[0]) && tabs[0].hasAttribute('pending') && visible(tabs[2]);
+          for(const g of path)g.collapsed=false;
+          await pause(250);
+          const expandedRows=tabs.every(visible);
+          checks.expandedRestoresRows &&= expandedRows;
+          if(!expandedRows)failures.push({key:'expandedRestoresRows',path:path.map(g=>g.label),
+            rows:tabs.map(t=>({height:t.getBoundingClientRect().height,display:getComputedStyle(t).display,
+              opacity:getComputedStyle(t).opacity,aria:t.getAttribute('aria-hidden'),pending:t.hasAttribute('pending'),
+              collapsed:t.closest('tab-group[collapsed],zen-folder[collapsed]')?.label}))});
+        }
+        // Native-folder collapse crosses a plain subgroup containing loaded and retained unloaded rows.
+        folder.groupContainer.appendChild(leaf);folder.collapsed=true;leaf.collapsed=true;await pause(150);
+        checks.collapsedMixedLoaded=visible(leafTabs[1]) && visible(leafTabs[2]) && hidden(leafTabs[0]) &&
+          visible(leaf.labelContainerElement) && folderTabs.every(visible);
+        gBrowser.hideTab(leafTabs[2],undefined,true);await pause(100);
+        checks.collapsedHiddenGuard=hidden(leafTabs[2]) && !leafTabs[2].visible &&
+          !gBrowser.tabContainer.ariaFocusableItems.includes(leafTabs[2]);
+        gBrowser.showTab(leafTabs[2]);await pause(100);
+        checks.collapsedHiddenGuard &&= visible(leafTabs[2]) && accessible(leafTabs[2]);
+        folder.collapsed=false;
+        const splitTabs=[add(fixtureURL+'/collapse-split-a'),add(fixtureURL+'/collapse-split-b')];fixtures.push(...splitTabs);
+        for(const t of splitTabs)await loaded(t);
+        gZenViewSplitter.splitTabs(splitTabs,'grid');await pause(150);
         const split=splitTabs[0].group;
         if(!split?.hasAttribute('split-view-group'))throw new Error('Split-view fixture missing');
         leaf.groupContainer.appendChild(split);gBrowser.selectedTab=splitTabs[0];
-        leaf.collapsed=false;await pause(250);
+        leaf.collapsed=false;await pause(150);
         const before=splitTabs.map(t=>t.getBoundingClientRect()),display=getComputedStyle(split.groupContainer).display;
-        leaf.collapsed=true;await pause(250);
+        gBrowser.selectedTab=outside;leaf.collapsed=true;await pause(150);
         const after=splitTabs.map(t=>t.getBoundingClientRect());
-        checks.collapsedSplitLayout=splitTabs.every(visible) && leafTabs.every(hidden) &&
+        checks.collapsedSplitLayout=splitTabs.every(visible) && visible(leafTabs[2]) &&
           getComputedStyle(split.groupContainer).display===display &&
           Math.abs((before[1].x-before[0].x)-(after[1].x-after[0].x))<1 &&
           Math.abs((before[1].y-before[0].y)-(after[1].y-after[0].y))<1 &&
           before.every((r,i)=>Math.abs(r.height-after[i].height)<1 && Math.abs(r.width-after[i].width)<1);
+        await discard(splitTabs);await pause(150);
+        checks.collapsedSplitLayout &&= splitTabs.every(visible) && splitTabs.every(t=>t.hasAttribute('pending'));
+        await loaded(leafTabs[2]);gBrowser.selectedTab=outside;await pause(150);
+        checks.collapsedSplitLayout &&= splitTabs.every(hidden);
         if(failures.length)checks.failures=failures;
         return checks;
       } finally {
+        for(const g of [root,child,deep])g.collapsed=false;
+        for(const t of deepTabs.filter(t=>t!==extra))if(t.hasAttribute('pending'))await loaded(t);
         gBrowser.selectedTab=selected;
         for(const tab of fixtures)if(tab.isConnected)gBrowser.removeTab(tab);
         for(const g of [folder,sub,leaf])if(g.isConnected)g.remove();
-        for(const g of [root,child,deep])g.collapsed=false;
         Services.prefs.setBoolPref('zzgroup.enabled',true);
         Services.prefs.setBoolPref('zen.view.sidebar-expanded',expanded);
         gZenCompactModeManager.preference=compact;
@@ -597,7 +626,7 @@ def check(m, root, atg, port, first):
         nativeFolders:folders.length===2 && folders.every(g=>g.collapsed===(g.label==='Subfolder')),
         startupSelectedVisible:grandchild.contains(gBrowser.selectedTab) &&
           gBrowser.selectedTab.getBoundingClientRect().height>=28 &&
-          grandchild.tabs.filter(t=>t!==gBrowser.selectedTab).every(t=>t.getBoundingClientRect().height===0),
+          grandchild.tabs.filter(t=>!t.hasAttribute('pending')).every(t=>t.getBoundingClientRect().height>=28),
         iconDecoded:image.naturalWidth>0,
         cachedIcon:icon.includes(gBrowser.getIcon(ct)),
         savedIcon:JSON.parse(SessionStore.getCustomWindowValue(window,'tabGroupIcons'))[child.id]==='🦊'};
@@ -647,7 +676,7 @@ def check(m, root, atg, port, first):
       const activePathCollapsed=!root.collapsed && [child,grandchild,sibling].every(g=>g.collapsed &&
         g.labelElement.getAttribute('aria-expanded')==='false') &&
         gBrowser.selectedTab.getBoundingClientRect().height>=28 &&
-        [...child.tabs,siblingTab].filter(t=>t!==gBrowser.selectedTab).every(t=>t.getBoundingClientRect().height===0);
+        [...child.tabs,siblingTab].filter(t=>!t.hasAttribute('pending')).every(t=>t.getBoundingClientRect().height>=28);
       click(root);await pause(100);
       const otherBranchesReopen=tree(root).every(g=>!g.collapsed);
       gBrowser.selectedTab=selected;gBrowser.removeTab(siblingTab);
@@ -721,7 +750,7 @@ def check(m, root, atg, port, first):
     assert result['labelForeground'], 'Group label colour changed with selection, collapse or accent source'
     result.update(check_subfolder_styles(m))
     result.update(check_sidebar_modes(m, atg))
-    result.update(check_collapsed_selected(m))
+    result.update(check_collapsed_loaded(m))
     if not atg:
         controls = m.script("return (async()=>{" + HELPERS + """
           await pause(100);

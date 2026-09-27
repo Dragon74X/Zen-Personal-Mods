@@ -1593,41 +1593,40 @@
     background-image: var(--zzgf-saved-tint-background, var(--zzgf-saved-background)) !important;
   }
 }
-/* Collapse hides other rows, keeping the selected tab and its folder path.
+/* Collapse keeps loaded and last-used rows, plus their folder paths.
    This behavior also applies with optional group styling disabled. */
 :root #navigator-toolbox :is(tab-group, zen-folder)[collapsed]:not([split-view-group]) {
   & > .tab-group-container,
   :is(tab-group:not([split-view-group]), zen-folder) > .tab-group-container {
-    &:not(:has(.tabbrowser-tab:is([selected], [visuallyselected]))) {
+    &:not(:has(.tabbrowser-tab[zzgf-visible])) {
       display: none !important;
     }
-    &:has(.tabbrowser-tab:is([selected], [visuallyselected])) {
+    &:has(.tabbrowser-tab[zzgf-visible]) {
       display: block !important;
       height: auto !important;
       max-height: none !important;
       opacity: 1 !important;
     }
-    & > :not(.tabbrowser-tab:is([selected], [visuallyselected])):not(:has(.tabbrowser-tab:is([selected], [visuallyselected]))) {
+    & > :not(.tabbrowser-tab[zzgf-visible]):not(:has(.tabbrowser-tab[zzgf-visible])) {
       display: none !important;
     }
   }
 
-  /* Zen's native folder animations can leave zero-height rows on this path.
+  /* Zen's native folder animations can leave zero-height rows on these paths.
      The start marker is hidden above, so its negative margin cannot clip it. */
-  :is(tab-group, zen-folder):has(.tabbrowser-tab:is([selected], [visuallyselected])) {
+  :is(tab-group, zen-folder):has(.tabbrowser-tab[zzgf-visible]) {
     height: auto !important;
     max-height: none !important;
     opacity: 1 !important;
   }
-  :is(tab-group, zen-folder):has(.tabbrowser-tab:is([selected], [visuallyselected])) > .tab-group-label-container {
+  :is(tab-group, zen-folder):has(.tabbrowser-tab[zzgf-visible]) > .tab-group-label-container {
     max-height: none !important;
     opacity: 1 !important;
   }
-  zen-folder:has(.tabbrowser-tab:is([selected], [visuallyselected])) > .tab-group-label-container {
+  zen-folder:has(.tabbrowser-tab[zzgf-visible]) > .tab-group-label-container {
     height: calc(var(--tab-margin-block, 2px) * 2 + var(--tab-min-height, 36px)) !important;
   }
-  .tabbrowser-tab:is([selected], [visuallyselected]),
-  tab-group[split-view-group]:has(.tabbrowser-tab:is([selected], [visuallyselected])) > .tab-group-container > .tabbrowser-tab {
+  .tabbrowser-tab[zzgf-visible] {
     display: flex !important;
     height: auto !important;
     min-height: var(--tab-min-height, 36px) !important;

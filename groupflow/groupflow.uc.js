@@ -689,6 +689,107 @@
     };
   }
 
+  function startCollapsedVisibility() {
+    const groupsSelector = "tab-group:not([split-view-group]), zen-folder";
+    const collapsedSelector = "tab-group[collapsed]:not([split-view-group]), zen-folder[collapsed]";
+    const tabSelector = ".tabbrowser-tab";
+    const marker = "zzgf-visible";
+    const lastTabs = new WeakMap();
+    const open = tab => tab.isOpen && !tab.hasAttribute("zen-empty-tab");
+    let queued = false, retired = false;
+
+    // CSS cannot change Zen's keyboard-navigation visibility. Keep its guards
+    // for hidden/closing tabs and collapsed pinned sections, replacing only
+    // the collapsed-folder decision. Leave native activeTabs/animations alone.
+    const prototypes = [customElements.get("tabbrowser-tab").prototype,
+      customElements.get("tab-group").prototype];
+    const originals = prototypes.map(proto => Object.getOwnPropertyDescriptor(proto, "visible"));
+    const getters = prototypes.map((_proto, index) => function() {
+      const parent = index ? this.parentElement : this;
+      if (!parent?.closest(collapsedSelector)) return originals[index].get.call(this);
+      if (!index && (!open(this) || this.hidden)) return false;
+      if (!index && (this.selected || this.multiselected)) return true;
+      const pins = gZenWorkspaces.activeWorkspaceElement;
+      if (this.pinned && pins?.hasCollapsedPinnedTabs && (index ||
+          (!this.hasAttribute("zen-essential") && !pins.collapsiblePins.activeTabs?.includes(this)))) return false;
+      return index ? !!this.querySelector(`${tabSelector}[${marker}]`) : this.hasAttribute(marker);
+    });
+    prototypes.forEach((proto, i) => Object.defineProperty(proto, "visible", { ...originals[i], get: getters[i] }));
+
+    function sync() {
+      const tabs = [...document.querySelectorAll(tabSelector)];
+      const retained = new Set();
+      for (const group of document.querySelectorAll(groupsSelector)) {
+        const members = group.tabs.filter(open);
+        let last = lastTabs.get(group);
+        if (!members.includes(last)) last = null;
+        for (const tab of members) {
+          if (!last || tab.selected || (!last.selected && tab.lastSeenActive > last.lastSeenActive)) last = tab;
+        }
+        lastTabs.set(group, last);
+        if (last) retained.add(last);
+      }
+      const shown = new Set(tabs.filter(tab => open(tab) && !tab.hidden && tab.group &&
+        (retained.has(tab) || tab.selected || tab.multiselected || tab.hasAttribute("visuallyselected") ||
+          (!tab.hasAttribute("pending") && !tab.hasAttribute("discarded")))));
+      for (const tab of shown) {
+        if (tab.group.hasAttribute("split-view-group")) {
+          for (const peer of tab.group.tabs) if (open(peer) && !peer.hidden) shown.add(peer);
+        }
+      }
+      for (const tab of tabs) {
+        const show = shown.has(tab), wasShown = tab.hasAttribute(marker);
+        if (show !== wasShown) tab.toggleAttribute(marker, show);
+        if (tab.closest(collapsedSelector) || wasShown) {
+          const target = tab.splitview ?? tab;
+          const accessible = tab.splitview ? tab.splitview.tabs.some(peer => shown.has(peer)) : show;
+          if (accessible || !tab.closest(collapsedSelector)) target.removeAttribute("aria-hidden");
+          else target.setAttribute("aria-hidden", "true");
+        }
+      }
+      gBrowser.tabContainer._invalidateCachedVisibleTabs();
+    }
+    function changed(event) {
+      if (event?.type === "TabSelect") {
+        for (let group = event.target.group; group; group = group.group) {
+          if (!group.hasAttribute("split-view-group")) lastTabs.set(group, event.target);
+        }
+      }
+      if (queued || retired) return;
+      queued = true;
+      queueMicrotask(() => { queued = false; if (!retired) sync(); });
+    }
+    const events = ["TabSelect", "TabGroupCollapse", "TabGroupExpand", "TabGrouped", "TabUngrouped",
+      "TabGroupUpdate", "TabGroupRemovedFromDOM", "FolderGrouped", "FolderUngrouped",
+      "TabClose", "SSTabRestoring", "SSTabRestored"];
+    for (const event of events) window.addEventListener(event, changed, true);
+    // Native restoration can clear pending without a TabAttrModified event.
+    const observer = new MutationObserver(records => {
+      if (records.some(record => record.target.matches(tabSelector))) changed();
+    });
+    observer.observe(gBrowser.tabContainer, { subtree: true, attributes: true,
+      attributeFilter: ["pending", "discarded", "hidden", "multiselected", "visuallyselected"] });
+    sync();
+    return () => {
+      retired = true;
+      observer.disconnect();
+      for (const event of events) window.removeEventListener(event, changed, true);
+      prototypes.forEach((proto, i) => {
+        if (Object.getOwnPropertyDescriptor(proto, "visible").get === getters[i]) {
+          Object.defineProperty(proto, "visible", originals[i]);
+        }
+      });
+      for (const tab of document.querySelectorAll(`${tabSelector}[${marker}]`)) {
+        tab.removeAttribute(marker);
+        const target = tab.splitview ?? tab;
+        if (tab.group?.collapsed && !(tab.splitview?.tabs ?? [tab]).some(t => t.selected)) {
+          target.setAttribute("aria-hidden", "true");
+        }
+      }
+      gBrowser.tabContainer._invalidateCachedVisibleTabs();
+    };
+  }
+
   function toggleSubgroups(event) {
     if (event.button !== 0 || event.defaultPrevented || event.target.closest?.(
       "button, toolbarbutton, input, textarea, a, [contenteditable], .tab-close-button, .tab-reset-button, .tab-group-folder-button, .group-marker")) return;
@@ -702,7 +803,7 @@
     event.preventDefault();
     event.stopPropagation();
     const collapse = children.some(child => !child.collapsed);
-    // CSS keeps the selected row visible even when its ancestors are collapsed.
+    // Loaded and last-used rows remain visible through collapsed ancestors.
     for (const child of children.reverse()) child.collapsed = collapse;
     group.collapsed = false;
     gBrowser.tabGroupMenu.close();
@@ -767,6 +868,7 @@
     const boot = setTimeout(refreshAll, 2000);
     let foldTimer = null;
     let cleanupGroups = null;
+    let cleanupVisibility = null;
     let groupDetails = null;
 
     // This script is injected per window and lives as long as the window
@@ -788,6 +890,7 @@
       clearTimeout(boot);
       clearTimeout(foldTimer);
       cleanupGroups?.();
+      cleanupVisibility?.();
       groupDetails?.retire();
       for (const rim of document.querySelectorAll(".tab-group-label-container > .zzgf-rim")) {
         rim.parentElement.style.removeProperty("--zzgf-saved-tint-background");
@@ -815,6 +918,7 @@
         groupDetails = trackGroupDetails();
         if (!atg) cleanupGroups = startStandaloneGroups(groupDetails.data);
         else restoreParents(readGroupData("tabGroupParents"), plainGroups(), groupDetails.data);
+        cleanupVisibility = startCollapsedVisibility();
         foldStartupGroups();
         groupDetails.save();
       }, 0);

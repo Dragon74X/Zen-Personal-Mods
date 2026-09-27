@@ -701,10 +701,9 @@
     // Capture before Zen toggles the parent: this header controls its subfolders.
     event.preventDefault();
     event.stopPropagation();
-    const selected = gBrowser.selectedTab;
-    const collapse = children.some(child => !child.contains(selected) && !child.collapsed);
-    // Keep the selected tab's whole path open without blocking the next expand.
-    for (const child of children.reverse()) child.collapsed = collapse && !child.contains(selected);
+    const collapse = children.some(child => !child.collapsed);
+    // CSS keeps the selected row visible even when its ancestors are collapsed.
+    for (const child of children.reverse()) child.collapsed = collapse;
     group.collapsed = false;
     gBrowser.tabGroupMenu.close();
   }

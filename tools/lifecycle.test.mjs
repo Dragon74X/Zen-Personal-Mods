@@ -1215,7 +1215,7 @@ test("Groupflow parent click alternates descendants without collapsing the paren
   assert.equal(menuClosed, 2);
 });
 
-test("Groupflow bulk collapse preserves the selected tab's ancestor path and still alternates", async () => {
+test("Groupflow bulk collapse folds the selected path too and still alternates without changing selection", async () => {
   const firstTab = {}, secondTab = {};
   const gBrowser = { selectedTab: firstTab, tabGroupMenu: { close() {} } };
   const h = await load("groupflow", "toggleSubgroups", { window: {}, gBrowser });
@@ -1230,13 +1230,13 @@ test("Groupflow bulk collapse preserves the selected tab's ancestor path and sti
   const state = () => [root, child, grandchild, sibling].map(group => group.collapsed);
 
   h.toggleSubgroups(event);
-  assert.deepEqual(state(), [false, false, false, true]);
+  assert.deepEqual(state(), [false, true, true, true]);
   h.toggleSubgroups(event);
   assert.deepEqual(state(), [false, false, false, false]);
 
   gBrowser.selectedTab = secondTab;
   h.toggleSubgroups(event);
-  assert.deepEqual(state(), [false, true, true, false]);
+  assert.deepEqual(state(), [false, true, true, true]);
   h.toggleSubgroups(event);
   assert.deepEqual(state(), [false, false, false, false]);
   assert.equal(gBrowser.selectedTab, secondTab);

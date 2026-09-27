@@ -942,18 +942,6 @@
   }
 }
 
-/* ---- collapse, structure-aware ------------------------------------ */
-/* Zen moved a group's tabs into a .tab-group-container div, so
-   Firefox's native "tab-group[collapsed] > tab" hiding matches
-   nothing; Zen wrote replacement CSS only for zen-folder, and ATG's
-   covers top-level groups only. This is the missing rule for plain
-   groups at every depth. Hiding outright is safe: Firefox's collapse
-   code itself moves the selection out of a collapsing group. */
-#navigator-toolbox tab-group:not([split-view-group])[collapsed]
-  > .tab-group-container {
-  display: none !important;
-}
-
 /* ---- overrides ---------------------------------------------------- */
 /* ATG and Arc decorate the group body too; these strip the body back
    to neutral so tabs inside style themselves (Glassflow's job). Off
@@ -1527,7 +1515,7 @@
   display: grid !important;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center !important;
-  height: 36px;
+  height: 36px !important;
 }
 :root[zzgf-standalone] #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container > .tab-group-label {
   display: block !important;
@@ -1605,8 +1593,48 @@
     background-image: var(--zzgf-saved-tint-background, var(--zzgf-saved-background)) !important;
   }
 }
-:root[zzgf-standalone] #navigator-toolbox tab-group[collapsed]:not([split-view-group]) > .tab-group-container {
-  display: none !important;
+/* Collapse hides other rows, keeping the selected tab and its folder path.
+   This behavior also applies with optional group styling disabled. */
+:root #navigator-toolbox :is(tab-group, zen-folder)[collapsed]:not([split-view-group]) {
+  & > .tab-group-container,
+  :is(tab-group:not([split-view-group]), zen-folder) > .tab-group-container {
+    &:not(:has(.tabbrowser-tab:is([selected], [visuallyselected]))) {
+      display: none !important;
+    }
+    &:has(.tabbrowser-tab:is([selected], [visuallyselected])) {
+      display: block !important;
+      height: auto !important;
+      max-height: none !important;
+      opacity: 1 !important;
+    }
+    & > :not(.tabbrowser-tab:is([selected], [visuallyselected])):not(:has(.tabbrowser-tab:is([selected], [visuallyselected]))) {
+      display: none !important;
+    }
+  }
+
+  /* Zen's native folder animations can leave zero-height rows on this path.
+     The start marker is hidden above, so its negative margin cannot clip it. */
+  :is(tab-group, zen-folder):has(.tabbrowser-tab:is([selected], [visuallyselected])) {
+    height: auto !important;
+    max-height: none !important;
+    opacity: 1 !important;
+  }
+  :is(tab-group, zen-folder):has(.tabbrowser-tab:is([selected], [visuallyselected])) > .tab-group-label-container {
+    max-height: none !important;
+    opacity: 1 !important;
+  }
+  zen-folder:has(.tabbrowser-tab:is([selected], [visuallyselected])) > .tab-group-label-container {
+    height: calc(var(--tab-margin-block, 2px) * 2 + var(--tab-min-height, 36px)) !important;
+  }
+  .tabbrowser-tab:is([selected], [visuallyselected]),
+  tab-group[split-view-group]:has(.tabbrowser-tab:is([selected], [visuallyselected])) > .tab-group-container > .tabbrowser-tab {
+    display: flex !important;
+    height: auto !important;
+    min-height: var(--tab-min-height, 36px) !important;
+    max-height: none !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
 }
 
 /* State tokens stay on headers, so a parent's active state cannot leak into

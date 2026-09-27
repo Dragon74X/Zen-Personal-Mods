@@ -25,8 +25,8 @@ if you want it off.
 
 After each window restores its session, top-level groups/folders open and all
 nested groups/subfolders fold. This covers `tab-group` and `zen-folder` elements
-across workspaces; split-view groups are excluded. Zen retains its native handling
-of selected tabs inside collapsed folders.
+across workspaces; split-view groups are excluded. The selected tab remains visible
+inside collapsed folders, including through multiple collapsed ancestors.
 
 Folding runs once per window, independently of styling and favicon settings.
 Manual toggles, groups created later, and Sine reinjections do not repeat the pass.
@@ -39,12 +39,15 @@ Groupflow also saves parent labels, colours and workspace IDs in `groupflowGroup
 Zen does not recreate plain groups containing only subgroups on its own.
 
 Clicking a top-level group/folder header keeps the parent open and alternates
-between collapsing and expanding its nested subgroups/subfolders. The selected
-tab's entire folder path stays open. If any other subfolder is open, the click
-collapses those other subfolders; the next click opens them. Nested headers and
-groups without subfolders still toggle individually.
+between collapsing and expanding all nested subgroups/subfolders. Collapsing keeps
+the selected tab and its ancestor headers visible, while hiding other tabs and
+branches, including loaded background tabs. The next click opens all subfolders.
+Nested headers and groups without subfolders still toggle individually.
+Visibility follows selection without opening plain groups. A selected split view
+retains its native row and both member tabs.
 Close and reset controls retain their existing actions.
-This works with or without ATG and does not change startup folding.
+This works with or without ATG, including when optional group styling is off.
+Collapse changes visibility only; it does not load, unload or close tabs.
 
 Folder labels retain the theme's toolbar text colour when a tab inside is selected.
 The Label colour setting overrides this foreground without changing the header fill.

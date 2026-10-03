@@ -408,11 +408,14 @@
     document.documentElement.removeAttribute("zzturbo-smoothing");
   }
   // Zen marks a trackpad swipe on the tab scroller, the workspaces and the
-  // grain layer (ZenSpacesSwipe.mjs), never on :root.
+  // grain layer (ZenSpacesSwipe.mjs), never on :root. A workspace slide is
+  // marked on #navigator-toolbox since Zen 1.23b, on :root before it.
   const swiping = () => !!document.getElementById?.("tabbrowser-arrowscrollbox")?.hasAttribute("swipe-gesture");
+  const sliding = () => document.documentElement.hasAttribute("animating-background") ||
+    !!document.getElementById?.("navigator-toolbox")?.hasAttribute("animating-background") || swiping();
   function syncSmoothing() {
     const root = document.documentElement;
-    const marked = root.hasAttribute("animating-background") || swiping();
+    const marked = sliding();
     if (!marked || !bool("smooth-workspace-switch", true)) {
       stopSmoothing(); smoothingMarked = false; return;
     }
@@ -435,6 +438,8 @@
     smoothingObserver = new MutationObserver(syncSmoothing);
     smoothingObserver.observe(document.documentElement, { attributes: true,
       attributeFilter: ["animating-background"] });
+    const toolbox = document.getElementById("navigator-toolbox");
+    if (toolbox) smoothingObserver.observe(toolbox, { attributes: true, attributeFilter: ["animating-background"] });
     const scroller = document.getElementById("tabbrowser-arrowscrollbox");
     if (scroller) smoothingObserver.observe(scroller, { attributes: true, attributeFilter: ["swipe-gesture"] });
     syncSmoothing();

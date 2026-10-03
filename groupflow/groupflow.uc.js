@@ -719,6 +719,8 @@
     function sync() {
       const tabs = [...document.querySelectorAll(tabSelector)];
       const retained = new Set();
+      // Off by default: an unloaded last-used tab stays hidden like the rest.
+      const keepLast = bool("collapse-keep-last-used", false);
       for (const group of document.querySelectorAll(groupsSelector)) {
         const members = group.tabs.filter(open);
         let last = lastTabs.get(group);
@@ -727,7 +729,7 @@
           if (!last || tab.selected || (!last.selected && tab.lastSeenActive > last.lastSeenActive)) last = tab;
         }
         lastTabs.set(group, last);
-        if (last) retained.add(last);
+        if (last && keepLast) retained.add(last);
       }
       const shown = new Set(tabs.filter(tab => open(tab) && !tab.hidden && tab.group &&
         (retained.has(tab) || tab.selected || tab.multiselected || tab.hasAttribute("visuallyselected") ||
@@ -763,6 +765,8 @@
       "TabGroupUpdate", "TabGroupRemovedFromDOM", "FolderGrouped", "FolderUngrouped",
       "TabClose", "SSTabRestoring", "SSTabRestored"];
     for (const event of events) window.addEventListener(event, changed, true);
+    const keepLastPref = PREFIX + "collapse-keep-last-used";
+    Services.prefs.addObserver(keepLastPref, changed);
     // Native restoration can clear pending without a TabAttrModified event.
     const observer = new MutationObserver(records => {
       if (records.some(record => record.target.matches(tabSelector))) changed();
@@ -773,6 +777,7 @@
     return () => {
       retired = true;
       observer.disconnect();
+      try { Services.prefs.removeObserver(keepLastPref, changed); } catch {}
       for (const event of events) window.removeEventListener(event, changed, true);
       prototypes.forEach((proto, i) => {
         if (Object.getOwnPropertyDescriptor(proto, "visible").get === getters[i]) {
@@ -821,7 +826,35 @@
     return g.tagName === "tab-group" && !g.hasAttribute("split-view-group")
       ? g.querySelector(":scope > .tab-group-container") : null;
   }
-  const scrollTargets = new WeakMap();      // box -> { to, at }: where a smooth scroll is heading
+  // Row slots inside a box, in scroll coordinates: where each tab or subgroup
+  // header begins, including its top margin. Scrolling stops only on these,
+  // and the box is capped at whole rows, so neither edge cuts a row in half.
+  function rowStops(box) {
+    const top = box.getBoundingClientRect().top - box.scrollTop;
+    const stops = new Set([0]);
+    for (const row of box.querySelectorAll(".tabbrowser-tab, .tab-group-label-container")) {
+      const r = row.getBoundingClientRect();
+      if (r.height) stops.add(Math.round(r.top - top - (parseFloat(getComputedStyle(row).marginTop) || 0)));
+    }
+    return [...stops].sort((a, b) => a - b);
+  }
+  // Scroll and rail move in the same frame. Waiting for the scroll event left
+  // the rail a frame behind, which showed as a gap at the box's edge.
+  const glides = new WeakMap();             // box -> { to, raf }
+  function scrollBox(box, to, instant) {
+    cancelAnimationFrame(glides.get(box)?.raf);
+    glides.delete(box);
+    const set = y => { box.scrollTop = y; box.style.setProperty("--zzgf-box-scroll", box.scrollTop + "px"); };
+    if (instant) { set(to); return; }
+    const from = box.scrollTop, start = performance.now(), ms = 140;
+    const step = now => {
+      const k = Math.min(1, (now - start) / ms);
+      set(from + (to - from) * (1 - (1 - k) ** 3));
+      if (k < 1) glides.set(box, { to, raf: requestAnimationFrame(step) }); else glides.delete(box);
+    };
+    glides.set(box, { to, raf: requestAnimationFrame(step) });
+  }
+  const settles = new WeakMap();            // box -> timer: pixel scrolling snaps once it pauses
   function scrollFolder(event) {
     const gutter = gutterOf(event.target);
     if (!gutter || !event.deltaY || !bool("connector-scroll", true)) return;
@@ -830,22 +863,36 @@
     if (max <= 0) return;                   // fits: the list scrolls (see below)
     event.preventDefault();                 // also cancels any tab switch by scrolling
     event.stopPropagation();
-    const pixels = event.deltaMode === event.DOM_DELTA_PIXEL;
+    const pitch = Math.round(box.querySelector(".tabbrowser-tab")?.getBoundingClientRect().height || 0);
+    if (pitch) document.documentElement.style.setProperty("--zzgf-row", pitch + "px");
+    const stops = rowStops(box).filter(y => y < max).concat(max);
+    if (event.deltaMode === event.DOM_DELTA_PIXEL) {
+      // Touchpads send many small deltas: follow them, then settle on a row.
+      scrollBox(box, Math.max(0, Math.min(max, box.scrollTop + event.deltaY)), true);
+      clearTimeout(settles.get(box));
+      settles.set(box, setTimeout(() => {
+        const y = box.scrollTop;
+        scrollBox(box, stops.reduce((a, b) => Math.abs(b - y) < Math.abs(a - y) ? b : a));
+      }, 120));
+      return;
+    }
     // A line matches the list's own native line scroll: one line of the font.
     const line = Math.round(parseFloat(getComputedStyle(box).fontSize) * 1.2) || 17;
-    const step = pixels ? 1 : event.deltaMode === event.DOM_DELTA_PAGE ? box.clientHeight : line;
-    // Successive notches add to the destination, not to the mid-animation position.
-    const last = scrollTargets.get(box), now = Date.now();
-    const from = !pixels && last && now - last.at < 300 && Math.sign(last.to - box.scrollTop) === Math.sign(event.deltaY)
-      ? last.to : box.scrollTop;
-    const to = Math.max(0, Math.min(max, from + event.deltaY * step));
-    scrollTargets.set(box, { to, at: now });
-    box.scrollTo({ top: to, behavior: pixels ? "instant" : "smooth" });
+    const step = event.deltaMode === event.DOM_DELTA_PAGE ? box.clientHeight : line;
+    // Successive notches add to where a running glide is heading.
+    const from = glides.get(box)?.to ?? box.scrollTop;
+    const target = from + event.deltaY * step;
+    // At least one row per notch, then the row nearest the requested distance.
+    const ahead = stops.filter(y => event.deltaY > 0 ? y > from + 0.5 : y < from - 0.5);
+    if (!ahead.length) return;
+    scrollBox(box, ahead.reduce((a, b) => Math.abs(b - target) < Math.abs(a - target) ? b : a));
   }
-  // The rail is positioned inside the scrolled body; hold it in place.
+  // Scrolls this mod did not start, such as a selected tab brought into view.
   function holdRail(event) {
     const box = event.target;
-    if (box.classList?.contains("tab-group-container")) box.style.setProperty("--zzgf-box-scroll", box.scrollTop + "px");
+    if (box.classList?.contains("tab-group-container") && !glides.has(box)) {
+      box.style.setProperty("--zzgf-box-scroll", box.scrollTop + "px");
+    }
   }
   // With toolkit.tabbox.switchByScrolling on, Firefox turns every wheel over
   // the tab strip into a tab switch (selecting, and so loading, the next tab).

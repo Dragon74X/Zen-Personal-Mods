@@ -56,6 +56,16 @@ Folder labels retain the theme's toolbar text colour when a tab inside is select
 The Label colour setting overrides this foreground without changing the header fill.
 Subfolder state labels can override that shared setting.
 
+## Scrolling what is under the pointer
+
+Firefox keeps a burst of wheel scrolling aimed at wherever it started, until
+you pause for about a second and a half. Moving from favourites onto the tabs
+mid-scroll kept scrolling the old spot, and moving off the tabs kept scrolling
+them. **Scroll what is under the pointer** (on by default) sends every wheel
+to the sidebar section under the pointer instead. The space below the tab
+list, down to the bottom buttons, scrolls the tab list. Hold a modifier key
+and Zen's own wheel shortcuts (zoom, switching spaces) work as before.
+
 ## Scrolling inside folders
 
 Each top-level group is capped at **Folder box height** (`70vh` by default, any

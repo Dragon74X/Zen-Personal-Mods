@@ -3016,6 +3016,63 @@
   },
   {
     "type": "separator",
+    "label": "Overlays",
+    "size": "17px",
+    "margin": "24px 0 10px 0"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.overlays.enabled",
+    "label": "Glass behind overlays *Frosted glass, blurring what is underneath, for Zen's surfaces that float inside the window: the library's download stack (hover the library button), toasts, glance's side buttons and the library media preview. Zen fades the tabs out under the download stack; with this on they stay and show through blurred.*",
+    "defaultValue": true
+  },
+  {
+    "type": "string",
+    "property": "zzglass.overlays.blur-radius",
+    "label": "Overlay blur radius",
+    "defaultValue": "20px",
+    "placeholder": "20px",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzglass.overlays.enabled",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzglass.overlays.opacity",
+    "label": "Overlay fill *How much tint covers the blur. 0% is clear glass; 100% hides what is behind.*",
+    "defaultValue": "55%",
+    "placeholder": "55%",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzglass.overlays.enabled",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzglass.popups.opacity",
+    "label": "Menu and panel fill (Windows 11) *Menus and panels are separate windows, so only Windows can blur behind them. On Windows 11 22H2 and later Firefox turns on Windows' acrylic for them and Zen tints it 50%; lower shows more of the blur. No effect on Windows 10, or when Windows shows an accent colour on title bars with a custom inactive colour, because Firefox turns the acrylic off there.*",
+    "defaultValue": "50%",
+    "placeholder": "50%",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzglass.overlays.enabled",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
+    "type": "separator",
     "label": "Window buttons",
     "size": "17px",
     "margin": "24px 0 10px 0"

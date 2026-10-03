@@ -1497,14 +1497,19 @@ test("Groupflow scrolls a top-level group's box from any connector gutter inside
   e.Services.prefs.getBoolPref = (k, d) => k === "zzgroup.connector-scroll" ? enabled : d;
   await e.inject();
   // 25 rows of 40px in a 480px box; the rail variable must follow every frame.
-  const box = { scrollHeight: 1000, clientHeight: 480, top: 0,
+  let listBottom = 1000;
+  const list = { localName: "arrowscrollbox", scrollbox: { getBoundingClientRect: () => ({ bottom: listBottom }) },
+    querySelectorAll: () => [box] };
+  const box = { scrollHeight: 1000, clientHeight: 480, top: 0, closest: () => list,
     style: { setProperty(k, v) { this[k] = v; }, removeProperty(k) { delete this[k]; } },
-    computed: { getPropertyValue: k => k === "--zzgf-cap" ? "480px" : "" },
-    get scrollTop() { return this.top; }, set scrollTop(v) { this.top = Math.max(0, Math.min(520, v)); },
+    computed: { getPropertyValue: k => k === "--zzgf-box-cap" ? "480px" : "" },
+    get scrollTop() { return this.top; },
+    set scrollTop(v) { this.top = Math.max(0, Math.min(1000 - (parseFloat(this.style["--zzgf-box-fit"]) || 480), v)); },
     getBoundingClientRect() { return { top: 100 }; },
     querySelector: () => rows[0], querySelectorAll: () => rows };
   const rows = Array.from({ length: 25 }, (_, i) => ({ getBoundingClientRect: () => ({ top: 100 + i * 40 - box.top, height: 40 }) }));
   const top = { tagName: "tab-group", hasAttribute: () => false, parentElement: { closest: () => null }, querySelector: () => box };
+  box.parentElement = top;
   const sub = { tagName: "tab-group", hasAttribute: () => false, matches: () => true, parentElement: { closest: () => top } };
   const gutter = { classList: { contains: c => c === "tab-group-container" }, parentElement: sub };
   const frames = [];
@@ -1523,6 +1528,14 @@ test("Groupflow scrolls a top-level group's box from any connector gutter inside
   for (const [id, fn] of [...e.c.timers]) { e.c.clearTimeout(id); fn(); } run();
   assert.equal(box.scrollTop, 40, "then settle on a row");
   assert.equal(wheel({ classList: { contains: () => false } }), false, "the wheel over a tab scrolls the list");
+  listBottom = 400;                         // the list now shows only 300px of the box
+  e.gBrowser.tabContainer.fire("scroll", { target: list });
+  assert.equal(box.style["--zzgf-box-fit"], "280px", "the box ends on a row inside the visible list");
+  assert.equal(box.style["--zzgf-box-spare"], "200px", "the rest stays as space, so the list keeps its scroll range");
+  assert.equal(box.scrollTop, 40, "list scrolling leaves the box's rows in place");
+  assert.equal(wheel(gutter, 100), true); assert.equal(box.scrollTop, 720, "the box scrolls to its last rows");
+  assert.equal(box.style["--zzgf-box-spare"], "200px", "and the list's length still does not change");
+  listBottom = 1000;
   box.scrollHeight = 480;
   assert.equal(wheel(gutter), false, "a group that fits leaves the list to scroll");
   box.scrollHeight = 1000; enabled = false;

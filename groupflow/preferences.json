@@ -2248,7 +2248,7 @@
   {
     "type": "string",
     "property": "zzgroup.folder-height",
-    "label": "Folder box height *Tallest a top-level group grows before its contents scroll inside it, rounded down to whole rows. Any CSS length: 70vh is 70% of the window height; 600px is a fixed size.*",
+    "label": "Folder box height *Tallest a top-level group grows before its contents scroll inside it, rounded down to whole rows. Any CSS length: 70vh is 70% of the window height; 600px is a fixed size; none removes this cap. A box also always ends inside the visible tab list.*",
     "defaultValue": "70vh",
     "placeholder": "70vh",
     "conditions": [

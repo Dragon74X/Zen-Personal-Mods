@@ -75,6 +75,7 @@
       if (!data || !data.startsWith(PREFIX)) return;
       iconRules = null;                    // reparsed on the next refresh
       if (["favicons", "icon-rules", "section-icons", "icon-shape", "color-source", "subfolder.include-folders"].some(k => data === PREFIX + k)) schedule();
+      if (data === PREFIX + "folder-height" || data === PREFIX + "connector-scroll") fitSoon();
       const name = "--" + data.replace(/\./g, "-");
       const value = readPrefValue(data);
       try {
@@ -827,8 +828,7 @@
       ? g.querySelector(":scope > .tab-group-container") : null;
   }
   // Row slots inside a box, in scroll coordinates: where each tab or subgroup
-  // header begins, including its top margin. Scrolling stops only on these,
-  // and the box is capped at whole rows, so neither edge cuts a row in half.
+  // header begins, including its top margin. Scrolling stops only on these.
   function rowStops(box) {
     const top = box.getBoundingClientRect().top - box.scrollTop;
     const stops = new Set([0]);
@@ -838,12 +838,34 @@
     }
     return [...stops].sort((a, b) => a - b);
   }
+  // The box's cap comes from the stylesheet; its height is then trimmed so
+  // the bottom edge also lands where a row begins, whatever spacing the
+  // theme gives rows. Returns the scroll positions and the height for each.
+  function measureBox(box) {
+    // --zzgf-cap is a registered <length>, so it computes to pixels without
+    // touching the box's own height (which would clamp its scroll position).
+    let cap = parseFloat(getComputedStyle(box).getPropertyValue("--zzgf-cap"));
+    if (!Number.isFinite(cap)) {
+      box.style.removeProperty("--zzgf-box-fit");
+      cap = parseFloat(getComputedStyle(box).maxHeight);
+    }
+    if (!(cap > 0)) return null;
+    const end = box.scrollHeight;
+    if (end <= cap) { box.style.removeProperty("--zzgf-box-fit"); return null; }
+    const stops = rowStops(box), ends = [...stops, end];
+    const last = stops.find(y => end - y <= cap) ?? end - cap;
+    const positions = stops.filter(y => y < last).concat(last);
+    const fitAt = y => ends.filter(e => e > y && e - y <= cap).reduce((a, e) => Math.max(a, e - y), 0) || cap;
+    return { positions, fitAt };
+  }
+  const nearest = (list, y) => list.reduce((a, b) => Math.abs(b - y) < Math.abs(a - y) ? b : a);
   // Scroll and rail move in the same frame. Waiting for the scroll event left
   // the rail a frame behind, which showed as a gap at the box's edge.
   const glides = new WeakMap();             // box -> { to, raf }
-  function scrollBox(box, to, instant) {
+  function scrollBox(box, to, instant, measured) {
     cancelAnimationFrame(glides.get(box)?.raf);
     glides.delete(box);
+    if (measured) box.style.setProperty("--zzgf-box-fit", measured.fitAt(to) + "px");
     const set = y => { box.scrollTop = y; box.style.setProperty("--zzgf-box-scroll", box.scrollTop + "px"); };
     if (instant) { set(to); return; }
     const from = box.scrollTop, start = performance.now(), ms = 140;
@@ -855,43 +877,77 @@
     glides.set(box, { to, raf: requestAnimationFrame(step) });
   }
   const settles = new WeakMap();            // box -> timer: pixel scrolling snaps once it pauses
-  function scrollFolder(event) {
+  const topBoxes = () => [...document.querySelectorAll("tab-group:not([split-view-group]) > .tab-group-container")]
+    .filter(box => !box.parentElement.parentElement?.closest("tab-group"));
+  // The connector gutter, or any non-row point left of a top-level box's rows
+  // and level with it: the strip left of the line belongs to the folder too.
+  function boxAt(event) {
     const gutter = gutterOf(event.target);
-    if (!gutter || !event.deltaY || !bool("connector-scroll", true)) return;
-    const box = folderBox(gutter);
-    const max = box ? box.scrollHeight - box.clientHeight : 0;
-    if (max <= 0) return;                   // fits: the list scrolls (see below)
+    if (gutter) return folderBox(gutter);
+    if (event.target?.closest?.(".tabbrowser-tab, .tab-group-label-container, toolbarbutton, button")) return null;
+    for (const box of topBoxes()) {
+      const r = box.getBoundingClientRect();
+      if (event.clientY >= r.top && event.clientY < r.bottom &&
+          event.clientX < r.left + (parseFloat(getComputedStyle(box).paddingLeft) || 0)) return box;
+    }
+    return null;
+  }
+  function scrollFolder(event) {
+    if (!event.deltaY || !bool("connector-scroll", true)) return;
+    const box = boxAt(event);
+    if (!box || box.scrollHeight <= box.clientHeight) return;   // fits: the list scrolls (see below)
     event.preventDefault();                 // also cancels any tab switch by scrolling
     event.stopPropagation();
-    const pitch = Math.round(box.querySelector(".tabbrowser-tab")?.getBoundingClientRect().height || 0);
-    if (pitch) document.documentElement.style.setProperty("--zzgf-row", pitch + "px");
-    const stops = rowStops(box).filter(y => y < max).concat(max);
+    const from = glides.get(box)?.to ?? box.scrollTop;
+    const measured = measureBox(box);
+    if (!measured) return;
+    const { positions } = measured;
     if (event.deltaMode === event.DOM_DELTA_PIXEL) {
       // Touchpads send many small deltas: follow them, then settle on a row.
-      scrollBox(box, Math.max(0, Math.min(max, box.scrollTop + event.deltaY)), true);
+      scrollBox(box, Math.max(0, Math.min(positions.at(-1), box.scrollTop + event.deltaY)), true);
       clearTimeout(settles.get(box));
-      settles.set(box, setTimeout(() => {
-        const y = box.scrollTop;
-        scrollBox(box, stops.reduce((a, b) => Math.abs(b - y) < Math.abs(a - y) ? b : a));
-      }, 120));
+      settles.set(box, setTimeout(() => scrollBox(box, nearest(positions, box.scrollTop), false, measured), 120));
       return;
     }
     // A line matches the list's own native line scroll: one line of the font.
     const line = Math.round(parseFloat(getComputedStyle(box).fontSize) * 1.2) || 17;
     const step = event.deltaMode === event.DOM_DELTA_PAGE ? box.clientHeight : line;
-    // Successive notches add to where a running glide is heading.
-    const from = glides.get(box)?.to ?? box.scrollTop;
     const target = from + event.deltaY * step;
     // At least one row per notch, then the row nearest the requested distance.
-    const ahead = stops.filter(y => event.deltaY > 0 ? y > from + 0.5 : y < from - 0.5);
-    if (!ahead.length) return;
-    scrollBox(box, ahead.reduce((a, b) => Math.abs(b - target) < Math.abs(a - target) ? b : a));
+    const ahead = positions.filter(y => event.deltaY > 0 ? y > from + 0.5 : y < from - 0.5);
+    scrollBox(box, ahead.length ? nearest(ahead, target) : from, false, measured);
   }
+  // Refit a resting box after tabs, folders or the window change: nearest row,
+  // keeping a selected tab inside the box fully in view.
+  function fitBox(box) {
+    if (glides.has(box)) return;
+    const measured = measureBox(box);
+    if (!measured) return;
+    const y = box.scrollTop;
+    let choices = measured.positions;
+    const selected = box.querySelector(".tabbrowser-tab[selected]");
+    const r = selected?.getBoundingClientRect();
+    if (r?.height) {
+      const top = r.top - box.getBoundingClientRect().top + y, bottom = top + r.height;
+      const showing = choices.filter(p => top >= p && bottom <= p + measured.fitAt(p));
+      if (showing.length) choices = showing;
+    }
+    scrollBox(box, nearest(choices, y), true, measured);
+  }
+  let fitTimer = null;
+  function fitAll() {
+    if (!bool("connector-scroll", true)) return;
+    for (const box of topBoxes()) fitBox(box);
+  }
+  const fitSoon = () => { clearTimeout(fitTimer); fitTimer = setTimeout(fitAll, 150); };
+  const FIT_EVENTS = ["TabSelect", "TabOpen", "TabClose", "TabGroupCollapse", "TabGroupExpand",
+                      "TabGrouped", "TabUngrouped", "resize"];
   // Scrolls this mod did not start, such as a selected tab brought into view.
   function holdRail(event) {
     const box = event.target;
     if (box.classList?.contains("tab-group-container") && !glides.has(box)) {
       box.style.setProperty("--zzgf-box-scroll", box.scrollTop + "px");
+      fitSoon();                            // then settle it on a row
     }
   }
   // With toolkit.tabbox.switchByScrolling on, Firefox turns every wheel over
@@ -899,7 +955,7 @@
   // Over the gutter of a group that fits, hide the legacy scroll event from
   // that handler so the list scrolls natively instead.
   function scrollOnConnectors(event) {
-    if (gutterOf(event.target) && bool("connector-scroll", true)) event.stopPropagation();
+    if (bool("connector-scroll", true) && (gutterOf(event.target) || boxAt(event))) event.stopPropagation();
   }
 
   function foldStartupGroups() {
@@ -938,6 +994,7 @@
     strip.addEventListener("DOMMouseScroll", scrollOnConnectors, { capture: true, passive: true });
     strip.addEventListener("wheel", scrollFolder, { capture: true, passive: false });
     strip.addEventListener("scroll", holdRail, { capture: true, passive: true });
+    for (const ev of FIT_EVENTS) window.addEventListener(ev, fitSoon, true);
     try { Services.obs.addObserver(schedule, "contextual-identity-updated"); } catch {}
 
     window.Groupflow = {
@@ -985,6 +1042,8 @@
       strip.removeEventListener("DOMMouseScroll", scrollOnConnectors, true);
       strip.removeEventListener("wheel", scrollFolder, true);
       strip.removeEventListener("scroll", holdRail, true);
+      for (const ev of FIT_EVENTS) window.removeEventListener(ev, fitSoon, true);
+      clearTimeout(fitTimer);
       try { Services.obs.removeObserver(schedule, "contextual-identity-updated"); } catch {}
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}
       clearTimeout(timer);
@@ -1022,6 +1081,7 @@
         cleanupVisibility = startCollapsedVisibility();
         foldStartupGroups();
         groupDetails.save();
+        fitSoon();
       }, 0);
     }).catch(e => console.error("[Groupflow] startup folding failed:", e));
   }

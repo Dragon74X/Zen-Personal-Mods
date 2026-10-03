@@ -1978,6 +1978,12 @@
 }
 
 /* ---- folder boxes ------------------------------------------------- */
+/* Registered so the script reads the cap in pixels (70vh resolves to px). */
+@property --zzgf-cap {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
 /* A top-level group's body is capped; the wheel over its connector gutter
    scrolls inside it (groupflow.uc.js), so subgroups slide past while the
    header and the rest of the list stay put. overflow: hidden is not
@@ -1986,8 +1992,10 @@
    group styling off too. */
 @media (-moz-pref("zzgroup.connector-scroll")) {
   #navigator-toolbox tab-group:not([split-view-group]):not(tab-group tab-group) > .tab-group-container {
-    /* Whole rows only: --zzgf-row is the tab height, measured by the script. */
-    max-height: round(down, var(--zzgroup-folder-height, 70vh), var(--zzgf-row, 40px)) !important;
+    /* The cap; the script trims each box to end on a row (--zzgf-box-fit). */
+    --zzgf-cap: var(--zzgroup-folder-height, 70vh);
+    box-sizing: border-box !important;
+    max-height: var(--zzgf-box-fit, var(--zzgf-cap)) !important;
     overflow: hidden !important;
     /* The rail is positioned inside the scrolled body: hold it still. */
     &::before { translate: 0 var(--zzgf-box-scroll, 0px); }

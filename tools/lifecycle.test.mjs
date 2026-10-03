@@ -1458,7 +1458,7 @@ async function groupflowStartupEnv() {
     const h = await load("groupflow", "start, schedule, prefVarObserver", {
       ...c, window: w, document, gBrowser, Services, SessionStore, customElements, queueMicrotask,
       gZenWorkspaces: {}, MutationObserver: class { observe() {} disconnect() {} },
-      getComputedStyle: () => ({ getPropertyValue: () => "" }), CSS: { supports: () => false },
+      getComputedStyle: el => el?.computed ?? { getPropertyValue: () => "" }, CSS: { supports: () => false },
       requestAnimationFrame: fn => w.requestAnimationFrame?.(fn) ?? 0, cancelAnimationFrame() {},
       performance: { now: () => 0 },
     });
@@ -1497,7 +1497,9 @@ test("Groupflow scrolls a top-level group's box from any connector gutter inside
   e.Services.prefs.getBoolPref = (k, d) => k === "zzgroup.connector-scroll" ? enabled : d;
   await e.inject();
   // 25 rows of 40px in a 480px box; the rail variable must follow every frame.
-  const box = { scrollHeight: 1000, clientHeight: 480, top: 0, style: { setProperty(k, v) { this[k] = v; } },
+  const box = { scrollHeight: 1000, clientHeight: 480, top: 0,
+    style: { setProperty(k, v) { this[k] = v; }, removeProperty(k) { delete this[k]; } },
+    computed: { getPropertyValue: k => k === "--zzgf-cap" ? "480px" : "" },
     get scrollTop() { return this.top; }, set scrollTop(v) { this.top = Math.max(0, Math.min(520, v)); },
     getBoundingClientRect() { return { top: 100 }; },
     querySelector: () => rows[0], querySelectorAll: () => rows };
@@ -1514,6 +1516,7 @@ test("Groupflow scrolls a top-level group's box from any connector gutter inside
   assert.equal(wheel(gutter), true, "a nested gutter scrolls the outermost group's box");
   assert.equal(box.scrollTop, 40, "three lines snap to the nearest row");
   assert.equal(box.style["--zzgf-box-scroll"], "40px", "the rail moved in the same frame");
+  assert.equal(box.style["--zzgf-box-fit"], "480px", "the box ends on a row");
   assert.equal(wheel(gutter, 1), true); assert.equal(box.scrollTop, 80, "a small notch still moves one row");
   assert.equal(wheel(gutter, -100), true); assert.equal(box.scrollTop, 0, "clamped at the top");
   assert.equal(wheel(gutter, 30, 0), true); assert.equal(box.scrollTop, 30, "pixel deltas follow the touchpad");
@@ -1592,7 +1595,8 @@ test("Groupflow waits for restore, opens roots and folds every nested depth with
   assert.ok(e.writes.lastIndexOf("child") < e.writes.indexOf("root"));
   assert.ok(!e.writes.includes("split") && !e.writes.includes("root-split"));
   assert.equal(e.gBrowser.selectedTab, selected);
-  assert.equal(e.c.timers.size, 0);
+  assert.equal(e.c.timers.size, 1, "the first folder-box fit is queued");
+  e.tick(); assert.equal(e.c.timers.size, 0);
 });
 
 test("Groupflow leaves manual toggles and later groups unchanged across events and reinjection", async () => {

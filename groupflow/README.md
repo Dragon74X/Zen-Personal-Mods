@@ -55,6 +55,20 @@ Folder labels retain the theme's toolbar text colour when a tab inside is select
 The Label colour setting overrides this foreground without changing the header fill.
 Subfolder state labels can override that shared setting.
 
+## Scrolling from connector lines
+
+With Firefox's **switch tabs by scrolling** setting on
+(`toolkit.tabbox.switchByScrolling`), the wheel over the tab list selects the
+next tab instead of scrolling, which also loads unloaded tabs. Groupflow keeps
+that switch off the gutter beside a group's or folder's rows: the connector
+line and the space between it and the tabs. The wheel there scrolls the list
+natively, so off-screen subfolders and tabs come into view without selecting
+or loading anything. The wheel over a tab still switches tabs.
+
+Without that Firefox setting the list already scrolls everywhere, and this
+changes nothing. **Scroll the list from connector lines** turns it off.
+Split-view groups keep native handling.
+
 ## Subfolder states
 
 **Separate folder state styling** enables 3 profiles for nested group headers.

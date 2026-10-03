@@ -809,6 +809,19 @@
     gBrowser.tabGroupMenu.close();
   }
 
+  // With toolkit.tabbox.switchByScrolling on, Firefox turns every wheel over
+  // the tab strip into a tab switch (selecting, and so loading, the next tab)
+  // and cancels the scroll. A wheel landing on a group's own container is the
+  // connector gutter beside its rows, not a tab: hide the legacy scroll event
+  // from that handler so the list scrolls natively. Passive, so the
+  // compositor never waits on this listener.
+  function scrollOnConnectors(event) {
+    const c = event.target;
+    if (c.classList?.contains("tab-group-container") &&
+        c.parentElement?.matches("tab-group:not([split-view-group]), zen-folder") &&
+        bool("connector-scroll", true)) event.stopPropagation();
+  }
+
   function foldStartupGroups() {
     if (instance.startupFolded) return;
     // Finish ATG's restore when it is present. Standalone nesting is already
@@ -840,6 +853,9 @@
     const iconEvents = atg ? EVENTS : ["SSTabRestored", "ZenTabIconChanged"];
     for (const ev of iconEvents) window.addEventListener(ev, schedule, true);
     window.addEventListener("click", toggleSubgroups, true);
+    // Capture on the strip runs before tabbox.js's bubble listener there.
+    const strip = gBrowser.tabContainer;
+    strip.addEventListener("DOMMouseScroll", scrollOnConnectors, { capture: true, passive: true });
     try { Services.obs.addObserver(schedule, "contextual-identity-updated"); } catch {}
 
     window.Groupflow = {
@@ -884,6 +900,7 @@
       try { delete window.Groupflow; } catch {}
       for (const ev of iconEvents) window.removeEventListener(ev, schedule, true);
       window.removeEventListener("click", toggleSubgroups, true);
+      strip.removeEventListener("DOMMouseScroll", scrollOnConnectors, true);
       try { Services.obs.removeObserver(schedule, "contextual-identity-updated"); } catch {}
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}
       clearTimeout(timer);

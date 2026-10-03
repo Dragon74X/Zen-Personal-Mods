@@ -2235,6 +2235,12 @@
   },
   {
     "type": "checkbox",
+    "property": "zzgroup.connector-scroll",
+    "label": "Scroll the list from connector lines *With Firefox's switch-tabs-by-scrolling setting on (toolkit.tabbox.switchByScrolling), the wheel over the tab list selects, and so loads, the next tab. With this on, the wheel over a group's connector line or the gap beside its rows scrolls the list instead. The wheel over the tabs themselves still switches tabs. Without that Firefox setting the list already scrolls everywhere and this changes nothing.*",
+    "defaultValue": true
+  },
+  {
+    "type": "checkbox",
     "property": "zzgroup.line.match-tab",
     "label": "Match the tab gradient *The rail carries the same recipe as the group header and Glassflow's tabs -- same direction, tint, spread and end tint -- so it reads as an extension of the pill rather than a separate stripe. Works with any membership style, and pairs naturally with Flowing.*",
     "defaultValue": false,

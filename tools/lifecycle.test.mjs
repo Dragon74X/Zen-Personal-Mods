@@ -269,11 +269,11 @@ async function turboEnv({ privateWindow = false, rows = Promise.resolve([]), fai
     setBoolPref: (k, v) => values.set(k, v), clearUserPref: k => values.delete(k),
     prefHasUserValue: k => values.has(k), addObserver() {}, removeObserver() {},
   };
-  const tabContainer = element(), root = element(), scroller = element();
+  const tabContainer = element(), root = element(), scroller = element(), toolbox = element();
   w.XULBrowserWindow = { setOverLink: (...args) => args };
   const h = await load("zen-turbo", "start, syncPacks, startupWarmup, forgetWarmups, warmAfterDwell, cancelDwell, onHover, syncSmoothing", {
     ...c, window: w, gBrowser: { tabContainer, addTabsProgressListener() {}, removeTabsProgressListener() {} },
-    document: { documentElement: root, getElementById: id => id === "tabbrowser-arrowscrollbox" ? scroller : null },
+    document: { documentElement: root, getElementById: id => ({ "tabbrowser-arrowscrollbox": scroller, "navigator-toolbox": toolbox })[id] ?? null },
     MutationObserver: class { observe() {} disconnect() {} },
     Services: { prefs: pref, wm: { getMostRecentWindow: () => w },
       obs: { addObserver() {}, removeObserver() {} },
@@ -288,7 +288,7 @@ async function turboEnv({ privateWindow = false, rows = Promise.resolve([]), fai
       ? { PrivateBrowsingUtils: { isWindowPrivate: () => privateWindow } }
       : { PlacesUtils: { promiseDBConnection: async () => ({ executeCached() { queries++; return rows; } }) } } },
   });
-  return { h, w, c, root, scroller, values, connects, tabContainer, get queries() { return queries; }, get savedWrites() { return savedWrites; } };
+  return { h, w, c, root, scroller, toolbox, values, connects, tabContainer, get queries() { return queries; }, get savedWrites() { return savedWrites; } };
 }
 
 test("Turbo re-sync and disable preserve a managed preference edited by the user", async () => {
@@ -1280,6 +1280,7 @@ test("Groupflow leaves nested and leaf headers, controls and other mouse buttons
 });
 
 async function collapsedVisibilityEnv() {
+  const prefs = new Map([["zzgroup.collapse-keep-last-used", true]]);
   const tabs = [], groups = [], microtasks = [], w = element();
   let observer, invalidations = 0;
   const workspace = { hasCollapsedPinnedTabs: false, collapsiblePins: { activeTabs: [] } };
@@ -1330,8 +1331,10 @@ async function collapsedVisibilityEnv() {
       constructor(callback) { observer = this; this.callback = callback; }
       observe() {} disconnect() { this.disconnected = true; }
     },
+    // These cases cover the optional last-used retention; the default is tested separately.
+    Services: { prefs: { getBoolPref: (k, d) => prefs.has(k) ? prefs.get(k) : d, addObserver() {}, removeObserver() {} } },
   });
-  return { h, w, tabs, groups, Tab, Group, originals, workspace, microtasks,
+  return { h, w, tabs, groups, Tab, Group, originals, workspace, microtasks, prefs,
     get observer() { return observer; }, get invalidations() { return invalidations; },
     flush() { while (microtasks.length) microtasks.shift()(); },
     changed(tab) { observer.callback([{ target: tab }]); },
@@ -1364,6 +1367,18 @@ test("Groupflow collapsed folders retain loaded tabs and one last-used tab per s
   assert.equal(otherLast.visible, false); assert.equal(older.visible, true);
   older.closing = true; e.w.fire("TabClose"); e.flush();
   assert.equal(older.visible, false); assert.equal(otherLast.visible, true, "closing recomputes the destination group");
+  cleanup();
+});
+
+test("Groupflow collapsed folders hide an unloaded last-used tab by default", async () => {
+  const e = await collapsedVisibilityEnv(), root = new e.Group(), child = new e.Group(root);
+  e.prefs.delete("zzgroup.collapse-keep-last-used");
+  root.collapsed = child.collapsed = true;
+  const loaded = new e.Tab(child, 10), last = new e.Tab(child, 30, true);
+  const cleanup = e.h.startCollapsedVisibility();
+  assert.deepEqual([loaded.visible, last.visible], [true, false]);
+  e.prefs.set("zzgroup.collapse-keep-last-used", true); e.changed(last); e.flush();
+  assert.equal(last.visible, true, "the setting keeps it");
   cleanup();
 });
 
@@ -1444,6 +1459,8 @@ async function groupflowStartupEnv() {
       ...c, window: w, document, gBrowser, Services, SessionStore, customElements, queueMicrotask,
       gZenWorkspaces: {}, MutationObserver: class { observe() {} disconnect() {} },
       getComputedStyle: () => ({ getPropertyValue: () => "" }), CSS: { supports: () => false },
+      requestAnimationFrame: fn => w.requestAnimationFrame?.(fn) ?? 0, cancelAnimationFrame() {},
+      performance: { now: () => 0 },
     });
     h.start();
     return h;
@@ -1479,18 +1496,31 @@ test("Groupflow scrolls a top-level group's box from any connector gutter inside
   let enabled = true;
   e.Services.prefs.getBoolPref = (k, d) => k === "zzgroup.connector-scroll" ? enabled : d;
   await e.inject();
-  const box = { scrollHeight: 1000, clientHeight: 300, scrollTop: 0, scrollTo({ top }) { this.scrollTop = top; } };
+  // 25 rows of 40px in a 480px box; the rail variable must follow every frame.
+  const box = { scrollHeight: 1000, clientHeight: 480, top: 0, style: { setProperty(k, v) { this[k] = v; } },
+    get scrollTop() { return this.top; }, set scrollTop(v) { this.top = Math.max(0, Math.min(520, v)); },
+    getBoundingClientRect() { return { top: 100 }; },
+    querySelector: () => rows[0], querySelectorAll: () => rows };
+  const rows = Array.from({ length: 25 }, (_, i) => ({ getBoundingClientRect: () => ({ top: 100 + i * 40 - box.top, height: 40 }) }));
   const top = { tagName: "tab-group", hasAttribute: () => false, parentElement: { closest: () => null }, querySelector: () => box };
   const sub = { tagName: "tab-group", hasAttribute: () => false, matches: () => true, parentElement: { closest: () => top } };
   const gutter = { classList: { contains: c => c === "tab-group-container" }, parentElement: sub };
-  const wheel = (target, deltaY = 3) => { const ev = { target, deltaY, deltaMode: 1, DOM_DELTA_PIXEL: 0, DOM_DELTA_LINE: 1,
+  const frames = [];
+  e.w.requestAnimationFrame = fn => frames.push(fn);
+  const run = () => { let now = 0; while (frames.length) { now += 16; frames.shift()(now); } };
+  const wheel = (target, deltaY = 3, deltaMode = 1) => { const ev = { target, deltaY, deltaMode, DOM_DELTA_PIXEL: 0, DOM_DELTA_LINE: 1,
     DOM_DELTA_PAGE: 2, prevented: false, preventDefault() { this.prevented = true; }, stopPropagation() {} };
-    e.gBrowser.tabContainer.fire("wheel", ev); return ev.prevented; };
+    e.gBrowser.tabContainer.fire("wheel", ev); run(); return ev.prevented; };
   assert.equal(wheel(gutter), true, "a nested gutter scrolls the outermost group's box");
-  assert.equal(box.scrollTop, 51, "three lines at the native line height");
+  assert.equal(box.scrollTop, 40, "three lines snap to the nearest row");
+  assert.equal(box.style["--zzgf-box-scroll"], "40px", "the rail moved in the same frame");
+  assert.equal(wheel(gutter, 1), true); assert.equal(box.scrollTop, 80, "a small notch still moves one row");
   assert.equal(wheel(gutter, -100), true); assert.equal(box.scrollTop, 0, "clamped at the top");
+  assert.equal(wheel(gutter, 30, 0), true); assert.equal(box.scrollTop, 30, "pixel deltas follow the touchpad");
+  for (const [id, fn] of [...e.c.timers]) { e.c.clearTimeout(id); fn(); } run();
+  assert.equal(box.scrollTop, 40, "then settle on a row");
   assert.equal(wheel({ classList: { contains: () => false } }), false, "the wheel over a tab scrolls the list");
-  box.scrollHeight = 300;
+  box.scrollHeight = 480;
   assert.equal(wheel(gutter), false, "a group that fits leaves the list to scroll");
   box.scrollHeight = 1000; enabled = false;
   assert.equal(wheel(gutter), false, "the setting turns it off");
@@ -1711,6 +1741,10 @@ test("Turbo resumes tab effects after a stuck workspace marker and on retirement
   e.root.setAttribute("swipe-gesture", "true"); e.h.syncSmoothing();
   assert.equal(e.root.hasAttribute("zzturbo-smoothing"), false, "Zen never marks swipes on :root");
   e.scroller.setAttribute("swipe-gesture", "true"); e.h.syncSmoothing();
+  assert.equal(e.root.hasAttribute("zzturbo-smoothing"), true);
+  e.scroller.removeAttribute("swipe-gesture"); e.root.removeAttribute("swipe-gesture"); e.h.syncSmoothing();
+  assert.equal(e.root.hasAttribute("zzturbo-smoothing"), false);
+  e.toolbox.setAttribute("animating-background", ""); e.h.syncSmoothing();
   assert.equal(e.root.hasAttribute("zzturbo-smoothing"), true);
   e.w.__zzturboInstance.retire(); assert.equal(e.root.hasAttribute("zzturbo-smoothing"), false);
 });

@@ -1128,8 +1128,11 @@
   }
 
   // Zen marks a trackpad swipe on the tab scroller, the workspaces and the
-  // grain layer (ZenSpacesSwipe.mjs), never on :root.
+  // grain layer (ZenSpacesSwipe.mjs), never on :root. A workspace slide is
+  // marked on #navigator-toolbox since Zen 1.23b, on :root before it.
   const swiping = () => !!document.getElementById?.("tabbrowser-arrowscrollbox")?.hasAttribute("swipe-gesture");
+  const sliding = () => document.documentElement.hasAttribute("animating-background") ||
+    !!document.getElementById?.("navigator-toolbox")?.hasAttribute("animating-background") || swiping();
   let orderTimer = null;
   const startupTimers = [];
   const MAX_ORDER_DEFER_MS = 10000;
@@ -1145,7 +1148,7 @@
       // and treats the animation getting stuck as a known hazard. Unbounded,
       // this rescheduled itself every order-delay-ms forever -- ordering dead
       // for the session and a timer burning behind it.
-      if (document.documentElement.hasAttribute("animating-background") || swiping()) {
+      if (sliding()) {
         if (!orderDeferredSince) orderDeferredSince = Date.now();
         if (Date.now() - orderDeferredSince < MAX_ORDER_DEFER_MS) {
           scheduleOrder();
@@ -1654,7 +1657,7 @@
         } catch {}
 
         const r = {
-          version: "1.34.8",
+          version: "1.34.9",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The

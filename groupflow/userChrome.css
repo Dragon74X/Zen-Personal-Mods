@@ -1986,7 +1986,8 @@
    group styling off too. */
 @media (-moz-pref("zzgroup.connector-scroll")) {
   #navigator-toolbox tab-group:not([split-view-group]):not(tab-group tab-group) > .tab-group-container {
-    max-height: var(--zzgroup-folder-height, 70vh) !important;
+    /* Whole rows only: --zzgf-row is the tab height, measured by the script. */
+    max-height: round(down, var(--zzgroup-folder-height, 70vh), var(--zzgf-row, 40px)) !important;
     overflow: hidden !important;
     /* The rail is positioned inside the scrolled body: hold it still. */
     &::before { translate: 0 var(--zzgf-box-scroll, 0px); }

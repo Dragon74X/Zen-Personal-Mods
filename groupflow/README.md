@@ -40,8 +40,9 @@ Zen does not recreate plain groups containing only subgroups on its own.
 
 Clicking a top-level group/folder header keeps the parent open and alternates
 between collapsing and expanding all nested subgroups/subfolders. Collapsing hides
-unloaded tabs and keeps all loaded tabs visible. Each folder/subfolder also retains its last selected tab,
-even when unloaded. The next click shows all tabs in all subfolders.
+unloaded tabs and keeps the selected tab and all loaded tabs visible. **Keep each folder's last-used tab when collapsed**
+(off by default) also keeps the tab last used in each folder/subfolder, even when unloaded.
+The next click shows all tabs in all subfolders.
 Nested headers and groups without subfolders still toggle individually.
 Last-selected order uses Zen's native timestamps, including restored session history.
 History includes descendant tabs.
@@ -62,7 +63,9 @@ CSS length). Scrolling over a group's connector line, or the gap between it and
 the rows, slides that group's subgroups and tabs inside the box. The group's
 header and the rest of the tab list stay put. A connector inside a subgroup
 scrolls its top-level group's box. Scrolling over a tab still scrolls the whole
-list, and a selected tab is brought into view inside its box.
+list, and a selected tab is brought into view inside its box. Scrolling stops on whole rows and the
+box height is rounded down to whole rows, so neither edge cuts a tab in half. The
+connector line moves with the contents in the same frame, so it never shows a gap.
 
 A group that fits under the cap has nothing to scroll, so its connector
 scrolls the list. With Firefox's **switch tabs by scrolling** setting on

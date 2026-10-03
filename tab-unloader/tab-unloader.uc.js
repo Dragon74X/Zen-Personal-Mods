@@ -245,14 +245,17 @@
   const MAX_DEFER_MS = 10000;
   let deferredSince = 0;
   // Zen marks a trackpad swipe on the tab scroller, the workspaces and the
-  // grain layer (ZenSpacesSwipe.mjs), never on :root.
+  // grain layer (ZenSpacesSwipe.mjs), never on :root. A workspace slide is
+  // marked on #navigator-toolbox since Zen 1.23b, on :root before it.
   const swiping = () => !!document.getElementById?.("tabbrowser-arrowscrollbox")?.hasAttribute("swipe-gesture");
+  const sliding = () => document.documentElement.hasAttribute("animating-background") ||
+    !!document.getElementById?.("navigator-toolbox")?.hasAttribute("animating-background") || swiping();
 
   async function sweep() {
     if (sweeping || retired || !bool("enabled", false)) return;
     // discardBrowser mid workspace-slide contributes to animation stutter;
     // Zen marks the slide on :root. Skip this tick, the interval retries.
-    if (document.documentElement.hasAttribute("animating-background") || swiping()) {
+    if (sliding()) {
       if (!deferredSince) deferredSince = Date.now();
       const waited = Date.now() - deferredSince;
       if (waited < MAX_DEFER_MS) {

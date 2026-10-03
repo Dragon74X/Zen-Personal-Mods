@@ -710,6 +710,12 @@
   },
   {
     "type": "checkbox",
+    "property": "zzgroup.collapse-keep-last-used",
+    "label": "Keep each folder's last-used tab when collapsed *Collapsing a folder or subfolder always keeps the selected tab and loaded tabs visible. With this on, it also keeps the tab you last used in each folder, even after that tab has been unloaded.*",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
     "property": "zzgroup.collapsed.dim",
     "label": "Dim collapsed groups *Collapsed headers fade and desaturate slightly, so open groups carry the visual weight.*",
     "defaultValue": true,
@@ -2242,7 +2248,7 @@
   {
     "type": "string",
     "property": "zzgroup.folder-height",
-    "label": "Folder box height *Tallest a top-level group grows before its contents scroll inside it. Any CSS length: 70vh is 70% of the window height; 600px is a fixed size.*",
+    "label": "Folder box height *Tallest a top-level group grows before its contents scroll inside it, rounded down to whole rows. Any CSS length: 70vh is 70% of the window height; 600px is a fixed size.*",
     "defaultValue": "70vh",
     "placeholder": "70vh",
     "conditions": [

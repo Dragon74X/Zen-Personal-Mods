@@ -1170,7 +1170,7 @@ test("Router restores a missing avatar for a cached creator without rerouting or
   const child = { ...element(), tagName: "tab-group", label: "Channel", tabs: [t], querySelector: () => t, parentElement: { closest: () => parent } };
   const refreshes = []; let opened = 0;
   const e = await routerEnv({ gBrowser: { tabGroups: [parent, child], tabs: [t] },
-    document: { querySelectorAll: selector => selector === "tab-group" ? [parent, child] : [t] },
+    document: { querySelectorAll: selector => selector.startsWith("tab-group") ? [parent, child] : [t] },
     window: { Groupflow: { refresh(defer) { refreshes.push(defer); } } },
     createImageBitmap: async () => ({ width: 64, height: 64, close() {} }),
     OffscreenCanvas: class {
@@ -1447,7 +1447,7 @@ async function groupflowStartupEnv() {
   } };
   function group(name, { parent = null, folder = false, collapsed = false, split = false } = {}) {
     const g = { ...element(), tagName: folder ? "zen-folder" : "tab-group",
-      id: name, label: name, tabs: [], closest: () => ({ id: "workspace" }),
+      id: name, label: name, tabs: [], closest: selector => selector === "zen-library" ? null : { id: "workspace" },
       isZenFolder: folder, parentElement: { closest: () => parent },
       get collapsed() { return collapsed; },
       set collapsed(value) { writes.push(name); collapsed = value; },
@@ -1502,7 +1502,7 @@ test("Groupflow scrolls a top-level group's box from any connector gutter inside
   let listBottom = 1000;
   const list = { localName: "arrowscrollbox", scrollbox: { getBoundingClientRect: () => ({ bottom: listBottom }) },
     querySelectorAll: () => [box] };
-  const box = { scrollHeight: 1000, clientHeight: 480, top: 0, closest: () => list,
+  const box = { scrollHeight: 1000, clientHeight: 480, top: 0, closest: selector => selector === "arrowscrollbox" ? list : null,
     style: { setProperty(k, v) { this[k] = v; }, removeProperty(k) { delete this[k]; } },
     computed: { getPropertyValue: k => k === "--zzgf-box-cap" ? "480px" : "" },
     get scrollTop() { return this.top; },
@@ -1721,7 +1721,7 @@ test("Groupflow restores saved parents without cycles, cross-workspace moves or 
   const groups = new Map();
   function group(id, workspace = "one", split = false) {
     const g = { ...element(), id, tagName: "tab-group", group: null,
-      closest: () => ({ id: workspace }),
+      closest: selector => selector === "zen-library" ? null : { id: workspace },
       contains(other) { for (let p = other; p; p = p.group) if (p === this) return true; return false; },
       groupContainer: { appendChild(child) { child.group = g; } },
     };
@@ -1795,7 +1795,7 @@ test("Turbo resumes tab effects after a stuck workspace marker and on retirement
 
 test("Every pref a mod's CSS queries is declared in its preferences.json", async () => {
   const { readdir } = await import("node:fs/promises");
-  for (const mod of ["glassflow", "groupflow", "zen-turbo", "download-prompt"]) {
+  for (const mod of ["glassflow", "glassflow-library", "groupflow", "zen-turbo", "download-prompt"]) {
     const dir = new URL(`../${mod}/`, import.meta.url);
     const declared = new Set(JSON.parse(await readFile(new URL("preferences.json", dir), "utf8")).map(p => p.property));
     const prefixes = new Set([...declared].filter(Boolean).map(p => p.split(".")[0]));
@@ -1805,4 +1805,53 @@ test("Every pref a mod's CSS queries is declared in its preferences.json", async
         if (prefixes.has(pref.split(".")[0])) assert.ok(declared.has(pref), `${mod}/${file} queries undeclared ${pref}`);
     }
   }
+});
+
+test("Library clones stay out of saved state and filing, and get only visual headers", async () => {
+  const library = { localName: "zen-library" };
+  const span = () => ({ setAttribute() {} });
+  const header = (tint = "") => ({ children: [], style: { v: tint, getPropertyValue() { return this.v; }, setProperty(_k, v) { this.v = v; } },
+    appendChild(c) { this.children.push(c); }, querySelector(sel) { return this.children.find(c => sel === "." + c.className) || null; } });
+  const group = (id, inLibrary, label = header()) => ({ id, tagName: "tab-group", labelContainerElement: label,
+    hasAttribute: () => false, closest: sel => sel === "zen-library" && inLibrary ? library : null });
+  const real = group("g1", false, header("tinted")), copy = group("g1-copy", true);
+  const h = await load("groupflow", "plainGroups, dressCopy", {
+    window: {}, document: { querySelectorAll: () => [real, copy], getElementById: id => id === "g1" ? real : null,
+      createElementNS: () => span() },
+  });
+  assert.deepEqual([...h.plainGroups().map(g => g.id)], ["g1"], "a clone is never saved, nested or filed");
+  h.dressCopy(copy);
+  assert.deepEqual(copy.labelContainerElement.children.map(c => c.className), ["zzgf-rim", "zzgf-control zzgf-icon"],
+    "rim and icon only: no close control that would act on the clone");
+  assert.equal(copy.labelContainerElement.style.v, "tinted", "the real header's tint is copied");
+  h.dressCopy(copy);
+  assert.equal(copy.labelContainerElement.children.length, 2, "dressing twice adds nothing");
+  for (const mod of ["tab-router", "tab-unloader"]) {
+    const source = await readFile(new URL(`../${mod}/${mod}.uc.js`, import.meta.url), "utf8");
+    assert.match(source, /querySelectorAll\(".tabbrowser-tab:not\(zen-library \*\)"\)/, `${mod} never treats a clone as a tab`);
+  }
+});
+
+test("Glassflow Library seeds unset defaults and writes its string prefs as variables", async () => {
+  const prefs = new Map([["zzlib.card.width", "300px"]]);
+  const set = (k, v) => prefs.set(k, v);
+  const style = new Map(), observers = [];
+  const Services = { prefs: { PREF_INVALID: 0, PREF_STRING: 32, PREF_INT: 64, PREF_BOOL: 128,
+    getPrefType: k => !prefs.has(k) ? 0 : typeof prefs.get(k) === "boolean" ? 128 : typeof prefs.get(k) === "number" ? 64 : 32,
+    getStringPref: k => prefs.get(k), getIntPref: k => prefs.get(k),
+    setStringPref: set, setBoolPref: set, setIntPref: set,
+    getBranch: prefix => ({ getChildList: () => [...prefs.keys()].filter(k => k.startsWith(prefix)).map(k => k.slice(prefix.length)) }),
+    addObserver: (_p, o) => observers.push(o), removeObserver() {} } };
+  const declared = JSON.parse(await readFile(new URL("../glassflow-library/preferences.json", import.meta.url), "utf8"));
+  const window = { addEventListener() {} };
+  const document = { documentElement: { style: { setProperty: (k, v) => style.set(k, v), removeProperty: k => style.delete(k) } } };
+  const source = await readFile(new URL("../glassflow-library/glassflow-library.uc.js", import.meta.url), "utf8");
+  vm.runInContext(source, vm.createContext({ window, document, Services, fetch: async () => ({ json: async () => declared }) }));
+  assert.equal(style.get("--zzlib-card-width"), "300px", "a chosen value is written at once");
+  await new Promise(r => setImmediate(r));
+  assert.equal(prefs.get("zzlib.card.width"), "300px", "a chosen value is never overwritten");
+  assert.equal(prefs.get("zzlib.card.rim"), true, "default-on checkboxes are seeded");
+  assert.equal(prefs.get("zzlib.card.fill"), "70%");
+  observers[0].observe(null, null, "zzlib.card.fill");
+  assert.equal(style.get("--zzlib-card-fill"), "70%", "changes are written live");
 });

@@ -222,6 +222,25 @@
     } finally { probe.remove(); }
   }
 
+  // A clone keeps the real group's attributes and inline styles (colour,
+  // icon, shape) but builds its own header, so only the header is dressed:
+  // the rim, the icon and the saved-gradient tint. Never the close control,
+  // which would act on the clone.
+  function dressCopy(copy) {
+    const header = copy.labelContainerElement;
+    if (!plainShape(copy) || !header || header.querySelector(".zzgf-rim")) return;
+    for (const name of ["zzgf-rim", "zzgf-control zzgf-icon"]) {
+      const span = document.createElementNS("http://www.w3.org/1999/xhtml", "span");
+      span.className = name;
+      span.setAttribute("aria-hidden", "true");
+      header.appendChild(span);
+    }
+    const real = document.getElementById(copy.id.replace(/-copy$/, ""));
+    const tint = real?.labelContainerElement?.style.getPropertyValue("--zzgf-saved-tint-background");
+    if (tint) header.style.setProperty("--zzgf-saved-tint-background", tint);
+  }
+  const dressCopies = event => { if (isCopy(event.target)) dressCopy(event.target); };
+
   function refreshGroup(g) {
     const header = g.labelContainerElement;
     if (header && !header.querySelector(".zzgf-rim")) {
@@ -373,7 +392,11 @@
                   "FolderGrouped", "FolderUngrouped",
                   "SSTabRestored", "ZenTabIconChanged"];
 
-  const plainGroup = g => g?.tagName === "tab-group" && !g.isZenFolder && !g.hasAttribute("split-view-group");
+  // Zen's library (1.23b) shows clones of every space's strip. A clone is a
+  // picture of a real group: never one to save, nest, file, edit or close.
+  const isCopy = el => !!el?.closest?.("zen-library");
+  const plainShape = g => g?.tagName === "tab-group" && !g.isZenFolder && !g.hasAttribute("split-view-group");
+  const plainGroup = g => plainShape(g) && !isCopy(g);
   const plainGroups = () => [...document.querySelectorAll("tab-group")].filter(plainGroup);
   const workspaceOf = g => g.closest("zen-workspace")?.id || g.getAttribute("zen-workspace-id");
 
@@ -802,7 +825,7 @@
     const group = event.target.closest?.(".tab-group-label-container")?.parentElement;
     const selector = "tab-group, zen-folder";
     if (!group?.matches(selector) || group.hasAttribute("split-view-group") ||
-        group.parentElement?.closest(selector)) return;
+        group.parentElement?.closest(selector) || isCopy(group)) return;
     const children = [...group.querySelectorAll(selector)].filter(child => !child.hasAttribute("split-view-group"));
     if (!children.length) return;
     // Capture before Zen toggles the parent: this header controls its subfolders.
@@ -888,7 +911,7 @@
   }
   const settles = new WeakMap();            // box -> timer: pixel scrolling snaps once it pauses
   const topBoxes = (root = document) => [...root.querySelectorAll("tab-group:not([split-view-group]) > .tab-group-container")]
-    .filter(box => !box.parentElement.parentElement?.closest("tab-group"));
+    .filter(box => !box.parentElement.parentElement?.closest("tab-group") && !isCopy(box));
   // Firefox aims a whole burst of wheel events at whatever was under the
   // pointer when the burst began, until scrolling pauses for about 1.5s, so
   // event.target can be a section the pointer has since left. Go by position.
@@ -1041,6 +1064,7 @@
     const iconEvents = atg ? EVENTS : ["SSTabRestored", "ZenTabIconChanged"];
     for (const ev of iconEvents) window.addEventListener(ev, schedule, true);
     window.addEventListener("click", toggleSubgroups, true);
+    window.addEventListener("TabGroupCreate", dressCopies, true);
     // Capture on the strip runs before tabbox.js's bubble listener there.
     const strip = gBrowser.tabContainer;
     strip.addEventListener("DOMMouseScroll", scrollOnConnectors, { capture: true, passive: true });
@@ -1091,6 +1115,7 @@
       try { delete window.Groupflow; } catch {}
       for (const ev of iconEvents) window.removeEventListener(ev, schedule, true);
       window.removeEventListener("click", toggleSubgroups, true);
+      window.removeEventListener("TabGroupCreate", dressCopies, true);
       strip.removeEventListener("DOMMouseScroll", scrollOnConnectors, true);
       gNavToolbox.removeEventListener("wheel", onWheel, true);
       strip.removeEventListener("scroll", holdRail, true);

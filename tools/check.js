@@ -17,6 +17,7 @@
   const MODS = [
     ["zz-download-prompt", "Download Prompt", "DownloadPrompt"],
     ["zz-glassflow", "Glassflow", "Glassflow"],
+    ["zz-glassflow-library", "Glassflow Library", null],
     ["zz-groupflow",    "Groupflow",    "Groupflow"],
     ["zz-tab-router",   "Tab Router",   "TabRouter"],
     ["zz-tab-unloader", "Tab Unloader", "TabUnloader"],
@@ -88,7 +89,7 @@
       out.script = typeof W[global] === "object" ? "alive" : "NOT RUNNING";
     }
     const gen = W[{ "zz-download-prompt":"__zzdlInstance",
-                    "zz-glassflow":"__zzglassInstance", "zz-groupflow":"__zzgroupInstance",
+                    "zz-glassflow":"__zzglassInstance", "zz-glassflow-library":"__zzlibInstance", "zz-groupflow":"__zzgroupInstance",
                     "zz-tab-router":"__zzrouterInstance", "zz-tab-unloader":"__zzunloadInstance",
                     "zz-zen-turbo":"__zzturboInstance" }[id]];
     out.injected = gen ? `yes (generation ${gen.generation})` : "no marker -- old version or never injected";

@@ -1,0 +1,35 @@
+{
+  "id": "zz-glassflow-library",
+  "name": "Glassflow Library",
+  "description": "Glass styling and sizing for Zen's Library space cards. Pairs with Glassflow and Groupflow, whose tab and folder styling also apply inside the cards.",
+  "author": "Dragon74X",
+  "version": "1.0.0",
+  "updatedAt": "2026-10-03T22:36:24Z",
+  "homepage": "https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/glassflow-library",
+  "readme": "https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/main/glassflow-library/README.md",
+  "style": {
+    "chrome": "userChrome.css"
+  },
+  "preferences": "preferences.json",
+  "tags": [
+    "library",
+    "glass"
+  ],
+  "fork": [
+    "zen"
+  ],
+  "scripts": {
+    "sine-update-guard.sys.mjs": {
+      "name": "Sine Update Guard",
+      "description": "Serialize installs/updates and wait for replacement files before reading preferences.",
+      "loadOrder": 1
+    },
+    "glassflow-library.uc.js": {
+      "name": "Glassflow Library",
+      "description": "Writes preference variables and declared defaults, so settings apply on launch.",
+      "include": [
+        "chrome://browser/content/browser.xhtml"
+      ]
+    }
+  }
+}

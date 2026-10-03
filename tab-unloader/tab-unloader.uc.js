@@ -231,7 +231,8 @@
   function allTabs() {
     // Native tabs all have this class. Querying the document includes every
     // workspace and Glance; gBrowser.tabs covers only the current workspace.
-    return [...document.querySelectorAll(".tabbrowser-tab")];
+    // Zen's library clones each strip; those clones are not tabs.
+    return [...document.querySelectorAll(".tabbrowser-tab:not(zen-library *)")];
   }
 
   // Deferring on Zen's animation markers has to be BOUNDED. Zen sets

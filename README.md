@@ -6,6 +6,7 @@ Source-targeted Zen Browser modifications.
 |---|---|
 | [Download Prompt](download-prompt/) | Handles duplicate download filenames |
 | [Glassflow](glassflow/) | Shared UI token and surface styles |
+| [Glassflow Library](glassflow-library/) | Glass styling and sizing for the Library's space cards |
 | [Groupflow](groupflow/) | Nested-group persistence, controls, icons and styling |
 | [Tab Router](tab-router/) | Rule-based tab grouping |
 | [Tab Unloader](tab-unloader/) | Time-based tab unloading |
@@ -38,7 +39,7 @@ For an isolated runtime check with a disposable profile and Pillow installed:
 python tools/zen-smoke.py --zen /path/to/zen --arc /path/to/Arc-2.0 --transparent /path/to/zen-themes/TransparentZen
 ```
 
-This starts all six scripts, checks the native transparent-page blur and modal dialog, and verifies cleanup. It does not benchmark the GPU or contact an existing browser profile. Arc and Transparent Zen are optional.
+This starts every mod's script, checks the native transparent-page blur and modal dialog, and verifies cleanup. It does not benchmark the GPU or contact an existing browser profile. Arc and Transparent Zen are optional.
 
 For standalone group restoration and container routing:
 

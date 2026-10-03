@@ -11,7 +11,7 @@ import { installSineUpdateGuard } from "../download-prompt/sine-update-guard.sys
 
 const upstream = process.env.SINE_MANAGER_SOURCE;
 const root = new URL("../", import.meta.url);
-const mods = ["download-prompt", "glassflow", "groupflow", "tab-router", "tab-unloader", "zen-turbo"];
+const mods = ["download-prompt", "glassflow", "glassflow-library", "groupflow", "tab-router", "tab-unloader", "zen-turbo"];
 
 async function environment({ realMetadata = false, failArchive = new Set() } = {}) {
   const source = await readFile(upstream, "utf8");
@@ -136,13 +136,13 @@ test("native Sine: authored release dates update Groupflow alone without GitHub 
   assert.deepEqual(env.updatedMods, ["zz-groupflow"]);
   assert.equal(env.registry["zz-groupflow"].version, env.manifests["zz-groupflow"].version);
   assert.equal(env.registry["zz-groupflow"].updatedAt, env.manifests["zz-groupflow"].updatedAt);
-  assert.equal(env.metadataRequests.length, 6);
+  assert.equal(env.metadataRequests.length, mods.length);
   assert.ok(env.metadataRequests.every(url => url.endsWith("/theme.json")));
 });
 
 test("native Sine: unguarded parallel update reproduces folder loss", { skip: !upstream }, async () => {
   const env = await environment();
-  // Sine starts all 6 sync jobs concurrently. Capture every rejection so all
+  // Sine starts every sync job concurrently. Capture every rejection so all
   // filesystem operations settle before examining the resulting installation.
   const list = await env.utils.getMods();
   await Promise.allSettled(Object.values(list).map(mod => env.manager.processModUpdate(mod, list, null)));
@@ -150,12 +150,12 @@ test("native Sine: unguarded parallel update reproduces folder loss", { skip: !u
   assert.ok(missing.length > 0, "baseline must reproduce corruption");
 });
 
-test("native Sine: guarded update keeps 6 preferences and 6 metadata entries", { skip: !upstream }, async () => {
+test("native Sine: guarded update keeps every preference file and metadata entry", { skip: !upstream }, async () => {
   const env = await environment();
   assert.equal(installSineUpdateGuard(env.manager, env.utils), true);
   assert.equal(await env.manager.updateMods("auto"), true);
-  assert.equal((await env.lastLoad).length, 6);
-  assert.equal(Object.keys(env.registry).length, 6);
+  assert.equal((await env.lastLoad).length, mods.length);
+  assert.equal(Object.keys(env.registry).length, mods.length);
   for (const mod of Object.values(env.registry)) {
     assert.equal(mod.preferences, "preferences.json");
     assert.deepEqual(await env.utils.getModPreferences(mod), JSON.parse(
@@ -164,12 +164,12 @@ test("native Sine: guarded update keeps 6 preferences and 6 metadata entries", {
   assert.ok(![...env.fs.keys()].some(p => p.startsWith("/sine-mods/temp/")));
 });
 
-test("native Sine: update and reinstall queued together retain all 6 mods", { skip: !upstream }, async () => {
+test("native Sine: update and reinstall queued together retain every mod", { skip: !upstream }, async () => {
   const env = await environment();
   installSineUpdateGuard(env.manager, env.utils);
   await Promise.all([env.manager.updateMods(), env.manager.installMod(env.manifests["zz-glassflow"].homepage, null)]);
-  assert.equal((await env.lastLoad).length, 6);
-  assert.equal(Object.keys(env.registry).length, 6);
+  assert.equal((await env.lastLoad).length, mods.length);
+  assert.equal(Object.keys(env.registry).length, mods.length);
 });
 
 test("native Sine: sibling and nested dependencies retain every mod", { skip: !upstream, timeout: 2000 }, async () => {
@@ -181,8 +181,8 @@ test("native Sine: sibling and nested dependencies retain every mod", { skip: !u
   for (const id of ["zz-groupflow", "zz-tab-router", "zz-tab-unloader"]) delete env.registry[id];
   installSineUpdateGuard(env.manager, env.utils);
   await env.manager.updateMods();
-  assert.equal((await env.lastLoad).length, 6);
-  assert.equal(Object.keys(env.registry).length, 6);
+  assert.equal((await env.lastLoad).length, mods.length);
+  assert.equal(Object.keys(env.registry).length, mods.length);
   for (const mod of Object.values(env.registry)) await env.utils.getModPreferences(mod);
   assert.ok(![...env.fs.keys()].some(p => p.startsWith("/sine-mods/temp/")));
 });

@@ -56,6 +56,15 @@ Folder labels retain the theme's toolbar text colour when a tab inside is select
 The Label colour setting overrides this foreground without changing the header fill.
 Subfolder state labels can override that shared setting.
 
+## Library
+
+Folder styling (headers, icons, rails and connectors) also applies to the
+copies of each space's folders in Zen's Library, with the same settings.
+Folder boxes stay sidebar-only, since each Library card scrolls on its own.
+Copies never get the close control and are never saved, nested or filed:
+they are pictures of the real folders. Tab Router and Tab Unloader ignore
+them too.
+
 ## Scrolling what is under the pointer
 
 Firefox keeps a burst of wheel scrolling aimed at wherever it started, until

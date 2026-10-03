@@ -721,7 +721,8 @@
     if (groupsCache && groupsCache.every(live)) return groupsCache;
     // Zen folders subclass tab-group but live pinned; split-view wrappers
     // are positional artifacts. Leave both alone.
-    groupsCache = [...document.querySelectorAll("tab-group")].filter(g =>
+    // Zen's library holds clones of every strip; never file into those.
+    groupsCache = [...document.querySelectorAll("tab-group:not(zen-library *)")].filter(g =>
       !g.isZenFolder && !g.hasAttribute("split-view-group") && live(g));
     return groupsCache;
   }
@@ -788,8 +789,9 @@
     a.length === b.length && a.every((s, i) => s.toLowerCase() === b[i].toLowerCase());
 
   // DOM tabs include all workspaces and Essentials; gBrowser.tabs is a subset.
+  // The library's clones of each strip are not tabs.
   function allTabs() {
-    return [...document.querySelectorAll(".tabbrowser-tab")];
+    return [...document.querySelectorAll(".tabbrowser-tab:not(zen-library *)")];
   }
 
   // ---- ancestry ----------------------------------------------------------
@@ -1657,7 +1659,7 @@
         } catch {}
 
         const r = {
-          version: "1.34.9",
+          version: "1.34.10",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The

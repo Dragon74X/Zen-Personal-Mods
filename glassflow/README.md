@@ -206,6 +206,36 @@ Two optional page-side effects, both off:
 - **Blur a strip of the page** — blurs only a `260px` band along one edge,
   with its own radius, offsets, corner and feather.
 
+## Overlays
+
+On by default. Frosted glass behind what Zen floats inside the window, blurring
+whatever is underneath:
+
+| Surface | What changes |
+|---|---|
+| Library download stack (hover the library button) | Each entry gets glass. Zen fades the tabs out under the stack; they stay and show through blurred |
+| Toasts | The accent fill turns translucent over a blur |
+| Glance's side buttons | Translucent over a blur of the page |
+| Library media preview | The dimmed window behind it is blurred too |
+
+| Setting | Default | Notes |
+|---|---|---|
+| Glass behind overlays | on | |
+| Overlay blur radius | `20px` | |
+| Overlay fill | `55%` | `0%` is clear glass |
+| Menu and panel fill (Windows 11) | `50%` | Zen's own value; lower shows more of the blur |
+
+Menus, context menus and panels (including the tab hover preview) are
+separate windows, so CSS cannot blur what is behind them. On Windows 11 22H2
+and later Firefox gives them Windows' own acrylic, which does, and Zen tints it
+50%. On Windows 10, and on Windows 11 when title bars show an accent colour
+with a custom inactive colour, Firefox turns that acrylic off and nothing can
+blur behind menus.
+
+Zen already blurs the floating urlbar (*acrylic elements*, on by default since
+1.23b), the compact sidebar and notification bars. The share overlay is left
+alone: the page under it is hidden, so there is nothing to blur.
+
 ## Window buttons
 
 Off by default. Placement is set explicitly via `order`, so it does not depend

@@ -1765,3 +1765,17 @@ test("Turbo resumes tab effects after a stuck workspace marker and on retirement
   assert.equal(e.root.hasAttribute("zzturbo-smoothing"), true);
   e.w.__zzturboInstance.retire(); assert.equal(e.root.hasAttribute("zzturbo-smoothing"), false);
 });
+
+test("Every pref a mod's CSS queries is declared in its preferences.json", async () => {
+  const { readdir } = await import("node:fs/promises");
+  for (const mod of ["glassflow", "groupflow", "zen-turbo", "download-prompt"]) {
+    const dir = new URL(`../${mod}/`, import.meta.url);
+    const declared = new Set(JSON.parse(await readFile(new URL("preferences.json", dir), "utf8")).map(p => p.property));
+    const prefixes = new Set([...declared].filter(Boolean).map(p => p.split(".")[0]));
+    for (const file of (await readdir(dir)).filter(f => f.endsWith(".css"))) {
+      const css = await readFile(new URL(file, dir), "utf8");
+      for (const [, pref] of css.matchAll(/-moz-pref\(\s*["']([^"']+)/g))
+        if (prefixes.has(pref.split(".")[0])) assert.ok(declared.has(pref), `${mod}/${file} queries undeclared ${pref}`);
+    }
+  }
+});

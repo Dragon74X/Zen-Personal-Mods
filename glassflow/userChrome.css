@@ -1334,3 +1334,55 @@
             saturate(var(--zzglass-sidebar-page-follow-saturate, 1)) !important;
   }
 }
+
+/* ============================================================
+   Overlays: glass behind what floats inside the window.
+
+   These are drawn in the browser window itself, so backdrop-filter
+   reads whatever is painted under them (no ancestor of the library
+   stack is a backdrop root). Menus and panels are separate native
+   windows: CSS cannot see behind them, so they get Windows' own
+   acrylic (Firefox's -moz-windows-mica-popups) and only its tint is
+   set here. Zen already blurs the floating urlbar, the compact
+   sidebar and notification bars. The share overlay is skipped: the
+   page under it is hidden, leaving nothing to blur.
+   ============================================================ */
+:root {
+  --zzg-ov-blur: blur(var(--zzglass-overlays-blur-radius, 20px)) var(--zzg-fx);
+  --zzg-ov-fill: light-dark(rgb(255 255 255 / var(--zzglass-overlays-opacity, 55%)),
+                            rgb(24 24 24 / var(--zzglass-overlays-opacity, 55%)));
+}
+@media (-moz-pref("zzglass.overlays.enabled")) {
+  /* Library download stack. Zen masks the tab list out under it; keep
+     the tabs so the glass has them to blur. */
+  #TabsToolbar-customization-target:is([zen-library-stack-open], [zen-library-stack-closing]) {
+    mask-image: none !important;
+  }
+  #zen-library-download-list .zen-library-download-list-download {
+    background: var(--zzg-ov-fill) !important;
+    backdrop-filter: var(--zzg-ov-blur) !important;
+    &:hover { background: color-mix(in srgb, currentColor 10%, var(--zzg-ov-fill)) !important; }
+  }
+  #zen-toast-container .zen-toast {
+    background: linear-gradient(to bottom,
+      color-mix(in srgb, var(--zen-primary-color) var(--zzglass-overlays-opacity, 55%), transparent) -40%,
+      color-mix(in srgb, color-mix(in srgb, var(--zen-primary-color), #0f0f0f 20%) var(--zzglass-overlays-opacity, 55%), transparent)) !important;
+    backdrop-filter: var(--zzg-ov-blur) !important;
+  }
+  .zen-glance-sidebar-container toolbarbutton {
+    background: color-mix(in srgb, color-mix(in srgb, light-dark(rgb(24, 24, 24), rgb(231, 231, 231)) 96%, var(--zen-primary-color))
+      var(--zzglass-overlays-opacity, 55%), transparent) !important;
+    backdrop-filter: var(--zzg-ov-blur) !important;
+    &:hover { background: color-mix(in srgb, light-dark(rgb(41, 41, 41), rgb(204, 204, 204)) var(--zzglass-overlays-opacity, 55%), transparent) !important; }
+  }
+  /* Zen dims the window behind the preview; blur it as well. */
+  .zen-library-media-preview-backdrop {
+    backdrop-filter: var(--zzg-ov-blur) !important;
+  }
+  @media (-moz-windows-mica-popups) {
+    menupopup, panel[type="arrow"]:not(#feature-callout) {
+      --panel-background-color: light-dark(rgb(255 255 255 / var(--zzglass-popups-opacity, 50%)),
+                                           rgb(0 0 0 / var(--zzglass-popups-opacity, 50%))) !important;
+    }
+  }
+}

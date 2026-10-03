@@ -1976,3 +1976,19 @@
     }
   }
 }
+
+/* ---- folder boxes ------------------------------------------------- */
+/* A top-level group's body is capped; the wheel over its connector gutter
+   scrolls inside it (groupflow.uc.js), so subgroups slide past while the
+   header and the rest of the list stay put. overflow: hidden is not
+   wheel-scrollable, so the wheel over a tab still scrolls the list, and a
+   selected tab is still scrolled into view through the box. Applies with
+   group styling off too. */
+@media (-moz-pref("zzgroup.connector-scroll")) {
+  #navigator-toolbox tab-group:not([split-view-group]):not(tab-group tab-group) > .tab-group-container {
+    max-height: var(--zzgroup-folder-height, 70vh) !important;
+    overflow: hidden !important;
+    /* The rail is positioned inside the scrolled body: hold it still. */
+    &::before { translate: 0 var(--zzgf-box-scroll, 0px); }
+  }
+}

@@ -2236,8 +2236,23 @@
   {
     "type": "checkbox",
     "property": "zzgroup.connector-scroll",
-    "label": "Scroll the list from connector lines *With Firefox's switch-tabs-by-scrolling setting on (toolkit.tabbox.switchByScrolling), the wheel over the tab list selects, and so loads, the next tab. With this on, the wheel over a group's connector line or the gap beside its rows scrolls the list instead. The wheel over the tabs themselves still switches tabs. Without that Firefox setting the list already scrolls everywhere and this changes nothing.*",
+    "label": "Scroll inside folders from connector lines *Caps each top-level group at the height below. Scrolling over a group's connector line, or the gap beside its rows, slides its subgroups and tabs inside that box while its header and the rest of the tab list stay put. Scrolling over a tab still scrolls the whole list. A group that fits scrolls the list from its connector too, without switching tabs when Firefox's switch-tabs-by-scrolling (toolkit.tabbox.switchByScrolling) is on.*",
     "defaultValue": true
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.folder-height",
+    "label": "Folder box height *Tallest a top-level group grows before its contents scroll inside it. Any CSS length: 70vh is 70% of the window height; 600px is a fixed size.*",
+    "defaultValue": "70vh",
+    "placeholder": "70vh",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.connector-scroll",
+          "value": true
+        }
+      }
+    ]
   },
   {
     "type": "checkbox",

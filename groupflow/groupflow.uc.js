@@ -809,17 +809,50 @@
     gBrowser.tabGroupMenu.close();
   }
 
+  // A wheel landing on a group's own container is the connector gutter beside
+  // its rows, not a tab. userChrome.css caps each top-level group's body
+  // (zzgroup.folder-height); a wheel on any gutter inside it scrolls that body,
+  // so subgroups slide past while its header and the other tabs stay put.
+  const gutterOf = el => el?.classList?.contains("tab-group-container") &&
+    el.parentElement?.matches("tab-group:not([split-view-group]), zen-folder") ? el : null;
+  function folderBox(gutter) {
+    let g = gutter.parentElement;
+    for (let up; (up = g.parentElement?.closest("tab-group")); ) g = up;
+    return g.tagName === "tab-group" && !g.hasAttribute("split-view-group")
+      ? g.querySelector(":scope > .tab-group-container") : null;
+  }
+  const scrollTargets = new WeakMap();      // box -> { to, at }: where a smooth scroll is heading
+  function scrollFolder(event) {
+    const gutter = gutterOf(event.target);
+    if (!gutter || !event.deltaY || !bool("connector-scroll", true)) return;
+    const box = folderBox(gutter);
+    const max = box ? box.scrollHeight - box.clientHeight : 0;
+    if (max <= 0) return;                   // fits: the list scrolls (see below)
+    event.preventDefault();                 // also cancels any tab switch by scrolling
+    event.stopPropagation();
+    const pixels = event.deltaMode === event.DOM_DELTA_PIXEL;
+    // A line matches the list's own native line scroll: one line of the font.
+    const line = Math.round(parseFloat(getComputedStyle(box).fontSize) * 1.2) || 17;
+    const step = pixels ? 1 : event.deltaMode === event.DOM_DELTA_PAGE ? box.clientHeight : line;
+    // Successive notches add to the destination, not to the mid-animation position.
+    const last = scrollTargets.get(box), now = Date.now();
+    const from = !pixels && last && now - last.at < 300 && Math.sign(last.to - box.scrollTop) === Math.sign(event.deltaY)
+      ? last.to : box.scrollTop;
+    const to = Math.max(0, Math.min(max, from + event.deltaY * step));
+    scrollTargets.set(box, { to, at: now });
+    box.scrollTo({ top: to, behavior: pixels ? "instant" : "smooth" });
+  }
+  // The rail is positioned inside the scrolled body; hold it in place.
+  function holdRail(event) {
+    const box = event.target;
+    if (box.classList?.contains("tab-group-container")) box.style.setProperty("--zzgf-box-scroll", box.scrollTop + "px");
+  }
   // With toolkit.tabbox.switchByScrolling on, Firefox turns every wheel over
-  // the tab strip into a tab switch (selecting, and so loading, the next tab)
-  // and cancels the scroll. A wheel landing on a group's own container is the
-  // connector gutter beside its rows, not a tab: hide the legacy scroll event
-  // from that handler so the list scrolls natively. Passive, so the
-  // compositor never waits on this listener.
+  // the tab strip into a tab switch (selecting, and so loading, the next tab).
+  // Over the gutter of a group that fits, hide the legacy scroll event from
+  // that handler so the list scrolls natively instead.
   function scrollOnConnectors(event) {
-    const c = event.target;
-    if (c.classList?.contains("tab-group-container") &&
-        c.parentElement?.matches("tab-group:not([split-view-group]), zen-folder") &&
-        bool("connector-scroll", true)) event.stopPropagation();
+    if (gutterOf(event.target) && bool("connector-scroll", true)) event.stopPropagation();
   }
 
   function foldStartupGroups() {
@@ -856,6 +889,8 @@
     // Capture on the strip runs before tabbox.js's bubble listener there.
     const strip = gBrowser.tabContainer;
     strip.addEventListener("DOMMouseScroll", scrollOnConnectors, { capture: true, passive: true });
+    strip.addEventListener("wheel", scrollFolder, { capture: true, passive: false });
+    strip.addEventListener("scroll", holdRail, { capture: true, passive: true });
     try { Services.obs.addObserver(schedule, "contextual-identity-updated"); } catch {}
 
     window.Groupflow = {
@@ -901,6 +936,8 @@
       for (const ev of iconEvents) window.removeEventListener(ev, schedule, true);
       window.removeEventListener("click", toggleSubgroups, true);
       strip.removeEventListener("DOMMouseScroll", scrollOnConnectors, true);
+      strip.removeEventListener("wheel", scrollFolder, true);
+      strip.removeEventListener("scroll", holdRail, true);
       try { Services.obs.removeObserver(schedule, "contextual-identity-updated"); } catch {}
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}
       clearTimeout(timer);

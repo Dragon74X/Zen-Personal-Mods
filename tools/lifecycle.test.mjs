@@ -1474,6 +1474,28 @@ test("Groupflow keeps tab-switch scrolling off group connector gutters only", as
   assert.equal(wheel(container(true)), false, "retirement removes the listener");
 });
 
+test("Groupflow scrolls a top-level group's box from any connector gutter inside it", async () => {
+  const e = await groupflowStartupEnv();
+  let enabled = true;
+  e.Services.prefs.getBoolPref = (k, d) => k === "zzgroup.connector-scroll" ? enabled : d;
+  await e.inject();
+  const box = { scrollHeight: 1000, clientHeight: 300, scrollTop: 0, scrollTo({ top }) { this.scrollTop = top; } };
+  const top = { tagName: "tab-group", hasAttribute: () => false, parentElement: { closest: () => null }, querySelector: () => box };
+  const sub = { tagName: "tab-group", hasAttribute: () => false, matches: () => true, parentElement: { closest: () => top } };
+  const gutter = { classList: { contains: c => c === "tab-group-container" }, parentElement: sub };
+  const wheel = (target, deltaY = 3) => { const ev = { target, deltaY, deltaMode: 1, DOM_DELTA_PIXEL: 0, DOM_DELTA_LINE: 1,
+    DOM_DELTA_PAGE: 2, prevented: false, preventDefault() { this.prevented = true; }, stopPropagation() {} };
+    e.gBrowser.tabContainer.fire("wheel", ev); return ev.prevented; };
+  assert.equal(wheel(gutter), true, "a nested gutter scrolls the outermost group's box");
+  assert.equal(box.scrollTop, 51, "three lines at the native line height");
+  assert.equal(wheel(gutter, -100), true); assert.equal(box.scrollTop, 0, "clamped at the top");
+  assert.equal(wheel({ classList: { contains: () => false } }), false, "the wheel over a tab scrolls the list");
+  box.scrollHeight = 300;
+  assert.equal(wheel(gutter), false, "a group that fits leaves the list to scroll");
+  box.scrollHeight = 1000; enabled = false;
+  assert.equal(wheel(gutter), false, "the setting turns it off");
+});
+
 test("Groupflow coalesces requested refreshes and immediate refresh cancels queued work", async () => {
   const e = await groupflowStartupEnv();
   await e.inject(); e.ready.resolve(); await Promise.resolve(); e.tick();

@@ -206,6 +206,12 @@ Two optional page-side effects, both off:
 - **Blur a strip of the page** — blurs only a `260px` band along one edge,
   with its own radius, offsets, corner and feather.
 
+## Library
+
+Tab styling also applies to the copies of each space's tabs in Zen's
+Library (Spaces view), with the same settings. Style the cards around them
+with the [Glassflow Library](../glassflow-library/) mod.
+
 ## Overlays
 
 On by default. Frosted glass behind what Zen floats inside the window, blurring

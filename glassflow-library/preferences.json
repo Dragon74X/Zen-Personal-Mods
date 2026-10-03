@@ -1,0 +1,74 @@
+[
+  {
+    "type": "separator",
+    "label": "Glassflow Library",
+    "size": "20px",
+    "margin": "2px 0 12px 0"
+  },
+  {
+    "type": "separator",
+    "label": "Space cards",
+    "size": "17px",
+    "margin": "24px 0 10px 0"
+  },
+  {
+    "type": "string",
+    "property": "zzlib.card.fill",
+    "label": "Card fill *How solid the card's background is. Zen draws 100%; lower lets the window background show through, like glass. Cards sit on the window background, so there is nothing behind them to blur.*",
+    "defaultValue": "70%",
+    "placeholder": "70%"
+  },
+  {
+    "type": "string",
+    "property": "zzlib.card.gradient",
+    "label": "Space gradient strength *The space's own colour gradient on its card. 1 is Zen's; 0 hides it.*",
+    "defaultValue": "1",
+    "placeholder": "1"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzlib.card.rim",
+    "label": "Glass rim *A thin highlight around the card, Glassflow's rim colours when Glassflow is installed.*",
+    "defaultValue": true
+  },
+  {
+    "type": "checkbox",
+    "property": "zzlib.card.sheen",
+    "label": "Glass sheen *A soft light-to-shade gradient over the card, Glassflow's sheen when Glassflow is installed.*",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
+    "property": "zzlib.card.shadow",
+    "label": "Card shadow *Zen's own soft shadow.*",
+    "defaultValue": true
+  },
+  {
+    "type": "string",
+    "property": "zzlib.card.radius",
+    "label": "Corner radius",
+    "defaultValue": "14px",
+    "placeholder": "14px"
+  },
+  {
+    "type": "string",
+    "property": "zzlib.card.width",
+    "label": "Card width *Zen uses 242px. Wider cards show longer tab titles.*",
+    "defaultValue": "242px",
+    "placeholder": "242px"
+  },
+  {
+    "type": "string",
+    "property": "zzlib.card.gap",
+    "label": "Space between cards",
+    "defaultValue": "24px",
+    "placeholder": "24px"
+  },
+  {
+    "type": "string",
+    "property": "zzlib.card.title-size",
+    "label": "Space name size",
+    "defaultValue": "13px",
+    "placeholder": "13px"
+  }
+]

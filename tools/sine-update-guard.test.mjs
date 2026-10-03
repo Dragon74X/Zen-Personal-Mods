@@ -4,7 +4,7 @@ import { setImmediate as tick } from "node:timers/promises";
 import { test } from "node:test";
 import { installSineUpdateGuard } from "../download-prompt/sine-update-guard.sys.mjs";
 
-const mods = ["download-prompt", "glassflow", "groupflow", "tab-router", "tab-unloader", "zen-turbo"];
+const mods = ["download-prompt", "glassflow", "glassflow-library", "groupflow", "tab-router", "tab-unloader", "zen-turbo"];
 const guardName = "sine-update-guard.sys.mjs";
 const root = new URL("../", import.meta.url);
 const deferred = () => {
@@ -76,14 +76,14 @@ function fixture() {
     get maxActive() { return maxActive; }, get registry() { return registry; } };
 }
 
-test("unguarded 6-mod updates reproduce the shared-temp collision", async () => {
+test("unguarded concurrent updates reproduce the shared-temp collision", async () => {
   const f = fixture();
   await assert.rejects(f.manager.updateMods(), /shared temp collision/);
   await tick();
-  assert.equal(f.maxActive, 6);
+  assert.equal(f.maxActive, mods.length);
 });
 
-test("guarded 6-mod update preserves all preference files; 1 sync at a time", async () => {
+test("guarded update preserves all preference files; 1 sync at a time", async () => {
   const f = fixture();
   assert.equal(installSineUpdateGuard(f.manager, f.utils), true);
   assert.equal(await f.manager.updateMods("auto"), "updated");
@@ -96,8 +96,8 @@ test("separate batches and a manual install cannot overlap", async () => {
   installSineUpdateGuard(f.manager, f.utils);
   await Promise.all([f.manager.updateMods(), f.manager.installMod("manual"), f.manager.updateMods()]);
   assert.equal(f.maxActive, 1);
-  assert.equal(Object.keys(f.registry).length, 7);
-  assert.equal(f.events.indexOf("start:manual"), 12);
+  assert.equal(Object.keys(f.registry).length, mods.length + 1);
+  assert.equal(f.events.indexOf("start:manual"), mods.length * 2, "after the whole first batch");
 });
 
 test("rejected operation propagates and does not poison either queue", async () => {
@@ -194,7 +194,7 @@ test("standalone reload=false install still queues behind updates", async () => 
   installSineUpdateGuard(f.manager, f.utils);
   await Promise.all([f.manager.updateMods(), f.manager.installMod("manual", null, false)]);
   assert.equal(f.maxActive, 1);
-  assert.equal(Object.keys(f.registry).length, 7);
+  assert.equal(Object.keys(f.registry).length, mods.length + 1);
 });
 
 test("failed batch waits for producers still awaiting marketplace data", { timeout: 2000 }, async () => {

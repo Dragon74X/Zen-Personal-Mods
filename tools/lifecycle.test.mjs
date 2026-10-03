@@ -1429,8 +1429,10 @@ async function groupflowStartupEnv() {
   // These cases exercise the existing ATG coexistence path; the native smoke
   // check covers Groupflow's standalone controller and its persisted state.
   w.advancedTabGroups = {};
-  const document = { documentElement: element(), querySelectorAll: selector =>
-    groups.filter(g => selector.split(", ").includes(g.tagName)) };
+  // elementFromPoint answers with whatever the test last put under the pointer.
+  const document = { documentElement: element(), hit: null, elementFromPoint() { return this.hit; },
+    querySelector: () => null, querySelectorAll: selector => groups.filter(g => selector.split(", ").includes(g.tagName)) };
+  const gNavToolbox = { ...element(), contains: () => true };
   const gBrowser = { tabGroups: groups, selectedTab: { label: "selected tab" },
     tabContainer: { ...element(), _invalidateCachedVisibleTabs() {} } };
   class StartupTab { get visible() { return true; } }
@@ -1456,7 +1458,7 @@ async function groupflowStartupEnv() {
   }
   async function inject() {
     const h = await load("groupflow", "start, schedule, prefVarObserver", {
-      ...c, window: w, document, gBrowser, Services, SessionStore, customElements, queueMicrotask,
+      ...c, window: w, document, gBrowser, gNavToolbox, Services, SessionStore, customElements, queueMicrotask,
       gZenWorkspaces: {}, MutationObserver: class { observe() {} disconnect() {} },
       getComputedStyle: el => el?.computed ?? { getPropertyValue: () => "" }, CSS: { supports: () => false },
       requestAnimationFrame: fn => w.requestAnimationFrame?.(fn) ?? 0, cancelAnimationFrame() {},
@@ -1468,7 +1470,7 @@ async function groupflowStartupEnv() {
   function tick() {
     for (const [id, fn] of [...c.timers]) { c.clearTimeout(id); fn(); }
   }
-  return { c, w, ready, group, groups, writes, inject, tick, gBrowser, Services };
+  return { c, w, ready, group, groups, writes, inject, tick, gBrowser, gNavToolbox, document, Services };
 }
 
 test("Groupflow keeps tab-switch scrolling off group connector gutters only", async () => {
@@ -1478,7 +1480,7 @@ test("Groupflow keeps tab-switch scrolling off group connector gutters only", as
   await e.inject();
   const container = groupMatches => ({ classList: { contains: c => c === "tab-group-container" },
     parentElement: { matches: () => groupMatches } });
-  const wheel = target => { let stopped = false;
+  const wheel = target => { let stopped = false; e.document.hit = target;
     e.gBrowser.tabContainer.fire("DOMMouseScroll", { target, stopPropagation() { stopped = true; } });
     return stopped; };
   assert.equal(wheel(container(true)), true, "gutter beside a group's rows scrolls the list");
@@ -1517,7 +1519,7 @@ test("Groupflow scrolls a top-level group's box from any connector gutter inside
   const run = () => { let now = 0; while (frames.length) { now += 16; frames.shift()(now); } };
   const wheel = (target, deltaY = 3, deltaMode = 1) => { const ev = { target, deltaY, deltaMode, DOM_DELTA_PIXEL: 0, DOM_DELTA_LINE: 1,
     DOM_DELTA_PAGE: 2, prevented: false, preventDefault() { this.prevented = true; }, stopPropagation() {} };
-    e.gBrowser.tabContainer.fire("wheel", ev); run(); return ev.prevented; };
+    e.document.hit = target; e.gNavToolbox.fire("wheel", ev); run(); return ev.prevented; };
   assert.equal(wheel(gutter), true, "a nested gutter scrolls the outermost group's box");
   assert.equal(box.scrollTop, 40, "three lines snap to the nearest row");
   assert.equal(box.style["--zzgf-box-scroll"], "40px", "the rail moved in the same frame");
@@ -1540,6 +1542,31 @@ test("Groupflow scrolls a top-level group's box from any connector gutter inside
   assert.equal(wheel(gutter), false, "a group that fits leaves the list to scroll");
   box.scrollHeight = 1000; enabled = false;
   assert.equal(wheel(gutter), false, "the setting turns it off");
+});
+
+test("Groupflow scrolls the sidebar section under the pointer, not where the wheel burst began", async () => {
+  const e = await groupflowStartupEnv();
+  e.Services.prefs.getBoolPref = (k, d) => d;
+  await e.inject();
+  const calls = [];
+  const list = { nodeType: 1, scrollHeight: 2000, clientHeight: 500, computed: { overflowY: "auto", fontSize: "14px" },
+    getBoundingClientRect: () => ({ bottom: 600 }), scrollBy(o) { calls.push(o); } };
+  const host = { nodeType: 1, localName: "arrowscrollbox", scrollbox: list };
+  const plain = parentElement => ({ nodeType: 1, parentElement, classList: { contains: () => false }, closest: () => null });
+  const tab = plain(host), favourite = plain(null), bottom = plain(null);
+  e.document.querySelector = () => host;
+  const wheel = (target, hit, clientY) => { const ev = { target, deltaY: 3, deltaMode: 1, clientY, DOM_DELTA_PIXEL: 0,
+    DOM_DELTA_LINE: 1, DOM_DELTA_PAGE: 2, prevented: false, preventDefault() { this.prevented = true; }, stopPropagation() {} };
+    e.document.hit = hit; e.gNavToolbox.fire("wheel", ev); return ev.prevented; };
+  assert.equal(wheel(tab, tab, 300), false, "native scrolling already reaches the hovered list");
+  assert.equal(calls.length, 0);
+  assert.equal(wheel(favourite, tab, 300), true, "a burst begun on favourites scrolls the tabs once over them");
+  assert.deepEqual({ ...calls.pop() }, { top: 51, behavior: "smooth" }, "three lines, smoothly");
+  assert.equal(wheel(bottom, bottom, 650), true, "below the list scrolls the list");
+  assert.equal(calls.length, 1);
+  calls.length = 0;
+  assert.equal(wheel(tab, favourite, 50), true, "over favourites the list no longer scrolls");
+  assert.equal(calls.length, 0);
 });
 
 test("Groupflow coalesces requested refreshes and immediate refresh cancels queued work", async () => {

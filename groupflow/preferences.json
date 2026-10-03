@@ -2241,6 +2241,12 @@
   },
   {
     "type": "checkbox",
+    "property": "zzgroup.hover-scroll",
+    "label": "Scroll what is under the pointer *Firefox keeps a burst of scrolling aimed at wherever it started, so moving from favourites onto the tabs mid-scroll did not scroll the tabs. With this on, the wheel scrolls the sidebar section under the pointer, and the space below the tab list, down to the bottom buttons, scrolls the tabs.*",
+    "defaultValue": true
+  },
+  {
+    "type": "checkbox",
     "property": "zzgroup.connector-scroll",
     "label": "Scroll inside folders from connector lines *Caps each top-level group at the height below. Scrolling over a group's connector line, or the gap beside its rows, slides its subgroups and tabs inside that box while its header and the rest of the tab list stay put. Scrolling over a tab still scrolls the whole list. A group that fits scrolls the list from its connector too, without switching tabs when Firefox's switch-tabs-by-scrolling (toolkit.tabbox.switchByScrolling) is on.*",
     "defaultValue": true

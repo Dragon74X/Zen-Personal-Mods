@@ -889,12 +889,16 @@
   const settles = new WeakMap();            // box -> timer: pixel scrolling snaps once it pauses
   const topBoxes = (root = document) => [...root.querySelectorAll("tab-group:not([split-view-group]) > .tab-group-container")]
     .filter(box => !box.parentElement.parentElement?.closest("tab-group"));
+  // Firefox aims a whole burst of wheel events at whatever was under the
+  // pointer when the burst began, until scrolling pauses for about 1.5s, so
+  // event.target can be a section the pointer has since left. Go by position.
+  const hitOf = event => document.elementFromPoint(event.clientX, event.clientY);
   // The connector gutter, or any non-row point left of a top-level box's rows
   // and level with it: the strip left of the line belongs to the folder too.
-  function boxAt(event) {
-    const gutter = gutterOf(event.target);
+  function boxAt(event, hit = hitOf(event)) {
+    const gutter = gutterOf(hit);
     if (gutter) return folderBox(gutter);
-    if (event.target?.closest?.(".tabbrowser-tab, .tab-group-label-container, toolbarbutton, button")) return null;
+    if (hit?.closest?.(".tabbrowser-tab, .tab-group-label-container, toolbarbutton, button")) return null;
     for (const box of topBoxes()) {
       const r = box.getBoundingClientRect();
       if (event.clientY >= r.top && event.clientY < r.bottom &&
@@ -902,22 +906,22 @@
     }
     return null;
   }
-  function scrollFolder(event) {
-    if (!event.deltaY || !bool("connector-scroll", true)) return;
-    const box = boxAt(event);
-    if (!box || box.scrollHeight <= box.clientHeight) return;   // fits: the list scrolls (see below)
+  // Returns true when the wheel went to a folder box.
+  function scrollFolder(event, hit) {
+    const box = boxAt(event, hit);
+    if (!box || box.scrollHeight <= box.clientHeight) return false;   // fits: the list scrolls (see below)
     event.preventDefault();                 // also cancels any tab switch by scrolling
     event.stopPropagation();
     const from = glides.get(box)?.to ?? box.scrollTop;
     const measured = measureBox(box);
-    if (!measured) return;
+    if (!measured) return true;
     const { positions } = measured;
     if (event.deltaMode === event.DOM_DELTA_PIXEL) {
       // Touchpads send many small deltas: follow them, then settle on a row.
       scrollBox(box, Math.max(0, Math.min(positions.at(-1), box.scrollTop + event.deltaY)), true);
       clearTimeout(settles.get(box));
       settles.set(box, setTimeout(() => scrollBox(box, nearest(positions, box.scrollTop), false, measured), 120));
-      return;
+      return true;
     }
     // A line matches the list's own native line scroll: one line of the font.
     const line = Math.round(parseFloat(getComputedStyle(box).fontSize) * 1.2) || 17;
@@ -926,6 +930,36 @@
     // At least one row per notch, then the row nearest the requested distance.
     const ahead = positions.filter(y => event.deltaY > 0 ? y > from + 0.5 : y < from - 0.5);
     scrollBox(box, ahead.length ? nearest(ahead, target) : from, false, measured);
+    return true;
+  }
+  // Any other wheel in the sidebar scrolls the section under the pointer.
+  // The sidebar below the tab list (empty space, bottom buttons) scrolls the
+  // list. Native scrolling is left alone whenever it already goes there.
+  const scrollerOf = el => {
+    for (let n = el; n?.nodeType === 1; n = n.parentElement) {
+      const s = n.localName === "arrowscrollbox" ? n.scrollbox : n;
+      if (s && s.scrollHeight > s.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(s).overflowY)) return s;
+    }
+    return null;
+  };
+  function scrollHovered(event, hit) {
+    let to = scrollerOf(hit);
+    const list = document.querySelector("zen-workspace[active] arrowscrollbox")?.scrollbox;
+    if (!to && list && event.clientY >= list.getBoundingClientRect().bottom) to = scrollerOf(list);
+    if (to === scrollerOf(event.target)) return;
+    event.preventDefault();
+    if (!to) return;                        // over a section that cannot scroll
+    const line = Math.round(parseFloat(getComputedStyle(to).fontSize) * 1.2) || 17;
+    const unit = event.deltaMode === event.DOM_DELTA_PIXEL ? 1 : event.deltaMode === event.DOM_DELTA_PAGE ? to.clientHeight : line;
+    // A smooth scrollBy adds to the destination of one already running.
+    to.scrollBy({ top: event.deltaY * unit, behavior: event.deltaMode === event.DOM_DELTA_PIXEL ? "instant" : "smooth" });
+  }
+  function onWheel(event) {
+    if (!event.deltaY || event.ctrlKey || event.altKey || event.shiftKey || event.metaKey) return;
+    const hit = hitOf(event);
+    if (!hit || !gNavToolbox.contains(hit)) return;
+    if (bool("connector-scroll", true) && scrollFolder(event, hit)) return;
+    if (bool("hover-scroll", true)) scrollHovered(event, hit);
   }
   // Refit a resting box after tabs, folders or the window change: nearest row,
   // keeping a selected tab inside the box fully in view unless told to keep
@@ -972,7 +1006,8 @@
   // Over the gutter of a group that fits, hide the legacy scroll event from
   // that handler so the list scrolls natively instead.
   function scrollOnConnectors(event) {
-    if (bool("connector-scroll", true) && (gutterOf(event.target) || boxAt(event))) event.stopPropagation();
+    const hit = hitOf(event);
+    if (bool("connector-scroll", true) && (gutterOf(hit) || boxAt(event, hit))) event.stopPropagation();
   }
 
   function foldStartupGroups() {
@@ -1009,7 +1044,7 @@
     // Capture on the strip runs before tabbox.js's bubble listener there.
     const strip = gBrowser.tabContainer;
     strip.addEventListener("DOMMouseScroll", scrollOnConnectors, { capture: true, passive: true });
-    strip.addEventListener("wheel", scrollFolder, { capture: true, passive: false });
+    gNavToolbox.addEventListener("wheel", onWheel, { capture: true, passive: false });
     strip.addEventListener("scroll", holdRail, { capture: true, passive: true });
     for (const ev of FIT_EVENTS) window.addEventListener(ev, fitSoon, true);
     try { Services.obs.addObserver(schedule, "contextual-identity-updated"); } catch {}
@@ -1057,7 +1092,7 @@
       for (const ev of iconEvents) window.removeEventListener(ev, schedule, true);
       window.removeEventListener("click", toggleSubgroups, true);
       strip.removeEventListener("DOMMouseScroll", scrollOnConnectors, true);
-      strip.removeEventListener("wheel", scrollFolder, true);
+      gNavToolbox.removeEventListener("wheel", onWheel, true);
       strip.removeEventListener("scroll", holdRail, true);
       for (const ev of FIT_EVENTS) window.removeEventListener(ev, fitSoon, true);
       clearTimeout(fitTimer);

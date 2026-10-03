@@ -59,7 +59,10 @@ Subfolder state labels can override that shared setting.
 ## Scrolling inside folders
 
 Each top-level group is capped at **Folder box height** (`70vh` by default, any
-CSS length). Scrolling over a group's connector line, or the gap between it and
+CSS length; `none` leaves only the next limit). A box also never runs past the
+bottom of the visible tab list, however tall the window is or wherever the list
+is scrolled: what the list cuts off is left as empty space below the box, so
+scrolling the list grows the box back instead of cutting its rows. Scrolling over a group's connector line, or the gap between it and
 the rows, slides that group's subgroups and tabs inside the box. The group's
 header and the rest of the tab list stay put. A connector inside a subgroup
 scrolls its top-level group's box. Scrolling over a tab still scrolls the whole
@@ -69,7 +72,8 @@ the connector line counts as the connector too.
 Scrolling stops on whole rows, and each box is trimmed below the cap so its
 bottom edge also lands between rows. Both are measured from the rows themselves,
 so tab margins or spacing added by other themes still give clean edges. The box
-refits after tabs open, close or change, folders toggle, or the window resizes.
+refits after tabs open, close, move or change, folders toggle, the list
+scrolls, or the window resizes.
 The connector line moves with the contents in the same frame, so it never shows a gap.
 
 A group that fits under the cap has nothing to scroll, so its connector

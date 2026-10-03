@@ -838,25 +838,32 @@
     }
     return [...stops].sort((a, b) => a - b);
   }
-  // The box's cap comes from the stylesheet; its height is then trimmed so
-  // the bottom edge also lands where a row begins, whatever spacing the
-  // theme gives rows. Returns the scroll positions and the height for each.
+  // The box is capped by the stylesheet (zzgroup.folder-height) and by the
+  // visible list: it never runs past the list's bottom edge, whatever the
+  // window size or list scroll. Its height is then trimmed so the bottom edge
+  // lands where a row begins, whatever spacing the theme gives rows. What the
+  // list cut off stays below the box as empty space, so the list keeps its
+  // scroll range and scrolling it grows the box back. Returns the scroll
+  // positions and, for each, the box height and that spare space.
   function measureBox(box) {
-    // --zzgf-cap is a registered <length>, so it computes to pixels without
-    // touching the box's own height (which would clamp its scroll position).
-    let cap = parseFloat(getComputedStyle(box).getPropertyValue("--zzgf-cap"));
-    if (!Number.isFinite(cap)) {
-      box.style.removeProperty("--zzgf-box-fit");
-      cap = parseFloat(getComputedStyle(box).maxHeight);
+    // A registered <length> | none, so it computes to pixels without touching
+    // the box's own height (which would clamp its scroll position).
+    const pref = parseFloat(getComputedStyle(box).getPropertyValue("--zzgf-box-cap")) || Infinity;
+    const port = box.closest("arrowscrollbox")?.scrollbox?.getBoundingClientRect();
+    const room = port ? Math.max(0, port.bottom - box.getBoundingClientRect().top) : Infinity;
+    const cap = Math.min(pref, room), end = box.scrollHeight;
+    if (end <= cap) {
+      for (const v of ["fit", "spare", "scroll"]) box.style.removeProperty("--zzgf-box-" + v);
+      return null;
     }
-    if (!(cap > 0)) return null;
-    const end = box.scrollHeight;
-    if (end <= cap) { box.style.removeProperty("--zzgf-box-fit"); return null; }
     const stops = rowStops(box), ends = [...stops, end];
-    const last = stops.find(y => end - y <= cap) ?? end - cap;
+    const lastAt = c => stops.find(y => end - y <= c) ?? end - c;
+    const last = lastAt(cap), prefLast = lastAt(pref);
     const positions = stops.filter(y => y < last).concat(last);
-    const fitAt = y => ends.filter(e => e > y && e - y <= cap).reduce((a, e) => Math.max(a, e - y), 0) || cap;
-    return { positions, fitAt };
+    const fit = (y, c) => ends.filter(e => e > y && e - y <= c).reduce((a, e) => Math.max(a, e - y), 0);
+    // Spare tops the box up to its uncut height, even scrolled past where
+    // the uncut box could reach, so the list's length never changes.
+    return { positions, fitAt: y => fit(y, cap), spareAt: y => fit(Math.min(y, prefLast), pref) - fit(y, cap) };
   }
   const nearest = (list, y) => list.reduce((a, b) => Math.abs(b - y) < Math.abs(a - y) ? b : a);
   // Scroll and rail move in the same frame. Waiting for the scroll event left
@@ -865,7 +872,10 @@
   function scrollBox(box, to, instant, measured) {
     cancelAnimationFrame(glides.get(box)?.raf);
     glides.delete(box);
-    if (measured) box.style.setProperty("--zzgf-box-fit", measured.fitAt(to) + "px");
+    if (measured) {
+      box.style.setProperty("--zzgf-box-fit", measured.fitAt(to) + "px");
+      box.style.setProperty("--zzgf-box-spare", measured.spareAt(to) + "px");
+    }
     const set = y => { box.scrollTop = y; box.style.setProperty("--zzgf-box-scroll", box.scrollTop + "px"); };
     if (instant) { set(to); return; }
     const from = box.scrollTop, start = performance.now(), ms = 140;
@@ -877,7 +887,7 @@
     glides.set(box, { to, raf: requestAnimationFrame(step) });
   }
   const settles = new WeakMap();            // box -> timer: pixel scrolling snaps once it pauses
-  const topBoxes = () => [...document.querySelectorAll("tab-group:not([split-view-group]) > .tab-group-container")]
+  const topBoxes = (root = document) => [...root.querySelectorAll("tab-group:not([split-view-group]) > .tab-group-container")]
     .filter(box => !box.parentElement.parentElement?.closest("tab-group"));
   // The connector gutter, or any non-row point left of a top-level box's rows
   // and level with it: the strip left of the line belongs to the folder too.
@@ -918,8 +928,9 @@
     scrollBox(box, ahead.length ? nearest(ahead, target) : from, false, measured);
   }
   // Refit a resting box after tabs, folders or the window change: nearest row,
-  // keeping a selected tab inside the box fully in view.
-  function fitBox(box) {
+  // keeping a selected tab inside the box fully in view unless told to keep
+  // the rows where they are.
+  function fitBox(box, keep) {
     if (glides.has(box)) return;
     const measured = measureBox(box);
     if (!measured) return;
@@ -927,7 +938,7 @@
     let choices = measured.positions;
     const selected = box.querySelector(".tabbrowser-tab[selected]");
     const r = selected?.getBoundingClientRect();
-    if (r?.height) {
+    if (r?.height && !keep) {
       const top = r.top - box.getBoundingClientRect().top + y, bottom = top + r.height;
       const showing = choices.filter(p => top >= p && bottom <= p + measured.fitAt(p));
       if (showing.length) choices = showing;
@@ -941,10 +952,16 @@
   }
   const fitSoon = () => { clearTimeout(fitTimer); fitTimer = setTimeout(fitAll, 150); };
   const FIT_EVENTS = ["TabSelect", "TabOpen", "TabClose", "TabGroupCollapse", "TabGroupExpand",
-                      "TabGrouped", "TabUngrouped", "resize"];
+                      "TabGrouped", "TabUngrouped", "TabMove", "TabPinned", "TabUnpinned", "resize"];
   // Scrolls this mod did not start, such as a selected tab brought into view.
   function holdRail(event) {
     const box = event.target;
+    // The list scrolled (arrowscrollbox repeats its scroll on itself): its
+    // boxes resize in the same frame, so none runs past the list's bottom.
+    if (box.localName === "arrowscrollbox") {
+      if (bool("connector-scroll", true)) for (const b of topBoxes(box)) fitBox(b, true);
+      return;
+    }
     if (box.classList?.contains("tab-group-container") && !glides.has(box)) {
       box.style.setProperty("--zzgf-box-scroll", box.scrollTop + "px");
       fitSoon();                            // then settle it on a row

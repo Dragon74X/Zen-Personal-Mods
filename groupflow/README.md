@@ -63,9 +63,14 @@ CSS length). Scrolling over a group's connector line, or the gap between it and
 the rows, slides that group's subgroups and tabs inside the box. The group's
 header and the rest of the tab list stay put. A connector inside a subgroup
 scrolls its top-level group's box. Scrolling over a tab still scrolls the whole
-list, and a selected tab is brought into view inside its box. Scrolling stops on whole rows and the
-box height is rounded down to whole rows, so neither edge cuts a tab in half. The
-connector line moves with the contents in the same frame, so it never shows a gap.
+list, and a selected tab is brought into view inside its box. The strip left of
+the connector line counts as the connector too.
+
+Scrolling stops on whole rows, and each box is trimmed below the cap so its
+bottom edge also lands between rows. Both are measured from the rows themselves,
+so tab margins or spacing added by other themes still give clean edges. The box
+refits after tabs open, close or change, folders toggle, or the window resizes.
+The connector line moves with the contents in the same frame, so it never shows a gap.
 
 A group that fits under the cap has nothing to scroll, so its connector
 scrolls the list. With Firefox's **switch tabs by scrolling** setting on

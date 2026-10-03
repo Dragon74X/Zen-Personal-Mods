@@ -2,7 +2,7 @@
 // Sine fb0bd4c: updateMods runs processModUpdate concurrently, but syncModData
 // stages every host-repository mod through the same sine-mods/temp directory.
 // Keep this in a background module: queues must outlive any browser window.
-export function installSineUpdateGuard(manager, utils) {
+export function installSineUpdateGuard(manager, utils, { IOUtils, PathUtils } = globalThis) {
   const marker = "__zenPersonalModsUpdateGuardV1";
   if (manager[marker]) return true;
   const names = ["updateMods", "processModUpdate", "installMod", "syncModData"];
@@ -76,6 +76,24 @@ export function installSineUpdateGuard(manager, utils) {
       });
     };
   }
+  // An update copies the installed folder to tmp-<id>, deletes the folder,
+  // then downloads the replacement. A failed download skips Sine's restore,
+  // and every later update fails copying the missing folder: the mod stays
+  // broken until reinstalled. Put the backup back before reads resume.
+  // ponytail: restores only a folder that is gone entirely; an extraction
+  // that failed midway leaves a partial folder, which still needs a reinstall.
+  async function restoreBackup([, , theme, installed]) {
+    if (!installed?.id || !theme?.id) return;
+    try {
+      const folder = utils.getModFolder(theme.id);
+      const backup = PathUtils.join(utils.modsDir, `tmp-${installed.id}`);
+      if (await IOUtils.exists(folder) || !await IOUtils.exists(backup)) return;
+      await IOUtils.move(backup, folder);
+      console.warn(`[Zen Personal Mods] Update of ${theme.id} failed; restored the installed copy.`);
+    } catch (error) {
+      console.warn(`[Zen Personal Mods] Could not restore ${theme.id} after a failed update:`, error);
+    }
+  }
   manager.syncModData = function (...args) {
     // Native sync starts sibling dependencies with Promise.all. Serialize
     // siblings inside this transaction; each child gets its own queue for
@@ -86,6 +104,7 @@ export function installSineUpdateGuard(manager, utils) {
       dependencies(() => original.installMod.apply(this, childArgs));
     const result = (async () => {
       try { return await original.syncModData.apply(receiver, args); }
+      catch (error) { await restoreBackup(args); throw error; }
       finally { await dependencies.drain(); }
     })();
     writes.add(result);

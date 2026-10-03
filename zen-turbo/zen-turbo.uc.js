@@ -407,9 +407,12 @@
     clearTimeout(smoothingTimer); smoothingTimer = null;
     document.documentElement.removeAttribute("zzturbo-smoothing");
   }
+  // Zen marks a trackpad swipe on the tab scroller, the workspaces and the
+  // grain layer (ZenSpacesSwipe.mjs), never on :root.
+  const swiping = () => !!document.getElementById?.("tabbrowser-arrowscrollbox")?.hasAttribute("swipe-gesture");
   function syncSmoothing() {
     const root = document.documentElement;
-    const marked = root.hasAttribute("animating-background") || root.hasAttribute("swipe-gesture");
+    const marked = root.hasAttribute("animating-background") || swiping();
     if (!marked || !bool("smooth-workspace-switch", true)) {
       stopSmoothing(); smoothingMarked = false; return;
     }
@@ -431,7 +434,9 @@
   function start() {
     smoothingObserver = new MutationObserver(syncSmoothing);
     smoothingObserver.observe(document.documentElement, { attributes: true,
-      attributeFilter: ["animating-background", "swipe-gesture"] });
+      attributeFilter: ["animating-background"] });
+    const scroller = document.getElementById("tabbrowser-arrowscrollbox");
+    if (scroller) smoothingObserver.observe(scroller, { attributes: true, attributeFilter: ["swipe-gesture"] });
     syncSmoothing();
     Services.prefs.addObserver(P, prefObserver);
     syncPacks();

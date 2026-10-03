@@ -20,7 +20,7 @@ Requires Sine script loading and `sine.allow-unsafe-js=true` for installation ou
 | Keep both | Delegates to Firefox's original save handler, which selects a unique filename. |
 | Cancel | Returns a null destination to the launcher. |
 
-Focus starts on **Keep both**. Enter activates the focused button; Escape chooses **Keep both**. An unanswered question chooses **Keep both** after 120 seconds. Closing the window displaying a question also chooses **Keep both**. Closing the window that installed the shared hook preserves questions displayed in other windows.
+Focus starts on **Keep both**. Enter activates the focused button; Escape chooses **Cancel**, which stops the new download and leaves the existing file alone. An unanswered question chooses **Keep both** after 120 seconds. Closing the window displaying a question also chooses **Keep both**. Closing the window that installed the shared hook preserves questions displayed in other windows.
 
 A second colliding download in the same window keeps both files. Other windows can display separate questions. The `zzdl.mode` setting selects Ask (`0`), Always replace (`1`), or Always keep both (`2`).
 

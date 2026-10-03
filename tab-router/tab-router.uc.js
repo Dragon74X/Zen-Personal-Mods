@@ -839,6 +839,13 @@
     const dest = resolveDestination(tab, parts);
     const tabWs = wsOf(tab) || window.gZenWorkspaces?.activeWorkspace;
     const haveCtx = parseInt(tab.getAttribute("usercontextid") || "0", 10);
+    // With group creation off, a rule naming a missing group does nothing:
+    // no container reopen, no workspace move, no leaving the current group.
+    // An existing parent of a missing subgroup still receives the tab.
+    if (!filed && !canCreateGroups() && !findChild(parts[0], null, dest.ws || tabWs)) {
+      note(`"${parts[0]}" does not exist and group creation is switched off`);
+      return false;
+    }
 
     if (bool("follow-containers", true) && dest.ctx != null && dest.ctx !== haveCtx) {
       if (tab.hasAttribute("busy")) {
@@ -996,6 +1003,8 @@
   // reparents from anywhere; a group Zen empties removes itself after its
   // close animation, so nothing here removes groups -- and removeTabGroup()
   // is never called, because it closes the tabs.
+  const canCreateGroups = () => bool("create-groups", true) && typeof gBrowser.addTabGroup === "function";
+
   function file(tab, parts) {
     const ws = wsOf(tab) || window.gZenWorkspaces?.activeWorkspace || null;
 
@@ -1118,6 +1127,9 @@
     }
   }
 
+  // Zen marks a trackpad swipe on the tab scroller, the workspaces and the
+  // grain layer (ZenSpacesSwipe.mjs), never on :root.
+  const swiping = () => !!document.getElementById?.("tabbrowser-arrowscrollbox")?.hasAttribute("swipe-gesture");
   let orderTimer = null;
   const startupTimers = [];
   const MAX_ORDER_DEFER_MS = 10000;
@@ -1133,8 +1145,7 @@
       // and treats the animation getting stuck as a known hazard. Unbounded,
       // this rescheduled itself every order-delay-ms forever -- ordering dead
       // for the session and a timer burning behind it.
-      if (document.documentElement.hasAttribute("animating-background") ||
-          document.documentElement.hasAttribute("swipe-gesture")) {
+      if (document.documentElement.hasAttribute("animating-background") || swiping()) {
         if (!orderDeferredSince) orderDeferredSince = Date.now();
         if (Date.now() - orderDeferredSince < MAX_ORDER_DEFER_MS) {
           scheduleOrder();
@@ -1643,7 +1654,7 @@
         } catch {}
 
         const r = {
-          version: "1.34.7",
+          version: "1.34.8",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The

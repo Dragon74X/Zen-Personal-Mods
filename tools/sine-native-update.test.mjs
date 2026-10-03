@@ -13,7 +13,7 @@ const upstream = process.env.SINE_MANAGER_SOURCE;
 const root = new URL("../", import.meta.url);
 const mods = ["download-prompt", "glassflow", "groupflow", "tab-router", "tab-unloader", "zen-turbo"];
 
-async function environment({ realMetadata = false } = {}) {
+async function environment({ realMetadata = false, failArchive = new Set() } = {}) {
   const source = await readFile(upstream, "utf8");
   const repo = new Map(), manifests = {};
   for (const mod of mods) {
@@ -79,6 +79,8 @@ async function environment({ realMetadata = false } = {}) {
     async unpackRemoteArchive({ id, extractDir }) {
       updatedMods.push(id);
       await tick();
+      // A dropped connection or an error page instead of a zip.
+      if (failArchive.delete(id)) throw new Error("download failed: " + id);
       for (const [p, contents] of repo) fs.set(extractDir + "/" + id + "/" + p, contents);
       return [...repo.keys()].map(p => id + "/" + p);
     },
@@ -101,7 +103,7 @@ async function environment({ realMetadata = false } = {}) {
     lastLoad = Promise.all(Object.values(registry).map(mod => utils.getModPreferences(mod)));
     return lastLoad;
   };
-  return { manager, utils, fs, manifests, metadataRequests, updatedMods, sharedRepoDate,
+  return { manager, utils, IOUtils, fs, manifests, metadataRequests, updatedMods, sharedRepoDate,
     get lastLoad() { return lastLoad; },
     get registry() { return registry; } };
 }
@@ -183,4 +185,24 @@ test("native Sine: sibling and nested dependencies retain every mod", { skip: !u
   assert.equal(Object.keys(env.registry).length, 6);
   for (const mod of Object.values(env.registry)) await env.utils.getModPreferences(mod);
   assert.ok(![...env.fs.keys()].some(p => p.startsWith("/sine-mods/temp/")));
+});
+
+test("native Sine: a failed download restores the installed mod; the next update succeeds", { skip: !upstream }, async () => {
+  const id = "zz-groupflow", prefs = "/sine-mods/" + id + "/preferences.json";
+  const unguarded = await environment({ failArchive: new Set([id]) });
+  const list = await unguarded.utils.getMods();
+  await assert.rejects(unguarded.manager.processModUpdate(list[id], list, null));
+  assert.ok(!unguarded.fs.has(prefs), "baseline: upstream leaves the mod deleted");
+  assert.ok(unguarded.fs.has("/sine-mods/tmp-" + id + "/preferences.json"), "baseline: backup remains");
+
+  const env = await environment({ failArchive: new Set([id]) });
+  installSineUpdateGuard(env.manager, env.utils, { IOUtils: env.IOUtils, PathUtils: path.posix });
+  await assert.rejects(env.manager.updateMods("auto"), /download failed/);
+  assert.ok(env.fs.has(prefs), "installed copy restored");
+  assert.ok(![...env.fs.keys()].some(p => p.startsWith("/sine-mods/tmp-")), "backup consumed");
+  await env.utils.getModPreferences(env.registry[id]);
+  assert.equal(await env.manager.updateMods("auto"), true);
+  assert.deepEqual(env.updatedMods.filter(m => m === id).length, 2);
+  assert.equal(env.registry[id].updatedAt, env.manifests[id].updatedAt);
+  await env.utils.getModPreferences(env.registry[id]);
 });

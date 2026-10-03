@@ -1393,7 +1393,7 @@ async function groupflowStartupEnv() {
   const document = { documentElement: element(), querySelectorAll: selector =>
     groups.filter(g => selector.split(", ").includes(g.tagName)) };
   const gBrowser = { tabGroups: groups, selectedTab: { label: "selected tab" },
-    tabContainer: { _invalidateCachedVisibleTabs() {} } };
+    tabContainer: { ...element(), _invalidateCachedVisibleTabs() {} } };
   class StartupTab { get visible() { return true; } }
   class StartupGroup { get visible() { return true; } }
   const customElements = { get: name => name === "tabbrowser-tab" ? StartupTab : StartupGroup };
@@ -1427,8 +1427,28 @@ async function groupflowStartupEnv() {
   function tick() {
     for (const [id, fn] of [...c.timers]) { c.clearTimeout(id); fn(); }
   }
-  return { c, w, ready, group, groups, writes, inject, tick, gBrowser };
+  return { c, w, ready, group, groups, writes, inject, tick, gBrowser, Services };
 }
+
+test("Groupflow keeps tab-switch scrolling off group connector gutters only", async () => {
+  const e = await groupflowStartupEnv();
+  let enabled = true;
+  e.Services.prefs.getBoolPref = (k, d) => k === "zzgroup.connector-scroll" ? enabled : d;
+  await e.inject();
+  const container = groupMatches => ({ classList: { contains: c => c === "tab-group-container" },
+    parentElement: { matches: () => groupMatches } });
+  const wheel = target => { let stopped = false;
+    e.gBrowser.tabContainer.fire("DOMMouseScroll", { target, stopPropagation() { stopped = true; } });
+    return stopped; };
+  assert.equal(wheel(container(true)), true, "gutter beside a group's rows scrolls the list");
+  assert.equal(wheel(container(false)), false, "split-view wrappers keep native handling");
+  assert.equal(wheel({ classList: { contains: () => false } }), false, "tabs still switch");
+  enabled = false;
+  assert.equal(wheel(container(true)), false, "the setting turns it off");
+  enabled = true;
+  e.w.__zzgroupInstance.retire();
+  assert.equal(wheel(container(true)), false, "retirement removes the listener");
+});
 
 test("Groupflow coalesces requested refreshes and immediate refresh cancels queued work", async () => {
   const e = await groupflowStartupEnv();

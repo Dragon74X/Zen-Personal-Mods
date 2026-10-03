@@ -195,7 +195,7 @@ Path subgroups are opt-in per site: **Sites that get path subgroups** lists whic
 
 Uses `gBrowser.tabGroups` and `gBrowser.addTabGroup`. Subgroup creation relies on `addTabGroup({ insertBefore: tab })` placing the new group at the tab's position — a tab already inside a group therefore produces a group nested inside it. If a level refuses to nest on your build, the log says so and the group is kept flat rather than lost. Group matching is by label, case-insensitive, so a rule pointing at a group you already made will use it rather than creating a duplicate.
 
-If group creation is unavailable on your build, the log says so explicitly rather than failing silently. Turn off **Create groups that do not exist yet** to only ever use groups you made by hand.
+If group creation is unavailable on your build, the log says so explicitly rather than failing silently. Turn off **Create groups that do not exist yet** to only ever use groups you made by hand. A rule naming a group that does not exist then leaves the tab where it is: no container reopen, no workspace move, no leaving its current group. If only a subgroup is missing, the tab still goes into the existing parent.
 
 ## When Sine says it cannot read a mod's preferences
 

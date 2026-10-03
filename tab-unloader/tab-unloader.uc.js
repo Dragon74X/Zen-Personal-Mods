@@ -200,7 +200,8 @@
     if (!tab || !tab.isConnected) return "gone";
     if (tab.closing) return "closing";
     if (tab.selected) return "active tab";
-    if (tab.undiscardable || tab.zenModeActive) return "browser-protected tab";
+    // Zen sets zenModeActive on the browser of a visible split or glance tab.
+    if (tab.undiscardable || tab.linkedBrowser?.zenModeActive) return "browser-protected tab";
     if (tab.hasAttribute("pending")) return "already unloaded";
     if (!tab.linkedBrowser) return "no browser";
     if (tab.hasAttribute("zen-empty-tab")) return "empty tab";
@@ -243,13 +244,15 @@
   // far better failure than never unloading again.
   const MAX_DEFER_MS = 10000;
   let deferredSince = 0;
+  // Zen marks a trackpad swipe on the tab scroller, the workspaces and the
+  // grain layer (ZenSpacesSwipe.mjs), never on :root.
+  const swiping = () => !!document.getElementById?.("tabbrowser-arrowscrollbox")?.hasAttribute("swipe-gesture");
 
   async function sweep() {
     if (sweeping || retired || !bool("enabled", false)) return;
     // discardBrowser mid workspace-slide contributes to animation stutter;
     // Zen marks the slide on :root. Skip this tick, the interval retries.
-    if (document.documentElement.hasAttribute("animating-background") ||
-        document.documentElement.hasAttribute("swipe-gesture")) {
+    if (document.documentElement.hasAttribute("animating-background") || swiping()) {
       if (!deferredSince) deferredSince = Date.now();
       const waited = Date.now() - deferredSince;
       if (waited < MAX_DEFER_MS) {

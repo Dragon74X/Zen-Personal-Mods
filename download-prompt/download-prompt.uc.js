@@ -114,12 +114,12 @@
         if (win[QUESTION] === finish) delete win[QUESTION];
         resolve(choice);
       };
-      // Escape keeps both: the answer that cannot lose a file is the one a
-      // stray keypress gives you. Enter presses whatever button has focus,
-      // which starts on Keep both for the same reason.
+      // Escape cancels, like every other dialog; the existing file is never
+      // touched by cancelling. Enter presses whatever button has focus, which
+      // starts on Keep both: the answer that cannot lose a file.
       host.addEventListener("cancel", (e) => {
         e.preventDefault();
-        finish(KEEP);
+        finish(CANCEL);
       });
       const onGone = () => finish(KEEP);
 

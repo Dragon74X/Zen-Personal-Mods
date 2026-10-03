@@ -269,11 +269,11 @@ async function turboEnv({ privateWindow = false, rows = Promise.resolve([]), fai
     setBoolPref: (k, v) => values.set(k, v), clearUserPref: k => values.delete(k),
     prefHasUserValue: k => values.has(k), addObserver() {}, removeObserver() {},
   };
-  const tabContainer = element(), root = element();
+  const tabContainer = element(), root = element(), scroller = element();
   w.XULBrowserWindow = { setOverLink: (...args) => args };
   const h = await load("zen-turbo", "start, syncPacks, startupWarmup, forgetWarmups, warmAfterDwell, cancelDwell, onHover, syncSmoothing", {
     ...c, window: w, gBrowser: { tabContainer, addTabsProgressListener() {}, removeTabsProgressListener() {} },
-    document: { documentElement: root, getElementById: () => null },
+    document: { documentElement: root, getElementById: id => id === "tabbrowser-arrowscrollbox" ? scroller : null },
     MutationObserver: class { observe() {} disconnect() {} },
     Services: { prefs: pref, wm: { getMostRecentWindow: () => w },
       obs: { addObserver() {}, removeObserver() {} },
@@ -288,7 +288,7 @@ async function turboEnv({ privateWindow = false, rows = Promise.resolve([]), fai
       ? { PrivateBrowsingUtils: { isWindowPrivate: () => privateWindow } }
       : { PlacesUtils: { promiseDBConnection: async () => ({ executeCached() { queries++; return rows; } }) } } },
   });
-  return { h, w, c, root, values, connects, tabContainer, get queries() { return queries; }, get savedWrites() { return savedWrites; } };
+  return { h, w, c, root, scroller, values, connects, tabContainer, get queries() { return queries; }, get savedWrites() { return savedWrites; } };
 }
 
 test("Turbo re-sync and disable preserve a managed preference edited by the user", async () => {
@@ -488,6 +488,9 @@ test("download question uses a labelled native modal", async () => {
   a.w.__zzdlQuestion(2);
   assert.equal(await question, "keep both");
   assert.equal(host.open, false);
+  const escaped = a.w.DownloadPrompt.preview();
+  a.w.document.body.children.at(-1).fire("cancel", { preventDefault() {} });
+  assert.equal(await escaped, "cancel", "Escape cancels");
 });
 
 test("Glassflow stops sampling when its sidebar master switch is disabled", async () => {
@@ -665,6 +668,8 @@ test("Unloader protects actual Zen split and native protected tabs", async () =>
   const e = await unloaderEnv(), t = e.tabs[0];
   t.setAttribute("split-view", "true"); assert.equal(e.h.whyKeep(t, Date.now()), "split view");
   t.removeAttribute("split-view"); t.zenModeActive = true;
+  assert.notEqual(e.h.whyKeep(t, Date.now()), "browser-protected tab", "Zen never sets it on the tab");
+  t.zenModeActive = false; t.linkedBrowser.zenModeActive = true;
   assert.equal(e.h.whyKeep(t, Date.now()), "browser-protected tab");
 });
 
@@ -764,6 +769,25 @@ async function immediateRouterEnv({ flush = async () => {}, state = { entries: [
   };
   return { ...e, c, t, groups, added, pending, tick };
 }
+
+test("Router leaves a tab in place when its rule names a missing group and creation is off", async () => {
+  const e = await immediateRouterEnv();
+  e.prefs.set("zzrouter.follow-containers", false);
+  await e.h.route(e.t, "navigation");
+  const target = e.t.group;
+  assert.equal(target.label, "Target");
+  e.t.setAttribute("zen-workspace-id", "source");
+  e.prefs.set("zzrouter.follow-containers", true);
+  e.prefs.set("zzrouter.create-groups", false);
+  e.prefs.set("zzrouter.rules", "example.com > Missing");
+  e.h.prefObserver.observe(null, "nsPref:changed", "zzrouter.rules");
+  assert.equal(e.h.skip(e.t), null, "a drifted tab is routed");
+  await e.h.route(e.t, "navigation");
+  assert.equal(e.t.group, target, "existing membership kept");
+  assert.equal(e.t.getAttribute("zen-workspace-id"), "source", "no workspace move");
+  assert.equal(e.added.length, 0, "no container reopen");
+  assert.equal(e.groups.length, 1, "nothing created");
+});
 
 test("Router coalesces navigation bursts at 0 ms without resetting or routing an older URL", async () => {
   const e = await immediateRouterEnv();
@@ -1663,6 +1687,8 @@ test("Turbo resumes tab effects after a stuck workspace marker and on retirement
   e.h.syncSmoothing(); assert.equal(e.root.hasAttribute("zzturbo-smoothing"), false);
   e.root.removeAttribute("animating-background"); e.h.syncSmoothing();
   e.root.setAttribute("swipe-gesture", "true"); e.h.syncSmoothing();
+  assert.equal(e.root.hasAttribute("zzturbo-smoothing"), false, "Zen never marks swipes on :root");
+  e.scroller.setAttribute("swipe-gesture", "true"); e.h.syncSmoothing();
   assert.equal(e.root.hasAttribute("zzturbo-smoothing"), true);
   e.w.__zzturboInstance.retire(); assert.equal(e.root.hasAttribute("zzturbo-smoothing"), false);
 });

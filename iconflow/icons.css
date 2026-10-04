@@ -419,7 +419,7 @@
       filter: var(--zzicon-circuit-glow, none) !important; }
   }
 }
-/* Bookmark star, Flow */
+/* Bookmark, Flow */
 @media ((-moz-pref("zzicon.set", 1)) and (-moz-pref("zzicon.button.bookmark", 0))), (-moz-pref("zzicon.button.bookmark", 2)), (-moz-pref("zzicon.button.bookmark", 3)) {
   #star-button:not([starred]) {
     list-style-image: var(--zzicon-blank) !important;
@@ -436,7 +436,7 @@
     #star-button-box:hover > #star-button:not([starred]) { background-position: 100% 0 !important; }
   }
 }
-/* Bookmark star, Circuit */
+/* Bookmark, Circuit */
 @media ((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.bookmark", 0))), (-moz-pref("zzicon.button.bookmark", 4)), (-moz-pref("zzicon.button.bookmark", 5)) {
   #star-button:not([starred]) {
     list-style-image: var(--zzicon-blank) !important;
@@ -454,7 +454,7 @@
       filter: var(--zzicon-circuit-glow, none) !important; }
   }
 }
-/* Bookmark star, saved, Flow */
+/* Bookmark, saved, Flow */
 @media ((-moz-pref("zzicon.set", 1)) and (-moz-pref("zzicon.button.bookmark", 0))), (-moz-pref("zzicon.button.bookmark", 2)), (-moz-pref("zzicon.button.bookmark", 3)) {
   #star-button[starred] {
     list-style-image: var(--zzicon-blank) !important;
@@ -471,7 +471,7 @@
     #star-button-box:hover > #star-button[starred] { background-position: 100% 0 !important; }
   }
 }
-/* Bookmark star, saved, Circuit */
+/* Bookmark, saved, Circuit */
 @media ((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.bookmark", 0))), (-moz-pref("zzicon.button.bookmark", 4)), (-moz-pref("zzicon.button.bookmark", 5)) {
   #star-button[starred] {
     list-style-image: var(--zzicon-blank) !important;

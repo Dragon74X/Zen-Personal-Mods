@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "iconflow" / "icons.css"
 G = 18            # Zen's icon grid
 FRAMES = 48       # toolbar icons
+ZOOM = 1.2        # toolbar frames show the middle 15 units, scaled to fill 16px
 LIB_FRAMES = 36   # Zen's library sprite format
 
 
@@ -153,20 +154,21 @@ def glass(d, lit=0.0, trace=None, body=0.16):
     i, out = shape(d)
     out += (f"<use href='#{i}' fill='context-fill' fill-opacity='{n(body + 0.3 * lit)}' stroke='none'/>"
             f"<use href='#{i}' fill='url(#sheen)' stroke='none'/>"
-            f"<use href='#{i}' stroke-width='1.4' stroke-opacity='{n(0.85 + 0.15 * lit)}'/>")
+            f"<use href='#{i}' stroke-width='1.25' stroke-opacity='{n(0.85 + 0.15 * lit)}'/>")
     if trace is not None and 0.02 < trace < 0.98:
-        out += (f"<path d='{d}' pathLength='100' stroke-width='1.7' stroke-dasharray='16 84' "
+        out += (f"<path d='{d}' pathLength='100' stroke-width='1.5' stroke-dasharray='16 84' "
                 f"stroke-dashoffset='{n(-100 * ease_in_out(trace))}' stroke-opacity='{n(bump(trace))}'/>")
     return out
 
 
 def tube(d, lit=0.0, trace=None):
-    """Neon tube: a soft wide stroke and a bright core."""
+    """Neon tube: a bright core and a soft wide halo. The halo is painted with
+    context-stroke, so the Soft glow setting can turn it off from CSS."""
     i, out = shape(d)
-    out += (f"<use href='#{i}' stroke-width='3.2' stroke-opacity='{n(0.22 + 0.2 * lit)}'/>"
-            f"<use href='#{i}' stroke-width='1.7'/>")
+    out += (f"<use href='#{i}' stroke='context-stroke' stroke-width='2.8' stroke-opacity='{n(0.22 + 0.2 * lit)}'/>"
+            f"<use href='#{i}' stroke-width='1.45'/>")
     if trace is not None and 0.02 < trace < 0.98:
-        out += (f"<path d='{d}' pathLength='100' stroke-width='2.4' stroke-dasharray='22 78' "
+        out += (f"<path d='{d}' pathLength='100' stroke-width='2.1' stroke-dasharray='22 78' "
                 f"stroke-dashoffset='{n(-100 * ease_in_out(trace))}' stroke-opacity='{n(0.9 * bump(trace))}'/>")
     return out
 
@@ -454,8 +456,10 @@ def c_open(t):
 
 
 def c_zoom_in(t):
-    k = 1 + 0.22 * ease_out_back(t, 2)
-    return g(tube("M9 4.4V13.6M4.4 9H13.6", lit=bump(t)), f"translate(9 9) scale({n(k)}) translate(-9 -9)")
+    # The + reaches its arms outward and settles. Lengths change, nothing
+    # scales, so the lines stay crisp.
+    w = 4.4 + 1.6 * ease_out_back(t, 2)
+    return tube(f"M9 {n(9 - w)}V{n(9 + w)}M{n(9 - w)} 9H{n(9 + w)}", lit=bump(t))
 
 
 def c_zoom_out(t):
@@ -495,10 +499,11 @@ def c_encoding(t):
 
 
 def c_email(t):
-    # A glass envelope whose flap lifts open.
-    e = ease_out_back(t, 1.6)
-    tip = 9.6 - 7.2 * e
-    return glass(chamfer(2.4, 4.2, 13.2, 10, 1.6, 0.6), trace=t, body=0.14) + tube(f"M3.6 5.4L9 {n(tip)}L14.4 5.4", lit=bump(t))
+    # A glass letter rises out of the envelope as the flap folds flat.
+    e = ease_out_back(span(t, 0.1, 1), 1.6)
+    letter = glass(chamfer(4.6, 6.6 - 4 * e, 8.8, 7, 1, 0.45), lit=bump(t), trace=t, body=0.3) if e > 0.02 else ""
+    tip = 10.4 - 4.2 * ease_in_out(span(t, 0, 0.5))
+    return letter + glass(chamfer(2.4, 5.8, 13.2, 9.4, 1.6, 0.6), body=0.22) + tube(f"M3.6 7L9 {n(tip)}L14.4 7", lit=bump(t))
 
 
 def c_logins(t):
@@ -509,21 +514,27 @@ def c_logins(t):
 
 
 def c_sync(t):
-    # Two open arcs turn against each other, each led by a diamond.
+    # Two devices: a diamond travels over the top from one to the other while
+    # a second passes underneath the other way, both trailing; the devices
+    # light as they arrive.
     e = ease_in_out(t)
-    a, b = 200 + 180 * e, 330 - 180 * e        # rest on opposite sides
-    head = lambda r, ang: gem(_diamond(9 + r * cos(radians(ang)), 9 + r * sin(radians(ang)), 1.1))
-    return (taper_tube(6.2, a - 140, a, lit=bump(t)) + head(6.2, a)
-            + taper_tube(3.4, b, b + 130, lit=bump(t)) + head(3.4, b))
+    arrive = bump(span(t, 0.6, 1))
+    out = (glass(chamfer(2.2, 5, 3.2, 8, 0.9, 0.4), lit=arrive, body=0.25)
+           + glass(chamfer(12.6, 5, 3.2, 8, 0.9, 0.4), lit=arrive, body=0.25))
+    for a in (180 + 180 * e, 180 * e):               # over the top left to right, under right to left
+        x, y = 9 + 3.6 * cos(radians(a)), 9 + 3.6 * sin(radians(a))
+        out += trail(3.6, a, t, reach=110) + gem(_diamond(x, y, 1))
+    return out
 
 
 def c_send(t):
-    # A diamond leaves the tab card, trailing, toward the far corner.
+    # The tab slides across into the device, trailing, and the device lights.
     e = ease_in_out(t)
-    x, y = 8.6 + 6 * e, 9.4 - 5.6 * e
-    dia = lambda o: gem(_diamond(x - o * 0.73, y + o * 0.68, 1.2))
-    card = glass(chamfer(2.2, 6.6, 9.4, 8.4, 1.6, 0.6), trace=t, body=0.16)
-    return card + ghosts(dia, 2.4, t) + dia(0)
+    device = glass(chamfer(10.6, 2.8, 5.2, 12.4, 1.4, 0.5), lit=bump(span(t, 0.55, 1)), trace=t, body=0.12)
+    w = 5.6 - 1.4 * e
+    x = 2.2 + (11.2 - 2.2) * e
+    tab = lambda o: glass(chamfer(x - o, 6.6, w, 4.8, 1, 0.45), body=0.35)
+    return device + ghosts(tab, 2.4, t) + tab(0)
 
 
 def c_import(t):
@@ -572,11 +583,11 @@ def c_view(t):
 
 
 def c_developer(t):
-    # Two blades push apart around a slash that turns a little.
-    d = 1.1 * ease_out_back(t, 2)
-    slash = g(tube("M10.2 4.4L7.8 13.6", lit=bump(t)), f"rotate({n(12 * bump(t))} 9 9)")
-    return (glass(blade(2.4 - d, 9, 3.2, 4.4, 1.8), lit=bump(t), body=0.3)
-            + glass(blade(15.6 + d, 9, 3.2, 4.4, 1.8, flip=True), lit=bump(t), body=0.3) + slash)
+    # Slim blades push apart round a slash that tilts and lights.
+    d = 0.9 * ease_out_back(t, 2)
+    slash = g(tube("M10 5.4L8 12.6", lit=bump(t)), f"rotate({n(10 * bump(t))} 9 9)")
+    return (glass(blade(2.4 - d, 9, 3, 4, 1.35), lit=bump(t), body=0.3)
+            + glass(blade(15.6 + d, 9, 3, 4, 1.35, flip=True), lit=bump(t), body=0.3) + slash)
 
 
 def c_new_window(t):
@@ -587,22 +598,60 @@ def c_new_window(t):
 
 
 def c_fullscreen(t):
-    # Four corner brackets spread outward round a panel that fills.
-    k = 1.2 * ease_out_back(t, 2)
-    a, b, L = 4.2 - k, 13.8 + k, 3.2
-    corners = (f"M{n(a)} {n(a + L)}V{n(a + 1.1)}Q{n(a)} {n(a)} {n(a + 1.1)} {n(a)}H{n(a + L)}"
-               f"M{n(b - L)} {n(a)}H{n(b - 1.1)}Q{n(b)} {n(a)} {n(b)} {n(a + 1.1)}V{n(a + L)}"
-               f"M{n(b)} {n(b - L)}V{n(b - 1.1)}Q{n(b)} {n(b)} {n(b - 1.1)} {n(b)}H{n(b - L)}"
-               f"M{n(a + L)} {n(b)}H{n(a + 1.1)}Q{n(a)} {n(b)} {n(a)} {n(b - 1.1)}V{n(b - L)}")
-    p = 1.6 + 1.4 * ease_out_back(span(t, 0.2, 1), 1.6)
-    return tube(corners, lit=bump(t)) + glass(chamfer(9 - p, 9 - p, 2 * p, 2 * p, 0.8, 0.4), lit=bump(t), body=0.3)
+    # A glass panel grows to fill its frame, and the frame eases outward with it.
+    e = ease_out_back(t, 1.6)
+    f = 0.9 * e
+    frame = tube(chamfer(2.4 - f, 3.4 - f, 13.2 + 2 * f, 11.2 + 2 * f, 1.8, 0.7))
+    w, h = 6 + 6.4 * e, 4.4 + 5 * e
+    return frame + glass(chamfer(9 - w / 2, 9 - h / 2, w, h, 1.1, 0.5), lit=bump(t), trace=t, body=0.3)
 
 
 def c_account(t):
-    # An ID badge: a glass head and an arc for shoulders that draws itself.
+    # A glass head over glass shoulders: the head lifts and a light runs round
+    # the shoulders.
     lift = 0.8 * ease_out_back(t, 2)
-    head = gem(rpoly([(9, 3 - lift), (11.6, 5.8 - lift), (9, 8.6 - lift), (6.4, 5.8 - lift)], 0.7))
-    return head + taper_tube(6.2, 200, 340, lit=bump(t), trace=t, cy=16.6)
+    head = glass(rpoly([(9, 2.4 - lift), (11.8, 5.4 - lift), (9, 8.4 - lift), (6.2, 5.4 - lift)], 0.9), lit=bump(t), body=0.4)
+    return head + glass("M2.8 15.6Q2.8 10.2 9 10.2Q15.2 10.2 15.2 15.6Z", trace=t, body=0.2)
+
+def c_app_menu(t):
+    # Three glass bars, a panel's rows, spread apart while a light runs round the top one.
+    gap = 1.1 * ease_out_back(t, 2.2)
+    bar = lambda y, lit=0.0, trace=None: glass(rpoly([(2.6, y - 1.2), (15.4, y - 1.2), (15.4, y + 1.2), (2.6, y + 1.2)], 1.1),
+                                               lit=lit, trace=trace, body=0.2)
+    return bar(13.4 + gap) + bar(9) + bar(4.6 - gap, bump(t), t)
+
+
+def c_compact(t):
+    # A window whose sidebar pane slides away into its edge while the
+    # content pane widens to fill the space.
+    e = ease_out_back(t, 1.6)
+    side = 3.8 - 2.8 * e
+    out = glass(chamfer(1.8, 3, 14.4, 12, 2, 0.7), trace=t, body=0.08)
+    if side > 0.5:
+        out += glass(chamfer(3, 4.3, side, 9.4, 0.7, 0.35), lit=bump(t), body=0.35)
+    left = 3 + side + 0.8
+    return out + glass(chamfer(left, 4.3, 15 - left, 9.4, 1, 0.45), body=0.18)
+
+
+def c_reopen(t):
+    # A closed tab rises back into its empty slot, trailing, and lights there.
+    e = ease_out_back(span(t, 0, 0.85), 1.6)
+    y = 10.2 - 6.8 * e
+    tab = lambda o: glass(chamfer(3.2, y + o, 11.6, 5.6, 1.2, 0.5), lit=bump(span(t, 0.6, 1)), body=0.3)
+    slot = f"<g opacity='.45'>{tube(chamfer(3.2, 3.4, 11.6, 5.6, 1.2, 0.5))}</g>"
+    return slot + ghosts(tab, 2.6, t) + tab(0)
+
+
+def c_help(t):
+    # A question mark that tilts as its glass dot pops.
+    q = g(tube("M6.2 6.4Q6.2 3.2 9 3.2Q11.8 3.2 11.8 6Q11.8 7.9 9.8 8.9Q9 9.4 9 10.8", lit=bump(t), trace=t),
+          f"rotate({n(-10 * bump(t))} 9 11)")
+    return q + gem(_diamond(9, 14.2, 1 + 0.35 * bump(span(t, 0.2, 0.9))))
+
+
+def c_minus(t):
+    # The bar narrows and settles back a little shorter, like zoom out.
+    return c_zoom_out(t)
 
 
 # key -> (label, frames function, [(icon selector, hover selector)])
@@ -619,19 +668,21 @@ TOOLBAR = {
     "reload": ("Reload", c_reload, tb("#reload-button")),
     "stop": ("Stop", c_stop, tb("#stop-button")),
     "home": ("Home", c_home, tb("#home-button")),
-    "new-tab": ("New tab", c_plus, tb("#tabs-newtab-button", "#zen-create-new-button", "#new-tab-button")),
-    "menu": ("Menu and workspace actions", c_dots, tb("#PanelUI-menu-button", ".zen-workspaces-actions")),
-    "sidebar": ("Sidebar toggle", c_sidebar, tb("#zen-toggle-compact-mode", "#sidebar-button")),
+    "new-tab": ("New tab", c_plus, tb("#tabs-newtab-button", "#zen-create-new-button", "#new-tab-button", "#appMenu-new-tab-button2")),
+    "menu": ("Workspace actions", c_dots, tb(".zen-workspaces-actions", "#appMenu-more-button2")),
+    "app-menu": ("Application menu", c_app_menu, tb("#PanelUI-menu-button")),
+    "compact": ("Compact mode", c_compact, tb("#zen-toggle-compact-mode")),
+    "sidebar": ("Sidebar toggle", c_sidebar, tb("#sidebar-button")),
     "expand-sidebar": ("Expand sidebar", c_expand, tb("#zen-expand-sidebar-button")),
     "site-data": ("Site settings", c_sliders, [("#zen-site-data-icon-button image", "#zen-site-data-icon-button:hover image")]),
-    "downloads": ("Downloads", c_downloads, tb("#downloads-button")),
-    "extensions": ("Extensions", c_extensions, tb("#unified-extensions-button", "#add-ons-button")),
+    "downloads": ("Downloads", c_downloads, tb("#downloads-button", "#appMenu-downloads-button")),
+    "extensions": ("Extensions", c_extensions, tb("#unified-extensions-button", "#add-ons-button", "#appMenu-extensions-themes-button", "#appMenu-unified-extensions-button")),
     "bookmark": ("Bookmark", c_bookmark, [("#star-button:not([starred])", "#star-button-box:hover > #star-button:not([starred])")]
-                 + tb("#bookmarks-menu-button")),
+                 + tb("#bookmarks-menu-button", "#appMenu-bookmarks-button")),
     "bookmarked": ("Bookmark, saved", c_bookmarked, [("#star-button[starred]", "#star-button-box:hover > #star-button[starred]")]),
     "reader": ("Reader view", c_reader, [("#reader-mode-button > .urlbar-icon", "#reader-mode-button:hover > .urlbar-icon")]),
     "share": ("Share and copy link", c_share, tb("#zen-copy-current-url-button", "#share-tab-button")),
-    "history": ("History", c_history, tb("#history-panelmenu")),
+    "history": ("History", c_history, tb("#history-panelmenu", "#appMenu-history-button", "#PanelUI-historyMore")),
     "screenshot": ("Screenshot", c_screenshot, tb("#screenshot-button")),
     "overflow": ("More tools", c_overflow, tb("#nav-bar-overflow-button")),
     "chevron": ("Bookmarks overflow", c_chevron, tb("#PlacesChevron")),
@@ -644,30 +695,35 @@ TOOLBAR = {
     "muted": ("Unmute", c_muted, tb(".zen-media-card[muted] .zen-media-mute-button")),
     "media-close": ("Close player", c_stop, tb(".zen-media-close-button")),
     "pip": ("Picture-in-picture", c_pip, tb(".zen-media-pip-button")),
-    "save-page": ("Save page", c_save, tb("#save-page-button")),
-    "print": ("Print", c_print, tb("#print-button")),
-    "find": ("Find in page", c_find, tb("#find-button")),
+    "save-page": ("Save page", c_save, tb("#save-page-button", "#appMenu-save-file-button2")),
+    "print": ("Print", c_print, tb("#print-button", "#appMenu-print-button2")),
+    "find": ("Find in page", c_find, tb("#find-button", "#appMenu-find-button2", "#appMenuSearchHistory")),
     "open-file": ("Open file", c_open, tb("#open-file-button")),
-    "zoom-in": ("Zoom in", c_zoom_in, tb("#zoom-in-button")),
-    "zoom-out": ("Zoom out", c_zoom_out, tb("#zoom-out-button")),
+    "zoom-in": ("Zoom in", c_zoom_in, tb("#zoom-in-button", "#appMenu-zoomEnlarge-button2")),
+    "zoom-out": ("Zoom out", c_zoom_out, tb("#zoom-out-button", "#appMenu-zoomReduce-button2")),
     "cut": ("Cut", c_cut, tb("#cut-button")),
     "copy": ("Copy", c_copy, tb("#copy-button")),
     "paste": ("Paste", c_paste, tb("#paste-button")),
     "encoding": ("Text encoding", c_encoding, tb("#characterencoding-button")),
     "email": ("Email link", c_email, tb("#email-link-button")),
-    "logins": ("Passwords", c_logins, tb("#logins-button")),
+    "logins": ("Passwords", c_logins, tb("#logins-button", "#appMenu-passwords-button")),
     "sync": ("Sync", c_sync, tb("#sync-button")),
     "send-tab": ("Send tab to device", c_send, tb("#send-tab-button")),
     "import": ("Import", c_import, tb("#import-button")),
-    "settings": ("Settings", c_settings, tb("#preferences-button")),
-    "forget": ("Forget", c_forget, tb("#panic-button")),
-    "private": ("New private window", c_private, tb("#privatebrowsing-button")),
+    "settings": ("Settings", c_settings, tb("#preferences-button", "#appMenu-settings-button")),
+    "forget": ("Forget", c_forget, tb("#panic-button", "#appMenuClearRecentHistory")),
+    "private": ("New private window", c_private, tb("#privatebrowsing-button", "#appMenu-new-private-window-button2")),
     "firefox-view": ("Firefox View", c_view, tb("#firefox-view-button")),
     "developer": ("Developer tools", c_developer, tb("#developer-button")),
-    "new-window": ("New window", c_new_window, tb("#new-window-button")),
-    "fullscreen": ("Full screen", c_fullscreen, tb("#fullscreen-button")),
+    "new-window": ("New window", c_new_window, tb("#new-window-button", "#appMenu-new-window-button2", "#appMenu-new-zen-unsynced-window-button", "#appMenuRecentlyClosedWindows")),
+    "fullscreen": ("Full screen", c_fullscreen, tb("#fullscreen-button", "#appMenu-fullscreen-button2")),
     "firefox-library": ("Firefox Library", lambda t: lib_circuit(t), tb("#library-button")),
     "account": ("Account", c_account, tb("#fxa-toolbar-menu-button")),
+    "reopen": ("Recently closed tabs", c_reopen, tb("#appMenuRecentlyClosedTabs", "#appMenu-library-recentlyClosedTabs")),
+    "help": ("Help", c_help, tb("#appMenu-help-button2")),
+    "quit": ("Quit", c_stop, tb("#appMenu-quit-button2")),
+    "minus": ("Reset pinned tab", c_minus, [(".tab-reset-button", ".tab-reset-button:hover"),
+                                             (".tab-reset-pin-button image", ".tab-reset-pin-button:hover image")]),
 }
 
 # Settings group the starred and unstarred star, and play/pause, mute/unmute.
@@ -702,28 +758,56 @@ def gem(d):
     return glass(d, lit=1, body=0.62)
 
 
-def taper(r, a0, a1, width, alpha, steps=12, cx=9, cy=9):
-    """An arc from a0 (u = 0) to a1 (u = 1) drawn in short pieces whose width
-    and opacity follow width(u) and alpha(u), so it thins and fades smoothly
-    instead of stopping. Pieces overlap by a hair, so no seam shows."""
-    out = ""
-    for i in range(steps):
-        u = (i + 0.5) / steps
-        b0 = a0 + (a1 - a0) * i / steps
-        b1 = a0 + (a1 - a0) * (i + 1) / steps
-        lo, hi = (b0, b1) if a1 >= a0 else (b1, b0)
-        out += (f"<path d='{arc(r, lo - 0.4, hi + 0.4, cx, cy)}' stroke-linecap='butt' "
-                f"stroke-width='{n(width(u))}' stroke-opacity='{n(alpha(u))}'/>")
+def taper(r, a0, a1, width, alpha, steps=24, cx=9, cy=9, paint="context-fill"):
+    """An arc from a0 (u = 0) to a1 (u = 1) whose width and opacity follow
+    width(u) and alpha(u), so it thins and fades smoothly instead of stopping.
+    Drawn as smooth filled outlines, one per opacity step, stacked, so its
+    edges stay clean at 16px and no seams show between pieces."""
+    us = [i / steps for i in range(steps + 1)]
+    top = max(alpha(u) for u in us)
+    if top < 0.02:
+        return ""
+    levels, out, below = 4, "", 0.0
+    point = lambda u, side: (cx + (r + side * width(u) / 2) * cos(radians(a0 + (a1 - a0) * u)),
+                             cy + (r + side * width(u) / 2) * sin(radians(a0 + (a1 - a0) * u)))
+    for j in range(1, levels + 1):
+        want = top * j / levels
+        a = 1 - (1 - want) / (1 - below)          # stacked fills add up to want
+        below = want
+        runs, run = [], []
+        for u in us:
+            if alpha(u) >= top * (j - 0.5) / levels:
+                run.append(u)
+            elif run:
+                runs.append(run); run = []
+        if run:
+            runs.append(run)
+        for run in runs:
+            if len(run) < 2:
+                continue
+            pts = [point(u, 1) for u in run] + [point(u, -1) for u in reversed(run)]
+            out += f"<path d='{smooth(pts)}' fill='{paint}' fill-opacity='{n(a)}' stroke='none'/>"
     return out
+
+
+def smooth(pts):
+    """A closed path through pts, rounded between the points."""
+    mid = lambda p, q: ((p[0] + q[0]) / 2, (p[1] + q[1]) / 2)
+    m0 = mid(pts[-1], pts[0])
+    d = f"M{n(m0[0])} {n(m0[1])}"
+    for i, p in enumerate(pts):
+        q = mid(p, pts[(i + 1) % len(pts)])
+        d += f"Q{n(p[0])} {n(p[1])} {n(q[0])} {n(q[1])}"
+    return d + "Z"
 
 
 def taper_tube(r, a0, a1, lit=0.0, trace=None, cx=9, cy=9):
     """A neon tube along an open arc whose two ends taper to a point."""
     k = lambda u: ease_in_out(clamp(min(u, 1 - u) / 0.24))   # 0 at the ends, 1 along the middle
-    out = (taper(r, a0, a1, lambda u: 3.2 * (0.35 + 0.65 * k(u)), lambda u: (0.22 + 0.2 * lit) * k(u), 28, cx, cy)
-           + taper(r, a0, a1, lambda u: 0.35 + 1.35 * k(u), lambda u: 0.3 + 0.7 * k(u), 28, cx, cy))
+    out = (taper(r, a0, a1, lambda u: 2.8 * (0.35 + 0.65 * k(u)), lambda u: (0.22 + 0.2 * lit) * k(u), 18, cx, cy, "context-stroke")
+           + taper(r, a0, a1, lambda u: 0.3 + 1.15 * k(u), lambda u: 0.3 + 0.7 * k(u), 18, cx, cy))
     if trace is not None and 0.02 < trace < 0.98:
-        out += (f"<path d='{arc(r, a0, a1, cx, cy)}' pathLength='100' stroke-width='2.4' stroke-dasharray='22 78' "
+        out += (f"<path d='{arc(r, a0, a1, cx, cy)}' pathLength='100' stroke-width='2.1' stroke-dasharray='22 78' "
                 f"stroke-dashoffset='{n(-100 * ease_in_out(trace))}' stroke-opacity='{n(0.9 * bump(trace))}'/>")
     return out
 
@@ -735,14 +819,14 @@ def trail(r, a, t, direction=1, reach=80, cx=9, cy=9):
     lag = reach * ease_speed(t)
     if lag < 4:
         return ""
-    return taper(r, a - direction * lag, a, lambda u: 0.2 + 1.4 * u ** 1.3, lambda u: 0.75 * u ** 1.6, 10, cx, cy)
+    return taper(r, a - direction * lag, a, lambda u: 0.15 + 1.2 * u ** 1.3, lambda u: 0.75 * u ** 1.6, 16, cx, cy)
 
 
 def comet(r, a, tail, t, direction=1, k=1.5, width=1.0):
     """A diamond at angle a on a circle of radius r, with a tail that fades
     behind it and stretches while it moves fast."""
     tail += 50 * ease_speed(t)
-    out = taper(r, a - direction * tail, a, lambda u: width * (0.25 + 2.1 * u ** 1.2), lambda u: 0.05 + 0.9 * u ** 1.4, 18)
+    out = taper(r, a - direction * tail, a, lambda u: width * (0.2 + 1.8 * u ** 1.2), lambda u: 0.05 + 0.9 * u ** 1.4, 24)
     x, y = 9 + r * cos(radians(a)), 9 + r * sin(radians(a))
     return out + gem(_diamond(x, y, k + 0.3 * bump(t)))
 
@@ -862,6 +946,8 @@ ZEN_MOTION = {
     "sync": turn_by(360), "send-tab": nudge(1.2, -1.2), "import": nudge(-1.2, 1.2), "settings": turn_by(120),
     "forget": pop(-0.2), "private": hop(-1.2), "firefox-view": pop(0.12), "developer": {"scale": f"calc(1 + {B} * 0.2) 1"},
     "new-window": pop(0.15), "fullscreen": pop(0.2), "firefox-library": hop(-1.5), "account": hop(-1.5),
+    "app-menu": {"scale": f"1 calc(1 + {B} * 0.2)"}, "compact": nudge(-1.2), "reopen": hop(-1.8), "help": wiggle(12),
+    "quit": turn_by(90), "minus": {"scale": f"calc(1 - {B} * 0.35) 1"},
 }
 MENU_DEFAULT = pop(0.15)
 # Context menu items that do what a toolbar button does move the same way.
@@ -876,6 +962,8 @@ MENU_ITEMS = {
     "send-tab": ["context-sendpagetodevice", "context-sendlinktodevice", "context_sendTabToDevice"],
     "developer": ["context-inspect", "context-inspect-a11y", "context-viewsource"], "find": ["context-searchselect", "context-searchselect-private"],
     "print": ["context-print-selection"], "share": ["context-sharepage", "context_shareTabURL"], "reader": ["context-viewpartialsource-selection"],
+    "reopen": ["context_undoCloseTab", "toolbar-context-undoCloseTab"],
+    "compact": ["zen-context-menu-compact-mode-toggle", "zen-toolbar-context-compact-mode-enable"],
 }
 ZEN_SET, ZEN_ANIMATED = 3, 6     # zzicon.set value; per-button override
 EASE = "cubic-bezier(.65, 0, .35, 1)"   # builds up from rest and settles, like Circuit's frames
@@ -894,8 +982,8 @@ def zen_css():
         hovers = ", ".join(h + OWN for _, h in targets)
         out.append(f"/* {label}, Zen's own animated */\n"
                    f'@media ((-moz-pref("zzicon.set", {ZEN_SET})) and (-moz-pref("zzicon.button.{k}", 0))) or (-moz-pref("zzicon.button.{k}", {ZEN_ANIMATED})) {{\n'
-                   f"  {icons} {{ transition: --zzicon-t var(--zzicon-duration) {EASE} !important; animation: none !important; {motion_props(ZEN_MOTION[key])} }}\n"
-                   f'  @media (-moz-pref("zzicon.animate")) {{ {hovers} {{ --zzicon-t: 1 !important; }} }}\n}}')
+                   f"  {icons} {{ transition: --zzicon-t var(--zzicon-duration) {EASE}, filter .2s !important; animation: none !important; {motion_props(ZEN_MOTION[key])} }}\n"
+                   f'  @media (-moz-pref("zzicon.animate")) {{ {hovers} {{ --zzicon-t: 1 !important; filter: var(--zzicon-circuit-glow, none) !important; }} }}\n}}')
     items = "menupopup :is(menuitem, menu)"         # descendants: the Back/Reload row sits in a menugroup
     out.append(f"/* Menu icons */\n@media (-moz-pref(\"zzicon.menu.animate\")) {{\n"
                f"  {items} > .menu-icon {{ transition: --zzicon-t var(--zzicon-duration) {EASE} !important; {motion_props(MENU_DEFAULT)} }}\n"
@@ -919,6 +1007,7 @@ MOTIONS = {
     8: ("Bounce", "zzicon-bounce", "35% { translate: 0 -3px; } 65% { translate: 0 1px; } 85% { translate: 0 -.5px; }", "ease-out"),
     9: ("Ripple", "zzicon-ripple", "0% { border-radius: 50%; box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 40%, transparent); } "
                                    "100% { border-radius: 50%; box-shadow: 0 0 0 9px transparent; }", "ease-out"),
+    11: ("Narrow (like zoom out)", "zzicon-narrow", "45% { scale: .55 1; } 75% { scale: .85 1; }", "cubic-bezier(.45,0,.25,1)"),
     10: ("Wave", "zzicon-wave", "20% { translate: 0 -1.5px; rotate: -7deg; } 50% { translate: 0 1px; rotate: 6deg; } 80% { translate: 0 -.5px; rotate: -2deg; }", "ease-in-out"),
 }
 # group -> (label, hovered elements that move)
@@ -944,12 +1033,16 @@ def motion_css():
 
 # ---- output -----------------------------------------------------------------
 
-def strip(draw, frames):
+def strip(draw, frames, zoom=1.0):
+    """Frames side by side. zoom > 1 crops each frame to its middle 18/zoom
+    units and fills the frame with that, so a design drawn across 1.5-16.5
+    of the 18-unit grid fills Zen's 16px slot as Zen's own icons do."""
     _ids[0] = 0
-    body = "".join(f"<g transform='translate({i * G})'><g clip-path='url(#f)'>{draw(i / (frames - 1))}</g></g>"
+    z = f"<g transform='translate(9 9) scale({zoom}) translate(-9 -9)'>" if zoom != 1 else "<g>"
+    body = "".join(f"<g transform='translate({i * G})'><g clip-path='url(#f)'>{z}{draw(i / (frames - 1))}</g></g></g>"
                    for i in range(frames))
     return (f"<svg xmlns='http://www.w3.org/2000/svg' width='{frames * G}' height='{G}' fill='none' "
-            "stroke='context-fill' stroke-opacity='context-fill-opacity' stroke-width='1.6' "
+            "stroke='context-fill' stroke-opacity='context-fill-opacity' stroke-width='1.4' "
             f"stroke-linecap='round' stroke-linejoin='round'><clipPath id='f'><rect width='{G}' height='{G}'/></clipPath>"
             "<linearGradient id='sheen' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='white' stop-opacity='.5'/>"
             f"<stop offset='.55' stop-color='white' stop-opacity='0'/></linearGradient>{body}</svg>\n")
@@ -986,9 +1079,10 @@ def main():
         old.unlink()
     url = {}
     for key, (_, draw, _) in TOOLBAR.items():
-        url[key] = save(f"icons/circuit/{key}.svg", strip(draw, FRAMES))
+        url[key] = save(f"icons/circuit/{key}.svg", strip(draw, FRAMES, ZOOM))
     for value, (_, draw) in LIBRARY.items():
-        url["library", value] = save(f"icons/library/{value}.svg", strip(draw, LIB_FRAMES))
+        if value != 12:                     # Circuit stack uses the toolbar strip
+            url["library", value] = save(f"icons/library/{value}.svg", strip(draw, LIB_FRAMES))
     for key, (label, _, targets) in TOOLBAR.items():
         k = SETTING.get(key, key)
         icons = ", ".join(i for i, _ in targets)
@@ -996,7 +1090,7 @@ def main():
         own = ", ".join(h + OWN for _, h in targets)
         css.append(f"/* {label} */\n@media {uses(key)} {{\n"
                    f"  {icons} {{\n    list-style-image: var(--zzicon-blank) !important;\n"
-                   f"    -moz-context-properties: fill, fill-opacity !important;\n"
+                   f"    -moz-context-properties: fill, fill-opacity, stroke !important;\n    stroke: var(--zzicon-halo, currentColor) !important;\n"
                    f"    background-image: {url[key]} !important;\n"
                    f"    background-size: {FRAMES * 100}% 100% !important;\n"
                    f"    background-position: calc(var(--zzicon-frame) * 100% / {FRAMES - 1}) 0 !important;\n"
@@ -1008,12 +1102,31 @@ def main():
                    f"    {own} {{ {STILL_MOTION} }}\n  }}\n}}")
     icons = ", ".join(i for i, _ in TOOLBAR["reload"][2])
     for value, (label, draw) in RELOAD_STYLES.items():
-        rel = save(f"icons/circuit/reload-{value}.svg", strip(draw, FRAMES))
+        rel = save(f"icons/circuit/reload-{value}.svg", strip(draw, FRAMES, ZOOM))
         css.append(f"/* Reload: {label} */\n@media ({uses('reload')}) and (-moz-pref(\"zzicon.reload.style\", {value})) {{\n"
                    f"  {icons} {{ background-image: {rel} !important; }}\n}}")
     for value, (label, _) in LIBRARY.items():
         follow = "".join(f' or ((-moz-pref("zzicon.library.style", 11)) and (-moz-pref("zzicon.set", {setv})))'
                          for setv, lib in FOLLOW_LIBRARY.items() if lib == value)
+        if value == 12:
+            # Circuit stack: the Firefox Library icon itself, stepped by the
+            # frame counter at 16px like every toolbar icon, not Zen's sprite.
+            css.append(f"/* Library: {label} */\n@media (-moz-pref(\"zzicon.library.style\", {value})){follow} {{\n"
+                       "  #zen-library-button { --zen-library-sprite-size: 16px !important; }\n"
+                       "  #zen-library-button .zen-library-sprite { scale: 1 !important; translate: none !important; }\n"
+                       "  #zen-library-button .zen-library-sprite::before {\n"
+                       f"    background-image: {url['firefox-library']} !important;\n"
+                       f"    background-size: {FRAMES * 100}% 100% !important;\n"
+                       f"    background-position: calc(var(--zzicon-frame) * 100% / {FRAMES - 1}) 0 !important;\n"
+                       "    background-repeat: no-repeat !important;\n    animation: none !important;\n"
+                       "    -moz-context-properties: fill, fill-opacity, stroke !important;\n"
+                       "    stroke: var(--zzicon-halo, currentColor) !important;\n"
+                       "    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;\n  }\n"
+                       "  @media (-moz-pref(\"zzicon.animate\")) {\n"
+                       f"    #zen-library-button:hover .zen-library-sprite::before {{ --zzicon-frame: {FRAMES - 1} !important;\n"
+                       "      filter: var(--zzicon-circuit-glow, none) !important; }\n  }\n"
+                       f"  #zen-library-button:hover > .zen-library-sprite{OWN} {{ {STILL_MOTION} }}\n}}")
+            continue
         css.append(f"/* Library: {label} */\n@media (-moz-pref(\"zzicon.library.style\", {value})){follow} {{\n"
                    f"  #zen-library-button .zen-library-sprite::before {{ background-image: {url['library', value]} !important; }}\n"
                    f"  #zen-library-button:hover > .zen-library-sprite{OWN} {{ {STILL_MOTION} }}\n}}")

@@ -46,16 +46,19 @@ Requires `sine.allow-unsafe-js` set to `true` in `about:config`.
 | Animate menu icons | off | Context menus and other menus |
 | Animate icons on hover | on | |
 | Animation speed | Smooth (0.45s) | Quick 0.3s, Slow 0.7s |
-| Circuit icons glow on hover | on | A soft light in the icon's own colour, like a lit neon tube |
+| Glow on hover | on | A soft light in the icon's own colour while hovered, for Circuit and Zen's own animated |
+| Soft glow around lines | on | Circuit's faint neon halo; off draws crisp lines only |
 | Glass plates | Off | While hovered, or Always. A light fill, a sheen across the top, a rim and an 8px blur of what is behind. With Glassflow installed, its own sheen and rim are used, so plates follow its Glass settings |
 | Plate shape | Squircle | Pill or Circle |
 
 **Each button** can follow the set, or use Zen's own icon (still or
 animated) or Circuit (animated or still). These buttons are covered:
-- **Navigation:** back, forward, reload, stop, home, the new tab buttons, the menu and workspace "⋯", the sidebar toggle and expand sidebar.
+- **Navigation:** back, forward, reload, stop, home, the new tab buttons, the application menu, the workspace "⋯", compact mode, the sidebar toggle and expand sidebar.
 - **Address bar and toolbar:** site settings, downloads, extensions, the bookmark ribbon (saved or not, and the bookmarks menu button), reader view, share and copy link, history (a stack of pages), screenshot.
 - **Overflow:** the more-tools and bookmarks overflow chevrons, and "clear unpinned tabs".
 - **Media player:** play and pause, next, previous, mute and unmute, close, and picture-in-picture.
+- **Menus and panels:** the application menu's items (new tab, windows, history, bookmarks, downloads, passwords, add-ons, print, save, find, zoom, full screen, settings, more tools, help, quit) and the History panel's (recently closed tabs and windows, search, clear recent history, manage history).
+- **Tabs:** the pinned tab reset (−), which narrows like zoom out.
 - **Buttons you can add under Customise toolbar:** save page, print, find in page, open file, zoom in and out, cut, copy and paste, text encoding, email link, passwords, sync, send tab to device, import, settings, forget, new private window, Firefox View, developer tools, new window, full screen, Firefox's Library and your account.
 
 **Reload** has a **style**:
@@ -73,7 +76,8 @@ Iconflow 1.3 dropped the Flow set. Anyone using Flow is moved to Circuit.
 
 ### How the icons animate
 
-Each icon is a strip of 48 frames on Zen's 18-unit icon grid, saved as its
+Each icon is a strip of 48 frames on Zen's 18-unit icon grid, cropped to
+the middle 15 units so it fills Zen's 16px slot like Zen's own icons, saved as its
 own file under `icons/`. Zen only loads the icons a rule uses, so
 `icons.css` stays small. Iconflow counts through the frames with a
 transition, so leaving the button plays the strip in reverse, and nothing
@@ -91,7 +95,7 @@ in use.
 |---|---|
 | Close buttons (tab close, Glance close, media close, stop) | Spin |
 | Plus buttons (new tab, the + beside the workspace icons) | Leave as it is |
-| Minus buttons (pinned tab reset) | Pop |
+| Minus buttons (pinned tab reset) | Narrow (like zoom out) |
 | Library button | Spin |
 | Other toolbar buttons | Leave as it is |
 | Media controls | Leave as it is |
@@ -106,6 +110,7 @@ The motions are:
 - **Bounce.**
 - **Ripple:** a ring spreads out from the icon.
 - **Wave.**
+- **Narrow:** the icon narrows and settles, like zoom out.
 
 An icon that plays its own animation (an animated Circuit button, or a
 Library button icon drawn by Iconflow) does not also take a hover motion,
@@ -120,7 +125,7 @@ The Library button is the button at the bottom of the sidebar that opens
 downloads and the Library.
 
 The choices are:
-- **Follow the icon set** (the default): Zen's icon with Zen's own set, and Circuit stack with Circuit.
+- **Follow the icon set** (the default): Zen's icon with Zen's own set, and Circuit stack with Circuit. Circuit stack is the Firefox Library icon itself, played at 16px like the other buttons.
 - **Zen's animated icon.**
 - **An animated outline of Zen's icon.**
 - **Eight animated line shapes:** Layers, Hex scan, Focus, Grid, Chevrons, Orbit, Split and Pulse.

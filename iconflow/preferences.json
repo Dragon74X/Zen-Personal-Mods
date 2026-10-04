@@ -101,7 +101,15 @@
   {
     "type": "checkbox",
     "property": "zzicon.circuit.glow",
-    "label": "Circuit icons glow on hover *A soft light around the icon in its own colour, like a lit neon tube.*",
+    "label": "Glow on hover *Animated icons, Circuit and Zen's own animated, glow softly in their own colour while hovered.*",
+    "defaultValue": true,
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzicon.circuit.halo",
+    "label": "Soft glow around lines *Circuit's neon lines carry a faint halo. Off draws crisp lines only.*",
     "defaultValue": true,
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
@@ -393,7 +401,69 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzicon.button.menu",
-    "label": "Menu and workspace actions",
+    "label": "Workspace actions (⋯) and More tools",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the icon set",
+        "value": 0
+      },
+      {
+        "label": "Zen's own",
+        "value": 1
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.button.app-menu",
+    "label": "Application menu",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the icon set",
+        "value": 0
+      },
+      {
+        "label": "Zen's own",
+        "value": 1
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.button.compact",
+    "label": "Compact mode",
     "defaultValue": 0,
     "options": [
       {
@@ -702,6 +772,37 @@
   {
     "type": "dropdown",
     "value": "number",
+    "property": "zzicon.button.reopen",
+    "label": "Recently closed tabs",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the icon set",
+        "value": 0
+      },
+      {
+        "label": "Zen's own",
+        "value": 1
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
     "property": "zzicon.button.screenshot",
     "label": "Screenshot",
     "defaultValue": 0,
@@ -797,6 +898,37 @@
     "value": "number",
     "property": "zzicon.button.close-unpinned",
     "label": "Clear unpinned tabs",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the icon set",
+        "value": 0
+      },
+      {
+        "label": "Zen's own",
+        "value": 1
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.button.minus",
+    "label": "Reset pinned tab (−)",
     "defaultValue": 0,
     "options": [
       {
@@ -1669,6 +1801,68 @@
     "operator": "AND"
   },
   {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.button.help",
+    "label": "Help",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the icon set",
+        "value": 0
+      },
+      {
+        "label": "Zen's own",
+        "value": 1
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.button.quit",
+    "label": "Quit",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the icon set",
+        "value": 0
+      },
+      {
+        "label": "Zen's own",
+        "value": 1
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
     "type": "separator",
     "label": "Hover motion",
     "size": "17px",
@@ -1734,6 +1928,10 @@
       {
         "label": "Wave",
         "value": 10
+      },
+      {
+        "label": "Narrow (like zoom out)",
+        "value": 11
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "motion"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -1789,6 +1987,10 @@
       {
         "label": "Wave",
         "value": 10
+      },
+      {
+        "label": "Narrow (like zoom out)",
+        "value": 11
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "motion"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -1799,7 +2001,7 @@
     "value": "number",
     "property": "zzicon.motion.minus",
     "label": "Minus (reset) buttons",
-    "defaultValue": 4,
+    "defaultValue": 11,
     "options": [
       {
         "label": "Leave as it is",
@@ -1844,6 +2046,10 @@
       {
         "label": "Wave",
         "value": 10
+      },
+      {
+        "label": "Narrow (like zoom out)",
+        "value": 11
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "motion"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -1899,6 +2105,10 @@
       {
         "label": "Wave",
         "value": 10
+      },
+      {
+        "label": "Narrow (like zoom out)",
+        "value": 11
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "motion"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -1954,6 +2164,10 @@
       {
         "label": "Wave",
         "value": 10
+      },
+      {
+        "label": "Narrow (like zoom out)",
+        "value": 11
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "motion"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -2009,6 +2223,10 @@
       {
         "label": "Wave",
         "value": 10
+      },
+      {
+        "label": "Narrow (like zoom out)",
+        "value": 11
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "motion"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],

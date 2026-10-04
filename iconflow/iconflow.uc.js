@@ -59,6 +59,17 @@
     } catch {}
   }
 
+  // Once, for Iconflow 1.7: the Library button follows the icon set again
+  // (Circuit stack with Circuit), and minus buttons narrow like zoom out.
+  try {
+    const S = Services.prefs, mark = "zzicon-migrated.1-7";
+    if (!S.getBoolPref(mark, false)) {
+      if (S.prefHasUserValue("zzicon.library.style")) S.setIntPref("zzicon.library.style", 11);
+      if (S.getIntPref("zzicon.motion.minus", 4) === 4) S.setIntPref("zzicon.motion.minus", 11);
+      S.setBoolPref(mark, true);
+    }
+  } catch {}
+
   // Iconflow 1.3 dropped the Flow set; move its users to Circuit.
   try {
     const S = Services.prefs;

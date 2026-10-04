@@ -57,11 +57,17 @@
   }
 }
 
-/* ---- Circuit glow --------------------------------------------------------- */
-/* Circuit icons glow while hovered, like a lit neon tube. A CSS drop-shadow
-   of the icon's own shape, so the icon files stay small. */
+/* ---- Glow --------------------------------------------------------------------- */
+/* Animated icons (Circuit and Zen's own animated) glow while hovered, like a
+   lit neon tube. A CSS drop-shadow of the icon's own shape, so the icon files
+   stay small. */
 @media (-moz-pref("zzicon.circuit.glow")) {
   :root { --zzicon-circuit-glow: drop-shadow(0 0 2.5px color-mix(in srgb, currentColor 65%, transparent)); }
+}
+/* The soft halo drawn round Circuit's neon lines is painted with
+   context-stroke, so it can be turned off here: crisp lines only. */
+@media not (-moz-pref("zzicon.circuit.halo")) {
+  :root { --zzicon-halo: transparent; }
 }
 
 /* ---- Glass behind buttons ------------------------------------------------- */

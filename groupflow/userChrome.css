@@ -2177,6 +2177,24 @@
     }
   }
 }
+/* The tab list's own edges fade the same way while more of it is scrolled
+   past them, so folders, subfolders and tabs fade as they leave the list,
+   whether or not a folder scrolls inside itself. Zen's arrowscrollbox marks
+   its ends. The mask sits on the arrowscrollbox, which stays still while its
+   inner scrollbox scrolls (Sine's user-origin sheets cannot reach ::part).
+   The fade grows in rather than appearing at the first pixel. */
+@property --zzgf-list-fade-above { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@property --zzgf-list-fade-below { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@media (-moz-pref("zzgroup.scroll-fade")) {
+  #navigator-toolbox .workspace-arrowscrollbox[overflowing] {
+    transition: --zzgf-list-fade-above 0.15s ease-out, --zzgf-list-fade-below 0.15s ease-out;
+    &:not([scrolledtostart]) { --zzgf-list-fade-above: var(--zzgroup-scroll-fade-size, 22px); }
+    &:not([scrolledtoend]) { --zzgf-list-fade-below: var(--zzgroup-scroll-fade-size, 22px); }
+    mask-image: linear-gradient(to bottom, transparent 0, #000 var(--zzgf-list-fade-above),
+      #000 calc(100% - var(--zzgf-list-fade-below)), transparent 100%);
+  }
+}
+
 /* Tabs in a folder, subfolders included, on hovering its header. */
 #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container > .zzgf-count {
   display: none;

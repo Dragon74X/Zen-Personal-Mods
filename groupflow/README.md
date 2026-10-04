@@ -120,7 +120,10 @@ part with its own setting (all on by default):
   at the top when you are at the top, sliding to the bottom as you reach the
   end. Subfolder lines share the same light.
 - **Edge fade:** the folder's top or bottom edge fades while more tabs are
-  hidden past it.
+  hidden past it. The same setting fades the tab list's own top and bottom
+  edges while it scrolls, so folders, subfolders and tabs fade as they leave
+  the list even when no folder scrolls inside itself, and with **Scroll
+  inside folders** off.
 - **Arrows on hover:** hovering the folder shows an up and a down arrow on
   its edges; clicking one scrolls a page that way. The arrow at an end stays
   faint.

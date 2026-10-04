@@ -60,8 +60,9 @@ Subfolder state labels can override that shared setting.
 
 With Zen's *draggable sidebar* setting on, Zen lets the empty space under the
 tab list move the window, but that space disappears once the list fills the
-sidebar. Groupflow also makes the list's own empty end and the space under a
-fitted folder box move the window, so it works however full the list is.
+sidebar. Folders that share the list (see below) leave one row of that space
+free, and when the list still overflows, its own empty end moves the window
+too, so it works however full the list is.
 Tabs, folder headers, connector gutters and buttons are unaffected, and a
 14px strip at the list's edge is left alone for the scrollbar.
 
@@ -86,29 +87,33 @@ and Zen's own wheel shortcuts (zoom, switching spaces) work as before.
 
 ## Scrolling inside folders
 
-Each top-level group is capped at **Folder box height** (`70vh` by default, any
-CSS length; `none` leaves only the next limit). A box also never runs past the
-bottom of the visible tab list, however tall the window is or wherever the list
-is scrolled: what the list cuts off is left as empty space below the box, so
-scrolling the list grows the box back instead of cutting its rows. Scrolling over a group's connector line, or the gap between it and
-the rows, slides that group's subgroups and tabs inside the box. The group's
-header and the rest of the tab list stay put. A connector inside a subgroup
-scrolls its top-level group's box. Scrolling over a tab still scrolls the whole
-list, and a selected tab is brought into view inside its box. The strip left of
-the connector line counts as the connector too.
+Top-level folders stay on screen; their contents scroll inside them.
+Scrolling anywhere over a top-level folder's contents (its tabs, subfolders
+and connector lines, or the strip left of the line) slides them inside the
+folder, up or down. The folder's header, the other folders and the loose tabs
+stay put. Scrolling over a top-level header or a loose tab scrolls the list,
+which only moves when there is more than fits.
 
-Scrolling stops on whole rows, and each box is trimmed below the cap so its
-bottom edge also lands between rows. Both are measured from the rows themselves,
-so tab margins or spacing added by other themes still give clean edges. The box
-refits after tabs open, close, move or change, folders toggle, the list
-scrolls, or the window resizes.
-The connector line moves with the contents in the same frame, so it never shows a gap.
+The folders share the list's height: everything that is not a folder's
+contents keeps its height, and the folders split what is left, smallest
+first, so a folder that fits keeps its full height. Each folder is also capped
+at **Folder box height** (`70vh` by default, any CSS length; `none` removes
+that cap). With too little room left, each keeps at least three rows and the
+list scrolls as usual. A selected tab is brought into view inside its folder.
 
-A group that fits under the cap has nothing to scroll, so its connector
-scrolls the list. With Firefox's **switch tabs by scrolling** setting on
-(`toolkit.tabbox.switchByScrolling`), that never selects or loads a tab.
-**Scroll inside folders from connector lines** turns both off and removes the
-cap. Split-view groups and Zen's native folders are not capped.
+Scrolling stops on whole rows, and each folder is trimmed so its bottom edge
+also lands between rows. Both are measured from the rows themselves, so tab
+margins or spacing added by other themes still give clean edges. Folders
+refit after tabs open, close, move or change, folders toggle, or the window
+resizes; a refit leaves the rows where you scrolled them. The connector line
+moves with the contents in the same frame, so it never shows a gap.
+
+A folder that fits has nothing to scroll, so its connector scrolls the list.
+With Firefox's **switch tabs by scrolling** setting on
+(`toolkit.tabbox.switchByScrolling`), the connector never selects or loads a
+tab; its tabs still switch as usual. **Scroll inside folders** turns all of
+this off and removes the cap. Split-view groups and Zen's native folders are
+not capped.
 
 ## Subfolder states
 

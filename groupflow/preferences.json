@@ -2248,13 +2248,13 @@
   {
     "type": "checkbox",
     "property": "zzgroup.connector-scroll",
-    "label": "Scroll inside folders from connector lines *Caps each top-level group at the height below. Scrolling over a group's connector line, or the gap beside its rows, slides its subgroups and tabs inside that box while its header and the rest of the tab list stay put. Scrolling over a tab still scrolls the whole list. A group that fits scrolls the list from its connector too, without switching tabs when Firefox's switch-tabs-by-scrolling (toolkit.tabbox.switchByScrolling) is on.*",
+    "label": "Scroll inside folders *Top-level folders stay on screen and share the list's height; scrolling over a folder's tabs, subfolders or connector lines slides them inside the folder while every header stays put. Scrolling over a header or a loose tab scrolls the list. A folder that fits scrolls the list from its connector too, without switching tabs when Firefox's switch-tabs-by-scrolling (toolkit.tabbox.switchByScrolling) is on.*",
     "defaultValue": true
   },
   {
     "type": "string",
     "property": "zzgroup.folder-height",
-    "label": "Folder box height *Tallest a top-level group grows before its contents scroll inside it, rounded down to whole rows. Any CSS length: 70vh is 70% of the window height; 600px is a fixed size; none removes this cap. A box also always ends inside the visible tab list.*",
+    "label": "Folder box height *Tallest a top-level folder grows before its contents scroll inside it, rounded down to whole rows. Any CSS length: 70vh is 70% of the window height; 600px is a fixed size; none removes this cap. Folders also share the visible list, so every header stays on screen.*",
     "defaultValue": "70vh",
     "placeholder": "70vh",
     "conditions": [

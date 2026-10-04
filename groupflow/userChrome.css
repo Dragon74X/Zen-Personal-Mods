@@ -404,7 +404,7 @@
        else in the stack is setting border-radius on this pseudo. */
     border-radius: var(--zzgf-cap) !important;
     corner-shape: round !important;   /* cap is a pill; never a superellipse */
-    background: var(--zzgf-grad) !important;
+    background: var(--zzgf-light, linear-gradient(transparent, transparent)), var(--zzgf-grad) !important;
     mask-image: var(--zzgf-railmask);
     opacity: var(--zzgroup-line-opacity, 1);
     transition: opacity 130ms ease-out, filter 130ms ease-out;
@@ -416,7 +416,7 @@
      together rather than leaving a highlight hanging past the fill. */
   @media (-moz-pref("zzgroup.line.sheen")) {
     :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container::before {
-      background-image: var(--zzgf-barsheen), var(--zzgf-grad) !important;
+      background-image: var(--zzgf-light, linear-gradient(transparent, transparent)), var(--zzgf-barsheen), var(--zzgf-grad) !important;
     }
   }
   /* Rim as background layers rather than inset shadows: a 1px inset
@@ -426,6 +426,7 @@
   @media (-moz-pref("zzgroup.line.rim")) {
     :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container::before {
       background-image:
+        var(--zzgf-light, linear-gradient(transparent, transparent)),
         linear-gradient(var(--zzgf-rimA),
           rgb(255 255 255 / calc(0.5 * var(--zzgf-glass))) 0%,
           transparent 45%),
@@ -438,6 +439,7 @@
   @media (-moz-pref("zzgroup.line.rim")) and (-moz-pref("zzgroup.line.sheen")) {
     :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container::before {
       background-image:
+        var(--zzgf-light, linear-gradient(transparent, transparent)),
         var(--zzgf-barsheen),
         linear-gradient(var(--zzgf-rimB),
           rgb(0 0 0 / calc(0.25 * var(--zzgf-glass))) 0%,
@@ -1323,6 +1325,7 @@
   :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container::before {
     width: var(--zzgroup-curve-amplitude, 16px) !important;
     border-radius: 0 !important;
+    --zzgf-shapemask: var(--zzgf-railshape);
     mask-image: var(--zzgf-railshape), var(--zzgf-railmask);
     mask-composite: intersect;
     mask-size: 100% 100%, 100% 100%;
@@ -2102,19 +2105,32 @@
    A body that scrolls carries zzgf-glow, plus zzgf-more-above/-below on
    the sides where rows are hidden. --zzgf-glow is where the light sits on
    each connector, in that connector's own pixels. */
-/* The line dims away from the light, so its brightest point follows the
-   scroll down the folder and through every subfolder line it passes. A
-   folder that scrolls inside itself carries zzgf-glow; while the list
-   scrolls, the others carry zzgf-list-glow and share the list's light. */
+/* Where you are, on the connector. While a folder scrolls inside itself
+   (zzgf-glow) or the tab list scrolls past it (zzgf-list-glow), the line's
+   gradient along its length moves with you: the line is at full strength
+   with a bright band of its own colour at --zzgf-glow, easing down to a dim
+   floor away from it, so the light slides down the line as you scroll and
+   on through every subfolder line it passes. This takes the place of the
+   static along-the-line gradient (Soft ends or a fade) while it shows; only
+   a short taper is kept at each end. Everything across the line's width
+   (colour, rounding, sheen, rim) and its shape stay as set. */
 @media (-moz-pref("zzgroup.scroll-glow")) {
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container:is([zzgf-glow], [zzgf-list-glow], :is([zzgf-glow], [zzgf-list-glow]) .tab-group-container)::before {
-    --zzgf-glow-reach: var(--zzgroup-glow-reach, 110px);
-    --zzgf-glow-floor: var(--zzgroup-glow-floor, 0.25);
-    mask-image: var(--zzgf-railmask), linear-gradient(to bottom,
-      rgb(0 0 0 / var(--zzgf-glow-floor)) calc(var(--zzgf-glow, 0px) - var(--zzgf-glow-reach)),
-      #000 var(--zzgf-glow, 0px),
-      rgb(0 0 0 / var(--zzgf-glow-floor)) calc(var(--zzgf-glow, 0px) + var(--zzgf-glow-reach)));
-    mask-composite: intersect;
+    --zzgf-glow-reach: var(--zzgroup-glow-reach, min(34%, 120px));
+    --zzgf-glow-floor: var(--zzgroup-glow-floor, 0.35);
+    --zzgf-light: linear-gradient(to bottom,
+      transparent calc(var(--zzgf-glow, 0px) - var(--zzgf-glow-reach)),
+      color-mix(in srgb, var(--zzgf-accent) 45%, white) var(--zzgf-glow, 0px),
+      transparent calc(var(--zzgf-glow, 0px) + var(--zzgf-glow-reach)));
+    mask-image: var(--zzgf-shapemask, linear-gradient(#000, #000)),
+      linear-gradient(to bottom, transparent 0, #000 min(var(--zzgf-fade), 12px), #000 calc(100% - min(var(--zzgf-fade), 12px)), transparent 100%),
+      linear-gradient(to bottom,
+        rgb(0 0 0 / var(--zzgf-glow-floor)) calc(var(--zzgf-glow, 0px) - var(--zzgf-glow-reach)),
+        #000 var(--zzgf-glow, 0px),
+        rgb(0 0 0 / var(--zzgf-glow-floor)) calc(var(--zzgf-glow, 0px) + var(--zzgf-glow-reach))) !important;
+    mask-composite: intersect !important;
+    mask-size: 100% 100% !important;
+    mask-repeat: no-repeat !important;
   }
 }
 

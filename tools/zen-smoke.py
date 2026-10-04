@@ -64,7 +64,7 @@ class Marionette:
 
 
 def check(m, root, arc, transparent):
-    mods = ["download-prompt", "glassflow", "glassflow-library", "groupflow", "tab-router", "tab-unloader", "zen-turbo"]
+    mods = ["download-prompt", "glassflow", "glassflow-library", "groupflow", "tab-router", "tab-unloader", "zen-turbo", "zenslop"]
     prefs = {}
     pref_files = [p / "preferences.json" for p in [arc, transparent] if p] + [root / mod / "preferences.json" for mod in mods]
     for path in pref_files:

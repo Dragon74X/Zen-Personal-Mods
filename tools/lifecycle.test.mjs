@@ -1430,7 +1430,7 @@ async function groupflowStartupEnv() {
   // check covers Groupflow's standalone controller and its persisted state.
   w.advancedTabGroups = {};
   // elementFromPoint answers with whatever the test last put under the pointer.
-  const document = { documentElement: element(), hit: null, elementFromPoint() { return this.hit; },
+  const document = { documentElement: element(), hit: null, elementFromPoint() { return this.hit; }, getElementById: () => null,
     querySelector: () => null, querySelectorAll: selector => groups.filter(g => selector.split(", ").includes(g.tagName)) };
   const gNavToolbox = { ...element(), contains: () => true };
   const gBrowser = { tabGroups: groups, selectedTab: { label: "selected tab" },
@@ -1460,6 +1460,7 @@ async function groupflowStartupEnv() {
     const h = await load("groupflow", "start, schedule, prefVarObserver", {
       ...c, window: w, document, gBrowser, gNavToolbox, Services, SessionStore, customElements, queueMicrotask,
       gZenWorkspaces: {}, MutationObserver: class { observe() {} disconnect() {} },
+      ResizeObserver: class { observe() {} disconnect() {} },
       getComputedStyle: el => el?.computed ?? { getPropertyValue: () => "" }, CSS: { supports: () => false },
       requestAnimationFrame: fn => w.requestAnimationFrame?.(fn) ?? 0, cancelAnimationFrame() {},
       performance: { now: () => 0 },

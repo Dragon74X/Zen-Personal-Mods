@@ -1,0 +1,32 @@
+{
+  "id": "zz-zenslop",
+  "name": "Zenslop",
+  "description": "A live preview of the playing video above Zen's media controls in the sidebar. Maintained fork of Firebolt9907/Zenslop (MIT).",
+  "author": "Dragon74X (fork of Rishu Sharma's Zenslop)",
+  "version": "1.3.0",
+  "updatedAt": "2026-10-04T06:06:06Z",
+  "homepage": "https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/zenslop",
+  "readme": "https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/main/zenslop/README.md",
+  "preferences": "preferences.json",
+  "tags": [
+    "media",
+    "picture-in-picture"
+  ],
+  "fork": [
+    "zen"
+  ],
+  "scripts": {
+    "sine-update-guard.sys.mjs": {
+      "name": "Sine Update Guard",
+      "description": "Serialize installs/updates and wait for replacement files before reading preferences.",
+      "loadOrder": 1
+    },
+    "zenslop.uc.js": {
+      "name": "Zenslop",
+      "description": "Sidebar video preview and its window actor registration.",
+      "include": [
+        "chrome://browser/content/browser.xhtml"
+      ]
+    }
+  }
+}

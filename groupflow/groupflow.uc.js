@@ -1179,6 +1179,11 @@
     gNavToolbox.addEventListener("wheel", onWheel, { capture: true, passive: false });
     strip.addEventListener("scroll", holdRail, { capture: true, passive: true });
     for (const ev of FIT_EVENTS) window.addEventListener(ev, onFitEvent, true);
+    // The tab area also changes size without any event: the media bar or a
+    // video preview (Zenslop) appearing, essentials or the window toolbar.
+    const tabArea = new ResizeObserver(() => fitSoon());
+    const wrapper = document.getElementById("zen-tabs-wrapper");
+    if (wrapper) tabArea.observe(wrapper);
     try { Services.obs.addObserver(schedule, "contextual-identity-updated"); } catch {}
 
     window.Groupflow = {
@@ -1231,6 +1236,7 @@
       gNavToolbox.removeEventListener("wheel", onWheel, true);
       strip.removeEventListener("scroll", holdRail, true);
       for (const ev of FIT_EVENTS) window.removeEventListener(ev, onFitEvent, true);
+      tabArea.disconnect();
       clearTimeout(fitTimer);
       try { Services.obs.removeObserver(schedule, "contextual-identity-updated"); } catch {}
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}

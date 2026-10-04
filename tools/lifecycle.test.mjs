@@ -1500,13 +1500,15 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
   e.Services.prefs.getBoolPref = (k, d) => k === "zzgroup.connector-scroll" ? enabled : d;
   await e.inject();
   // 25 rows of 40px in a 480px box under a 24px header, in a 400px list.
-  const port = { clientHeight: 400, scrollTop: 0, computed: { paddingTop: "0px" }, getBoundingClientRect: () => ({ top: 76 }) };
+  const port = { clientHeight: 400, scrollHeight: 400, scrollTop: 0, computed: { paddingTop: "0px" }, getBoundingClientRect: () => ({ top: 76 }),
+    addEventListener() {}, removeEventListener() {} };
   const header = { getBoundingClientRect: () => ({ top: 76, bottom: 100, height: 24 }) };
   const list = { localName: "arrowscrollbox", scrollbox: port,
     querySelectorAll: selector => selector.includes("> * >") ? [header, box] : [box] };
   const box = { scrollHeight: 1000, clientHeight: 480, top: 0, closest: () => null,
     classList: { contains: c => c === "tab-group-container" }, marks: new Set(),
     toggleAttribute(name, on) { if (on) this.marks.add(name); else this.marks.delete(name); },
+    hasAttribute(name) { return this.marks.has(name); },
     style: { setProperty(k, v) { this[k] = v; }, removeProperty(k) { delete this[k]; } },
     computed: { getPropertyValue: k => k === "--zzgf-box-cap" ? "480px" : "" },
     get scrollTop() { return this.top; },
@@ -1532,6 +1534,7 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
   assert.equal(box.style["--zzgf-glow"], 40 / 520 * 480 + "px", "the light sits as far down the line as the body is scrolled");
   assert.equal(wheel(gutter, 1), true); assert.equal(box.scrollTop, 80, "a small notch still moves one row");
   assert.equal(wheel(gutter, -100), true); assert.equal(box.scrollTop, 0, "clamped at the top");
+  assert.equal(wheel(gutter, -3), false, "and at its top an upward wheel scrolls the list");
   assert.ok(!box.marks.has("zzgf-more-above") && box.marks.has("zzgf-more-below"), "at the top only the bottom is marked");
   assert.equal(box.style["--zzgf-glow"], "0px", "and the light is at the top");
   assert.equal(wheel(gutter, 30, 0), true); assert.equal(box.scrollTop, 30, "pixel deltas follow the touchpad");
@@ -1547,6 +1550,8 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
   for (const [id, fn] of [...e.c.timers]) { e.c.clearTimeout(id); fn(); }
   assert.equal(box.style["--zzgf-box-fit"], "360px", "the body ends on a row inside the list, so the header stays on screen");
   assert.equal(wheel(gutter, 100), true); assert.equal(box.scrollTop, 640, "the body scrolls to its last rows");
+  assert.equal(wheel(gutter, 3), false, "at its end the body passes the wheel on, so the list keeps scrolling");
+  assert.equal(box.scrollTop, 640);
   e.gBrowser.tabContainer.fire("scroll", { target: box });
   assert.equal(e.c.timers.size, 0, "its own scroll is not refitted back to the selected tab");
   box.top = 600;
@@ -1919,16 +1924,18 @@ test("Tab Unloader turns Arc's own unloading off only while it runs, and puts it
   assert.equal(prefs.user.get("arc-tab-auto-clean-pinned"), true);
 });
 
-test("Iconflow steps land on whole frames of each strip it uses", async () => {
-  // steps(n, jump-none) stops at 0, 1/(n-1) ... 1, so n must equal the strip's
-  // frame count; one fewer leaves every stop between two frames (a slide).
+test("Iconflow's frame counter spans each strip it uses", async () => {
+  // The shown frame is an <integer> custom property, so every stop is a whole
+  // frame; its last value and the position divisor must be the strip's last
+  // frame, or the end of the strip is cut off or overshot.
   const css = await readFile(new URL("../iconflow/icons.css", import.meta.url), "utf8");
-  const steps = new Set([...css.matchAll(/steps\((\d+), jump-none\)/g)].map(m => Number(m[1])));
+  assert.match(css, /@property --zzicon-frame \{ syntax: "<integer>";/);
+  const ends = new Set([...css.matchAll(/--zzicon-frame: (\d+) !important/g), ...css.matchAll(/var\(--zzicon-frame\) \* 100% \/ (\d+)\)/g)].map(m => Number(m[1])));
   const strips = [...new Set([...css.matchAll(/url\("(icons\/circuit\/[^"]+)"\)/g)].map(m => m[1]))];
   assert.ok(strips.length);
   for (const strip of strips) {
     const svg = await readFile(new URL(`../iconflow/${strip}`, import.meta.url), "utf8");
     const [, width, height] = svg.match(/width='(\d+)' height='(\d+)'/);
-    assert.deepEqual([...steps], [width / height], `${strip} has ${width / height} frames`);
+    assert.deepEqual([...ends], [width / height - 1], `${strip} has ${width / height} frames`);
   }
 });

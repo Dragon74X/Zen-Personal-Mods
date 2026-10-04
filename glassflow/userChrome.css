@@ -359,6 +359,17 @@
       linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)) !important;
     transition: background-image 180ms ease-out, box-shadow 180ms ease-out, opacity 180ms ease-out !important;
   }
+  /* The title and favicon fade with the background (the setting fades the
+     whole tab), and the favicon can lose its colour. Only those two: the
+     tab's own colours (tint, rim, marks) stay as the state draws them, and
+     the background keeps its frosted blur. */
+  :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] :is(.tab-icon-stack, .tab-label-container) {
+    opacity: var(--zzglass-pending-opacity, 0.62) !important;
+    transition: opacity 180ms ease-out, filter 180ms ease-out !important;
+  }
+  @media (-moz-pref("zzglass.pending.greyscale")) {
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] .tab-icon-stack { filter: grayscale(1) !important; }
+  }
   @media (-moz-pref("zzglass.pending.sheen")) {
     :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] .tab-background, :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] .tab-stack .tab-background { background-image: var(--zzg-texture), var(--zzg-sheen),
       linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)) !important; }

@@ -97,7 +97,8 @@ Scrolling anywhere over a top-level folder's contents (its tabs, subfolders
 and connector lines, or the strip left of the line) slides them inside the
 folder, up or down. The folder's header, the other folders and the loose tabs
 stay put. Scrolling over a top-level header or a loose tab scrolls the list,
-which only moves when there is more than fits.
+which only moves when there is more than fits. Scrolling on past the end of a
+folder's contents carries on into the list, so the wheel never stops dead.
 
 The folders share the list's height: everything that is not a folder's
 contents keeps its height, and the folders split what is left, smallest
@@ -118,7 +119,9 @@ part with its own setting (all on by default):
 
 - **Moving glow:** the folder's connector lines are brightest where you are,
   at the top when you are at the top, sliding to the bottom as you reach the
-  end. Subfolder lines share the same light.
+  end. Subfolder lines share the same light. While the tab list itself
+  scrolls, folders that fit share one light that follows the list instead,
+  also with **Scroll inside folders** off.
 - **Edge fade:** the folder's top or bottom edge fades while more tabs are
   hidden past it. The same setting fades the tab list's own top and bottom
   edges while it scrolls, so folders, subfolders and tabs fade as they leave

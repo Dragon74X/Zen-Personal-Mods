@@ -85,17 +85,37 @@ export function installSineUpdateGuard(manager, utils, { IOUtils, PathUtils } = 
     };
   }
   // An update copies the installed folder to tmp-<id>, deletes the folder,
-  // then downloads the replacement. A failed download skips Sine's restore,
-  // and every later update fails copying the missing folder: the mod stays
-  // broken until reinstalled. Put the backup back before reads resume.
-  // ponytail: restores only a folder that is gone entirely; an extraction
-  // that failed midway leaves a partial folder, which still needs a reinstall.
+  // then extracts the replacement. When that fails, Sine skips its restore
+  // and every later update fails copying a missing or partial folder: the
+  // mod stays broken until reinstalled. The update failed, so mods.json
+  // still names the old version; put the old copy back before reads resume.
+  // Which copy is whole depends on where it failed:
+  // - the backup copy itself failed: the folder was never deleted and is
+  //   intact, and the backup is a partial subset of it. Keep the folder.
+  // - the download or extraction failed: the folder is missing or partial,
+  //   and the backup is the complete old version. Restore it.
+  const listing = async (root, dir = root, out = new Map()) => {
+    for (const path of await IOUtils.getChildren(dir)) {
+      const info = await IOUtils.stat(path);
+      if (info.type === "directory") await listing(root, path, out);
+      else out.set(path.slice(root.length), info.size);
+    }
+    return out;
+  };
   async function restoreBackup([, , theme, installed]) {
     if (!installed?.id || !theme?.id) return;
     try {
       const folder = utils.getModFolder(theme.id);
       const backup = PathUtils.join(utils.modsDir, `tmp-${installed.id}`);
-      if (await IOUtils.exists(folder) || !await IOUtils.exists(backup)) return;
+      if (!await IOUtils.exists(backup)) return;
+      if (await IOUtils.exists(folder)) {
+        const [kept, saved] = await Promise.all([listing(folder), listing(backup)]);
+        if ([...saved].every(([file, size]) => kept.get(file) === size)) {
+          await IOUtils.remove(backup, { recursive: true });   // the copy failed; the folder is whole
+          return;
+        }
+        await IOUtils.remove(folder, { recursive: true });
+      }
       await IOUtils.move(backup, folder);
       console.warn(`[Zen Personal Mods] Update of ${theme.id} failed; restored the installed copy.`);
     } catch (error) {
@@ -135,7 +155,21 @@ export function installSineUpdateGuard(manager, utils, { IOUtils, PathUtils } = 
 // Sine builds each settings row before adding it to the page, and checks the
 // row's conditions at that moment, when the row cannot be found yet. So every
 // conditional row shows when a mod's settings open, until one of the settings
-// it depends on changes. Check again once the row is on the page.
+// it depends on changes. Sine's own observers stay registered and handle
+// later changes; check visibility once more when the row is on the page,
+// with the same rules (preferences.sys.mjs), registering nothing.
+const holds = cond => {
+  const c = cond.if || cond.not, P = Services.prefs;
+  const v = typeof c.value === "boolean" ? P.getBoolPref(c.property, false)
+    : typeof c.value === "number" ? P.getIntPref(c.property, 0) : P.getCharPref(c.property, "");
+  return cond.not ? v !== c.value : v === c.value;
+};
+const allHold = (conditions, operator = "AND") => {
+  const list = Array.isArray(conditions) ? conditions : [conditions];
+  if (!list.length) return true;
+  const results = list.map(c => c.if || c.not ? holds(c) : c.conditions ? allHold(c.conditions, c.operator || "AND") : false);
+  return operator === "OR" ? results.some(Boolean) : results.every(Boolean);
+};
 export function fixSettingsConditions(manager) {
   const prefs = manager.preferences;
   if (!prefs || prefs.__zenPersonalModsConditions ||
@@ -145,7 +179,12 @@ export function fixSettingsConditions(manager) {
     __zenPersonalModsConditions: true,
     parsePref(pref, ...rest) {
       const row = prefs.parsePref(pref, ...rest), window = rest[1];
-      if (row && pref.conditions) window.setTimeout(() => { if (row.isConnected) prefs.setupPrefObserver(pref, window); });
+      if (row && pref.conditions) window.setTimeout(() => {
+        if (!row.isConnected) return;
+        const id = (pref.id ?? pref.property).replaceAll(".", "-");
+        const el = window.document.getElementById(id);
+        if (el) el.style.display = allHold(pref.conditions, pref.operator || "OR") ? "flex" : "none";
+      });
       return row;
     },
   };

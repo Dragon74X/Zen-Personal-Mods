@@ -226,25 +226,88 @@ test("remove and toggle wait for installs; toggle uses the current registry", as
   assert.ok(f.events.indexOf("remove:old") > f.events.indexOf("end:new"));
 });
 
-test("conditional settings rows are checked again once they are on the page", async () => {
+test("conditional settings rows are checked again once on the page, without a second observer", async () => {
   const { fixSettingsConditions } = await import("../download-prompt/sine-update-guard.sys.mjs");
-  const calls = [], timers = [];
-  const window = { setTimeout: fn => timers.push(fn) };
-  const prefs = {
+  const calls = [], timers = [], el = { style: { display: "flex" } };
+  const prefs = new Map([["a.on", false]]);
+  globalThis.Services = { prefs: { getBoolPref: (k, d) => prefs.get(k) ?? d, getIntPref: (k, d) => prefs.get(k) ?? d, getCharPref: (k, d) => prefs.get(k) ?? d } };
+  const window = { setTimeout: fn => timers.push(fn), document: { getElementById: id => id === "a-b" ? el : null } };
+  const sine = {
     parsePref: (pref, _manager, _window) => ({ isConnected: false, pref }),
     setupPrefObserver: (pref, win) => calls.push([pref.property, win]),
   };
-  const manager = { preferences: prefs };
+  const manager = { preferences: sine };
   assert.equal(fixSettingsConditions(manager), true);
   assert.equal(fixSettingsConditions(manager), false, "wraps once");
-  const shown = manager.preferences.parsePref({ property: "a.b", conditions: [{}] }, manager, window);
+  const row = manager.preferences.parsePref({ property: "a.b", conditions: [{ if: { property: "a.on", value: true } }] }, manager, window);
   manager.preferences.parsePref({ property: "plain" }, manager, window);
   assert.equal(timers.length, 1, "only conditional rows");
   timers[0]();
-  assert.deepEqual(calls, [], "a row never added stays untouched");
-  shown.isConnected = true;
+  assert.equal(el.style.display, "flex", "a row never added stays untouched");
+  row.isConnected = true;
   timers[0]();
-  assert.deepEqual(calls.map(([p, w]) => [p, w === window]), [["a.b", true]]);
-  assert.equal(manager.preferences.setupPrefObserver, prefs.setupPrefObserver);
+  assert.equal(el.style.display, "none", "the row's conditions are checked once it is on the page");
+  prefs.set("a.on", true); timers[0]();
+  assert.equal(el.style.display, "flex");
+  assert.deepEqual(calls, [], "Sine's own observers are not registered a second time");
+  assert.equal(manager.preferences.setupPrefObserver, sine.setupPrefObserver);
   assert.equal(fixSettingsConditions({}), false);
+  delete globalThis.Services;
+});
+
+// Sine's update sequence on a fake disk: copy the folder to tmp-<id>, delete
+// it, extract the replacement. `fail` picks where it breaks.
+function disk() {
+  const files = new Map(), PathUtils = { join: (...p) => p.join("/") };
+  const under = dir => [...files.keys()].filter(f => f.startsWith(dir + "/"));
+  const IOUtils = {
+    async exists(path) { return files.has(path) || under(path).length > 0; },
+    async getChildren(dir) { return [...new Set(under(dir).map(f => dir + "/" + f.slice(dir.length + 1).split("/")[0]))]; },
+    async stat(path) { return files.has(path) ? { type: "regular", size: files.get(path).length } : { type: "directory" }; },
+    async remove(path) { files.delete(path); for (const f of under(path)) files.delete(f); },
+    async move(from, to) { for (const f of under(from)) { files.set(to + f.slice(from.length), files.get(f)); files.delete(f); } },
+    async copy(from, to, fail) { for (const [n, f] of under(from).entries()) { if (fail && n) throw new Error("copy failed"); files.set(to + f.slice(from.length), files.get(f)); } },
+  };
+  const utils = { modsDir: "/m", getModFolder: id => "/m/" + id, async getMods() { return {}; }, async getModPreferences() { return files.get("/m/x/preferences.json"); } };
+  const manager = {
+    async updateMods() {}, async processModUpdate() {}, async installMod() {},
+    async syncModData(repo, list, theme, installed) {
+      PathUtils.join(utils.modsDir, "temp");   // the shared staging path the guard looks for
+      const folder = "/m/" + theme.id, tmp = "/m/tmp-" + installed.id;
+      await IOUtils.copy(folder, tmp, theme.fail === "copy");
+      await IOUtils.remove(folder);
+      if (theme.fail === "download") throw new Error("download failed");
+      files.set(folder + "/theme.json", "new theme");
+      if (theme.fail === "extract") throw new Error("extraction failed");
+      files.set(folder + "/preferences.json", "new prefs");
+      await IOUtils.remove(tmp);
+      return true;
+    },
+  };
+  files.set("/m/x/theme.json", "old theme");
+  files.set("/m/x/preferences.json", "old prefs");
+  files.set("/m/x/sub/a.css", "old css");
+  assert.equal(installSineUpdateGuard(manager, utils, { IOUtils, PathUtils }), true);
+  return { files, manager, utils };
+}
+
+test("a failed update leaves the prior version whole and the next update succeeds", async () => {
+  const warn = console.warn; console.warn = () => {};
+  try {
+    for (const fail of ["extract", "download"]) {
+      const { files, manager, utils } = disk();
+      await assert.rejects(manager.syncModData("r", {}, { id: "x", fail }, { id: "x" }));
+      assert.equal(files.get("/m/x/theme.json"), "old theme", fail);
+      assert.equal(files.get("/m/x/sub/a.css"), "old css", fail);
+      assert.equal(await utils.getModPreferences({ id: "x" }), "old prefs", fail + ": preferences readable");
+      assert.equal([...files.keys()].some(f => f.startsWith("/m/tmp-")), false);
+      assert.equal(await manager.syncModData("r", {}, { id: "x" }, { id: "x" }), true, fail + ": retry");
+      assert.equal(files.get("/m/x/preferences.json"), "new prefs");
+    }
+    // The backup copy itself failed: the folder was never removed. A partial
+    // backup must never replace it.
+    const { files, manager } = disk();
+    await assert.rejects(manager.syncModData("r", {}, { id: "x", fail: "copy" }, { id: "x" }));
+    assert.deepEqual([...files.keys()].sort(), ["/m/x/preferences.json", "/m/x/sub/a.css", "/m/x/theme.json"]);
+  } finally { console.warn = warn; }
 });

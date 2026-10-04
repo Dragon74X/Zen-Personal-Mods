@@ -1126,18 +1126,36 @@ def zen_css():
         out.append(f"/* {label}, Zen's own animated */\n"
                    f'@media ((-moz-pref("zzicon.set", 0)) and (-moz-pref("zzicon.button.{k}", 0))) or (-moz-pref("zzicon.button.{k}", {ZEN_ANIMATED})) {{\n'
                    f"  {icons} {{ {move} {motion_props(ZEN_MOTION[key])} }}\n"
-                   f'  @media (-moz-pref("zzicon.animate")) {{ {hovers} {{ {lit} }} }}\n'
+                   f'  @media {MOVES} {{ {hovers} {{ {lit} }} }}\n'
                    f"  {parted} {{ {PARTED} }}\n"
-                   f'  @media (-moz-pref("zzicon.animate")) {{ {parted_hover} {{ --zzicon-frame: {FRAMES - 1} !important; filter: var(--zzicon-circuit-glow, none) !important; }} }}\n}}')
+                   f'  @media {MOVES} {{ {parted_hover} {{ --zzicon-frame: {FRAMES - 1} !important; filter: var(--zzicon-circuit-glow, none) !important; }} }}\n'
+                   f"  {parents([h for _, h in targets])} {{ animation: none !important; transform: none !important; }}\n}}")
     # The glow rises with the pose, so it lights as the icon moves.
     out.append('@media (-moz-pref("zzicon.circuit.glow")) {\n'
                f"  {', '.join(dict.fromkeys(every))} {{ --zzicon-zen-glow: drop-shadow(0 0 2.5px color-mix(in srgb, currentColor calc(clamp(0, {T}, 1) * 65%), transparent)); }}\n}}")
     items = "menupopup :is(menuitem, menu)"         # descendants: the Back/Reload row sits in a menugroup
-    out.append(f"/* Menu icons */\n@media (-moz-pref(\"zzicon.menu.animate\")) {{\n"
+    out.append(f"/* Menu icons */\n@media (-moz-pref(\"zzicon.menu.animate\")) and {MOVES} {{\n"
                f"  {items} > .menu-icon {{ {move} {motion_props(MENU_DEFAULT)} }}\n"
                f"  {items}[_moz-menuactive] > .menu-icon {{ {lit} }}")
     for key, ids in MENU_ITEMS.items():
         out.append(f"  {', '.join('#' + i + ' > .menu-icon' for i in ids)} {{ {motion_props(ZEN_MOTION[key])} }}")
+    # Context Menu Icons paints most rows' icons as the row's own background,
+    # not a .menu-icon. A background cannot turn, so those icons move by their
+    # size and position: pops grow, slides shift, turns pop. The row's text,
+    # checkmarks and hit area stay put.
+    # Two ids' weight: Context Menu Icons' own rule carries one (#ContentSelectDropdown).
+    bg = ("menupopup :is(menuitem, menu):not(.menuitem-iconic, .menu-iconic, "
+          ":is([type='checkbox'], [type='radio'])[checked])" + OWN + OWN)
+    size = "var(--fp-contextmenu-menuitem-icon-size, 16px)"
+    out.append(f"  {bg} {{ --zzm-dx: 0px; --zzm-dy: 0px; --zzm-k: 0.15; {ride('-back')}\n"
+               f"    background-size: calc({size} * (1 + {T} * var(--zzm-k))) !important;\n"
+               f"    background-position: calc(var(--zen-contextmenu-menuitem-padding-inline, 8px) + {T} * var(--zzm-dx)"
+               f" - {size} * {T} * var(--zzm-k) / 2) calc(50% + {T} * var(--zzm-dy)) !important; }}\n"
+               f"  {bg}[_moz-menuactive] {{ {lit} }}")
+    for key, ids in MENU_ITEMS.items():
+        m = ZEN_MOTION[key]
+        k = (m["sx"] + m["sy"]) / 2 if m["sx"] or m["sy"] else (0.15 if m["turn"] else 0)
+        out.append(f"  {', '.join('#' + i for i in ids)} {{ --zzm-dx: {m['x']:g}px; --zzm-dy: {m['y']:g}px; --zzm-k: {k:g}; }}")
     out.append("}")
     return out
 
@@ -1173,9 +1191,15 @@ def motion_css():
     out = [f"@keyframes {name} {{ {frames} }}" for _, name, frames, _ in MOTIONS.values()]
     for key, (label, targets) in MOTION_GROUPS.items():
         out.append(f"/* Hover motion: {label} */")
-        out.append(f'@media (-moz-pref("zzicon.motion.{key}", 1)) {{ {targets} {{ animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }} }}')
+        still = f"{targets}, {parents(split_list(targets))} {{ {STILL_MOTION} }}"
+        out.append(f'@media (-moz-pref("zzicon.motion.{key}", 1)) {{ {still} }}')
+        # A chosen motion owns these buttons: with Animate icons off or reduced
+        # motion asked for, they stay still rather than falling back to another mod's.
+        out.append(f'@media (not (-moz-pref("zzicon.motion.{key}", 0))) and (not (-moz-pref("zzicon.animate"))) {{ {still} }}')
+        out.append(f'@media (not (-moz-pref("zzicon.motion.{key}", 0))) and (prefers-reduced-motion: reduce) {{ {still} }}')
         for value, (_, name, _, timing) in MOTIONS.items():
-            out.append(f'@media (-moz-pref("zzicon.motion.{key}", {value})) {{ {targets} {{ animation: {name} var(--zzicon-motion-duration) {timing} !important; }} }}')
+            out.append(f'@media (-moz-pref("zzicon.motion.{key}", {value})) and {MOVES} {{ {targets} {{ animation: {name} var(--zzicon-motion-duration) {timing} !important; }}'
+                       f' {parents(split_list(targets))} {{ animation: none !important; transform: none !important; }} }}')
     return out
 
 
@@ -1289,7 +1313,34 @@ def save(rel, svg):
 
 
 # An icon that plays its own animation does not also take a whole-icon hover motion.
-STILL_MOTION = "animation: none !important; rotate: none !important; scale: none !important; translate: none !important;"
+STILL_MOTION = "animation: none !important; rotate: none !important; scale: none !important; translate: none !important; transform: none !important;"
+# Every motion Iconflow owns plays only when Animate icons is on and the system
+# does not ask for reduced motion.
+MOVES = '(-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference)'
+
+
+def split_list(selectors):
+    """A selector list split at its own commas, not those inside :not() or :is()."""
+    out, depth, cur = [], 0, ""
+    for ch in selectors:
+        depth += (ch == "(") - (ch == ")")
+        if ch == "," and depth == 0:
+            out.append(cur.strip()); cur = ""
+        else:
+            cur += ch
+    return out + [cur.strip()] if cur.strip() else out
+
+
+def parents(hovers):
+    """The hovered buttons around these icons. Another mod (Arc) can move the
+    button itself as well; where Iconflow owns the motion, only its own plays."""
+    out = []
+    for h in hovers:
+        m = re.match(r"^(.*:hover)(?: | > )", h)
+        if m and m.group(1) not in out:
+            out.append(m.group(1))
+    return ", ".join(out)
+
 OWN = ":not(#zzicon-own)"   # an id's weight, so this outranks the motion rules' :not(#id) lists
 SET, ANIMATED, STILL = 2, 4, 5   # zzicon.set value for Circuit; per-button overrides
 RELOAD_STYLES = {1: ("Twin comets", c_reload_comets)}   # zzicon.reload.style; 0 is Orbit pair
@@ -1329,7 +1380,8 @@ def main():
                    f"    background-repeat: no-repeat !important;\n"
                    f"    background-origin: content-box !important;\n    background-clip: content-box !important;\n"
                    f"    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;\n  }}\n"
-                   f"  @media (-moz-pref(\"zzicon.animate\")) and (not (-moz-pref(\"zzicon.button.{k}\", {STILL}))) {{\n"
+                   f"  {parents([h for _, h in targets])} {{ animation: none !important; transform: none !important; }}\n"
+                   f"  @media {MOVES} and (not (-moz-pref(\"zzicon.button.{k}\", {STILL}))) {{\n"
                    f"    {hovers} {{ --zzicon-frame: {FRAMES - 1} !important;\n      filter: var(--zzicon-circuit-glow, none) !important; }}\n"
                    f"    {own} {{ {STILL_MOTION} }}\n  }}\n}}")
     icons = ", ".join(i for i, _ in TOOLBAR["reload"][2])
@@ -1356,7 +1408,8 @@ def main():
                        "    -moz-context-properties: fill, fill-opacity, stroke !important;\n"
                        "    stroke: var(--zzicon-halo, currentColor) !important;\n"
                        "    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;\n  }\n"
-                       "  @media (-moz-pref(\"zzicon.animate\")) {\n"
+                       "  #zen-library-button:hover { animation: none !important; transform: none !important; }\n"
+                       f"  @media {MOVES} {{\n"
                        f"    #zen-library-button:hover .zen-library-sprite::before {{ --zzicon-frame: {FRAMES - 1} !important;\n"
                        "      filter: var(--zzicon-circuit-glow, none) !important; }\n  }\n"
                        f"  #zen-library-button:hover > .zen-library-sprite{OWN} {{ {STILL_MOTION} }}\n}}")

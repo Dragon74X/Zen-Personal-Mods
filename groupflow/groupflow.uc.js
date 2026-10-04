@@ -919,7 +919,7 @@
   const nearest = (list, y) => list.reduce((a, b) => Math.abs(b - y) < Math.abs(a - y) ? b : a);
   // Scroll and rail move in the same frame. Waiting for the scroll event left
   // the rail a frame behind, which showed as a gap at the box's edge.
-  const glides = new WeakMap();             // box -> { to, raf }
+  const glides = new Map();                // box -> { to, raf }; entries leave when done
   const setTops = new WeakMap();            // box -> the scrollTop this mod last set
   function scrollBox(box, to, instant, measured) {
     cancelAnimationFrame(glides.get(box)?.raf);
@@ -955,7 +955,9 @@
     box.toggleAttribute("zzgf-glow", scrolls);
     const header = box.parentElement?.labelContainerElement;
     if (!scrolls) { header?.querySelectorAll(":scope > .zzgf-more").forEach(a => a.remove()); lightSoon(); return; }
-    box.style.setProperty("--zzgf-glow", y / max * box.clientHeight + "px");
+    // With "the selected tab", a folder holding it is lit at that row (lightLists).
+    if (!(num("glow-follows", 0) === 1 && box.parentElement?.contains(gBrowser.selectedTab)))
+      box.style.setProperty("--zzgf-glow", y / max * box.clientHeight + "px");
     lightSoon();                              // its subfolders' lines follow
     if (!header) return;
     if (!header.querySelector(":scope > .zzgf-more")) {
@@ -996,7 +998,9 @@
         const b = box.getBoundingClientRect(), on = glow && b.height > 0, rails = [];
         if (on) {
           const own = box.hasAttribute("zzgf-glow");
-          if (!own) rails.push([box, b, view]);
+          // A folder that scrolls inside itself shows how far it has scrolled
+          // (markEdges) unless its line is following the selected tab.
+          if (!own || sel && box.parentElement?.contains(sel)) rails.push([box, b, own ? b : view]);
           for (const c of box.querySelectorAll(bodySelector)) rails.push([c, c.getBoundingClientRect(), own ? b : view]);
         }
         lit.push([box, on, rails]);
@@ -1053,7 +1057,13 @@
       if (badge.textContent !== n) badge.textContent = n;
     }
   }
-  const settles = new WeakMap();            // box -> timer: pixel scrolling snaps once it pauses
+  const settles = new Map();                // box -> timer: pixel scrolling snaps once it pauses
+  // Glides and snaps in flight, stopped when the mod retires or folders stop scrolling.
+  const stopScrolling = () => {
+    for (const { raf } of glides.values()) cancelAnimationFrame(raf);
+    for (const t of settles.values()) clearTimeout(t);
+    glides.clear(); settles.clear();
+  };
   const topBoxes = (root = document) => [...root.querySelectorAll("tab-group:not([split-view-group]) > .tab-group-container")]
     .filter(box => !box.parentElement.parentElement?.closest("tab-group") && !isCopy(box));
   // Firefox aims a whole burst of wheel events at whatever was under the
@@ -1093,7 +1103,7 @@
       // Touchpads send many small deltas: follow them, then settle on a row.
       scrollBox(box, Math.max(0, Math.min(positions.at(-1), box.scrollTop + event.deltaY)), true);
       clearTimeout(settles.get(box));
-      settles.set(box, setTimeout(() => scrollBox(box, nearest(positions, box.scrollTop), false, measured), 180));
+      settles.set(box, setTimeout(() => { settles.delete(box); scrollBox(box, nearest(positions, box.scrollTop), false, measured); }, 180));
       return true;
     }
     // A line matches the list's own native line scroll: one line of the font.
@@ -1157,6 +1167,7 @@
     watchLists();                           // the list's light needs no folder scrolling
     if (!bool("connector-scroll", true)) {
       // Turned off: clear what folder scrolling left, so the list's light can take over.
+      stopScrolling();
       for (const box of topBoxes()) {
         for (const v of ["fit", "scroll"]) box.style.removeProperty("--zzgf-box-" + v);
         markEdges(box, false);
@@ -1286,6 +1297,7 @@
       for (const ev of iconEvents) window.removeEventListener(ev, schedule, true);
       window.removeEventListener("click", toggleSubgroups, true);
       window.removeEventListener("click", pageFolder, true);
+      stopScrolling();
       for (const mark of document.querySelectorAll(".tab-group-label-container > :is(.zzgf-more, .zzgf-count)")) mark.remove();
       for (const box of document.querySelectorAll(".tab-group-container[zzgf-glow]")) markEdges(box, false);
       for (const port of listPorts) port.removeEventListener("scroll", lightSoon);

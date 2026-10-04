@@ -90,8 +90,11 @@
   Services.prefs.addObserver(PREFIX, observer);
   const cleanup = () => {
     try { Services.prefs.removeObserver(PREFIX, observer); } catch {}
+    // The variables written above go with the mod (an update writes them again).
+    for (const name of [...root.style]) if (name.startsWith("--zzicon-")) root.style.removeProperty(name);
     if (window[INSTANCE_KEY] === instance) delete window[INSTANCE_KEY];
   };
   instance.retire = cleanup;
   window.addEventListener("unload", cleanup, { once: true });
+  try { window.addUnloadListener?.(cleanup); } catch {}   // Sine disable or update
 })();

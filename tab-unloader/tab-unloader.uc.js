@@ -347,9 +347,10 @@
   const ARC = [["arc-tab-auto-unload", "0"], ["arc-tab-auto-unload-pinned", false],
                ["arc-tab-auto-clean", "0"], ["arc-tab-auto-clean-pinned", false]];
   const ARC_SAVED = "zzunload-saved.arc";           // outside P: not a setting
-  function syncArc() {
+  // release: Tab Unloader is being disabled or removed, so Arc gets its settings back.
+  function syncArc(release = false) {
     if (Services.wm.getMostRecentWindow("navigator:browser") !== window) return;
-    const S = Services.prefs, on = bool("enabled", false) && bool("other.arc", true);
+    const S = Services.prefs, on = !release && bool("enabled", false) && bool("other.arc", true);
     const get = name => {
       const t = S.getPrefType(name);
       return t === S.PREF_BOOL ? S.getBoolPref(name) : t === S.PREF_STRING ? S.getStringPref(name) : undefined;
@@ -438,7 +439,9 @@
     // still here. Safe now that start() is contained and the top level
     // does nothing that can throw; the DOM unload listener above still
     // releases everything when the window closes.
-    try { window.addUnloadListener?.(cleanup); } catch {}
+    // Sine's own unload (disable, removal or update) also gives Arc its
+    // settings back; closing a window does not. An update re-applies them.
+    try { window.addUnloadListener?.(() => { cleanup(); try { syncArc(true); } catch {} }); } catch {}
     instance.retire = cleanup;
   }
 

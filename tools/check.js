@@ -19,6 +19,7 @@
     ["zz-glassflow", "Glassflow", "Glassflow"],
     ["zz-glassflow-library", "Glassflow Library", null],
     ["zz-groupflow",    "Groupflow",    "Groupflow"],
+    ["zz-iconflow",     "Iconflow",     null],
     ["zz-tab-router",   "Tab Router",   "TabRouter"],
     ["zz-tab-unloader", "Tab Unloader", "TabUnloader"],
     ["zz-zen-turbo",    "Zen Turbo",    "ZenTurbo"],

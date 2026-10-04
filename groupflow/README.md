@@ -233,11 +233,21 @@ uppercase, and a favicon in place of the group icon.
 
 **States** — active-group highlight, collapsed-group dim.
 
-**Nesting** — subgroup indent, row inset and gap, and a whole connector
-system: accent guide lines with gradient, thickness, shape (including curves),
-caps, sheen, rim, glow, shadow and blur; plus per-tab and per-subgroup
-membership marks with their own shading, glow, shadow, size and opacity.
+**Layout, Connector line and Marks on tabs** cover subgroup indent, row
+inset and gap, and a whole connector system:
+- accent guide lines with gradient, thickness, shape (including curves),
+  caps, sheen, rim, glow, shadow and blur;
+- per-tab and per-subgroup membership marks with their own shading, glow,
+  shadow, size and opacity.
+
 Headers can shrink per depth level.
+
+The mark shapes are Chevron, Brace, Dot, Dash, Curve, Half moon, Crescent,
+Double chevron, Triangle, Diamond, Bar, Arrow, Wave, Lituus spiral, Coil and
+Serpentine. There are also six softened shapes in Iconflow's style: Pill,
+Squircle, Soft diamond, Soft chevron, Ring and Soft bracket. Before 1.57.0,
+Lituus spiral, Coil and Serpentine drew nothing: the rule that draws marks
+listed shapes by number and stopped at 13.
 
 Native Zen folder headers are styled only with **Apply profiles to main folders too** enabled.
 Their icons, controls and Folder Tree Connectors remain native. Split-view groups

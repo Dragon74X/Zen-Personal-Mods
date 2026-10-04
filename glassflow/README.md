@@ -179,31 +179,8 @@ down and let this own it.
 
 ### Library button
 
-These two settings sit in the Sidebar section, but work with sidebar styling off.
-
-**Library button icon** chooses the icon of the button at the bottom of the
-sidebar that opens downloads and the Library. Zen 1.23b draws it as a solid box
-whose stars burst out on hover, and renamed it, so New Icons no longer reaches
-it.
-
-| Option | What it is |
-|---|---|
-| Zen's animated icon (default) | Zen's own |
-| Animated outline of Zen's icon | The same animation, traced to lines |
-| Layers | Three stacked planes pull apart |
-| Hex scan | A line sweeps down a hexagon and settles across it |
-| Focus | Corner brackets close in on a diamond that turns |
-| Grid | One of four tiles lifts out and turns to a diamond |
-| Chevrons | Chevrons fall into a baseline |
-| Orbit | An open ring swings round a diamond core |
-| Split | A frame splits and slides open on a core line |
-| Pulse | A diamond ripples outward as a new one forms |
-| Line icon (still) | New Icons' drawing, no animation |
-
-The eight animated shapes use 1.4px lines with sharp corners and square ends.
-Each is 36 frames at Zen's size, so Zen's own hover animation plays them.
-`tools/library-sprites.py` draws them. **Library icon the same size as the
-other buttons** draws it at 16px instead of Zen's 18px plus 8%.
+The Library button's icon options moved to [Iconflow](../iconflow/), with the
+other icon and hover-motion settings. Settings chosen here carry over.
 
 ### Live blur without snapshots
 

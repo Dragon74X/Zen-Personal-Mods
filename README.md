@@ -8,6 +8,7 @@ Source-targeted Zen Browser modifications.
 | [Glassflow](glassflow/) | Shared UI token and surface styles |
 | [Glassflow Library](glassflow-library/) | Glass styling and sizing for the Library's space cards |
 | [Groupflow](groupflow/) | Nested-group persistence, controls, icons and styling |
+| [Iconflow](iconflow/) | Animated Flow icon set, hover motion, Library button icons, new tab button options (replaces Better New Tab button) |
 | [Tab Router](tab-router/) | Rule-based tab grouping |
 | [Tab Unloader](tab-unloader/) | Time-based tab unloading |
 | [Zen Turbo](zen-turbo/) | Preference packs with captured-value restoration |

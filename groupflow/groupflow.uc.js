@@ -876,7 +876,8 @@
     const room = port ? Math.max(0, port.bottom - box.getBoundingClientRect().top) : Infinity;
     const cap = Math.min(pref, room), end = box.scrollHeight;
     if (end <= cap) {
-      for (const v of ["fit", "spare", "scroll"]) box.style.removeProperty("--zzgf-box-" + v);
+      for (const v of ["fit", "scroll"]) box.style.removeProperty("--zzgf-box-" + v);
+      box.parentElement.style.removeProperty("--zzgf-box-spare");
       return null;
     }
     const stops = rowStops(box), ends = [...stops, end];
@@ -897,7 +898,7 @@
     glides.delete(box);
     if (measured) {
       box.style.setProperty("--zzgf-box-fit", measured.fitAt(to) + "px");
-      box.style.setProperty("--zzgf-box-spare", measured.spareAt(to) + "px");
+      box.parentElement.style.setProperty("--zzgf-box-spare", measured.spareAt(to) + "px");
     }
     const set = y => { box.scrollTop = y; box.style.setProperty("--zzgf-box-scroll", box.scrollTop + "px"); };
     if (instant) { set(to); return; }

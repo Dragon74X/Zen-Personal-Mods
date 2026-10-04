@@ -56,6 +56,15 @@ Folder labels retain the theme's toolbar text colour when a tab inside is select
 The Label colour setting overrides this foreground without changing the header fill.
 Subfolder state labels can override that shared setting.
 
+## Moving the window from under the tabs
+
+With Zen's *draggable sidebar* setting on, Zen lets the empty space under the
+tab list move the window, but that space disappears once the list fills the
+sidebar. Groupflow also makes the list's own empty end and the space under a
+fitted folder box move the window, so it works however full the list is.
+Tabs, folder headers, connector gutters and buttons are unaffected, and a
+14px strip at the list's edge is left alone for the scrollbar.
+
 ## Library
 
 Folder styling (headers, icons, rails and connectors) also applies to the

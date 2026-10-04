@@ -117,11 +117,14 @@ moves with the contents in the same frame, so it never shows a gap.
 While a folder's contents scroll, Groupflow shows what is out of view, each
 part with its own setting (all on by default):
 
-- **Moving glow:** the folder's connector lines are brightest where you are,
-  at the top when you are at the top, sliding to the bottom as you reach the
-  end. Subfolder lines share the same light. While the tab list itself
-  scrolls, folders that fit share one light that follows the list instead,
-  also with **Scroll inside folders** off.
+- **Moving light:** the connector's gradient moves with you. The line is at
+  full strength, with a bright band of its own colour, where you are, and
+  eases down to a dim floor away from it: at the top when you are at the
+  top, sliding down as you scroll, through every subfolder line it passes.
+  It follows a folder's own scrolling, or the tab list's when the folder
+  fits (also with **Scroll inside folders** off). While it shows it takes the
+  place of the line's **Soft ends** or fade; colour, width, shape, sheen and
+  rim stay as set.
 - **Edge fade:** the folder's top or bottom edge fades while more tabs are
   hidden past it. The same setting fades the tab list's own top and bottom
   edges while it scrolls, so folders, subfolders and tabs fade as they leave

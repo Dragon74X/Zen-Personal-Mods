@@ -1869,3 +1869,52 @@ test("Glassflow Library seeds unset defaults and writes its string prefs as vari
   observers[0].observe(null, null, "zzlib.card.fill");
   assert.equal(style.get("--zzlib-card-fill"), "70%", "changes are written live");
 });
+
+// A preference store with Firefox's typed API, for the other-mods switches.
+function prefStore(initial) {
+  const user = new Map(Object.entries(initial)), BOOL = 128, INT = 64, STRING = 32;
+  const type = v => typeof v === "boolean" ? BOOL : typeof v === "number" ? INT : STRING;
+  const read = (k, d) => user.has(k) ? user.get(k) : d;
+  return { user, PREF_BOOL: BOOL, PREF_INT: INT, PREF_STRING: STRING, PREF_INVALID: 0,
+    getPrefType: k => user.has(k) ? type(user.get(k)) : 0, prefHasUserValue: k => user.has(k), clearUserPref: k => user.delete(k),
+    getBoolPref: read, getIntPref: read, getStringPref: read, getCharPref: read,
+    setBoolPref: (k, v) => user.set(k, v), setIntPref: (k, v) => user.set(k, v), setStringPref: (k, v) => user.set(k, v) };
+}
+
+test("Other mods: settings that double up are switched off, then restored; hand edits and unwritten settings are left alone", async () => {
+  const prefs = prefStore({ "zzglass.buttons.enabled": true, "zzglass.pending.enabled": true, "zzgroup.enabled": false,
+    "arc-macos-style-buttons": true, "arc-folder-bg": true, "uc.tabs.dim-type": "both", "arc-grayscale-unloaded-tabs": true });
+  const w = browser();
+  const Services = { prefs, wm: { getMostRecentWindow: () => w } };
+  const h = await load("glassflow", "syncOtherMods", { window: w, document: w.document, Services });
+  h.syncOtherMods();
+  const now = k => prefs.user.get(k);
+  assert.equal(now("arc-macos-style-buttons"), false);
+  assert.equal(now("uc.tabs.dim-type"), "");
+  assert.equal(now("arc-folder-bg"), true, "Groupflow is off, so Arc keeps its folder backgrounds");
+  assert.ok(!prefs.user.has("arc-compact-sidebar-bg"), "a setting the other mod never wrote is not created");
+
+  prefs.setBoolPref("arc-grayscale-unloaded-tabs", true);   // changed by hand while managed
+  prefs.setBoolPref("zzglass.other.arc", false);
+  prefs.setBoolPref("zzglass.pending.enabled", false);
+  h.syncOtherMods();
+  assert.equal(now("arc-macos-style-buttons"), true, "restored when its row goes off");
+  assert.equal(now("uc.tabs.dim-type"), "both", "restored when our feature goes off");
+  assert.equal(now("arc-grayscale-unloaded-tabs"), true, "the hand edit stays");
+  assert.deepEqual({ ...JSON.parse(now("zzglass-saved.other-mods")) }, {});
+});
+
+test("Tab Unloader turns Arc's own unloading off only while it runs, and puts it back", async () => {
+  const prefs = prefStore({ "zzunload.enabled": true, "arc-tab-auto-unload": "30m", "arc-tab-auto-clean-pinned": true });
+  const w = browser();
+  const Services = { prefs, wm: { getMostRecentWindow: () => w } };
+  const h = await load("tab-unloader", "syncArc", { window: w, document: w.document, Services });
+  h.syncArc();
+  assert.equal(prefs.user.get("arc-tab-auto-unload"), "0");
+  assert.equal(prefs.user.get("arc-tab-auto-clean-pinned"), false);
+  assert.ok(!prefs.user.has("arc-tab-auto-clean"));
+  prefs.setBoolPref("zzunload.enabled", false);
+  h.syncArc();
+  assert.equal(prefs.user.get("arc-tab-auto-unload"), "30m");
+  assert.equal(prefs.user.get("arc-tab-auto-clean-pinned"), true);
+});

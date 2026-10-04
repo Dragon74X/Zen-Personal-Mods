@@ -177,6 +177,34 @@ down and let this own it.
 | Sampled glass (experimental) | off | Downscales the viewport to 10% per axis, then paints it blurred behind the panel. Idle delay defaults to 250 ms; changed frames use 80 ms. Hidden windows start no snapshots; hidden private sidebars retain no sample |
 | Sample blur / opacity / interval | `18px` / `1` / `250` | the last frame stays up while the sidebar is hidden, so it shows at once |
 
+### Library button
+
+These two settings sit in the Sidebar section, but work with sidebar styling off.
+
+**Library button icon** chooses the icon of the button at the bottom of the
+sidebar that opens downloads and the Library. Zen 1.23b draws it as a solid box
+whose stars burst out on hover, and renamed it, so New Icons no longer reaches
+it.
+
+| Option | What it is |
+|---|---|
+| Zen's animated icon (default) | Zen's own |
+| Animated outline of Zen's icon | The same animation, traced to lines |
+| Layers | Three stacked planes pull apart |
+| Hex scan | A line sweeps down a hexagon and settles across it |
+| Focus | Corner brackets close in on a diamond that turns |
+| Grid | One of four tiles lifts out and turns to a diamond |
+| Chevrons | Chevrons fall into a baseline |
+| Orbit | An open ring swings round a diamond core |
+| Split | A frame splits and slides open on a core line |
+| Pulse | A diamond ripples outward as a new one forms |
+| Line icon (still) | New Icons' drawing, no animation |
+
+The eight animated shapes use 1.4px lines with sharp corners and square ends.
+Each is 36 frames at Zen's size, so Zen's own hover animation plays them.
+`tools/library-sprites.py` draws them. **Library icon the same size as the
+other buttons** draws it at 16px instead of Zen's 18px plus 8%.
+
 ### Live blur without snapshots
 
 For the floating compact sidebar, enable **Enable sidebar styling** and
@@ -391,12 +419,38 @@ switches, folders — jumps straight to its final frame and the interface
 responds at input speed. There is no `zen.animations` pref; this is the real
 lever. In-memory, applies and reverts live, and web pages are untouched.
 
+## Other mods
+
+Other mods' settings are ordinary preferences, so Glassflow can set them. Each
+row on the **Other mods** page switches off the settings of one mod that double
+up with something Glassflow or Groupflow draws. It does so only while that part
+of ours is on, and only for settings the other mod has actually written. The
+value it finds is saved and put back when the row, or our part, is turned off.
+A setting you change by hand in between is left as you set it. All rows are on
+by default.
+
+| Row | Switched off | While |
+|---|---|---|
+| Arc 2.0 | macOS-style buttons | Glassflow's window buttons are on |
+| | Compact sidebar blur and fill | Sidebar styling is on |
+| | Greyscale unloaded tabs | The Unloaded tab state is on |
+| | Folder backgrounds, Arc tab groups | Groupflow is on |
+| Zen's unloaded-tab fade | `browser.tabs.fadeOutUnloadedTabs` | The Unloaded tab state is on |
+| SuperPins | Unloaded dimming and strikethrough | The Unloaded tab state is on |
+| Sidebar Expand on Hover | Fade sleeping tabs | The Unloaded tab state is on |
+| Transparent Zen | Compact sidebar type set to Default (Push and Mask leave nothing to blur) | Sidebar blur is on |
+
+Left alone on purpose: Arc's font (it has no "off"), Arc's music player
+background (a look you choose; it draws over the player glass), and
+SuperPins' separator setting (the separator setting here hides it either
+way). Tab Unloader has the row for Arc's own tab unloading.
+
 ## Compatibility
 
-**Arc 2.0** — turn off its *macOS style buttons* (`arc-macos-style-buttons`)
-before enabling Glassflow's. Two mods drawing the same three circles fight over
-layout, even though Glassflow wins the cascade. Its container glow can be
-hidden from *Tabs, shared*.
+**Arc 2.0** — the *Other mods* page switches off its macOS style buttons while
+Glassflow's are on: two mods drawing the same three circles fight over layout,
+even though Glassflow wins the cascade. Its container glow can be hidden from
+*Tabs, shared*.
 
 **Other tab-styling mods** — Glassflow's id begins with `zz`, and Sine builds
 `chrome.css` with a plain lexicographic sort of mod ids, so it imports last and

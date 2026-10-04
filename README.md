@@ -11,6 +11,7 @@ Source-targeted Zen Browser modifications.
 | [Tab Router](tab-router/) | Rule-based tab grouping |
 | [Tab Unloader](tab-unloader/) | Time-based tab unloading |
 | [Zen Turbo](zen-turbo/) | Preference packs with captured-value restoration |
+| [Zenslop](zenslop/) | Live video preview above the media controls (maintained fork) |
 
 ## Runtime requirements
 

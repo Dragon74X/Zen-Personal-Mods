@@ -979,7 +979,11 @@
   // through the view; so the light moves the same way for both. A folder that
   // scrolls inside itself lights its own line (markEdges) and is the view its
   // subfolders are seen through. With "the selected tab", lines holding it
-  // light at its row instead. Every rect is read before any light is written.
+  // light at its row instead. A subfolder's line starts at its own top, and
+  // follows the scroll only once it is taller than its view; a folder line
+  // with no loaded tab rests at its top. Every rect is read before any light
+  // is written.
+  const LOADED = ".tabbrowser-tab:not([pending], [discarded], [zen-empty-tab])";
   const listPorts = new Set();
   let listFrame = 0;
   const through = (top, height, vt, vh) => Math.min(1, Math.max(0, height > vh
@@ -1001,7 +1005,7 @@
           // A folder that scrolls inside itself shows how far it has scrolled
           // (markEdges) unless its line is following the selected tab.
           if (!own || sel && box.parentElement?.contains(sel)) rails.push([box, b, own ? b : view]);
-          for (const c of box.querySelectorAll(bodySelector)) rails.push([c, c.getBoundingClientRect(), own ? b : view]);
+          for (const c of box.querySelectorAll(bodySelector)) rails.push([c, c.getBoundingClientRect(), own ? b : view, true]);
         }
         lit.push([box, on, rails]);
       }
@@ -1009,10 +1013,11 @@
     const s = sel?.getBoundingClientRect();
     for (const [box, on, rails] of lit) {
       box.toggleAttribute("zzgf-list-glow", on);
-      for (const [c, r, v] of rails) {
+      for (const [c, r, v, sub] of rails) {
         const at = s?.height && c.parentElement?.contains(sel)
           ? Math.min(r.height, Math.max(0, s.top + s.height / 2 - r.top))
-          : through(r.top, r.height, v.top, v.height) * r.height;
+          : (sub ? r.height > v.height : c.parentElement?.querySelector(LOADED))
+            ? through(r.top, r.height, v.top, v.height) * r.height : 0;
         c.style.setProperty("--zzgf-glow", at + "px");
       }
     }
@@ -1186,7 +1191,8 @@
   };
   const onFitEvent = event => fitSoon(event.type === "TabSelect");
   const FIT_EVENTS = ["TabSelect", "TabOpen", "TabClose", "TabGroupCollapse", "TabGroupExpand",
-                      "TabGrouped", "TabUngrouped", "TabMove", "TabPinned", "TabUnpinned", "resize"];
+                      "TabGrouped", "TabUngrouped", "TabMove", "TabPinned", "TabUnpinned", "resize",
+                      "TabBrowserDiscarded", "SSTabRestoring"];   // a folder's line rests at its top once nothing in it is loaded
   // Scrolls this mod did not start, such as a selected tab brought into view.
   // Its own scrolls are recognised by position: refitting after them would
   // pull the body back to the selected tab, so a folder could not scroll away.

@@ -63,6 +63,9 @@
   }
 }
 
+/* The minus on pinned tabs and Essentials is the icon alone: no hover fill. */
+.tab-reset-button { background-color: transparent !important; }
+
 /* ---- Glow --------------------------------------------------------------------- */
 /* Animated icons (Circuit and Zen's own) glow while hovered, like a
    lit neon tube. A CSS drop-shadow of the icon's own shape, so the icon files

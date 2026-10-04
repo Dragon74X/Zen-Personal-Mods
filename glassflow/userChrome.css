@@ -378,6 +378,15 @@
   @media not (-moz-pref("zzglass.pending.pinned")) {
     :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][pinned]:not([zen-essential]) { --zzglass-pending-opacity: 1 !important; & .tab-icon-stack { filter: none !important; } }
   }
+  /* Or dim them by their own amount: Light, Medium, Strong, Faint. */
+  @media (-moz-pref("zzglass.pending.essentials")) and (-moz-pref("zzglass.pending.essentials-dim", 1)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][zen-essential] { --zzglass-pending-opacity: 0.85 !important; } }
+  @media (-moz-pref("zzglass.pending.essentials")) and (-moz-pref("zzglass.pending.essentials-dim", 2)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][zen-essential] { --zzglass-pending-opacity: 0.72 !important; } }
+  @media (-moz-pref("zzglass.pending.essentials")) and (-moz-pref("zzglass.pending.essentials-dim", 3)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][zen-essential] { --zzglass-pending-opacity: 0.5 !important; } }
+  @media (-moz-pref("zzglass.pending.essentials")) and (-moz-pref("zzglass.pending.essentials-dim", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][zen-essential] { --zzglass-pending-opacity: 0.35 !important; } }
+  @media (-moz-pref("zzglass.pending.pinned")) and (-moz-pref("zzglass.pending.pinned-dim", 1)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][pinned]:not([zen-essential]) { --zzglass-pending-opacity: 0.85 !important; } }
+  @media (-moz-pref("zzglass.pending.pinned")) and (-moz-pref("zzglass.pending.pinned-dim", 2)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][pinned]:not([zen-essential]) { --zzglass-pending-opacity: 0.72 !important; } }
+  @media (-moz-pref("zzglass.pending.pinned")) and (-moz-pref("zzglass.pending.pinned-dim", 3)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][pinned]:not([zen-essential]) { --zzglass-pending-opacity: 0.5 !important; } }
+  @media (-moz-pref("zzglass.pending.pinned")) and (-moz-pref("zzglass.pending.pinned-dim", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][pinned]:not([zen-essential]) { --zzglass-pending-opacity: 0.35 !important; } }
   @media (-moz-pref("zzglass.pending.sheen")) {
     :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] .tab-background, :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] .tab-stack .tab-background { background-image: var(--zzg-texture), var(--zzg-sheen),
       linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)) !important; }

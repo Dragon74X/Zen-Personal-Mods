@@ -989,11 +989,73 @@
     "operator": "AND"
   },
   {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.pending.essentials-dim",
+    "label": "How much Essentials dim *Their own fade, apart from other unloaded tabs. Same follows Opacity above.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Same as unloaded tabs",
+        "value": 0
+      },
+      {
+        "label": "Light",
+        "value": 1
+      },
+      {
+        "label": "Medium",
+        "value": 2
+      },
+      {
+        "label": "Strong",
+        "value": 3
+      },
+      {
+        "label": "Faint",
+        "value": 4
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.essentials", "value": true}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
     "type": "checkbox",
     "property": "zzglass.pending.pinned",
     "label": "Dim unloaded pinned tabs *The same for pinned tabs outside Essentials.*",
     "defaultValue": false,
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.pending.pinned-dim",
+    "label": "How much pinned tabs dim *Their own fade, apart from other unloaded tabs. Same follows Opacity above.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Same as unloaded tabs",
+        "value": 0
+      },
+      {
+        "label": "Light",
+        "value": 1
+      },
+      {
+        "label": "Medium",
+        "value": 2
+      },
+      {
+        "label": "Strong",
+        "value": 3
+      },
+      {
+        "label": "Faint",
+        "value": 4
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.pinned", "value": true}}], "operator": "OR"}],
     "operator": "AND"
   },
   {

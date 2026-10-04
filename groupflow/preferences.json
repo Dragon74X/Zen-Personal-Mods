@@ -1301,7 +1301,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.glow-follows",
-    "label": "Light follows *Where you are: how far you have scrolled through each line. The selected tab: lines holding it light at its row; the rest follow where you are.*",
+    "label": "Light follows *Where you are: how far you have scrolled through each line. Subfolders' lines start at their own top, as does a folder with no loaded tab. The selected tab: lines holding it light at its row; the rest follow where you are.*",
     "defaultValue": 0,
     "options": [
       {

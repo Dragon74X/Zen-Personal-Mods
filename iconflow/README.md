@@ -9,6 +9,7 @@ Icon sets and hover motion for [Zen Browser](https://zen-browser.app/).
   - reload's arc whips round behind its arrowhead;
   - the downloads arrow lands in the tray and the tray gives;
   - history, recently closed and forget rewind like a clock: the ring turns back and the hands run back;
+  - paste writes lines onto its clipboard; find lifts and tilts like a magnifier picked up;
   - the site settings sliders run along their tracks;
   - close and plus whip round from the middle.
 
@@ -64,7 +65,7 @@ Requires `sine.allow-unsafe-js` set to `true` in `about:config`.
 | Plate shape | Squircle | Pill or Circle |
 
 **Each button** can follow the set, or use Zen's own icon (still or
-animated) or Circuit (animated or still). These buttons are covered:
+animated) or Circuit (animated or still; bookmark and downloads also as line art). These buttons are covered:
 - **Navigation:** back, forward, reload, stop, home, the new tab buttons, the application menu, the workspace "⋯", compact mode, the sidebar toggle and expand sidebar.
 - **Address bar and toolbar:** site settings, downloads, extensions, the bookmark ribbon (saved or not, and the bookmarks menu button), reader view, share and copy link, history (a timeline), screenshot.
 - **Overflow:** the more-tools and bookmarks overflow chevrons, and "clear unpinned tabs".

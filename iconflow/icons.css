@@ -256,7 +256,7 @@
   }
 }
 /* Downloads */
-@media ((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.downloads", 0))) or (-moz-pref("zzicon.button.downloads", 4)) or (-moz-pref("zzicon.button.downloads", 5)) {
+@media ((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.downloads", 0))) or (-moz-pref("zzicon.button.downloads", 4)) or (-moz-pref("zzicon.button.downloads", 5)) or (-moz-pref("zzicon.button.downloads", 7)) {
   #downloads-button .toolbarbutton-icon, #appMenu-downloads-button .toolbarbutton-icon {
     list-style-image: var(--zzicon-blank) !important;
     -moz-context-properties: fill, fill-opacity, stroke !important;
@@ -298,7 +298,7 @@
   }
 }
 /* Bookmark */
-@media ((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.bookmark", 0))) or (-moz-pref("zzicon.button.bookmark", 4)) or (-moz-pref("zzicon.button.bookmark", 5)) {
+@media ((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.bookmark", 0))) or (-moz-pref("zzicon.button.bookmark", 4)) or (-moz-pref("zzicon.button.bookmark", 5)) or (-moz-pref("zzicon.button.bookmark", 7)) {
   #star-button:not([starred]), #bookmarks-menu-button .toolbarbutton-icon, #appMenu-bookmarks-button .toolbarbutton-icon {
     list-style-image: var(--zzicon-blank) !important;
     -moz-context-properties: fill, fill-opacity, stroke !important;
@@ -319,7 +319,7 @@
   }
 }
 /* Bookmark, saved */
-@media ((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.bookmark", 0))) or (-moz-pref("zzicon.button.bookmark", 4)) or (-moz-pref("zzicon.button.bookmark", 5)) {
+@media ((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.bookmark", 0))) or (-moz-pref("zzicon.button.bookmark", 4)) or (-moz-pref("zzicon.button.bookmark", 5)) or (-moz-pref("zzicon.button.bookmark", 7)) {
   #star-button[starred] {
     list-style-image: var(--zzicon-blank) !important;
     -moz-context-properties: fill, fill-opacity, stroke !important;
@@ -1241,6 +1241,18 @@
       filter: var(--zzicon-circuit-glow, none) !important; }
     .tab-reset-button:hover:not(#zzicon-own), .tab-reset-pin-button:hover image:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; transform: none !important; }
   }
+}
+/* Bookmark: line art */
+@media (-moz-pref("zzicon.button.bookmark", 7)) {
+  #star-button:not([starred]), #bookmarks-menu-button .toolbarbutton-icon, #appMenu-bookmarks-button .toolbarbutton-icon { background-image: url("icons/circuit/bookmark-line.svg") !important; }
+}
+/* Bookmark, saved: line art */
+@media (-moz-pref("zzicon.button.bookmark", 7)) {
+  #star-button[starred] { background-image: url("icons/circuit/bookmarked-line.svg") !important; }
+}
+/* Downloads: line art */
+@media (-moz-pref("zzicon.button.downloads", 7)) {
+  #downloads-button .toolbarbutton-icon, #appMenu-downloads-button .toolbarbutton-icon { background-image: url("icons/circuit/downloads-line.svg") !important; }
 }
 /* Reload: Twin comets */
 @media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.reload", 0))) or (-moz-pref("zzicon.button.reload", 4)) or (-moz-pref("zzicon.button.reload", 5))) and (-moz-pref("zzicon.reload.style", 1)) {

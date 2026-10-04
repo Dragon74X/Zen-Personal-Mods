@@ -177,9 +177,14 @@ def shape(d):
     return i, f"<defs><path id='{i}' d='{d}'/></defs>"
 
 
+LINE = [False]   # line art: outlines only, no glass body, sheen or halo
+
+
 def glass(d, lit=0.0, trace=None, body=0.16):
     """Glass body: fill, sheen, rim. lit brightens it; trace (0..1) runs a light round the rim."""
     i, out = shape(d)
+    if LINE[0]:
+        return out + f"<use href='#{i}' stroke-width='1.5'/>"
     out += (f"<use href='#{i}' fill='context-fill' fill-opacity='{n(body + 0.3 * lit)}' stroke='none'/>"
             f"<use href='#{i}' fill='url(#sheen)' stroke='none'/>"
             f"<use href='#{i}' stroke-width='1.25' stroke-opacity='{n(0.85 + 0.15 * lit)}'/>")
@@ -193,6 +198,8 @@ def tube(d, lit=0.0, trace=None):
     """Neon tube: a bright core and a soft wide halo. The halo is painted with
     context-stroke, so the Soft glow setting can turn it off from CSS."""
     i, out = shape(d)
+    if LINE[0]:
+        return out + f"<use href='#{i}' stroke-width='1.5'/>"
     out += (f"<use href='#{i}' stroke='context-stroke' stroke-width='2.8' stroke-opacity='{n(0.22 + 0.2 * lit)}'/>"
             f"<use href='#{i}' stroke-width='1.45'/>")
     if trace is not None and 0.02 < trace < 0.98:
@@ -513,9 +520,14 @@ def c_copy(t):
 
 
 def c_paste(t):
-    # A card drops into a bracket and settles.
+    # A card drops into a bracket and settles, then its lines write
+    # themselves on one after another: what Forget takes away, Paste puts down.
     y = 1.6 + 4 * ease_out_back(span(t, 0, 0.8), 1.4)
     card = glass(chamfer(5.4, y, 7.2, 8, 1.2, 0.5), lit=bump(t), body=0.25)
+    for i, w in enumerate((4, 2.8)):
+        e = settle(span(t, 0.42 + i * 0.12, 0.92 + i * 0.08), 0.15)
+        if e > 0.04:
+            card += tube(f"M7 {n(y + 2.8 + i * 2.4)}H{n(7 + w * e)}")
     return card + tube("M3.2 9.4V14.2Q3.2 15.4 4.4 15.4H13.6Q14.8 15.4 14.8 14.2V9.4", lit=bump(span(t, 0.5, 1)), trace=t)
 
 
@@ -1355,10 +1367,15 @@ SET, ANIMATED, STILL = 2, 4, 5   # zzicon.set value for Circuit; per-button over
 RELOAD_STYLES = {1: ("Twin comets", c_reload_comets)}   # zzicon.reload.style; 0 is Orbit pair
 
 
+LINE_KEYS = ("bookmark", "bookmarked", "downloads")   # also drawn as line art
+LINED = 7                                              # per-button: Circuit, line art
+
+
 def uses(key):
     k = SETTING.get(key, key)
     return (f'((-moz-pref("zzicon.set", {SET})) and (-moz-pref("zzicon.button.{k}", 0))) or '
-            f'(-moz-pref("zzicon.button.{k}", {ANIMATED})) or (-moz-pref("zzicon.button.{k}", {STILL}))')
+            f'(-moz-pref("zzicon.button.{k}", {ANIMATED})) or (-moz-pref("zzicon.button.{k}", {STILL}))'
+            + (f' or (-moz-pref("zzicon.button.{k}", {LINED}))' if key in LINE_KEYS else ""))
 
 
 def main():
@@ -1372,6 +1389,11 @@ def main():
     url = {}
     for key, (_, draw, _) in TOOLBAR.items():
         url[key] = save(f"icons/circuit/{key}.svg", strip(draw, FRAMES, fit(draw, FRAMES)))
+    LINE[0] = True
+    for key in LINE_KEYS:
+        draw = TOOLBAR[key][1]
+        url[key, "line"] = save(f"icons/circuit/{key}-line.svg", strip(draw, FRAMES, fit(draw, FRAMES)))
+    LINE[0] = False
     for value, (_, draw) in LIBRARY.items():
         if value != 12:                     # Circuit stack uses the toolbar strip
             url["library", value] = save(f"icons/library/{value}.svg", strip(draw, LIB_FRAMES))
@@ -1393,6 +1415,10 @@ def main():
                    f"  @media {MOVES} and (not (-moz-pref(\"zzicon.button.{k}\", {STILL}))) {{\n"
                    f"    {hovers} {{ --zzicon-frame: {FRAMES - 1} !important;\n      filter: var(--zzicon-circuit-glow, none) !important; }}\n"
                    f"    {own} {{ {STILL_MOTION} }}\n  }}\n}}")
+    for key in LINE_KEYS:
+        k = SETTING.get(key, key)
+        css.append(f"/* {TOOLBAR[key][0]}: line art */\n@media (-moz-pref(\"zzicon.button.{k}\", {LINED})) {{\n"
+                   f"  {', '.join(i for i, _ in TOOLBAR[key][2])} {{ background-image: {url[key, 'line']} !important; }}\n}}")
     icons = ", ".join(i for i, _ in TOOLBAR["reload"][2])
     for value, (label, draw) in RELOAD_STYLES.items():
         rel = save(f"icons/circuit/reload-{value}.svg", strip(draw, FRAMES, fit(draw, FRAMES)))

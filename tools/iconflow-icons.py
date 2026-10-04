@@ -410,6 +410,201 @@ def peek(step):
     return f"M{n(x)} {n(14.6 - step * 0.6)}V{n(y + 2.2)}C{n(x)} {n(y + 0.8)} {n(x + 0.8)} {n(y)} {n(x + 2.2)} {n(y)}H{n(14.6 - step * 0.6)}"
 
 
+# ---- the rest of the toolbar palette ------------------------------------------
+# Buttons Firefox and Zen offer under Customise toolbar. Same vocabulary:
+# glass bodies, neon tubes, open arcs only, no arrowheads on shapes.
+
+def c_save(t):
+    # A page with a chevron dropping into the bar at its foot, trailing.
+    drop = 2.2 * ease_out_back(span(t, 0, 0.75), 1.6)
+    chev = lambda o: tube(f"M6.2 {n(5.2 + drop - o)}L9 {n(8 + drop - o)}L11.8 {n(5.2 + drop - o)}")
+    return (glass(chamfer(3.4, 2.2, 11.2, 13.6, 2.2), trace=t, body=0.12)
+            + ghosts(chev, 1.6, t) + chev(0) + tube("M6.4 13H11.6", lit=bump(span(t, 0.4, 1))))
+
+
+def c_print(t):
+    # A sheet slides out of a glass slot; its lines light up as it comes.
+    e = ease_out(span(t, 0, 0.85))
+    h = 4 + 4.6 * e
+    out = glass(chamfer(5, 6, 8, h, 1.2, 0.5), body=0.12)
+    for i, (dy, w) in enumerate(((2.8, 4), (1.4, 2.6))):
+        k = ease_out(span(t, 0.35 + 0.15 * i, 0.85 + 0.15 * i)) * w
+        if k > 0.2:
+            out += tube(f"M7 {n(6 + h - dy)}H{n(7 + k)}")
+    return out + glass(rpoly([(2.4, 3.6), (15.6, 3.6), (15.6, 7.6), (2.4, 7.6)], 1.3), lit=bump(t), trace=t)
+
+
+def c_find(t):
+    # An open lens whose gap sweeps round as it searches; a diamond lights
+    # in its centre once found. The handle leaves from the gap.
+    e = ease_in_out(t)
+    turn_ = 360 * e                         # once round, so the gap ends by the handle again
+    lens = taper_tube(4.6, 70 + turn_, 380 + turn_, lit=bump(t), cx=7.6, cy=7.6)
+    k = 1.1 * ease_out_back(span(t, 0.45, 1), 2)
+    found = gem(_diamond(7.6, 7.6, k)) if k > 0.1 else ""
+    return lens + tube("M11.2 11.2L15 15", lit=bump(t)) + found
+
+
+def c_open(t):
+    # A glass folder whose front panel tilts open.
+    e = ease_out_back(t, 1.8)
+    back = rpoly([(2.4, 3.8), (6.8, 3.8), (8.4, 5.6), (15.6, 5.6), (15.6, 14.6), (2.4, 14.6)], 0.9)
+    front = rpoly([(2.4 + 2.4 * e, 8.2 + 1.2 * e), (15.6 + 0.8 * e, 8.2 + 1.2 * e), (15.6, 14.6), (2.4, 14.6)], 0.9)
+    return glass(back, body=0.1) + glass(front, lit=bump(t), trace=t, body=0.3)
+
+
+def c_zoom_in(t):
+    k = 1 + 0.22 * ease_out_back(t, 2)
+    return g(tube("M9 4.4V13.6M4.4 9H13.6", lit=bump(t)), f"translate(9 9) scale({n(k)}) translate(-9 -9)")
+
+
+def c_zoom_out(t):
+    w = 4.6 - 1.6 * ease_out_back(t, 2)
+    return tube(f"M{n(9 - w)} 9H{n(9 + w)}", lit=bump(t))
+
+
+def c_cut(t):
+    # Two blades crossing at a glass pivot, with glass finger loops below,
+    # snip shut and open again.
+    a = 14 * bump(t)
+    loop = lambda x: glass(rpoly([(x, 12.2), (x + 2.2, 15.6), (x - 2.2, 15.6)], 0.8), body=0.12)
+    blade_l = g(tube("M9 9.6L4.6 2.8M9 9.6L6.8 12.4") + loop(6), f"rotate({n(a)} 9 9.6)")
+    blade_r = g(tube("M9 9.6L13.4 2.8M9 9.6L11.2 12.4") + loop(12), f"rotate({n(-a)} 9 9.6)")
+    return blade_l + blade_r + gem(_diamond(9, 9.6, 1 + 0.3 * bump(t)))
+
+
+def c_copy(t):
+    # A duplicate slides out of the card, trailing, and settles beside it.
+    e = ease_out_back(t, 1.6)
+    card = lambda o, lit=0: glass(chamfer(2.6 + 3.4 * e - o, 2.6 + 3.4 * e - o, 9.4, 9.4, 1.6, 0.6), lit=lit, body=0.2)
+    return glass(chamfer(2.6, 2.6, 9.4, 9.4, 1.6, 0.6), body=0.1) + ghosts(card, 1.6, t) + card(0, bump(t))
+
+
+def c_paste(t):
+    # A card drops into a bracket and settles.
+    y = -3 + 5.6 * ease_out_back(span(t, 0, 0.8), 1.4)
+    card = glass(chamfer(5.4, 3 + y, 7.2, 8, 1.2, 0.5), lit=bump(t), body=0.25) if t > 0 else glass(chamfer(5.4, 0, 7.2, 8, 1.2, 0.5), body=0.25)
+    return card + tube("M3.2 9.4V14.2Q3.2 15.4 4.4 15.4H13.6Q14.8 15.4 14.8 14.2V9.4", lit=bump(span(t, 0.5, 1)), trace=t)
+
+
+def c_encoding(t):
+    # A glyph with a diamond cursor gliding along its baseline.
+    x = 12.4 + 2.2 * ease_in_out(t)
+    return (tube("M2.8 14.4L6.6 3.8L10.4 14.4M4.2 10.6H9", lit=bump(t), trace=t)
+            + tube(f"M{n(x - 1.6)} 15.4H{n(x + 1.6)}") + gem(_diamond(x, 11.6 - 2 * bump(t), 1.1)))
+
+
+def c_email(t):
+    # A glass envelope whose flap lifts open.
+    e = ease_out_back(t, 1.6)
+    tip = 9.6 - 7.2 * e
+    return glass(chamfer(2.4, 4.2, 13.2, 10, 1.6, 0.6), trace=t, body=0.14) + tube(f"M3.6 5.4L9 {n(tip)}L14.4 5.4", lit=bump(t))
+
+
+def c_logins(t):
+    # A glass lock: the arched shackle lifts as the keyhole lights.
+    up = 1.8 * ease_out_back(t, 2)
+    shackle = g(tube("M6.2 8.4V6.6Q6.2 3.4 9 3.4Q11.8 3.4 11.8 6.6V8.4"), f"translate(0 {n(-up)})")
+    return shackle + glass(chamfer(3.8, 8.2, 10.4, 7.4, 1.6, 0.6), trace=t, body=0.2) + gem(_diamond(9, 11.9, 0.7 + 0.5 * bump(t) + 0.2 * t))
+
+
+def c_sync(t):
+    # Two open arcs turn against each other, each led by a diamond.
+    e = ease_in_out(t)
+    a, b = 200 + 180 * e, 330 - 180 * e        # rest on opposite sides
+    head = lambda r, ang: gem(_diamond(9 + r * cos(radians(ang)), 9 + r * sin(radians(ang)), 1.1))
+    return (taper_tube(6.2, a - 140, a, lit=bump(t)) + head(6.2, a)
+            + taper_tube(3.4, b, b + 130, lit=bump(t)) + head(3.4, b))
+
+
+def c_send(t):
+    # A diamond leaves the tab card, trailing, toward the far corner.
+    e = ease_in_out(t)
+    x, y = 8.6 + 6 * e, 9.4 - 5.6 * e
+    dia = lambda o: gem(_diamond(x - o * 0.73, y + o * 0.68, 1.2))
+    card = glass(chamfer(2.2, 6.6, 9.4, 8.4, 1.6, 0.6), trace=t, body=0.16)
+    return card + ghosts(dia, 2.4, t) + dia(0)
+
+
+def c_import(t):
+    # A diamond comes in from the corner and lands on the card.
+    e = ease_in_out(t)
+    x, y = 3.4 + 6 * e, 3.4 + 5.4 * e
+    dia = lambda o: gem(_diamond(x - o * 0.74, y - o * 0.67, 1.2))
+    card = glass(chamfer(6.4, 6.6, 9.4, 8.4, 1.6, 0.6), lit=bump(span(t, 0.6, 1)), body=0.16)
+    return card + ghosts(dia, 2.4, t) + dia(0)
+
+
+def c_settings(t):
+    # A glass hex nut turns while its centre diamond turns the other way.
+    e = ease_out_back(t, 1.5)
+    hexa = rpoly([(9 + 6.4 * cos(radians(a)), 9 + 6.4 * sin(radians(a))) for a in range(30, 390, 60)], 1.2)
+    core = rpoly(turn([(9, 6.6), (11.4, 9), (9, 11.4), (6.6, 9)], -90 * e), 0.5)
+    return g(glass(hexa, trace=t, body=0.14), f"rotate({n(60 * e)} 9 9)") + glass(core, lit=bump(t) + 0.3, body=0.4)
+
+
+def c_forget(t):
+    # The card's lines rise and fade away, one after another.
+    out = glass(chamfer(3.4, 2.4, 11.2, 13.2, 2, 0.7), lit=bump(span(t, 0.5, 1)), body=0.14)
+    for i, (y, w) in enumerate(((6.2, 6), (9.2, 6), (12.2, 4))):
+        e = ease_in_out(span(t, i * 0.15, i * 0.15 + 0.55))
+        if e < 0.98:
+            out += f"<g opacity='{n(1 - e)}'>" + tube(f"M6 {n(y - 2.4 * e)}H{n(6 + w)}") + "</g>"
+    return out
+
+
+def c_private(t):
+    # A glass visor lowers into place and a scan line sweeps across it.
+    y = -1.6 + 1.6 * ease_out_back(span(t, 0, 0.6), 1.8)
+    visor = rpoly([(2.2, 7.2 + y), (15.8, 7.2 + y), (14.6, 12 + y), (10.6, 12 + y), (9, 10.6 + y), (7.4, 12 + y), (3.4, 12 + y)], 1)
+    x = 3.6 + 10.8 * ease_in_out(span(t, 0.3, 1))
+    scan = tube(f"M{n(x)} {n(8 + y)}V{n(11.2 + y)}", lit=1) if 0.3 < t < 0.98 else ""
+    return glass(visor, lit=bump(t), body=0.3) + scan + tube(f"M4.6 {n(14.6 + y * 0.4)}H13.4")
+
+
+def c_view(t):
+    # A window whose three tab pills ripple up in turn.
+    out = glass(chamfer(2.2, 6.4, 13.6, 9.2, 1.6, 0.6), trace=t, body=0.12)
+    for i, x in enumerate((3.6, 7.4, 11.2)):
+        up = 1.4 * bump(span(t, i * 0.15, i * 0.15 + 0.6))
+        out += glass(chamfer(x, 2.6 - up, 3.2, 2.6, 0.8, 0.4), lit=up / 1.4, body=0.3)
+    return out
+
+
+def c_developer(t):
+    # Two blades push apart around a slash that turns a little.
+    d = 1.1 * ease_out_back(t, 2)
+    slash = g(tube("M10.2 4.4L7.8 13.6", lit=bump(t)), f"rotate({n(12 * bump(t))} 9 9)")
+    return (glass(blade(2.4 - d, 9, 3.2, 4.4, 1.8), lit=bump(t), body=0.3)
+            + glass(blade(15.6 + d, 9, 3.2, 4.4, 1.8, flip=True), lit=bump(t), body=0.3) + slash)
+
+
+def c_new_window(t):
+    # A small window grows out of the frame's corner into a second window.
+    e = ease_out_back(t, 1.6)
+    w, h = 4.4 + 3.4 * e, 3.4 + 2.6 * e
+    return glass(chamfer(2, 3.2, 12.6, 10.4, 1.8, 0.6), trace=t, body=0.1) + glass(chamfer(16 - w, 15 - h, w, h, 1, 0.45), lit=bump(t) + 0.4, body=0.45)
+
+
+def c_fullscreen(t):
+    # Four corner brackets spread outward round a panel that fills.
+    k = 1.2 * ease_out_back(t, 2)
+    a, b, L = 4.2 - k, 13.8 + k, 3.2
+    corners = (f"M{n(a)} {n(a + L)}V{n(a + 1.1)}Q{n(a)} {n(a)} {n(a + 1.1)} {n(a)}H{n(a + L)}"
+               f"M{n(b - L)} {n(a)}H{n(b - 1.1)}Q{n(b)} {n(a)} {n(b)} {n(a + 1.1)}V{n(a + L)}"
+               f"M{n(b)} {n(b - L)}V{n(b - 1.1)}Q{n(b)} {n(b)} {n(b - 1.1)} {n(b)}H{n(b - L)}"
+               f"M{n(a + L)} {n(b)}H{n(a + 1.1)}Q{n(a)} {n(b)} {n(a)} {n(b - 1.1)}V{n(b - L)}")
+    p = 1.6 + 1.4 * ease_out_back(span(t, 0.2, 1), 1.6)
+    return tube(corners, lit=bump(t)) + glass(chamfer(9 - p, 9 - p, 2 * p, 2 * p, 0.8, 0.4), lit=bump(t), body=0.3)
+
+
+def c_account(t):
+    # An ID badge: a glass head and an arc for shoulders that draws itself.
+    lift = 0.8 * ease_out_back(t, 2)
+    head = gem(rpoly([(9, 3 - lift), (11.6, 5.8 - lift), (9, 8.6 - lift), (6.4, 5.8 - lift)], 0.7))
+    return head + taper_tube(6.2, 200, 340, lit=bump(t), trace=t, cy=16.6)
+
+
 # key -> (label, frames function, [(icon selector, hover selector)])
 def tb(*ids):
     """Toolbar buttons: the .toolbarbutton-icon anywhere inside, since some
@@ -449,10 +644,35 @@ TOOLBAR = {
     "muted": ("Unmute", c_muted, tb(".zen-media-card[muted] .zen-media-mute-button")),
     "media-close": ("Close player", c_stop, tb(".zen-media-close-button")),
     "pip": ("Picture-in-picture", c_pip, tb(".zen-media-pip-button")),
+    "save-page": ("Save page", c_save, tb("#save-page-button")),
+    "print": ("Print", c_print, tb("#print-button")),
+    "find": ("Find in page", c_find, tb("#find-button")),
+    "open-file": ("Open file", c_open, tb("#open-file-button")),
+    "zoom-in": ("Zoom in", c_zoom_in, tb("#zoom-in-button")),
+    "zoom-out": ("Zoom out", c_zoom_out, tb("#zoom-out-button")),
+    "cut": ("Cut", c_cut, tb("#cut-button")),
+    "copy": ("Copy", c_copy, tb("#copy-button")),
+    "paste": ("Paste", c_paste, tb("#paste-button")),
+    "encoding": ("Text encoding", c_encoding, tb("#characterencoding-button")),
+    "email": ("Email link", c_email, tb("#email-link-button")),
+    "logins": ("Passwords", c_logins, tb("#logins-button")),
+    "sync": ("Sync", c_sync, tb("#sync-button")),
+    "send-tab": ("Send tab to device", c_send, tb("#send-tab-button")),
+    "import": ("Import", c_import, tb("#import-button")),
+    "settings": ("Settings", c_settings, tb("#preferences-button")),
+    "forget": ("Forget", c_forget, tb("#panic-button")),
+    "private": ("New private window", c_private, tb("#privatebrowsing-button")),
+    "firefox-view": ("Firefox View", c_view, tb("#firefox-view-button")),
+    "developer": ("Developer tools", c_developer, tb("#developer-button")),
+    "new-window": ("New window", c_new_window, tb("#new-window-button")),
+    "fullscreen": ("Full screen", c_fullscreen, tb("#fullscreen-button")),
+    "firefox-library": ("Firefox Library", lambda t: lib_circuit(t), tb("#library-button")),
+    "account": ("Account", c_account, tb("#fxa-toolbar-menu-button")),
 }
 
 # Settings group the starred and unstarred star, and play/pause, mute/unmute.
-SETTING = {"bookmarked": "bookmark", "pause": "play", "muted": "volume"}
+SETTING = {"bookmarked": "bookmark", "pause": "play", "muted": "volume",
+           "zoom-out": "zoom", "zoom-in": "zoom", "cut": "edit", "copy": "edit", "paste": "edit"}
 
 
 def lib_circuit(t):
@@ -497,13 +717,13 @@ def taper(r, a0, a1, width, alpha, steps=12, cx=9, cy=9):
     return out
 
 
-def taper_tube(r, a0, a1, lit=0.0, trace=None):
+def taper_tube(r, a0, a1, lit=0.0, trace=None, cx=9, cy=9):
     """A neon tube along an open arc whose two ends taper to a point."""
     k = lambda u: ease_in_out(clamp(min(u, 1 - u) / 0.24))   # 0 at the ends, 1 along the middle
-    out = (taper(r, a0, a1, lambda u: 3.2 * (0.35 + 0.65 * k(u)), lambda u: (0.22 + 0.2 * lit) * k(u), 28)
-           + taper(r, a0, a1, lambda u: 0.35 + 1.35 * k(u), lambda u: 0.3 + 0.7 * k(u), 28))
+    out = (taper(r, a0, a1, lambda u: 3.2 * (0.35 + 0.65 * k(u)), lambda u: (0.22 + 0.2 * lit) * k(u), 28, cx, cy)
+           + taper(r, a0, a1, lambda u: 0.35 + 1.35 * k(u), lambda u: 0.3 + 0.7 * k(u), 28, cx, cy))
     if trace is not None and 0.02 < trace < 0.98:
-        out += (f"<path d='{arc(r, a0, a1)}' pathLength='100' stroke-width='2.4' stroke-dasharray='22 78' "
+        out += (f"<path d='{arc(r, a0, a1, cx, cy)}' pathLength='100' stroke-width='2.4' stroke-dasharray='22 78' "
                 f"stroke-dashoffset='{n(-100 * ease_in_out(trace))}' stroke-opacity='{n(0.9 * bump(trace))}'/>")
     return out
 

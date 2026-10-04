@@ -46,6 +46,7 @@ Requires `sine.allow-unsafe-js` set to `true` in `about:config`.
 - **Address bar and toolbar:** site settings, downloads, extensions, the bookmark ribbon (saved or not, and the bookmarks menu button), reader view, share and copy link, history (a stack of pages), screenshot.
 - **Overflow:** the more-tools and bookmarks overflow chevrons, and "clear unpinned tabs".
 - **Media player:** play and pause, next, previous, mute and unmute, close, and picture-in-picture.
+- **Buttons you can add under Customise toolbar:** save page, print, find in page, open file, zoom in and out, cut, copy and paste, text encoding, email link, passwords, sync, send tab to device, import, settings, forget, new private window, Firefox View, developer tools, new window, full screen, Firefox's Library and your account.
 
 **Reload** has a **style**:
 - **Orbit pair** (the default): two glass diamonds circle the open arc at

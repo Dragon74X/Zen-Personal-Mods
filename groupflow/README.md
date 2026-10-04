@@ -21,6 +21,11 @@ Requires `sine.allow-unsafe-js` set to `true` in `about:config`. Group
 styling is on out of the box; **Turn on group styling** is the master switch
 if you want it off.
 
+**Show settings for**, at the top of the settings page, shows one part at a
+time (*Headers and labels*; *States and profiles*; *Layout and scrolling*;
+*Connector lines and marks*; *Corners and other mods*) or *Everything*.
+Hidden settings keep their values.
+
 ## Startup folding
 
 After each window restores its session, top-level groups/folders open and all

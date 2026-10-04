@@ -39,6 +39,29 @@ configured values apply on first paint instead of after a mod reload.
 Tab styling is on out of the box. The sidebar, window buttons and both font
 sections are off until you switch them on.
 
+## Finding a setting
+
+**Show settings for**, at the top of the settings page, shows one part of the
+browser at a time (*Colour and glass*; *Tabs*; *Sidebar*; *Overlays, dialogs
+and status*; *Window buttons*; *Corners, fonts and motion*; *Troubleshooting*)
+or *Everything*. Hidden settings keep their values. Each row's tooltip shows the preference it
+sets.
+
+## Replaces these mods
+
+Small single-purpose mods, folded in so they update with Glassflow. Each is
+on by default, sits in the section it affects, and names the mod it replaces.
+Remove the original once you have this version.
+
+| Was | Now | Section |
+|---|---|---|
+| Left close button | Close button on the left | Tabs, shared |
+| Remove Tabs Separator | Hide the pinned-tabs separator | Tabs, shared |
+| Back Fwd Always Hidden | Hide back and forward | Sidebar |
+| Floating Statusbar | Glass status pill | Overlays |
+| Dialog Fix | Theme-coloured dialogs | Overlays |
+| TitleBarButton UI Tweaks | Tidy system buttons (only while the traffic lights are off) | Window buttons |
+
 ## Colour
 
 | Setting | Default | Notes |
@@ -112,6 +135,8 @@ one white 1px top highlight and 1px ring per state.
 | Texture | None | Diagonal hatch, dots, horizontal lines or fine mesh over the tint |
 | Accent bar on the selected tab | off | 3px bar |
 | Hide Arc's container glow | on | Only matters with Arc 2.0 installed |
+| Close button on the left | on | Hovering a regular tab swaps its icon for the close button, while the sidebar is expanded |
+| Hide the pinned-tabs separator | on | SuperPins' *Show separator* controls the same line; set only one |
 
 ## Tab strip
 
@@ -223,6 +248,7 @@ whatever is underneath:
 | Toasts | The accent fill turns translucent over a blur |
 | Glance's side buttons | Translucent over a blur of the page |
 | Library media preview | The dimmed window behind it is blurred too |
+| Music player at the bottom of the sidebar | Glass; its title row floats over the tabs on hover |
 
 | Setting | Default | Notes |
 |---|---|---|
@@ -230,6 +256,9 @@ whatever is underneath:
 | Overlay blur radius | `20px` | |
 | Overlay fill | `55%` | `0%` is clear glass |
 | Menu and panel fill (Windows 11) | `50%` | Zen's own value; lower shows more of the blur |
+| Music player fill | the overlay fill | Any CSS colour. Mediaflow decides which rows the player shows |
+| Glass status pill | on | The link address at the bottom of the page, as a floating glass pill. Turn off Arc 2.0's floating status bar so only one styles it |
+| Theme-coloured dialogs | on | Dialogs take the menu colour, their main button the accent colour |
 
 Menus, context menus and panels (including the tab hover preview) are
 separate windows, so CSS cannot blur what is behind them. On Windows 11 22H2

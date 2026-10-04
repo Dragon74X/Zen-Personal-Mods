@@ -132,6 +132,26 @@ export function installSineUpdateGuard(manager, utils, { IOUtils, PathUtils } = 
   return true;
 }
 
+// Sine builds each settings row before adding it to the page, and checks the
+// row's conditions at that moment, when the row cannot be found yet. So every
+// conditional row shows when a mod's settings open, until one of the settings
+// it depends on changes. Check again once the row is on the page.
+export function fixSettingsConditions(manager) {
+  const prefs = manager.preferences;
+  if (!prefs || prefs.__zenPersonalModsConditions ||
+      typeof prefs.parsePref !== "function" || typeof prefs.setupPrefObserver !== "function") return false;
+  manager.preferences = {
+    ...prefs,
+    __zenPersonalModsConditions: true,
+    parsePref(pref, ...rest) {
+      const row = prefs.parsePref(pref, ...rest), window = rest[1];
+      if (row && pref.conditions) window.setTimeout(() => { if (row.isConnected) prefs.setupPrefObserver(pref, window); });
+      return row;
+    },
+  };
+  return true;
+}
+
 if (typeof ChromeUtils !== "undefined") {
   try {
     const manager = ChromeUtils.importESModule(
@@ -141,6 +161,7 @@ if (typeof ChromeUtils !== "undefined") {
     if (!installSineUpdateGuard(manager, utils)) {
       console.info("[Zen Personal Mods] Sine update guard skipped: engine does not match the shared-temp implementation.");
     }
+    fixSettingsConditions(manager);
     // Sine checks for updates only at launch. Check again every few hours,
     // honouring its auto-update setting; one timer however many copies load.
     const timer = "__zenPersonalModsUpdateTimer";

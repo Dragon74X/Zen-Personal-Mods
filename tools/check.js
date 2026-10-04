@@ -22,7 +22,7 @@
     ["zz-tab-router",   "Tab Router",   "TabRouter"],
     ["zz-tab-unloader", "Tab Unloader", "TabUnloader"],
     ["zz-zen-turbo",    "Zen Turbo",    "ZenTurbo"],
-    ["zz-zenslop",      "Zenslop",      "ZzZenslopController"],
+    ["zz-mediaflow",    "Mediaflow",    "ZzMediaflowController"],
   ];
 
   // What a declared pref type should be stored as. A dropdown is only an int

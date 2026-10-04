@@ -17,14 +17,7 @@
     "label": "Subgroup separator *Splits a group name into nesting levels. With the default, Work / Email / Gmail creates a group three levels deep -- real nested tab groups, never pinned. Include the spaces if you want them; '/' with no spaces works too.*",
     "defaultValue": " / ",
     "placeholder": " / ",
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.enabled",
-          "value": true
-        }
-      }
-    ]
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}]
   },
   {
     "type": "dropdown",
@@ -50,14 +43,7 @@
         "value": 3
       }
     ],
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.enabled",
-          "value": true
-        }
-      }
-    ]
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}]
   },
   {
     "type": "string",
@@ -65,48 +51,21 @@
     "label": "Rules *One per line, or separated by semicolons. Left of the > is a comma separated list of domains, right of it is the group name. Subdomains match automatically, so github.com also catches gist.github.com. First match wins, so put narrower rules first. You do not have to write these by hand: open the Browser Console and run TabRouter.suggestRules() to generate a block from the tabs you already have open, or TabRouter.suggestRules({subdomains:true}) to get a nested Parent / Child rule per subdomain. It copies to your clipboard and moves nothing.*",
     "defaultValue": "github.com, gitlab.com > Dev ; youtube.com > Watch",
     "placeholder": "github.com, gitlab.com > Dev ; youtube.com > Watch",
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.enabled",
-          "value": true
-        }
-      }
-    ]
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}]
   },
   {
     "type": "checkbox",
     "property": "zzrouter.auto-unmatched",
     "label": "Sort everything automatically *Derives the group name from the site itself, so a page from somewhere you have never been still gets filed without any rule existing for it. Rules still win where they match, so use them to override the automatic name. This is the switch that makes the mod work with no setup.*",
     "defaultValue": true,
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.enabled",
-          "value": true
-        }
-      }
-    ]
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}]
   },
   {
     "type": "checkbox",
     "property": "zzrouter.auto-subdomains",
     "label": "Use subdomains as subgroups *docs.proton.me becomes a Docs subgroup nested inside Proton, rather than just Proton. www is ignored, since it is noise rather than a real subdomain.*",
     "defaultValue": true,
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.enabled",
-          "value": true
-        }
-      },
-      {
-        "if": {
-          "property": "zzrouter.auto-unmatched",
-          "value": true
-        }
-      }
-    ],
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}, {"if": {"property": "zzrouter.auto-unmatched", "value": true}}],
     "operator": "AND"
   },
   {
@@ -129,20 +88,7 @@
         "value": 3
       }
     ],
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.enabled",
-          "value": true
-        }
-      },
-      {
-        "if": {
-          "property": "zzrouter.auto-subdomains",
-          "value": true
-        }
-      }
-    ],
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}, {"if": {"property": "zzrouter.auto-subdomains", "value": true}}],
     "operator": "AND"
   },
   {
@@ -169,20 +115,7 @@
         "value": 3
       }
     ],
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.enabled",
-          "value": true
-        }
-      },
-      {
-        "if": {
-          "property": "zzrouter.auto-unmatched",
-          "value": true
-        }
-      }
-    ],
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}, {"if": {"property": "zzrouter.auto-unmatched", "value": true}}],
     "operator": "AND"
   },
   {
@@ -201,20 +134,7 @@
         "value": 1
       }
     ],
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.enabled",
-          "value": true
-        }
-      },
-      {
-        "if": {
-          "property": "zzrouter.auto-unmatched",
-          "value": true
-        }
-      }
-    ],
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}, {"if": {"property": "zzrouter.auto-unmatched", "value": true}}],
     "operator": "AND"
   },
   {
@@ -223,20 +143,7 @@
     "label": "Path subgroup domain list *Comma separated. Read as the setting above says: only these sites, or every site except these.*",
     "defaultValue": "youtube.com",
     "placeholder": "youtube.com, nexusmods.com",
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.enabled",
-          "value": true
-        }
-      },
-      {
-        "if": {
-          "property": "zzrouter.auto-unmatched",
-          "value": true
-        }
-      }
-    ],
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}, {"if": {"property": "zzrouter.auto-unmatched", "value": true}}],
     "operator": "AND"
   },
   {
@@ -244,28 +151,14 @@
     "property": "zzrouter.media-subgroups",
     "label": "Subgroup by creator (YouTube) *A watch address names the video, never the channel, so path rules cannot split YouTube tabs by creator. This asks YouTube's oEmbed endpoint for the video's author -- one small JSON request per NEW video, no key, then remembered -- and files the tab as Youtube / Creator. The request is built inside the tab's own container, so nothing about it is visible from another container, and it is sent anonymously: no cookies go out and none come back, so YouTube cannot tie it to your account. A private window asks too, from its own partition, still anonymous, and the name is remembered like any other. The remembered list is a record of which videos you opened; it is capped at 300 and TabRouter.forgetCreators() empties it.*",
     "defaultValue": false,
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.enabled",
-          "value": true
-        }
-      }
-    ]
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}]
   },
   {
     "type": "checkbox",
     "property": "zzrouter.section-icons",
     "label": "Pictures on subgroups *A subgroup named after a creator, a game or an account gets that thing's own picture as its icon, on any site with path subgroups: the page the subgroup is named after (abc.com/creator/name for a subgroup Name) is asked for its share image, and it is used when it is roughly square -- an avatar, a cover -- while wide banners are refused and the favicon stays. The parent group keeps the site favicon. Needs Groupflow. Once per NEW section the page is fetched for its picture address, then the picture -- both inside the tab's container, both anonymous, like the creator lookup -- cropped square, scaled to 64px and kept as data, so showing it later never touches the network. Private windows included, still anonymous. A page with nothing usable is remembered as such and never asked again. Bounded to 100; TabRouter.forgetCreators() empties it too.*",
     "defaultValue": true,
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.enabled",
-          "value": true
-        }
-      }
-    ]
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}]
   },
   {
     "type": "string",
@@ -273,20 +166,7 @@
     "label": "Extra path words to ignore *Comma separated, ADDED to a built-in list of generic route words (search, watch, videos, results, games, category and similar). Numeric segments and file names are always dropped.*",
     "defaultValue": "",
     "placeholder": "mods,collections",
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.enabled",
-          "value": true
-        }
-      },
-      {
-        "if": {
-          "property": "zzrouter.auto-unmatched",
-          "value": true
-        }
-      }
-    ],
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}, {"if": {"property": "zzrouter.auto-unmatched", "value": true}}],
     "operator": "AND"
   },
   {
@@ -295,20 +175,7 @@
     "label": "Path name aliases *slug = Pretty Name, one per line or comma separated, and these always win. Mostly optional now: names are LEARNED automatically from tab titles when the title plausibly matches the slug, so nexusmods.com/games/dragonage files as Dragon Age: Origins once any page under it has loaded. TabRouter.learned() shows what has been picked up; TabRouter.forget('slug') or TabRouter.forget() drops bad ones. Slugs with separators, like crimson-desert, are cleaned up automatically either way.*",
     "defaultValue": "baldursgate3 = Baldur's Gate 3",
     "placeholder": "baldursgate3 = Baldur's Gate 3",
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.enabled",
-          "value": true
-        }
-      },
-      {
-        "if": {
-          "property": "zzrouter.auto-unmatched",
-          "value": true
-        }
-      }
-    ],
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}, {"if": {"property": "zzrouter.auto-unmatched", "value": true}}],
     "operator": "AND"
   },
   {
@@ -316,14 +183,7 @@
     "property": "zzrouter.create-groups",
     "label": "Create groups that do not exist yet *Off means tabs are only moved into groups you already made by hand, and rules naming a missing group do nothing.*",
     "defaultValue": true,
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.enabled",
-          "value": true
-        }
-      }
-    ]
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}]
   },
   {
     "type": "separator",
@@ -351,42 +211,21 @@
         "value": 2
       }
     ],
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.enabled",
-          "value": true
-        }
-      }
-    ]
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}]
   },
   {
     "type": "checkbox",
     "property": "zzrouter.tabs-first",
     "label": "Loose tabs above subgroups *Inside a group, individual tabs sit on top and subgroups below them. A tab newly filed into the main group is lifted above the subgroups on the next pass. Works in every sort mode, including manual.*",
     "defaultValue": true,
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.enabled",
-          "value": true
-        }
-      }
-    ]
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}]
   },
   {
     "type": "checkbox",
     "property": "zzrouter.follow-containers",
     "label": "Follow Zen routes and containers *Destination is resolved in strict order on every filing move. Workspace: a matching Zen Space Routing rule (the Add Route for Domain entries) wins, then the workspace already holding the group, then the current one. Container: the routed workspace's default, then whatever the tabs already in the destination group use, then the workspace default, then unchanged. New tabs follow Zen's container rule before the first response. For loaded tabs, a container change reopens the tab only after checking for history, forms, POST data and session storage; protected pages retain their container. Folder/workspace moves can happen while pages are loading. Off: tabs keep their container, like Zen's Move to Space menu.*",
     "defaultValue": true,
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.enabled",
-          "value": true
-        }
-      }
-    ]
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}]
   },
   {
     "type": "separator",
@@ -399,56 +238,28 @@
     "property": "zzrouter.skip-grouped",
     "label": "Tabs already in a group *The important one. On, routing only ever touches loose tabs, so anything you filed by hand stays put. Turn it off only if you want rules to override your own sorting.*",
     "defaultValue": true,
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.enabled",
-          "value": true
-        }
-      }
-    ]
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}]
   },
   {
     "type": "checkbox",
     "property": "zzrouter.refile-mismatched",
     "label": "Re-file tabs that drifted *A link opened from a grouped tab inherits that group even when it goes somewhere unrelated, which is why a stray domain stays stuck in the group it was opened from. With this on, a tab whose group no longer matches where it belongs gets moved. Only applies when tabs already in a group are otherwise skipped.*",
     "defaultValue": true,
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.enabled",
-          "value": true
-        }
-      }
-    ]
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}]
   },
   {
     "type": "checkbox",
     "property": "zzrouter.skip-essentials",
     "label": "Essentials *Essentials are pinned deliberately and are not loose tabs.*",
     "defaultValue": true,
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.enabled",
-          "value": true
-        }
-      }
-    ]
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}]
   },
   {
     "type": "checkbox",
     "property": "zzrouter.skip-pinned",
     "label": "Pinned tabs *Separate from Essentials.*",
     "defaultValue": true,
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.enabled",
-          "value": true
-        }
-      }
-    ]
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}]
   },
   {
     "type": "separator",
@@ -461,14 +272,7 @@
     "property": "zzrouter.sort-on-startup",
     "label": "Sort everything at startup *Runs one pass a few seconds after the window opens. Off by default, since a session restore moving dozens of tabs at once is jarring.*",
     "defaultValue": false,
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.enabled",
-          "value": true
-        }
-      }
-    ]
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}]
   },
   {
     "type": "string",
@@ -476,14 +280,7 @@
     "label": "Wait before re-sorting (milliseconds) *How long after the last routed tab before groups are re-ordered. Lower is snappier; one pass covers a whole burst of tabs either way.*",
     "defaultValue": "150",
     "placeholder": "150",
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.enabled",
-          "value": true
-        }
-      }
-    ]
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}]
   },
   {
     "type": "string",
@@ -491,20 +288,7 @@
     "label": "Wait before the startup pass (milliseconds) *Only used when sorting at startup is on. Session restore needs a moment before tabs report real URLs.*",
     "defaultValue": "2500",
     "placeholder": "2500",
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.enabled",
-          "value": true
-        }
-      },
-      {
-        "if": {
-          "property": "zzrouter.sort-on-startup",
-          "value": true
-        }
-      }
-    ],
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}, {"if": {"property": "zzrouter.sort-on-startup", "value": true}}],
     "operator": "AND"
   },
   {
@@ -518,13 +302,6 @@
     "property": "zzrouter.debug",
     "label": "Log what it is doing *Prints to the Browser Console (Ctrl+Shift+J) under [TabRouter]. Also gives you TabRouter.preview(), which lists every tab with the group it would go to without moving anything, and TabRouter.sortAll() to run one pass on demand.*",
     "defaultValue": false,
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.enabled",
-          "value": true
-        }
-      }
-    ]
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}]
   }
 ]

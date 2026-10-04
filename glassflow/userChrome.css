@@ -1386,3 +1386,108 @@
     }
   }
 }
+
+/* The music player card floats its title row over the tabs on hover. Its
+   colour is set on Zen's own variable so the fade at the title's edge
+   matches. Setting: Overlays > Music player fill. */
+@media (-moz-pref("zzglass.overlays.enabled")) {
+  #zen-media-controls-toolbar > .zen-media-card {
+    --zen-sidebar-notification-bg: var(--zzglass-overlays-media-color, var(--zzg-ov-fill)) !important;
+    backdrop-filter: var(--zzg-ov-blur) !important;
+  }
+}
+
+/* ============================================================
+   Small tweaks taken over from single-purpose mods. Each setting sits in
+   the section it affects; the comment names that section and the mod it
+   replaces, so either can be traced from the other.
+   ============================================================ */
+
+/* Tabs, shared > Close button on the left (was Left close button).
+   Hovering a regular tab swaps its icon for the close button. Only while
+   the sidebar is expanded: collapsed tabs have no close button to show. */
+@media (-moz-pref("zzglass.tabs.close-left")) {
+  :root[zen-sidebar-expanded="true"] #tabbrowser-tabs .tabbrowser-tab:not([pinned]) .tab-content:hover {
+    gap: 4.5px;
+    & .tab-icon-stack { display: none !important; }
+    & .tab-close-button { order: -1; }
+  }
+}
+
+/* Tabs, shared > Hide the pinned-tabs separator (was Remove Tabs Separator). */
+@media (-moz-pref("zzglass.tabs.hide-pinned-separator")) {
+  .pinned-tabs-container-separator { display: none !important; }
+}
+
+/* Sidebar > Hide back and forward (was Back Fwd Always Hidden). They come
+   back while customizing the toolbar, so they can still be moved. */
+@media (-moz-pref("zzglass.sidebar.hide-back-forward")) {
+  :root:not([customizing]) :is(#back-button, #forward-button, #zen-sidebar-top-buttons-separator) {
+    display: none !important;
+  }
+}
+
+/* Overlays > Glass status pill (was Floating Statusbar). The link preview
+   at the bottom of the page, as a floating pill of overlay glass. */
+@media (-moz-pref("zzglass.overlays.status-pill")) {
+  #statuspanel { margin: 10px !important; }
+  #statuspanel-label {
+    border-radius: 100px !important;
+    padding: 6px 12px !important;
+    border: none !important;
+    background: var(--zzg-ov-fill) !important;
+    backdrop-filter: var(--zzg-ov-blur) !important;
+  }
+}
+
+/* Overlays > Theme-coloured dialogs (was Dialog Fix). Dialogs take the menu
+   and panel colour; the default button takes the accent colour. */
+@media (-moz-pref("zzglass.dialogs.theme")) {
+  :root { --zen-dialog-background: var(--arrowpanel-background) !important; }
+  button[part="dialog-button"] {
+    padding-inline: 1.2em !important;
+    color: var(--button-text-color) !important;
+    background: var(--button-background-color) !important;
+    &:hover { --button-background-color: color-mix(in srgb, currentColor 5%, transparent) !important; }
+    &:hover:active {
+      scale: 0.98;
+      --button-background-color: color-mix(in srgb, currentColor 10%, transparent) !important;
+    }
+    &:is([default="true"], [default="false"]) {
+      color: light-dark(var(--zen-branding-paper), var(--zen-branding-dark)) !important;
+      background: var(--color-accent-primary) !important;
+      &:hover { background: var(--color-accent-primary-hover) !important; }
+      &:hover:active { background: var(--color-accent-primary-active) !important; }
+    }
+    &::after { display: none !important; }
+  }
+}
+
+/* Window buttons > Tidy native buttons (was TitleBarButton UI Tweaks).
+   Only for the system buttons; the traffic lights above replace them. The
+   original's corner variable was never defined, so it drew square corners;
+   this uses Zen's own radius. */
+@media not (-moz-pref("zzglass.buttons.enabled")) {
+  @media (-moz-pref("zzglass.buttons.tidy-native")) {
+    .titlebar-buttonbox { padding: 9px !important; }
+    .titlebar-button {
+      padding-inline: 10px !important;
+      border-radius: var(--border-radius-medium) !important;
+      &:hover { background-color: var(--button-hover-bgcolor) !important; }
+    }
+    :is(.titlebar-max, .titlebar-restore) { margin-inline: 5px !important; }
+    .titlebar-close:hover { background-color: var(--buttons-destructive-hover-bgcolor) !important; }
+  }
+}
+
+/* Sidebar > Library button icon. Zen 1.23b draws the Library button
+   (#zen-library-button, which replaced #library-button) as an animated
+   sprite in its own style. "Line icon" shows the line drawing New Icons used
+   for the old Library button, in the toolbar's normal icon slot, so it
+   matches the buttons around it. The icon is New Icons' (qumeqa/zen-icons). */
+@media (-moz-pref("zzglass.sidebar.library-icon", 1)) {
+  #zen-library-button {
+    list-style-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M13.25 11.05C13.25 12.1701 13.25 12.7302 13.032 13.158C12.8403 13.5343 12.5343 13.8403 12.158 14.032C11.7302 14.25 11.1701 14.25 10.05 14.25H5.95C4.82989 14.25 4.26984 14.25 3.84202 14.032C3.46569 13.8403 3.15973 13.5343 2.96799 13.158C2.75 12.7302 2.75 12.1701 2.75 11.05V4.95C2.75 3.82989 2.75 3.26984 2.96799 2.84202C3.15973 2.46569 3.46569 2.15973 3.84202 1.96799C4.26984 1.75 4.8299 1.75 5.95 1.75H10.05C11.1701 1.75 11.7302 1.75 12.158 1.96799C12.5343 2.15973 12.8403 2.46569 13.032 2.84202C13.25 3.26984 13.25 3.8299 13.25 4.95V11.05Z' stroke='context-fill' stroke-opacity='context-fill-opacity' stroke-width='1.5'/%3E%3Cpath d='M13.25 7.31921H8.7V1.74997' stroke='context-fill' stroke-opacity='context-fill-opacity' stroke-width='1.4' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+    & .zen-library-sprite { display: none !important; }
+  }
+}

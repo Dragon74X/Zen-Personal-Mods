@@ -861,46 +861,74 @@
     }
     return [...stops].sort((a, b) => a - b);
   }
-  // The box is capped by the stylesheet (zzgroup.folder-height) and by the
-  // visible list: it never runs past the list's bottom edge, whatever the
-  // window size or list scroll. Its height is then trimmed so the bottom edge
-  // lands where a row begins, whatever spacing the theme gives rows. What the
-  // list cut off stays below the box as empty space, so the list keeps its
-  // scroll range and scrolling it grows the box back. Returns the scroll
-  // positions and, for each, the box height and that spare space.
+  // Top-level folders stay on screen: their bodies share the height the rest
+  // of the list leaves (shareList), each also capped by zzgroup.folder-height,
+  // and scroll inside. A body's height is trimmed so its bottom edge lands
+  // where a row begins, whatever spacing the theme gives rows, and never
+  // below three rows. Returns the scroll positions and the height for each.
+  const shares = new WeakMap();             // box -> height its list gives it
+  const prefCap = box => parseFloat(getComputedStyle(box).getPropertyValue("--zzgf-box-cap")) || Infinity;
   function measureBox(box) {
+    const end = box.scrollHeight;
+    const stops = rowStops(box), ends = [...stops, end];
     // A registered <length> | none, so it computes to pixels without touching
     // the box's own height (which would clamp its scroll position).
-    const pref = parseFloat(getComputedStyle(box).getPropertyValue("--zzgf-box-cap")) || Infinity;
-    const port = box.closest("arrowscrollbox")?.scrollbox?.getBoundingClientRect();
-    const room = port ? Math.max(0, port.bottom - box.getBoundingClientRect().top) : Infinity;
-    const cap = Math.min(pref, room), end = box.scrollHeight;
+    const cap = Math.max(shares.get(box) ?? prefCap(box), ends[Math.min(3, ends.length - 1)]);
     if (end <= cap) {
       for (const v of ["fit", "scroll"]) box.style.removeProperty("--zzgf-box-" + v);
-      box.parentElement.style.removeProperty("--zzgf-box-spare");
       return null;
     }
-    const stops = rowStops(box), ends = [...stops, end];
-    const lastAt = c => stops.find(y => end - y <= c) ?? end - c;
-    const last = lastAt(cap), prefLast = lastAt(pref);
+    const last = stops.find(y => end - y <= cap) ?? end - cap;
     const positions = stops.filter(y => y < last).concat(last);
-    const fit = (y, c) => ends.filter(e => e > y && e - y <= c).reduce((a, e) => Math.max(a, e - y), 0);
-    // Spare tops the box up to its uncut height, even scrolled past where
-    // the uncut box could reach, so the list's length never changes.
-    return { positions, fitAt: y => fit(y, cap), spareAt: y => fit(Math.min(y, prefLast), pref) - fit(y, cap) };
+    const fitAt = y => ends.filter(e => e > y && e - y <= cap).reduce((a, e) => Math.max(a, e - y), 0);
+    return { positions, fitAt };
+  }
+  // Everything in a list but the folder bodies keeps its height; the bodies
+  // share what is left, smallest first, so a folder that fits keeps its full
+  // height and the rest split the remainder. With too little left the bodies
+  // keep three rows each and the list scrolls as usual.
+  function shareList(host) {
+    const port = host.scrollbox, boxes = topBoxes(host);
+    if (!port || !boxes.length) return;
+    // The sections stretch to fill the list, so the content ends where its
+    // last row does. A folder has no box of its own: its header and body do.
+    const pad = parseFloat(getComputedStyle(port).paddingTop) || 0;
+    const top = port.getBoundingClientRect().top - port.scrollTop + pad;
+    let end = top;
+    for (const row of host.querySelectorAll(":scope > * > :not(tab-group), :scope > * > tab-group > *")) {
+      const r = row.getBoundingClientRect();
+      if (r.height) end = Math.max(end, r.bottom);
+    }
+    const used = boxes.reduce((a, b) => a + b.getBoundingClientRect().height, 0);
+    // The list shrinks to its content and Zen's empty space takes the rest,
+    // so both count; otherwise folders could never grow back after tabs close.
+    // One row of that empty space is left free to move the window by.
+    const empty = host.parentElement?.querySelector(":scope > .zen-workspace-empty-space");
+    const strip = Services.prefs.getBoolPref("zen.view.draggable-sidebar", false)
+      ? parseFloat(getComputedStyle(host).getPropertyValue("--tab-min-height")) || 36 : 0;
+    let room = port.clientHeight + (empty?.getBoundingClientRect().height || 0) - pad - strip - 1 - (end - top - used);
+    const want = boxes.map(b => Math.min(b.scrollHeight, prefCap(b)));
+    const order = boxes.map((_, i) => i).sort((a, b) => want[a] - want[b]);
+    order.forEach((i, k) => {
+      const share = Math.max(0, Math.min(want[i], room / (order.length - k)));
+      shares.set(boxes[i], share);
+      room -= share;
+    });
   }
   const nearest = (list, y) => list.reduce((a, b) => Math.abs(b - y) < Math.abs(a - y) ? b : a);
   // Scroll and rail move in the same frame. Waiting for the scroll event left
   // the rail a frame behind, which showed as a gap at the box's edge.
   const glides = new WeakMap();             // box -> { to, raf }
+  const setTops = new WeakMap();            // box -> the scrollTop this mod last set
   function scrollBox(box, to, instant, measured) {
     cancelAnimationFrame(glides.get(box)?.raf);
     glides.delete(box);
-    if (measured) {
-      box.style.setProperty("--zzgf-box-fit", measured.fitAt(to) + "px");
-      box.parentElement.style.setProperty("--zzgf-box-spare", measured.spareAt(to) + "px");
-    }
-    const set = y => { box.scrollTop = y; box.style.setProperty("--zzgf-box-scroll", box.scrollTop + "px"); };
+    if (measured) box.style.setProperty("--zzgf-box-fit", measured.fitAt(to) + "px");
+    const set = y => {
+      box.scrollTop = y;
+      setTops.set(box, box.scrollTop);
+      box.style.setProperty("--zzgf-box-scroll", box.scrollTop + "px");
+    };
     if (instant) { set(to); return; }
     const from = box.scrollTop, start = performance.now(), ms = 140;
     const step = now => {
@@ -917,11 +945,14 @@
   // pointer when the burst began, until scrolling pauses for about 1.5s, so
   // event.target can be a section the pointer has since left. Go by position.
   const hitOf = event => document.elementFromPoint(event.clientX, event.clientY);
-  // The connector gutter, or any non-row point left of a top-level box's rows
-  // and level with it: the strip left of the line belongs to the folder too.
+  // Anything in a top-level folder's body (its tabs, subfolders and
+  // connector gutters), or any non-row point left of the body and level with
+  // it: the strip left of the line belongs to the folder too. The folder's
+  // own header is not in its body, so it scrolls the list.
+  const bodySelector = "tab-group:not([split-view-group]) > .tab-group-container";
   function boxAt(event, hit = hitOf(event)) {
-    const gutter = gutterOf(hit);
-    if (gutter) return folderBox(gutter);
+    const body = gutterOf(hit) || hit?.closest?.(bodySelector);
+    if (body) return folderBox(body);
     if (hit?.closest?.(".tabbrowser-tab, .tab-group-label-container, toolbarbutton, button")) return null;
     for (const box of topBoxes()) {
       const r = box.getBoundingClientRect();
@@ -1003,26 +1034,30 @@
     }
     scrollBox(box, nearest(choices, y), true, measured);
   }
-  let fitTimer = null;
-  function fitAll() {
+  let fitTimer = null, showSelected = false;
+  function fitAll(keep = true) {
     if (!bool("connector-scroll", true)) return;
-    for (const box of topBoxes()) fitBox(box);
+    for (const host of document.querySelectorAll("zen-workspace arrowscrollbox")) shareList(host);
+    for (const box of topBoxes()) fitBox(box, keep);
   }
-  const fitSoon = () => { clearTimeout(fitTimer); fitTimer = setTimeout(fitAll, 150); };
+  // A refit keeps each body's rows where they are, unless a tab was selected
+  // or brought into view: then that tab is kept fully inside its body.
+  const fitSoon = (select = false) => {
+    showSelected ||= select === true;
+    clearTimeout(fitTimer);
+    fitTimer = setTimeout(() => { const keep = !showSelected; showSelected = false; fitAll(keep); }, 150);
+  };
+  const onFitEvent = event => fitSoon(event.type === "TabSelect");
   const FIT_EVENTS = ["TabSelect", "TabOpen", "TabClose", "TabGroupCollapse", "TabGroupExpand",
                       "TabGrouped", "TabUngrouped", "TabMove", "TabPinned", "TabUnpinned", "resize"];
   // Scrolls this mod did not start, such as a selected tab brought into view.
+  // Its own scrolls are recognised by position: refitting after them would
+  // pull the body back to the selected tab, so a folder could not scroll away.
   function holdRail(event) {
     const box = event.target;
-    // The list scrolled (arrowscrollbox repeats its scroll on itself): its
-    // boxes resize in the same frame, so none runs past the list's bottom.
-    if (box.localName === "arrowscrollbox") {
-      if (bool("connector-scroll", true)) for (const b of topBoxes(box)) fitBox(b, true);
-      return;
-    }
     if (box.classList?.contains("tab-group-container") && !glides.has(box)) {
       box.style.setProperty("--zzgf-box-scroll", box.scrollTop + "px");
-      fitSoon();                            // then settle it on a row
+      if (box.scrollTop !== setTops.get(box)) fitSoon(true);   // then settle it on a row
     }
   }
   // With toolkit.tabbox.switchByScrolling on, Firefox turns every wheel over
@@ -1031,7 +1066,9 @@
   // that handler so the list scrolls natively instead.
   function scrollOnConnectors(event) {
     const hit = hitOf(event);
-    if (bool("connector-scroll", true) && (gutterOf(hit) || boxAt(event, hit))) event.stopPropagation();
+    // A tab in a body that fits still switches tabs; only the gutters do not.
+    if (bool("connector-scroll", true) && (gutterOf(hit) ||
+        (boxAt(event, hit) && !hit?.closest?.(".tabbrowser-tab")))) event.stopPropagation();
   }
 
   function foldStartupGroups() {
@@ -1071,7 +1108,7 @@
     strip.addEventListener("DOMMouseScroll", scrollOnConnectors, { capture: true, passive: true });
     gNavToolbox.addEventListener("wheel", onWheel, { capture: true, passive: false });
     strip.addEventListener("scroll", holdRail, { capture: true, passive: true });
-    for (const ev of FIT_EVENTS) window.addEventListener(ev, fitSoon, true);
+    for (const ev of FIT_EVENTS) window.addEventListener(ev, onFitEvent, true);
     try { Services.obs.addObserver(schedule, "contextual-identity-updated"); } catch {}
 
     window.Groupflow = {
@@ -1120,7 +1157,7 @@
       strip.removeEventListener("DOMMouseScroll", scrollOnConnectors, true);
       gNavToolbox.removeEventListener("wheel", onWheel, true);
       strip.removeEventListener("scroll", holdRail, true);
-      for (const ev of FIT_EVENTS) window.removeEventListener(ev, fitSoon, true);
+      for (const ev of FIT_EVENTS) window.removeEventListener(ev, onFitEvent, true);
       clearTimeout(fitTimer);
       try { Services.obs.removeObserver(schedule, "contextual-identity-updated"); } catch {}
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}

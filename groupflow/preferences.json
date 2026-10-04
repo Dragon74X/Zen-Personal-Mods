@@ -1275,7 +1275,7 @@
   {
     "type": "checkbox",
     "property": "zzgroup.connector-scroll",
-    "label": "Scroll inside folders *Top-level folders stay on screen and share the list's height; scrolling over a folder's tabs, subfolders or connector lines slides them inside the folder while every header stays put. Scrolling over a header or a loose tab scrolls the list. A folder that fits scrolls the list from its connector too, without switching tabs when Firefox's switch-tabs-by-scrolling (toolkit.tabbox.switchByScrolling) is on.*",
+    "label": "Scroll inside folders *Top-level folders stay on screen and share the list's height; scrolling over a folder's tabs, subfolders or connector lines slides them inside the folder while every header stays put. Scrolling over a header or a loose tab scrolls the list, and so does scrolling on past the end of a folder. A folder that fits scrolls the list from its connector too, without switching tabs when Firefox's switch-tabs-by-scrolling (toolkit.tabbox.switchByScrolling) is on.*",
     "defaultValue": true,
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "layout"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
@@ -1292,9 +1292,9 @@
   {
     "type": "checkbox",
     "property": "zzgroup.scroll-glow",
-    "label": "Moving glow on scrolling folders *While a folder's contents scroll, its connector lines are brightest where you are: at the top when you are at the top, sliding down to the bottom as you reach the end. Subfolder lines share the same light.*",
+    "label": "Moving glow on connectors while scrolling *Connector lines are brightest where you are: at the top when you are at the top, sliding down to the bottom as you reach the end. Follows a folder's own scrolling, or the tab list's when the folder fits. Subfolder lines share the same light.*",
     "defaultValue": true,
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "layout"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.connector-scroll", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "layout"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {

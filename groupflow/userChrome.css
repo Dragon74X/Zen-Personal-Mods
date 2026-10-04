@@ -2102,20 +2102,23 @@
    A body that scrolls carries zzgf-glow, plus zzgf-more-above/-below on
    the sides where rows are hidden. --zzgf-glow is where the light sits on
    each connector, in that connector's own pixels. */
-@media (-moz-pref("zzgroup.connector-scroll")) {
-  /* The line dims away from the light, so its brightest point follows the
-     scroll down the folder and through every subfolder line it passes. */
-  @media (-moz-pref("zzgroup.scroll-glow")) {
-    #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container:is([zzgf-glow], [zzgf-glow] .tab-group-container)::before {
-      --zzgf-glow-reach: var(--zzgroup-glow-reach, 110px);
-      --zzgf-glow-floor: var(--zzgroup-glow-floor, 0.25);
-      mask-image: var(--zzgf-railmask), linear-gradient(to bottom,
-        rgb(0 0 0 / var(--zzgf-glow-floor)) calc(var(--zzgf-glow, 0px) - var(--zzgf-glow-reach)),
-        #000 var(--zzgf-glow, 0px),
-        rgb(0 0 0 / var(--zzgf-glow-floor)) calc(var(--zzgf-glow, 0px) + var(--zzgf-glow-reach)));
-      mask-composite: intersect;
-    }
+/* The line dims away from the light, so its brightest point follows the
+   scroll down the folder and through every subfolder line it passes. A
+   folder that scrolls inside itself carries zzgf-glow; while the list
+   scrolls, the others carry zzgf-list-glow and share the list's light. */
+@media (-moz-pref("zzgroup.scroll-glow")) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container:is([zzgf-glow], [zzgf-list-glow], :is([zzgf-glow], [zzgf-list-glow]) .tab-group-container)::before {
+    --zzgf-glow-reach: var(--zzgroup-glow-reach, 110px);
+    --zzgf-glow-floor: var(--zzgroup-glow-floor, 0.25);
+    mask-image: var(--zzgf-railmask), linear-gradient(to bottom,
+      rgb(0 0 0 / var(--zzgf-glow-floor)) calc(var(--zzgf-glow, 0px) - var(--zzgf-glow-reach)),
+      #000 var(--zzgf-glow, 0px),
+      rgb(0 0 0 / var(--zzgf-glow-floor)) calc(var(--zzgf-glow, 0px) + var(--zzgf-glow-reach)));
+    mask-composite: intersect;
   }
+}
+
+@media (-moz-pref("zzgroup.connector-scroll")) {
   @media (-moz-pref("zzgroup.scroll-fade")) {
     #navigator-toolbox tab-group:not([split-view-group]):not(tab-group tab-group) > .tab-group-container:is([zzgf-more-above], [zzgf-more-below]) {
       mask-image: linear-gradient(to bottom, transparent 0, #000 var(--zzgf-fade-above, 0px),

@@ -75,7 +75,7 @@
       if (!data || !data.startsWith(PREFIX)) return;
       iconRules = null;                    // reparsed on the next refresh
       if (["favicons", "icon-rules", "section-icons", "icon-shape", "color-source", "subfolder.include-folders"].some(k => data === PREFIX + k)) schedule();
-      if (["folder-height", "connector-scroll", "hover-count"].some(k => data === PREFIX + k)) fitSoon();
+      if (["folder-height", "connector-scroll", "hover-count", "scroll-glow"].some(k => data === PREFIX + k)) fitSoon();
       const name = "--" + data.replace(/\./g, "-");
       const value = readPrefValue(data);
       try {
@@ -932,7 +932,7 @@
       markEdges(box, true);
     };
     if (instant) { set(to); return; }
-    const from = box.scrollTop, start = performance.now(), ms = 140;
+    const from = box.scrollTop, start = performance.now(), ms = 240;
     const step = now => {
       const k = Math.min(1, (now - start) / ms);
       set(from + (to - from) * (1 - (1 - k) ** 3));
@@ -976,6 +976,42 @@
     header.style.setProperty("--zzgf-more-x", b.left + b.width / 2 - h.left + "px");
     header.style.setProperty("--zzgf-more-top", b.top - h.top + "px");
     header.style.setProperty("--zzgf-more-bottom", b.bottom - h.top + "px");
+  }
+  // The list scrolls too. While it does, connectors in folders that do not
+  // scroll inside themselves share one light at the list's scroll position:
+  // the top of the view at the list's top, its bottom at the list's end.
+  // Every rect is read before any light is written, so this lays out once.
+  const listPorts = new Set();
+  let listFrame = 0;
+  function lightLists() {
+    listFrame = 0;
+    const glow = bool("scroll-glow", true);
+    for (const host of document.querySelectorAll("zen-workspace arrowscrollbox")) {
+      const port = host.scrollbox;
+      if (!port) continue;
+      const max = port.scrollHeight - port.clientHeight;
+      const view = port.getBoundingClientRect();
+      const light = view.top + port.scrollTop / Math.max(max, 1) * port.clientHeight;
+      const lit = [];
+      for (const box of topBoxes(host)) {
+        const on = glow && max > 0.5 && !box.hasAttribute("zzgf-glow") && box.getBoundingClientRect().height > 0;
+        lit.push([box, on, on ? [box, ...box.querySelectorAll(bodySelector)].map(c => [c, c.getBoundingClientRect().top]) : []]);
+      }
+      for (const [box, on, rails] of lit) {
+        box.toggleAttribute("zzgf-list-glow", on);
+        for (const [c, top] of rails) c.style.setProperty("--zzgf-glow", light - top + "px");
+      }
+    }
+  }
+  const lightSoon = () => { listFrame ||= requestAnimationFrame(lightLists); };
+  function watchLists() {
+    for (const host of document.querySelectorAll("zen-workspace arrowscrollbox")) {
+      const port = host.scrollbox;
+      if (!port || listPorts.has(port)) continue;
+      port.addEventListener("scroll", lightSoon, { passive: true });
+      listPorts.add(port);
+    }
+    lightSoon();
   }
   function pageFolder(event) {
     const arrow = event.target.closest?.(".zzgf-more");
@@ -1034,17 +1070,20 @@
   function scrollFolder(event, hit) {
     const box = boxAt(event, hit);
     if (!box || box.scrollHeight <= box.clientHeight) return false;   // fits: the list scrolls (see below)
+    const measured = measureBox(box);
+    if (!measured) return false;
+    const { positions } = measured;
+    const from = glides.get(box)?.to ?? box.scrollTop;
+    // At its end in the wheel's direction the folder passes the wheel on, so
+    // the list carries on scrolling past it, as nested scrolling does natively.
+    if (event.deltaY > 0 ? from >= positions.at(-1) - 0.5 : from <= 0.5) return false;
     event.preventDefault();                 // also cancels any tab switch by scrolling
     event.stopPropagation();
-    const from = glides.get(box)?.to ?? box.scrollTop;
-    const measured = measureBox(box);
-    if (!measured) return true;
-    const { positions } = measured;
     if (event.deltaMode === event.DOM_DELTA_PIXEL) {
       // Touchpads send many small deltas: follow them, then settle on a row.
       scrollBox(box, Math.max(0, Math.min(positions.at(-1), box.scrollTop + event.deltaY)), true);
       clearTimeout(settles.get(box));
-      settles.set(box, setTimeout(() => scrollBox(box, nearest(positions, box.scrollTop), false, measured), 120));
+      settles.set(box, setTimeout(() => scrollBox(box, nearest(positions, box.scrollTop), false, measured), 180));
       return true;
     }
     // A line matches the list's own native line scroll: one line of the font.
@@ -1105,7 +1144,15 @@
   }
   let fitTimer = null, showSelected = false;
   function fitAll(keep = true) {
-    if (!bool("connector-scroll", true)) return;
+    watchLists();                           // the list's light needs no folder scrolling
+    if (!bool("connector-scroll", true)) {
+      // Turned off: clear what folder scrolling left, so the list's light can take over.
+      for (const box of topBoxes()) {
+        for (const v of ["fit", "scroll"]) box.style.removeProperty("--zzgf-box-" + v);
+        markEdges(box, false);
+      }
+      return;
+    }
     for (const host of document.querySelectorAll("zen-workspace arrowscrollbox")) shareList(host);
     for (const box of topBoxes()) fitBox(box, keep);
   }
@@ -1231,6 +1278,9 @@
       window.removeEventListener("click", pageFolder, true);
       for (const mark of document.querySelectorAll(".tab-group-label-container > :is(.zzgf-more, .zzgf-count)")) mark.remove();
       for (const box of document.querySelectorAll(".tab-group-container[zzgf-glow]")) markEdges(box, false);
+      for (const port of listPorts) port.removeEventListener("scroll", lightSoon);
+      cancelAnimationFrame(listFrame);
+      for (const box of document.querySelectorAll(".tab-group-container[zzgf-list-glow]")) box.removeAttribute("zzgf-list-glow");
       window.removeEventListener("TabGroupCreate", dressCopies, true);
       strip.removeEventListener("DOMMouseScroll", scrollOnConnectors, true);
       gNavToolbox.removeEventListener("wheel", onWheel, true);

@@ -43,7 +43,7 @@ Requires `sine.allow-unsafe-js` set to `true` in `about:config`.
 **Each button** can follow the set, or use Zen's own icon or Circuit
 (animated or still). These buttons are covered:
 - **Navigation:** back, forward, reload, stop, home, the new tab buttons, the menu and workspace "⋯", the sidebar toggle and expand sidebar.
-- **Address bar and toolbar:** site settings, downloads, extensions, the bookmark ribbon (saved or not), reader view, share and copy link, history (a stack of pages), screenshot.
+- **Address bar and toolbar:** site settings, downloads, extensions, the bookmark ribbon (saved or not, and the bookmarks menu button), reader view, share and copy link, history (a stack of pages), screenshot.
 - **Overflow:** the more-tools and bookmarks overflow chevrons, and "clear unpinned tabs".
 - **Media player:** play and pause, next, previous, mute and unmute, close, and picture-in-picture.
 
@@ -64,9 +64,11 @@ Iconflow 1.3 dropped the Flow set. Anyone using Flow is moved to Circuit.
 
 Each icon is a strip of 48 frames on Zen's 18-unit icon grid, saved as its
 own file under `icons/`. Zen only loads the icons a rule uses, so
-`icons.css` stays small. Iconflow steps through the strip with a transition,
-so leaving the button plays the strip in reverse, and nothing plays when a
-window opens. Lines use the toolbar's icon colour. `tools/iconflow-icons.py`
+`icons.css` stays small. Iconflow counts through the frames with a
+transition, so leaving the button plays the strip in reverse, and nothing
+plays when a window opens. The count is a whole number, so a hover that
+interrupts one still playing picks up from the frame shown and never slides
+between two. Open arcs, trails and comet tails taper to a point. Lines use the toolbar's icon colour. `tools/iconflow-icons.py`
 draws every icon, writes the strips, and writes their rules to `icons.css`.
 
 ## Hover motion

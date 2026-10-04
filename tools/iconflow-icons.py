@@ -200,7 +200,7 @@ def c_reload(t):
     a1, a2 = -30 + 360 * e, 5 + 540 * e      # both rest by the gap, never as a pair of "eyes"
     big = _diamond(9 + 6.2 * cos(radians(a1)), 9 + 6.2 * sin(radians(a1)), 1.45 + 0.3 * bump(t))
     small = _diamond(9 + 3.4 * cos(radians(a2)), 9 + 3.4 * sin(radians(a2)), 0.95)
-    return (g(tube(arc(6.2, 25, 255), trace=t), f"rotate({n(90 * e)} 9 9)")
+    return (g(taper_tube(6.2, 25, 255, trace=t), f"rotate({n(90 * e)} 9 9)")
             + trail(6.2, a1, t) + trail(3.4, a2, t, reach=110) + gem(big) + gem(small))
 
 
@@ -412,8 +412,10 @@ def peek(step):
 
 # key -> (label, frames function, [(icon selector, hover selector)])
 def tb(*ids):
-    """Toolbar buttons: the icon is the button's .toolbarbutton-icon."""
-    return [(f"{i} > .toolbarbutton-icon", f"{i}:hover > .toolbarbutton-icon") for i in ids]
+    """Toolbar buttons: the .toolbarbutton-icon anywhere inside, since some
+    sit in a badge stack (the menu, downloads) and some buttons are wrapped
+    in a toolbaritem (Zen's sidebar toggle)."""
+    return [(f"{i} .toolbarbutton-icon", f"{i}:hover .toolbarbutton-icon") for i in ids]
 
 
 TOOLBAR = {
@@ -429,7 +431,8 @@ TOOLBAR = {
     "site-data": ("Site settings", c_sliders, [("#zen-site-data-icon-button image", "#zen-site-data-icon-button:hover image")]),
     "downloads": ("Downloads", c_downloads, tb("#downloads-button")),
     "extensions": ("Extensions", c_extensions, tb("#unified-extensions-button", "#add-ons-button")),
-    "bookmark": ("Bookmark", c_bookmark, [("#star-button:not([starred])", "#star-button-box:hover > #star-button:not([starred])")]),
+    "bookmark": ("Bookmark", c_bookmark, [("#star-button:not([starred])", "#star-button-box:hover > #star-button:not([starred])")]
+                 + tb("#bookmarks-menu-button")),
     "bookmarked": ("Bookmark, saved", c_bookmarked, [("#star-button[starred]", "#star-button-box:hover > #star-button[starred]")]),
     "reader": ("Reader view", c_reader, [("#reader-mode-button > .urlbar-icon", "#reader-mode-button:hover > .urlbar-icon")]),
     "share": ("Share and copy link", c_share, tb("#zen-copy-current-url-button", "#share-tab-button")),
@@ -479,34 +482,47 @@ def gem(d):
     return glass(d, lit=1, body=0.62)
 
 
+def taper(r, a0, a1, width, alpha, steps=12, cx=9, cy=9):
+    """An arc from a0 (u = 0) to a1 (u = 1) drawn in short pieces whose width
+    and opacity follow width(u) and alpha(u), so it thins and fades smoothly
+    instead of stopping. Pieces overlap by a hair, so no seam shows."""
+    out = ""
+    for i in range(steps):
+        u = (i + 0.5) / steps
+        b0 = a0 + (a1 - a0) * i / steps
+        b1 = a0 + (a1 - a0) * (i + 1) / steps
+        lo, hi = (b0, b1) if a1 >= a0 else (b1, b0)
+        out += (f"<path d='{arc(r, lo - 0.4, hi + 0.4, cx, cy)}' stroke-linecap='butt' "
+                f"stroke-width='{n(width(u))}' stroke-opacity='{n(alpha(u))}'/>")
+    return out
+
+
+def taper_tube(r, a0, a1, lit=0.0, trace=None):
+    """A neon tube along an open arc whose two ends taper to a point."""
+    k = lambda u: ease_in_out(clamp(min(u, 1 - u) / 0.24))   # 0 at the ends, 1 along the middle
+    out = (taper(r, a0, a1, lambda u: 3.2 * (0.35 + 0.65 * k(u)), lambda u: (0.22 + 0.2 * lit) * k(u), 28)
+           + taper(r, a0, a1, lambda u: 0.35 + 1.35 * k(u), lambda u: 0.3 + 0.7 * k(u), 28))
+    if trace is not None and 0.02 < trace < 0.98:
+        out += (f"<path d='{arc(r, a0, a1)}' pathLength='100' stroke-width='2.4' stroke-dasharray='22 78' "
+                f"stroke-dashoffset='{n(-100 * ease_in_out(trace))}' stroke-opacity='{n(0.9 * bump(trace))}'/>")
+    return out
+
+
 def trail(r, a, t, direction=1, reach=80, cx=9, cy=9):
     """A comet trail behind something orbiting at angle a: longer while it
-    moves fast, gone when it rests. Drawn as a few arcs that taper and fade."""
+    moves fast, gone when it rests. Thin and faint at its far end, building
+    to the moving shape."""
     lag = reach * ease_speed(t)
     if lag < 4:
         return ""
-    out = ""
-    for i in range(4):
-        b0 = a - direction * lag * (4 - i) / 4
-        b1 = a - direction * lag * (3 - i) / 4
-        x0, y0 = cx + r * cos(radians(b0)), cy + r * sin(radians(b0))
-        x1, y1 = cx + r * cos(radians(b1)), cy + r * sin(radians(b1))
-        sweep = 1 if direction > 0 else 0
-        out += (f"<path d='M{n(x0)} {n(y0)}A{n(r)} {n(r)} 0 0 {sweep} {n(x1)} {n(y1)}' "
-                f"stroke-width='{n(0.8 + 0.4 * i)}' stroke-opacity='{n(0.12 + 0.16 * i)}'/>")
-    return out
+    return taper(r, a - direction * lag, a, lambda u: 0.2 + 1.4 * u ** 1.3, lambda u: 0.75 * u ** 1.6, 10, cx, cy)
 
 
 def comet(r, a, tail, t, direction=1, k=1.5, width=1.0):
     """A diamond at angle a on a circle of radius r, with a tail that fades
     behind it and stretches while it moves fast."""
     tail += 50 * ease_speed(t)
-    out = ""
-    for i in range(10):                      # tail from faint to bright
-        b0, b1 = a - direction * tail * (10 - i) / 10, a - direction * tail * (9 - i) / 10
-        lo, hi = (b0, b1) if direction > 0 else (b1, b0)
-        out += (f"<path d='{arc(r, lo, hi)}' stroke-width='{n(width * (1.0 + 0.15 * i))}' "
-                f"stroke-opacity='{n(0.2 + 0.08 * i)}'/>")
+    out = taper(r, a - direction * tail, a, lambda u: width * (0.25 + 2.1 * u ** 1.2), lambda u: 0.05 + 0.9 * u ** 1.4, 18)
     x, y = 9 + r * cos(radians(a)), 9 + r * sin(radians(a))
     return out + gem(_diamond(x, y, k + 0.3 * bump(t)))
 
@@ -667,7 +683,11 @@ def uses(key):
 
 
 def main():
-    css = ["/* Generated by tools/iconflow-icons.py; edit that, not this. Strips are in icons/. */"]
+    css = ["/* Generated by tools/iconflow-icons.py; edit that, not this. Strips are in icons/. */",
+           "/* The frame shown. An <integer> only ever transitions through whole\n"
+           "   numbers, so a hover that interrupts one in progress still lands on\n"
+           "   whole frames and never shows the strip sliding between two. */",
+           '@property --zzicon-frame { syntax: "<integer>"; inherits: false; initial-value: 0; }']
     for old in (OUT.parent / "icons").glob("*/*.svg"):
         old.unlink()
     url = {}
@@ -685,11 +705,12 @@ def main():
                    f"    -moz-context-properties: fill, fill-opacity !important;\n"
                    f"    background-image: {url[key]} !important;\n"
                    f"    background-size: {FRAMES * 100}% 100% !important;\n"
-                   f"    background-position: 0 0;\n    background-repeat: no-repeat !important;\n"
+                   f"    background-position: calc(var(--zzicon-frame) * 100% / {FRAMES - 1}) 0 !important;\n"
+                   f"    background-repeat: no-repeat !important;\n"
                    f"    background-origin: content-box !important;\n    background-clip: content-box !important;\n"
-                   f"    transition: background-position var(--zzicon-duration) steps({FRAMES}, jump-none), filter .2s !important;\n  }}\n"
+                   f"    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;\n  }}\n"
                    f"  @media (-moz-pref(\"zzicon.animate\")) and (not (-moz-pref(\"zzicon.button.{k}\", {STILL}))) {{\n"
-                   f"    {hovers} {{ background-position: 100% 0 !important;\n      filter: var(--zzicon-circuit-glow, none) !important; }}\n"
+                   f"    {hovers} {{ --zzicon-frame: {FRAMES - 1} !important;\n      filter: var(--zzicon-circuit-glow, none) !important; }}\n"
                    f"    {own} {{ {STILL_MOTION} }}\n  }}\n}}")
     icons = ", ".join(i for i, _ in TOOLBAR["reload"][2])
     for value, (label, draw) in RELOAD_STYLES.items():

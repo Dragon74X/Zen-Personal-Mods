@@ -135,7 +135,7 @@ one white 1px top highlight and 1px ring per state.
 | Texture | None | Diagonal hatch, dots, horizontal lines or fine mesh over the tint |
 | Accent bar on the selected tab | off | 3px bar |
 | Hide Arc's container glow | on | Only matters with Arc 2.0 installed |
-| Close button on the left | on | Hovering a regular tab swaps its icon for the close button, while the sidebar is expanded |
+| Close button on the left | on | Hovering a regular tab swaps its icon for the close button. Pinned tabs keep their icon with the button beside it; Essentials keep their icon (the original mod left them blank) |
 | Hide the pinned-tabs separator | on | SuperPins' *Show separator* controls the same line; set only one |
 
 ## Tab strip

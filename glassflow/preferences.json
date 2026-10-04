@@ -1257,7 +1257,7 @@
   {
     "type": "checkbox",
     "property": "zzglass.tabs.close-left",
-    "label": "Close button on the left *Hovering a tab swaps its icon for the close button. Replaces the Left close button mod.*",
+    "label": "Close button on the left *Hovering a regular tab swaps its icon for the close button; pinned tabs keep their icon with the button beside it, and Essentials keep theirs. Replaces the Left close button mod.*",
     "defaultValue": true,
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"

@@ -153,7 +153,7 @@ def glass(d, lit=0.0, trace=None, body=0.16):
     i, out = shape(d)
     out += (f"<use href='#{i}' fill='context-fill' fill-opacity='{n(body + 0.3 * lit)}' stroke='none'/>"
             f"<use href='#{i}' fill='url(#sheen)' stroke='none'/>"
-            f"<use href='#{i}' stroke-width='1.2' stroke-opacity='{n(0.85 + 0.15 * lit)}'/>")
+            f"<use href='#{i}' stroke-width='1.4' stroke-opacity='{n(0.85 + 0.15 * lit)}'/>")
     if trace is not None and 0.02 < trace < 0.98:
         out += (f"<path d='{d}' pathLength='100' stroke-width='1.7' stroke-dasharray='16 84' "
                 f"stroke-dashoffset='{n(-100 * ease_in_out(trace))}' stroke-opacity='{n(bump(trace))}'/>")
@@ -163,10 +163,10 @@ def glass(d, lit=0.0, trace=None, body=0.16):
 def tube(d, lit=0.0, trace=None):
     """Neon tube: a soft wide stroke and a bright core."""
     i, out = shape(d)
-    out += (f"<use href='#{i}' stroke-width='2.6' stroke-opacity='{n(0.22 + 0.2 * lit)}'/>"
-            f"<use href='#{i}' stroke-width='1.1'/>")
+    out += (f"<use href='#{i}' stroke-width='3.2' stroke-opacity='{n(0.22 + 0.2 * lit)}'/>"
+            f"<use href='#{i}' stroke-width='1.7'/>")
     if trace is not None and 0.02 < trace < 0.98:
-        out += (f"<path d='{d}' pathLength='100' stroke-width='2' stroke-dasharray='22 78' "
+        out += (f"<path d='{d}' pathLength='100' stroke-width='2.4' stroke-dasharray='22 78' "
                 f"stroke-dashoffset='{n(-100 * ease_in_out(trace))}' stroke-opacity='{n(0.9 * bump(trace))}'/>")
     return out
 
@@ -493,7 +493,7 @@ def trail(r, a, t, direction=1, reach=80, cx=9, cy=9):
         x1, y1 = cx + r * cos(radians(b1)), cy + r * sin(radians(b1))
         sweep = 1 if direction > 0 else 0
         out += (f"<path d='M{n(x0)} {n(y0)}A{n(r)} {n(r)} 0 0 {sweep} {n(x1)} {n(y1)}' "
-                f"stroke-width='{n(0.5 + 0.35 * i)}' stroke-opacity='{n(0.12 + 0.16 * i)}'/>")
+                f"stroke-width='{n(0.8 + 0.4 * i)}' stroke-opacity='{n(0.12 + 0.16 * i)}'/>")
     return out
 
 
@@ -505,8 +505,8 @@ def comet(r, a, tail, t, direction=1, k=1.5, width=1.0):
     for i in range(10):                      # tail from faint to bright
         b0, b1 = a - direction * tail * (10 - i) / 10, a - direction * tail * (9 - i) / 10
         lo, hi = (b0, b1) if direction > 0 else (b1, b0)
-        out += (f"<path d='{arc(r, lo, hi)}' stroke-width='{n(width * (0.7 + 0.12 * i))}' "
-                f"stroke-opacity='{n(0.08 + 0.09 * i)}'/>")
+        out += (f"<path d='{arc(r, lo, hi)}' stroke-width='{n(width * (1.0 + 0.15 * i))}' "
+                f"stroke-opacity='{n(0.2 + 0.08 * i)}'/>")
     x, y = 9 + r * cos(radians(a)), 9 + r * sin(radians(a))
     return out + gem(_diamond(x, y, k + 0.3 * bump(t)))
 
@@ -653,6 +653,9 @@ def save(rel, svg):
     return f'url("{rel}")'
 
 
+# An icon that plays its own animation does not also take a whole-icon hover motion.
+STILL_MOTION = "animation: none !important; rotate: none !important; scale: none !important; translate: none !important;"
+OWN = ":not(#zzicon-own)"   # an id's weight, so this outranks the motion rules' :not(#id) lists
 SET, ANIMATED, STILL = 2, 4, 5   # zzicon.set value for Circuit; per-button overrides
 RELOAD_STYLES = {1: ("Twin comets", c_reload_comets)}   # zzicon.reload.style; 0 is Orbit pair
 
@@ -676,6 +679,7 @@ def main():
         k = SETTING.get(key, key)
         icons = ", ".join(i for i, _ in targets)
         hovers = ", ".join(h for _, h in targets)
+        own = ", ".join(h + OWN for _, h in targets)
         css.append(f"/* {label} */\n@media {uses(key)} {{\n"
                    f"  {icons} {{\n    list-style-image: var(--zzicon-blank) !important;\n"
                    f"    -moz-context-properties: fill, fill-opacity !important;\n"
@@ -683,9 +687,10 @@ def main():
                    f"    background-size: {FRAMES * 100}% 100% !important;\n"
                    f"    background-position: 0 0;\n    background-repeat: no-repeat !important;\n"
                    f"    background-origin: content-box !important;\n    background-clip: content-box !important;\n"
-                   f"    transition: background-position var(--zzicon-duration) steps({FRAMES - 1}, jump-none), filter .2s !important;\n  }}\n"
+                   f"    transition: background-position var(--zzicon-duration) steps({FRAMES}, jump-none), filter .2s !important;\n  }}\n"
                    f"  @media (-moz-pref(\"zzicon.animate\")) and (not (-moz-pref(\"zzicon.button.{k}\", {STILL}))) {{\n"
-                   f"    {hovers} {{ background-position: 100% 0 !important;\n      filter: var(--zzicon-circuit-glow, none) !important; }}\n  }}\n}}")
+                   f"    {hovers} {{ background-position: 100% 0 !important;\n      filter: var(--zzicon-circuit-glow, none) !important; }}\n"
+                   f"    {own} {{ {STILL_MOTION} }}\n  }}\n}}")
     icons = ", ".join(i for i, _ in TOOLBAR["reload"][2])
     for value, (label, draw) in RELOAD_STYLES.items():
         rel = save(f"icons/circuit/reload-{value}.svg", strip(draw, FRAMES))
@@ -695,7 +700,8 @@ def main():
         follow = "".join(f' or ((-moz-pref("zzicon.library.style", 11)) and (-moz-pref("zzicon.set", {setv})))'
                          for setv, lib in FOLLOW_LIBRARY.items() if lib == value)
         css.append(f"/* Library: {label} */\n@media (-moz-pref(\"zzicon.library.style\", {value})){follow} {{\n"
-                   f"  #zen-library-button .zen-library-sprite::before {{ background-image: {url['library', value]} !important; }}\n}}")
+                   f"  #zen-library-button .zen-library-sprite::before {{ background-image: {url['library', value]} !important; }}\n"
+                   f"  #zen-library-button:hover > .zen-library-sprite{OWN} {{ {STILL_MOTION} }}\n}}")
     css += motion_css()
     OUT.write_text("\n".join(css) + "\n")
     total = sum(f.stat().st_size for f in (OUT.parent / "icons").glob("*/*.svg"))

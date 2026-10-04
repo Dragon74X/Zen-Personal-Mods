@@ -1918,3 +1918,17 @@ test("Tab Unloader turns Arc's own unloading off only while it runs, and puts it
   assert.equal(prefs.user.get("arc-tab-auto-unload"), "30m");
   assert.equal(prefs.user.get("arc-tab-auto-clean-pinned"), true);
 });
+
+test("Iconflow steps land on whole frames of each strip it uses", async () => {
+  // steps(n, jump-none) stops at 0, 1/(n-1) ... 1, so n must equal the strip's
+  // frame count; one fewer leaves every stop between two frames (a slide).
+  const css = await readFile(new URL("../iconflow/icons.css", import.meta.url), "utf8");
+  const steps = new Set([...css.matchAll(/steps\((\d+), jump-none\)/g)].map(m => Number(m[1])));
+  const strips = [...new Set([...css.matchAll(/url\("(icons\/circuit\/[^"]+)"\)/g)].map(m => m[1]))];
+  assert.ok(strips.length);
+  for (const strip of strips) {
+    const svg = await readFile(new URL(`../iconflow/${strip}`, import.meta.url), "utf8");
+    const [, width, height] = svg.match(/width='(\d+)' height='(\d+)'/);
+    assert.deepEqual([...steps], [width / height], `${strip} has ${width / height} frames`);
+  }
+});

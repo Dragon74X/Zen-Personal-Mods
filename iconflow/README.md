@@ -94,6 +94,10 @@ The motions are:
 - **Ripple:** a ring spreads out from the icon.
 - **Wave.**
 
+An icon that plays its own animation (an animated Circuit button, or a
+Library button icon drawn by Iconflow) does not also take a hover motion,
+so the two never stack. Zen's own icons, such as the tab close button, do.
+
 **Leave as it is** keeps Zen's motion, or another mod's; Arc spins the +.
 **None** stops all motion. **Motion speed** defaults to 0.25s, which is Arc's.
 

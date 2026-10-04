@@ -27,18 +27,18 @@
       const x = u => 1 - Math.exp(-z * wn * u) * (Math.cos(wd * u) + z * wn / wd * Math.sin(wd * u));
       return x(t) + (1 - x(1)) * t ** 3;
     }
-    // Linger: speed ramps up over the first 30%, eases off over the last 40%,
-    // so moves gather speed and the settle has time to read.
+    // Linger: speed ramps up over the first 12% (a short wind-up) and eases off
+    // over the last 40%, so the settle has time to read.
     const linger = (() => {
-      const n = 400, w = [0], v = p => Math.min(1, p / 0.3) * (p > 0.6 ? 1 - 0.55 * (p - 0.6) / 0.4 : 1);
+      const n = 400, w = [0], v = p => Math.min(1, p / 0.12) * (p > 0.6 ? 1 - 0.55 * (p - 0.6) / 0.4 : 1);
       for (let i = 1; i <= n; i++) w.push(w[i - 1] + v((i - 0.5) / n));
       return p => { const x = clamp(p) * n, i = Math.min(n - 1, Math.floor(x)); return (w[i] + (w[i + 1] - w[i]) * (x - i)) / w[n]; };
     })();
     // A point that sets off `delay` late still lands with the rest.
-    // The follow-through is kept small (GIVE) and the overshoot firmer than
+    // The follow-through is kept small (GIVE) and the overshoot a little firmer than
     // Circuit's, so a shape keeps its form instead of stretching like jelly.
     const GIVE = 0.3;
-    const ride = (tau, delay, lag) => settle(clamp((linger(tau) - delay * GIVE) / (1 - lag * GIVE)), 0.1);
+    const ride = (tau, delay, lag) => settle(clamp((linger(tau) - delay * GIVE) / (1 - lag * GIVE)), 0.15);
     // Out and back: a dip that lands, springs and is gone.
     const kick = u => u <= 0 || u >= 1 ? 0 : Math.sin(Math.PI * Math.min(1, u * 1.6)) * (1 - u) ** 1.2 * 1.25;
 
@@ -309,7 +309,8 @@
           const ang = Math.atan2(y - py, x - px), back = deg > 0 ? head - ang : ang - head;
           return clamp((((back % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) / arc);
         };
-        return (x, y, tau, k) => rot(x, y, px, py, deg * k * Math.PI / 180 * ride(tau, lag * s(x, y), lag));
+        // Never shrunk to fit: a turn has to land where it started.
+        return (x, y, tau) => rot(x, y, px, py, deg * Math.PI / 180 * ride(tau, lag * s(x, y), lag));
       },
       // Grows (or shrinks) about the centre of what it moves; the middle leads
       // and the rim follows, or the rim leads (rim: true).
@@ -351,7 +352,12 @@
 
     // Each button's choreography: a list of terms, or { fill, line } when
     // Zen's filled icons and line icons (New Icons) need their own.
-    const rewind = [on(R.frame, spin(-360, { lead: "gap", trail: 40 })), on(R.rest, spin(-360, { lead: "none" }))];
+    // A clock running back: the arrow ring rewinds, and the hands turn about
+    // the dial's centre like a clock's, the minute hand (pointing up) a full
+    // turn back, the hour hand an hour.
+    const rewind = [on(R.frame, spin(-360, { lead: "gap", trail: 40 })),
+                    on(R.all(R.rest, R.above(0.5, 0.06)), spin(-360, { lead: "none", about: R.frame })),
+                    on(R.all(R.rest, R.below(0.5, 0.06)), spin(-30, { lead: "none", about: R.frame }))];
     const whip = [spin(90, { trail: 35 })];
     const MOTION = {
       back: [slide(-2, 0)], forward: [slide(2, 0)], chevron: [slide(1.6, 0)], overflow: [slide(1.6, 0, { lag: 0.35 })],

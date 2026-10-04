@@ -30,7 +30,8 @@ test("Timing starts at rest and lands exactly, on the Linger curve", () => {
   assert.equal(linger(0), 0);
   assert.ok(Math.abs(linger(1) - 1) < 1e-9);
   for (let i = 1; i <= 100; i++) assert.ok(linger(i / 100) >= linger((i - 1) / 100), "never runs backwards");
-  assert.ok(linger(0.15) < 0.15 * 0.6, "builds up: slow off the mark");
+  assert.ok(linger(0.03) < 0.03 * 0.5, "starts from rest");
+  assert.ok(linger(0.2) > 0.15, "a short wind-up: up to speed early");
   assert.equal(settle(0), 0);
   assert.equal(settle(1), 1);
   assert.ok(Math.max(...Array.from({ length: 100 }, (_, i) => settle(i / 100))) > 1.15, "overshoots before settling");

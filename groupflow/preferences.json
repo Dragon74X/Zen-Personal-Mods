@@ -1300,9 +1300,9 @@
   {
     "type": "checkbox",
     "property": "zzgroup.scroll-fade",
-    "label": "Fade the edge where tabs are hidden *A folder's top or bottom edge softly fades while more tabs are hidden past it.*",
+    "label": "Fade the edge where tabs are hidden *The tab list's top or bottom edge softly fades while more tabs are scrolled past it, so folders, subfolders and tabs fade as they leave the list. A folder whose contents scroll inside it fades its own edges the same way.*",
     "defaultValue": true,
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "layout"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.connector-scroll", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "layout"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {

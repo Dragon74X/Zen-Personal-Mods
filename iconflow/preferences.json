@@ -895,6 +895,581 @@
   },
   {
     "type": "separator",
+    "label": "*Buttons you can add under Customise toolbar.*",
+    "size": "13px",
+    "margin": "12px 0 6px 0",
+    "id": "zzicon.ui.section.palette-note",
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}]
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.button.save-page",
+    "label": "Save page",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the icon set",
+        "value": 0
+      },
+      {
+        "label": "Zen's own",
+        "value": 1
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.button.print",
+    "label": "Print",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the icon set",
+        "value": 0
+      },
+      {
+        "label": "Zen's own",
+        "value": 1
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.button.find",
+    "label": "Find in page",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the icon set",
+        "value": 0
+      },
+      {
+        "label": "Zen's own",
+        "value": 1
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.button.open-file",
+    "label": "Open file",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the icon set",
+        "value": 0
+      },
+      {
+        "label": "Zen's own",
+        "value": 1
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.button.zoom",
+    "label": "Zoom in and out",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the icon set",
+        "value": 0
+      },
+      {
+        "label": "Zen's own",
+        "value": 1
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.button.edit",
+    "label": "Cut, copy and paste",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the icon set",
+        "value": 0
+      },
+      {
+        "label": "Zen's own",
+        "value": 1
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.button.encoding",
+    "label": "Text encoding",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the icon set",
+        "value": 0
+      },
+      {
+        "label": "Zen's own",
+        "value": 1
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.button.email",
+    "label": "Email link",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the icon set",
+        "value": 0
+      },
+      {
+        "label": "Zen's own",
+        "value": 1
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.button.logins",
+    "label": "Passwords",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the icon set",
+        "value": 0
+      },
+      {
+        "label": "Zen's own",
+        "value": 1
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.button.sync",
+    "label": "Sync",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the icon set",
+        "value": 0
+      },
+      {
+        "label": "Zen's own",
+        "value": 1
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.button.send-tab",
+    "label": "Send tab to device",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the icon set",
+        "value": 0
+      },
+      {
+        "label": "Zen's own",
+        "value": 1
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.button.import",
+    "label": "Import",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the icon set",
+        "value": 0
+      },
+      {
+        "label": "Zen's own",
+        "value": 1
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.button.settings",
+    "label": "Settings",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the icon set",
+        "value": 0
+      },
+      {
+        "label": "Zen's own",
+        "value": 1
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.button.forget",
+    "label": "Forget",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the icon set",
+        "value": 0
+      },
+      {
+        "label": "Zen's own",
+        "value": 1
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.button.private",
+    "label": "New private window",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the icon set",
+        "value": 0
+      },
+      {
+        "label": "Zen's own",
+        "value": 1
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.button.firefox-view",
+    "label": "Firefox View",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the icon set",
+        "value": 0
+      },
+      {
+        "label": "Zen's own",
+        "value": 1
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.button.developer",
+    "label": "Developer tools",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the icon set",
+        "value": 0
+      },
+      {
+        "label": "Zen's own",
+        "value": 1
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.button.new-window",
+    "label": "New window",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the icon set",
+        "value": 0
+      },
+      {
+        "label": "Zen's own",
+        "value": 1
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.button.fullscreen",
+    "label": "Full screen",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the icon set",
+        "value": 0
+      },
+      {
+        "label": "Zen's own",
+        "value": 1
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.button.firefox-library",
+    "label": "Firefox Library",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the icon set",
+        "value": 0
+      },
+      {
+        "label": "Zen's own",
+        "value": 1
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.button.account",
+    "label": "Account",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Follow the icon set",
+        "value": 0
+      },
+      {
+        "label": "Zen's own",
+        "value": 1
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "separator",
     "label": "Hover motion",
     "size": "17px",
     "margin": "22px 0 10px 0",

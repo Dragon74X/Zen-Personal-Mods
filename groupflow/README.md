@@ -245,7 +245,7 @@ Headers can shrink per depth level.
 The mark shapes are Chevron, Brace, Dot, Dash, Curve, Half moon, Crescent,
 Double chevron, Triangle, Diamond, Bar, Arrow, Wave, Lituus spiral, Coil and
 Serpentine. There are also six softened shapes in Iconflow's style: Pill,
-Squircle, Soft diamond, Soft chevron, Ring and Soft bracket. Before 1.57.0,
+Squircle, Soft diamond, Soft chevron, Arc (an open ring) and Soft bracket. Before 1.57.0,
 Lituus spiral, Coil and Serpentine drew nothing: the rule that draws marks
 listed shapes by number and stopped at 13.
 

@@ -49,7 +49,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzicon.set",
-    "label": "Icon set *Zen's own keeps Zen's icons, or New Icons' if that mod is installed. Flow is this mod's set: clean line icons with softened corners that animate on hover. Each button can differ from the set under Each button.*",
+    "label": "Icon set *Zen's own keeps Zen's icons, or New Icons' if that mod is installed. Flow is clean line icons with softened corners. Circuit is high-tech glass: chamfered shapes with every corner rounded, a translucent body with a sheen and rim, and neon-tube lines. Both animate on hover. Each button can differ from the set under Each button.*",
     "defaultValue": 0,
     "options": [
       {
@@ -57,8 +57,12 @@
         "value": 0
       },
       {
-        "label": "Flow",
+        "label": "Flow: clean lines",
         "value": 1
+      },
+      {
+        "label": "Circuit: glass and neon",
+        "value": 2
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -67,7 +71,7 @@
   {
     "type": "checkbox",
     "property": "zzicon.animate",
-    "label": "Animate Flow icons on hover *Each icon plays its own short animation while hovered and plays it back when the pointer leaves. Off keeps them still.*",
+    "label": "Animate icons on hover *Each Flow and Circuit icon plays its own short animation while hovered and plays it back when the pointer leaves. Off keeps them still.*",
     "defaultValue": true,
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
@@ -75,7 +79,7 @@
   {
     "type": "dropdown",
     "property": "zzicon.speed",
-    "label": "Flow animation speed",
+    "label": "Animation speed",
     "defaultValue": "0.45s",
     "options": [
       {
@@ -92,6 +96,68 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.animate", "value": true}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzicon.circuit.glow",
+    "label": "Circuit icons glow on hover *A soft light around the icon in its own colour, like a lit neon tube.*",
+    "defaultValue": true,
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "separator",
+    "label": "Glass behind buttons",
+    "size": "17px",
+    "margin": "22px 0 10px 0",
+    "id": "zzicon.ui.section.glass-plates",
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}]
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.plate",
+    "label": "Glass plates *A glass plate behind sidebar and toolbar buttons, made like Glassflow's window buttons: a light fill, a sheen across the top, a rim, and a blur of what is behind. With Glassflow installed it uses Glassflow's own sheen and rim, so they follow its Glass settings.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Off",
+        "value": 0
+      },
+      {
+        "label": "While hovered",
+        "value": 1
+      },
+      {
+        "label": "Always",
+        "value": 2
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.plate.shape",
+    "label": "Plate shape",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Squircle",
+        "value": 0
+      },
+      {
+        "label": "Pill",
+        "value": 1
+      },
+      {
+        "label": "Circle",
+        "value": 2
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"not": {"property": "zzicon.plate", "value": 0}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -132,6 +198,14 @@
       {
         "label": "Flow, still",
         "value": 3
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -159,6 +233,14 @@
       {
         "label": "Flow, still",
         "value": 3
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -186,6 +268,14 @@
       {
         "label": "Flow, still",
         "value": 3
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -213,6 +303,14 @@
       {
         "label": "Flow, still",
         "value": 3
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -240,6 +338,14 @@
       {
         "label": "Flow, still",
         "value": 3
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -267,6 +373,14 @@
       {
         "label": "Flow, still",
         "value": 3
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -294,6 +408,14 @@
       {
         "label": "Flow, still",
         "value": 3
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -321,6 +443,14 @@
       {
         "label": "Flow, still",
         "value": 3
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -348,6 +478,14 @@
       {
         "label": "Flow, still",
         "value": 3
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -375,6 +513,14 @@
       {
         "label": "Flow, still",
         "value": 3
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -402,6 +548,14 @@
       {
         "label": "Flow, still",
         "value": 3
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -429,6 +583,14 @@
       {
         "label": "Flow, still",
         "value": 3
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -456,6 +618,14 @@
       {
         "label": "Flow, still",
         "value": 3
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -483,6 +653,14 @@
       {
         "label": "Flow, still",
         "value": 3
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -510,6 +688,14 @@
       {
         "label": "Flow, still",
         "value": 3
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -537,6 +723,14 @@
       {
         "label": "Flow, still",
         "value": 3
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -564,6 +758,14 @@
       {
         "label": "Flow, still",
         "value": 3
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -591,6 +793,14 @@
       {
         "label": "Flow, still",
         "value": 3
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -618,6 +828,14 @@
       {
         "label": "Flow, still",
         "value": 3
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -645,6 +863,14 @@
       {
         "label": "Flow, still",
         "value": 3
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -672,6 +898,14 @@
       {
         "label": "Flow, still",
         "value": 3
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -699,6 +933,14 @@
       {
         "label": "Flow, still",
         "value": 3
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -726,6 +968,14 @@
       {
         "label": "Flow, still",
         "value": 3
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -753,6 +1003,14 @@
       {
         "label": "Flow, still",
         "value": 3
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -780,6 +1038,14 @@
       {
         "label": "Flow, still",
         "value": 3
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -807,6 +1073,14 @@
       {
         "label": "Flow, still",
         "value": 3
+      },
+      {
+        "label": "Circuit, animated",
+        "value": 4
+      },
+      {
+        "label": "Circuit, still",
+        "value": 5
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -1192,7 +1466,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzicon.library.style",
-    "label": "Library button icon *The button at the bottom of the sidebar that opens downloads and the Library. Follow the icon set shows Zen's with Zen's own set and Layers with Flow. The line shapes play with Zen's own hover animation.*",
+    "label": "Library button icon *The button at the bottom of the sidebar that opens downloads and the Library. Follow the icon set shows Zen's with Zen's own set, Layers with Flow and Circuit stack with Circuit. The line shapes play with Zen's own hover animation.*",
     "defaultValue": 11,
     "options": [
       {
@@ -1238,6 +1512,10 @@
       {
         "label": "Pulse: a diamond ripples outward",
         "value": 10
+      },
+      {
+        "label": "Circuit stack: glass plates pull apart",
+        "value": 12
       },
       {
         "label": "Layers, still",

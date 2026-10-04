@@ -17,8 +17,11 @@ async function environment({ realMetadata = false, failArchive = new Set() } = {
   const source = await readFile(upstream, "utf8");
   const repo = new Map(), manifests = {};
   for (const mod of mods) {
-    for (const name of await readdir(new URL(mod + "/", root))) {
-      repo.set(mod + "/" + name, await readFile(new URL(mod + "/" + name, root), "utf8"));
+    // Recursive: a mod can keep files in subfolders (Iconflow's icons/).
+    for (const entry of await readdir(new URL(mod + "/", root), { recursive: true, withFileTypes: true })) {
+      if (!entry.isFile()) continue;
+      const rel = path.posix.join(path.relative(new URL(mod + "/", root).pathname, entry.parentPath), entry.name);
+      repo.set(mod + "/" + rel, await readFile(new URL(mod + "/" + rel, root), "utf8"));
     }
     const theme = JSON.parse(repo.get(mod + "/theme.json"));
     manifests[theme.id] = { ...theme, enabled: true };

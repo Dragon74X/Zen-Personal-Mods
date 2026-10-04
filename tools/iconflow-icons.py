@@ -225,8 +225,8 @@ def c_reload(t):
     e = lambda tt: settle(tt, 0.12)
     a1 = lambda tt: -30 + 360 * e(tt)
     a2 = lambda tt: 5 + 540 * e(tt)         # both rest by the gap, never as a pair of "eyes"
-    big = _diamond(9 + 6.2 * cos(radians(a1(t))), 9 + 6.2 * sin(radians(a1(t))), 1.75 + 0.3 * bump(t))
-    small = _diamond(9 + 3.4 * cos(radians(a2(t))), 9 + 3.4 * sin(radians(a2(t))), 1.2)
+    big = _diamond(9 + 6.2 * cos(radians(a1(t))), 9 + 6.2 * sin(radians(a1(t))), 2.2 + 0.3 * bump(t))
+    small = _diamond(9 + 3.4 * cos(radians(a2(t))), 9 + 3.4 * sin(radians(a2(t))), 1.6)
     return (g(taper_tube(6.2, 25, 255, comet=True), f"rotate({n(90 * e(t))} 9 9)")
             + trail(6.2, a1, t) + trail(3.4, a2, t) + gem(big) + gem(small))
 

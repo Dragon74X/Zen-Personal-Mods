@@ -1359,69 +1359,6 @@
     "operator": "AND"
   },
   {
-    "type": "dropdown",
-    "value": "number",
-    "property": "zzglass.sidebar.library-style",
-    "label": "Library button icon *The button at the bottom of the sidebar that opens downloads and the Library. Zen's is a solid box whose stars burst out on hover; Animated outline traces it in lines. The others are sharp, minimal line shapes that animate on hover in the same 36 frames. Line icon is New Icons' still drawing.*",
-    "defaultValue": 0,
-    "options": [
-      {
-        "label": "Zen's animated icon",
-        "value": 0
-      },
-      {
-        "label": "Animated outline of Zen's icon",
-        "value": 1
-      },
-      {
-        "label": "Layers: three planes pull apart",
-        "value": 3
-      },
-      {
-        "label": "Hex scan: a line sweeps a hexagon",
-        "value": 4
-      },
-      {
-        "label": "Focus: brackets close on a diamond",
-        "value": 5
-      },
-      {
-        "label": "Grid: a tile lifts out and turns",
-        "value": 6
-      },
-      {
-        "label": "Chevrons: fall into a baseline",
-        "value": 7
-      },
-      {
-        "label": "Orbit: a ring swings round a core",
-        "value": 8
-      },
-      {
-        "label": "Split: a frame slides open",
-        "value": 9
-      },
-      {
-        "label": "Pulse: a diamond ripples outward",
-        "value": 10
-      },
-      {
-        "label": "Line icon (still)",
-        "value": 2
-      }
-    ],
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
-  },
-  {
-    "type": "checkbox",
-    "property": "zzglass.sidebar.library-size",
-    "label": "Library icon the same size as the other buttons *Zen draws it 18px and 8% larger; the other buttons are 16px. Off keeps Zen's size.*",
-    "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
-  },
-  {
     "type": "checkbox",
     "property": "zzglass.sidebar.enabled",
     "label": "Enable sidebar styling *Docked, the sidebar gets the tint gradient below. In compact mode Zen floats the sidebar over the page, and the floating panel gets the panel settings further down. Arc's compact sidebar section paints the same panel; turn Arc's blur and opacity down and let this own it.*",

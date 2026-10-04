@@ -1740,6 +1740,30 @@
       {
         "label": "Serpentine",
         "value": 16
+      },
+      {
+        "label": "Pill",
+        "value": 17
+      },
+      {
+        "label": "Squircle",
+        "value": 18
+      },
+      {
+        "label": "Soft diamond",
+        "value": 19
+      },
+      {
+        "label": "Soft chevron",
+        "value": 20
+      },
+      {
+        "label": "Ring",
+        "value": 21
+      },
+      {
+        "label": "Soft bracket",
+        "value": 22
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
@@ -1823,6 +1847,30 @@
       {
         "label": "Serpentine",
         "value": 17
+      },
+      {
+        "label": "Pill",
+        "value": 18
+      },
+      {
+        "label": "Squircle",
+        "value": 19
+      },
+      {
+        "label": "Soft diamond",
+        "value": 20
+      },
+      {
+        "label": "Soft chevron",
+        "value": 21
+      },
+      {
+        "label": "Ring",
+        "value": 22
+      },
+      {
+        "label": "Soft bracket",
+        "value": 23
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],

@@ -11,7 +11,7 @@ import { installSineUpdateGuard } from "../download-prompt/sine-update-guard.sys
 
 const upstream = process.env.SINE_MANAGER_SOURCE;
 const root = new URL("../", import.meta.url);
-const mods = ["download-prompt", "glassflow", "glassflow-library", "groupflow", "tab-router", "tab-unloader", "zen-turbo", "mediaflow"];
+const mods = ["download-prompt", "glassflow", "glassflow-library", "groupflow", "iconflow", "tab-router", "tab-unloader", "zen-turbo", "mediaflow"];
 
 async function environment({ realMetadata = false, failArchive = new Set() } = {}) {
   const source = await readFile(upstream, "utf8");

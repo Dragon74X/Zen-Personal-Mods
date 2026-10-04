@@ -1809,7 +1809,7 @@ test("Turbo resumes tab effects after a stuck workspace marker and on retirement
 
 test("Every pref a mod's CSS queries is declared in its preferences.json", async () => {
   const { readdir } = await import("node:fs/promises");
-  for (const mod of ["glassflow", "glassflow-library", "groupflow", "zen-turbo", "download-prompt", "mediaflow"]) {
+  for (const mod of ["glassflow", "glassflow-library", "groupflow", "iconflow", "zen-turbo", "download-prompt", "mediaflow"]) {
     const dir = new URL(`../${mod}/`, import.meta.url);
     const declared = new Set(JSON.parse(await readFile(new URL("preferences.json", dir), "utf8")).map(p => p.property));
     const prefixes = new Set([...declared].filter(Boolean).map(p => p.split(".")[0]));

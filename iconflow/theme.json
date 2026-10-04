@@ -1,0 +1,36 @@
+{
+  "id": "zz-iconflow",
+  "name": "Iconflow",
+  "description": "Icon sets and hover motion for Zen. Flow, a set of clean line icons that animate on hover; motion for close, plus, minus and other buttons; Library button icons; and new tab button options (takes over Better New Tab button).",
+  "author": "Dragon74X",
+  "version": "1.0.0",
+  "updatedAt": "2026-10-04T07:25:57Z",
+  "homepage": "https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/iconflow",
+  "readme": "https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/main/iconflow/README.md",
+  "style": {
+    "chrome": "userChrome.css"
+  },
+  "preferences": "preferences.json",
+  "tags": [
+    "icons",
+    "animation",
+    "theme"
+  ],
+  "fork": [
+    "zen"
+  ],
+  "scripts": {
+    "sine-update-guard.sys.mjs": {
+      "name": "Sine Update Guard",
+      "description": "Serialize installs/updates and wait for replacement files before reading preferences.",
+      "loadOrder": 1
+    },
+    "iconflow.uc.js": {
+      "name": "Iconflow",
+      "description": "Writes Iconflow's preference variables and defaults.",
+      "include": [
+        "chrome://browser/content/browser.xhtml"
+      ]
+    }
+  }
+}

@@ -59,6 +59,16 @@
     } catch {}
   }
 
+  // Iconflow 1.3 dropped the Flow set; move its users to Circuit.
+  try {
+    const S = Services.prefs;
+    if (S.getIntPref("zzicon.set", 0) === 1) S.setIntPref("zzicon.set", 2);
+    for (const name of S.getChildList("zzicon.button.")) {
+      const v = S.getIntPref(name, 0);
+      if (v === 2 || v === 3) S.setIntPref(name, v + 2);   // Flow animated/still -> Circuit animated/still
+    }
+  } catch {}
+
   const observer = { observe(_s, _t, data) { if (data?.startsWith(PREFIX)) write(data); } };
   writeAll();
   seedDefaults().catch(() => {});

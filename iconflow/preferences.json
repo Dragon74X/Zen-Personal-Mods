@@ -49,16 +49,12 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzicon.set",
-    "label": "Icon set *Zen's own keeps Zen's icons, or New Icons' if that mod is installed. Flow is clean line icons with softened corners. Circuit is high-tech glass: chamfered shapes with every corner rounded, a translucent body with a sheen and rim, and neon-tube lines. Both animate on hover. Each button can differ from the set under Each button.*",
+    "label": "Icon set *Zen's own keeps Zen's icons, or New Icons' if that mod is installed. Circuit is high-tech glass: chamfered shapes with every corner rounded, a translucent body with a sheen and rim, and neon-tube lines. It animates on hover, building up speed and settling, and fast-moving parts leave trails. Each button can differ from the set under Each button.*",
     "defaultValue": 0,
     "options": [
       {
         "label": "Zen's own",
         "value": 0
-      },
-      {
-        "label": "Flow: clean lines",
-        "value": 1
       },
       {
         "label": "Circuit: glass and neon",
@@ -71,7 +67,7 @@
   {
     "type": "checkbox",
     "property": "zzicon.animate",
-    "label": "Animate icons on hover *Each Flow and Circuit icon plays its own short animation while hovered and plays it back when the pointer leaves. Off keeps them still.*",
+    "label": "Animate icons on hover *Each Circuit icon plays its own short animation while hovered and plays it back when the pointer leaves. Off keeps them still.*",
     "defaultValue": true,
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
@@ -170,7 +166,7 @@
   },
   {
     "type": "separator",
-    "label": "*Follow the icon set, or pick for one button. Flow, still shows the Flow icon without its animation.*",
+    "label": "*Follow the icon set, or pick for one button. Circuit, still shows the Circuit icon without its animation.*",
     "size": "13px",
     "margin": "0 0 8px 0",
     "id": "zzicon.ui.section.each-button-note",
@@ -192,39 +188,12 @@
         "value": 1
       },
       {
-        "label": "Flow, animated",
-        "value": 2
-      },
-      {
-        "label": "Flow, still",
-        "value": 3
-      },
-      {
         "label": "Circuit, animated",
         "value": 4
       },
       {
         "label": "Circuit, still",
         "value": 5
-      }
-    ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
-  },
-  {
-    "type": "dropdown",
-    "value": "number",
-    "property": "zzicon.variant.back",
-    "label": "Back and forward style *Trail leaves a smooth fading trail behind the chevron as it moves.*",
-    "defaultValue": 0,
-    "options": [
-      {
-        "label": "Chevron",
-        "value": 0
-      },
-      {
-        "label": "Trail",
-        "value": 1
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -244,14 +213,6 @@
       {
         "label": "Zen's own",
         "value": 1
-      },
-      {
-        "label": "Flow, animated",
-        "value": 2
-      },
-      {
-        "label": "Flow, still",
-        "value": 3
       },
       {
         "label": "Circuit, animated",
@@ -281,14 +242,6 @@
         "value": 1
       },
       {
-        "label": "Flow, animated",
-        "value": 2
-      },
-      {
-        "label": "Flow, still",
-        "value": 3
-      },
-      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -303,33 +256,17 @@
   {
     "type": "dropdown",
     "value": "number",
-    "property": "zzicon.variant.reload",
-    "label": "Reload style *Hook ends in a short stroke turning inward. Spiral tightens as it turns. Satellite has a diamond travelling round the loop. Twin arcs turn against each other. Orbit pair has two diamonds going round at different speeds; Counter orbit sends them opposite ways. Moving diamonds leave smooth trails.*",
+    "property": "zzicon.reload.style",
+    "label": "Reload style *Orbit pair has two glass diamonds circling the arc at different speeds. Twin comets sends two comets opposite ways, nearly meeting at the end. Both trail while moving fast.*",
     "defaultValue": 0,
     "options": [
       {
-        "label": "Hook",
+        "label": "Orbit pair",
         "value": 0
       },
       {
-        "label": "Spiral",
+        "label": "Twin comets",
         "value": 1
-      },
-      {
-        "label": "Satellite",
-        "value": 2
-      },
-      {
-        "label": "Twin arcs",
-        "value": 3
-      },
-      {
-        "label": "Orbit pair",
-        "value": 4
-      },
-      {
-        "label": "Counter orbit",
-        "value": 5
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -351,39 +288,12 @@
         "value": 1
       },
       {
-        "label": "Flow, animated",
-        "value": 2
-      },
-      {
-        "label": "Flow, still",
-        "value": 3
-      },
-      {
         "label": "Circuit, animated",
         "value": 4
       },
       {
         "label": "Circuit, still",
         "value": 5
-      }
-    ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
-  },
-  {
-    "type": "dropdown",
-    "value": "number",
-    "property": "zzicon.variant.stop",
-    "label": "Close and stop style *Spin turns the cross; Counter spin turns its two bars opposite ways until they meet again. Also used by the media player's close button.*",
-    "defaultValue": 0,
-    "options": [
-      {
-        "label": "Spin",
-        "value": 0
-      },
-      {
-        "label": "Counter spin",
-        "value": 1
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -403,14 +313,6 @@
       {
         "label": "Zen's own",
         "value": 1
-      },
-      {
-        "label": "Flow, animated",
-        "value": 2
-      },
-      {
-        "label": "Flow, still",
-        "value": 3
       },
       {
         "label": "Circuit, animated",
@@ -440,39 +342,12 @@
         "value": 1
       },
       {
-        "label": "Flow, animated",
-        "value": 2
-      },
-      {
-        "label": "Flow, still",
-        "value": 3
-      },
-      {
         "label": "Circuit, animated",
         "value": 4
       },
       {
         "label": "Circuit, still",
         "value": 5
-      }
-    ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
-  },
-  {
-    "type": "dropdown",
-    "value": "number",
-    "property": "zzicon.variant.new-tab",
-    "label": "New tab style *Spin turns the +; Counter spin turns its two bars opposite ways until they meet again.*",
-    "defaultValue": 0,
-    "options": [
-      {
-        "label": "Spin",
-        "value": 0
-      },
-      {
-        "label": "Counter spin",
-        "value": 1
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -492,14 +367,6 @@
       {
         "label": "Zen's own",
         "value": 1
-      },
-      {
-        "label": "Flow, animated",
-        "value": 2
-      },
-      {
-        "label": "Flow, still",
-        "value": 3
       },
       {
         "label": "Circuit, animated",
@@ -529,14 +396,6 @@
         "value": 1
       },
       {
-        "label": "Flow, animated",
-        "value": 2
-      },
-      {
-        "label": "Flow, still",
-        "value": 3
-      },
-      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -562,14 +421,6 @@
       {
         "label": "Zen's own",
         "value": 1
-      },
-      {
-        "label": "Flow, animated",
-        "value": 2
-      },
-      {
-        "label": "Flow, still",
-        "value": 3
       },
       {
         "label": "Circuit, animated",
@@ -599,14 +450,6 @@
         "value": 1
       },
       {
-        "label": "Flow, animated",
-        "value": 2
-      },
-      {
-        "label": "Flow, still",
-        "value": 3
-      },
-      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -634,39 +477,12 @@
         "value": 1
       },
       {
-        "label": "Flow, animated",
-        "value": 2
-      },
-      {
-        "label": "Flow, still",
-        "value": 3
-      },
-      {
         "label": "Circuit, animated",
         "value": 4
       },
       {
         "label": "Circuit, still",
         "value": 5
-      }
-    ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
-  },
-  {
-    "type": "dropdown",
-    "value": "number",
-    "property": "zzicon.variant.downloads",
-    "label": "Downloads style *Trail drop leaves a smooth trail as the chevron drops.*",
-    "defaultValue": 0,
-    "options": [
-      {
-        "label": "Drop",
-        "value": 0
-      },
-      {
-        "label": "Trail drop",
-        "value": 1
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -688,39 +504,12 @@
         "value": 1
       },
       {
-        "label": "Flow, animated",
-        "value": 2
-      },
-      {
-        "label": "Flow, still",
-        "value": 3
-      },
-      {
         "label": "Circuit, animated",
         "value": 4
       },
       {
         "label": "Circuit, still",
         "value": 5
-      }
-    ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
-  },
-  {
-    "type": "dropdown",
-    "value": "number",
-    "property": "zzicon.variant.extensions",
-    "label": "Extensions style *Lift raises one tile; Counter lift raises one and sinks the opposite one, turning against each other.*",
-    "defaultValue": 0,
-    "options": [
-      {
-        "label": "Lift",
-        "value": 0
-      },
-      {
-        "label": "Counter lift",
-        "value": 1
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -742,51 +531,12 @@
         "value": 1
       },
       {
-        "label": "Flow, animated",
-        "value": 2
-      },
-      {
-        "label": "Flow, still",
-        "value": 3
-      },
-      {
         "label": "Circuit, animated",
         "value": 4
       },
       {
         "label": "Circuit, still",
         "value": 5
-      }
-    ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
-  },
-  {
-    "type": "dropdown",
-    "value": "number",
-    "property": "zzicon.variant.bookmark",
-    "label": "Bookmark style *Filled once the page is saved. Slot drops the ribbon into a slot, as if filing it. Tag swings on its edge. Flag ripples. Spark, a lopsided four-point spark, exists only in Circuit; Flow shows the ribbon instead.*",
-    "defaultValue": 0,
-    "options": [
-      {
-        "label": "Ribbon",
-        "value": 0
-      },
-      {
-        "label": "Slot",
-        "value": 1
-      },
-      {
-        "label": "Tag",
-        "value": 2
-      },
-      {
-        "label": "Flag",
-        "value": 3
-      },
-      {
-        "label": "Spark (Circuit only)",
-        "value": 4
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -806,14 +556,6 @@
       {
         "label": "Zen's own",
         "value": 1
-      },
-      {
-        "label": "Flow, animated",
-        "value": 2
-      },
-      {
-        "label": "Flow, still",
-        "value": 3
       },
       {
         "label": "Circuit, animated",
@@ -843,14 +585,6 @@
         "value": 1
       },
       {
-        "label": "Flow, animated",
-        "value": 2
-      },
-      {
-        "label": "Flow, still",
-        "value": 3
-      },
-      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -876,14 +610,6 @@
       {
         "label": "Zen's own",
         "value": 1
-      },
-      {
-        "label": "Flow, animated",
-        "value": 2
-      },
-      {
-        "label": "Flow, still",
-        "value": 3
       },
       {
         "label": "Circuit, animated",
@@ -913,14 +639,6 @@
         "value": 1
       },
       {
-        "label": "Flow, animated",
-        "value": 2
-      },
-      {
-        "label": "Flow, still",
-        "value": 3
-      },
-      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -946,14 +664,6 @@
       {
         "label": "Zen's own",
         "value": 1
-      },
-      {
-        "label": "Flow, animated",
-        "value": 2
-      },
-      {
-        "label": "Flow, still",
-        "value": 3
       },
       {
         "label": "Circuit, animated",
@@ -983,14 +693,6 @@
         "value": 1
       },
       {
-        "label": "Flow, animated",
-        "value": 2
-      },
-      {
-        "label": "Flow, still",
-        "value": 3
-      },
-      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -1016,14 +718,6 @@
       {
         "label": "Zen's own",
         "value": 1
-      },
-      {
-        "label": "Flow, animated",
-        "value": 2
-      },
-      {
-        "label": "Flow, still",
-        "value": 3
       },
       {
         "label": "Circuit, animated",
@@ -1053,14 +747,6 @@
         "value": 1
       },
       {
-        "label": "Flow, animated",
-        "value": 2
-      },
-      {
-        "label": "Flow, still",
-        "value": 3
-      },
-      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -1086,14 +772,6 @@
       {
         "label": "Zen's own",
         "value": 1
-      },
-      {
-        "label": "Flow, animated",
-        "value": 2
-      },
-      {
-        "label": "Flow, still",
-        "value": 3
       },
       {
         "label": "Circuit, animated",
@@ -1123,14 +801,6 @@
         "value": 1
       },
       {
-        "label": "Flow, animated",
-        "value": 2
-      },
-      {
-        "label": "Flow, still",
-        "value": 3
-      },
-      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -1156,14 +826,6 @@
       {
         "label": "Zen's own",
         "value": 1
-      },
-      {
-        "label": "Flow, animated",
-        "value": 2
-      },
-      {
-        "label": "Flow, still",
-        "value": 3
       },
       {
         "label": "Circuit, animated",
@@ -1193,14 +855,6 @@
         "value": 1
       },
       {
-        "label": "Flow, animated",
-        "value": 2
-      },
-      {
-        "label": "Flow, still",
-        "value": 3
-      },
-      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -1226,14 +880,6 @@
       {
         "label": "Zen's own",
         "value": 1
-      },
-      {
-        "label": "Flow, animated",
-        "value": 2
-      },
-      {
-        "label": "Flow, still",
-        "value": 3
       },
       {
         "label": "Circuit, animated",
@@ -1627,7 +1273,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzicon.library.style",
-    "label": "Library button icon *The button at the bottom of the sidebar that opens downloads and the Library. Follow the icon set shows Zen's with Zen's own set, Layers with Flow and Circuit stack with Circuit. The line shapes play with Zen's own hover animation.*",
+    "label": "Library button icon *The button at the bottom of the sidebar that opens downloads and the Library. Follow the icon set shows Zen's with Zen's own set and Circuit stack with Circuit. The line shapes play with Zen's own hover animation.*",
     "defaultValue": 11,
     "options": [
       {

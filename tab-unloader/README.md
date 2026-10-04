@@ -48,6 +48,16 @@ Every toggleable category is independent, and all of them default to on.
 
 A workspace animation defers a sweep for at most 10 seconds. A stale animation marker therefore cannot disable unloading indefinitely.
 
+## Arc 2.0's own unloading
+
+Arc 2.0 has its own timed unloading, *Auto-Unload*, and *Auto-Clean*, which
+closes unloaded tabs. Both ignore every exclusion above. With
+**Turn off Arc's own unloading** on (the default), while automatic unloading
+is on, those settings and their pinned and Essentials versions are set to
+off. The values found are put back when either switch goes off. Only settings
+Arc has written are touched, and a value changed by hand in between is left
+as you set it.
+
 ## Safety
 
 The form-data check uses `SessionStore`. If it is unavailable or unreadable,

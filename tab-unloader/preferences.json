@@ -188,6 +188,18 @@
   },
   {
     "type": "separator",
+    "label": "Other mods",
+    "size": "17px",
+    "margin": "22px 0 10px 0"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzunload.other.arc",
+    "label": "Turn off Arc's own unloading *While automatic unloading is on, Arc 2.0's Auto-Unload and Auto-Clean (which closes unloaded tabs), and their pinned and Essentials versions, are set to off. Arc's ignore every exclusion above. Turning this or automatic unloading off puts back what was there.*",
+    "defaultValue": true
+  },
+  {
+    "type": "separator",
     "label": "Troubleshooting",
     "size": "17px",
     "margin": "22px 0 10px 0"

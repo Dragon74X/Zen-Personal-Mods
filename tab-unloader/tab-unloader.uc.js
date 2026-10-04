@@ -339,15 +339,51 @@
     kick = setTimeout(() => { kick = null; sweep(); }, Math.max(0, firstDelay));
   }
 
+  // Arc 2.0 unloads on its own timer and can close unloaded tabs ("auto
+  // clean"), ignoring every exclusion here. While unloading is on and the
+  // switch is on, those are set to off; the values found are saved and put
+  // back when either goes off. Only settings Arc has written are touched,
+  // and one changed by hand since is left alone.
+  const ARC = [["arc-tab-auto-unload", "0"], ["arc-tab-auto-unload-pinned", false],
+               ["arc-tab-auto-clean", "0"], ["arc-tab-auto-clean-pinned", false]];
+  const ARC_SAVED = "zzunload-saved.arc";           // outside P: not a setting
+  function syncArc() {
+    if (Services.wm.getMostRecentWindow("navigator:browser") !== window) return;
+    const S = Services.prefs, on = bool("enabled", false) && bool("other.arc", true);
+    const get = name => {
+      const t = S.getPrefType(name);
+      return t === S.PREF_BOOL ? S.getBoolPref(name) : t === S.PREF_STRING ? S.getStringPref(name) : undefined;
+    };
+    const set = (name, v) => typeof v === "boolean" ? S.setBoolPref(name, v) : S.setStringPref(name, v);
+    let saved = {};
+    try { saved = JSON.parse(S.getStringPref(ARC_SAVED, "{}")) || {}; } catch {}
+    for (const [name, value] of ARC) {
+      const now = get(name), was = saved[name];
+      try {
+        if (on) {
+          if (was || now === undefined || now === value) continue;
+          saved[name] = { had: S.prefHasUserValue(name), v: now, applied: value };
+          set(name, value);
+        } else if (was) {
+          if (now === was.applied) was.had ? set(name, was.v) : S.clearUserPref(name);
+          delete saved[name];
+        }
+      } catch (e) { note(`arc ${name}: ${e}`); }
+    }
+    try { S.setStringPref(ARC_SAVED, JSON.stringify(saved)); } catch {}
+  }
+
   const observer = {
     observe(_s, _t, data) {
       delete lists[data.slice(P.length)];
       if (data === P + "enabled" || data === P + "check-seconds") reschedule();
+      if (data === P + "enabled" || data === P + "other.arc") syncArc();
     },
   };
 
   function start() {
     Services.prefs.addObserver(P, observer);
+    try { syncArc(); } catch (e) { note(`arc sync failed: ${e}`); }
     // Seed from the tab that is already selected, so the current
     // workspace is protected before any switch happens.
     try { if (gBrowser.selectedTab) onTabSelect({ target: gBrowser.selectedTab }); } catch {}

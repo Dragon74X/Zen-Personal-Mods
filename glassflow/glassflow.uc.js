@@ -563,6 +563,8 @@
   function start() {
     syncInstantUI();
     Services.prefs.addObserver(PREFIX, prefVarObserver);
+    try { syncOtherMods(); } catch (e) { console.error("[Glassflow] other mods failed:", e); }
+    for (const branch of OTHER_WATCH) Services.prefs.addObserver(branch, otherModsObserver);
     try { startSampling(); } catch (e) { console.error("[Glassflow] sampled glass failed to start:", e); }
     try { gBrowser.addTabsProgressListener(iconKeeper); } catch (e) { console.error("[Glassflow] favicon hold failed to start:", e); }
     try { Services.obs.addObserver(purgeObserver, "browser:purge-session-history"); } catch {}
@@ -588,6 +590,7 @@
       retired = true;
       window.removeEventListener("unload", cleanup);
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}
+      for (const branch of OTHER_WATCH) try { Services.prefs.removeObserver(branch, otherModsObserver); } catch {}
       restoreInstantUI();
       stopSampling();
       try { gBrowser.removeTabsProgressListener(iconKeeper); } catch {}
@@ -604,6 +607,69 @@
     try { window.addUnloadListener?.(cleanup); } catch {}
     instance.retire = cleanup;
   }
+
+  // ---- other mods ---------------------------------------------------------
+  // Other mods' settings are ordinary prefs, so they can be set from here.
+  // Each row under "Other mods" switches off the ones that double up with
+  // something Glassflow or Groupflow draws, but only while that feature of
+  // ours is on, and only settings the other mod has actually written. The
+  // value found is saved and put back when the row or our feature goes off;
+  // a setting changed by hand since then is left alone.
+  const OTHER_MODS = {
+    arc: [
+      ["arc-macos-style-buttons", false, "zzglass.buttons.enabled"],
+      ["arc-compact-sidebar-blur", "0px", "zzglass.sidebar.enabled"],
+      ["arc-compact-sidebar-bg", "transparent", "zzglass.sidebar.enabled"],
+      ["arc-grayscale-unloaded-tabs", false, "zzglass.pending.enabled"],
+      ["arc-folder-bg", false, "zzgroup.enabled"],
+      ["arc.tab-groups-disable", 1, "zzgroup.enabled"],
+    ],
+    "zen-fade": [["browser.tabs.fadeOutUnloadedTabs", false, "zzglass.pending.enabled"]],
+    superpins: [
+      ["uc.tabs.dim-type", "", "zzglass.pending.enabled"],
+      ["uc.tabs.strikethrough-on-pending", false, "zzglass.pending.enabled"],
+    ],
+    "sidebar-expand": [["mod.autoexpand.fade_sleeping_tabs", false, "zzglass.pending.enabled"]],
+    "transparent-zen": [["mod.sameerasw_zen_compact_sidebar_type", "0", "zzglass.sidebar.blur"]],
+  };
+  const OTHER_SAVED = "zzglass-saved.other-mods";   // outside PREFIX: not a CSS variable
+  function syncOtherMods() {
+    if (Services.wm.getMostRecentWindow("navigator:browser") !== window) return;
+    const S = Services.prefs;
+    const get = name => {
+      try {
+        switch (S.getPrefType(name)) {
+          case S.PREF_BOOL: return S.getBoolPref(name);
+          case S.PREF_INT: return S.getIntPref(name);
+          case S.PREF_STRING: return S.getStringPref(name);
+        }
+      } catch {}
+      return undefined;
+    };
+    const set = (name, v) => typeof v === "boolean" ? S.setBoolPref(name, v)
+      : typeof v === "number" ? S.setIntPref(name, v) : S.setStringPref(name, v);
+    let saved = {};
+    try { saved = JSON.parse(S.getStringPref(OTHER_SAVED, "{}")) || {}; } catch {}
+    for (const [row, entries] of Object.entries(OTHER_MODS)) {
+      const rowOn = S.getBoolPref(PREFIX + "other." + row, true);
+      for (const [name, value, when] of entries) {
+        const now = get(name), was = saved[name];
+        try {
+          if (rowOn && S.getBoolPref(when, false)) {
+            if (was || now === undefined || now === value) continue;
+            saved[name] = { had: S.prefHasUserValue(name), v: now, applied: value };
+            set(name, value);
+          } else if (was) {
+            if (now === was.applied) was.had ? set(name, was.v) : S.clearUserPref(name);
+            delete saved[name];
+          }
+        } catch (e) { console.warn("[Glassflow] other mods:", name, e); }
+      }
+    }
+    try { S.setStringPref(OTHER_SAVED, JSON.stringify(saved)); } catch {}
+  }
+  const OTHER_WATCH = [PREFIX, "zzgroup.enabled"];
+  const otherModsObserver = { observe: () => syncOtherMods() };
 
   // ---- declared defaults --------------------------------------------------
   // Sine does not write the defaults declared in preferences.json into the

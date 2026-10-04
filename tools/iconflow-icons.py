@@ -1113,7 +1113,7 @@ PARTED = ("list-style-image: var(--zzicon-blank) !important; -moz-context-proper
           f"background-size: {FRAMES * 100}% 100% !important; background-position: calc(var(--zzicon-frame) * 100% / {FRAMES - 1}) 0 !important; "
           "background-repeat: no-repeat !important; background-origin: content-box !important; background-clip: content-box !important; "
           "translate: none !important; rotate: none !important; scale: none !important; filter: none !important; "
-          "transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;")
+          "transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, transform .35s var(--zzicon-spring) !important;")
 
 
 def write_targets():
@@ -1127,7 +1127,8 @@ def write_targets():
 
 
 def hover_css():
-    """Halo only while hovered, and a glow that flares while pressed. A pseudo
+    """Halo only while hovered; a glow that flares and an icon that presses in
+    while clicked. A pseudo
     element stays last in its selector, or the whole list is dropped."""
     hovers = [h for _, _, targets in TOOLBAR.values() for _, h in targets]
     hovers.append("#zen-library-button:hover .zen-library-sprite::before")
@@ -1139,7 +1140,9 @@ def hover_css():
             "/* Glow flares when clicked */",
             '@media (-moz-pref("zzicon.click.flare")) {\n'
             f"  {pressed} {{ filter: drop-shadow(0 0 1px currentColor) "
-            "drop-shadow(0 0 4.5px color-mix(in srgb, currentColor 90%, transparent)) !important; }\n}"]
+            "drop-shadow(0 0 4.5px color-mix(in srgb, currentColor 90%, transparent)) !important; }\n}",
+            "/* Icons press in when clicked, and spring back on release */",
+            f'@media (-moz-pref("zzicon.click.press")) and {MOVES} {{\n  {pressed} {{ transform: scale(.82) !important; }}\n}}']
 
 
 def zen_css():
@@ -1149,7 +1152,7 @@ def zen_css():
     out.append(f":root {{ --zzicon-spring: {EASE};\n  --zzicon-spring-speed: {SPEED_EASE};\n"
                f"  --zzicon-spring-back: {BACK_EASE};\n  --zzicon-spring-back-speed: {BACK_SPEED_EASE}; }}")
     ride = lambda way: (f"transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring{way}), "
-                        f"--zzicon-v var(--zzicon-duration) var(--zzicon-spring{way}-speed) !important;")
+                        f"--zzicon-v var(--zzicon-duration) var(--zzicon-spring{way}-speed), transform .35s var(--zzicon-spring) !important;")
     move = ride("-back") + " animation: none !important;"
     lit = ride("") + " --zzicon-t: 1 !important; --zzicon-v: 1 !important;"
     every = []
@@ -1438,11 +1441,11 @@ def main():
                        f"    background-origin: content-box !important;\n    background-clip: content-box !important;\n"
                        f"    animation: none !important; transform: none !important;\n"
                        f"    {CSS_MOTION[key]} !important;\n"
-                       f"    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s, stroke .2s !important;\n  }}\n"
+                       f"    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s, stroke .2s, transform .35s var(--zzicon-spring) !important;\n  }}\n"
                        f"  {parents([h for _, h in targets])} {{ animation: none !important; transform: none !important; }}\n"
                        f"  @media {MOVES} and (not (-moz-pref(\"zzicon.button.{k}\", {STILL}))) {{\n"
                        f"    {own} {{ --zzicon-t: 1 !important; filter: var(--zzicon-circuit-glow, none) !important;\n"
-                       f"      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s, stroke .2s !important; }}\n  }}\n}}")
+                       f"      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s, stroke .2s, transform .35s var(--zzicon-spring) !important; }}\n  }}\n}}")
             continue
         css.append(f"/* {label} */\n@media {uses(key)} {{\n"
                    f"  {icons} {{\n    list-style-image: var(--zzicon-blank) !important;\n"
@@ -1452,7 +1455,7 @@ def main():
                    f"    background-position: calc(var(--zzicon-frame) * 100% / {FRAMES - 1}) 0 !important;\n"
                    f"    background-repeat: no-repeat !important;\n"
                    f"    background-origin: content-box !important;\n    background-clip: content-box !important;\n"
-                   f"    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;\n  }}\n"
+                   f"    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s, transform .35s var(--zzicon-spring) !important;\n  }}\n"
                    f"  {parents([h for _, h in targets])} {{ animation: none !important; transform: none !important; }}\n"
                    f"  @media {MOVES} and (not (-moz-pref(\"zzicon.button.{k}\", {STILL}))) {{\n"
                    f"    {hovers} {{ --zzicon-frame: {FRAMES - 1} !important;\n      filter: var(--zzicon-circuit-glow, none) !important; }}\n"
@@ -1484,7 +1487,7 @@ def main():
                        "    background-repeat: no-repeat !important;\n    animation: none !important;\n"
                        "    -moz-context-properties: fill, fill-opacity, stroke !important;\n"
                        "    stroke: var(--zzicon-halo, currentColor) !important;\n"
-                       "    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;\n  }\n"
+                       "    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s, transform .35s var(--zzicon-spring) !important;\n  }\n"
                        "  #zen-library-button:hover { animation: none !important; transform: none !important; }\n"
                        f"  @media {MOVES} {{\n"
                        f"    #zen-library-button:hover .zen-library-sprite::before {{ --zzicon-frame: {FRAMES - 1} !important;\n"

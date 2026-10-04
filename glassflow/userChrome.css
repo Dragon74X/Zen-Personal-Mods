@@ -1404,13 +1404,18 @@
    ============================================================ */
 
 /* Tabs, shared > Close button on the left (was Left close button).
-   Hovering a regular tab swaps its icon for the close button. Only while
-   the sidebar is expanded: collapsed tabs have no close button to show. */
+   Hovering a regular tab swaps its icon for the close button. Pinned tabs
+   keep their icon and the button moves in beside it; Essentials show no
+   close button, so they are left alone (the original hid their icon and
+   left the tile blank). Only while the sidebar is expanded: collapsed
+   tabs have no close button to show. */
 @media (-moz-pref("zzglass.tabs.close-left")) {
-  :root[zen-sidebar-expanded="true"] #tabbrowser-tabs .tabbrowser-tab:not([pinned]) .tab-content:hover {
+  :root[zen-sidebar-expanded="true"] #tabbrowser-tabs .tabbrowser-tab:not([zen-essential]) .tab-content:hover {
     gap: 4.5px;
-    & .tab-icon-stack { display: none !important; }
     & .tab-close-button { order: -1; }
+  }
+  :root[zen-sidebar-expanded="true"] #tabbrowser-tabs .tabbrowser-tab:not([pinned]) .tab-content:hover .tab-icon-stack {
+    display: none !important;
   }
 }
 

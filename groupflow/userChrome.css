@@ -1998,10 +1998,46 @@
     --zzgf-box-cap: var(--zzgroup-folder-height, 70vh);
     box-sizing: border-box !important;
     max-height: var(--zzgf-box-fit, var(--zzgf-box-cap)) !important;
-    /* Height the visible list cut from the box, kept as empty space. */
-    margin-bottom: var(--zzgf-box-spare, 0px) !important;
     overflow: hidden !important;
     /* The rail is positioned inside the scrolled body: hold it still. */
     &::before { translate: 0 var(--zzgf-box-scroll, 0px); }
+  }
+  /* Height the visible list cut from the box, kept as empty space below it
+     (set on the group by the script). A box of its own, not a margin, so it
+     can move the window like the space under the tabs (below). */
+  #navigator-toolbox tab-group:not([split-view-group]):not(tab-group tab-group)::after {
+    content: "";
+    display: block;
+    flex: none;
+    height: var(--zzgf-box-spare, 0px);
+    margin-inline-end: var(--zzgf-drag-gap);
+  }
+}
+
+/* ---- the space under the tabs moves the window ------------------------
+   Zen turns window dragging off for the tab toolbar and back on only for
+   the empty space under the list, which has no height once the list fills
+   the sidebar. What is left under the tabs then is the list's own end
+   padding (when it overflows) and the space under a fitted folder box.
+   Dragging does not inherit: Gecko takes every element marked drag, minus
+   every one marked no-drag, so each empty surface is marked on its own.
+   Each stops short of the list's edge, where Windows draws its overlay
+   scrollbar: a drag region there would take the scrollbar's clicks. */
+:root { --zzgf-drag-gap: 14px; }
+@media (-moz-pref("zen.view.draggable-sidebar")) {
+  #navigator-toolbox tab-group:not([split-view-group]):not(tab-group tab-group)::after {
+    -moz-window-dragging: drag;
+  }
+  /* Laid over Zen's end padding: its negative margin cancels its height, so
+     the list's length and overflow are exactly Zen's. */
+  #navigator-toolbox .workspace-arrowscrollbox[overflowing] .zen-workspace-normal-tabs-section::after {
+    --zzgf-end: calc(var(--tab-min-height) * 3 + var(--tab-margin-block) * 4);
+    content: "";
+    display: block;
+    flex: none;
+    height: var(--zzgf-end);
+    margin-block-end: calc(-1 * var(--zzgf-end));
+    margin-inline-end: var(--zzgf-drag-gap);
+    -moz-window-dragging: drag;
   }
 }

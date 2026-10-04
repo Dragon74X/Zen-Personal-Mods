@@ -1510,7 +1510,8 @@ test("Groupflow scrolls a top-level group's box from any connector gutter inside
     getBoundingClientRect() { return { top: 100 }; },
     querySelector: () => rows[0], querySelectorAll: () => rows };
   const rows = Array.from({ length: 25 }, (_, i) => ({ getBoundingClientRect: () => ({ top: 100 + i * 40 - box.top, height: 40 }) }));
-  const top = { tagName: "tab-group", hasAttribute: () => false, parentElement: { closest: () => null }, querySelector: () => box };
+  const top = { tagName: "tab-group", hasAttribute: () => false, parentElement: { closest: () => null }, querySelector: () => box,
+    style: { setProperty(k, v) { this[k] = v; }, removeProperty(k) { delete this[k]; } } };
   box.parentElement = top;
   const sub = { tagName: "tab-group", hasAttribute: () => false, matches: () => true, parentElement: { closest: () => top } };
   const gutter = { classList: { contains: c => c === "tab-group-container" }, parentElement: sub };
@@ -1533,10 +1534,10 @@ test("Groupflow scrolls a top-level group's box from any connector gutter inside
   listBottom = 400;                         // the list now shows only 300px of the box
   e.gBrowser.tabContainer.fire("scroll", { target: list });
   assert.equal(box.style["--zzgf-box-fit"], "280px", "the box ends on a row inside the visible list");
-  assert.equal(box.style["--zzgf-box-spare"], "200px", "the rest stays as space, so the list keeps its scroll range");
+  assert.equal(top.style["--zzgf-box-spare"], "200px", "the rest stays as space, so the list keeps its scroll range");
   assert.equal(box.scrollTop, 40, "list scrolling leaves the box's rows in place");
   assert.equal(wheel(gutter, 100), true); assert.equal(box.scrollTop, 720, "the box scrolls to its last rows");
-  assert.equal(box.style["--zzgf-box-spare"], "200px", "and the list's length still does not change");
+  assert.equal(top.style["--zzgf-box-spare"], "200px", "and the list's length still does not change");
   listBottom = 1000;
   box.scrollHeight = 480;
   assert.equal(wheel(gutter), false, "a group that fits leaves the list to scroll");

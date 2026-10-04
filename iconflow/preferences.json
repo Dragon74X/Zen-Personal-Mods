@@ -104,10 +104,26 @@
   },
   {
     "type": "checkbox",
+    "property": "zzicon.click.flare",
+    "label": "Glow flares when clicked *Any icon Iconflow covers glows bigger and brighter while pressed.*",
+    "defaultValue": true,
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "checkbox",
     "property": "zzicon.circuit.halo",
     "label": "Soft glow around lines *Circuit's neon lines carry a faint halo. Off draws crisp lines only.*",
     "defaultValue": true,
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzicon.circuit.halo-hover",
+    "label": "Only while hovered *The halo fades in when you point at a button and out when you leave.*",
+    "defaultValue": false,
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.circuit.halo", "value": true}}], "operator": "OR"}],
     "operator": "AND"
   },
   {

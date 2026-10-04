@@ -10,8 +10,8 @@ Icon sets and hover motion for [Zen Browser](https://zen-browser.app/).
     rounded, even on pointed shapes. Closed shapes are glass: a translucent
     body, a sheen across the top and a rim. Lines are neon tubes. On hover,
     a light runs round outlines and along tubes.
-  - Neither set uses full circles (arcs are always open), clock faces or stars;
-    the bookmark is a ribbon.
+  - Neither set uses full circles (arcs are always open), clock faces or
+    five-point stars.
 - **Glass behind buttons**: plates made like Glassflow's window buttons,
   while hovered or always.
 - **Hover motion** for whole buttons, with any icon set: close buttons,
@@ -47,6 +47,22 @@ still), or Circuit (animated or still). These buttons are covered:
 - **Address bar and toolbar:** site settings, downloads, extensions, the bookmark ribbon (saved or not), reader view, share and copy link, history (a stack of pages), screenshot.
 - **Overflow:** the more-tools and bookmarks overflow chevrons, and "clear unpinned tabs".
 - **Media player:** play and pause, next, previous, mute and unmute, close, and picture-in-picture.
+
+Some buttons also have a **style**, in both sets. Moving parts leave smooth
+trails while they move fast; orbits are used only where the motion means
+something (reload's loop).
+
+| Button | Styles |
+|---|---|
+| Back and forward | Chevron (default), Trail |
+| Close and stop (and the media player's close) | Spin (default), Counter spin: the two bars turn opposite ways |
+| New tab | Spin (default), Counter spin |
+| Downloads | Drop (default), Trail drop |
+| Extensions | Lift (default), Counter lift: opposite tiles lift and sink, turning against each other |
+| Reload | Hook (default), Spiral, Satellite (a diamond travels round the loop), Twin arcs, Orbit pair, Counter orbit |
+| Bookmark | Ribbon (default), Slot (the ribbon drops into a slot, as if filed), Tag, Flag, Spark (Circuit only) |
+
+Bookmarks are filled once the page is saved, in every style.
 
 New Icons keeps working alongside Iconflow: with **Zen's own**, Iconflow
 leaves every icon alone, so New Icons' show. With **Flow**, Flow replaces

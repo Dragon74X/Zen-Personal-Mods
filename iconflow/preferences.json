@@ -214,6 +214,25 @@
   {
     "type": "dropdown",
     "value": "number",
+    "property": "zzicon.variant.back",
+    "label": "Back and forward style *Trail leaves a smooth fading trail behind the chevron as it moves.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Chevron",
+        "value": 0
+      },
+      {
+        "label": "Trail",
+        "value": 1
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
     "property": "zzicon.button.forward",
     "label": "Forward",
     "defaultValue": 0,
@@ -284,6 +303,41 @@
   {
     "type": "dropdown",
     "value": "number",
+    "property": "zzicon.variant.reload",
+    "label": "Reload style *Hook ends in a short stroke turning inward. Spiral tightens as it turns. Satellite has a diamond travelling round the loop. Twin arcs turn against each other. Orbit pair has two diamonds going round at different speeds; Counter orbit sends them opposite ways. Moving diamonds leave smooth trails.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Hook",
+        "value": 0
+      },
+      {
+        "label": "Spiral",
+        "value": 1
+      },
+      {
+        "label": "Satellite",
+        "value": 2
+      },
+      {
+        "label": "Twin arcs",
+        "value": 3
+      },
+      {
+        "label": "Orbit pair",
+        "value": 4
+      },
+      {
+        "label": "Counter orbit",
+        "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
     "property": "zzicon.button.stop",
     "label": "Stop",
     "defaultValue": 0,
@@ -311,6 +365,25 @@
       {
         "label": "Circuit, still",
         "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.variant.stop",
+    "label": "Close and stop style *Spin turns the cross; Counter spin turns its two bars opposite ways until they meet again. Also used by the media player's close button.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Spin",
+        "value": 0
+      },
+      {
+        "label": "Counter spin",
+        "value": 1
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -381,6 +454,25 @@
       {
         "label": "Circuit, still",
         "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.variant.new-tab",
+    "label": "New tab style *Spin turns the +; Counter spin turns its two bars opposite ways until they meet again.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Spin",
+        "value": 0
+      },
+      {
+        "label": "Counter spin",
+        "value": 1
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -564,6 +656,25 @@
   {
     "type": "dropdown",
     "value": "number",
+    "property": "zzicon.variant.downloads",
+    "label": "Downloads style *Trail drop leaves a smooth trail as the chevron drops.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Drop",
+        "value": 0
+      },
+      {
+        "label": "Trail drop",
+        "value": 1
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
     "property": "zzicon.button.extensions",
     "label": "Extensions",
     "defaultValue": 0,
@@ -599,6 +710,25 @@
   {
     "type": "dropdown",
     "value": "number",
+    "property": "zzicon.variant.extensions",
+    "label": "Extensions style *Lift raises one tile; Counter lift raises one and sinks the opposite one, turning against each other.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Lift",
+        "value": 0
+      },
+      {
+        "label": "Counter lift",
+        "value": 1
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
     "property": "zzicon.button.bookmark",
     "label": "Bookmark (saved or not)",
     "defaultValue": 0,
@@ -626,6 +756,37 @@
       {
         "label": "Circuit, still",
         "value": 5
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.variant.bookmark",
+    "label": "Bookmark style *Filled once the page is saved. Slot drops the ribbon into a slot, as if filing it. Tag swings on its edge. Flag ripples. Spark, a lopsided four-point spark, exists only in Circuit; Flow shows the ribbon instead.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Ribbon",
+        "value": 0
+      },
+      {
+        "label": "Slot",
+        "value": 1
+      },
+      {
+        "label": "Tag",
+        "value": 2
+      },
+      {
+        "label": "Flag",
+        "value": 3
+      },
+      {
+        "label": "Spark (Circuit only)",
+        "value": 4
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],

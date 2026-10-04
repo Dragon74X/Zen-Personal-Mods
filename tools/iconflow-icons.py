@@ -680,6 +680,228 @@ def lib_circuit(t):
     return glass(plate(13.2 + gap * 0.6), body=0.12) + glass(plate(9.8), body=0.14) + glass(plate(6.4 - gap), lit=bump(t), trace=t, body=0.2)
 
 
+# ---- variants -------------------------------------------------------------------
+# Alternative designs for some buttons, picked with zzicon.variant.<button>.
+# Each takes (t, circuit) and draws in Flow lines or Circuit glass.
+
+def _line(d, circuit, lit=0.0, trace=None):
+    return tube(d, lit, trace) if circuit else P(d)
+
+
+def _body(d, circuit, filled=False, lit=0.0, trace=None):
+    if circuit:
+        return glass(d, lit=1 if filled else lit, trace=trace, body=0.62 if filled else 0.16)
+    return P(d, " fill='context-fill'" if filled else "")
+
+
+def arc(r, a0, a1, cx=9, cy=9):
+    """An open arc from a0 to a1 degrees (clockwise when a1 > a0)."""
+    x0, y0 = cx + r * cos(radians(a0)), cy + r * sin(radians(a0))
+    x1, y1 = cx + r * cos(radians(a1)), cy + r * sin(radians(a1))
+    large = 1 if abs(a1 - a0) > 180 else 0
+    sweep = 1 if a1 > a0 else 0
+    return f"M{n(x0)} {n(y0)}A{n(r)} {n(r)} 0 {large} {sweep} {n(x1)} {n(y1)}"
+
+
+def reload_spiral(t, circuit=False):
+    # An open spiral that tightens a little as it spins.
+    tight = 0.5 * bump(span(t, 0.1, 0.9))
+    pts = []
+    for i in range(41):
+        a = -50 + i * 9.5                     # about 380 degrees
+        r = 6.3 - (3.4 + tight) * i / 40
+        pts.append((9 + r * cos(radians(a)), 9 + r * sin(radians(a))))
+    return g(_line(poly(pts), circuit, lit=bump(t), trace=t), f"rotate({n(360 * ease_in_out(t))} 9 9)")
+
+
+def reload_satellite(t, circuit=False):
+    # An open arc with a small softened diamond orbiting through its gap.
+    e = ease_in_out(t)
+    a = -25 + 360 * e
+    x, y = 9 + 6 * cos(radians(a)), 9 + 6 * sin(radians(a))
+    k = 1.5 + 0.4 * bump(t)
+    dia = rpoly([(x, y - k), (x + k, y), (x, y + k), (x - k, y)], 0.45)
+    return (g(_line(arc(6, 15, 300), circuit, trace=t), f"rotate({n(120 * e)} 9 9)")
+            + trail(6, a, t) + _body(dia, circuit, filled=True))
+
+
+def reload_twin(t, circuit=False):
+    # Two arcs of different lengths and radii that turn against each other.
+    e = ease_in_out(t)
+    outer = g(_line(arc(6.3, 195, 345), circuit, lit=bump(t)), f"rotate({n(180 * e)} 9 9)")
+    inner = g(_line(arc(3.6, 15, 125), circuit, lit=bump(t)), f"rotate({n(-150 * e)} 9 9)")
+    return outer + inner
+
+
+def bookmark_slot(t, saved=False, circuit=False):
+    # The ribbon drops into a slot, as if being filed away, with a short trail.
+    drop = 2.2 * ease_out_back(span(t, 0, 0.8), 1.6)
+    def ribbon(o, ghost=False):
+        y0, y1 = 2.4 + drop - o, 11.6 + drop - o
+        d = (f"M5.4 {n(y1 - 0.6)}V{n(y0 + 1.8)}C5.4 {n(y0 + 0.6)} 6.1 {n(y0)} 7.3 {n(y0)}H10.7C11.9 {n(y0)} 12.6 {n(y0 + 0.6)} 12.6 {n(y0 + 1.8)}"
+             f"V{n(y1 - 0.6)}C12.6 {n(y1)} 12.1 {n(y1 + 0.2)} 11.6 {n(y1 - 0.2)}L9 {n(y1 - 2.6)}L6.4 {n(y1 - 0.2)}C5.9 {n(y1 + 0.2)} 5.4 {n(y1)} 5.4 {n(y1 - 0.6)}Z")
+        return _body(d, circuit, filled=saved and not ghost, lit=bump(t))
+    slot = _line("M3.2 15.4H14.8", circuit, lit=bump(span(t, 0.4, 1)))
+    return ghosts(lambda o: ribbon(o, True), 2.4, t, circuit) + ribbon(0) + slot
+
+
+def bookmark_tag(t, saved=False, circuit=False):
+    # A label that swings on its left edge.
+    tag = rpoly([(3, 5), (11.2, 5), (15.4, 9), (11.2, 13), (3, 13)], 1.2)
+    sw = -9 * bump(span(t, 0, 0.6)) + 3 * bump(span(t, 0.5, 1))
+    return g(_body(tag, circuit, filled=saved, lit=bump(t), trace=t) + _line("M5.6 7.6V10.4", circuit), f"rotate({n(sw)} 3 9)")
+
+
+def bookmark_flag(t, saved=False, circuit=False):
+    # A pennant on a pole; its edge ripples on hover.
+    w = bump(t)
+    ph = 2 * pi * t
+    pts = [(5.4, 3), (10, 3 + 0.8 * w * sin(ph)), (14.6, 4.2 + 0.6 * w * sin(ph + 1)), (12.2, 7 + 0.5 * w * sin(ph + 2)),
+           (14.6, 9.8 + 0.6 * w * sin(ph + 3)), (10, 11 + 0.8 * w * sin(ph + 4)), (5.4, 11)]
+    return _line("M5.4 2.4V15.6", circuit) + _body(rpoly(pts, 0.9), circuit, filled=saved, lit=w, trace=t)
+
+
+def trail(r, a, t, direction=1, reach=80, cx=9, cy=9, rx=None):
+    """A comet trail behind something orbiting at angle a: longer while it
+    moves fast, gone when it rests. Drawn as a few arcs that taper and fade."""
+    speed = 6 * t * (1 - t) / 1.5             # ease_in_out's speed, 0..1
+    lag = reach * speed
+    if lag < 4:
+        return ""
+    ry = r
+    rx = rx or r
+    out = ""
+    for i in range(4):
+        b0 = a - direction * lag * (4 - i) / 4
+        b1 = a - direction * lag * (3 - i) / 4
+        x0, y0 = cx + rx * cos(radians(b0)), cy + ry * sin(radians(b0))
+        x1, y1 = cx + rx * cos(radians(b1)), cy + ry * sin(radians(b1))
+        sweep = 1 if direction > 0 else 0
+        out += (f"<path d='M{n(x0)} {n(y0)}A{n(rx)} {n(ry)} 0 0 {sweep} {n(x1)} {n(y1)}' "
+                f"stroke-width='{n(0.5 + 0.35 * i)}' stroke-opacity='{n(0.12 + 0.16 * i)}'/>")
+    return out
+
+
+def _diamond(x, y, k):
+    return rpoly([(x, y - k), (x + k, y), (x, y + k), (x - k, y)], 0.45)
+
+
+def reload_orbit_pair(t, circuit=False):
+    # An open arc with two diamonds circling it at different speeds and radii.
+    e = ease_in_out(t)
+    a1, a2 = -30 + 360 * e, 5 + 540 * e      # both rest by the gap, never as a pair of "eyes"
+    big = _diamond(9 + 6.2 * cos(radians(a1)), 9 + 6.2 * sin(radians(a1)), 1.45 + 0.3 * bump(t))
+    small = _diamond(9 + 3.4 * cos(radians(a2)), 9 + 3.4 * sin(radians(a2)), 0.95)
+    return (g(_line(arc(6.2, 25, 255), circuit, trace=t), f"rotate({n(90 * e)} 9 9)")
+            + trail(6.2, a1, t) + trail(3.4, a2, t, reach=110)
+            + _body(big, circuit, filled=True) + _body(small, circuit, filled=True))
+
+
+def reload_counter_orbit(t, circuit=False):
+    # The open arc turns one way while two diamonds circle the other way and
+    # cross each other.
+    e = ease_in_out(t)
+    a1, a2 = -20 - 300 * e, 10 + 300 * e
+    d1 = _diamond(9 + 6.2 * cos(radians(a1)), 9 + 6.2 * sin(radians(a1)), 1.35 + 0.25 * bump(t))
+    d2 = _diamond(9 + 3.4 * cos(radians(a2)), 9 + 3.4 * sin(radians(a2)), 0.95)
+    return (g(_line(arc(6.2, 30, 250), circuit, trace=t), f"rotate({n(140 * e)} 9 9)")
+            + trail(6.2, a1, t, direction=-1) + trail(3.4, a2, t)
+            + _body(d1, circuit, filled=True) + _body(d2, circuit, filled=True))
+
+
+def ghosts(draw, reach, t, circuit):
+    """Fading copies of a shape at earlier positions, shown only while it moves
+    fast. Glass blends into a smooth smear with three; outlines need more,
+    closer copies whose lines thin out, or the trail reads as separate shapes."""
+    speed = 6 * t * (1 - t) / 1.5
+    if speed < 0.15:
+        return ""
+    if circuit:
+        return "".join(f"<g opacity='{n(speed * (0.32 - 0.09 * i))}'>{draw(reach * (i + 1) / 3)}</g>" for i in range(3))
+    steps = 7
+    return "".join(f"<g opacity='{n(speed * 0.3 * (1 - i / steps))}' stroke-width='{n(1.4 - 0.12 * i)}'>{draw(reach * (i + 1) / steps)}</g>"
+                   for i in range(steps))
+
+
+def v_back_trail(t, circuit, key):
+    dx = 0.5 * bump(span(t, 0, 0.2)) - 1.7 * ease_out_back(span(t, 0.1, 1), 2)
+    shape = (lambda o: glass(blade(5.2 + dx + o, 9, 5.6, 5.8, 2.6), body=0.12)) if circuit else (lambda o: P(chevron_left(5.9 + dx + o, 9, 4.6, 5.4)))
+    main = glass(blade(5.2 + dx, 9, 5.6, 5.8, 2.6), lit=bump(t), trace=t) if circuit else P(chevron_left(5.9 + dx, 9, 4.6, 5.4))
+    out = ghosts(shape, 3.6, t, circuit) + main
+    return g(out, "matrix(-1 0 0 1 18 0)") if key == "forward" else out
+
+
+def _bars(a1, a2, k, circuit, plus):
+    b1 = "M9 3.6V14.4" if plus else "M4.6 4.6L13.4 13.4"
+    b2 = "M3.6 9H14.4" if plus else "M13.4 4.6L4.6 13.4"
+    sc = f" scale({n(k)})" if abs(k - 1) > 0.01 else ""
+    t1 = f"rotate({n(a1)} 9 9) translate(9 9){sc} translate(-9 -9)"
+    t2 = f"rotate({n(a2)} 9 9) translate(9 9){sc} translate(-9 -9)"
+    return g(_line(b1, circuit), t1) + g(_line(b2, circuit), t2)
+
+
+def v_counter_spin(t, circuit, key):
+    # The two bars turn opposite ways and meet again as the same shape.
+    e = ease_out_back(t, 1.5)
+    return _bars(90 * e, -90 * e, 1 + 0.1 * bump(t), circuit, plus=key == "new-tab")
+
+
+def v_downloads_trail(t, circuit, key):
+    drop = 2.6 * bump(span(t, 0, 0.55)) + 0.8 * ease_out(span(t, 0.45, 1))
+    def chev(o):
+        y = 4 + drop - o
+        if circuit:
+            return glass(rpoly([(3.6, y), (9, y + 5.4), (14.4, y), (14.4, y + 2.6), (9, y + 8), (3.6, y + 2.6)], 0.85), body=0.12)
+        return P(f"M3.75 {n(y)}L8.2 {n(y + 4.5)}Q9 {n(y + 5.2)} 9.8 {n(y + 4.5)}L14.25 {n(y)}")
+    base = _line("M4 15.2H14", circuit, lit=bump(span(t, 0.3, 0.9)))
+    return ghosts(chev, 3.3, t, circuit) + chev(0) + base
+
+
+def v_ext_counter(t, circuit, key):
+    # Opposite tiles lift out and sink back, turning against each other.
+    e = ease_out_back(t, 2)
+    tile = (lambda x, y: glass(chamfer(x, y, 5.6, 5.6, 1.4, 0.55))) if circuit else (lambda x, y: P(rrect(x, y, 5.5, 5.5, 1.7)))
+    up = f"translate({n(e * 0.9)} {n(-e * 0.9)}) rotate({n(e * 45)} 12.8 5.2)"
+    down = f"translate({n(-e * 0.9)} {n(e * 0.9)}) rotate({n(-e * 45)} 5.2 12.8)"
+    return tile(2.4, 2.4) + tile(10, 10) + g(tile(10, 2.4), up) + g(tile(2.4, 10), down)
+
+
+def bookmark_spark(t, saved=False, circuit=True):
+    # A four-point spark, taller than wide and slightly lopsided. Glass only:
+    # as a thin outline it reads poorly.
+    k = 1 + 0.12 * bump(span(t, 0, 0.7))
+    tips = scale([(9.3, 1.8), (14.8, 9.4), (8.8, 16.3), (3.6, 8.6)], k, 9, 9)
+    d = f"M{n(tips[0][0])} {n(tips[0][1])}"
+    for i in range(4):
+        x1, y1 = tips[(i + 1) % 4]
+        d += f"Q9.1 9 {n(x1)} {n(y1)}"
+    return g(_body(d + "Z", circuit, filled=saved, lit=bump(t), trace=t), f"rotate({n(18 * ease_out_back(t, 2))} 9 9)")
+
+
+BOTH, CIRCUIT_ONLY = ("flow", "circuit"), ("circuit",)
+# button setting -> value -> (label, draw(t, circuit, key), sets it exists in)
+VARIANTS = {
+    "back": {1: ("Trail", v_back_trail, BOTH)},
+    "stop": {1: ("Counter spin", v_counter_spin, BOTH)},
+    "new-tab": {1: ("Counter spin", v_counter_spin, BOTH)},
+    "downloads": {1: ("Trail drop", v_downloads_trail, BOTH)},
+    "extensions": {1: ("Counter lift", v_ext_counter, BOTH)},
+    "reload": {1: ("Spiral", lambda t, c, k: reload_spiral(t, c), BOTH),
+               2: ("Satellite", lambda t, c, k: reload_satellite(t, c), BOTH),
+               3: ("Twin arcs", lambda t, c, k: reload_twin(t, c), BOTH),
+               4: ("Orbit pair", lambda t, c, k: reload_orbit_pair(t, c), BOTH),
+               5: ("Counter orbit", lambda t, c, k: reload_counter_orbit(t, c), BOTH)},
+    "bookmark": {1: ("Slot", lambda t, c, k: bookmark_slot(t, k == "bookmarked", c), BOTH),
+                 2: ("Tag", lambda t, c, k: bookmark_tag(t, k == "bookmarked", c), BOTH),
+                 3: ("Flag", lambda t, c, k: bookmark_flag(t, k == "bookmarked", c), BOTH),
+                 4: ("Spark (Circuit only)", lambda t, c, k: bookmark_spark(t, k == "bookmarked", c), CIRCUIT_ONLY)},
+}
+# which buttons share a style setting
+VARIANT_GROUP = {"forward": "back", "bookmarked": "bookmark", "media-close": "stop"}
+VARIANT_DEFAULT = {"back": "Chevron", "stop": "Spin", "new-tab": "Spin", "downloads": "Drop", "extensions": "Lift",
+                   "reload": "Hook", "bookmark": "Ribbon"}
+
+
 # ---- library button ---------------------------------------------------------
 # Values match Iconflow's Library button setting.
 
@@ -838,6 +1060,25 @@ def main():
                        f"    transition: background-position var(--zzicon-duration) steps({FRAMES - 1}, jump-none), filter .2s !important;\n  }}\n"
                        f"  @media (-moz-pref(\"zzicon.animate\")) and (not (-moz-pref(\"zzicon.button.{k}\", {still}))) {{\n"
                        f"    {hovers} {{ background-position: 100% 0 !important;{glow} }}\n  }}\n}}")
+    # Variants: same rules as the base icon, only the strip differs.
+    for button, variants in VARIANTS.items():
+        keys = [k for k in TOOLBAR if VARIANT_GROUP.get(k, k) == button]
+        for key in keys:
+            targets = TOOLBAR[key][2]
+            icons = ", ".join(i for i, _ in targets)
+            for name in SETS:
+                circuit = name == "circuit"
+                value_, animated, still = SETS[name]
+                k = SETTING.get(key, key)
+                either = (f'((-moz-pref("zzicon.set", {value_})) and (-moz-pref("zzicon.button.{k}", 0))) or '
+                          f'(-moz-pref("zzicon.button.{k}", {animated})) or (-moz-pref("zzicon.button.{k}", {still}))')
+                for value, (label, draw, sets) in variants.items():
+                    if name not in sets:
+                        continue
+                    rel = save(f"icons/{name}/{key}-{value}.svg", strip(lambda t: draw(t, circuit, key), FRAMES))
+                    css.append(f"/* {TOOLBAR[key][0]}: {label}, {name.title()} */\n"
+                               f"@media ({either}) and (-moz-pref(\"zzicon.variant.{button}\", {value})) {{\n"
+                               f"  {icons} {{ background-image: {rel} !important; }}\n}}")
     for value, (label, _) in LIBRARY.items():
         follow = "".join(f' or ((-moz-pref("zzicon.library.style", 11)) and (-moz-pref("zzicon.set", {setv})))'
                          for setv, lib in FOLLOW_LIBRARY.items() if lib == value)

@@ -57,6 +57,11 @@ def ease_out(t):
     return 1 - (1 - run_up(t)) ** 3
 
 
+def kick(u):
+    """Out and back: a dip that lands, springs and is gone."""
+    return 0 if u <= 0 or u >= 1 else sin(pi * min(1, u * 1.6)) * (1 - u) ** 1.2 * 1.25
+
+
 def settle(t, overshoot=0.2, swings=2.8):
     """A damped spring, the follow-through of hand-drawn animation: starts
     from rest, builds speed, overshoots by about `overshoot`, falls back past
@@ -299,12 +304,15 @@ def c_sliders(t):
 
 
 def c_downloads(t):
-    # The chevron drops toward the tray, blurring as it falls, and settles.
-    drop = lambda tt: 2.6 * bump(span(tt, 0, 0.55)) + 0.8 * ease_out(span(tt, 0.45, 1))
-    def chev(tt):
-        y = 4 + drop(tt)
-        return glass(rpoly([(3.6, y), (9, y + 5.4), (14.4, y), (14.4, y + 2.6), (9, y + 8), (3.6, y + 2.6)], 0.85), body=0.12)
-    return blur(chev, drop, t) + chev(t) + tube("M4 15.2H14", lit=bump(span(t, 0.3, 0.9)))
+    # Two chevrons drop toward a curved tray, the lower one leading and the
+    # upper a beat behind; the tray gives as they land and springs back.
+    lead = lambda tt: 2.2 * settle(span(tt, 0, 0.75), 0.15)
+    late = lambda tt: 2.2 * settle(span(tt, 0.1, 0.85), 0.15)
+    chev = lambda y, lit=0.0: tube(f"M3.9 {n(y)}L9 {n(y + 4.3)}L14.1 {n(y)}", lit=lit)
+    give = 0.9 * kick(span(t, 0.28, 0.9))
+    tray = tube(f"M2.8 {n(13.2 + give * 0.3)}Q9 {n(17.4 + give)} 15.2 {n(13.2 + give * 0.3)}", lit=bump(span(t, 0.25, 0.9)))
+    return (blur(lambda tt: chev(2.2 + late(tt)), late, t) + chev(2.2 + late(t))
+            + blur(lambda tt: chev(5.6 + lead(tt), 1), lead, t) + chev(5.6 + lead(t), lit=0.6 + 0.4 * bump(t)) + tray)
 
 
 def c_extensions(t):
@@ -318,7 +326,8 @@ def c_extensions(t):
 
 def c_bookmark(t, saved=False):
     lift = 1.2 * bump(span(t, 0, 0.6)) + 0.3 * ease_out(span(t, 0.4, 1))
-    d = rpoly(move([(4.4, 2.6), (13.6, 2.6), (13.6, 15.6), (9, 12.4), (4.4, 15.6)], dy=-lift), 1)
+    # A tall, narrow ribbon with soft corners and a shallow notch.
+    d = rpoly(move([(4.8, 2.2), (13.2, 2.2), (13.2, 16), (9, 13.5), (4.8, 16)], dy=-lift), 1.7)
     return glass(d, lit=1 if saved else bump(t), trace=t, body=0.62 if saved else 0.16)
 
 

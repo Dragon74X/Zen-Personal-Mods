@@ -605,6 +605,10 @@
       {
         "label": "Circuit, still",
         "value": 5
+      },
+      {
+        "label": "Circuit, line art",
+        "value": 7
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
@@ -667,6 +671,10 @@
       {
         "label": "Circuit, still",
         "value": 5
+      },
+      {
+        "label": "Circuit, line art",
+        "value": 7
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],

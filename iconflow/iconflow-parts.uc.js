@@ -400,12 +400,24 @@
       "site-data": { fill: [on((nx, ny) => R.left(0.5)(nx) * R.above(0.5)(nx, ny) * R.inner(0.7)(nx, ny), dip(2.4, 0)),
                             on((nx, ny) => R.right(0.5)(nx) * R.below(0.5)(nx, ny) * R.inner(0.7)(nx, ny), dip(-2.4, 0, { at: 0.08 }))],
                      line: [on(R.all(R.closed, R.above(0.5)), dip(4, 0)), on(R.all(R.closed, R.below(0.5)), dip(-4, 0, { at: 0.08 }))] },
-      find: [on(R.inner(0.4), swell(0.3, 0.3, { lag: 0.1 }))],
+      // The lens and the page are one outline in Zen's art, so the whole icon
+      // lifts and tilts like a magnifier picked up, rather than bending.
+      find: [spin(-10, { lead: "none" }), swell(0.1, 0.1, { lag: 0.1 })],
       logins: [spin(-16, { trail: 8 })],
       help: [spin(12, { trail: 6 })],
       encoding: [swell(0.14)],
     };
     const FALLBACK = [swell(0.12, 0.12, { rim: true })];
+    // Lines drawn in, where the art has none to move: Paste writes text onto
+    // its clipboard as Forget's history wipes away. Each returns the path
+    // data at time tau, in the artwork's own units and line weight.
+    const ADD = {
+      paste: g => tau => [0, 1, 2].map(i => {
+        const e = settle(clamp((linger(tau) - 0.35 - i * 0.1) / 0.45), 0.15), y = g.y0 + g.h * (0.46 + i * 0.16);
+        const x = g.x0 + g.w * 0.32, w = g.w * (i === 2 ? 0.22 : 0.36) * e;
+        return e > 0.03 ? `M${fmt(x)} ${fmt(y)}H${fmt(x + w)}` : "";
+      }).join(""),
+    };
 
     // Builds the frame strip for one icon: the artwork's SVG text in, an SVG
     // FRAMES frames wide out. Throws on artwork it cannot read.
@@ -419,7 +431,7 @@
         const subs = outline(el), m = matrix(el, svg), stroke = painted(el, svg, "stroke"), fill = painted(el, svg, "fill");
         const stroked = !!stroke && stroke !== "none", filled = fill !== "none" && !(fill == null && stroked);
         const sw = stroked ? parseFloat(painted(el, svg, "stroke-width") ?? "1") || 1 : 0;
-        return { subs, m, inv: invert(m), stroked, filled, line: stroked && !filled, pad: sw / 2 };
+        return { el, subs, m, inv: invert(m), stroked, filled, line: stroked && !filled, pad: sw / 2 };
       });
       const items = all.filter(it => it.subs.length);
       if (!items.length) throw new Error("nothing drawn");
@@ -474,11 +486,16 @@
       }));
       const keep = [...svg.attributes].filter(at => !["width", "height", "viewBox", "x", "y", "xmlns"].includes(at.name))
         .map(at => ` ${at.name}="${at.value.replace(/&/g, "&amp;").replace(/"/g, "&quot;")}"`).join("");
+      // Added lines take the artwork's own paint and weight.
+      const lined = items.find(it => it.line), add = ADD[key]?.(g);
+      const ink = lined ? (painted(lined.el, svg, "stroke") || "context-fill") : (painted(items[0].el, svg, "fill") || "context-fill");
+      const weight = lined ? lined.pad * 2 : 1.5;
+      const extra = tau => { const d = add?.(tau); return d ? `<path d="${d}" fill="none" stroke="${ink}" stroke-width="${weight}" stroke-linecap="round"/>` : ""; };
       let body = "";
       for (let f = 0; f < frames; f++) {
         const tau = f / (frames - 1), sp = speed(tau), ghost = sp > 0.35 ? Math.min(0.28, (sp - 0.35) * 0.35) : 0;
         body += `<svg x="${f * W}" y="0" width="${W}" height="${H}" viewBox="${vb.join(" ")}" overflow="hidden">` +
-          (ghost ? `<g opacity="${fmt(ghost)}">${frame(Math.max(0, tau - 0.045))}</g>` : "") + frame(tau) + "</svg>";
+          (ghost ? `<g opacity="${fmt(ghost)}">${frame(Math.max(0, tau - 0.045))}</g>` : "") + frame(tau) + extra(tau) + "</svg>";
       }
       return `<svg xmlns="http://www.w3.org/2000/svg" width="${W * frames}" height="${H}" viewBox="0 0 ${W * frames} ${H}"${keep}>${defs}${body}</svg>`;
     }

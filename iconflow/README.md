@@ -2,6 +2,15 @@
 
 Icon sets and hover motion for [Zen Browser](https://zen-browser.app/).
 
+- **Zen's own, animated**: Zen's icons (or New Icons', when installed) keep
+  their artwork, and each gets a motion of its own on hover: reload turns
+  once, back and forward nudge their way, the star pops and turns a fifth,
+  downloads drop, close turns a quarter. Like Circuit, the motion builds up
+  and settles, plays back when the pointer leaves, and picks up mid-way.
+- **Animate menu icons** (off by default): icons in context menus and other
+  menus, Zen's or those Context Menu Icons adds, move when highlighted.
+  Items that match a toolbar button (Back, Reload, Bookmark, Copy, Save and
+  so on) move the same way; the rest pop gently.
 - **Circuit**, an animated icon set. Each icon plays its own 48-frame
   animation while hovered and plays it back when the pointer leaves.
   - High-tech glass. Shapes are chamfered, with every corner rounded, even
@@ -33,15 +42,16 @@ Requires `sine.allow-unsafe-js` set to `true` in `about:config`.
 
 | Setting | Default | Notes |
 |---|---|---|
-| Icon set | Zen's own | Zen's icons, or New Icons' if that mod is installed; or Circuit |
+| Icon set | Zen's own | Zen's icons, or New Icons' if that mod is installed; Zen's own, animated; or Circuit |
+| Animate menu icons | off | Context menus and other menus |
 | Animate icons on hover | on | |
 | Animation speed | Smooth (0.45s) | Quick 0.3s, Slow 0.7s |
 | Circuit icons glow on hover | on | A soft light in the icon's own colour, like a lit neon tube |
 | Glass plates | Off | While hovered, or Always. A light fill, a sheen across the top, a rim and an 8px blur of what is behind. With Glassflow installed, its own sheen and rim are used, so plates follow its Glass settings |
 | Plate shape | Squircle | Pill or Circle |
 
-**Each button** can follow the set, or use Zen's own icon or Circuit
-(animated or still). These buttons are covered:
+**Each button** can follow the set, or use Zen's own icon (still or
+animated) or Circuit (animated or still). These buttons are covered:
 - **Navigation:** back, forward, reload, stop, home, the new tab buttons, the menu and workspace "⋯", the sidebar toggle and expand sidebar.
 - **Address bar and toolbar:** site settings, downloads, extensions, the bookmark ribbon (saved or not, and the bookmarks menu button), reader view, share and copy link, history (a stack of pages), screenshot.
 - **Overflow:** the more-tools and bookmarks overflow chevrons, and "clear unpinned tabs".

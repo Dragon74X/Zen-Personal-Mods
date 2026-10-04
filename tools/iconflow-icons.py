@@ -832,6 +832,80 @@ LIBRARY[12] = ("Circuit stack", lib_circuit)
 FOLLOW_LIBRARY = {2: 12}   # what "Follow the icon set" shows with Circuit
 
 
+# ---- Zen's own, animated --------------------------------------------------------
+# Zen's icons (or New Icons', when installed) keep their artwork; each gets a
+# motion of its own. --zzicon-t transitions from 0 to 1 on hover, so the motion
+# builds up and settles, reverses on leave and picks up mid-way like Circuit's.
+# Every value is 0-based at t = 0: B is a bump (0 -> 1 -> 0), W a wiggle.
+T = "var(--zzicon-t)"
+B = f"sin({T} * 180deg)"
+W = f"sin({T} * 360deg)"
+nudge = lambda dx, dy=0: {"translate": f"calc({B} * {dx * 1.2:.3g}px + {T} * {dx * 0.5:.3g}px) calc({B} * {dy * 1.2:.3g}px + {T} * {dy * 0.5:.3g}px)"}
+hop = lambda dy: {"translate": f"0 calc({B} * {dy}px)"}
+pop = lambda k: {"scale": f"calc(1 + {B} * {k})"}
+turn_by = lambda deg: {"rotate": f"calc({T} * {deg}deg)"}
+wiggle = lambda deg: {"rotate": f"calc({W} * {deg}deg)"}
+ZEN_MOTION = {
+    "back": nudge(-1.5), "forward": nudge(1.5), "reload": turn_by(360), "stop": turn_by(90), "home": hop(-2),
+    "new-tab": turn_by(180), "menu": {"scale": f"calc(1 + {B} * 0.18) calc(1 - {B} * 0.12)"},
+    "sidebar": {"translate": f"calc({B} * -1.5px) 0", "scale": f"calc(1 - {B} * 0.1) 1"},
+    "expand-sidebar": nudge(1.2), "site-data": wiggle(-8), "downloads": nudge(0, 1.6), "extensions": wiggle(-12),
+    "bookmark": {"scale": f"calc(1 + {B} * 0.22)", "rotate": f"calc({T} * 72deg)"},
+    "bookmarked": {"scale": f"calc(1 + {B} * 0.22)", "rotate": f"calc({T} * 72deg)"},
+    "reader": {"rotate": f"calc({B} * -8deg)", "translate": f"0 calc({B} * -1px)"},
+    "share": nudge(1, -1), "history": turn_by(-360), "screenshot": pop(-0.15), "overflow": nudge(1.4), "chevron": nudge(0, 1.2),
+    "close-unpinned": hop(2), "play": pop(0.18), "pause": pop(0.18), "next": nudge(1.6), "previous": nudge(-1.6),
+    "volume": wiggle(10), "muted": wiggle(10), "media-close": turn_by(90), "pip": pop(-0.12),
+    "save-page": nudge(0, 1.6), "print": hop(1.6), "find": {"rotate": f"calc({W} * 12deg)", "scale": f"calc(1 + {B} * 0.1)"},
+    "open-file": {"rotate": f"calc({B} * -10deg)"}, "zoom-in": pop(0.2), "zoom-out": pop(-0.2), "cut": wiggle(10),
+    "copy": nudge(0.9, 0.9), "paste": hop(1.5), "encoding": pop(0.15), "email": hop(-1.5), "logins": wiggle(-10),
+    "sync": turn_by(360), "send-tab": nudge(1.2, -1.2), "import": nudge(-1.2, 1.2), "settings": turn_by(120),
+    "forget": pop(-0.2), "private": hop(-1.2), "firefox-view": pop(0.12), "developer": {"scale": f"calc(1 + {B} * 0.2) 1"},
+    "new-window": pop(0.15), "fullscreen": pop(0.2), "firefox-library": hop(-1.5), "account": hop(-1.5),
+}
+MENU_DEFAULT = pop(0.15)
+# Context menu items that do what a toolbar button does move the same way.
+MENU_ITEMS = {
+    "back": ["context-back"], "forward": ["context-forward"], "reload": ["context-reload", "context_reloadTab", "context_reloadSelectedTabs"],
+    "stop": ["context-stop", "context_closeTab"], "bookmark": ["context-bookmarkpage", "context-bookmarklink", "context_bookmarkTab"],
+    "save-page": ["context-savepage", "context-savelink", "context-saveimage", "context-savevideo", "context-saveaudio"],
+    "copy": ["context-copy", "context-copylink", "context-copyimage", "context-copyimage-contents", "context-copyemail", "context-copyvideourl", "context-copyaudiourl"],
+    "cut": ["context-cut"], "paste": ["context-paste", "context-paste-no-formatting"],
+    "new-tab": ["context-openlinkintab", "context-openlinkincontainertab", "context_openANewTab"],
+    "new-window": ["context-openlink"], "private": ["context-openlinkprivate"], "screenshot": ["context-take-screenshot"],
+    "send-tab": ["context-sendpagetodevice", "context-sendlinktodevice", "context_sendTabToDevice"],
+    "developer": ["context-inspect", "context-inspect-a11y", "context-viewsource"], "find": ["context-searchselect", "context-searchselect-private"],
+    "print": ["context-print-selection"], "share": ["context-sharepage", "context_shareTabURL"], "reader": ["context-viewpartialsource-selection"],
+}
+ZEN_SET, ZEN_ANIMATED = 3, 6     # zzicon.set value; per-button override
+EASE = "cubic-bezier(.65, 0, .35, 1)"   # builds up from rest and settles, like Circuit's frames
+
+
+def motion_props(m):
+    return " ".join(f"{k}: {v} !important;" for k, v in m.items())
+
+
+def zen_css():
+    out = ["/* Zen's own, animated */",
+           '@property --zzicon-t { syntax: "<number>"; inherits: false; initial-value: 0; }']
+    for key, (label, _, targets) in TOOLBAR.items():
+        k = SETTING.get(key, key)
+        icons = ", ".join(i + OWN for i, _ in targets)
+        hovers = ", ".join(h + OWN for _, h in targets)
+        out.append(f"/* {label}, Zen's own animated */\n"
+                   f'@media ((-moz-pref("zzicon.set", {ZEN_SET})) and (-moz-pref("zzicon.button.{k}", 0))) or (-moz-pref("zzicon.button.{k}", {ZEN_ANIMATED})) {{\n'
+                   f"  {icons} {{ transition: --zzicon-t var(--zzicon-duration) {EASE} !important; animation: none !important; {motion_props(ZEN_MOTION[key])} }}\n"
+                   f'  @media (-moz-pref("zzicon.animate")) {{ {hovers} {{ --zzicon-t: 1 !important; }} }}\n}}')
+    items = "menupopup :is(menuitem, menu)"         # descendants: the Back/Reload row sits in a menugroup
+    out.append(f"/* Menu icons */\n@media (-moz-pref(\"zzicon.menu.animate\")) {{\n"
+               f"  {items} > .menu-icon {{ transition: --zzicon-t var(--zzicon-duration) {EASE} !important; {motion_props(MENU_DEFAULT)} }}\n"
+               f"  {items}[_moz-menuactive] > .menu-icon {{ --zzicon-t: 1 !important; }}")
+    for key, ids in MENU_ITEMS.items():
+        out.append(f"  {', '.join('#' + i + ' > .menu-icon' for i in ids)} {{ {motion_props(ZEN_MOTION[key])} }}")
+    out.append("}")
+    return out
+
+
 # ---- hover motion -------------------------------------------------------------
 # Plain CSS motion on the icon (or button) itself, so it works with any icon,
 # Zen's own included. Values match Iconflow's Hover motion settings.
@@ -944,6 +1018,7 @@ def main():
                    f"  #zen-library-button .zen-library-sprite::before {{ background-image: {url['library', value]} !important; }}\n"
                    f"  #zen-library-button:hover > .zen-library-sprite{OWN} {{ {STILL_MOTION} }}\n}}")
     css += motion_css()
+    css += zen_css()
     OUT.write_text("\n".join(css) + "\n")
     total = sum(f.stat().st_size for f in (OUT.parent / "icons").glob("*/*.svg"))
     print(f"wrote {len(TOOLBAR)} icons, {len(RELOAD_STYLES)} reload style and {len(LIBRARY)} library strips: "

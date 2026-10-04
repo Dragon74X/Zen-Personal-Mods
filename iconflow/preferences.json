@@ -49,12 +49,16 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzicon.set",
-    "label": "Icon set *Zen's own keeps Zen's icons, or New Icons' if that mod is installed. Circuit is high-tech glass: chamfered shapes with every corner rounded, a translucent body with a sheen and rim, and neon-tube lines. It animates on hover, building up speed and settling, and fast-moving parts leave trails. Each button can differ from the set under Each button.*",
+    "label": "Icon set *Zen's own keeps Zen's icons, or New Icons' if that mod is installed. Zen's own, animated keeps that artwork and gives each icon a motion of its own on hover: reload turns, back nudges left, the star pops, downloads drop. Circuit is high-tech glass: chamfered shapes with every corner rounded, a translucent body with a sheen and rim, and neon-tube lines, drawn and animated frame by frame. Animations build up and settle, and play back when the pointer leaves. Each button can differ from the set under Each button.*",
     "defaultValue": 0,
     "options": [
       {
         "label": "Zen's own",
         "value": 0
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 3
       },
       {
         "label": "Circuit: glass and neon",
@@ -67,7 +71,7 @@
   {
     "type": "checkbox",
     "property": "zzicon.animate",
-    "label": "Animate icons on hover *Each Circuit icon plays its own short animation while hovered and plays it back when the pointer leaves. Off keeps them still.*",
+    "label": "Animate icons on hover *Circuit icons and Zen's own animated icons play their animation while hovered and play it back when the pointer leaves. Off keeps them still.*",
     "defaultValue": true,
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
@@ -101,6 +105,14 @@
     "defaultValue": true,
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzicon.menu.animate",
+    "label": "Animate menu icons *Icons in context menus and other menus (Zen's, or those Context Menu Icons adds) play a short motion when highlighted. Items that do what a toolbar button does move the same way, such as Back, Reload or Bookmark; the rest pop gently. Works with any icon set. Uses Animation speed.*",
+    "defaultValue": false,
+    "operator": "AND",
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}]
   },
   {
     "type": "separator",
@@ -188,6 +200,10 @@
         "value": 1
       },
       {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -215,6 +231,10 @@
         "value": 1
       },
       {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -240,6 +260,10 @@
       {
         "label": "Zen's own",
         "value": 1
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 6
       },
       {
         "label": "Circuit, animated",
@@ -288,6 +312,10 @@
         "value": 1
       },
       {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -313,6 +341,10 @@
       {
         "label": "Zen's own",
         "value": 1
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 6
       },
       {
         "label": "Circuit, animated",
@@ -342,6 +374,10 @@
         "value": 1
       },
       {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -367,6 +403,10 @@
       {
         "label": "Zen's own",
         "value": 1
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 6
       },
       {
         "label": "Circuit, animated",
@@ -396,6 +436,10 @@
         "value": 1
       },
       {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -421,6 +465,10 @@
       {
         "label": "Zen's own",
         "value": 1
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 6
       },
       {
         "label": "Circuit, animated",
@@ -450,6 +498,10 @@
         "value": 1
       },
       {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -475,6 +527,10 @@
       {
         "label": "Zen's own",
         "value": 1
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 6
       },
       {
         "label": "Circuit, animated",
@@ -504,6 +560,10 @@
         "value": 1
       },
       {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -529,6 +589,10 @@
       {
         "label": "Zen's own",
         "value": 1
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 6
       },
       {
         "label": "Circuit, animated",
@@ -558,6 +622,10 @@
         "value": 1
       },
       {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -583,6 +651,10 @@
       {
         "label": "Zen's own",
         "value": 1
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 6
       },
       {
         "label": "Circuit, animated",
@@ -612,6 +684,10 @@
         "value": 1
       },
       {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -637,6 +713,10 @@
       {
         "label": "Zen's own",
         "value": 1
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 6
       },
       {
         "label": "Circuit, animated",
@@ -666,6 +746,10 @@
         "value": 1
       },
       {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -691,6 +775,10 @@
       {
         "label": "Zen's own",
         "value": 1
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 6
       },
       {
         "label": "Circuit, animated",
@@ -720,6 +808,10 @@
         "value": 1
       },
       {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -745,6 +837,10 @@
       {
         "label": "Zen's own",
         "value": 1
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 6
       },
       {
         "label": "Circuit, animated",
@@ -774,6 +870,10 @@
         "value": 1
       },
       {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -799,6 +899,10 @@
       {
         "label": "Zen's own",
         "value": 1
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 6
       },
       {
         "label": "Circuit, animated",
@@ -828,6 +932,10 @@
         "value": 1
       },
       {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -855,6 +963,10 @@
         "value": 1
       },
       {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -880,6 +992,10 @@
       {
         "label": "Zen's own",
         "value": 1
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 6
       },
       {
         "label": "Circuit, animated",
@@ -917,6 +1033,10 @@
         "value": 1
       },
       {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -942,6 +1062,10 @@
       {
         "label": "Zen's own",
         "value": 1
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 6
       },
       {
         "label": "Circuit, animated",
@@ -971,6 +1095,10 @@
         "value": 1
       },
       {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -996,6 +1124,10 @@
       {
         "label": "Zen's own",
         "value": 1
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 6
       },
       {
         "label": "Circuit, animated",
@@ -1025,6 +1157,10 @@
         "value": 1
       },
       {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -1050,6 +1186,10 @@
       {
         "label": "Zen's own",
         "value": 1
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 6
       },
       {
         "label": "Circuit, animated",
@@ -1079,6 +1219,10 @@
         "value": 1
       },
       {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -1104,6 +1248,10 @@
       {
         "label": "Zen's own",
         "value": 1
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 6
       },
       {
         "label": "Circuit, animated",
@@ -1133,6 +1281,10 @@
         "value": 1
       },
       {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -1158,6 +1310,10 @@
       {
         "label": "Zen's own",
         "value": 1
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 6
       },
       {
         "label": "Circuit, animated",
@@ -1187,6 +1343,10 @@
         "value": 1
       },
       {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -1212,6 +1372,10 @@
       {
         "label": "Zen's own",
         "value": 1
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 6
       },
       {
         "label": "Circuit, animated",
@@ -1241,6 +1405,10 @@
         "value": 1
       },
       {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -1266,6 +1434,10 @@
       {
         "label": "Zen's own",
         "value": 1
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 6
       },
       {
         "label": "Circuit, animated",
@@ -1295,6 +1467,10 @@
         "value": 1
       },
       {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -1320,6 +1496,10 @@
       {
         "label": "Zen's own",
         "value": 1
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 6
       },
       {
         "label": "Circuit, animated",
@@ -1349,6 +1529,10 @@
         "value": 1
       },
       {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -1374,6 +1558,10 @@
       {
         "label": "Zen's own",
         "value": 1
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 6
       },
       {
         "label": "Circuit, animated",
@@ -1403,6 +1591,10 @@
         "value": 1
       },
       {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -1430,6 +1622,10 @@
         "value": 1
       },
       {
+        "label": "Zen's own, animated",
+        "value": 6
+      },
+      {
         "label": "Circuit, animated",
         "value": 4
       },
@@ -1455,6 +1651,10 @@
       {
         "label": "Zen's own",
         "value": 1
+      },
+      {
+        "label": "Zen's own, animated",
+        "value": 6
       },
       {
         "label": "Circuit, animated",

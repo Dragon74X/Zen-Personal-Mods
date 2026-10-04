@@ -462,14 +462,20 @@ def c_forward(t):
 
 
 def c_reload(t):
-    out = ""
-    for i in range(3):
-        a0 = -80 + i * 120 + 18
-        a1 = a0 + 84
-        x0, y0 = 9 + 5.6 * cos(radians(a0)), 9 + 5.6 * sin(radians(a0))
-        x1, y1 = 9 + 5.6 * cos(radians(a1)), 9 + 5.6 * sin(radians(a1))
-        out += tube(f"M{n(x0)} {n(y0)}A5.6 5.6 0 0 1 {n(x1)} {n(y1)}", lit=bump(span(t, i * 0.2, i * 0.2 + 0.6)))
-    return g(out, f"rotate({n(120 * ease_in_out(t))} 9 9)")
+    # One open neon arc ending in a short stroke that turns in toward the
+    # centre, with a short inner arc on one side only, so it never reads as
+    # a ring. It turns once on hover while a light runs along it.
+    r, a_end, a_start = 6, 40, -10            # anticlockwise from upper right round to lower right
+    xs, ys = 9 + r * cos(radians(a_start)), 9 + r * sin(radians(a_start))
+    xe, ye = 9 + r * cos(radians(a_end)), 9 + r * sin(radians(a_end))
+    tail = 2.6
+    tx, ty = xe - tail * cos(radians(a_end)), ye - tail * sin(radians(a_end))
+    main = f"M{n(xs)} {n(ys)}A{r} {r} 0 1 0 {n(xe)} {n(ye)}L{n(tx)} {n(ty)}"
+    ri = 3.3
+    inner = (f"M{n(9 + ri * cos(radians(150)))} {n(9 + ri * sin(radians(150)))}"
+             f"A{ri} {ri} 0 0 1 {n(9 + ri * cos(radians(235)))} {n(9 + ri * sin(radians(235)))}")
+    return g(tube(main, lit=bump(t), trace=t) + f"<g opacity='.7'>{tube(inner)}</g>",
+             f"rotate({n(360 * ease_in_out(t))} 9 9)")
 
 
 def c_cross(t, plus=False):

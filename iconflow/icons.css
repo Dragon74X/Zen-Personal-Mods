@@ -10,11 +10,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.back", 5))) {
     #back-button:hover > .toolbarbutton-icon { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    #back-button:hover > .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* Forward */
@@ -28,11 +29,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.forward", 5))) {
     #forward-button:hover > .toolbarbutton-icon { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    #forward-button:hover > .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* Reload */
@@ -46,11 +48,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.reload", 5))) {
     #reload-button:hover > .toolbarbutton-icon { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    #reload-button:hover > .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* Stop */
@@ -64,11 +67,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.stop", 5))) {
     #stop-button:hover > .toolbarbutton-icon { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    #stop-button:hover > .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* Home */
@@ -82,11 +86,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.home", 5))) {
     #home-button:hover > .toolbarbutton-icon { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    #home-button:hover > .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* New tab */
@@ -100,11 +105,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.new-tab", 5))) {
     #tabs-newtab-button:hover > .toolbarbutton-icon, #zen-create-new-button:hover > .toolbarbutton-icon, #new-tab-button:hover > .toolbarbutton-icon { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    #tabs-newtab-button:hover > .toolbarbutton-icon:not(#zzicon-own), #zen-create-new-button:hover > .toolbarbutton-icon:not(#zzicon-own), #new-tab-button:hover > .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* Menu and workspace actions */
@@ -118,11 +124,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.menu", 5))) {
     #PanelUI-menu-button:hover > .toolbarbutton-icon, .zen-workspaces-actions:hover > .toolbarbutton-icon { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    #PanelUI-menu-button:hover > .toolbarbutton-icon:not(#zzicon-own), .zen-workspaces-actions:hover > .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* Sidebar toggle */
@@ -136,11 +143,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.sidebar", 5))) {
     #zen-toggle-compact-mode:hover > .toolbarbutton-icon, #sidebar-button:hover > .toolbarbutton-icon { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    #zen-toggle-compact-mode:hover > .toolbarbutton-icon:not(#zzicon-own), #sidebar-button:hover > .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* Expand sidebar */
@@ -154,11 +162,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.expand-sidebar", 5))) {
     #zen-expand-sidebar-button:hover > .toolbarbutton-icon { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    #zen-expand-sidebar-button:hover > .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* Site settings */
@@ -172,11 +181,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.site-data", 5))) {
     #zen-site-data-icon-button:hover image { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    #zen-site-data-icon-button:hover image:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* Downloads */
@@ -190,11 +200,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.downloads", 5))) {
     #downloads-button:hover > .toolbarbutton-icon { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    #downloads-button:hover > .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* Extensions */
@@ -208,11 +219,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.extensions", 5))) {
     #unified-extensions-button:hover > .toolbarbutton-icon, #add-ons-button:hover > .toolbarbutton-icon { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    #unified-extensions-button:hover > .toolbarbutton-icon:not(#zzicon-own), #add-ons-button:hover > .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* Bookmark */
@@ -226,11 +238,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.bookmark", 5))) {
     #star-button-box:hover > #star-button:not([starred]) { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    #star-button-box:hover > #star-button:not([starred]):not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* Bookmark, saved */
@@ -244,11 +257,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.bookmark", 5))) {
     #star-button-box:hover > #star-button[starred] { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    #star-button-box:hover > #star-button[starred]:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* Reader view */
@@ -262,11 +276,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.reader", 5))) {
     #reader-mode-button:hover > .urlbar-icon { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    #reader-mode-button:hover > .urlbar-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* Share and copy link */
@@ -280,11 +295,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.share", 5))) {
     #zen-copy-current-url-button:hover > .toolbarbutton-icon, #share-tab-button:hover > .toolbarbutton-icon { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    #zen-copy-current-url-button:hover > .toolbarbutton-icon:not(#zzicon-own), #share-tab-button:hover > .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* History */
@@ -298,11 +314,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.history", 5))) {
     #history-panelmenu:hover > .toolbarbutton-icon { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    #history-panelmenu:hover > .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* Screenshot */
@@ -316,11 +333,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.screenshot", 5))) {
     #screenshot-button:hover > .toolbarbutton-icon { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    #screenshot-button:hover > .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* More tools */
@@ -334,11 +352,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.overflow", 5))) {
     #nav-bar-overflow-button:hover > .toolbarbutton-icon { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    #nav-bar-overflow-button:hover > .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* Bookmarks overflow */
@@ -352,11 +371,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.chevron", 5))) {
     #PlacesChevron:hover > .toolbarbutton-icon { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    #PlacesChevron:hover > .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* Clear unpinned tabs */
@@ -370,11 +390,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.close-unpinned", 5))) {
     .zen-workspace-close-unpinned-tabs-button:hover > .toolbarbutton-icon { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    .zen-workspace-close-unpinned-tabs-button:hover > .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* Play */
@@ -388,11 +409,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.play", 5))) {
     .zen-media-card:not(.playing) .zen-media-playpause-button:hover > .toolbarbutton-icon { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    .zen-media-card:not(.playing) .zen-media-playpause-button:hover > .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* Pause */
@@ -406,11 +428,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.play", 5))) {
     .zen-media-card.playing .zen-media-playpause-button:hover > .toolbarbutton-icon { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    .zen-media-card.playing .zen-media-playpause-button:hover > .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* Next track */
@@ -424,11 +447,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.next", 5))) {
     .zen-media-nexttrack-button:hover > .toolbarbutton-icon { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    .zen-media-nexttrack-button:hover > .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* Previous track */
@@ -442,11 +466,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.previous", 5))) {
     .zen-media-previoustrack-button:hover > .toolbarbutton-icon { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    .zen-media-previoustrack-button:hover > .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* Mute */
@@ -460,11 +485,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.volume", 5))) {
     .zen-media-card:not([muted]) .zen-media-mute-button:hover > .toolbarbutton-icon { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    .zen-media-card:not([muted]) .zen-media-mute-button:hover > .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* Unmute */
@@ -478,11 +504,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.volume", 5))) {
     .zen-media-card[muted] .zen-media-mute-button:hover > .toolbarbutton-icon { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    .zen-media-card[muted] .zen-media-mute-button:hover > .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* Close player */
@@ -496,11 +523,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.media-close", 5))) {
     .zen-media-close-button:hover > .toolbarbutton-icon { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    .zen-media-close-button:hover > .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* Picture-in-picture */
@@ -514,11 +542,12 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: background-position var(--zzicon-duration) steps(47, jump-none), filter .2s !important;
+    transition: background-position var(--zzicon-duration) steps(48, jump-none), filter .2s !important;
   }
   @media (-moz-pref("zzicon.animate")) and (not (-moz-pref("zzicon.button.pip", 5))) {
     .zen-media-pip-button:hover > .toolbarbutton-icon { background-position: 100% 0 !important;
       filter: var(--zzicon-circuit-glow, none) !important; }
+    .zen-media-pip-button:hover > .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
   }
 }
 /* Reload: Twin comets */
@@ -528,42 +557,52 @@
 /* Library: Still line icon */
 @media (-moz-pref("zzicon.library.style", 2)) {
   #zen-library-button .zen-library-sprite::before { background-image: url("icons/library/2.svg") !important; }
+  #zen-library-button:hover > .zen-library-sprite:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
 }
 /* Library: Layers */
 @media (-moz-pref("zzicon.library.style", 3)) {
   #zen-library-button .zen-library-sprite::before { background-image: url("icons/library/3.svg") !important; }
+  #zen-library-button:hover > .zen-library-sprite:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
 }
 /* Library: Hex scan */
 @media (-moz-pref("zzicon.library.style", 4)) {
   #zen-library-button .zen-library-sprite::before { background-image: url("icons/library/4.svg") !important; }
+  #zen-library-button:hover > .zen-library-sprite:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
 }
 /* Library: Focus */
 @media (-moz-pref("zzicon.library.style", 5)) {
   #zen-library-button .zen-library-sprite::before { background-image: url("icons/library/5.svg") !important; }
+  #zen-library-button:hover > .zen-library-sprite:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
 }
 /* Library: Grid */
 @media (-moz-pref("zzicon.library.style", 6)) {
   #zen-library-button .zen-library-sprite::before { background-image: url("icons/library/6.svg") !important; }
+  #zen-library-button:hover > .zen-library-sprite:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
 }
 /* Library: Chevrons */
 @media (-moz-pref("zzicon.library.style", 7)) {
   #zen-library-button .zen-library-sprite::before { background-image: url("icons/library/7.svg") !important; }
+  #zen-library-button:hover > .zen-library-sprite:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
 }
 /* Library: Orbit */
 @media (-moz-pref("zzicon.library.style", 8)) {
   #zen-library-button .zen-library-sprite::before { background-image: url("icons/library/8.svg") !important; }
+  #zen-library-button:hover > .zen-library-sprite:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
 }
 /* Library: Split */
 @media (-moz-pref("zzicon.library.style", 9)) {
   #zen-library-button .zen-library-sprite::before { background-image: url("icons/library/9.svg") !important; }
+  #zen-library-button:hover > .zen-library-sprite:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
 }
 /* Library: Pulse */
 @media (-moz-pref("zzicon.library.style", 10)) {
   #zen-library-button .zen-library-sprite::before { background-image: url("icons/library/10.svg") !important; }
+  #zen-library-button:hover > .zen-library-sprite:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
 }
 /* Library: Circuit stack */
 @media (-moz-pref("zzicon.library.style", 12)) or ((-moz-pref("zzicon.library.style", 11)) and (-moz-pref("zzicon.set", 2))) {
   #zen-library-button .zen-library-sprite::before { background-image: url("icons/library/12.svg") !important; }
+  #zen-library-button:hover > .zen-library-sprite:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; }
 }
 @keyframes zzicon-spin { to { rotate: 180deg; } }
 @keyframes zzicon-turn { to { rotate: 360deg; } }

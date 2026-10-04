@@ -561,6 +561,15 @@
   };
 
   function start() {
+    // Once, for Glassflow 3.53: unloaded tabs keep their dimmed colours
+    // rather than going grey. The greyscale switch stays for those who want it.
+    try {
+      const S = Services.prefs, mark = "zzglass-migrated.greyscale-off";   // outside PREFIX
+      if (!S.getBoolPref(mark, false)) {
+        S.setBoolPref(PREFIX + "pending.greyscale", false);
+        S.setBoolPref(mark, true);
+      }
+    } catch {}
     syncInstantUI();
     Services.prefs.addObserver(PREFIX, prefVarObserver);
     try { syncOtherMods(); } catch (e) { console.error("[Glassflow] other mods failed:", e); }

@@ -2109,10 +2109,10 @@
    (zzgf-glow) or the tab list scrolls past it (zzgf-list-glow), the line's
    gradient along its length moves with you: the line is at full strength
    with a bright band of its own colour at --zzgf-glow, easing down to a dim
-   floor away from it, so the light slides down the line as you scroll and
-   on through every subfolder line it passes. This takes the place of the
-   static along-the-line gradient (Soft ends or a fade) while it shows; only
-   a short taper is kept at each end. Everything across the line's width
+   floor away from it. Each line, subfolders included, has its own light
+   (groupflow.uc.js), always, scrolling or not. This takes the place of the
+   static along-the-line gradient (Soft ends or a fade); the line's own ends,
+   their pill shape included, stay. Everything across the line's width
    (colour, rounding, sheen, rim) and its shape stay as set. */
 @media (-moz-pref("zzgroup.scroll-glow")) {
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container:is([zzgf-glow], [zzgf-list-glow], :is([zzgf-glow], [zzgf-list-glow]) .tab-group-container)::before {
@@ -2123,7 +2123,6 @@
       color-mix(in srgb, var(--zzgf-accent) 45%, white) var(--zzgf-glow, 0px),
       transparent calc(var(--zzgf-glow, 0px) + var(--zzgf-glow-reach)));
     mask-image: var(--zzgf-shapemask, linear-gradient(#000, #000)),
-      linear-gradient(to bottom, transparent 0, #000 min(var(--zzgf-fade), 12px), #000 calc(100% - min(var(--zzgf-fade), 12px)), transparent 100%),
       linear-gradient(to bottom,
         rgb(0 0 0 / var(--zzgf-glow-floor)) calc(var(--zzgf-glow, 0px) - var(--zzgf-glow-reach)),
         #000 var(--zzgf-glow, 0px),
@@ -2143,9 +2142,9 @@
       &[zzgf-more-below] { --zzgf-fade-below: var(--zzgroup-scroll-fade-size, 22px); }
     }
   }
-  /* Up and down arrows over the body's edges while the folder is hovered.
-     They sit in the header (positioned by the script), never in the body,
-     whose children Zen reads as its tabs. */
+  /* Up and down chips in the folder's header row while it is hovered, beside
+     the tab count. They live in the header, never in the body, whose
+     children Zen reads as its tabs. */
   #navigator-toolbox tab-group:not([split-view-group]):not(tab-group tab-group) > .tab-group-label-container:has(> .zzgf-more) {
     position: relative;
   }
@@ -2159,9 +2158,11 @@
       z-index: 3;
       display: grid;
       place-items: center;
-      left: calc(var(--zzgf-more-x, 50%) - 15px);
-      width: 30px;
-      height: 18px;
+      inset-inline-end: var(--zzgf-chip-end, 36px);
+      top: 50%;
+      translate: 0 -50%;
+      width: 22px;
+      height: 16px;
       margin: 0;
       padding: 0;
       border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
@@ -2180,9 +2181,8 @@
         -moz-context-properties: fill;
         fill: currentColor;
       }
-      /* Centred on the body's edges, half over the row, half outside. */
-      &.up { top: calc(var(--zzgf-more-top, 100%) - 9px); &::before { rotate: 180deg; } }
-      &.down { top: calc(var(--zzgf-more-bottom, 100%) - 9px); }
+      /* In the header row, beside the tab count: up, then down. */
+      &.up { inset-inline-end: calc(var(--zzgf-chip-end, 36px) + 25px); &::before { rotate: 180deg; } }
       &:hover { background: color-mix(in srgb, var(--zzgf-accent) 45%, color-mix(in srgb, var(--toolbar-bgcolor, #1b1626) 80%, transparent)); }
     }
     #navigator-toolbox tab-group:hover > .tab-group-label-container > .zzgf-more {

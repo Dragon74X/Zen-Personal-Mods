@@ -1938,4 +1938,8 @@ test("Iconflow's frame counter spans each strip it uses", async () => {
     const [, width, height] = svg.match(/width='(\d+)' height='(\d+)'/);
     assert.deepEqual([...ends], [width / height - 1], `${strip} has ${width / height} frames`);
   }
+  // Zen draws the Library sprite's ::before 36 frames wide; a strip stepped by
+  // the counter must shrink it to one frame, or the button shows a blank sliver.
+  for (const [rule] of css.matchAll(/#zen-library-button \.zen-library-sprite::before \{[^}]*--zzicon-frame[^}]*\}/g))
+    assert.match(rule, /width: 100% !important/);
 });

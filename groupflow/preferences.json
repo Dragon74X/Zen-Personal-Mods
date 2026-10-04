@@ -1292,9 +1292,28 @@
   {
     "type": "checkbox",
     "property": "zzgroup.scroll-glow",
-    "label": "Moving light on connectors while scrolling *The connector's gradient moves with you: the line is at full strength, with a bright band of its own colour, where you are, easing down to a dim floor away from it. It slides down as you scroll, through every subfolder line it passes, following a folder's own scrolling or the tab list's. While it shows, it takes the place of the line's Soft ends or fade; colour, width, shape, sheen and rim stay as set.*",
+    "label": "Dynamic connectors *Each connector line, subfolders' included, carries a light showing where you are: full strength with a bright band of its own colour, easing to a dim floor away from it. It moves as you scroll through that line, and stays the same whether or not anything scrolls. Off: static connectors, drawn with the line's own gradient (Soft ends or a fade). Colour, width, shape and pill ends stay as set.*",
     "defaultValue": true,
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "layout"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.glow-follows",
+    "label": "Light follows *Where you are: how far you have scrolled through each line. The selected tab: lines holding it light at its row; the rest follow where you are.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Where you are",
+        "value": 0
+      },
+      {
+        "label": "The selected tab",
+        "value": 1
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "layout"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.scroll-glow", "value": true}}], "operator": "OR"}],
     "operator": "AND"
   },
   {

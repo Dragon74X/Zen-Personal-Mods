@@ -117,21 +117,22 @@ moves with the contents in the same frame, so it never shows a gap.
 While a folder's contents scroll, Groupflow shows what is out of view, each
 part with its own setting (all on by default):
 
-- **Moving light:** the connector's gradient moves with you. The line is at
-  full strength, with a bright band of its own colour, where you are, and
-  eases down to a dim floor away from it: at the top when you are at the
-  top, sliding down as you scroll, through every subfolder line it passes.
-  It follows a folder's own scrolling, or the tab list's when the folder
-  fits (also with **Scroll inside folders** off). While it shows it takes the
-  place of the line's **Soft ends** or fade; colour, width, shape, sheen and
-  rim stay as set.
+- **Dynamic connectors:** every connector line, each subfolder's included,
+  carries its own light showing where you are in that line: full strength,
+  with a bright band of its own colour, there, easing to a dim floor away
+  from it. It slides down as you scroll through that line, whether the
+  folder scrolls inside itself or the tab list scrolls, and looks the same
+  when nothing can scroll. **Light follows** can pin it to the selected
+  tab's row instead. Off gives static connectors with the line's own
+  gradient (**Soft ends** or a fade). Colour, width, shape and pill ends stay
+  as set.
 - **Edge fade:** the folder's top or bottom edge fades while more tabs are
   hidden past it. The same setting fades the tab list's own top and bottom
   edges while it scrolls, so folders, subfolders and tabs fade as they leave
   the list even when no folder scrolls inside itself, and with **Scroll
   inside folders** off.
-- **Arrows on hover:** hovering the folder shows an up and a down arrow on
-  its edges; clicking one scrolls a page that way. The arrow at an end stays
+- **Arrows on hover:** hovering the folder shows an up and a down chip in
+  its header, beside the tab count; clicking one scrolls a page that way. The arrow at an end stays
   faint.
 - **Tab count on hover:** hovering any folder or subfolder header shows how
   many tabs it holds, subfolders included.

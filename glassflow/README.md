@@ -112,7 +112,7 @@ set of controls, so a state can be styled without touching the others.
 | Blur strength | `20px` | `20px` | `20px` | `20px` |
 
 An unloaded tab's **Opacity** fades its background, title and favicon;
-**Greyscale favicon** (on) also drains the favicon's colour. The tab's tint,
+**Greyscale favicon** (off by default) also drains the favicon's colour. The tab's tint,
 rim and other colours are kept.
 
 Keep a real gap between the selected and unselected tints. Past roughly 20% on

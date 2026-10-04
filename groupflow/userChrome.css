@@ -2005,6 +2005,114 @@
   }
 }
 
+/* ---- what is out of view (groupflow.uc.js marks it) ------------------
+   A body that scrolls carries zzgf-glow, plus zzgf-more-above/-below on
+   the sides where rows are hidden. --zzgf-glow is where the light sits on
+   each connector, in that connector's own pixels. */
+@media (-moz-pref("zzgroup.connector-scroll")) {
+  /* The line dims away from the light, so its brightest point follows the
+     scroll down the folder and through every subfolder line it passes. */
+  @media (-moz-pref("zzgroup.scroll-glow")) {
+    #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container:is([zzgf-glow], [zzgf-glow] .tab-group-container)::before {
+      --zzgf-glow-reach: var(--zzgroup-glow-reach, 110px);
+      --zzgf-glow-floor: var(--zzgroup-glow-floor, 0.25);
+      mask-image: var(--zzgf-railmask), linear-gradient(to bottom,
+        rgb(0 0 0 / var(--zzgf-glow-floor)) calc(var(--zzgf-glow, 0px) - var(--zzgf-glow-reach)),
+        #000 var(--zzgf-glow, 0px),
+        rgb(0 0 0 / var(--zzgf-glow-floor)) calc(var(--zzgf-glow, 0px) + var(--zzgf-glow-reach)));
+      mask-composite: intersect;
+    }
+  }
+  @media (-moz-pref("zzgroup.scroll-fade")) {
+    #navigator-toolbox tab-group:not([split-view-group]):not(tab-group tab-group) > .tab-group-container:is([zzgf-more-above], [zzgf-more-below]) {
+      mask-image: linear-gradient(to bottom, transparent 0, #000 var(--zzgf-fade-above, 0px),
+        #000 calc(100% - var(--zzgf-fade-below, 0px)), transparent 100%);
+      &[zzgf-more-above] { --zzgf-fade-above: var(--zzgroup-scroll-fade-size, 22px); }
+      &[zzgf-more-below] { --zzgf-fade-below: var(--zzgroup-scroll-fade-size, 22px); }
+    }
+  }
+  /* Up and down arrows over the body's edges while the folder is hovered.
+     They sit in the header (positioned by the script), never in the body,
+     whose children Zen reads as its tabs. */
+  #navigator-toolbox tab-group:not([split-view-group]):not(tab-group tab-group) > .tab-group-label-container:has(> .zzgf-more) {
+    position: relative;
+  }
+  #navigator-toolbox .tab-group-label-container > .zzgf-more {
+    display: none;
+  }
+  @media (-moz-pref("zzgroup.scroll-arrows")) {
+    #navigator-toolbox .tab-group-label-container > .zzgf-more {
+      appearance: none;
+      position: absolute;
+      z-index: 3;
+      display: grid;
+      place-items: center;
+      left: calc(var(--zzgf-more-x, 50%) - 15px);
+      width: 30px;
+      height: 18px;
+      margin: 0;
+      padding: 0;
+      border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--zzgf-accent) 28%, color-mix(in srgb, var(--toolbar-bgcolor, #1b1626) 80%, transparent));
+      color: inherit;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease-out;
+      -moz-window-dragging: no-drag;
+      &::before {
+        content: "";
+        width: 10px;
+        height: 10px;
+        background: url("chrome://global/skin/icons/arrow-down.svg") center / contain no-repeat;
+        -moz-context-properties: fill;
+        fill: currentColor;
+      }
+      /* Centred on the body's edges, half over the row, half outside. */
+      &.up { top: calc(var(--zzgf-more-top, 100%) - 9px); &::before { rotate: 180deg; } }
+      &.down { top: calc(var(--zzgf-more-bottom, 100%) - 9px); }
+      &:hover { background: color-mix(in srgb, var(--zzgf-accent) 45%, color-mix(in srgb, var(--toolbar-bgcolor, #1b1626) 80%, transparent)); }
+    }
+    #navigator-toolbox tab-group:hover > .tab-group-label-container > .zzgf-more {
+      opacity: 0.9;
+      pointer-events: auto;
+    }
+    /* At an end there is nothing more that way: that arrow stays faint. */
+    #navigator-toolbox tab-group:hover:has(> .tab-group-container:not([zzgf-more-above])) > .tab-group-label-container > .zzgf-more.up,
+    #navigator-toolbox tab-group:hover:has(> .tab-group-container:not([zzgf-more-below])) > .tab-group-label-container > .zzgf-more.down {
+      opacity: 0.3;
+    }
+  }
+}
+/* Tabs in a folder, subfolders included, on hovering its header. */
+#navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container > .zzgf-count {
+  display: none;
+}
+@media (-moz-pref("zzgroup.hover-count")) {
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container > .zzgf-count {
+    display: block;
+    position: absolute;
+    inset-inline-end: 8px;
+    top: 50%;
+    translate: 0 -50%;
+    padding: 0 6px;
+    border-radius: 999px;
+    font-size: 11px;
+    line-height: 16px;
+    font-variant-numeric: tabular-nums;
+    background: color-mix(in srgb, currentColor 14%, transparent);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease-out;
+  }
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container:has(> .zzgf-count) {
+    position: relative;
+  }
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container:hover > .zzgf-count {
+    opacity: 0.85;
+  }
+}
+
 /* ---- the space under the tabs moves the window ------------------------
    Zen turns window dragging off for the tab toolbar and back on only for
    the empty space under the list, which has no height once the list fills

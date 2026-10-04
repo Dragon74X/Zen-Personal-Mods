@@ -2241,6 +2241,54 @@
   },
   {
     "type": "checkbox",
+    "property": "zzgroup.scroll-glow",
+    "label": "Moving glow on scrolling folders *While a folder's contents scroll, its connector lines are brightest where you are: at the top when you are at the top, sliding down to the bottom as you reach the end. Subfolder lines share the same light.*",
+    "defaultValue": true,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.connector-scroll",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.scroll-fade",
+    "label": "Fade the edge where tabs are hidden *A folder's top or bottom edge softly fades while more tabs are hidden past it.*",
+    "defaultValue": true,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.connector-scroll",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.scroll-arrows",
+    "label": "Arrows on hover *Hovering a folder whose contents scroll shows an up and a down arrow on its edges; clicking one scrolls a page that way. The arrow at an end stays faint.*",
+    "defaultValue": true,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzgroup.connector-scroll",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.hover-count",
+    "label": "Tab count on hover *Hovering a folder or subfolder header shows how many tabs it holds, subfolders included.*",
+    "defaultValue": true
+  },
+  {
+    "type": "checkbox",
     "property": "zzgroup.hover-scroll",
     "label": "Scroll what is under the pointer *Firefox keeps a burst of scrolling aimed at wherever it started, so moving from favourites onto the tabs mid-scroll did not scroll the tabs. With this on, the wheel scrolls the sidebar section under the pointer, and the space below the tab list, down to the bottom buttons, scrolls the tabs.*",
     "defaultValue": true

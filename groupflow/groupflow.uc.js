@@ -75,7 +75,7 @@
       if (!data || !data.startsWith(PREFIX)) return;
       iconRules = null;                    // reparsed on the next refresh
       if (["favicons", "icon-rules", "section-icons", "icon-shape", "color-source", "subfolder.include-folders"].some(k => data === PREFIX + k)) schedule();
-      if (data === PREFIX + "folder-height" || data === PREFIX + "connector-scroll") fitSoon();
+      if (["folder-height", "connector-scroll", "hover-count"].some(k => data === PREFIX + k)) fitSoon();
       const name = "--" + data.replace(/\./g, "-");
       const value = readPrefValue(data);
       try {
@@ -876,6 +876,7 @@
     const cap = Math.max(shares.get(box) ?? prefCap(box), ends[Math.min(3, ends.length - 1)]);
     if (end <= cap) {
       for (const v of ["fit", "scroll"]) box.style.removeProperty("--zzgf-box-" + v);
+      markEdges(box, false);
       return null;
     }
     const last = stops.find(y => end - y <= cap) ?? end - cap;
@@ -928,6 +929,7 @@
       box.scrollTop = y;
       setTops.set(box, box.scrollTop);
       box.style.setProperty("--zzgf-box-scroll", box.scrollTop + "px");
+      markEdges(box, true);
     };
     if (instant) { set(to); return; }
     const from = box.scrollTop, start = performance.now(), ms = 140;
@@ -937,6 +939,73 @@
       if (k < 1) glides.set(box, { to, raf: requestAnimationFrame(step) }); else glides.delete(box);
     };
     glides.set(box, { to, raf: requestAnimationFrame(step) });
+  }
+  // What is out of view. A body that scrolls is marked on the sides where
+  // rows are hidden (edge fade), its header gets an up and a down arrow
+  // (shown on hover, clicking pages that way), and its connector lines are
+  // lit at one height that follows the scroll: at the top when the body is
+  // at its top, sliding to the bottom as it reaches its end. Subfolder
+  // lines get the same light, measured from their own tops.
+  const HTML = "http://www.w3.org/1999/xhtml";
+  function markEdges(box, scrolls) {
+    const max = box.scrollHeight - box.clientHeight, y = box.scrollTop;
+    scrolls &&= max > 0.5;
+    box.toggleAttribute("zzgf-more-above", scrolls && y > 0.5);
+    box.toggleAttribute("zzgf-more-below", scrolls && y < max - 0.5);
+    box.toggleAttribute("zzgf-glow", scrolls);
+    const header = box.parentElement?.labelContainerElement;
+    if (!scrolls) { header?.querySelectorAll(":scope > .zzgf-more").forEach(a => a.remove()); return; }
+    // Every position is read before any is written, so this lays out once.
+    const b = box.getBoundingClientRect(), h = header?.getBoundingClientRect();
+    const subs = [...box.querySelectorAll("tab-group:not([split-view-group]) > .tab-group-container")];
+    const tops = subs.map(sub => sub.getBoundingClientRect().top - b.top);
+    const light = y / max * box.clientHeight;
+    box.style.setProperty("--zzgf-glow", light + "px");
+    subs.forEach((sub, i) => sub.style.setProperty("--zzgf-glow", light - tops[i] + "px"));
+    if (!header) return;
+    if (!header.querySelector(":scope > .zzgf-more")) {
+      for (const dir of ["up", "down"]) {
+        const arrow = document.createElementNS(HTML, "button");
+        arrow.type = "button";
+        arrow.tabIndex = -1;
+        arrow.className = "zzgf-more " + dir;
+        arrow.setAttribute("aria-label", dir === "up" ? "Scroll folder up" : "Scroll folder down");
+        header.appendChild(arrow);
+      }
+    }
+    header.style.setProperty("--zzgf-more-x", b.left + b.width / 2 - h.left + "px");
+    header.style.setProperty("--zzgf-more-top", b.top - h.top + "px");
+    header.style.setProperty("--zzgf-more-bottom", b.bottom - h.top + "px");
+  }
+  function pageFolder(event) {
+    const arrow = event.target.closest?.(".zzgf-more");
+    if (!arrow) return;
+    event.preventDefault();
+    event.stopPropagation();                // never collapses the folder
+    const box = arrow.parentElement.parentElement?.querySelector(":scope > .tab-group-container");
+    const measured = box && measureBox(box);
+    if (!measured) return;
+    const from = glides.get(box)?.to ?? box.scrollTop, down = arrow.classList.contains("down");
+    const ahead = measured.positions.filter(y => down ? y > from + 0.5 : y < from - 0.5);
+    scrollBox(box, ahead.length ? nearest(ahead, from + (down ? 1 : -1) * box.clientHeight) : from, false, measured);
+  }
+  // How many tabs each folder holds, subfolders included, shown on hover.
+  function countTabs() {
+    const on = bool("hover-count", true);
+    for (const g of plainGroups()) {
+      const header = g.labelContainerElement;
+      if (!header) continue;
+      let badge = header.querySelector(":scope > .zzgf-count");
+      if (!on) { badge?.remove(); continue; }
+      if (!badge) {
+        badge = document.createElementNS(HTML, "span");
+        badge.className = "zzgf-count";
+        badge.setAttribute("aria-hidden", "true");
+        header.appendChild(badge);
+      }
+      const n = String(g.querySelectorAll(".tabbrowser-tab:not([zen-empty-tab], [closing])").length);
+      if (badge.textContent !== n) badge.textContent = n;
+    }
   }
   const settles = new WeakMap();            // box -> timer: pixel scrolling snaps once it pauses
   const topBoxes = (root = document) => [...root.querySelectorAll("tab-group:not([split-view-group]) > .tab-group-container")]
@@ -1045,7 +1114,7 @@
   const fitSoon = (select = false) => {
     showSelected ||= select === true;
     clearTimeout(fitTimer);
-    fitTimer = setTimeout(() => { const keep = !showSelected; showSelected = false; fitAll(keep); }, 150);
+    fitTimer = setTimeout(() => { const keep = !showSelected; showSelected = false; countTabs(); fitAll(keep); }, 150);
   };
   const onFitEvent = event => fitSoon(event.type === "TabSelect");
   const FIT_EVENTS = ["TabSelect", "TabOpen", "TabClose", "TabGroupCollapse", "TabGroupExpand",
@@ -1102,6 +1171,7 @@
     const iconEvents = atg ? EVENTS : ["SSTabRestored", "ZenTabIconChanged"];
     for (const ev of iconEvents) window.addEventListener(ev, schedule, true);
     window.addEventListener("click", toggleSubgroups, true);
+    window.addEventListener("click", pageFolder, true);
     window.addEventListener("TabGroupCreate", dressCopies, true);
     // Capture on the strip runs before tabbox.js's bubble listener there.
     const strip = gBrowser.tabContainer;
@@ -1153,6 +1223,9 @@
       try { delete window.Groupflow; } catch {}
       for (const ev of iconEvents) window.removeEventListener(ev, schedule, true);
       window.removeEventListener("click", toggleSubgroups, true);
+      window.removeEventListener("click", pageFolder, true);
+      for (const mark of document.querySelectorAll(".tab-group-label-container > :is(.zzgf-more, .zzgf-count)")) mark.remove();
+      for (const box of document.querySelectorAll(".tab-group-container[zzgf-glow]")) markEdges(box, false);
       window.removeEventListener("TabGroupCreate", dressCopies, true);
       strip.removeEventListener("DOMMouseScroll", scrollOnConnectors, true);
       gNavToolbox.removeEventListener("wheel", onWheel, true);

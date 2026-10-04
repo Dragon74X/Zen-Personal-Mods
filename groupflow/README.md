@@ -108,6 +108,20 @@ refit after tabs open, close, move or change, folders toggle, or the window
 resizes; a refit leaves the rows where you scrolled them. The connector line
 moves with the contents in the same frame, so it never shows a gap.
 
+While a folder's contents scroll, Groupflow shows what is out of view, each
+part with its own setting (all on by default):
+
+- **Moving glow:** the folder's connector lines are brightest where you are,
+  at the top when you are at the top, sliding to the bottom as you reach the
+  end. Subfolder lines share the same light.
+- **Edge fade:** the folder's top or bottom edge fades while more tabs are
+  hidden past it.
+- **Arrows on hover:** hovering the folder shows an up and a down arrow on
+  its edges; clicking one scrolls a page that way. The arrow at an end stays
+  faint.
+- **Tab count on hover:** hovering any folder or subfolder header shows how
+  many tabs it holds, subfolders included.
+
 A folder that fits has nothing to scroll, so its connector scrolls the list.
 With Firefox's **switch tabs by scrolling** setting on
 (`toolkit.tabbox.switchByScrolling`), the connector never selects or loads a

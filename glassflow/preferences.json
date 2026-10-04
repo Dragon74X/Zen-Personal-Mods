@@ -981,6 +981,22 @@
     "operator": "AND"
   },
   {
+    "type": "checkbox",
+    "property": "zzglass.pending.essentials",
+    "label": "Dim unloaded Essentials *Off keeps unloaded Essentials at full strength: no fade, no greyscale. They keep the Unloaded tint, so you can still tell.*",
+    "defaultValue": false,
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.pending.pinned",
+    "label": "Dim unloaded pinned tabs *The same for pinned tabs outside Essentials.*",
+    "defaultValue": false,
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
     "type": "dropdown",
     "value": "number",
     "property": "zzglass.pending.direction",

@@ -114,6 +114,8 @@ set of controls, so a state can be styled without touching the others.
 An unloaded tab's **Opacity** fades its background, title and favicon;
 **Greyscale favicon** (off by default) also drains the favicon's colour. The tab's tint,
 rim and other colours are kept.
+**Dim unloaded Essentials** and **Dim unloaded pinned tabs** (both off) leave
+those at full strength while unloaded; they keep the Unloaded tint as the cue.
 
 Keep a real gap between the selected and unselected tints. Past roughly 20% on
 the unselected value the two states stop being distinguishable. If you prefer

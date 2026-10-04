@@ -3,46 +3,48 @@
    numbers, so a hover that interrupts one in progress still lands on
    whole frames and never shows the strip sliding between two. */
 @property --zzicon-frame { syntax: "<integer>"; inherits: false; initial-value: 0; }
-/* Back */
+/* Back: moved by CSS */
 @media ((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.back", 0))) or (-moz-pref("zzicon.button.back", 4)) or (-moz-pref("zzicon.button.back", 5)) {
-  #back-button .toolbarbutton-icon {
+  #back-button .toolbarbutton-icon:not(#zzicon-own) {
     list-style-image: var(--zzicon-blank) !important;
     -moz-context-properties: fill, fill-opacity, stroke !important;
     stroke: var(--zzicon-halo, currentColor) !important;
     background-image: url("icons/circuit/back.svg") !important;
-    background-size: 9600% 100% !important;
-    background-position: calc(var(--zzicon-frame) * 100% / 95) 0 !important;
+    background-size: 100% 100% !important;
+    background-position: 0 0 !important;
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    animation: none !important; transform: none !important;
+    translate: calc(var(--zzicon-t) * -1.4px) 0 !important;
+    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s !important;
   }
   #back-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.back", 5))) {
-    #back-button:hover .toolbarbutton-icon { --zzicon-frame: 95 !important;
-      filter: var(--zzicon-circuit-glow, none) !important; }
-    #back-button:hover .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; transform: none !important; }
+    #back-button:hover .toolbarbutton-icon:not(#zzicon-own) { --zzicon-t: 1 !important; filter: var(--zzicon-circuit-glow, none) !important;
+      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s !important; }
   }
 }
-/* Forward */
+/* Forward: moved by CSS */
 @media ((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.forward", 0))) or (-moz-pref("zzicon.button.forward", 4)) or (-moz-pref("zzicon.button.forward", 5)) {
-  #forward-button .toolbarbutton-icon {
+  #forward-button .toolbarbutton-icon:not(#zzicon-own) {
     list-style-image: var(--zzicon-blank) !important;
     -moz-context-properties: fill, fill-opacity, stroke !important;
     stroke: var(--zzicon-halo, currentColor) !important;
     background-image: url("icons/circuit/forward.svg") !important;
-    background-size: 9600% 100% !important;
-    background-position: calc(var(--zzicon-frame) * 100% / 95) 0 !important;
+    background-size: 100% 100% !important;
+    background-position: 0 0 !important;
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    animation: none !important; transform: none !important;
+    translate: calc(var(--zzicon-t) * 1.4px) 0 !important;
+    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s !important;
   }
   #forward-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.forward", 5))) {
-    #forward-button:hover .toolbarbutton-icon { --zzicon-frame: 95 !important;
-      filter: var(--zzicon-circuit-glow, none) !important; }
-    #forward-button:hover .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; transform: none !important; }
+    #forward-button:hover .toolbarbutton-icon:not(#zzicon-own) { --zzicon-t: 1 !important; filter: var(--zzicon-circuit-glow, none) !important;
+      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s !important; }
   }
 }
 /* Reload */
@@ -66,25 +68,26 @@
     #reload-button:hover .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; transform: none !important; }
   }
 }
-/* Stop */
+/* Stop: moved by CSS */
 @media ((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.stop", 0))) or (-moz-pref("zzicon.button.stop", 4)) or (-moz-pref("zzicon.button.stop", 5)) {
-  #stop-button .toolbarbutton-icon {
+  #stop-button .toolbarbutton-icon:not(#zzicon-own) {
     list-style-image: var(--zzicon-blank) !important;
     -moz-context-properties: fill, fill-opacity, stroke !important;
     stroke: var(--zzicon-halo, currentColor) !important;
     background-image: url("icons/circuit/stop.svg") !important;
-    background-size: 9600% 100% !important;
-    background-position: calc(var(--zzicon-frame) * 100% / 95) 0 !important;
+    background-size: 100% 100% !important;
+    background-position: 0 0 !important;
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    animation: none !important; transform: none !important;
+    rotate: calc(var(--zzicon-t) * 90deg) !important;
+    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s !important;
   }
   #stop-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.stop", 5))) {
-    #stop-button:hover .toolbarbutton-icon { --zzicon-frame: 95 !important;
-      filter: var(--zzicon-circuit-glow, none) !important; }
-    #stop-button:hover .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; transform: none !important; }
+    #stop-button:hover .toolbarbutton-icon:not(#zzicon-own) { --zzicon-t: 1 !important; filter: var(--zzicon-circuit-glow, none) !important;
+      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s !important; }
   }
 }
 /* Home */
@@ -108,25 +111,26 @@
     #home-button:hover .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; transform: none !important; }
   }
 }
-/* New tab */
+/* New tab: moved by CSS */
 @media ((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.new-tab", 0))) or (-moz-pref("zzicon.button.new-tab", 4)) or (-moz-pref("zzicon.button.new-tab", 5)) {
-  #tabs-newtab-button .toolbarbutton-icon, #zen-create-new-button .toolbarbutton-icon, #new-tab-button .toolbarbutton-icon, #appMenu-new-tab-button2 .toolbarbutton-icon {
+  #tabs-newtab-button .toolbarbutton-icon:not(#zzicon-own), #zen-create-new-button .toolbarbutton-icon:not(#zzicon-own), #new-tab-button .toolbarbutton-icon:not(#zzicon-own), #appMenu-new-tab-button2 .toolbarbutton-icon:not(#zzicon-own) {
     list-style-image: var(--zzicon-blank) !important;
     -moz-context-properties: fill, fill-opacity, stroke !important;
     stroke: var(--zzicon-halo, currentColor) !important;
     background-image: url("icons/circuit/new-tab.svg") !important;
-    background-size: 9600% 100% !important;
-    background-position: calc(var(--zzicon-frame) * 100% / 95) 0 !important;
+    background-size: 100% 100% !important;
+    background-position: 0 0 !important;
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    animation: none !important; transform: none !important;
+    rotate: calc(var(--zzicon-t) * 90deg) !important;
+    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s !important;
   }
   #tabs-newtab-button:hover, #zen-create-new-button:hover, #new-tab-button:hover, #appMenu-new-tab-button2:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.new-tab", 5))) {
-    #tabs-newtab-button:hover .toolbarbutton-icon, #zen-create-new-button:hover .toolbarbutton-icon, #new-tab-button:hover .toolbarbutton-icon, #appMenu-new-tab-button2:hover .toolbarbutton-icon { --zzicon-frame: 95 !important;
-      filter: var(--zzicon-circuit-glow, none) !important; }
-    #tabs-newtab-button:hover .toolbarbutton-icon:not(#zzicon-own), #zen-create-new-button:hover .toolbarbutton-icon:not(#zzicon-own), #new-tab-button:hover .toolbarbutton-icon:not(#zzicon-own), #appMenu-new-tab-button2:hover .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; transform: none !important; }
+    #tabs-newtab-button:hover .toolbarbutton-icon:not(#zzicon-own), #zen-create-new-button:hover .toolbarbutton-icon:not(#zzicon-own), #new-tab-button:hover .toolbarbutton-icon:not(#zzicon-own), #appMenu-new-tab-button2:hover .toolbarbutton-icon:not(#zzicon-own) { --zzicon-t: 1 !important; filter: var(--zzicon-circuit-glow, none) !important;
+      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s !important; }
   }
 }
 /* Workspace actions */
@@ -612,25 +616,26 @@
     .zen-media-card[muted] .zen-media-mute-button:hover .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; transform: none !important; }
   }
 }
-/* Close player */
+/* Close player: moved by CSS */
 @media ((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.media-close", 0))) or (-moz-pref("zzicon.button.media-close", 4)) or (-moz-pref("zzicon.button.media-close", 5)) {
-  .zen-media-close-button .toolbarbutton-icon {
+  .zen-media-close-button .toolbarbutton-icon:not(#zzicon-own) {
     list-style-image: var(--zzicon-blank) !important;
     -moz-context-properties: fill, fill-opacity, stroke !important;
     stroke: var(--zzicon-halo, currentColor) !important;
     background-image: url("icons/circuit/media-close.svg") !important;
-    background-size: 9600% 100% !important;
-    background-position: calc(var(--zzicon-frame) * 100% / 95) 0 !important;
+    background-size: 100% 100% !important;
+    background-position: 0 0 !important;
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    animation: none !important; transform: none !important;
+    rotate: calc(var(--zzicon-t) * 90deg) !important;
+    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s !important;
   }
   .zen-media-close-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.media-close", 5))) {
-    .zen-media-close-button:hover .toolbarbutton-icon { --zzicon-frame: 95 !important;
-      filter: var(--zzicon-circuit-glow, none) !important; }
-    .zen-media-close-button:hover .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; transform: none !important; }
+    .zen-media-close-button:hover .toolbarbutton-icon:not(#zzicon-own) { --zzicon-t: 1 !important; filter: var(--zzicon-circuit-glow, none) !important;
+      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s !important; }
   }
 }
 /* Picture-in-picture */
@@ -738,46 +743,48 @@
     #open-file-button:hover .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; transform: none !important; }
   }
 }
-/* Zoom in */
+/* Zoom in: moved by CSS */
 @media ((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.zoom", 0))) or (-moz-pref("zzicon.button.zoom", 4)) or (-moz-pref("zzicon.button.zoom", 5)) {
-  #zoom-in-button .toolbarbutton-icon, #appMenu-zoomEnlarge-button2 .toolbarbutton-icon {
+  #zoom-in-button .toolbarbutton-icon:not(#zzicon-own), #appMenu-zoomEnlarge-button2 .toolbarbutton-icon:not(#zzicon-own) {
     list-style-image: var(--zzicon-blank) !important;
     -moz-context-properties: fill, fill-opacity, stroke !important;
     stroke: var(--zzicon-halo, currentColor) !important;
     background-image: url("icons/circuit/zoom-in.svg") !important;
-    background-size: 9600% 100% !important;
-    background-position: calc(var(--zzicon-frame) * 100% / 95) 0 !important;
+    background-size: 100% 100% !important;
+    background-position: 0 0 !important;
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    animation: none !important; transform: none !important;
+    scale: calc(1 + var(--zzicon-t) * 0.2) !important;
+    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s !important;
   }
   #zoom-in-button:hover, #appMenu-zoomEnlarge-button2:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.zoom", 5))) {
-    #zoom-in-button:hover .toolbarbutton-icon, #appMenu-zoomEnlarge-button2:hover .toolbarbutton-icon { --zzicon-frame: 95 !important;
-      filter: var(--zzicon-circuit-glow, none) !important; }
-    #zoom-in-button:hover .toolbarbutton-icon:not(#zzicon-own), #appMenu-zoomEnlarge-button2:hover .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; transform: none !important; }
+    #zoom-in-button:hover .toolbarbutton-icon:not(#zzicon-own), #appMenu-zoomEnlarge-button2:hover .toolbarbutton-icon:not(#zzicon-own) { --zzicon-t: 1 !important; filter: var(--zzicon-circuit-glow, none) !important;
+      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s !important; }
   }
 }
-/* Zoom out */
+/* Zoom out: moved by CSS */
 @media ((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.zoom", 0))) or (-moz-pref("zzicon.button.zoom", 4)) or (-moz-pref("zzicon.button.zoom", 5)) {
-  #zoom-out-button .toolbarbutton-icon, #appMenu-zoomReduce-button2 .toolbarbutton-icon {
+  #zoom-out-button .toolbarbutton-icon:not(#zzicon-own), #appMenu-zoomReduce-button2 .toolbarbutton-icon:not(#zzicon-own) {
     list-style-image: var(--zzicon-blank) !important;
     -moz-context-properties: fill, fill-opacity, stroke !important;
     stroke: var(--zzicon-halo, currentColor) !important;
     background-image: url("icons/circuit/zoom-out.svg") !important;
-    background-size: 9600% 100% !important;
-    background-position: calc(var(--zzicon-frame) * 100% / 95) 0 !important;
+    background-size: 100% 100% !important;
+    background-position: 0 0 !important;
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    animation: none !important; transform: none !important;
+    scale: calc(1 - var(--zzicon-t) * 0.2) !important;
+    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s !important;
   }
   #zoom-out-button:hover, #appMenu-zoomReduce-button2:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.zoom", 5))) {
-    #zoom-out-button:hover .toolbarbutton-icon, #appMenu-zoomReduce-button2:hover .toolbarbutton-icon { --zzicon-frame: 95 !important;
-      filter: var(--zzicon-circuit-glow, none) !important; }
-    #zoom-out-button:hover .toolbarbutton-icon:not(#zzicon-own), #appMenu-zoomReduce-button2:hover .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; transform: none !important; }
+    #zoom-out-button:hover .toolbarbutton-icon:not(#zzicon-own), #appMenu-zoomReduce-button2:hover .toolbarbutton-icon:not(#zzicon-own) { --zzicon-t: 1 !important; filter: var(--zzicon-circuit-glow, none) !important;
+      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s !important; }
   }
 }
 /* Cut */
@@ -969,25 +976,26 @@
     #import-button:hover .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; transform: none !important; }
   }
 }
-/* Settings */
+/* Settings: moved by CSS */
 @media ((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.settings", 0))) or (-moz-pref("zzicon.button.settings", 4)) or (-moz-pref("zzicon.button.settings", 5)) {
-  #preferences-button .toolbarbutton-icon, #appMenu-settings-button .toolbarbutton-icon {
+  #preferences-button .toolbarbutton-icon:not(#zzicon-own), #appMenu-settings-button .toolbarbutton-icon:not(#zzicon-own) {
     list-style-image: var(--zzicon-blank) !important;
     -moz-context-properties: fill, fill-opacity, stroke !important;
     stroke: var(--zzicon-halo, currentColor) !important;
     background-image: url("icons/circuit/settings.svg") !important;
-    background-size: 9600% 100% !important;
-    background-position: calc(var(--zzicon-frame) * 100% / 95) 0 !important;
+    background-size: 100% 100% !important;
+    background-position: 0 0 !important;
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    animation: none !important; transform: none !important;
+    rotate: calc(var(--zzicon-t) * 60deg) !important;
+    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s !important;
   }
   #preferences-button:hover, #appMenu-settings-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.settings", 5))) {
-    #preferences-button:hover .toolbarbutton-icon, #appMenu-settings-button:hover .toolbarbutton-icon { --zzicon-frame: 95 !important;
-      filter: var(--zzicon-circuit-glow, none) !important; }
-    #preferences-button:hover .toolbarbutton-icon:not(#zzicon-own), #appMenu-settings-button:hover .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; transform: none !important; }
+    #preferences-button:hover .toolbarbutton-icon:not(#zzicon-own), #appMenu-settings-button:hover .toolbarbutton-icon:not(#zzicon-own) { --zzicon-t: 1 !important; filter: var(--zzicon-circuit-glow, none) !important;
+      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s !important; }
   }
 }
 /* Forget */
@@ -1200,46 +1208,48 @@
     #appMenu-help-button2:hover .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; transform: none !important; }
   }
 }
-/* Quit */
+/* Quit: moved by CSS */
 @media ((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.quit", 0))) or (-moz-pref("zzicon.button.quit", 4)) or (-moz-pref("zzicon.button.quit", 5)) {
-  #appMenu-quit-button2 .toolbarbutton-icon {
+  #appMenu-quit-button2 .toolbarbutton-icon:not(#zzicon-own) {
     list-style-image: var(--zzicon-blank) !important;
     -moz-context-properties: fill, fill-opacity, stroke !important;
     stroke: var(--zzicon-halo, currentColor) !important;
     background-image: url("icons/circuit/quit.svg") !important;
-    background-size: 9600% 100% !important;
-    background-position: calc(var(--zzicon-frame) * 100% / 95) 0 !important;
+    background-size: 100% 100% !important;
+    background-position: 0 0 !important;
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    animation: none !important; transform: none !important;
+    rotate: calc(var(--zzicon-t) * 90deg) !important;
+    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s !important;
   }
   #appMenu-quit-button2:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.quit", 5))) {
-    #appMenu-quit-button2:hover .toolbarbutton-icon { --zzicon-frame: 95 !important;
-      filter: var(--zzicon-circuit-glow, none) !important; }
-    #appMenu-quit-button2:hover .toolbarbutton-icon:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; transform: none !important; }
+    #appMenu-quit-button2:hover .toolbarbutton-icon:not(#zzicon-own) { --zzicon-t: 1 !important; filter: var(--zzicon-circuit-glow, none) !important;
+      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s !important; }
   }
 }
-/* Reset pinned tab */
+/* Reset pinned tab: moved by CSS */
 @media ((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.minus", 0))) or (-moz-pref("zzicon.button.minus", 4)) or (-moz-pref("zzicon.button.minus", 5)) {
-  .tab-reset-button, .tab-reset-pin-button image {
+  .tab-reset-button:not(#zzicon-own), .tab-reset-pin-button image:not(#zzicon-own) {
     list-style-image: var(--zzicon-blank) !important;
     -moz-context-properties: fill, fill-opacity, stroke !important;
     stroke: var(--zzicon-halo, currentColor) !important;
     background-image: url("icons/circuit/minus.svg") !important;
-    background-size: 9600% 100% !important;
-    background-position: calc(var(--zzicon-frame) * 100% / 95) 0 !important;
+    background-size: 100% 100% !important;
+    background-position: 0 0 !important;
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    animation: none !important; transform: none !important;
+    scale: calc(1 - var(--zzicon-t) * 0.4) 1 !important;
+    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s !important;
   }
   .tab-reset-pin-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.minus", 5))) {
-    .tab-reset-button:hover, .tab-reset-pin-button:hover image { --zzicon-frame: 95 !important;
-      filter: var(--zzicon-circuit-glow, none) !important; }
-    .tab-reset-button:hover:not(#zzicon-own), .tab-reset-pin-button:hover image:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; transform: none !important; }
+    .tab-reset-button:hover:not(#zzicon-own), .tab-reset-pin-button:hover image:not(#zzicon-own) { --zzicon-t: 1 !important; filter: var(--zzicon-circuit-glow, none) !important;
+      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s !important; }
   }
 }
 /* Bookmark: line art */

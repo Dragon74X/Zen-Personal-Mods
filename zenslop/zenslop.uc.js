@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Zenslop
-// @version        1.3.0
+// @version        1.3.1
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==

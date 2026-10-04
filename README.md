@@ -69,4 +69,10 @@ manual update checks. Updating the repository cannot override that local setting
 `tools/check.js` reports each installed mod's update flag, source, version and
 timestamp alongside the version actually installed on disk.
 
+Sine checks for updates only when Zen starts, or when **Check for updates** is
+pressed. While any of these mods is installed, the guard also runs Sine's own
+check every 3 hours, for every installed mod, when Sine's automatic updates are on.
+Several store entries have no `updatedAt`, or change version without a new date,
+so Sine never offers them; the guard treats a different store version as an update.
+
 The guard prevents overlapping install/update operations while loaded. When a download fails after Sine has removed the installed folder, it moves Sine's `tmp-<id>` backup back into place, so the mod keeps working and the next update retries. It cannot reconstruct a folder whose extraction failed partway, or files already missing from an earlier interrupted install. Restart after obtaining the updated guard. If a mod still has missing files, reinstall affected mods one at a time from their folder URLs, waiting for each install to finish. Install a working guard copy and restart before attempting another batch update. Do not move Sine's `temp` or extracted subfolders during a running install; those paths can be legitimate staging files.

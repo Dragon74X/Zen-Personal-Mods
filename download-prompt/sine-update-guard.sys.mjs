@@ -54,6 +54,14 @@ export function installSineUpdateGuard(manager, utils, { IOUtils, PathUtils } = 
       // original registry snapshot. Preserve those entries in the next write.
       try {
         args[1] = await utils.getMods();
+        // Sine compares only updatedAt. Several store entries never get one,
+        // or change version without a new date, so they never update. For
+        // store mods, a different store version counts as newer.
+        const [mod, , store] = args, entry = mod?.origin === "store" && store?.[mod.id];
+        if (entry?.version && entry.version !== mod.version &&
+            !(new Date(mod.updatedAt) < new Date(entry.updatedAt))) {
+          args[2] = { ...store, [mod.id]: { ...entry, updatedAt: new Date().toISOString() } };
+        }
         return await original.processModUpdate.apply(this, args);
       }
       catch (error) {
@@ -132,6 +140,15 @@ if (typeof ChromeUtils !== "undefined") {
       "chrome://userscripts/content/core/utils.sys.mjs").default;
     if (!installSineUpdateGuard(manager, utils)) {
       console.info("[Zen Personal Mods] Sine update guard skipped: engine does not match the shared-temp implementation.");
+    }
+    // Sine checks for updates only at launch. Check again every few hours,
+    // honouring its auto-update setting; one timer however many copies load.
+    const timer = "__zenPersonalModsUpdateTimer";
+    if (!manager[timer]) {
+      const { setInterval } = ChromeUtils.importESModule("resource://gre/modules/Timer.sys.mjs");
+      Object.defineProperty(manager, timer, { value: setInterval(() => {
+        manager.updateMods("auto").catch(error => console.warn("[Zen Personal Mods] Update check failed:", error));
+      }, 3 * 60 * 60 * 1000) });
     }
   } catch (error) {
     console.warn("[Zen Personal Mods] Could not install Sine update guard:", error);

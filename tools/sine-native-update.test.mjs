@@ -66,13 +66,14 @@ async function environment({ realMetadata = false, failArchive = new Set() } = {
       registry = structuredClone(json);
     },
   };
-  const metadataRequests = [], updatedMods = [];
+  const metadataRequests = [], updatedMods = [], marketplace = {};
   const sharedRepoDate = "2026-09-17T00:00:00Z";
   const ucAPI = {
     utils: { generateUUID: () => "unused-generated-id" },
     async fetch(url) {
       metadataRequests.push(url);
       if (url.startsWith("https://api.github.com/")) return { updated_at: sharedRepoDate };
+      if (url.includes("/sineorg/store/")) return structuredClone(marketplace);
       const mod = url.split("/").at(-2);
       return structuredClone(manifests["zz-" + mod]);
     },
@@ -103,7 +104,7 @@ async function environment({ realMetadata = false, failArchive = new Set() } = {
     lastLoad = Promise.all(Object.values(registry).map(mod => utils.getModPreferences(mod)));
     return lastLoad;
   };
-  return { manager, utils, IOUtils, fs, manifests, metadataRequests, updatedMods, sharedRepoDate,
+  return { manager, utils, IOUtils, fs, manifests, marketplace, metadataRequests, updatedMods, sharedRepoDate,
     get lastLoad() { return lastLoad; },
     get registry() { return registry; } };
 }
@@ -205,4 +206,41 @@ test("native Sine: a failed download restores the installed mod; the next update
   assert.deepEqual(env.updatedMods.filter(m => m === id).length, 2);
   assert.equal(env.registry[id].updatedAt, env.manifests[id].updatedAt);
   await env.utils.getModPreferences(env.registry[id]);
+});
+
+test("native Sine: the launch check is guarded when the guard loads with the mods", { skip: !upstream }, async () => {
+  // Sine.init starts rebuildMods (which imports background modules after
+  // reading mods.json) and then updateMods("auto") without awaiting either.
+  const env = await environment();
+  const rebuild = (async () => {
+    await env.utils.getMods();
+    installSineUpdateGuard(env.manager, env.utils);
+  })();
+  const update = env.manager.updateMods("auto");
+  await rebuild;
+  assert.equal(await update, true);
+  assert.equal((await env.lastLoad).length, mods.length);
+  for (const [id, mod] of Object.entries(env.registry)) assert.equal(mod.updatedAt, env.manifests[id].updatedAt, id);
+});
+
+test("native Sine: a store mod whose store entry changes version without a newer date updates once", { skip: !upstream }, async () => {
+  const env = await environment();
+  const id = "zz-groupflow", { updatedAt, ...entry } = env.manifests[id];
+  for (const [other, mod] of Object.entries(env.registry)) mod.updatedAt = env.manifests[other].updatedAt;
+  Object.assign(env.registry[id], { origin: "store", version: "0.0.0", updatedAt: "2026-01-01T00:00:00Z" });
+  env.marketplace[id] = { ...entry, commit: "abc" };          // no updatedAt, as several store entries ship
+  const unguarded = await env.utils.getMods();
+  assert.equal((await env.manager.processModUpdate(unguarded[id], unguarded, env.marketplace)).changed, false,
+    "baseline: Sine never updates it");
+  installSineUpdateGuard(env.manager, env.utils);
+  assert.equal(await env.manager.updateMods("auto"), true);
+  assert.deepEqual(env.updatedMods, [id]);
+  assert.equal(env.registry[id].version, entry.version);
+  assert.equal(await env.manager.updateMods("auto"), false, "same version: no repeat");
+  env.marketplace[id].updatedAt = "2026-01-02T00:00:00Z";       // dated entries keep Sine's rule
+  env.marketplace[id].version = "9.9.9";
+  env.registry[id].version = "1.0.0";
+  env.registry[id].updatedAt = "2026-01-02T00:00:00Z";
+  assert.equal(await env.manager.updateMods("auto"), true, "different version, same date");
+  assert.deepEqual(env.updatedMods, [id, id]);
 });

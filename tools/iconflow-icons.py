@@ -829,10 +829,6 @@ def taper(r, a0, a1, width, alpha, steps=18, cx=9, cy=9, paint="context-fill"):
     fine = [k / 60 for k in range(61)]
     inside = [u for u in fine if abs(a0 + (a1 - a0) * u - (a0 + a1) / 2) <= 90]
     stops = [(clamp((proj(u) - lo) / span), alpha(u)) for u in inside[::4] + inside[-1:]]
-    if inside[0] > 0:
-        stops.insert(0, (0.0, alpha(0)))
-    if inside[-1] < 1:
-        stops.append((1.0, alpha(1)))
     grad = "".join(f"<stop offset='{o:.3f}' stop-color='#fff' stop-opacity='{a:.2f}'/>" for o, a in stops)
     return (f"<defs><linearGradient id='g{i}' gradientUnits='userSpaceOnUse' x1='{n(cx + tx * lo)}' y1='{n(cy + ty * lo)}' "
             f"x2='{n(cx + tx * hi)}' y2='{n(cy + ty * hi)}'>{grad}</linearGradient>"
@@ -856,7 +852,7 @@ def taper_tube(r, a0, a1, lit=0.0, trace=None, cx=9, cy=9, comet=False):
     """A neon tube along an open arc whose two ends taper to a point; as a
     comet, it swells toward its head (a1) and thins away to nothing behind."""
     if comet:
-        k = lambda u: clamp(u ** 1.3 * 1.15) * ease_in_out(clamp((1 - u) / 0.06))
+        k = lambda u: clamp(u ** 1.3 * 1.15) * ease_in_out(clamp((1 - u) / 0.14)) ** 0.5   # a rounded head, not a cut
     else:
         k = lambda u: ease_in_out(clamp(min(u, 1 - u) / 0.24))   # 0 at the ends, 1 along the middle
     out = (taper(r, a0, a1, lambda u: 2.8 * (0.35 + 0.65 * k(u)), lambda u: (0.22 + 0.2 * lit) * k(u), 20, cx, cy, "context-stroke")

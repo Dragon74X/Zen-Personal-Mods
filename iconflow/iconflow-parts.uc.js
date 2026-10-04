@@ -363,7 +363,7 @@
       back: [slide(-2, 0)], forward: [slide(2, 0)], chevron: [slide(1.6, 0)], overflow: [slide(1.6, 0, { lag: 0.35 })],
       previous: [slide(-1.6, 0)], next: [slide(1.6, 0)], "close-unpinned": [slide(0, 1.8, { lag: 0.35 })],
       reload: [spin(360, { lead: "gap", trail: 40 })], history: rewind, reopen: rewind,
-      forget: [on(R.frame, spin(-360, { lead: "gap", trail: 40 })), on(R.rest, swell(-0.35, -0.35, { lag: 0.1, about: R.rest }))],
+      forget: rewind,
       sync: { fill: [slide(1.2, -0.6)], line: [dip(0, -1.6)] },
       stop: whip, quit: whip, "media-close": whip,
       "new-tab": [spin(90, { trail: 35 }), swell(0.08)],

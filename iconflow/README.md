@@ -8,7 +8,7 @@ Icon sets and hover motion for [Zen Browser](https://zen-browser.app/).
   - back slides, its arrowhead a beat ahead of its tail;
   - reload's arc whips round behind its arrowhead;
   - the downloads arrow lands in the tray and the tray gives;
-  - history's ring rewinds while its hands run back like a clock's;
+  - history, recently closed and forget rewind like a clock: the ring turns back and the hands run back;
   - the site settings sliders run along their tracks;
   - close and plus whip round from the middle.
 

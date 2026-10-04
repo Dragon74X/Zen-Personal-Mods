@@ -36,22 +36,36 @@ def span(t, a, b):
     return clamp((t - a) / (b - a))
 
 
+# Every curve starts from rest and builds up speed, so motion reads as
+# accelerating and settling rather than moving at one speed throughout.
+
 def ease_in_out(t):
-    return t * t * (3 - 2 * t)
+    """Cubic: speeds up to 3x the average at the middle, then slows to rest."""
+    return 4 * t ** 3 if t < 0.5 else 1 - (2 - 2 * t) ** 3 / 2
+
+
+def ease_speed(t):
+    """ease_in_out's speed scaled to 0..1, for trails that grow with speed."""
+    return 4 * min(t, 1 - t) ** 2
+
+
+def run_up(t):
+    """A short run-up for curves that would otherwise start at full speed."""
+    return t * t * (2 - t)
 
 
 def ease_out(t):
-    return 1 - (1 - t) ** 3
+    return 1 - (1 - run_up(t)) ** 3
 
 
 def ease_out_back(t, s=1.7):
-    t -= 1
+    t = run_up(t) - 1
     return 1 + (s + 1) * t ** 3 + s * t ** 2
 
 
 def bump(t):
-    """0 -> 1 -> 0, smooth."""
-    return sin(pi * clamp(t))
+    """0 -> 1 -> 0, easing out of rest and back into it."""
+    return sin(pi * ease_in_out(clamp(t)))
 
 
 # ---- shapes ---------------------------------------------------------------
@@ -764,7 +778,7 @@ def bookmark_flag(t, saved=False, circuit=False):
 def trail(r, a, t, direction=1, reach=80, cx=9, cy=9, rx=None):
     """A comet trail behind something orbiting at angle a: longer while it
     moves fast, gone when it rests. Drawn as a few arcs that taper and fade."""
-    speed = 6 * t * (1 - t) / 1.5             # ease_in_out's speed, 0..1
+    speed = ease_speed(t)
     lag = reach * speed
     if lag < 4:
         return ""
@@ -813,7 +827,7 @@ def ghosts(draw, reach, t, circuit):
     """Fading copies of a shape at earlier positions, shown only while it moves
     fast. Glass blends into a smooth smear with three; outlines need more,
     closer copies whose lines thin out, or the trail reads as separate shapes."""
-    speed = 6 * t * (1 - t) / 1.5
+    speed = ease_speed(t)
     if speed < 0.15:
         return ""
     if circuit:
@@ -878,28 +892,208 @@ def bookmark_spark(t, saved=False, circuit=True):
     return g(_body(d + "Z", circuit, filled=saved, lit=bump(t), trace=t), f"rotate({n(18 * ease_out_back(t, 2))} 9 9)")
 
 
+def spark_path(x, y, r, rot=0, squash=0.82):
+    """A small four-point spark centred on (x, y)."""
+    tips = turn([(x, y - r), (x + r * squash, y), (x, y + r), (x - r * squash, y)], rot, x, y)
+    d = f"M{n(tips[0][0])} {n(tips[0][1])}"
+    for i in range(4):
+        x1, y1 = tips[(i + 1) % 4]
+        d += f"Q{n(x)} {n(y)} {n(x1)} {n(y1)}"
+    return d + "Z"
+
+
+def twinkle(x, y, t, t0, t1, r=1.6, circuit=True):
+    """A brief glint: grows, flares and fades between t0 and t1. Glass sparks
+    in Circuit; small softened diamonds in Flow, where sparks read poorly."""
+    e = bump(span(t, t0, t1))
+    if e < 0.05:
+        return ""
+    k = r * (0.4 + 0.6 * e)
+    if circuit:
+        return f"<g opacity='{n(e)}'>" + glass(spark_path(x, y, k, 45 * span(t, t0, t1)), lit=e, body=0.6) + "</g>"
+    return f"<g opacity='{n(e)}'>" + P(rpoly([(x, y - k * 0.7), (x + k * 0.7, y), (x, y + k * 0.7), (x - k * 0.7, y)], 0.35), " fill='context-fill'") + "</g>"
+
+
+def bookmark_orbit(t, saved=False, circuit=True):
+    # The spark, with a small diamond sweeping round it and trailing.
+    e = ease_in_out(t)
+    a = 200 + 330 * e
+    x, y = 9 + 7 * cos(radians(a)), 9 + 6.4 * sin(radians(a))
+    k = 1.1 * min(1, 3 * bump(t) + (1 if saved else 0.75))
+    return bookmark_spark(t, saved, circuit) + trail(6.4, a, t, rx=7) + _body(_diamond(x, y, k), circuit, filled=True)
+
+
+def bookmark_counter(t, saved=False, circuit=True):
+    # The spark turns one way while the diamond orbits the other.
+    e = ease_in_out(t)
+    a = 200 - 330 * e
+    x, y = 9 + 7 * cos(radians(a)), 9 + 6.4 * sin(radians(a))
+    k = 1.1 * min(1, 3 * bump(t) + (1 if saved else 0.75))
+    spark = g(bookmark_spark(0, saved, circuit), f"rotate({n(40 * ease_out_back(t, 1.6))} 9 9)")
+    return spark + trail(6.4, a, t, direction=-1, rx=7) + _body(_diamond(x, y, k), circuit, filled=True)
+
+
+def bookmark_twinkle(t, saved=False, circuit=True):
+    # The spark dims, then flares, while two small glints twinkle beside it.
+    dim = 1 - 0.45 * bump(span(t, 0, 0.35))
+    out = f"<g opacity='{n(dim)}'>" + bookmark_spark(0, saved, circuit) + "</g>"
+    return out + twinkle(14.6, 3.6, t, 0.2, 0.75, 1.7, circuit) + twinkle(3.8, 14.2, t, 0.45, 1.0, 1.3, circuit)
+
+
+def bookmark_ribbon_twinkle(t, saved=False, circuit=False):
+    # The ribbon lifts, and a glint twinkles at its corner.
+    base = c_bookmark(t, saved) if circuit else bookmark(t, saved)
+    return base + twinkle(14.4, 3, t, 0.25, 0.9, 1.6, circuit)
+
+
+def reload_comet(t, circuit=False):
+    # A diamond with a long fading tail that is itself the loop. It goes
+    # round once on hover.
+    a = -40 + 360 * ease_in_out(t)
+    out = ""
+    for i in range(10):                      # tail from faint to bright
+        b0, b1 = a - 250 + i * 25, a - 250 + (i + 1) * 25
+        out += (f"<path d='{arc(6, b0, b1)}' stroke-width='{n(0.7 + 0.12 * i)}' stroke-opacity='{n(0.08 + 0.09 * i)}'/>")
+    x, y = 9 + 6 * cos(radians(a)), 9 + 6 * sin(radians(a))
+    return out + _body(_diamond(x, y, 1.5 + 0.3 * bump(t)), circuit, filled=True)
+
+
+def reload_gyro(t, circuit=False):
+    # Two open orbits on tilted ellipses, turning against each other round a core.
+    e = ease_in_out(t)
+    out = ""
+    for tilt, phase, direction in ((35, 0, 1), (-35, 180, -1)):
+        a0 = phase + direction * 300 * e
+        pts = [(9 + 6.4 * cos(radians(a)), 9 + 2.6 * sin(radians(a))) for a in [a0 + k * 12 for k in range(21)]]
+        out += g(_line(poly(pts), circuit), f"rotate({tilt} 9 9)")
+    return out + _body(_diamond(9, 9, 1.4 + 0.3 * bump(t)), circuit, filled=True)
+
+
+def reload_spark_orbit(t, circuit=False):
+    # The hook, with a spark travelling round the loop and flaring at the end.
+    base = c_reload(t) if circuit else reload(t)
+    a = -60 + 330 * ease_in_out(t)
+    x, y = 9 + 7.2 * cos(radians(a)), 9 + 7.2 * sin(radians(a))
+    flare = 1 + 0.5 * bump(span(t, 0.7, 1))
+    head = glass(spark_path(x, y, 1.6 * flare, 30 * ease_in_out(t)), lit=1, body=0.6) if circuit else P(_diamond(x, y, 1.1 * flare), " fill='context-fill'")
+    return base + trail(7.2, a, t, reach=90) + head
+
+
+def reload_twinkle_hook(t, circuit=False):
+    # The hook turns; small glints twinkle off its tail in turn.
+    base = c_reload(t) if circuit else reload(t)
+    return (base + twinkle(14.8, 13, t, 0.15, 0.6, 1.4, circuit) + twinkle(15.6, 9, t, 0.35, 0.8, 1.1, circuit)
+            + twinkle(13.2, 15.6, t, 0.55, 1.0, 1.2, circuit))
+
+
+def history_rewind(t, circuit=False):
+    # The page stack, with a diamond going round it backwards (anticlockwise), trailing.
+    base = c_history(t) if circuit else history(t)
+    a = 20 - 340 * ease_in_out(t)
+    x, y = 9.8 + 7 * cos(radians(a)), 9.8 + 7 * sin(radians(a))
+    return base + trail(7, a, t, direction=-1, cx=9.8, cy=9.8, reach=100) + _body(_diamond(x, y, 1.1 + 0.3 * bump(t)), circuit, filled=True)
+
+
+def ext_dock(t, circuit=False):
+    # One tile leaves its slot, goes round the grid and docks again, trailing.
+    tile = (lambda x, y, lit=0: glass(chamfer(x, y, 5.6, 5.6, 1.4, 0.55), lit=lit)) if circuit else (lambda x, y, lit=0: P(rrect(x, y, 5.5, 5.5, 1.7)))
+    a = -45 + 360 * ease_in_out(t)
+    r = 4.0 + 2.6 * bump(t)                  # swings wide, then tucks back in
+    cx, cy = 9 + r * cos(radians(a)), 9 + r * sin(radians(a))
+    moving = g(tile(cx - 2.8, cy - 2.8, bump(t)), f"rotate({n(90 * ease_in_out(t))} {n(cx)} {n(cy)})")
+    return tile(2.4, 2.4) + tile(2.4, 10) + tile(10, 10) + trail(r, a, t, reach=80) + moving
+
+
+def downloads_arrive(t, circuit=False):
+    # The chevron drops; a small diamond falls into the tray and glints on landing.
+    base = c_downloads(t) if circuit else downloads(t)
+    fall = ease_in_out(span(t, 0.1, 0.75))
+    y = 1.5 + 11.6 * fall
+    dia = _body(_diamond(9, y, 1.1), circuit, filled=True) if fall < 0.98 else ""
+    return base + dia + twinkle(9, 13.6, t, 0.7, 1.0, 1.8, circuit)
+
+
+def menu_twinkle(t, circuit=False):
+    # The set's three dots stay put and fade down and back up in turn, like lights in a row.
+    out = ""
+    for i, x in enumerate((3.8, 9, 14.2) if circuit else (3.5, 9, 14.5)):
+        e = bump(span(t, i * 0.18, i * 0.18 + 0.5))
+        dot = (glass(rpoly([(x, 6.8), (x + 2.2, 9), (x, 11.2), (x - 2.2, 9)], 0.55), lit=e, body=0.35) if circuit
+               else P(f"M{n(x - 0.9)} 9H{n(x + 0.9)}", " stroke-width='2.4'"))
+        out += f"<g opacity='{n(1 - 0.75 * e)}'>" + dot + "</g>"
+    return out + twinkle(9, 4.2, t, 0.3, 0.85, 1.4, circuit)
+
+
+def screenshot_flash(t, circuit=False):
+    # The brackets close and a flash fills the frame, then fades.
+    base = c_screenshot(t) if circuit else screenshot(t)
+    f = bump(span(t, 0.35, 0.8))
+    flash = f"<path d='{rrect(5, 5, 8, 8, 2.2)}' fill='context-fill' fill-opacity='{n(0.45 * f)}' stroke='none'/>" if f > 0.05 else ""
+    return base + flash
+
+
+def newtab_spawn(t, circuit=False):
+    # The plus turns a little while three small glints burst out of it.
+    base = g(_bars(0, 0, 1, circuit, plus=True), f"rotate({n(90 * ease_out_back(t, 1.4))} 9 9)")
+    out = base
+    for i, (dx, dy) in enumerate(((5.6, -4.4), (-5.2, -3.6), (3.6, 5.6))):
+        e = ease_out(span(t, 0.1 + i * 0.12, 0.7 + i * 0.1))
+        out += twinkle(9 + dx * e, 9 + dy * e, t, 0.1 + i * 0.12, 0.8 + i * 0.07, 1.4, circuit)
+    return out
+
+
+def close_fade(t, circuit=False):
+    # The cross shrinks to its centre and fades, then re-forms.
+    k = 1 - 0.85 * bump(t)
+    return f"<g opacity='{n(1 - 0.8 * bump(t))}'>" + _bars(45 * bump(t), 45 * bump(t), k, circuit, plus=False) + "</g>"
+
+
+def lib_collection(t):
+    # A glass core with two small diamonds on tilted orbits, at different speeds.
+    e = ease_in_out(t)
+    out = glass(_diamond(9, 9, 3.2), lit=bump(t), body=0.3)
+    for tilt, rx, ry, a0, turns, k in ((25, 7.4, 3.4, 150, 1, 1.35), (-40, 6.4, 2.8, -30, 1.5, 1.1)):
+        a = a0 + 360 * turns * e
+        x, y = rx * cos(radians(a)), ry * sin(radians(a))
+        c, s_ = cos(radians(tilt)), sin(radians(tilt))
+        px, py = 9 + x * c - y * s_, 9 + x * s_ + y * c
+        out += g(trail(ry, a, t, rx=rx, reach=70), f"rotate({tilt} 9 9)") + glass(_diamond(px, py, k), lit=1, body=0.6)
+    return out
+
+
 BOTH, CIRCUIT_ONLY = ("flow", "circuit"), ("circuit",)
 # button setting -> value -> (label, draw(t, circuit, key), sets it exists in)
 VARIANTS = {
     "back": {1: ("Trail", v_back_trail, BOTH)},
-    "stop": {1: ("Counter spin", v_counter_spin, BOTH)},
-    "new-tab": {1: ("Counter spin", v_counter_spin, BOTH)},
-    "downloads": {1: ("Trail drop", v_downloads_trail, BOTH)},
-    "extensions": {1: ("Counter lift", v_ext_counter, BOTH)},
+    "stop": {1: ("Counter spin", v_counter_spin, BOTH), 2: ("Fade", lambda t, c, k: close_fade(t, c), BOTH)},
+    "new-tab": {1: ("Counter spin", v_counter_spin, BOTH), 2: ("Spawn", lambda t, c, k: newtab_spawn(t, c), BOTH)},
+    "downloads": {1: ("Trail drop", v_downloads_trail, BOTH), 2: ("Arrive", lambda t, c, k: downloads_arrive(t, c), BOTH)},
+    "extensions": {1: ("Counter lift", v_ext_counter, BOTH), 2: ("Dock", lambda t, c, k: ext_dock(t, c), BOTH)},
+    "history": {1: ("Rewind", lambda t, c, k: history_rewind(t, c), BOTH)},
+    "menu": {1: ("Twinkle", lambda t, c, k: menu_twinkle(t, c), BOTH)},
+    "screenshot": {1: ("Flash", lambda t, c, k: screenshot_flash(t, c), BOTH)},
     "reload": {1: ("Spiral", lambda t, c, k: reload_spiral(t, c), BOTH),
                2: ("Satellite", lambda t, c, k: reload_satellite(t, c), BOTH),
                3: ("Twin arcs", lambda t, c, k: reload_twin(t, c), BOTH),
                4: ("Orbit pair", lambda t, c, k: reload_orbit_pair(t, c), BOTH),
-               5: ("Counter orbit", lambda t, c, k: reload_counter_orbit(t, c), BOTH)},
+               5: ("Counter orbit", lambda t, c, k: reload_counter_orbit(t, c), BOTH),
+               6: ("Comet", lambda t, c, k: reload_comet(t, c), BOTH),
+               7: ("Gyro", lambda t, c, k: reload_gyro(t, c), BOTH),
+               8: ("Spark orbit", lambda t, c, k: reload_spark_orbit(t, c), BOTH),
+               9: ("Twinkle hook", lambda t, c, k: reload_twinkle_hook(t, c), BOTH)},
     "bookmark": {1: ("Slot", lambda t, c, k: bookmark_slot(t, k == "bookmarked", c), BOTH),
                  2: ("Tag", lambda t, c, k: bookmark_tag(t, k == "bookmarked", c), BOTH),
                  3: ("Flag", lambda t, c, k: bookmark_flag(t, k == "bookmarked", c), BOTH),
-                 4: ("Spark (Circuit only)", lambda t, c, k: bookmark_spark(t, k == "bookmarked", c), CIRCUIT_ONLY)},
+                 4: ("Spark (Circuit only)", lambda t, c, k: bookmark_spark(t, k == "bookmarked", c), CIRCUIT_ONLY),
+                 5: ("Orbiting spark (Circuit only)", lambda t, c, k: bookmark_orbit(t, k == "bookmarked", c), CIRCUIT_ONLY),
+                 6: ("Counter spark (Circuit only)", lambda t, c, k: bookmark_counter(t, k == "bookmarked", c), CIRCUIT_ONLY),
+                 7: ("Twinkle spark (Circuit only)", lambda t, c, k: bookmark_twinkle(t, k == "bookmarked", c), CIRCUIT_ONLY),
+                 8: ("Ribbon twinkle", lambda t, c, k: bookmark_ribbon_twinkle(t, k == "bookmarked", c), BOTH)},
 }
 # which buttons share a style setting
 VARIANT_GROUP = {"forward": "back", "bookmarked": "bookmark", "media-close": "stop"}
 VARIANT_DEFAULT = {"back": "Chevron", "stop": "Spin", "new-tab": "Spin", "downloads": "Drop", "extensions": "Lift",
-                   "reload": "Hook", "bookmark": "Ribbon"}
+                   "reload": "Hook", "bookmark": "Ribbon", "history": "Pages", "menu": "Ripple", "screenshot": "Focus"}
 
 
 # ---- library button ---------------------------------------------------------
@@ -964,6 +1158,7 @@ LIBRARY = {2: ("Still line icon", lambda t: lib_layers(0)), 3: ("Layers", lib_la
            5: ("Focus", lib_focus), 6: ("Grid", lib_grid), 7: ("Chevrons", lib_chevrons), 8: ("Orbit", lib_orbit),
            9: ("Split", lib_split), 10: ("Pulse", lib_pulse)}
 LIBRARY[12] = ("Circuit stack", lib_circuit)
+LIBRARY[13] = ("Collection", lib_collection)
 FOLLOW_LIBRARY = {1: 3, 2: 12}   # what "Follow the icon set" shows with Flow and Circuit
 
 

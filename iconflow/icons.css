@@ -1034,41 +1034,105 @@
 @media (((-moz-pref("zzicon.set", 1)) and (-moz-pref("zzicon.button.stop", 0))) or (-moz-pref("zzicon.button.stop", 2)) or (-moz-pref("zzicon.button.stop", 3))) and (-moz-pref("zzicon.variant.stop", 1)) {
   #stop-button > .toolbarbutton-icon { background-image: url("icons/flow/stop-1.svg") !important; }
 }
+/* Stop: Fade, Flow */
+@media (((-moz-pref("zzicon.set", 1)) and (-moz-pref("zzicon.button.stop", 0))) or (-moz-pref("zzicon.button.stop", 2)) or (-moz-pref("zzicon.button.stop", 3))) and (-moz-pref("zzicon.variant.stop", 2)) {
+  #stop-button > .toolbarbutton-icon { background-image: url("icons/flow/stop-2.svg") !important; }
+}
 /* Stop: Counter spin, Circuit */
 @media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.stop", 0))) or (-moz-pref("zzicon.button.stop", 4)) or (-moz-pref("zzicon.button.stop", 5))) and (-moz-pref("zzicon.variant.stop", 1)) {
   #stop-button > .toolbarbutton-icon { background-image: url("icons/circuit/stop-1.svg") !important; }
+}
+/* Stop: Fade, Circuit */
+@media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.stop", 0))) or (-moz-pref("zzicon.button.stop", 4)) or (-moz-pref("zzicon.button.stop", 5))) and (-moz-pref("zzicon.variant.stop", 2)) {
+  #stop-button > .toolbarbutton-icon { background-image: url("icons/circuit/stop-2.svg") !important; }
 }
 /* Close player: Counter spin, Flow */
 @media (((-moz-pref("zzicon.set", 1)) and (-moz-pref("zzicon.button.media-close", 0))) or (-moz-pref("zzicon.button.media-close", 2)) or (-moz-pref("zzicon.button.media-close", 3))) and (-moz-pref("zzicon.variant.stop", 1)) {
   .zen-media-close-button > .toolbarbutton-icon { background-image: url("icons/flow/media-close-1.svg") !important; }
 }
+/* Close player: Fade, Flow */
+@media (((-moz-pref("zzicon.set", 1)) and (-moz-pref("zzicon.button.media-close", 0))) or (-moz-pref("zzicon.button.media-close", 2)) or (-moz-pref("zzicon.button.media-close", 3))) and (-moz-pref("zzicon.variant.stop", 2)) {
+  .zen-media-close-button > .toolbarbutton-icon { background-image: url("icons/flow/media-close-2.svg") !important; }
+}
 /* Close player: Counter spin, Circuit */
 @media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.media-close", 0))) or (-moz-pref("zzicon.button.media-close", 4)) or (-moz-pref("zzicon.button.media-close", 5))) and (-moz-pref("zzicon.variant.stop", 1)) {
   .zen-media-close-button > .toolbarbutton-icon { background-image: url("icons/circuit/media-close-1.svg") !important; }
+}
+/* Close player: Fade, Circuit */
+@media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.media-close", 0))) or (-moz-pref("zzicon.button.media-close", 4)) or (-moz-pref("zzicon.button.media-close", 5))) and (-moz-pref("zzicon.variant.stop", 2)) {
+  .zen-media-close-button > .toolbarbutton-icon { background-image: url("icons/circuit/media-close-2.svg") !important; }
 }
 /* New tab: Counter spin, Flow */
 @media (((-moz-pref("zzicon.set", 1)) and (-moz-pref("zzicon.button.new-tab", 0))) or (-moz-pref("zzicon.button.new-tab", 2)) or (-moz-pref("zzicon.button.new-tab", 3))) and (-moz-pref("zzicon.variant.new-tab", 1)) {
   #tabs-newtab-button > .toolbarbutton-icon, #zen-create-new-button > .toolbarbutton-icon, #new-tab-button > .toolbarbutton-icon { background-image: url("icons/flow/new-tab-1.svg") !important; }
 }
+/* New tab: Spawn, Flow */
+@media (((-moz-pref("zzicon.set", 1)) and (-moz-pref("zzicon.button.new-tab", 0))) or (-moz-pref("zzicon.button.new-tab", 2)) or (-moz-pref("zzicon.button.new-tab", 3))) and (-moz-pref("zzicon.variant.new-tab", 2)) {
+  #tabs-newtab-button > .toolbarbutton-icon, #zen-create-new-button > .toolbarbutton-icon, #new-tab-button > .toolbarbutton-icon { background-image: url("icons/flow/new-tab-2.svg") !important; }
+}
 /* New tab: Counter spin, Circuit */
 @media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.new-tab", 0))) or (-moz-pref("zzicon.button.new-tab", 4)) or (-moz-pref("zzicon.button.new-tab", 5))) and (-moz-pref("zzicon.variant.new-tab", 1)) {
   #tabs-newtab-button > .toolbarbutton-icon, #zen-create-new-button > .toolbarbutton-icon, #new-tab-button > .toolbarbutton-icon { background-image: url("icons/circuit/new-tab-1.svg") !important; }
+}
+/* New tab: Spawn, Circuit */
+@media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.new-tab", 0))) or (-moz-pref("zzicon.button.new-tab", 4)) or (-moz-pref("zzicon.button.new-tab", 5))) and (-moz-pref("zzicon.variant.new-tab", 2)) {
+  #tabs-newtab-button > .toolbarbutton-icon, #zen-create-new-button > .toolbarbutton-icon, #new-tab-button > .toolbarbutton-icon { background-image: url("icons/circuit/new-tab-2.svg") !important; }
 }
 /* Downloads: Trail drop, Flow */
 @media (((-moz-pref("zzicon.set", 1)) and (-moz-pref("zzicon.button.downloads", 0))) or (-moz-pref("zzicon.button.downloads", 2)) or (-moz-pref("zzicon.button.downloads", 3))) and (-moz-pref("zzicon.variant.downloads", 1)) {
   #downloads-button > .toolbarbutton-icon { background-image: url("icons/flow/downloads-1.svg") !important; }
 }
+/* Downloads: Arrive, Flow */
+@media (((-moz-pref("zzicon.set", 1)) and (-moz-pref("zzicon.button.downloads", 0))) or (-moz-pref("zzicon.button.downloads", 2)) or (-moz-pref("zzicon.button.downloads", 3))) and (-moz-pref("zzicon.variant.downloads", 2)) {
+  #downloads-button > .toolbarbutton-icon { background-image: url("icons/flow/downloads-2.svg") !important; }
+}
 /* Downloads: Trail drop, Circuit */
 @media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.downloads", 0))) or (-moz-pref("zzicon.button.downloads", 4)) or (-moz-pref("zzicon.button.downloads", 5))) and (-moz-pref("zzicon.variant.downloads", 1)) {
   #downloads-button > .toolbarbutton-icon { background-image: url("icons/circuit/downloads-1.svg") !important; }
+}
+/* Downloads: Arrive, Circuit */
+@media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.downloads", 0))) or (-moz-pref("zzicon.button.downloads", 4)) or (-moz-pref("zzicon.button.downloads", 5))) and (-moz-pref("zzicon.variant.downloads", 2)) {
+  #downloads-button > .toolbarbutton-icon { background-image: url("icons/circuit/downloads-2.svg") !important; }
 }
 /* Extensions: Counter lift, Flow */
 @media (((-moz-pref("zzicon.set", 1)) and (-moz-pref("zzicon.button.extensions", 0))) or (-moz-pref("zzicon.button.extensions", 2)) or (-moz-pref("zzicon.button.extensions", 3))) and (-moz-pref("zzicon.variant.extensions", 1)) {
   #unified-extensions-button > .toolbarbutton-icon, #add-ons-button > .toolbarbutton-icon { background-image: url("icons/flow/extensions-1.svg") !important; }
 }
+/* Extensions: Dock, Flow */
+@media (((-moz-pref("zzicon.set", 1)) and (-moz-pref("zzicon.button.extensions", 0))) or (-moz-pref("zzicon.button.extensions", 2)) or (-moz-pref("zzicon.button.extensions", 3))) and (-moz-pref("zzicon.variant.extensions", 2)) {
+  #unified-extensions-button > .toolbarbutton-icon, #add-ons-button > .toolbarbutton-icon { background-image: url("icons/flow/extensions-2.svg") !important; }
+}
 /* Extensions: Counter lift, Circuit */
 @media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.extensions", 0))) or (-moz-pref("zzicon.button.extensions", 4)) or (-moz-pref("zzicon.button.extensions", 5))) and (-moz-pref("zzicon.variant.extensions", 1)) {
   #unified-extensions-button > .toolbarbutton-icon, #add-ons-button > .toolbarbutton-icon { background-image: url("icons/circuit/extensions-1.svg") !important; }
+}
+/* Extensions: Dock, Circuit */
+@media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.extensions", 0))) or (-moz-pref("zzicon.button.extensions", 4)) or (-moz-pref("zzicon.button.extensions", 5))) and (-moz-pref("zzicon.variant.extensions", 2)) {
+  #unified-extensions-button > .toolbarbutton-icon, #add-ons-button > .toolbarbutton-icon { background-image: url("icons/circuit/extensions-2.svg") !important; }
+}
+/* History: Rewind, Flow */
+@media (((-moz-pref("zzicon.set", 1)) and (-moz-pref("zzicon.button.history", 0))) or (-moz-pref("zzicon.button.history", 2)) or (-moz-pref("zzicon.button.history", 3))) and (-moz-pref("zzicon.variant.history", 1)) {
+  #history-panelmenu > .toolbarbutton-icon { background-image: url("icons/flow/history-1.svg") !important; }
+}
+/* History: Rewind, Circuit */
+@media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.history", 0))) or (-moz-pref("zzicon.button.history", 4)) or (-moz-pref("zzicon.button.history", 5))) and (-moz-pref("zzicon.variant.history", 1)) {
+  #history-panelmenu > .toolbarbutton-icon { background-image: url("icons/circuit/history-1.svg") !important; }
+}
+/* Menu and workspace actions: Twinkle, Flow */
+@media (((-moz-pref("zzicon.set", 1)) and (-moz-pref("zzicon.button.menu", 0))) or (-moz-pref("zzicon.button.menu", 2)) or (-moz-pref("zzicon.button.menu", 3))) and (-moz-pref("zzicon.variant.menu", 1)) {
+  #PanelUI-menu-button > .toolbarbutton-icon, .zen-workspaces-actions > .toolbarbutton-icon { background-image: url("icons/flow/menu-1.svg") !important; }
+}
+/* Menu and workspace actions: Twinkle, Circuit */
+@media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.menu", 0))) or (-moz-pref("zzicon.button.menu", 4)) or (-moz-pref("zzicon.button.menu", 5))) and (-moz-pref("zzicon.variant.menu", 1)) {
+  #PanelUI-menu-button > .toolbarbutton-icon, .zen-workspaces-actions > .toolbarbutton-icon { background-image: url("icons/circuit/menu-1.svg") !important; }
+}
+/* Screenshot: Flash, Flow */
+@media (((-moz-pref("zzicon.set", 1)) and (-moz-pref("zzicon.button.screenshot", 0))) or (-moz-pref("zzicon.button.screenshot", 2)) or (-moz-pref("zzicon.button.screenshot", 3))) and (-moz-pref("zzicon.variant.screenshot", 1)) {
+  #screenshot-button > .toolbarbutton-icon { background-image: url("icons/flow/screenshot-1.svg") !important; }
+}
+/* Screenshot: Flash, Circuit */
+@media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.screenshot", 0))) or (-moz-pref("zzicon.button.screenshot", 4)) or (-moz-pref("zzicon.button.screenshot", 5))) and (-moz-pref("zzicon.variant.screenshot", 1)) {
+  #screenshot-button > .toolbarbutton-icon { background-image: url("icons/circuit/screenshot-1.svg") !important; }
 }
 /* Reload: Spiral, Flow */
 @media (((-moz-pref("zzicon.set", 1)) and (-moz-pref("zzicon.button.reload", 0))) or (-moz-pref("zzicon.button.reload", 2)) or (-moz-pref("zzicon.button.reload", 3))) and (-moz-pref("zzicon.variant.reload", 1)) {
@@ -1090,6 +1154,22 @@
 @media (((-moz-pref("zzicon.set", 1)) and (-moz-pref("zzicon.button.reload", 0))) or (-moz-pref("zzicon.button.reload", 2)) or (-moz-pref("zzicon.button.reload", 3))) and (-moz-pref("zzicon.variant.reload", 5)) {
   #reload-button > .toolbarbutton-icon { background-image: url("icons/flow/reload-5.svg") !important; }
 }
+/* Reload: Comet, Flow */
+@media (((-moz-pref("zzicon.set", 1)) and (-moz-pref("zzicon.button.reload", 0))) or (-moz-pref("zzicon.button.reload", 2)) or (-moz-pref("zzicon.button.reload", 3))) and (-moz-pref("zzicon.variant.reload", 6)) {
+  #reload-button > .toolbarbutton-icon { background-image: url("icons/flow/reload-6.svg") !important; }
+}
+/* Reload: Gyro, Flow */
+@media (((-moz-pref("zzicon.set", 1)) and (-moz-pref("zzicon.button.reload", 0))) or (-moz-pref("zzicon.button.reload", 2)) or (-moz-pref("zzicon.button.reload", 3))) and (-moz-pref("zzicon.variant.reload", 7)) {
+  #reload-button > .toolbarbutton-icon { background-image: url("icons/flow/reload-7.svg") !important; }
+}
+/* Reload: Spark orbit, Flow */
+@media (((-moz-pref("zzicon.set", 1)) and (-moz-pref("zzicon.button.reload", 0))) or (-moz-pref("zzicon.button.reload", 2)) or (-moz-pref("zzicon.button.reload", 3))) and (-moz-pref("zzicon.variant.reload", 8)) {
+  #reload-button > .toolbarbutton-icon { background-image: url("icons/flow/reload-8.svg") !important; }
+}
+/* Reload: Twinkle hook, Flow */
+@media (((-moz-pref("zzicon.set", 1)) and (-moz-pref("zzicon.button.reload", 0))) or (-moz-pref("zzicon.button.reload", 2)) or (-moz-pref("zzicon.button.reload", 3))) and (-moz-pref("zzicon.variant.reload", 9)) {
+  #reload-button > .toolbarbutton-icon { background-image: url("icons/flow/reload-9.svg") !important; }
+}
 /* Reload: Spiral, Circuit */
 @media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.reload", 0))) or (-moz-pref("zzicon.button.reload", 4)) or (-moz-pref("zzicon.button.reload", 5))) and (-moz-pref("zzicon.variant.reload", 1)) {
   #reload-button > .toolbarbutton-icon { background-image: url("icons/circuit/reload-1.svg") !important; }
@@ -1110,6 +1190,22 @@
 @media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.reload", 0))) or (-moz-pref("zzicon.button.reload", 4)) or (-moz-pref("zzicon.button.reload", 5))) and (-moz-pref("zzicon.variant.reload", 5)) {
   #reload-button > .toolbarbutton-icon { background-image: url("icons/circuit/reload-5.svg") !important; }
 }
+/* Reload: Comet, Circuit */
+@media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.reload", 0))) or (-moz-pref("zzicon.button.reload", 4)) or (-moz-pref("zzicon.button.reload", 5))) and (-moz-pref("zzicon.variant.reload", 6)) {
+  #reload-button > .toolbarbutton-icon { background-image: url("icons/circuit/reload-6.svg") !important; }
+}
+/* Reload: Gyro, Circuit */
+@media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.reload", 0))) or (-moz-pref("zzicon.button.reload", 4)) or (-moz-pref("zzicon.button.reload", 5))) and (-moz-pref("zzicon.variant.reload", 7)) {
+  #reload-button > .toolbarbutton-icon { background-image: url("icons/circuit/reload-7.svg") !important; }
+}
+/* Reload: Spark orbit, Circuit */
+@media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.reload", 0))) or (-moz-pref("zzicon.button.reload", 4)) or (-moz-pref("zzicon.button.reload", 5))) and (-moz-pref("zzicon.variant.reload", 8)) {
+  #reload-button > .toolbarbutton-icon { background-image: url("icons/circuit/reload-8.svg") !important; }
+}
+/* Reload: Twinkle hook, Circuit */
+@media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.reload", 0))) or (-moz-pref("zzicon.button.reload", 4)) or (-moz-pref("zzicon.button.reload", 5))) and (-moz-pref("zzicon.variant.reload", 9)) {
+  #reload-button > .toolbarbutton-icon { background-image: url("icons/circuit/reload-9.svg") !important; }
+}
 /* Bookmark: Slot, Flow */
 @media (((-moz-pref("zzicon.set", 1)) and (-moz-pref("zzicon.button.bookmark", 0))) or (-moz-pref("zzicon.button.bookmark", 2)) or (-moz-pref("zzicon.button.bookmark", 3))) and (-moz-pref("zzicon.variant.bookmark", 1)) {
   #star-button:not([starred]) { background-image: url("icons/flow/bookmark-1.svg") !important; }
@@ -1121,6 +1217,10 @@
 /* Bookmark: Flag, Flow */
 @media (((-moz-pref("zzicon.set", 1)) and (-moz-pref("zzicon.button.bookmark", 0))) or (-moz-pref("zzicon.button.bookmark", 2)) or (-moz-pref("zzicon.button.bookmark", 3))) and (-moz-pref("zzicon.variant.bookmark", 3)) {
   #star-button:not([starred]) { background-image: url("icons/flow/bookmark-3.svg") !important; }
+}
+/* Bookmark: Ribbon twinkle, Flow */
+@media (((-moz-pref("zzicon.set", 1)) and (-moz-pref("zzicon.button.bookmark", 0))) or (-moz-pref("zzicon.button.bookmark", 2)) or (-moz-pref("zzicon.button.bookmark", 3))) and (-moz-pref("zzicon.variant.bookmark", 8)) {
+  #star-button:not([starred]) { background-image: url("icons/flow/bookmark-8.svg") !important; }
 }
 /* Bookmark: Slot, Circuit */
 @media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.bookmark", 0))) or (-moz-pref("zzicon.button.bookmark", 4)) or (-moz-pref("zzicon.button.bookmark", 5))) and (-moz-pref("zzicon.variant.bookmark", 1)) {
@@ -1138,6 +1238,22 @@
 @media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.bookmark", 0))) or (-moz-pref("zzicon.button.bookmark", 4)) or (-moz-pref("zzicon.button.bookmark", 5))) and (-moz-pref("zzicon.variant.bookmark", 4)) {
   #star-button:not([starred]) { background-image: url("icons/circuit/bookmark-4.svg") !important; }
 }
+/* Bookmark: Orbiting spark (Circuit only), Circuit */
+@media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.bookmark", 0))) or (-moz-pref("zzicon.button.bookmark", 4)) or (-moz-pref("zzicon.button.bookmark", 5))) and (-moz-pref("zzicon.variant.bookmark", 5)) {
+  #star-button:not([starred]) { background-image: url("icons/circuit/bookmark-5.svg") !important; }
+}
+/* Bookmark: Counter spark (Circuit only), Circuit */
+@media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.bookmark", 0))) or (-moz-pref("zzicon.button.bookmark", 4)) or (-moz-pref("zzicon.button.bookmark", 5))) and (-moz-pref("zzicon.variant.bookmark", 6)) {
+  #star-button:not([starred]) { background-image: url("icons/circuit/bookmark-6.svg") !important; }
+}
+/* Bookmark: Twinkle spark (Circuit only), Circuit */
+@media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.bookmark", 0))) or (-moz-pref("zzicon.button.bookmark", 4)) or (-moz-pref("zzicon.button.bookmark", 5))) and (-moz-pref("zzicon.variant.bookmark", 7)) {
+  #star-button:not([starred]) { background-image: url("icons/circuit/bookmark-7.svg") !important; }
+}
+/* Bookmark: Ribbon twinkle, Circuit */
+@media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.bookmark", 0))) or (-moz-pref("zzicon.button.bookmark", 4)) or (-moz-pref("zzicon.button.bookmark", 5))) and (-moz-pref("zzicon.variant.bookmark", 8)) {
+  #star-button:not([starred]) { background-image: url("icons/circuit/bookmark-8.svg") !important; }
+}
 /* Bookmark, saved: Slot, Flow */
 @media (((-moz-pref("zzicon.set", 1)) and (-moz-pref("zzicon.button.bookmark", 0))) or (-moz-pref("zzicon.button.bookmark", 2)) or (-moz-pref("zzicon.button.bookmark", 3))) and (-moz-pref("zzicon.variant.bookmark", 1)) {
   #star-button[starred] { background-image: url("icons/flow/bookmarked-1.svg") !important; }
@@ -1149,6 +1265,10 @@
 /* Bookmark, saved: Flag, Flow */
 @media (((-moz-pref("zzicon.set", 1)) and (-moz-pref("zzicon.button.bookmark", 0))) or (-moz-pref("zzicon.button.bookmark", 2)) or (-moz-pref("zzicon.button.bookmark", 3))) and (-moz-pref("zzicon.variant.bookmark", 3)) {
   #star-button[starred] { background-image: url("icons/flow/bookmarked-3.svg") !important; }
+}
+/* Bookmark, saved: Ribbon twinkle, Flow */
+@media (((-moz-pref("zzicon.set", 1)) and (-moz-pref("zzicon.button.bookmark", 0))) or (-moz-pref("zzicon.button.bookmark", 2)) or (-moz-pref("zzicon.button.bookmark", 3))) and (-moz-pref("zzicon.variant.bookmark", 8)) {
+  #star-button[starred] { background-image: url("icons/flow/bookmarked-8.svg") !important; }
 }
 /* Bookmark, saved: Slot, Circuit */
 @media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.bookmark", 0))) or (-moz-pref("zzicon.button.bookmark", 4)) or (-moz-pref("zzicon.button.bookmark", 5))) and (-moz-pref("zzicon.variant.bookmark", 1)) {
@@ -1165,6 +1285,22 @@
 /* Bookmark, saved: Spark (Circuit only), Circuit */
 @media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.bookmark", 0))) or (-moz-pref("zzicon.button.bookmark", 4)) or (-moz-pref("zzicon.button.bookmark", 5))) and (-moz-pref("zzicon.variant.bookmark", 4)) {
   #star-button[starred] { background-image: url("icons/circuit/bookmarked-4.svg") !important; }
+}
+/* Bookmark, saved: Orbiting spark (Circuit only), Circuit */
+@media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.bookmark", 0))) or (-moz-pref("zzicon.button.bookmark", 4)) or (-moz-pref("zzicon.button.bookmark", 5))) and (-moz-pref("zzicon.variant.bookmark", 5)) {
+  #star-button[starred] { background-image: url("icons/circuit/bookmarked-5.svg") !important; }
+}
+/* Bookmark, saved: Counter spark (Circuit only), Circuit */
+@media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.bookmark", 0))) or (-moz-pref("zzicon.button.bookmark", 4)) or (-moz-pref("zzicon.button.bookmark", 5))) and (-moz-pref("zzicon.variant.bookmark", 6)) {
+  #star-button[starred] { background-image: url("icons/circuit/bookmarked-6.svg") !important; }
+}
+/* Bookmark, saved: Twinkle spark (Circuit only), Circuit */
+@media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.bookmark", 0))) or (-moz-pref("zzicon.button.bookmark", 4)) or (-moz-pref("zzicon.button.bookmark", 5))) and (-moz-pref("zzicon.variant.bookmark", 7)) {
+  #star-button[starred] { background-image: url("icons/circuit/bookmarked-7.svg") !important; }
+}
+/* Bookmark, saved: Ribbon twinkle, Circuit */
+@media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.bookmark", 0))) or (-moz-pref("zzicon.button.bookmark", 4)) or (-moz-pref("zzicon.button.bookmark", 5))) and (-moz-pref("zzicon.variant.bookmark", 8)) {
+  #star-button[starred] { background-image: url("icons/circuit/bookmarked-8.svg") !important; }
 }
 /* Library: Still line icon */
 @media (-moz-pref("zzicon.library.style", 2)) {
@@ -1205,6 +1341,10 @@
 /* Library: Circuit stack */
 @media (-moz-pref("zzicon.library.style", 12)) or ((-moz-pref("zzicon.library.style", 11)) and (-moz-pref("zzicon.set", 2))) {
   #zen-library-button .zen-library-sprite::before { background-image: url("icons/library/12.svg") !important; }
+}
+/* Library: Collection */
+@media (-moz-pref("zzicon.library.style", 13)) {
+  #zen-library-button .zen-library-sprite::before { background-image: url("icons/library/13.svg") !important; }
 }
 @keyframes zzicon-spin { to { rotate: 180deg; } }
 @keyframes zzicon-turn { to { rotate: 360deg; } }

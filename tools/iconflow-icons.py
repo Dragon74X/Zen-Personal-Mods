@@ -811,15 +811,32 @@ def taper(r, a0, a1, width, alpha, steps=18, cx=9, cy=9, paint="context-fill"):
     at = lambda u, side=0: (cx + (r + side * width(u) / 2) * cos(radians(a0 + (a1 - a0) * u)),
                             cy + (r + side * width(u) / 2) * sin(radians(a0 + (a1 - a0) * u)))
     outline = smooth([at(u, 1) for u in us] + [at(u, -1) for u in reversed(us)])
-    (x0, y0), (x1, y1) = at(0), at(1)
-    ax, ay = x1 - x0, y1 - y0
-    l2 = ax * ax + ay * ay or 1
-    stops = sorted((clamp(((at(u)[0] - x0) * ax + (at(u)[1] - y0) * ay) / l2), alpha(u)) for u in us[::3] + us[-1:])
+    # The fade runs along the tangent at the arc's middle, which follows the
+    # arc one-to-one for 90 degrees either side. (A chord doubles back on long
+    # arcs and showed as a seam.) Past that only the very ends fold back, where
+    # the fade is flat.
     _ids[0] += 1
     i = _ids[0]
-    grad = "".join(f"<stop offset='{o:.2f}' stop-color='#fff' stop-opacity='{a:.2f}'/>" for o, a in stops)
-    return (f"<defs><linearGradient id='g{i}' gradientUnits='userSpaceOnUse' x1='{n(x0)}' y1='{n(y0)}' x2='{n(x1)}' y2='{n(y1)}'>{grad}"
-            f"</linearGradient><mask id='m{i}' maskUnits='userSpaceOnUse' x='-9' y='-9' width='36' height='36'>"
+    m = radians((a0 + a1) / 2)
+    tx, ty = -sin(m), cos(m)
+    if a1 < a0:
+        tx, ty = -tx, -ty
+    proj = lambda u: (at(u)[0] - cx) * tx + (at(u)[1] - cy) * ty
+    lo, hi = proj(0), proj(1)
+    if abs(a1 - a0) > 180:
+        lo, hi = -r, r
+    span = hi - lo or 1
+    fine = [k / 60 for k in range(61)]
+    inside = [u for u in fine if abs(a0 + (a1 - a0) * u - (a0 + a1) / 2) <= 90]
+    stops = [(clamp((proj(u) - lo) / span), alpha(u)) for u in inside[::4] + inside[-1:]]
+    if inside[0] > 0:
+        stops.insert(0, (0.0, alpha(0)))
+    if inside[-1] < 1:
+        stops.append((1.0, alpha(1)))
+    grad = "".join(f"<stop offset='{o:.3f}' stop-color='#fff' stop-opacity='{a:.2f}'/>" for o, a in stops)
+    return (f"<defs><linearGradient id='g{i}' gradientUnits='userSpaceOnUse' x1='{n(cx + tx * lo)}' y1='{n(cy + ty * lo)}' "
+            f"x2='{n(cx + tx * hi)}' y2='{n(cy + ty * hi)}'>{grad}</linearGradient>"
+            f"<mask id='m{i}' maskUnits='userSpaceOnUse' x='-9' y='-9' width='36' height='36'>"
             f"<rect x='-9' y='-9' width='36' height='36' fill='url(#g{i})'/></mask></defs>"
             f"<path d='{outline}' fill='{paint}' stroke='none' mask='url(#m{i})'/>")
 
@@ -843,7 +860,7 @@ def taper_tube(r, a0, a1, lit=0.0, trace=None, cx=9, cy=9, comet=False):
     else:
         k = lambda u: ease_in_out(clamp(min(u, 1 - u) / 0.24))   # 0 at the ends, 1 along the middle
     out = (taper(r, a0, a1, lambda u: 2.8 * (0.35 + 0.65 * k(u)), lambda u: (0.22 + 0.2 * lit) * k(u), 20, cx, cy, "context-stroke")
-           + taper(r, a0, a1, lambda u: (0.45 + 1.6 * k(u)) if comet else (0.3 + 1.15 * k(u)), lambda u: 0.3 + 0.7 * k(u), 20, cx, cy))
+           + taper(r, a0, a1, lambda u: (0.7 + 2.1 * k(u)) if comet else (0.3 + 1.15 * k(u)), lambda u: 0.3 + 0.7 * k(u), 20, cx, cy))
     if trace is not None and 0.02 < trace < 0.98:
         out += (f"<path d='{arc(r, a0, a1, cx, cy)}' pathLength='100' stroke-width='2.1' stroke-dasharray='22 78' "
                 f"stroke-dashoffset='{n(-100 * ease_in_out(trace))}' stroke-opacity='{n(0.9 * bump(trace))}'/>")
@@ -1034,10 +1051,10 @@ ZEN_ANIMATED = 6                 # per-button override: Zen's own, animated
 
 
 def _linger(n=400):
-    # Speed ramps up over the first 30% and eases off over the last 40%, so
-    # moves gather speed and the settle has time to read (round 7: Linger).
+    # Speed ramps up over the first 12% (a short wind-up) and eases off over
+    # the last 40%, so the settle has time to read (round 7: Linger).
     # The same sum as iconflow-parts.uc.js, which times Zen's own icons.
-    v = lambda p: min(1, p / 0.3) * (1 - 0.55 * (p - 0.6) / 0.4 if p > 0.6 else 1)
+    v = lambda p: min(1, p / 0.12) * (1 - 0.55 * (p - 0.6) / 0.4 if p > 0.6 else 1)
     w = [0.0]
     for i in range(1, n + 1):
         w.append(w[-1] + v((i - 0.5) / n))

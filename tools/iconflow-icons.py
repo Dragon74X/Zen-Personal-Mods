@@ -856,7 +856,7 @@ def taper_tube(r, a0, a1, lit=0.0, trace=None, cx=9, cy=9, comet=False):
     else:
         k = lambda u: ease_in_out(clamp(min(u, 1 - u) / 0.24))   # 0 at the ends, 1 along the middle
     out = (taper(r, a0, a1, lambda u: 2.8 * (0.35 + 0.65 * k(u)), lambda u: (0.22 + 0.2 * lit) * k(u), 20, cx, cy, "context-stroke")
-           + taper(r, a0, a1, lambda u: (0.7 + 2.1 * k(u)) if comet else (0.3 + 1.15 * k(u)), lambda u: 0.3 + 0.7 * k(u), 20, cx, cy))
+           + taper(r, a0, a1, lambda u: (1.6 + 1.4 * k(u)) * min(1, u / 0.08 + 0.35) if comet else (0.3 + 1.15 * k(u)), lambda u: (0.8 + 0.2 * k(u)) if comet else (0.3 + 0.7 * k(u)), 20, cx, cy))
     if trace is not None and 0.02 < trace < 0.98:
         out += (f"<path d='{arc(r, a0, a1, cx, cy)}' pathLength='100' stroke-width='2.1' stroke-dasharray='22 78' "
                 f"stroke-dashoffset='{n(-100 * ease_in_out(trace))}' stroke-opacity='{n(0.9 * bump(trace))}'/>")

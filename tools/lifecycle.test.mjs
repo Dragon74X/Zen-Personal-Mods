@@ -1504,13 +1504,14 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
   const list = { localName: "arrowscrollbox", scrollbox: port,
     querySelectorAll: selector => selector.includes("> * >") ? [header, box] : [box] };
   const box = { scrollHeight: 1000, clientHeight: 480, top: 0, closest: () => null,
-    classList: { contains: c => c === "tab-group-container" },
+    classList: { contains: c => c === "tab-group-container" }, marks: new Set(),
+    toggleAttribute(name, on) { if (on) this.marks.add(name); else this.marks.delete(name); },
     style: { setProperty(k, v) { this[k] = v; }, removeProperty(k) { delete this[k]; } },
     computed: { getPropertyValue: k => k === "--zzgf-box-cap" ? "480px" : "" },
     get scrollTop() { return this.top; },
     set scrollTop(v) { this.top = Math.max(0, Math.min(1000 - (parseFloat(this.style["--zzgf-box-fit"]) || 480), v)); },
     getBoundingClientRect() { const height = parseFloat(this.style["--zzgf-box-fit"]) || 480; return { top: 100, height, bottom: 100 + height }; },
-    querySelector: () => rows[0], querySelectorAll: () => rows };
+    querySelector: () => rows[0], querySelectorAll: selector => selector.includes("tab-group-container") ? [] : rows };
   const rows = Array.from({ length: 25 }, (_, i) => ({ getBoundingClientRect: () => ({ top: 100 + i * 40 - box.top, height: 40 }) }));
   const top = { tagName: "tab-group", hasAttribute: () => false, parentElement: { closest: () => null }, querySelector: () => box };
   box.parentElement = top;
@@ -1526,8 +1527,12 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
   assert.equal(box.scrollTop, 40, "three lines snap to the nearest row");
   assert.equal(box.style["--zzgf-box-scroll"], "40px", "the rail moved in the same frame");
   assert.equal(box.style["--zzgf-box-fit"], "480px", "the box ends on a row");
+  assert.deepEqual([...box.marks].sort(), ["zzgf-glow", "zzgf-more-above", "zzgf-more-below"], "rows hidden on both sides are marked");
+  assert.equal(box.style["--zzgf-glow"], 40 / 520 * 480 + "px", "the light sits as far down the line as the body is scrolled");
   assert.equal(wheel(gutter, 1), true); assert.equal(box.scrollTop, 80, "a small notch still moves one row");
   assert.equal(wheel(gutter, -100), true); assert.equal(box.scrollTop, 0, "clamped at the top");
+  assert.ok(!box.marks.has("zzgf-more-above") && box.marks.has("zzgf-more-below"), "at the top only the bottom is marked");
+  assert.equal(box.style["--zzgf-glow"], "0px", "and the light is at the top");
   assert.equal(wheel(gutter, 30, 0), true); assert.equal(box.scrollTop, 30, "pixel deltas follow the touchpad");
   for (const [id, fn] of [...e.c.timers]) { e.c.clearTimeout(id); fn(); } run();
   assert.equal(box.scrollTop, 40, "then settle on a row");

@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.0.0
+// @version        2.0.1
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==
@@ -8,6 +8,11 @@
 (function () {
   if (window.__zzMediaflowLoaded) return;
   window.__zzMediaflowLoaded = true;
+  // Everything this copy adds to the window is undone from here when Sine
+  // disables or updates the mod, as well as when the window closes.
+  const undo = [];
+  const on = (target, type, fn, opts) => { target.addEventListener(type, fn, opts); undo.push(() => target.removeEventListener(type, fn, opts)); };
+  const watching = observer => { undo.push(() => observer.disconnect()); return observer; };
 
   const LOG_PREFIX = "[Mediaflow]";
   const CAPTIONS_PREF = "zzmedia.preview.captions";
@@ -615,11 +620,11 @@
     _notifyTickState();
   }
 
-  musicPlayerUI.addEventListener("mouseenter", () => {
+  on(musicPlayerUI, "mouseenter", () => {
     hoverActive = true;
     bump();
   });
-  musicPlayerUI.addEventListener("mouseleave", () => {
+  on(musicPlayerUI, "mouseleave", () => {
     hoverActive = false;
     bump();
   });
@@ -629,20 +634,20 @@
     "animationstart",
     "animationend",
   ]) {
-    musicPlayerUI.addEventListener(ev, bump);
+    on(musicPlayerUI, ev, bump);
   }
 
   safe(() => {
-    const ro = new ResizeObserver(bump);
+    const ro = watching(new ResizeObserver(bump));
     ro.observe(musicPlayerUI);
     ro.observe(document.documentElement);
   });
 
-  new MutationObserver(bump).observe(musicPlayerUI, {
+  watching(new MutationObserver(bump)).observe(musicPlayerUI, {
     attributes: true,
     attributeFilter: ["hidden", "style", "class", "open"],
   });
-  window.addEventListener("resize", bump);
+  on(window, "resize", bump);
 
   function updateBrowserActivity() {
     const nextActive =
@@ -660,11 +665,12 @@
     _notifyTickState();
   }
 
-  window.addEventListener("activate", updateBrowserActivity);
-  window.addEventListener("deactivate", updateBrowserActivity);
-  window.addEventListener("sizemodechange", updateBrowserActivity);
-  document.addEventListener("visibilitychange", updateBrowserActivity);
-  setTimeout(updateBrowserActivity, 0);
+  on(window, "activate", updateBrowserActivity);
+  on(window, "deactivate", updateBrowserActivity);
+  on(window, "sizemodechange", updateBrowserActivity);
+  on(document, "visibilitychange", updateBrowserActivity);
+  const firstCheck = setTimeout(updateBrowserActivity, 0);
+  undo.push(() => clearTimeout(firstCheck));
 
   const EYE_SVG =
     "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='context-fill' fill-opacity='context-fill-opacity'>" +
@@ -763,9 +769,9 @@
   }
 
   placeToggles();
-  new MutationObserver(() => {
+  watching(new MutationObserver(() => {
     placeToggles();
-  }).observe(musicPlayerUI, {
+  })).observe(musicPlayerUI, {
     attributes: true,
     attributeFilter: ["hidden", "style", "class", "collapsed"],
     childList: true,
@@ -798,13 +804,13 @@
     CAPTIONS_WHEN_PIP_HIDDEN_PREF,
     captionsPrefObserver,
   ));
-  window.addEventListener("unload", () => {
+  undo.push(() => {
     safe(() => Services.prefs.removeObserver(CAPTIONS_PREF, captionsPrefObserver));
     safe(() => Services.prefs.removeObserver(
       CAPTIONS_WHEN_PIP_HIDDEN_PREF,
       captionsPrefObserver,
     ));
-  }, { once: true });
+  });
 
   function isTabPlaying(bc) {
     if (!bc) return false;
@@ -874,7 +880,7 @@
     timeoutId = setTimeout(unregister, CONFIG.PIP_OBSERVE_TIMEOUT_MS);
   }
 
-  window.addEventListener("deactivate", () => {
+  on(window, "deactivate", () => {
     if (!isStreaming) return;
     if (performance.now() - lastPipOpenAt < CONFIG.PIP_OPEN_DEBOUNCE_MS) return;
     if (!getActiveActor()) return;
@@ -1176,8 +1182,10 @@
   // already-open documents so restored playback is discovered, then retry as
   // the registration reaches existing content processes.
   instantiateActorForOpenTabs();
-  setTimeout(instantiateActorForOpenTabs, 500);
-  setTimeout(instantiateActorForOpenTabs, 1500);
+  for (const ms of [500, 1500]) {
+    const t = setTimeout(instantiateActorForOpenTabs, ms);
+    undo.push(() => clearTimeout(t));
+  }
 
   // ---- music bar ----------------------------------------------------------
   // Better Music Bar's settings carry over once, under Mediaflow's names.
@@ -1201,20 +1209,53 @@
     if (front) mediaBar.style.setProperty("--zen-media-collapsed-height", front.getBoundingClientRect().height + "px");
   };
   if (mediaBar) {
-    const sizes = new ResizeObserver(() => {
+    const sizes = watching(new ResizeObserver(() => {
       if (Services.prefs.getBoolPref(EXPANDED_PREF, false)) remeasure();
-    });
+    }));
     const watchCards = () => {
       sizes.disconnect();
       for (const card of mediaBar.querySelectorAll(":scope > .zen-media-card")) sizes.observe(card);
     };
-    new MutationObserver(watchCards).observe(mediaBar, { childList: true });
+    watching(new MutationObserver(watchCards)).observe(mediaBar, { childList: true });
     watchCards();
     // Turning it off shrinks the card back; measure once the rows have folded.
     const onPref = () => setTimeout(remeasure, 350);
     Services.prefs.addObserver(EXPANDED_PREF, onPref);
-    window.addEventListener("unload", () => Services.prefs.removeObserver(EXPANDED_PREF, onPref), { once: true });
+    undo.push(() => Services.prefs.removeObserver(EXPANDED_PREF, onPref));
   }
+
+  // Retire: stop every source this window drives, put Zen's own controls
+  // back, remove what was added, and release the actor once no window
+  // still uses it. Sine calls this on disable and before an update loads
+  // the new copy; the window's unload calls it too.
+  let retired = false;
+  const retire = () => {
+    if (retired) return;
+    retired = true;
+    for (const info of actorRegistry.values()) safe(() => { info.stopTick(); info.setProcessingActive?.(false, "off", false); });
+    actorRegistry.clear();
+    availableSources.clear();
+    for (const fn of undo.splice(0).reverse()) safe(fn);
+    for (const t of [animateOutTimer, captionHideTimer, captionExitTimer]) clearTimeout(t);
+    isStreaming = false;
+    activeUntil = 0;
+    safe(clearTabListHeight);
+    for (const [nativeButton, toggle] of togglesByNativeButton) {
+      toggle.remove();
+      nativeButton.removeAttribute("zzmf-parked");
+      nativeButton.removeAttribute("aria-hidden");
+      nativeButton.style.removeProperty("display");
+    }
+    togglesByNativeButton.clear();
+    mediaBar?.style.removeProperty("--zen-media-collapsed-height");
+    for (const el of [styleEl, pipContainer, captionContainer]) el.remove();
+    delete window.ZzMediaflowController;
+    delete window.__zzMediaflowLoaded;
+    const others = [...Services.wm.getEnumerator("navigator:browser")].some(w => w !== window && w.ZzMediaflowController);
+    if (!others) safe(() => ChromeUtils.unregisterWindowActor("ZzMediaflow"));
+  };
+  window.addEventListener("unload", retire, { once: true });
+  safe(() => window.addUnloadListener?.(retire));
 
   log("Mediaflow initialized.");
 })();

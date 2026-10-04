@@ -586,18 +586,31 @@
     }
     return null;
   };
-  const undress = el => { el.removeAttribute("zzicon-own"); el.style.removeProperty("--zzicon-own"); delete el.zziconKey; };
+  let retired = false;
+  const undress = el => { el.removeAttribute("zzicon-own"); el.style.removeProperty("--zzicon-own"); delete el.zziconKey; delete el.zziconSource; };
+  // The button's own image, read with our strip taken off for a moment (no
+  // paint happens in between).
+  const sourceOf = el => {
+    const dressed = el.hasAttribute("zzicon-own");
+    if (dressed) el.removeAttribute("zzicon-own");
+    const url = imageOf(el);
+    if (dressed) el.setAttribute("zzicon-own", "");
+    return url;
+  };
   async function dress(el, key) {
     undress(el);                  // read the button's own image, not our strip
-    el.zziconKey = key;
     const url = imageOf(el);
+    el.zziconKey = key;
+    el.zziconSource = url;
     if (!url || !/\.svg([?#]|$)|^data:image\/svg\+xml/.test(url)) return;
     const id = key + "\n" + url;
     if (!strips.has(id)) strips.set(id, artwork(url)
       .then(text => "data:image/svg+xml," + encodeURIComponent(IconParts.strip(text, key)))
       .catch(e => { console.warn("[Iconflow] could not animate", key, url.slice(0, 80), e); return null; }));
     const strip = await strips.get(id);
-    if (!strip || !el.isConnected || el.zziconKey !== key) return;
+    // Only the latest request for this element, from a live copy, applies:
+    // an older strip finishing late never replaces a newer one.
+    if (retired || !strip || !el.isConnected || el.zziconKey !== key || el.zziconSource !== url) return;
     el.style.setProperty("--zzicon-own", `url("${strip}")`);
     el.setAttribute("zzicon-own", "");
   }
@@ -613,7 +626,9 @@
       for (const sel of icons) for (const el of document.querySelectorAll(sel)) {
         if (seen.has(el)) continue;
         seen.add(el);
-        if (force || el.zziconKey !== key) dress(el, key);
+        // A changed key, or artwork changed under the same key (New Icons
+        // switched on or off), draws the strip again.
+        if (force || el.zziconKey !== key || sourceOf(el) !== el.zziconSource) dress(el, key);
       }
     }
     for (const el of document.querySelectorAll("[zzicon-own]")) if (!seen.has(el)) undress(el);
@@ -632,6 +647,7 @@
   window.addEventListener("load", () => soon(true), { once: true });
   soon(true);
   instance.retire = () => {
+    retired = true;
     clearTimeout(timer);
     watch.disconnect();
     try { S.removeObserver(PREFIX, observer); } catch {}
@@ -639,4 +655,5 @@
     for (const el of document.querySelectorAll("[zzicon-own]")) undress(el);
   };
   window.addEventListener("unload", () => instance.retire(), { once: true });
+  try { window.addUnloadListener?.(() => instance.retire()); } catch {}   // Sine disable or update
 })();

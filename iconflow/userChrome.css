@@ -32,15 +32,21 @@
   }
 }
 
+/* Animate icons off: Zen's own Library sprite (and the line styles drawn in
+   its format) stays still too. Zen already stops it for reduced motion. */
+@media not (-moz-pref("zzicon.animate")) {
+  #zen-library-button .zen-library-sprite::before { animation: none !important; }
+}
+
 /* ---- New tab button (was Better New Tab button) ------------------------- */
 @media (-moz-pref("zzicon.newtab.hide-label")) {
   #tabs-newtab-button .toolbarbutton-text { display: none !important; }
 }
-@media (-moz-pref("zzicon.newtab.press")) {
+@media (-moz-pref("zzicon.newtab.press")) and (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) {
   #tabs-newtab-button { transition: scale 0.1s ease-out !important; }
   #tabs-newtab-button:active { scale: 0.95 !important; }
 }
-@media (-moz-pref("zzicon.newtab.press-spin")) {
+@media (-moz-pref("zzicon.newtab.press-spin")) and (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) {
   #tabs-newtab-button > .toolbarbutton-icon { transition: rotate 0.2s ease-out; }
   #tabs-newtab-button:active > .toolbarbutton-icon { rotate: 90deg; }
 }

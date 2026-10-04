@@ -56,7 +56,7 @@ Requires `sine.allow-unsafe-js` set to `true` in `about:config`.
 |---|---|---|
 | Icon set | Zen's own | Zen's icons, or New Icons' if that mod is installed; or Circuit |
 | Animate menu icons | off | Context menus and other menus |
-| Animate icons | on | Off keeps every icon still, Zen's own and Circuit |
+| Animate icons | on | Off keeps every icon still: Zen's own, Circuit, menu icons, hover motion, the Library button and the new tab button's press. Iconflow also stays still when the system asks for reduced motion |
 | Animation speed | Smooth (0.45s) | Quick 0.3s, Slow 0.7s |
 | Glow on hover | on | A soft light in the icon's own colour while hovered, for Circuit and Zen's own; it rises with the motion |
 | Soft glow around lines | on | Circuit's faint neon halo; off draws crisp lines only |

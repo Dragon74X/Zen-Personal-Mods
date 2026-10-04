@@ -613,7 +613,9 @@
     // still here. Safe now that start() is contained and the top level
     // does nothing that can throw; the DOM unload listener above still
     // releases everything when the window closes.
-    try { window.addUnloadListener?.(cleanup); } catch {}
+    // Sine's own unload (disable, removal or update) also hands back other
+    // mods' settings; closing a window does not. An update re-applies them.
+    try { window.addUnloadListener?.(() => { cleanup(); try { syncOtherMods(true); } catch {} }); } catch {}
     instance.retire = cleanup;
   }
 
@@ -642,7 +644,8 @@
     "transparent-zen": [["mod.sameerasw_zen_compact_sidebar_type", "0", "zzglass.sidebar.blur"]],
   };
   const OTHER_SAVED = "zzglass-saved.other-mods";   // outside PREFIX: not a CSS variable
-  function syncOtherMods() {
+  // release: Glassflow is being disabled or removed, so every override goes back.
+  function syncOtherMods(release = false) {
     if (Services.wm.getMostRecentWindow("navigator:browser") !== window) return;
     const S = Services.prefs;
     const get = name => {
@@ -664,7 +667,7 @@
       for (const [name, value, when] of entries) {
         const now = get(name), was = saved[name];
         try {
-          if (rowOn && S.getBoolPref(when, false)) {
+          if (!release && rowOn && S.getBoolPref(when, false)) {
             if (was || now === undefined || now === value) continue;
             saved[name] = { had: S.prefHasUserValue(name), v: now, applied: value };
             set(name, value);

@@ -110,13 +110,17 @@ export class ZzMediaflowParent extends JSWindowActorParent {
           } else {
             controller.setCaption?.("");
           }
+        }
+        // The page has already torn its source down before telling us, so
+        // nothing is sent back: a Stop arriving after a quick resume would
+        // clear the resumed video. Captions go off before the source is
+        // dropped, so neither clock outlives it.
+        this._captionsActive = false;
+        this._stopTicking();
+        if (controller) {
           controller.unregisterSource(this.browsingContext.id);
           controller.notifySourceStopped(this.browsingContext);
         }
-        this._stopTicking();
-        try {
-          this.sendAsyncMessage("ZenPiP:Stop", {});
-        } catch (_) {}
         break;
       }
 

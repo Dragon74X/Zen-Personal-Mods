@@ -1909,6 +1909,25 @@ test("Other mods: settings that double up are switched off, then restored; hand 
   assert.deepEqual({ ...JSON.parse(now("zzglass-saved.other-mods")) }, {});
 });
 
+test("Disabling Glassflow or Tab Unloader in Sine hands other mods their settings back", async () => {
+  const prefs = prefStore({ "zzglass.buttons.enabled": true, "arc-macos-style-buttons": true,
+    "zzunload.enabled": true, "arc-tab-auto-unload": "30m" });
+  const w = browser();
+  const Services = { prefs, wm: { getMostRecentWindow: () => w } };
+  const glass = await load("glassflow", "syncOtherMods", { window: w, document: w.document, Services });
+  const unload = await load("tab-unloader", "syncArc", { window: w, document: w.document, Services });
+  glass.syncOtherMods(); unload.syncArc();
+  assert.equal(prefs.user.get("arc-macos-style-buttons"), false);
+  assert.equal(prefs.user.get("arc-tab-auto-unload"), "0");
+  glass.syncOtherMods(true); unload.syncArc(true);    // Sine's unload: the mod is going away
+  assert.equal(prefs.user.get("arc-macos-style-buttons"), true);
+  assert.equal(prefs.user.get("arc-tab-auto-unload"), "30m");
+  for (const mod of ["glassflow", "tab-unloader"]) {
+    const src = await readFile(new URL(`../${mod}/${mod}.uc.js`, import.meta.url), "utf8");
+    assert.match(src, /addUnloadListener\?\.\(\(\) => \{ cleanup\(\); try \{ sync(OtherMods|Arc)\(true\)/, mod + " releases only on Sine's unload");
+  }
+});
+
 test("Tab Unloader turns Arc's own unloading off only while it runs, and puts it back", async () => {
   const prefs = prefStore({ "zzunload.enabled": true, "arc-tab-auto-unload": "30m", "arc-tab-auto-clean-pinned": true });
   const w = browser();

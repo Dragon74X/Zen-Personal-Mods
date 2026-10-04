@@ -29,8 +29,14 @@ export class ZzMediaflowChild extends JSWindowActorChild {
     if (!win || !doc || this._videoObserver) return;
 
     try {
-      this._videoObserver = new win.MutationObserver(() => {
-        if (!this._video) this._scanForPlayingVideo();
+      // Only a video arriving can change what plays; the media events below
+      // cover everything else. Scanning the whole page on every DOM change
+      // cost a full query per mutation on pages with no video at all.
+      this._videoObserver = new win.MutationObserver(records => {
+        if (this._video) return;
+        for (const r of records) for (const n of r.addedNodes) {
+          if (n.localName === "video" || n.querySelector?.("video")) { this._scanForPlayingVideo(); return; }
+        }
       });
       this._videoObserver.observe(doc, { childList: true, subtree: true });
     } catch (_) {

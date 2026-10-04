@@ -59,4 +59,5 @@
   };
   instance.retire = cleanup;
   window.addEventListener("unload", cleanup, { once: true });
+  try { window.addUnloadListener?.(cleanup); } catch {}   // Sine disable or update
 })();

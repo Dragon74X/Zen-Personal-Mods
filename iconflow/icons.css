@@ -17,12 +17,12 @@
     background-clip: content-box !important;
     animation: none !important; transform: none !important;
     translate: calc(var(--zzicon-t) * -1.4px) 0 !important;
-    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s !important;
+    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s, stroke .2s !important;
   }
   #back-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.back", 5))) {
     #back-button:hover .toolbarbutton-icon:not(#zzicon-own) { --zzicon-t: 1 !important; filter: var(--zzicon-circuit-glow, none) !important;
-      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s !important; }
+      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s, stroke .2s !important; }
   }
 }
 /* Forward: moved by CSS */
@@ -39,12 +39,12 @@
     background-clip: content-box !important;
     animation: none !important; transform: none !important;
     translate: calc(var(--zzicon-t) * 1.4px) 0 !important;
-    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s !important;
+    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s, stroke .2s !important;
   }
   #forward-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.forward", 5))) {
     #forward-button:hover .toolbarbutton-icon:not(#zzicon-own) { --zzicon-t: 1 !important; filter: var(--zzicon-circuit-glow, none) !important;
-      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s !important; }
+      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s, stroke .2s !important; }
   }
 }
 /* Reload */
@@ -59,7 +59,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #reload-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.reload", 5))) {
@@ -82,12 +82,12 @@
     background-clip: content-box !important;
     animation: none !important; transform: none !important;
     rotate: calc(var(--zzicon-t) * 90deg) !important;
-    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s !important;
+    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s, stroke .2s !important;
   }
   #stop-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.stop", 5))) {
     #stop-button:hover .toolbarbutton-icon:not(#zzicon-own) { --zzicon-t: 1 !important; filter: var(--zzicon-circuit-glow, none) !important;
-      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s !important; }
+      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s, stroke .2s !important; }
   }
 }
 /* Home */
@@ -102,7 +102,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #home-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.home", 5))) {
@@ -125,12 +125,12 @@
     background-clip: content-box !important;
     animation: none !important; transform: none !important;
     rotate: calc(var(--zzicon-t) * 90deg) !important;
-    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s !important;
+    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s, stroke .2s !important;
   }
   #tabs-newtab-button:hover, #zen-create-new-button:hover, #new-tab-button:hover, #appMenu-new-tab-button2:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.new-tab", 5))) {
     #tabs-newtab-button:hover .toolbarbutton-icon:not(#zzicon-own), #zen-create-new-button:hover .toolbarbutton-icon:not(#zzicon-own), #new-tab-button:hover .toolbarbutton-icon:not(#zzicon-own), #appMenu-new-tab-button2:hover .toolbarbutton-icon:not(#zzicon-own) { --zzicon-t: 1 !important; filter: var(--zzicon-circuit-glow, none) !important;
-      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s !important; }
+      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s, stroke .2s !important; }
   }
 }
 /* Workspace actions */
@@ -145,7 +145,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   .zen-workspaces-actions:hover, #appMenu-more-button2:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.menu", 5))) {
@@ -166,7 +166,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #PanelUI-menu-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.app-menu", 5))) {
@@ -187,7 +187,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #zen-toggle-compact-mode:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.compact", 5))) {
@@ -208,7 +208,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #sidebar-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.sidebar", 5))) {
@@ -229,7 +229,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #zen-expand-sidebar-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.expand-sidebar", 5))) {
@@ -250,7 +250,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #zen-site-data-icon-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.site-data", 5))) {
@@ -271,7 +271,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #downloads-button:hover, #appMenu-downloads-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.downloads", 5))) {
@@ -292,7 +292,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #unified-extensions-button:hover, #add-ons-button:hover, #appMenu-extensions-themes-button:hover, #appMenu-unified-extensions-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.extensions", 5))) {
@@ -313,7 +313,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #star-button-box:hover, #bookmarks-menu-button:hover, #appMenu-bookmarks-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.bookmark", 5))) {
@@ -334,7 +334,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #star-button-box:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.bookmark", 5))) {
@@ -355,7 +355,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #reader-mode-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.reader", 5))) {
@@ -376,7 +376,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #zen-copy-current-url-button:hover, #share-tab-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.share", 5))) {
@@ -397,7 +397,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #history-panelmenu:hover, #appMenu-history-button:hover, #PanelUI-historyMore:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.history", 5))) {
@@ -418,7 +418,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #screenshot-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.screenshot", 5))) {
@@ -439,7 +439,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #nav-bar-overflow-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.overflow", 5))) {
@@ -460,7 +460,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #PlacesChevron:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.chevron", 5))) {
@@ -481,7 +481,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   .zen-workspace-close-unpinned-tabs-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.close-unpinned", 5))) {
@@ -502,7 +502,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   .zen-media-card:not(.playing) .zen-media-playpause-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.play", 5))) {
@@ -523,7 +523,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   .zen-media-card.playing .zen-media-playpause-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.play", 5))) {
@@ -544,7 +544,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   .zen-media-nexttrack-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.next", 5))) {
@@ -565,7 +565,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   .zen-media-previoustrack-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.previous", 5))) {
@@ -586,7 +586,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   .zen-media-card:not([muted]) .zen-media-mute-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.volume", 5))) {
@@ -607,7 +607,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   .zen-media-card[muted] .zen-media-mute-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.volume", 5))) {
@@ -630,12 +630,12 @@
     background-clip: content-box !important;
     animation: none !important; transform: none !important;
     rotate: calc(var(--zzicon-t) * 90deg) !important;
-    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s !important;
+    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s, stroke .2s !important;
   }
   .zen-media-close-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.media-close", 5))) {
     .zen-media-close-button:hover .toolbarbutton-icon:not(#zzicon-own) { --zzicon-t: 1 !important; filter: var(--zzicon-circuit-glow, none) !important;
-      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s !important; }
+      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s, stroke .2s !important; }
   }
 }
 /* Picture-in-picture */
@@ -650,7 +650,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   .zen-media-pip-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.pip", 5))) {
@@ -671,7 +671,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #save-page-button:hover, #appMenu-save-file-button2:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.save-page", 5))) {
@@ -692,7 +692,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #print-button:hover, #appMenu-print-button2:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.print", 5))) {
@@ -713,7 +713,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #find-button:hover, #appMenu-find-button2:hover, #appMenuSearchHistory:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.find", 5))) {
@@ -734,7 +734,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #open-file-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.open-file", 5))) {
@@ -757,12 +757,12 @@
     background-clip: content-box !important;
     animation: none !important; transform: none !important;
     scale: calc(1 + var(--zzicon-t) * 0.2) !important;
-    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s !important;
+    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s, stroke .2s !important;
   }
   #zoom-in-button:hover, #appMenu-zoomEnlarge-button2:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.zoom", 5))) {
     #zoom-in-button:hover .toolbarbutton-icon:not(#zzicon-own), #appMenu-zoomEnlarge-button2:hover .toolbarbutton-icon:not(#zzicon-own) { --zzicon-t: 1 !important; filter: var(--zzicon-circuit-glow, none) !important;
-      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s !important; }
+      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s, stroke .2s !important; }
   }
 }
 /* Zoom out: moved by CSS */
@@ -779,12 +779,12 @@
     background-clip: content-box !important;
     animation: none !important; transform: none !important;
     scale: calc(1 - var(--zzicon-t) * 0.2) !important;
-    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s !important;
+    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s, stroke .2s !important;
   }
   #zoom-out-button:hover, #appMenu-zoomReduce-button2:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.zoom", 5))) {
     #zoom-out-button:hover .toolbarbutton-icon:not(#zzicon-own), #appMenu-zoomReduce-button2:hover .toolbarbutton-icon:not(#zzicon-own) { --zzicon-t: 1 !important; filter: var(--zzicon-circuit-glow, none) !important;
-      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s !important; }
+      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s, stroke .2s !important; }
   }
 }
 /* Cut */
@@ -799,7 +799,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #cut-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.edit", 5))) {
@@ -820,7 +820,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #copy-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.edit", 5))) {
@@ -841,7 +841,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #paste-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.edit", 5))) {
@@ -862,7 +862,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #characterencoding-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.encoding", 5))) {
@@ -883,7 +883,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #email-link-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.email", 5))) {
@@ -904,7 +904,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #logins-button:hover, #appMenu-passwords-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.logins", 5))) {
@@ -925,7 +925,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #sync-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.sync", 5))) {
@@ -946,7 +946,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #send-tab-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.send-tab", 5))) {
@@ -967,7 +967,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #import-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.import", 5))) {
@@ -990,12 +990,12 @@
     background-clip: content-box !important;
     animation: none !important; transform: none !important;
     rotate: calc(var(--zzicon-t) * 60deg) !important;
-    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s !important;
+    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s, stroke .2s !important;
   }
   #preferences-button:hover, #appMenu-settings-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.settings", 5))) {
     #preferences-button:hover .toolbarbutton-icon:not(#zzicon-own), #appMenu-settings-button:hover .toolbarbutton-icon:not(#zzicon-own) { --zzicon-t: 1 !important; filter: var(--zzicon-circuit-glow, none) !important;
-      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s !important; }
+      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s, stroke .2s !important; }
   }
 }
 /* Forget */
@@ -1010,7 +1010,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #panic-button:hover, #appMenuClearRecentHistory:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.forget", 5))) {
@@ -1031,7 +1031,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #privatebrowsing-button:hover, #appMenu-new-private-window-button2:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.private", 5))) {
@@ -1052,7 +1052,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #firefox-view-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.firefox-view", 5))) {
@@ -1073,7 +1073,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #developer-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.developer", 5))) {
@@ -1094,7 +1094,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #new-window-button:hover, #appMenu-new-window-button2:hover, #appMenu-new-zen-unsynced-window-button:hover, #appMenuRecentlyClosedWindows:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.new-window", 5))) {
@@ -1115,7 +1115,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #fullscreen-button:hover, #appMenu-fullscreen-button2:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.fullscreen", 5))) {
@@ -1136,7 +1136,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #library-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.firefox-library", 5))) {
@@ -1157,7 +1157,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #fxa-toolbar-menu-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.account", 5))) {
@@ -1178,7 +1178,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #appMenuRecentlyClosedTabs:hover, #appMenu-library-recentlyClosedTabs:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.reopen", 5))) {
@@ -1199,7 +1199,7 @@
     background-repeat: no-repeat !important;
     background-origin: content-box !important;
     background-clip: content-box !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #appMenu-help-button2:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.help", 5))) {
@@ -1222,12 +1222,12 @@
     background-clip: content-box !important;
     animation: none !important; transform: none !important;
     rotate: calc(var(--zzicon-t) * 90deg) !important;
-    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s !important;
+    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s, stroke .2s !important;
   }
   #appMenu-quit-button2:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.quit", 5))) {
     #appMenu-quit-button2:hover .toolbarbutton-icon:not(#zzicon-own) { --zzicon-t: 1 !important; filter: var(--zzicon-circuit-glow, none) !important;
-      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s !important; }
+      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s, stroke .2s !important; }
   }
 }
 /* Reset pinned tab: moved by CSS */
@@ -1244,12 +1244,12 @@
     background-clip: content-box !important;
     animation: none !important; transform: none !important;
     scale: calc(1 - var(--zzicon-t) * 0.4) 1 !important;
-    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s !important;
+    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s, stroke .2s !important;
   }
   .tab-reset-pin-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) and (not (-moz-pref("zzicon.button.minus", 5))) {
     .tab-reset-button:hover:not(#zzicon-own), .tab-reset-pin-button:hover image:not(#zzicon-own) { --zzicon-t: 1 !important; filter: var(--zzicon-circuit-glow, none) !important;
-      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s !important; }
+      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s, stroke .2s !important; }
   }
 }
 /* Bookmark: line art */
@@ -1326,7 +1326,7 @@
     animation: none !important;
     -moz-context-properties: fill, fill-opacity, stroke !important;
     stroke: var(--zzicon-halo, currentColor) !important;
-    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;
+    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;
   }
   #zen-library-button:hover { animation: none !important; transform: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) {
@@ -1961,4 +1961,13 @@
   #context-viewpartialsource-selection { --zzm-dx: 0px; --zzm-dy: -1px; --zzm-k: 0.15; }
   #context_undoCloseTab, #toolbar-context-undoCloseTab { --zzm-dx: 0px; --zzm-dy: -1.5px; --zzm-k: 0; }
   #zen-context-menu-compact-mode-toggle, #zen-toolbar-context-compact-mode-enable { --zzm-dx: 0px; --zzm-dy: 0px; --zzm-k: -0.09; }
+}
+/* Halo only while hovered */
+@media (-moz-pref("zzicon.circuit.halo")) and (-moz-pref("zzicon.circuit.halo-hover")) {
+  :root { --zzicon-halo: transparent; }
+  #back-button:hover .toolbarbutton-icon, #forward-button:hover .toolbarbutton-icon, #reload-button:hover .toolbarbutton-icon, #stop-button:hover .toolbarbutton-icon, #home-button:hover .toolbarbutton-icon, #tabs-newtab-button:hover .toolbarbutton-icon, #zen-create-new-button:hover .toolbarbutton-icon, #new-tab-button:hover .toolbarbutton-icon, #appMenu-new-tab-button2:hover .toolbarbutton-icon, .zen-workspaces-actions:hover .toolbarbutton-icon, #appMenu-more-button2:hover .toolbarbutton-icon, #PanelUI-menu-button:hover .toolbarbutton-icon, #zen-toggle-compact-mode:hover .toolbarbutton-icon, #sidebar-button:hover .toolbarbutton-icon, #zen-expand-sidebar-button:hover .toolbarbutton-icon, #zen-site-data-icon-button:hover image, #downloads-button:hover .toolbarbutton-icon, #appMenu-downloads-button:hover .toolbarbutton-icon, #unified-extensions-button:hover .toolbarbutton-icon, #add-ons-button:hover .toolbarbutton-icon, #appMenu-extensions-themes-button:hover .toolbarbutton-icon, #appMenu-unified-extensions-button:hover .toolbarbutton-icon, #star-button-box:hover > #star-button:not([starred]), #bookmarks-menu-button:hover .toolbarbutton-icon, #appMenu-bookmarks-button:hover .toolbarbutton-icon, #star-button-box:hover > #star-button[starred], #reader-mode-button:hover > .urlbar-icon, #zen-copy-current-url-button:hover .toolbarbutton-icon, #share-tab-button:hover .toolbarbutton-icon, #history-panelmenu:hover .toolbarbutton-icon, #appMenu-history-button:hover .toolbarbutton-icon, #PanelUI-historyMore:hover .toolbarbutton-icon, #screenshot-button:hover .toolbarbutton-icon, #nav-bar-overflow-button:hover .toolbarbutton-icon, #PlacesChevron:hover .toolbarbutton-icon, .zen-workspace-close-unpinned-tabs-button:hover .toolbarbutton-icon, .zen-media-card:not(.playing) .zen-media-playpause-button:hover .toolbarbutton-icon, .zen-media-card.playing .zen-media-playpause-button:hover .toolbarbutton-icon, .zen-media-nexttrack-button:hover .toolbarbutton-icon, .zen-media-previoustrack-button:hover .toolbarbutton-icon, .zen-media-card:not([muted]) .zen-media-mute-button:hover .toolbarbutton-icon, .zen-media-card[muted] .zen-media-mute-button:hover .toolbarbutton-icon, .zen-media-close-button:hover .toolbarbutton-icon, .zen-media-pip-button:hover .toolbarbutton-icon, #save-page-button:hover .toolbarbutton-icon, #appMenu-save-file-button2:hover .toolbarbutton-icon, #print-button:hover .toolbarbutton-icon, #appMenu-print-button2:hover .toolbarbutton-icon, #find-button:hover .toolbarbutton-icon, #appMenu-find-button2:hover .toolbarbutton-icon, #appMenuSearchHistory:hover .toolbarbutton-icon, #open-file-button:hover .toolbarbutton-icon, #zoom-in-button:hover .toolbarbutton-icon, #appMenu-zoomEnlarge-button2:hover .toolbarbutton-icon, #zoom-out-button:hover .toolbarbutton-icon, #appMenu-zoomReduce-button2:hover .toolbarbutton-icon, #cut-button:hover .toolbarbutton-icon, #copy-button:hover .toolbarbutton-icon, #paste-button:hover .toolbarbutton-icon, #characterencoding-button:hover .toolbarbutton-icon, #email-link-button:hover .toolbarbutton-icon, #logins-button:hover .toolbarbutton-icon, #appMenu-passwords-button:hover .toolbarbutton-icon, #sync-button:hover .toolbarbutton-icon, #send-tab-button:hover .toolbarbutton-icon, #import-button:hover .toolbarbutton-icon, #preferences-button:hover .toolbarbutton-icon, #appMenu-settings-button:hover .toolbarbutton-icon, #panic-button:hover .toolbarbutton-icon, #appMenuClearRecentHistory:hover .toolbarbutton-icon, #privatebrowsing-button:hover .toolbarbutton-icon, #appMenu-new-private-window-button2:hover .toolbarbutton-icon, #firefox-view-button:hover .toolbarbutton-icon, #developer-button:hover .toolbarbutton-icon, #new-window-button:hover .toolbarbutton-icon, #appMenu-new-window-button2:hover .toolbarbutton-icon, #appMenu-new-zen-unsynced-window-button:hover .toolbarbutton-icon, #appMenuRecentlyClosedWindows:hover .toolbarbutton-icon, #fullscreen-button:hover .toolbarbutton-icon, #appMenu-fullscreen-button2:hover .toolbarbutton-icon, #library-button:hover .toolbarbutton-icon, #fxa-toolbar-menu-button:hover .toolbarbutton-icon, #appMenuRecentlyClosedTabs:hover .toolbarbutton-icon, #appMenu-library-recentlyClosedTabs:hover .toolbarbutton-icon, #appMenu-help-button2:hover .toolbarbutton-icon, #appMenu-quit-button2:hover .toolbarbutton-icon, .tab-reset-button:hover, .tab-reset-pin-button:hover image, #zen-library-button:hover .zen-library-sprite::before { --zzicon-halo: currentColor; }
+}
+/* Glow flares when clicked */
+@media (-moz-pref("zzicon.click.flare")) {
+  #back-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #forward-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #reload-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #stop-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #home-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #tabs-newtab-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #zen-create-new-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #new-tab-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #appMenu-new-tab-button2:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), .zen-workspaces-actions:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #appMenu-more-button2:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #PanelUI-menu-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #zen-toggle-compact-mode:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #sidebar-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #zen-expand-sidebar-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #zen-site-data-icon-button:hover:active image:not(#zzicon-own):not(#zzicon-own), #downloads-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #appMenu-downloads-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #unified-extensions-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #add-ons-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #appMenu-extensions-themes-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #appMenu-unified-extensions-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #star-button-box:hover:active > #star-button:not([starred]):not(#zzicon-own):not(#zzicon-own), #bookmarks-menu-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #appMenu-bookmarks-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #star-button-box:hover:active > #star-button[starred]:not(#zzicon-own):not(#zzicon-own), #reader-mode-button:hover:active > .urlbar-icon:not(#zzicon-own):not(#zzicon-own), #zen-copy-current-url-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #share-tab-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #history-panelmenu:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #appMenu-history-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #PanelUI-historyMore:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #screenshot-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #nav-bar-overflow-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #PlacesChevron:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), .zen-workspace-close-unpinned-tabs-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), .zen-media-card:not(.playing) .zen-media-playpause-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), .zen-media-card.playing .zen-media-playpause-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), .zen-media-nexttrack-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), .zen-media-previoustrack-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), .zen-media-card:not([muted]) .zen-media-mute-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), .zen-media-card[muted] .zen-media-mute-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), .zen-media-close-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), .zen-media-pip-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #save-page-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #appMenu-save-file-button2:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #print-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #appMenu-print-button2:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #find-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #appMenu-find-button2:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #appMenuSearchHistory:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #open-file-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #zoom-in-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #appMenu-zoomEnlarge-button2:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #zoom-out-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #appMenu-zoomReduce-button2:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #cut-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #copy-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #paste-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #characterencoding-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #email-link-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #logins-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #appMenu-passwords-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #sync-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #send-tab-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #import-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #preferences-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #appMenu-settings-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #panic-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #appMenuClearRecentHistory:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #privatebrowsing-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #appMenu-new-private-window-button2:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #firefox-view-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #developer-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #new-window-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #appMenu-new-window-button2:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #appMenu-new-zen-unsynced-window-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #appMenuRecentlyClosedWindows:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #fullscreen-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #appMenu-fullscreen-button2:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #library-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #fxa-toolbar-menu-button:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #appMenuRecentlyClosedTabs:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #appMenu-library-recentlyClosedTabs:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #appMenu-help-button2:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), #appMenu-quit-button2:hover:active .toolbarbutton-icon:not(#zzicon-own):not(#zzicon-own), .tab-reset-button:hover:active:not(#zzicon-own):not(#zzicon-own), .tab-reset-pin-button:hover:active image:not(#zzicon-own):not(#zzicon-own), #zen-library-button:hover:active .zen-library-sprite:not(#zzicon-own):not(#zzicon-own)::before { filter: drop-shadow(0 0 1px currentColor) drop-shadow(0 0 4.5px color-mix(in srgb, currentColor 90%, transparent)) !important; }
 }

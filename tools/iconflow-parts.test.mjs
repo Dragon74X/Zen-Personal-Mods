@@ -46,5 +46,6 @@ test("Every button Iconflow covers is a target, with a choreography or the fallb
   const css = await readFile(new URL("../iconflow/icons.css", import.meta.url), "utf8");
   const parted = css.split("Zen's own animated */").slice(1).filter(block => /\[zzicon-own\]/.test(block.split("/* ")[0]));
   assert.equal(parted.length, keys.length, "each button's Zen's own rule plays the strip once it is drawn");
+  assert.doesNotMatch(css, /::[\w-]+[:.#[]/, "a pseudo element ends its selector, or the whole rule is dropped");
   assert.equal(FRAMES, 96, "the frame counter's last frame, 95, is the strip's");
 });

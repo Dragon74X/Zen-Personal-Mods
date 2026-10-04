@@ -1126,6 +1126,22 @@ def write_targets():
     js.write_text(text)
 
 
+def hover_css():
+    """Halo only while hovered, and a glow that flares while pressed. A pseudo
+    element stays last in its selector, or the whole list is dropped."""
+    hovers = [h for _, _, targets in TOOLBAR.values() for _, h in targets]
+    hovers.append("#zen-library-button:hover .zen-library-sprite::before")
+    own = lambda h: h.replace("::before", OWN + OWN + "::before") if "::" in h else h + OWN + OWN
+    pressed = ", ".join(own(h.replace(":hover", ":hover:active", 1)) for h in hovers)
+    return ["/* Halo only while hovered */",
+            '@media (-moz-pref("zzicon.circuit.halo")) and (-moz-pref("zzicon.circuit.halo-hover")) {\n'
+            f"  :root {{ --zzicon-halo: transparent; }}\n  {', '.join(hovers)} {{ --zzicon-halo: currentColor; }}\n}}",
+            "/* Glow flares when clicked */",
+            '@media (-moz-pref("zzicon.click.flare")) {\n'
+            f"  {pressed} {{ filter: drop-shadow(0 0 1px currentColor) "
+            "drop-shadow(0 0 4.5px color-mix(in srgb, currentColor 90%, transparent)) !important; }\n}"]
+
+
 def zen_css():
     out = ["/* Zen's own, animated */",
            '@property --zzicon-t { syntax: "<number>"; inherits: false; initial-value: 0; }',
@@ -1422,11 +1438,11 @@ def main():
                        f"    background-origin: content-box !important;\n    background-clip: content-box !important;\n"
                        f"    animation: none !important; transform: none !important;\n"
                        f"    {CSS_MOTION[key]} !important;\n"
-                       f"    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s !important;\n  }}\n"
+                       f"    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s, stroke .2s !important;\n  }}\n"
                        f"  {parents([h for _, h in targets])} {{ animation: none !important; transform: none !important; }}\n"
                        f"  @media {MOVES} and (not (-moz-pref(\"zzicon.button.{k}\", {STILL}))) {{\n"
                        f"    {own} {{ --zzicon-t: 1 !important; filter: var(--zzicon-circuit-glow, none) !important;\n"
-                       f"      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s !important; }}\n  }}\n}}")
+                       f"      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s, stroke .2s !important; }}\n  }}\n}}")
             continue
         css.append(f"/* {label} */\n@media {uses(key)} {{\n"
                    f"  {icons} {{\n    list-style-image: var(--zzicon-blank) !important;\n"
@@ -1436,7 +1452,7 @@ def main():
                    f"    background-position: calc(var(--zzicon-frame) * 100% / {FRAMES - 1}) 0 !important;\n"
                    f"    background-repeat: no-repeat !important;\n"
                    f"    background-origin: content-box !important;\n    background-clip: content-box !important;\n"
-                   f"    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;\n  }}\n"
+                   f"    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;\n  }}\n"
                    f"  {parents([h for _, h in targets])} {{ animation: none !important; transform: none !important; }}\n"
                    f"  @media {MOVES} and (not (-moz-pref(\"zzicon.button.{k}\", {STILL}))) {{\n"
                    f"    {hovers} {{ --zzicon-frame: {FRAMES - 1} !important;\n      filter: var(--zzicon-circuit-glow, none) !important; }}\n"
@@ -1468,7 +1484,7 @@ def main():
                        "    background-repeat: no-repeat !important;\n    animation: none !important;\n"
                        "    -moz-context-properties: fill, fill-opacity, stroke !important;\n"
                        "    stroke: var(--zzicon-halo, currentColor) !important;\n"
-                       "    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;\n  }\n"
+                       "    transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, stroke .2s !important;\n  }\n"
                        "  #zen-library-button:hover { animation: none !important; transform: none !important; }\n"
                        f"  @media {MOVES} {{\n"
                        f"    #zen-library-button:hover .zen-library-sprite::before {{ --zzicon-frame: {FRAMES - 1} !important;\n"
@@ -1481,6 +1497,7 @@ def main():
     write_targets()
     css += motion_css()
     css += zen_css()
+    css += hover_css()
     OUT.write_text("\n".join(css) + "\n")
     total = sum(f.stat().st_size for f in (OUT.parent / "icons").glob("*/*.svg"))
     print(f"wrote {len(TOOLBAR)} icons, {len(RELOAD_STYLES)} reload style and {len(LIBRARY)} library strips: "

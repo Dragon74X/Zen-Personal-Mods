@@ -203,20 +203,19 @@ def extensions(t):
     return tile(2.5, 2.5) + tile(2.5, 10) + tile(10, 10) + g(tile(10, 2.5), moved)
 
 
-def star_points(r_out=6.6, r_in=3.1, cx=9, cy=9.4):
-    return [(cx + (r_out if i % 2 == 0 else r_in) * cos(radians(-90 + i * 36)),
-             cy + (r_out if i % 2 == 0 else r_in) * sin(radians(-90 + i * 36))) for i in range(10)]
+def bookmark(t, saved=False):
+    # A ribbon bookmark with softened corners; it lifts on hover and the
+    # notch deepens. Filled once the page is saved.
+    lift = 1.2 * bump(span(t, 0, 0.6)) + 0.3 * ease_out(span(t, 0.4, 1))
+    notch = 11.8 - 0.8 * ease_out_back(span(t, 0.2, 1))
+    y0, y1 = 2.6 - lift, 15.6 - lift
+    d = (f"M4.5 {n(y1 - 0.8)}V{n(y0 + 2.2)}C4.5 {n(y0 + 0.8)} 5.3 {n(y0)} 6.7 {n(y0)}H11.3C12.7 {n(y0)} 13.5 {n(y0 + 0.8)} 13.5 {n(y0 + 2.2)}"
+         f"V{n(y1 - 0.8)}C13.5 {n(y1)} 12.9 {n(y1 + 0.3)} 12.3 {n(y1 - 0.2)}L9 {n(notch - lift)}L5.7 {n(y1 - 0.2)}C5.1 {n(y1 + 0.3)} 4.5 {n(y1)} 4.5 {n(y1 - 0.8)}Z")
+    return P(d, " fill='context-fill'" if saved else "")
 
 
-def star(t, filled=False):
-    k = 1 + 0.15 * bump(span(t, 0, 0.7))
-    a = 72 * ease_out_back(t, 1.6)
-    path = P(poly(scale(star_points(), k, 9, 9.4), True), " fill='context-fill'" if filled else "")
-    return g(path, f"rotate({n(a)} 9 9.4)")
-
-
-def star_filled(t):
-    return star(t, filled=True)
+def bookmark_saved(t):
+    return bookmark(t, saved=True)
 
 
 def reader(t):
@@ -353,8 +352,8 @@ TOOLBAR = {
     "site-data": ("Site settings", sliders, [("#zen-site-data-icon-button image", "#zen-site-data-icon-button:hover image")]),
     "downloads": ("Downloads", downloads, tb("#downloads-button")),
     "extensions": ("Extensions", extensions, tb("#unified-extensions-button", "#add-ons-button")),
-    "bookmark": ("Bookmark star", star, [("#star-button:not([starred])", "#star-button-box:hover > #star-button:not([starred])")]),
-    "bookmarked": ("Bookmark star, saved", star_filled, [("#star-button[starred]", "#star-button-box:hover > #star-button[starred]")]),
+    "bookmark": ("Bookmark", bookmark, [("#star-button:not([starred])", "#star-button-box:hover > #star-button:not([starred])")]),
+    "bookmarked": ("Bookmark, saved", bookmark_saved, [("#star-button[starred]", "#star-button-box:hover > #star-button[starred]")]),
     "reader": ("Reader view", reader, [("#reader-mode-button > .urlbar-icon", "#reader-mode-button:hover > .urlbar-icon")]),
     "share": ("Share and copy link", share, tb("#zen-copy-current-url-button", "#share-tab-button")),
     "history": ("History", history, tb("#history-panelmenu")),

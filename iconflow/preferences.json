@@ -600,7 +600,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzicon.button.bookmark",
-    "label": "Bookmark star (saved or not)",
+    "label": "Bookmark (saved or not)",
     "defaultValue": 0,
     "options": [
       {

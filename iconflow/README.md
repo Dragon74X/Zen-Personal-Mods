@@ -10,7 +10,8 @@ Icon sets and hover motion for [Zen Browser](https://zen-browser.app/).
     rounded, even on pointed shapes. Closed shapes are glass: a translucent
     body, a sheen across the top and a rim. Lines are neon tubes. On hover,
     a light runs round outlines and along tubes.
-  - Neither set uses full circles (arcs are always open) or clock faces.
+  - Neither set uses full circles (arcs are always open), clock faces or stars;
+    the bookmark is a ribbon.
 - **Glass behind buttons**: plates made like Glassflow's window buttons,
   while hovered or always.
 - **Hover motion** for whole buttons, with any icon set: close buttons,
@@ -43,7 +44,7 @@ Requires `sine.allow-unsafe-js` set to `true` in `about:config`.
 **Each button** can follow the set, or use Zen's own icon, Flow (animated or
 still), or Circuit (animated or still). These buttons are covered:
 - **Navigation:** back, forward, reload, stop, home, the new tab buttons, the menu and workspace "⋯", the sidebar toggle and expand sidebar.
-- **Address bar and toolbar:** site settings, downloads, extensions, the bookmark star (saved or not), reader view, share and copy link, history (a stack of pages), screenshot.
+- **Address bar and toolbar:** site settings, downloads, extensions, the bookmark ribbon (saved or not), reader view, share and copy link, history (a stack of pages), screenshot.
 - **Overflow:** the more-tools and bookmarks overflow chevrons, and "clear unpinned tabs".
 - **Media player:** play and pause, next, previous, mute and unmute, close, and picture-in-picture.
 

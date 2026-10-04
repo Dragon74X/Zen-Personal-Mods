@@ -1232,7 +1232,7 @@ def strip(draw, frames, zoom=1.0):
     of the 18-unit grid fills Zen's 16px slot as Zen's own icons do."""
     _ids[0] = 0
     z = f"<g transform='translate(9 9) scale({zoom}) translate(-9 -9)'>" if zoom != 1 else "<g>"
-    body = "".join(f"<g transform='translate({i * G})'><g clip-path='url(#f)'>{z}{draw(warp(i / (frames - 1)))}</g></g></g>"
+    body = "".join(f"<g transform='translate({i * G})'><g clip-path='url(#f)'>{z}{draw(warp(i / (frames - 1)) if frames > 1 else 0)}</g></g></g>"
                    for i in range(frames))
     return (f"<svg xmlns='http://www.w3.org/2000/svg' width='{frames * G}' height='{G}' fill='none' "
             "stroke='context-fill' stroke-opacity='context-fill-opacity' stroke-width='1.4' "
@@ -1367,6 +1367,16 @@ SET, ANIMATED, STILL = 2, 4, 5   # zzicon.set value for Circuit; per-button over
 RELOAD_STYLES = {1: ("Twin comets", c_reload_comets)}   # zzicon.reload.style; 0 is Orbit pair
 
 
+# Icons that only turn, slide or scale: one drawing moved by CSS on the
+# spring (smooth at any refresh rate), not a strip of frames. Shapes that
+# change keep their frames.
+_T = "var(--zzicon-t)"
+CSS_MOTION = {
+    "stop": f"rotate: calc({_T} * 90deg)", "quit": f"rotate: calc({_T} * 90deg)", "media-close": f"rotate: calc({_T} * 90deg)",
+    "new-tab": f"rotate: calc({_T} * 90deg)", "settings": f"rotate: calc({_T} * 60deg)",
+    "forward": f"translate: calc({_T} * 1.4px) 0", "back": f"translate: calc({_T} * -1.4px) 0",
+    "zoom-in": f"scale: calc(1 + {_T} * 0.2)", "zoom-out": f"scale: calc(1 - {_T} * 0.2)", "minus": f"scale: calc(1 - {_T} * 0.4) 1",
+}
 LINE_KEYS = ("bookmark", "bookmarked", "downloads")   # also drawn as line art
 LINED = 7                                              # per-button: Circuit, line art
 
@@ -1388,7 +1398,7 @@ def main():
         old.unlink()
     url = {}
     for key, (_, draw, _) in TOOLBAR.items():
-        url[key] = save(f"icons/circuit/{key}.svg", strip(draw, FRAMES, fit(draw, FRAMES)))
+        url[key] = save(f"icons/circuit/{key}.svg", strip(draw, 1 if key in CSS_MOTION else FRAMES, fit(draw, FRAMES)))
     LINE[0] = True
     for key in LINE_KEYS:
         draw = TOOLBAR[key][1]
@@ -1402,6 +1412,22 @@ def main():
         icons = ", ".join(i for i, _ in targets)
         hovers = ", ".join(h for _, h in targets)
         own = ", ".join(h + OWN for _, h in targets)
+        if key in CSS_MOTION:
+            # One drawing, moved by CSS on the spring: recomputed every refresh.
+            css.append(f"/* {label}: moved by CSS */\n@media {uses(key)} {{\n"
+                       f"  {', '.join(i + OWN for i, _ in targets)} {{\n    list-style-image: var(--zzicon-blank) !important;\n"
+                       f"    -moz-context-properties: fill, fill-opacity, stroke !important;\n    stroke: var(--zzicon-halo, currentColor) !important;\n"
+                       f"    background-image: {url[key]} !important;\n    background-size: 100% 100% !important;\n"
+                       f"    background-position: 0 0 !important;\n    background-repeat: no-repeat !important;\n"
+                       f"    background-origin: content-box !important;\n    background-clip: content-box !important;\n"
+                       f"    animation: none !important; transform: none !important;\n"
+                       f"    {CSS_MOTION[key]} !important;\n"
+                       f"    transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), filter .2s !important;\n  }}\n"
+                       f"  {parents([h for _, h in targets])} {{ animation: none !important; transform: none !important; }}\n"
+                       f"  @media {MOVES} and (not (-moz-pref(\"zzicon.button.{k}\", {STILL}))) {{\n"
+                       f"    {own} {{ --zzicon-t: 1 !important; filter: var(--zzicon-circuit-glow, none) !important;\n"
+                       f"      transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s !important; }}\n  }}\n}}")
+            continue
         css.append(f"/* {label} */\n@media {uses(key)} {{\n"
                    f"  {icons} {{\n    list-style-image: var(--zzicon-blank) !important;\n"
                    f"    -moz-context-properties: fill, fill-opacity, stroke !important;\n    stroke: var(--zzicon-halo, currentColor) !important;\n"

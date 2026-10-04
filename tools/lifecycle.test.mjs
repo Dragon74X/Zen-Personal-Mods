@@ -1955,6 +1955,10 @@ test("Iconflow's frame counter spans each strip it uses", async () => {
   for (const strip of strips) {
     const svg = await readFile(new URL(`../iconflow/${strip}`, import.meta.url), "utf8");
     const [, width, height] = svg.match(/width='(\d+)' height='(\d+)'/);
+    if (width === height) {   // one drawing, moved by CSS (no frame counter)
+      assert.match(css, new RegExp(`url\\("${strip}"\\)[^}]*background-size: 100% 100%[^}]*(rotate|translate|scale): calc\\([^;]*var\\(--zzicon-t\\)`), strip);
+      continue;
+    }
     assert.deepEqual([...ends], [width / height - 1], `${strip} has ${width / height} frames`);
   }
   // Zen draws the Library sprite's ::before 36 frames wide; a strip stepped by

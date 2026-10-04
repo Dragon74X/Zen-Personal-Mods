@@ -112,6 +112,14 @@
   },
   {
     "type": "checkbox",
+    "property": "zzicon.click.press",
+    "label": "Icons press in when clicked *The icon shrinks while held and springs back on release. Works with or without the flare.*",
+    "defaultValue": false,
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.animate", "value": true}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "checkbox",
     "property": "zzicon.circuit.halo",
     "label": "Soft glow around lines *Circuit's neon lines carry a faint halo. Off draws crisp lines only.*",
     "defaultValue": true,

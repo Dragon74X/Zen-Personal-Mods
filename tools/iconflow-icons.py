@@ -18,6 +18,7 @@ hover animation plays them; Iconflow only swaps the image.
 python3 tools/iconflow-icons.py
 """
 from math import cos, sin, radians, pi, log, exp, sqrt
+import json
 import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -226,7 +227,7 @@ def c_reload(t):
     a2 = lambda tt: 5 + 540 * e(tt)         # both rest by the gap, never as a pair of "eyes"
     big = _diamond(9 + 6.2 * cos(radians(a1(t))), 9 + 6.2 * sin(radians(a1(t))), 1.75 + 0.3 * bump(t))
     small = _diamond(9 + 3.4 * cos(radians(a2(t))), 9 + 3.4 * sin(radians(a2(t))), 1.2)
-    return (g(taper_tube(6.2, 25, 255, trace=t, comet=True), f"rotate({n(90 * e(t))} 9 9)")
+    return (g(taper_tube(6.2, 25, 255, comet=True), f"rotate({n(90 * e(t))} 9 9)")
             + trail(6.2, a1, t) + trail(3.4, a2, t) + gem(big) + gem(small))
 
 
@@ -1032,17 +1033,32 @@ MENU_ITEMS = {
 ZEN_ANIMATED = 6                 # per-button override: Zen's own, animated
 
 
-def warp(x):
-    """How the motion gathers speed: the time warp the eye exam tunes."""
-    return x
+def _linger(n=400):
+    # Speed ramps up over the first 30% and eases off over the last 40%, so
+    # moves gather speed and the settle has time to read (round 7: Linger).
+    # The same sum as iconflow-parts.uc.js, which times Zen's own icons.
+    v = lambda p: min(1, p / 0.3) * (1 - 0.55 * (p - 0.6) / 0.4 if p > 0.6 else 1)
+    w = [0.0]
+    for i in range(1, n + 1):
+        w.append(w[-1] + v((i - 0.5) / n))
+
+    def at(p):
+        x = min(max(p, 0.0), 1.0) * n
+        i = min(n - 1, int(x))
+        return (w[i] + (w[i + 1] - w[i]) * (x - i)) / w[n]
+    return at
+
+
+warp = _linger()
 
 
 def _spring_easings(n=60):
     """The spring and its speed as linear() easings, for hover and for leave.
     Leave replays the spring backwards, as Circuit plays its strip back."""
     pos = [settle(warp(i / n)) for i in range(n + 1)]
-    vel = [(pos[min(i + 1, n)] - pos[max(i - 1, 0)]) / ((min(i + 1, n) - max(i - 1, 0)) / n) for i in range(n + 1)]
-    top = max(abs(v) for v in vel)
+    speed = lambda c: [(c[min(i + 1, n)] - c[max(i - 1, 0)]) / ((min(i + 1, n) - max(i - 1, 0)) / n) for i in range(n + 1)]
+    vel = speed(pos)
+    top = max(abs(v) for v in speed([settle(i / n) for i in range(n + 1)]))   # the even spring: faster timing, longer trail
     back = [1 - p for p in reversed(pos)]
     curves = (pos, [p + v / top for p, v in zip(pos, vel)], back, [q + v / top for q, v in zip(back, reversed(vel))])
     for c in curves:
@@ -1052,6 +1068,28 @@ def _spring_easings(n=60):
 
 # Builds up from rest, overshoots, falls back and settles, like Circuit's frames.
 EASE, SPEED_EASE, BACK_EASE, BACK_SPEED_EASE = _spring_easings()
+
+
+# Zen's own icons part by part: iconflow-parts.uc.js draws each button's own
+# artwork as a strip and marks the icon [zzicon-own]; it then plays like a
+# Circuit strip. Until then, or if the artwork cannot be read, the whole-icon
+# pose above still runs.
+PARTED = ("list-style-image: var(--zzicon-blank) !important; -moz-context-properties: fill, fill-opacity, stroke, stroke-opacity !important; "
+          "background-image: var(--zzicon-own) !important; "
+          f"background-size: {FRAMES * 100}% 100% !important; background-position: calc(var(--zzicon-frame) * 100% / {FRAMES - 1}) 0 !important; "
+          "background-repeat: no-repeat !important; background-origin: content-box !important; background-clip: content-box !important; "
+          "translate: none !important; rotate: none !important; scale: none !important; filter: none !important; "
+          "transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s !important;")
+
+
+def write_targets():
+    """The buttons iconflow-parts.uc.js looks for, between its <targets> marks."""
+    js = ROOT / "iconflow" / "iconflow-parts.uc.js"
+    entries = ",\n".join(f"    {json.dumps(key)}: {{ setting: {json.dumps(SETTING.get(key, key))}, icons: {json.dumps([i for i, _ in targets])} }}"
+                         for key, (_, _, targets) in TOOLBAR.items())
+    text = js.read_text()
+    text = re.sub(r"(// <targets>[^\n]*\n).*?(\n\s*// </targets>)", lambda m: m.group(1) + "  const TARGETS = {\n" + entries + ",\n  };" + m.group(2), text, flags=re.S)
+    js.write_text(text)
 
 
 def zen_css():
@@ -1070,10 +1108,14 @@ def zen_css():
         icons = ", ".join(i + OWN for i, _ in targets)
         hovers = ", ".join(h + OWN for _, h in targets)
         every += [i for i, _ in targets]
+        parted = ", ".join(i + "[zzicon-own]" + OWN for i, _ in targets)
+        parted_hover = ", ".join(h + "[zzicon-own]" + OWN for _, h in targets)
         out.append(f"/* {label}, Zen's own animated */\n"
                    f'@media ((-moz-pref("zzicon.set", 0)) and (-moz-pref("zzicon.button.{k}", 0))) or (-moz-pref("zzicon.button.{k}", {ZEN_ANIMATED})) {{\n'
                    f"  {icons} {{ {move} {motion_props(ZEN_MOTION[key])} }}\n"
-                   f'  @media (-moz-pref("zzicon.animate")) {{ {hovers} {{ {lit} }} }}\n}}')
+                   f'  @media (-moz-pref("zzicon.animate")) {{ {hovers} {{ {lit} }} }}\n'
+                   f"  {parted} {{ {PARTED} }}\n"
+                   f'  @media (-moz-pref("zzicon.animate")) {{ {parted_hover} {{ --zzicon-frame: {FRAMES - 1} !important; filter: var(--zzicon-circuit-glow, none) !important; }} }}\n}}')
     # The glow rises with the pose, so it lights as the icon moves.
     out.append('@media (-moz-pref("zzicon.circuit.glow")) {\n'
                f"  {', '.join(dict.fromkeys(every))} {{ --zzicon-zen-glow: drop-shadow(0 0 2.5px color-mix(in srgb, currentColor calc(clamp(0, {T}, 1) * 65%), transparent)); }}\n}}")
@@ -1132,7 +1174,7 @@ def strip(draw, frames, zoom=1.0):
     of the 18-unit grid fills Zen's 16px slot as Zen's own icons do."""
     _ids[0] = 0
     z = f"<g transform='translate(9 9) scale({zoom}) translate(-9 -9)'>" if zoom != 1 else "<g>"
-    body = "".join(f"<g transform='translate({i * G})'><g clip-path='url(#f)'>{z}{draw(i / (frames - 1))}</g></g></g>"
+    body = "".join(f"<g transform='translate({i * G})'><g clip-path='url(#f)'>{z}{draw(warp(i / (frames - 1)))}</g></g></g>"
                    for i in range(frames))
     return (f"<svg xmlns='http://www.w3.org/2000/svg' width='{frames * G}' height='{G}' fill='none' "
             "stroke='context-fill' stroke-opacity='context-fill-opacity' stroke-width='1.4' "
@@ -1214,7 +1256,7 @@ def extent(draw, frames):
                 walk(c, m, width, defs)
     for i in range(frames):
         _ids[0] = 0
-        root = ET.fromstring(f"<g>{draw(i / (frames - 1))}</g>")
+        root = ET.fromstring(f"<g>{draw(warp(i / (frames - 1)))}</g>")
         walk(root, (1, 0, 0, 1, 0, 0), 1.4, {e.get("id"): e.get("d") for e in root.iter("path") if e.get("id")})
     return reach
 
@@ -1309,6 +1351,7 @@ def main():
         css.append(f"/* Library: {label} */\n@media (-moz-pref(\"zzicon.library.style\", {value})){follow} {{\n"
                    f"  #zen-library-button .zen-library-sprite::before {{ background-image: {url['library', value]} !important; }}\n"
                    f"  #zen-library-button:hover > .zen-library-sprite{OWN} {{ {STILL_MOTION} }}\n}}")
+    write_targets()
     css += motion_css()
     css += zen_css()
     OUT.write_text("\n".join(css) + "\n")

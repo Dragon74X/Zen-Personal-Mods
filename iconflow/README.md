@@ -3,12 +3,21 @@
 Icon sets and hover motion for [Zen Browser](https://zen-browser.app/).
 
 - **Zen's own**: Zen's icons (or New Icons', when installed) keep their
-  artwork and move to a pose of their own on hover: reload turns once, back
-  and forward slide their way, downloads drop, close turns a quarter. On
-  Circuit's spring, the pose builds up from rest, overshoots, falls back and
-  settles, holds while hovered, plays back when the pointer leaves, and picks
-  up mid-way. A moving icon stretches along its path and leaves a faint trail
-  that grows with its speed. **Animate icons** off keeps them still.
+  artwork and animate part by part on hover. Each button has its own
+  choreography with a lead and a follow-through:
+  - back's arrowhead sets off first and its tail catches up;
+  - reload's arc whips round behind its arrowhead;
+  - the downloads arrow lands in the tray and the tray gives;
+  - history's ring rewinds while its hands sweep back;
+  - the site settings sliders run along their tracks;
+  - close and plus whip round from the middle.
+
+  Iconflow reads each button's own artwork in your browser and draws its
+  frames there, so it follows whichever icons you have; nothing is copied
+  into this mod. The motion builds up from rest, overshoots, falls back and
+  settles (the Linger timing), holds while hovered, plays back when the
+  pointer leaves, and picks up mid-way. Fast slides leave a faint trail.
+  **Animate icons** off keeps them still.
 - **Animate menu icons** (off by default): icons in context menus and other
   menus, Zen's or those Context Menu Icons adds, move when highlighted.
   Items that match a toolbar button (Back, Reload, Bookmark, Copy, Save and
@@ -20,7 +29,7 @@ Icon sets and hover motion for [Zen Browser](https://zen-browser.app/).
     across the top and a rim. Lines are neon tubes. On hover, a light runs
     round outlines and along tubes.
   - Motion starts from rest, builds up speed, overshoots and settles back,
-    like a spring. Parts that move fast leave smooth trails that stretch
+    like a spring, with a slower, longer settle (Linger). Parts that move fast leave smooth trails that stretch
     with their speed. Lines morph into one another rather than fading.
   - No full circles (arcs are always open), clock faces or five-point stars.
 - **Glass behind buttons**: plates made like Glassflow's window buttons,

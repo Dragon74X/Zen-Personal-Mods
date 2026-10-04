@@ -370,6 +370,14 @@
   @media (-moz-pref("zzglass.pending.greyscale")) {
     :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] .tab-icon-stack { filter: grayscale(1) !important; }
   }
+  /* Essentials and pinned tabs can stay at full strength while unloaded:
+     no fade and no greyscale, with the Unloaded tint kept as the cue. */
+  @media not (-moz-pref("zzglass.pending.essentials")) {
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][zen-essential] { --zzglass-pending-opacity: 1 !important; & .tab-icon-stack { filter: none !important; } }
+  }
+  @media not (-moz-pref("zzglass.pending.pinned")) {
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][pinned]:not([zen-essential]) { --zzglass-pending-opacity: 1 !important; & .tab-icon-stack { filter: none !important; } }
+  }
   @media (-moz-pref("zzglass.pending.sheen")) {
     :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] .tab-background, :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] .tab-stack .tab-background { background-image: var(--zzg-texture), var(--zzg-sheen),
       linear-gradient(var(--zzg-dir), var(--zzg-a) 0%, var(--zzg-b) var(--zzg-spread)) !important; }

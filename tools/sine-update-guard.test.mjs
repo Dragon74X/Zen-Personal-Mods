@@ -4,7 +4,7 @@ import { setImmediate as tick } from "node:timers/promises";
 import { test } from "node:test";
 import { installSineUpdateGuard } from "../download-prompt/sine-update-guard.sys.mjs";
 
-const mods = ["download-prompt", "glassflow", "glassflow-library", "groupflow", "tab-router", "tab-unloader", "zen-turbo", "zenslop"];
+const mods = ["download-prompt", "glassflow", "glassflow-library", "groupflow", "tab-router", "tab-unloader", "zen-turbo", "mediaflow"];
 const guardName = "sine-update-guard.sys.mjs";
 const root = new URL("../", import.meta.url);
 const deferred = () => {
@@ -224,4 +224,27 @@ test("remove and toggle wait for installs; toggle uses the current registry", as
   await Promise.all([f.manager.installMod("new"), f.manager.removeMod("old"), f.manager.toggleTheme({})]);
   assert.ok(seen.new);
   assert.ok(f.events.indexOf("remove:old") > f.events.indexOf("end:new"));
+});
+
+test("conditional settings rows are checked again once they are on the page", async () => {
+  const { fixSettingsConditions } = await import("../download-prompt/sine-update-guard.sys.mjs");
+  const calls = [], timers = [];
+  const window = { setTimeout: fn => timers.push(fn) };
+  const prefs = {
+    parsePref: (pref, _manager, _window) => ({ isConnected: false, pref }),
+    setupPrefObserver: (pref, win) => calls.push([pref.property, win]),
+  };
+  const manager = { preferences: prefs };
+  assert.equal(fixSettingsConditions(manager), true);
+  assert.equal(fixSettingsConditions(manager), false, "wraps once");
+  const shown = manager.preferences.parsePref({ property: "a.b", conditions: [{}] }, manager, window);
+  manager.preferences.parsePref({ property: "plain" }, manager, window);
+  assert.equal(timers.length, 1, "only conditional rows");
+  timers[0]();
+  assert.deepEqual(calls, [], "a row never added stays untouched");
+  shown.isConnected = true;
+  timers[0]();
+  assert.deepEqual(calls.map(([p, w]) => [p, w === window]), [["a.b", true]]);
+  assert.equal(manager.preferences.setupPrefObserver, prefs.setupPrefObserver);
+  assert.equal(fixSettingsConditions({}), false);
 });

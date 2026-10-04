@@ -1180,7 +1180,7 @@
     strip.addEventListener("scroll", holdRail, { capture: true, passive: true });
     for (const ev of FIT_EVENTS) window.addEventListener(ev, onFitEvent, true);
     // The tab area also changes size without any event: the media bar or a
-    // video preview (Zenslop) appearing, essentials or the window toolbar.
+    // video preview (Mediaflow) appearing, essentials or the window toolbar.
     const tabArea = new ResizeObserver(() => fitSoon());
     const wrapper = document.getElementById("zen-tabs-wrapper");
     if (wrapper) tabArea.observe(wrapper);

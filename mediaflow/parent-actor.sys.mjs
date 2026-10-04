@@ -12,10 +12,10 @@ const CAPTION_TICK_MS = 50;
 const DEBUG = false;
 const dlog = DEBUG ? (...a) => console.log(...a) : () => {};
 
-export class ZzZenslopParent extends JSWindowActorParent {
+export class ZzMediaflowParent extends JSWindowActorParent {
   actorCreated() {
     dlog(
-      "[Zenslop/parent] actorCreated for browsing context",
+      "[Mediaflow/parent] actorCreated for browsing context",
       this.browsingContext?.id,
     );
   }
@@ -31,14 +31,14 @@ export class ZzZenslopParent extends JSWindowActorParent {
 
     const win = this.browsingContext.topChromeWindow;
     if (!win) {
-      console.error("[Zenslop/parent] No chrome window available");
+      console.error("[Mediaflow/parent] No chrome window available");
       return;
     }
 
     switch (msg.name) {
       case "ZenPiP:MirrorStarted": {
-        console.log("[Zenslop/parent] MirrorStarted from tab", this.browsingContext.id, msg.data.width, "x", msg.data.height);
-        const controller = win.ZzZenslopController;
+        console.log("[Mediaflow/parent] MirrorStarted from tab", this.browsingContext.id, msg.data.width, "x", msg.data.height);
+        const controller = win.ZzMediaflowController;
         if (controller) {
           controller.registerSource(this.browsingContext.id, {
             startTick: (w) => { this._startTicking(w); },
@@ -57,7 +57,7 @@ export class ZzZenslopParent extends JSWindowActorParent {
       }
 
       case "ZenPiP:Frame": {
-        const controller = win.ZzZenslopController;
+        const controller = win.ZzMediaflowController;
         if (!controller) return;
 
         const activeBC = typeof controller.getActiveBC === "function" ? controller.getActiveBC() : null;
@@ -72,7 +72,7 @@ export class ZzZenslopParent extends JSWindowActorParent {
         try {
           controller.drawFrame(msg.data);
         } catch (e) {
-          console.error("[Zenslop/parent] drawFrame error:", e?.name, e?.message);
+          console.error("[Mediaflow/parent] drawFrame error:", e?.name, e?.message);
         }
 
         this._onFrameDelivered();
@@ -81,7 +81,7 @@ export class ZzZenslopParent extends JSWindowActorParent {
       }
 
       case "ZenPiP:SourceVisibility": {
-        const controller = win.ZzZenslopController;
+        const controller = win.ZzMediaflowController;
         if (!controller) break;
         const activeBC = typeof controller.getActiveBC === "function" ? controller.getActiveBC() : null;
         if (activeBC && activeBC.id === this.browsingContext.id) {
@@ -92,7 +92,7 @@ export class ZzZenslopParent extends JSWindowActorParent {
 
       case "ZenPiP:Caption": {
         if (this._captionMode === "off") break;
-        const controller = win.ZzZenslopController;
+        const controller = win.ZzMediaflowController;
         const activeBC = controller?.getActiveBC?.();
         if (activeBC && activeBC.id === this.browsingContext.id) {
           controller.setCaption(msg.data?.text || "");
@@ -102,8 +102,8 @@ export class ZzZenslopParent extends JSWindowActorParent {
 
       case "ZenPiP:VideoStopped": {
         const reason = msg.data?.reason || "";
-        console.log("[Zenslop/parent] VideoStopped reason:", reason);
-        const controller = win.ZzZenslopController;
+        console.log("[Mediaflow/parent] VideoStopped reason:", reason);
+        const controller = win.ZzMediaflowController;
         if (controller) {
           if (reason.includes("pause")) {
             controller.hideCaption?.();
@@ -134,7 +134,7 @@ export class ZzZenslopParent extends JSWindowActorParent {
     this._consecutiveFast = 0;
     if (this._captionsActive) this._startCaptionClock();
     this._sendTick();
-    dlog("[Zenslop/parent] Ticking started (self-clocking)");
+    dlog("[Mediaflow/parent] Ticking started (self-clocking)");
   }
 
   _setProcessingActive(active, captionMode = "off", captionsActive = active) {
@@ -173,7 +173,7 @@ export class ZzZenslopParent extends JSWindowActorParent {
   _prefQualityIndex() {
     let label = "360";
     try {
-      label = Services.prefs.getStringPref("mod.zenslop.quality", "360");
+      label = Services.prefs.getStringPref("zzmedia.preview.quality", "360");
     } catch (_) {}
     const idx = QUALITY_TIERS.indexOf(label);
     return idx === -1 ? 0 : idx;
@@ -184,7 +184,7 @@ export class ZzZenslopParent extends JSWindowActorParent {
     try {
       fps = parseInt(
         Services.prefs.getStringPref(
-          "mod.zenslop.framerate",
+          "zzmedia.preview.framerate",
           String(DEFAULT_FPS),
         ),
         10,
@@ -225,7 +225,7 @@ export class ZzZenslopParent extends JSWindowActorParent {
         quality: String(captureDimension),
       });
     } catch (e) {
-      console.error("[Zenslop/parent] Tick error:", e?.name, e?.message);
+      console.error("[Mediaflow/parent] Tick error:", e?.name, e?.message);
     }
   }
 
@@ -290,7 +290,7 @@ export class ZzZenslopParent extends JSWindowActorParent {
           this._currentQualityIndex < QUALITY_TIERS.length - 1) {
         this._currentQualityIndex++;
         this._consecutiveSlow = 0;
-        dlog(`[Zenslop/parent] Quality ↓ ${QUALITY_TIERS[this._currentQualityIndex]} (${Math.round(elapsed)}ms)`);
+        dlog(`[Mediaflow/parent] Quality ↓ ${QUALITY_TIERS[this._currentQualityIndex]} (${Math.round(elapsed)}ms)`);
       }
     } else if (elapsed < this._frameBudgetMs * FAST_FRAME_RATIO) {
       this._consecutiveFast++;
@@ -299,7 +299,7 @@ export class ZzZenslopParent extends JSWindowActorParent {
           this._currentQualityIndex > this._prefQualityIndex()) {
         this._currentQualityIndex--;
         this._consecutiveFast = 0;
-        dlog(`[Zenslop/parent] Quality ↑ ${QUALITY_TIERS[this._currentQualityIndex]} (${Math.round(elapsed)}ms)`);
+        dlog(`[Mediaflow/parent] Quality ↑ ${QUALITY_TIERS[this._currentQualityIndex]} (${Math.round(elapsed)}ms)`);
       }
     } else {
       this._consecutiveSlow = 0;
@@ -322,9 +322,9 @@ export class ZzZenslopParent extends JSWindowActorParent {
       this.sendAsyncMessage("ZenPiP:Stop", {});
     } catch (_) {}
     const win = this.browsingContext?.topChromeWindow;
-    if (win && win.ZzZenslopController) {
-      win.ZzZenslopController.unregisterSource(this.browsingContext.id);
-      win.ZzZenslopController.notifySourceStopped(this.browsingContext);
+    if (win && win.ZzMediaflowController) {
+      win.ZzMediaflowController.unregisterSource(this.browsingContext.id);
+      win.ZzMediaflowController.notifySourceStopped(this.browsingContext);
     }
   }
 }

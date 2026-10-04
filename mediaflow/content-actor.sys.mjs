@@ -3,7 +3,7 @@ const CAPTION_TRACK_CHECK_MS = 2000;
 
 const DEBUG = false;
 
-export class ZzZenslopChild extends JSWindowActorChild {
+export class ZzMediaflowChild extends JSWindowActorChild {
   actorCreated() {
     this._processingActive = false;
     this._captionsActive = false;
@@ -16,7 +16,7 @@ export class ZzZenslopChild extends JSWindowActorChild {
     this._captionLoadSerial = 0;
     this._captionLoadPendingKey = "";
     this._debug(
-      "[Zenslop/content] actorCreated",
+      "[Mediaflow/content] actorCreated",
       this.contentWindow?.location?.href,
     );
     // Sine can register this actor after session-restore has already resumed a
@@ -59,7 +59,7 @@ export class ZzZenslopChild extends JSWindowActorChild {
 
   handleEvent(event) {
     const target = event.target;
-    this._debug("[Zenslop/content]", event.type, target?.tagName, "muted=", target?.muted, "vw=", target?.videoWidth);
+    this._debug("[Mediaflow/content]", event.type, target?.tagName, "muted=", target?.muted, "vw=", target?.videoWidth);
     if (event.type === "DOMContentLoaded" || event.type === "pageshow") {
       this._scanForPlayingVideo();
       return;
@@ -123,7 +123,7 @@ export class ZzZenslopChild extends JSWindowActorChild {
   }
 
   _tryStart(target) {
-    this._debug("[Zenslop/content] tryStart readyState=", target.readyState, "vw=", target.videoWidth, "audible=", this._isAudible(target), "hasVideo=", !!this._video);
+    this._debug("[Mediaflow/content] tryStart readyState=", target.readyState, "vw=", target.videoWidth, "audible=", this._isAudible(target), "hasVideo=", !!this._video);
     if (this._video) return;
     if (target.paused || target.ended) return;
     if (target.readyState < 2 || target.videoWidth === 0) return;
@@ -702,7 +702,7 @@ export class ZzZenslopChild extends JSWindowActorChild {
       this._captionLoadPendingKey = "";
       this._captionTrackKey = "";
       this._captionCues = null;
-      this._debug("[Zenslop/content] caption track load failed:", error);
+      this._debug("[Mediaflow/content] caption track load failed:", error);
     }
   }
 
@@ -838,7 +838,7 @@ export class ZzZenslopChild extends JSWindowActorChild {
         this._scaleCanvas.height = th;
         this._scaleCtx = this._scaleCanvas.getContext("2d", ctxOpts);
       } catch (err2) {
-        this._debug("[Zenslop/content] canvas creation failed:", err2);
+        this._debug("[Mediaflow/content] canvas creation failed:", err2);
         this._scaleCanvas = null;
         this._scaleCtx = null;
         this._stopAndNotify("canvas:construct");
@@ -881,12 +881,12 @@ export class ZzZenslopChild extends JSWindowActorChild {
         height: canvas.height,
       }, [img.data.buffer]);
     } catch (e) {
-      this._debug("[Zenslop/content] _captureFrame threw:", String(e), e?.name, e?.message);
+      this._debug("[Mediaflow/content] _captureFrame threw:", String(e), e?.name, e?.message);
     }
   }
 
   _stopAndNotify(reason) {
-    this._debug("[Zenslop/content] stopAndNotify reason=", reason, "hadVideo=", !!this._video);
+    this._debug("[Mediaflow/content] stopAndNotify reason=", reason, "hadVideo=", !!this._video);
     if (!this._video) return;
     this._teardown();
     try {

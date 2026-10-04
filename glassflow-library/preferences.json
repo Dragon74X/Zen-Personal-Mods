@@ -9,7 +9,7 @@
     "type": "separator",
     "label": "Space cards",
     "size": "17px",
-    "margin": "24px 0 10px 0"
+    "margin": "22px 0 10px 0"
   },
   {
     "type": "string",
@@ -46,7 +46,7 @@
   {
     "type": "string",
     "property": "zzlib.card.radius",
-    "label": "Corner radius",
+    "label": "Corner radius *Each space card's corners.*",
     "defaultValue": "14px",
     "placeholder": "14px"
   },
@@ -60,14 +60,14 @@
   {
     "type": "string",
     "property": "zzlib.card.gap",
-    "label": "Space between cards",
+    "label": "Space between cards *Between neighbouring space cards.*",
     "defaultValue": "24px",
     "placeholder": "24px"
   },
   {
     "type": "string",
     "property": "zzlib.card.title-size",
-    "label": "Space name size",
+    "label": "Space name size *The space name at the top of each card.*",
     "defaultValue": "13px",
     "placeholder": "13px"
   }

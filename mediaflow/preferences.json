@@ -1,0 +1,123 @@
+[
+  {
+    "type": "separator",
+    "size": "20px",
+    "margin": "2px 0 12px 0",
+    "label": "Mediaflow"
+  },
+  {
+    "type": "separator",
+    "label": "Video preview",
+    "size": "17px",
+    "margin": "22px 0 10px 0"
+  },
+  {
+    "type": "dropdown",
+    "property": "zzmedia.preview.quality",
+    "label": "Video quality *Resolution of the preview drawn above the music bar while a video plays in another tab. Higher costs more CPU.*",
+    "defaultValue": "360",
+    "options": [
+      {
+        "label": "Compact (240p)",
+        "value": "240"
+      },
+      {
+        "label": "Low (360p)",
+        "value": "360"
+      },
+      {
+        "label": "Medium (480p)",
+        "value": "480"
+      },
+      {
+        "label": "High (640p)",
+        "value": "640"
+      }
+    ]
+  },
+  {
+    "type": "dropdown",
+    "property": "zzmedia.preview.framerate",
+    "label": "Frame rate *15 fps uses about half the CPU of 30.*",
+    "defaultValue": "15",
+    "options": [
+      {
+        "label": "Energy saver (15 fps)",
+        "value": "15"
+      },
+      {
+        "label": "Smooth (30 fps)",
+        "value": "30"
+      }
+    ]
+  },
+  {
+    "type": "dropdown",
+    "property": "zzmedia.preview.captions",
+    "label": "Captions *Shown under the preview. Follow YouTube shows them only when they are on in the video.*",
+    "defaultValue": "youtube",
+    "options": [
+      {
+        "label": "Off",
+        "value": "off"
+      },
+      {
+        "label": "Always on",
+        "value": "on"
+      },
+      {
+        "label": "Follow YouTube",
+        "value": "youtube"
+      }
+    ]
+  },
+  {
+    "type": "checkbox",
+    "property": "zzmedia.preview.captions-when-hidden",
+    "label": "Captions while the preview is hidden *Keeps captions on screen after the preview's hide button is pressed.*",
+    "defaultValue": false,
+    "conditions": [{"not": {"property": "zzmedia.preview.captions", "value": "off"}}]
+  },
+  {
+    "type": "separator",
+    "label": "Music bar",
+    "size": "17px",
+    "margin": "22px 0 10px 0"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzmedia.bar.always-expanded",
+    "label": "Always show title and progress *Zen shows them only while you hover the player, floating them over the tabs. On, they are part of the player and the tab list makes room.*",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
+    "property": "zzmedia.bar.hide-info",
+    "label": "Hide the title row *Also hides the picture-in-picture and close buttons, which sit in that row.*",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
+    "property": "zzmedia.bar.hide-progress",
+    "label": "Hide the progress bar",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
+    "property": "zzmedia.bar.hide-controls",
+    "label": "Hide the playback buttons *With the title row and progress bar also hidden, the player is hidden entirely.*",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
+    "property": "zzmedia.bar.hide-notes",
+    "label": "Hide the floating music notes *The animated notes Zen draws above the player while music plays.*",
+    "defaultValue": false
+  },
+  {
+    "type": "separator",
+    "label": "*Colour and glass behind the player are in Glassflow, under Overlays.*",
+    "size": "13px",
+    "margin": "14px 0 4px 0"
+  }
+]

@@ -11,7 +11,7 @@ import { installSineUpdateGuard } from "../download-prompt/sine-update-guard.sys
 
 const upstream = process.env.SINE_MANAGER_SOURCE;
 const root = new URL("../", import.meta.url);
-const mods = ["download-prompt", "glassflow", "glassflow-library", "groupflow", "tab-router", "tab-unloader", "zen-turbo", "zenslop"];
+const mods = ["download-prompt", "glassflow", "glassflow-library", "groupflow", "tab-router", "tab-unloader", "zen-turbo", "mediaflow"];
 
 async function environment({ realMetadata = false, failArchive = new Set() } = {}) {
   const source = await readFile(upstream, "utf8");
@@ -243,4 +243,27 @@ test("native Sine: a store mod whose store entry changes version without a newer
   env.registry[id].updatedAt = "2026-01-02T00:00:00Z";
   assert.equal(await env.manager.updateMods("auto"), true, "different version, same date");
   assert.deepEqual(env.updatedMods, [id, id]);
+});
+
+test("native Sine: an installed Zenslop fork updates into Mediaflow and keeps its id", { skip: !upstream }, async () => {
+  const env = await environment({ realMetadata: true });
+  const stub = JSON.parse(await readFile(new URL("zenslop/theme.json", root), "utf8"));
+  env.manifests["zz-zenslop"] = stub;                 // served for .../main/zenslop/theme.json
+  for (const [id, mod] of Object.entries(env.registry)) mod.updatedAt = env.manifests[id].updatedAt;
+  delete env.registry["zz-mediaflow"];
+  for (const [path, contents] of [...env.fs]) {   // the old install's folder, under its own id
+    if (path.startsWith("/sine-mods/zz-mediaflow/")) { env.fs.delete(path); env.fs.set(path.replace("zz-mediaflow", "zz-zenslop"), contents); }
+  }
+  env.registry["zz-zenslop"] = { id: "zz-zenslop", name: "Zenslop", version: "1.3.1", enabled: true,
+    updatedAt: "2026-10-04T06:15:59Z", homepage: "https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/zenslop",
+    preferences: "preferences.json", scripts: { "zenslop.uc.js": {} } };
+  installSineUpdateGuard(env.manager, env.utils);
+  assert.equal(await env.manager.updateMods("auto"), true);
+  const mod = env.registry["zz-zenslop"];
+  assert.equal(mod.name, "Mediaflow");
+  assert.equal(mod.version, stub.version);
+  assert.match(mod.homepage, /\/mediaflow$/);
+  assert.ok(env.fs.has("/sine-mods/zz-zenslop/mediaflow.uc.js") && env.fs.has("/sine-mods/zz-zenslop/userChrome.css"));
+  assert.deepEqual(Object.keys(mod.scripts).sort(), ["mediaflow.uc.js", "sine-update-guard.sys.mjs"]);
+  await env.utils.getModPreferences(mod);
 });

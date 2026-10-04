@@ -1,19 +1,29 @@
 // ==UserScript==
-// @name           Zenslop
-// @version        1.3.1
+// @name           Mediaflow
+// @version        2.0.0
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==
 
 (function () {
-  if (window.__zzZenslopLoaded) return;
-  window.__zzZenslopLoaded = true;
+  if (window.__zzMediaflowLoaded) return;
+  window.__zzMediaflowLoaded = true;
 
-  const LOG_PREFIX = "[Zenslop]";
-  const CAPTIONS_PREF = "mod.zenslop.captions";
+  const LOG_PREFIX = "[Mediaflow]";
+  const CAPTIONS_PREF = "zzmedia.preview.captions";
   const CAPTIONS_WHEN_PIP_HIDDEN_PREF =
-    "mod.zenslop.captionsWhenPipHidden";
+    "zzmedia.preview.captions-when-hidden";
   const CAPTION_MODES = new Set(["off", "on", "youtube"]);
+  // Settings chosen under the original Zenslop's names carry over once.
+  for (const [from, to] of [["quality", "quality"], ["framerate", "framerate"],
+    ["captions", "captions"], ["captionsWhenPipHidden", "captions-when-hidden"]]) {
+    try {
+      const S = Services.prefs, old = "mod.zenslop." + from, next = "zzmedia.preview." + to;
+      if (!S.prefHasUserValue(old) || S.prefHasUserValue(next)) continue;
+      if (S.getPrefType(old) === S.PREF_BOOL) S.setBoolPref(next, S.getBoolPref(old));
+      else S.setStringPref(next, S.getStringPref(old));
+    } catch {}
+  }
   const log = (...a) => console.log(LOG_PREFIX, ...a);
   const warn = (...a) => console.warn(LOG_PREFIX, ...a);
   const err = (...a) => console.error(LOG_PREFIX, ...a);
@@ -136,16 +146,16 @@
                   top ${CONFIG.LAYOUT_ANIM_MS}ms ease-out;
       will-change: opacity, transform, top;
     }
-    #zen-sidebar-pip-caption[zenslop-caption-visible="true"] {
-      opacity: var(--zenslop-caption-opacity, 1);
+    #zen-sidebar-pip-caption[zzmf-caption-visible="true"] {
+      opacity: var(--zzmf-caption-opacity, 1);
       transform: translateY(0) scale(1);
     }
-    [zenslop-tab-list-sized="true"] {
+    [zzmf-tab-list-sized="true"] {
       box-sizing: border-box !important;
       min-height: 0 !important;
-      height: var(--zenslop-tab-list-height) !important;
-      max-height: var(--zenslop-tab-list-height) !important;
-      flex: 0 1 var(--zenslop-tab-list-height) !important;
+      height: var(--zzmf-tab-list-height) !important;
+      max-height: var(--zzmf-tab-list-height) !important;
+      flex: 0 1 var(--zzmf-tab-list-height) !important;
       padding-bottom: 0 !important;
     }
     .zen-sidebar-pip-toggle {
@@ -161,7 +171,7 @@
     .zen-media-card:not([can-pip]) .zen-sidebar-pip-toggle {
       display: none !important;
     }
-    [zenslop-parked="true"] {
+    [zzmf-parked="true"] {
       display: none !important;
       visibility: collapse !important;
       width: 0 !important;
@@ -255,8 +265,8 @@
   }
   function clearTabListHeight() {
     if (sizedTabList?.isConnected) {
-      sizedTabList.removeAttribute("zenslop-tab-list-sized");
-      sizedTabList.style.removeProperty("--zenslop-tab-list-height");
+      sizedTabList.removeAttribute("zzmf-tab-list-sized");
+      sizedTabList.style.removeProperty("--zzmf-tab-list-height");
     }
     sizedTabList = null;
     lastTabListHeight = -1;
@@ -269,10 +279,10 @@
     if (target) {
       // Clean up the attribute and property used by versions that reserved
       // space with bottom padding instead of changing the list height.
-      target.removeAttribute("zenslop-tab-padding");
-      target.style.removeProperty("--zenslop-tab-list-padding");
-      target.setAttribute("zenslop-tab-list-sized", "true");
-      target.style.setProperty("--zenslop-tab-list-height", px + "px");
+      target.removeAttribute("zzmf-tab-padding");
+      target.style.removeProperty("--zzmf-tab-list-padding");
+      target.setAttribute("zzmf-tab-list-sized", "true");
+      target.style.setProperty("--zzmf-tab-list-height", px + "px");
       sizedTabList = target;
       lastTabListHeight = px;
     }
@@ -359,7 +369,7 @@
       const captionOpacity = captionVisible ? opacity : 0;
       if (captionOpacity !== lastCaptionOpacity) {
         captionContainer.style.setProperty(
-          "--zenslop-caption-opacity",
+          "--zzmf-caption-opacity",
           String(captionOpacity),
         );
         lastCaptionOpacity = captionOpacity;
@@ -520,7 +530,7 @@
 
   function clearCaptionImmediately() {
     clearCaptionTimers();
-    captionContainer.removeAttribute("zenslop-caption-visible");
+    captionContainer.removeAttribute("zzmf-caption-visible");
     captionContainer.textContent = "";
     captionContainer.style.display = "none";
     captionText = "";
@@ -536,26 +546,26 @@
     if (isStreaming) bump();
 
     if (wasEmpty) {
-      captionContainer.removeAttribute("zenslop-caption-visible");
+      captionContainer.removeAttribute("zzmf-caption-visible");
       requestAnimationFrame(() => {
         if (!captionText) return;
         // syncPosition has now made the caption measurable and positioned it.
         // Flush that hidden state so the following attribute change transitions.
         void captionContainer.getBoundingClientRect();
-        captionContainer.setAttribute("zenslop-caption-visible", "true");
+        captionContainer.setAttribute("zzmf-caption-visible", "true");
       });
     } else {
-      captionContainer.setAttribute("zenslop-caption-visible", "true");
+      captionContainer.setAttribute("zzmf-caption-visible", "true");
     }
   }
 
   function hideCaptionNow() {
     clearCaptionTimers();
     if (!captionText) {
-      captionContainer.removeAttribute("zenslop-caption-visible");
+      captionContainer.removeAttribute("zzmf-caption-visible");
       return;
     }
-    captionContainer.removeAttribute("zenslop-caption-visible");
+    captionContainer.removeAttribute("zzmf-caption-visible");
     captionExitTimer = setTimeout(() => {
       captionExitTimer = null;
       captionText = "";
@@ -569,7 +579,7 @@
     if (!captionText || captionHideTimer || captionExitTimer) return;
     captionHideTimer = setTimeout(() => {
       captionHideTimer = null;
-      captionContainer.removeAttribute("zenslop-caption-visible");
+      captionContainer.removeAttribute("zzmf-caption-visible");
       captionExitTimer = setTimeout(() => {
         captionExitTimer = null;
         captionText = "";
@@ -694,9 +704,9 @@
   }
 
   function parkNativePipButton(btn) {
-    if (!btn || btn.hasAttribute("zenslop-toggle")) return;
-    if (btn.getAttribute("zenslop-parked") !== "true") {
-      btn.setAttribute("zenslop-parked", "true");
+    if (!btn || btn.hasAttribute("zzmf-toggle")) return;
+    if (btn.getAttribute("zzmf-parked") !== "true") {
+      btn.setAttribute("zzmf-parked", "true");
     }
     if (btn.style.display !== "none") {
       btn.style.display = "none";
@@ -711,8 +721,8 @@
     btn.removeAttribute("id");
     btn.classList.remove("zen-media-pip-button");
     btn.classList.add("zen-sidebar-pip-toggle");
-    btn.removeAttribute("zenslop-parked");
-    btn.setAttribute("zenslop-toggle", "true");
+    btn.removeAttribute("zzmf-parked");
+    btn.setAttribute("zzmf-toggle", "true");
     btn.setAttribute("tooltiptext", "Toggle sidebar PiP");
     for (const a of STRIPPED_ATTRS) btn.removeAttribute(a);
     btn.style.listStyleImage = userHidden ? EYE_OFF_URL : EYE_URL;
@@ -737,7 +747,7 @@
 
     const nativeButtons = musicPlayerUI.querySelectorAll(PIP_BUTTON_SELECTORS);
     for (const nativeButton of nativeButtons) {
-      if (nativeButton.hasAttribute("zenslop-toggle")) continue;
+      if (nativeButton.hasAttribute("zzmf-toggle")) continue;
       const existingToggle = togglesByNativeButton.get(nativeButton);
       if (existingToggle?.isConnected) {
         parkNativePipButton(nativeButton);
@@ -811,7 +821,7 @@
   function getActiveActor() {
     if (!sourceBC) return null;
     return (
-      safe(() => sourceBC.currentWindowGlobal?.getActor("ZzZenslop")) ||
+      safe(() => sourceBC.currentWindowGlobal?.getActor("ZzMediaflow")) ||
       null
     );
   }
@@ -872,7 +882,7 @@
     lastPipOpenAt = performance.now();
   });
 
-  window.ZzZenslopController = {
+  window.ZzMediaflowController = {
     getActiveBC() {
       return sourceBC;
     },
@@ -1102,7 +1112,7 @@
         while (pending.length) {
           const bc = pending.pop();
           if (!bc) continue;
-          safe(() => bc.currentWindowGlobal?.getActor("ZzZenslop"));
+          safe(() => bc.currentWindowGlobal?.getActor("ZzMediaflow"));
           safe(() => pending.push(...bc.children));
         }
       }
@@ -1113,30 +1123,33 @@
 
   try {
     // The mod's own folder, wherever Sine or Cosine keeps it: its chrome URL
-    // resolves to the files on disk. The profile path is the fallback.
+    // resolves to the files on disk. The folder is named after the installed
+    // id, which is still zz-zenslop for copies installed before the rename,
+    // so read it from this script's own URL. The profile path is the fallback.
+    const id = /^chrome:\/\/sine\/content\/([^/]+)\//.exec(Components.stack.filename)?.[1] || "zz-mediaflow";
     let modUri;
     try {
       modUri = Cc["@mozilla.org/chrome/chrome-registry;1"].getService(Ci.nsIChromeRegistry)
-        .convertChromeURL(Services.io.newURI("chrome://sine/content/zz-zenslop/"));
+        .convertChromeURL(Services.io.newURI(`chrome://sine/content/${id}/`));
     } catch {
       const modDir = Services.dirsvc.get("ProfD", Ci.nsIFile);
-      for (const seg of ["chrome", "sine-mods", "zz-zenslop"]) modDir.append(seg);
+      for (const seg of ["chrome", "sine-mods", id]) modDir.append(seg);
       modUri = Services.io.newFileURI(modDir);
     }
     const resProto = Services.io
       .getProtocolHandler("resource")
       .QueryInterface(Ci.nsIResProtocolHandler);
-    if (!resProto.hasSubstitution("zz-zenslop")) {
-      resProto.setSubstitution("zz-zenslop", modUri);
+    if (!resProto.hasSubstitution("zz-mediaflow")) {
+      resProto.setSubstitution("zz-mediaflow", modUri);
     }
     log("resource mapped to:", modUri.spec);
 
-    ChromeUtils.registerWindowActor("ZzZenslop", {
+    ChromeUtils.registerWindowActor("ZzMediaflow", {
       parent: {
-        esModuleURI: "resource://zz-zenslop/parent-actor.sys.mjs",
+        esModuleURI: "resource://zz-mediaflow/parent-actor.sys.mjs",
       },
       child: {
-        esModuleURI: "resource://zz-zenslop/content-actor.sys.mjs",
+        esModuleURI: "resource://zz-mediaflow/content-actor.sys.mjs",
         events: {
           DOMContentLoaded: {},
           pageshow: {},
@@ -1166,5 +1179,42 @@
   setTimeout(instantiateActorForOpenTabs, 500);
   setTimeout(instantiateActorForOpenTabs, 1500);
 
-  log("Zenslop initialized.");
+  // ---- music bar ----------------------------------------------------------
+  // Better Music Bar's settings carry over once, under Mediaflow's names.
+  for (const [from, to] of [["alwaysshow", "always-expanded"], ["hidemusicinfo", "hide-info"],
+    ["hideprogress", "hide-progress"], ["hidecontrol", "hide-controls"], ["hideparticles", "hide-notes"]]) {
+    try {
+      const S = Services.prefs, old = "mod.zenbettermusicbar." + from, next = "zzmedia.bar." + to;
+      if (S.getBoolPref("mod.zenbettermusicbar.enabled", true) && S.prefHasUserValue(old) &&
+          !S.prefHasUserValue(next)) S.setBoolPref(next, S.getBoolPref(old));
+    } catch {}
+  }
+
+  // Zen measures the player's height once, when it appears, and floats the
+  // hover rows above that height. Always expanded, those rows are part of the
+  // player, so measure again whenever the front card's size changes.
+  const mediaBar = document.getElementById("zen-media-controls-toolbar");
+  const EXPANDED_PREF = "zzmedia.bar.always-expanded";
+  const remeasure = () => {
+    if (!mediaBar || mediaBar.hidden || mediaBar.matches(":hover")) return;
+    const front = mediaBar.querySelector(":scope > .zen-media-card:not([stacked-behind], [zen-removing], [zen-hiding])");
+    if (front) mediaBar.style.setProperty("--zen-media-collapsed-height", front.getBoundingClientRect().height + "px");
+  };
+  if (mediaBar) {
+    const sizes = new ResizeObserver(() => {
+      if (Services.prefs.getBoolPref(EXPANDED_PREF, false)) remeasure();
+    });
+    const watchCards = () => {
+      sizes.disconnect();
+      for (const card of mediaBar.querySelectorAll(":scope > .zen-media-card")) sizes.observe(card);
+    };
+    new MutationObserver(watchCards).observe(mediaBar, { childList: true });
+    watchCards();
+    // Turning it off shrinks the card back; measure once the rows have folded.
+    const onPref = () => setTimeout(remeasure, 350);
+    Services.prefs.addObserver(EXPANDED_PREF, onPref);
+    window.addEventListener("unload", () => Services.prefs.removeObserver(EXPANDED_PREF, onPref), { once: true });
+  }
+
+  log("Mediaflow initialized.");
 })();

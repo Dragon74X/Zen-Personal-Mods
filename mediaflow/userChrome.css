@@ -1,0 +1,40 @@
+/* ============================================================
+   Mediaflow -- Zen's music bar (Zen 1.23b).
+
+   The media player is a card at the bottom of the sidebar. Zen shows its
+   title row and progress bar only while it is hovered, floating them up
+   over the tabs. These options were Better Music Bar's, whose selectors
+   predate the card markup and no longer match anything.
+   Its colour and the glass behind it are Glassflow's (Overlays section).
+   ============================================================ */
+
+@media (-moz-pref("zzmedia.bar.always-expanded")) {
+  #zen-media-controls-toolbar .zen-media-card .show-on-hover {
+    max-height: 50px !important;
+    padding: 5px !important;
+    margin-bottom: 0 !important;
+    opacity: 1 !important;
+    transform: none !important;
+    pointer-events: auto !important;
+  }
+  /* Zen's own exceptions to the padding above. */
+  #zen-media-controls-toolbar .zen-media-card .zen-media-info-container { padding-inline-end: 0 !important; }
+  #zen-media-controls-toolbar .zen-media-card .zen-media-progress-hbox { padding-top: 0 !important; }
+}
+
+@media (-moz-pref("zzmedia.bar.hide-info")) {
+  #zen-media-controls-toolbar .zen-media-info-container { display: none !important; }
+}
+@media (-moz-pref("zzmedia.bar.hide-progress")) {
+  #zen-media-controls-toolbar .zen-media-progress-hbox { display: none !important; }
+}
+@media (-moz-pref("zzmedia.bar.hide-controls")) {
+  #zen-media-controls-toolbar .zen-media-controls-hbox { display: none !important; }
+}
+@media (-moz-pref("zzmedia.bar.hide-notes")) {
+  #zen-media-controls-toolbar .zen-media-notes { display: none !important; }
+}
+/* Nothing left to show: hide the player entirely. */
+@media (-moz-pref("zzmedia.bar.hide-info")) and (-moz-pref("zzmedia.bar.hide-progress")) and (-moz-pref("zzmedia.bar.hide-controls")) {
+  #zen-media-controls-toolbar { display: none !important; }
+}

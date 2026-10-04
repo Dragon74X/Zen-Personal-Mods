@@ -65,14 +65,7 @@
     "label": "Hover dwell (milliseconds) *Delay before requesting a speculative connection. Default 200; 0 requests immediately. Leaving before the delay expires cancels the pending request.*",
     "defaultValue": "200",
     "placeholder": "200",
-    "conditions": [
-      {
-        "if": {
-          "property": "zzturbo.hover-warmup",
-          "value": true
-        }
-      }
-    ]
+    "conditions": [{"if": {"property": "zzturbo.hover-warmup", "value": true}}]
   },
   {
     "type": "checkbox",
@@ -86,14 +79,7 @@
     "label": "Startup origin count *Selects up to this many origins by history frecency. Default 6; maximum 20.*",
     "defaultValue": "6",
     "placeholder": "6",
-    "conditions": [
-      {
-        "if": {
-          "property": "zzturbo.startup-warmup",
-          "value": true
-        }
-      }
-    ]
+    "conditions": [{"if": {"property": "zzturbo.startup-warmup", "value": true}}]
   },
   {
     "type": "string",
@@ -101,14 +87,7 @@
     "label": "Startup delay (milliseconds) *Delay after window initialization before querying history. Default 4000. Does not guarantee session restore has finished.*",
     "defaultValue": "4000",
     "placeholder": "4000",
-    "conditions": [
-      {
-        "if": {
-          "property": "zzturbo.startup-warmup",
-          "value": true
-        }
-      }
-    ]
+    "conditions": [{"if": {"property": "zzturbo.startup-warmup", "value": true}}]
   },
   {
     "type": "separator",

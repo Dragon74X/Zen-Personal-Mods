@@ -5,7 +5,7 @@ Icon sets and hover motion for [Zen Browser](https://zen-browser.app/).
 - **Zen's own**: Zen's icons (or New Icons', when installed) keep their
   artwork and animate part by part on hover. Each button has its own
   choreography with a lead and a follow-through:
-  - back's arrowhead sets off first and its tail catches up;
+  - back slides, its arrowhead a beat ahead of its tail;
   - reload's arc whips round behind its arrowhead;
   - the downloads arrow lands in the tray and the tray gives;
   - history's ring rewinds while its hands sweep back;

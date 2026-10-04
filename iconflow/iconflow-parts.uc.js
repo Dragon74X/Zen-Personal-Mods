@@ -35,7 +35,10 @@
       return p => { const x = clamp(p) * n, i = Math.min(n - 1, Math.floor(x)); return (w[i] + (w[i + 1] - w[i]) * (x - i)) / w[n]; };
     })();
     // A point that sets off `delay` late still lands with the rest.
-    const ride = (tau, delay, lag) => settle(clamp((linger(tau) - delay) / (1 - lag)));
+    // The follow-through is kept small (GIVE) and the overshoot firmer than
+    // Circuit's, so a shape keeps its form instead of stretching like jelly.
+    const GIVE = 0.3;
+    const ride = (tau, delay, lag) => settle(clamp((linger(tau) - delay * GIVE) / (1 - lag * GIVE)), 0.1);
     // Out and back: a dip that lands, springs and is gone.
     const kick = u => u <= 0 || u >= 1 ? 0 : Math.sin(Math.PI * Math.min(1, u * 1.6)) * (1 - u) ** 1.2 * 1.25;
 

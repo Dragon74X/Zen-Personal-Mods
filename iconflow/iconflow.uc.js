@@ -70,6 +70,10 @@
     }
   } catch {}
 
+  // Iconflow 1.8 folded "Zen's own, animated" into Zen's own: Animate icons
+  // now decides whether Zen's icons move.
+  try { if (Services.prefs.getIntPref("zzicon.set", 0) === 3) Services.prefs.setIntPref("zzicon.set", 0); } catch {}
+
   // Iconflow 1.3 dropped the Flow set; move its users to Circuit.
   try {
     const S = Services.prefs;

@@ -58,7 +58,7 @@
 }
 
 /* ---- Glow --------------------------------------------------------------------- */
-/* Animated icons (Circuit and Zen's own animated) glow while hovered, like a
+/* Animated icons (Circuit and Zen's own) glow while hovered, like a
    lit neon tube. A CSS drop-shadow of the icon's own shape, so the icon files
    stay small. */
 @media (-moz-pref("zzicon.circuit.glow")) {

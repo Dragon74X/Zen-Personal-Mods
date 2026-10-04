@@ -17,14 +17,15 @@ hover animation plays them; Iconflow only swaps the image.
 
 python3 tools/iconflow-icons.py
 """
-from math import cos, sin, radians, pi
+from math import cos, sin, radians, pi, log, exp, sqrt
+import re
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "iconflow" / "icons.css"
 G = 18            # Zen's icon grid
-FRAMES = 48       # toolbar icons
-ZOOM = 1.2        # toolbar frames show the middle 15 units, scaled to fill 16px
+FRAMES = 96       # toolbar icons: enough that each screen refresh advances evenly
 LIB_FRAMES = 36   # Zen's library sprite format
 
 
@@ -46,11 +47,6 @@ def ease_in_out(t):
     return 4 * t ** 3 if t < 0.5 else 1 - (2 - 2 * t) ** 3 / 2
 
 
-def ease_speed(t):
-    """ease_in_out's speed scaled to 0..1, for trails that grow with speed."""
-    return 4 * min(t, 1 - t) ** 2
-
-
 def run_up(t):
     """A short run-up for curves that would otherwise start at full speed."""
     return t * t * (2 - t)
@@ -60,9 +56,26 @@ def ease_out(t):
     return 1 - (1 - run_up(t)) ** 3
 
 
+def settle(t, overshoot=0.2, swings=2.8):
+    """A damped spring, the follow-through of hand-drawn animation: starts
+    from rest, builds speed, overshoots by about `overshoot`, falls back past
+    the mark and settles, landing exactly on 1 at t = 1. `swings` is how many
+    half-swings fit in the time."""
+    if t <= 0:
+        return 0.0
+    if t >= 1:
+        return 1.0
+    lo = log(overshoot)
+    z = -lo / sqrt(pi * pi + lo * lo)          # damping ratio giving that overshoot
+    wd = swings * pi
+    wn = wd / sqrt(1 - z * z)
+    x = lambda u: 1 - exp(-z * wn * u) * (cos(wd * u) + z * wn / wd * sin(wd * u))
+    return x(t) + (1 - x(1)) * t ** 3
+
+
 def ease_out_back(t, s=1.7):
-    t = run_up(t) - 1
-    return 1 + (s + 1) * t ** 3 + s * t ** 2
+    """Overshoot and settle; s sets how far (1.7 is about a tenth)."""
+    return settle(t, 0.1 * s)
 
 
 def bump(t):
@@ -120,7 +133,12 @@ def g(content, transform=""):
 
 def rpoly(points, r=0.9):
     """A closed polygon with every corner rounded by up to r."""
-    pts, out = list(points), []
+    pts, out = [], []
+    for q in points:                       # points that coincide (a very narrow shape) count once
+        if not pts or abs(q[0] - pts[-1][0]) + abs(q[1] - pts[-1][1]) > 1e-6:
+            pts.append(q)
+    if len(pts) > 2 and abs(pts[0][0] - pts[-1][0]) + abs(pts[0][1] - pts[-1][1]) <= 1e-6:
+        pts.pop()
     m = len(pts)
     for i in range(m):
         (px, py), (x, y), (nx, ny) = pts[i - 1], pts[i], pts[(i + 1) % m]
@@ -134,7 +152,11 @@ def rpoly(points, r=0.9):
 
 
 def chamfer(x, y, w, h, c=2.2, r=0.8):
-    """A rectangle with its corners cut at 45 degrees, the cuts rounded."""
+    """A rectangle with short, fully rounded corners: a soft squircle. The
+    corner cut is kept short and rounded through, so it never reads as an
+    octagon."""
+    c = min(c * 0.6, w / 2, h / 2)
+    r = c
     return rpoly([(x + c, y), (x + w - c, y), (x + w, y + c), (x + w, y + h - c), (x + w - c, y + h),
                   (x + c, y + h), (x, y + h - c), (x, y + c)], r)
 
@@ -184,10 +206,10 @@ def blade(tip_x, tip_y, reach=6, half=6, thick=2.5, flip=False):
 
 
 def c_back(t, flip=False):
-    # A glass blade that dashes out, trailing fading copies while it moves fast.
-    dx = 0.5 * bump(span(t, 0, 0.2)) - 1.7 * ease_out_back(span(t, 0.1, 1), 2)
-    out = ghosts(lambda o: glass(blade(5.2 + dx + o, 9, 5.6, 5.8, 2.6), body=0.12), 3.6, t)
-    out += glass(blade(5.2 + dx, 9, 5.6, 5.8, 2.6), lit=bump(t), trace=t)
+    # A glass blade that dashes out, blurring while it moves fast, then settles.
+    dx = lambda tt: 0.5 * bump(span(tt, 0, 0.2)) - 1.7 * ease_out_back(span(tt, 0.1, 1), 2)
+    out = blur(lambda tt: glass(blade(5.2 + dx(tt), 9, 5.6, 5.8, 2.6), body=0.12), dx, t)
+    out += glass(blade(5.2 + dx(t), 9, 5.6, 5.8, 2.6), lit=bump(t), trace=t)
     return g(out, "matrix(-1 0 0 1 18 0)") if flip else out
 
 
@@ -196,22 +218,25 @@ def c_forward(t):
 
 
 def c_reload(t):
-    # An open neon arc with two glass diamonds circling it at different speeds
-    # and radii, trailing while they move fast.
-    e = ease_in_out(t)
-    a1, a2 = -30 + 360 * e, 5 + 540 * e      # both rest by the gap, never as a pair of "eyes"
-    big = _diamond(9 + 6.2 * cos(radians(a1)), 9 + 6.2 * sin(radians(a1)), 1.45 + 0.3 * bump(t))
-    small = _diamond(9 + 3.4 * cos(radians(a2)), 9 + 3.4 * sin(radians(a2)), 0.95)
-    return (g(taper_tube(6.2, 25, 255, trace=t), f"rotate({n(90 * e)} 9 9)")
-            + trail(6.2, a1, t) + trail(3.4, a2, t, reach=110) + gem(big) + gem(small))
+    # An open neon arc tapering like a comet's tail, with two glass diamonds
+    # circling it at different speeds and radii, trailing where they have
+    # just been. Everything settles together.
+    e = lambda tt: settle(tt, 0.12)
+    a1 = lambda tt: -30 + 360 * e(tt)
+    a2 = lambda tt: 5 + 540 * e(tt)         # both rest by the gap, never as a pair of "eyes"
+    big = _diamond(9 + 6.2 * cos(radians(a1(t))), 9 + 6.2 * sin(radians(a1(t))), 1.75 + 0.3 * bump(t))
+    small = _diamond(9 + 3.4 * cos(radians(a2(t))), 9 + 3.4 * sin(radians(a2(t))), 1.2)
+    return (g(taper_tube(6.2, 25, 255, trace=t, comet=True), f"rotate({n(90 * e(t))} 9 9)")
+            + trail(6.2, a1, t) + trail(3.4, a2, t) + gem(big) + gem(small))
 
 
 def c_reload_comets(t):
     # Two comets going opposite ways: the outer one once round, the inner
     # one, smaller and shorter-tailed, half as far again, nearly meeting the
     # outer head at the end.
-    e = ease_in_out(t)
-    return comet(6.4, -40 + 360 * e, 190, t) + comet(3.3, 110 - 540 * e, 150, t, direction=-1, k=1.05, width=0.8)
+    e = lambda tt: settle(tt, 0.12)
+    return (comet(6.4, lambda tt: -40 + 360 * e(tt), 190, t)
+            + comet(3.3, lambda tt: 110 - 540 * e(tt), 150, t, direction=-1, k=1.05, width=0.8))
 
 
 def c_cross(t, plus=False):
@@ -273,20 +298,20 @@ def c_sliders(t):
 
 
 def c_downloads(t):
-    # The chevron drops toward the tray, trailing fading copies, and settles.
-    drop = 2.6 * bump(span(t, 0, 0.55)) + 0.8 * ease_out(span(t, 0.45, 1))
-    def chev(o):
-        y = 4 + drop - o
+    # The chevron drops toward the tray, blurring as it falls, and settles.
+    drop = lambda tt: 2.6 * bump(span(tt, 0, 0.55)) + 0.8 * ease_out(span(tt, 0.45, 1))
+    def chev(tt):
+        y = 4 + drop(tt)
         return glass(rpoly([(3.6, y), (9, y + 5.4), (14.4, y), (14.4, y + 2.6), (9, y + 8), (3.6, y + 2.6)], 0.85), body=0.12)
-    return ghosts(chev, 3.3, t) + chev(0) + tube("M4 15.2H14", lit=bump(span(t, 0.3, 0.9)))
+    return blur(chev, drop, t) + chev(t) + tube("M4 15.2H14", lit=bump(span(t, 0.3, 0.9)))
 
 
 def c_extensions(t):
     # Opposite tiles lift out and sink back, turning against each other.
     e = ease_out_back(t, 2)
     tile = lambda x, y: glass(chamfer(x, y, 5.6, 5.6, 1.4, 0.55))
-    up = f"translate({n(e * 0.9)} {n(-e * 0.9)}) rotate({n(e * 45)} 12.8 5.2)"
-    down = f"translate({n(-e * 0.9)} {n(e * 0.9)}) rotate({n(-e * 45)} 5.2 12.8)"
+    up = f"translate({n(e * 0.5)} {n(-e * 0.5)}) rotate({n(e * 30)} 12.8 5.2)"
+    down = f"translate({n(-e * 0.5)} {n(e * 0.5)}) rotate({n(-e * 30)} 5.2 12.8)"
     return tile(2.4, 2.4) + tile(10, 10) + g(tile(10, 2.4), up) + g(tile(2.4, 10), down)
 
 
@@ -318,13 +343,6 @@ def c_share(t):
                          f"{n(q[1] - 2.4 * (q[1] - pts[0][1]) / ((q[0] - pts[0][0]) ** 2 + (q[1] - pts[0][1]) ** 2) ** 0.5)}", trace=t)
                     for q in pts[1:])
     return links + "".join(glass(hexa(x, y), lit=bump(t), body=0.3) for x, y in pts)
-
-
-def c_history(t):
-    # A glass card with the lit edges of two more behind it, spreading on hover.
-    e = 1.55 + 0.75 * ease_out_back(t, 2)
-    return (glass(chamfer(5.2, 5.2, 10.4, 10.4, 1.8), lit=bump(t), trace=t) + tube(peek(e), lit=bump(t))
-            + f"<g opacity='.6'>{tube(peek(2 * e))}</g>")
 
 
 def c_screenshot(t):
@@ -397,7 +415,7 @@ def c_volume(t):
 
 def c_muted(t):
     a = 90 * ease_out_back(t)
-    return glass(C_SPEAKER) + g(tube("M12 6.8L16 10.8M16 6.8L12 10.8", lit=bump(t)), f"rotate({n(a)} 14 8.8)")
+    return glass(C_SPEAKER) + g(tube("M12.5 7.3L15.5 10.3M15.5 7.3L12.5 10.3", lit=bump(t)), f"rotate({n(a)} 14 8.8)")
 
 
 def c_pip(t):
@@ -417,11 +435,11 @@ def peek(step):
 # glass bodies, neon tubes, open arcs only, no arrowheads on shapes.
 
 def c_save(t):
-    # A page with a chevron dropping into the bar at its foot, trailing.
-    drop = 2.2 * ease_out_back(span(t, 0, 0.75), 1.6)
-    chev = lambda o: tube(f"M6.2 {n(5.2 + drop - o)}L9 {n(8 + drop - o)}L11.8 {n(5.2 + drop - o)}")
+    # A page with a chevron dropping into the bar at its foot, blurring as it falls.
+    drop = lambda tt: 2.2 * ease_out_back(span(tt, 0, 0.75), 1.6)
+    chev = lambda tt: tube(f"M6.2 {n(5.2 + drop(tt))}L9 {n(8 + drop(tt))}L11.8 {n(5.2 + drop(tt))}")
     return (glass(chamfer(3.4, 2.2, 11.2, 13.6, 2.2), trace=t, body=0.12)
-            + ghosts(chev, 1.6, t) + chev(0) + tube("M6.4 13H11.6", lit=bump(span(t, 0.4, 1))))
+            + blur(chev, drop, t) + chev(t) + tube("M6.4 13H11.6", lit=bump(span(t, 0.4, 1))))
 
 
 def c_print(t):
@@ -478,16 +496,16 @@ def c_cut(t):
 
 
 def c_copy(t):
-    # A duplicate slides out of the card, trailing, and settles beside it.
-    e = ease_out_back(t, 1.6)
-    card = lambda o, lit=0: glass(chamfer(2.6 + 3.4 * e - o, 2.6 + 3.4 * e - o, 9.4, 9.4, 1.6, 0.6), lit=lit, body=0.2)
-    return glass(chamfer(2.6, 2.6, 9.4, 9.4, 1.6, 0.6), body=0.1) + ghosts(card, 1.6, t) + card(0, bump(t))
+    # A duplicate slides out of the card, blurring, and settles beside it.
+    e = lambda tt: 3.4 * ease_out_back(tt, 1.6)
+    card = lambda tt, lit=0: glass(chamfer(2.6 + e(tt), 2.6 + e(tt), 9.4, 9.4, 1.6, 0.6), lit=lit, body=0.2)
+    return glass(chamfer(2.6, 2.6, 9.4, 9.4, 1.6, 0.6), body=0.1) + blur(card, e, t) + card(t, bump(t))
 
 
 def c_paste(t):
     # A card drops into a bracket and settles.
-    y = -3 + 5.6 * ease_out_back(span(t, 0, 0.8), 1.4)
-    card = glass(chamfer(5.4, 3 + y, 7.2, 8, 1.2, 0.5), lit=bump(t), body=0.25) if t > 0 else glass(chamfer(5.4, 0, 7.2, 8, 1.2, 0.5), body=0.25)
+    y = 1.6 + 4 * ease_out_back(span(t, 0, 0.8), 1.4)
+    card = glass(chamfer(5.4, y, 7.2, 8, 1.2, 0.5), lit=bump(t), body=0.25)
     return card + tube("M3.2 9.4V14.2Q3.2 15.4 4.4 15.4H13.6Q14.8 15.4 14.8 14.2V9.4", lit=bump(span(t, 0.5, 1)), trace=t)
 
 
@@ -499,11 +517,19 @@ def c_encoding(t):
 
 
 def c_email(t):
-    # A glass letter rises out of the envelope as the flap folds flat.
-    e = ease_out_back(span(t, 0.1, 1), 1.6)
-    letter = glass(chamfer(4.6, 6.6 - 4 * e, 8.8, 7, 1, 0.45), lit=bump(t), trace=t, body=0.3) if e > 0.02 else ""
-    tip = 10.4 - 4.2 * ease_in_out(span(t, 0, 0.5))
-    return letter + glass(chamfer(2.4, 5.8, 13.2, 9.4, 1.6, 0.6), body=0.22) + tube(f"M3.6 7L9 {n(tip)}L14.4 7", lit=bump(t))
+    # The flap's V straightens into a line; that line rises as the letter's
+    # top edge while the letter's sides grow down from it. One set of lines
+    # morphs into the other.
+    f = ease_in_out(span(t, 0, 0.45))
+    rise = settle(span(t, 0.3, 1), 0.1)
+    xl, xr = 3.6 + 1 * f, 14.4 - 1 * f
+    top = 7 - 4.6 * rise
+    tip = top + 3.4 * (1 - f)
+    out = ""
+    if rise > 0.02:
+        out += glass(f"M{n(xl)} 7V{n(top)}H{n(xr)}V7Z", lit=bump(t), body=0.25)
+    out += glass(chamfer(2.4, 5.8, 13.2, 9.4, 1.6), body=0.22)
+    return out + tube(f"M{n(xl)} 7L{n(xl)} {n(top)}L9 {n(tip)}L{n(xr)} {n(top)}L{n(xr)} 7", lit=bump(t))
 
 
 def c_logins(t):
@@ -514,36 +540,39 @@ def c_logins(t):
 
 
 def c_sync(t):
-    # Two devices: a diamond travels over the top from one to the other while
-    # a second passes underneath the other way, both trailing; the devices
-    # light as they arrive.
-    e = ease_in_out(t)
-    arrive = bump(span(t, 0.6, 1))
-    out = (glass(chamfer(2.2, 5, 3.2, 8, 0.9, 0.4), lit=arrive, body=0.25)
-           + glass(chamfer(12.6, 5, 3.2, 8, 0.9, 0.4), lit=arrive, body=0.25))
-    for a in (180 + 180 * e, 180 * e):               # over the top left to right, under right to left
-        x, y = 9 + 3.6 * cos(radians(a)), 9 + 3.6 * sin(radians(a))
-        out += trail(3.6, a, t, reach=110) + gem(_diamond(x, y, 1))
+    # Two devices side by side: the diamond on each screen swaps to the other,
+    # one over the top and one underneath, trailing; both light as they land.
+    e = lambda tt: settle(tt, 0.12)
+    arrive = bump(span(t, 0.55, 1))
+    out = (glass(chamfer(2.2, 4.2, 5.6, 9.6, 1.4), lit=arrive, body=0.25)
+           + glass(chamfer(10.2, 4.2, 5.6, 9.6, 1.4), lit=arrive, body=0.25))
+    for start in (180, 0):
+        a = lambda tt, s0=start: s0 + 180 * e(tt)
+        x, y = 9 + 4 * cos(radians(a(t))), 9 + 4 * sin(radians(a(t)))
+        out += trail(4, a, t) + gem(_diamond(x, y, 1.05))
     return out
 
 
 def c_send(t):
-    # The tab slides across into the device, trailing, and the device lights.
-    e = ease_in_out(t)
-    device = glass(chamfer(10.6, 2.8, 5.2, 12.4, 1.4, 0.5), lit=bump(span(t, 0.55, 1)), trace=t, body=0.12)
-    w = 5.6 - 1.4 * e
-    x = 2.2 + (11.2 - 2.2) * e
-    tab = lambda o: glass(chamfer(x - o, 6.6, w, 4.8, 1, 0.45), body=0.35)
-    return device + ghosts(tab, 2.4, t) + tab(0)
+    # A tab (a pill with its favicon) slides into the phone, shrinking to fit
+    # its screen, blurring as it goes; the phone lights as it lands.
+    e = lambda tt: settle(tt, 0.1)
+    phone = tube(chamfer(10.4, 2.6, 5.6, 12.8, 1.8, 0.7), lit=bump(span(t, 0.55, 1)))
+    def tab(tt):
+        k = e(tt)
+        w, h = 8.6 - 4 * k, 4.4 - 1 * k
+        x, y = 1.8 + 9.4 * k, 9 - h / 2
+        return (glass(rpoly([(x, y), (x + w, y), (x + w, y + h), (x, y + h)], h / 2), body=0.35)
+                + gem(_diamond(x + h / 2 + 0.2, 9, 0.85)))
+    return phone + blur(tab, lambda tt: 9.4 * e(tt), t) + tab(t)
 
 
 def c_import(t):
-    # A diamond comes in from the corner and lands on the card.
-    e = ease_in_out(t)
-    x, y = 3.4 + 6 * e, 3.4 + 5.4 * e
-    dia = lambda o: gem(_diamond(x - o * 0.74, y - o * 0.67, 1.2))
+    # A diamond comes in from the corner and lands on the card, settling.
+    e = lambda tt: settle(tt, 0.1)
+    dia = lambda tt: gem(_diamond(3.4 + 6 * e(tt), 3.4 + 5.4 * e(tt), 1.2))
     card = glass(chamfer(6.4, 6.6, 9.4, 8.4, 1.6, 0.6), lit=bump(span(t, 0.6, 1)), body=0.16)
-    return card + ghosts(dia, 2.4, t) + dia(0)
+    return card + blur(dia, lambda tt: 8 * e(tt), t) + dia(t)
 
 
 def c_settings(t):
@@ -598,12 +627,11 @@ def c_new_window(t):
 
 
 def c_fullscreen(t):
-    # A glass panel grows to fill its frame, and the frame eases outward with it.
+    # A glass panel grows out of the frame's lower corner until it fills it.
     e = ease_out_back(t, 1.6)
-    f = 0.9 * e
-    frame = tube(chamfer(2.4 - f, 3.4 - f, 13.2 + 2 * f, 11.2 + 2 * f, 1.8, 0.7))
-    w, h = 6 + 6.4 * e, 4.4 + 5 * e
-    return frame + glass(chamfer(9 - w / 2, 9 - h / 2, w, h, 1.1, 0.5), lit=bump(t), trace=t, body=0.3)
+    w, h = 4.4 + 6.4 * e, 3.4 + 5.6 * e
+    return (tube(chamfer(2.4, 3.4, 13.2, 11.2, 1.8, 0.7))
+            + glass(chamfer(3.6, 13.4 - h, w, h, 1.1, 0.5), lit=bump(t), trace=t, body=0.3))
 
 
 def c_account(t):
@@ -625,33 +653,44 @@ def c_compact(t):
     # A window whose sidebar pane slides away into its edge while the
     # content pane widens to fill the space.
     e = ease_out_back(t, 1.6)
-    side = 3.8 - 2.8 * e
+    side = max(0.8, 3.8 - 2.9 * e)                # narrows to a sliver, never vanishes
     out = glass(chamfer(1.8, 3, 14.4, 12, 2, 0.7), trace=t, body=0.08)
-    if side > 0.5:
-        out += glass(chamfer(3, 4.3, side, 9.4, 0.7, 0.35), lit=bump(t), body=0.35)
+    out += glass(chamfer(3, 4.3, side, 9.4, 0.7, 0.35), lit=bump(t), body=0.35)
     left = 3 + side + 0.8
     return out + glass(chamfer(left, 4.3, 15 - left, 9.4, 1, 0.45), body=0.18)
 
 
 def c_reopen(t):
-    # A closed tab rises back into its empty slot, trailing, and lights there.
-    e = ease_out_back(span(t, 0, 0.85), 1.6)
-    y = 10.2 - 6.8 * e
-    tab = lambda o: glass(chamfer(3.2, y + o, 11.6, 5.6, 1.2, 0.5), lit=bump(span(t, 0.6, 1)), body=0.3)
+    # A closed tab rises back into its empty slot, blurring, and lights there.
+    y = lambda tt: 10.2 - 6.8 * ease_out_back(span(tt, 0, 0.85), 1.6)
+    tab = lambda tt: glass(chamfer(3.2, y(tt), 11.6, 5.6, 1.2, 0.5), lit=bump(span(t, 0.6, 1)), body=0.3)
     slot = f"<g opacity='.45'>{tube(chamfer(3.2, 3.4, 11.6, 5.6, 1.2, 0.5))}</g>"
-    return slot + ghosts(tab, 2.6, t) + tab(0)
+    return slot + blur(tab, y, t) + tab(t)
 
 
 def c_help(t):
-    # A question mark that tilts as its glass dot pops.
-    q = g(tube("M6.2 6.4Q6.2 3.2 9 3.2Q11.8 3.2 11.8 6Q11.8 7.9 9.8 8.9Q9 9.4 9 10.8", lit=bump(t), trace=t),
-          f"rotate({n(-10 * bump(t))} 9 11)")
-    return q + gem(_diamond(9, 14.2, 1 + 0.35 * bump(span(t, 0.2, 0.9))))
+    # A glass diamond badge turns a quarter while the question mark inside
+    # stays upright and lights.
+    e = ease_out_back(t, 1.6)
+    badge = g(glass(rpoly([(9, 1.8), (16.2, 9), (9, 16.2), (1.8, 9)], 2.2), trace=t, body=0.14), f"rotate({n(90 * e)} 9 9)")
+    q = tube("M7.2 7.4Q7.2 5.4 9 5.4Q10.8 5.4 10.8 7.1Q10.8 8.3 9.6 8.9Q9 9.2 9 10.2", lit=bump(t))
+    return badge + q + gem(_diamond(9, 12.4, 0.75 + 0.3 * bump(span(t, 0.2, 0.9))))
 
 
 def c_minus(t):
     # The bar narrows and settles back a little shorter, like zoom out.
     return c_zoom_out(t)
+
+def c_history(t):
+    # A timeline: a line with three pages; a diamond climbs back up it,
+    # lighting each page as it passes.
+    e = settle(t, 0.08)
+    y = 14.2 - 10 * e
+    out = tube("M5 3V15")
+    for py in (3.6, 8.2, 12.8):
+        passed = clamp((py + 1.4 - y) / 2.4) if t > 0 else 0
+        out += glass(chamfer(7.4, py - 1.3, 7.8, 3, 1.2), lit=passed * bump(span(t, 0, 1)) + 0.0, body=0.15 + 0.15 * passed)
+    return out + gem(_diamond(5, y, 1.15))
 
 
 # key -> (label, frames function, [(icon selector, hover selector)])
@@ -733,9 +772,9 @@ SETTING = {"bookmarked": "bookmark", "pause": "play", "muted": "volume",
 
 def lib_circuit(t):
     # Three glass plates that pull apart while a light runs round the top one.
-    gap = ease_out_back(span(t, 0, 1), 2.4) * 1.2
-    plate = lambda y: rpoly([(2.4, y), (9, y - 3.4), (15.6, y), (9, y + 3.4)], 0.9)
-    return glass(plate(13.2 + gap * 0.6), body=0.12) + glass(plate(9.8), body=0.14) + glass(plate(6.4 - gap), lit=bump(t), trace=t, body=0.2)
+    gap = ease_out_back(span(t, 0, 1), 1.5) * 1.05
+    plate = lambda y: rpoly([(2.4, y - 0.4), (9, y - 3.8), (15.6, y - 0.4), (9, y + 3)], 0.9)
+    return glass(plate(13.2 + gap * 0.45), body=0.12) + glass(plate(9.8), body=0.14) + glass(plate(6.4 - gap), lit=bump(t), trace=t, body=0.2)
 
 
 # ---- motion helpers ---------------------------------------------------------
@@ -758,36 +797,30 @@ def gem(d):
     return glass(d, lit=1, body=0.62)
 
 
-def taper(r, a0, a1, width, alpha, steps=24, cx=9, cy=9, paint="context-fill"):
+def taper(r, a0, a1, width, alpha, steps=18, cx=9, cy=9, paint="context-fill"):
     """An arc from a0 (u = 0) to a1 (u = 1) whose width and opacity follow
     width(u) and alpha(u), so it thins and fades smoothly instead of stopping.
-    Drawn as smooth filled outlines, one per opacity step, stacked, so its
-    edges stay clean at 16px and no seams show between pieces."""
+    One smooth filled outline; its opacity comes from a gradient mask running
+    from one end to the other, so it fades continuously, with no steps or
+    seams. (The gradient runs along the chord, which follows the arc closely
+    for the short arcs of tails and trails.)"""
     us = [i / steps for i in range(steps + 1)]
-    top = max(alpha(u) for u in us)
-    if top < 0.02:
+    if max(alpha(u) for u in us) < 0.02:
         return ""
-    levels, out, below = 4, "", 0.0
-    point = lambda u, side: (cx + (r + side * width(u) / 2) * cos(radians(a0 + (a1 - a0) * u)),
-                             cy + (r + side * width(u) / 2) * sin(radians(a0 + (a1 - a0) * u)))
-    for j in range(1, levels + 1):
-        want = top * j / levels
-        a = 1 - (1 - want) / (1 - below)          # stacked fills add up to want
-        below = want
-        runs, run = [], []
-        for u in us:
-            if alpha(u) >= top * (j - 0.5) / levels:
-                run.append(u)
-            elif run:
-                runs.append(run); run = []
-        if run:
-            runs.append(run)
-        for run in runs:
-            if len(run) < 2:
-                continue
-            pts = [point(u, 1) for u in run] + [point(u, -1) for u in reversed(run)]
-            out += f"<path d='{smooth(pts)}' fill='{paint}' fill-opacity='{n(a)}' stroke='none'/>"
-    return out
+    at = lambda u, side=0: (cx + (r + side * width(u) / 2) * cos(radians(a0 + (a1 - a0) * u)),
+                            cy + (r + side * width(u) / 2) * sin(radians(a0 + (a1 - a0) * u)))
+    outline = smooth([at(u, 1) for u in us] + [at(u, -1) for u in reversed(us)])
+    (x0, y0), (x1, y1) = at(0), at(1)
+    ax, ay = x1 - x0, y1 - y0
+    l2 = ax * ax + ay * ay or 1
+    stops = sorted((clamp(((at(u)[0] - x0) * ax + (at(u)[1] - y0) * ay) / l2), alpha(u)) for u in us[::3] + us[-1:])
+    _ids[0] += 1
+    i = _ids[0]
+    grad = "".join(f"<stop offset='{o:.2f}' stop-color='#fff' stop-opacity='{a:.2f}'/>" for o, a in stops)
+    return (f"<defs><linearGradient id='g{i}' gradientUnits='userSpaceOnUse' x1='{n(x0)}' y1='{n(y0)}' x2='{n(x1)}' y2='{n(y1)}'>{grad}"
+            f"</linearGradient><mask id='m{i}' maskUnits='userSpaceOnUse' x='-9' y='-9' width='36' height='36'>"
+            f"<rect x='-9' y='-9' width='36' height='36' fill='url(#g{i})'/></mask></defs>"
+            f"<path d='{outline}' fill='{paint}' stroke='none' mask='url(#m{i})'/>")
 
 
 def smooth(pts):
@@ -801,43 +834,51 @@ def smooth(pts):
     return d + "Z"
 
 
-def taper_tube(r, a0, a1, lit=0.0, trace=None, cx=9, cy=9):
-    """A neon tube along an open arc whose two ends taper to a point."""
-    k = lambda u: ease_in_out(clamp(min(u, 1 - u) / 0.24))   # 0 at the ends, 1 along the middle
-    out = (taper(r, a0, a1, lambda u: 2.8 * (0.35 + 0.65 * k(u)), lambda u: (0.22 + 0.2 * lit) * k(u), 18, cx, cy, "context-stroke")
-           + taper(r, a0, a1, lambda u: 0.3 + 1.15 * k(u), lambda u: 0.3 + 0.7 * k(u), 18, cx, cy))
+def taper_tube(r, a0, a1, lit=0.0, trace=None, cx=9, cy=9, comet=False):
+    """A neon tube along an open arc whose two ends taper to a point; as a
+    comet, it swells toward its head (a1) and thins away to nothing behind."""
+    if comet:
+        k = lambda u: clamp(u ** 1.3 * 1.15) * ease_in_out(clamp((1 - u) / 0.06))
+    else:
+        k = lambda u: ease_in_out(clamp(min(u, 1 - u) / 0.24))   # 0 at the ends, 1 along the middle
+    out = (taper(r, a0, a1, lambda u: 2.8 * (0.35 + 0.65 * k(u)), lambda u: (0.22 + 0.2 * lit) * k(u), 20, cx, cy, "context-stroke")
+           + taper(r, a0, a1, lambda u: (0.45 + 1.6 * k(u)) if comet else (0.3 + 1.15 * k(u)), lambda u: 0.3 + 0.7 * k(u), 20, cx, cy))
     if trace is not None and 0.02 < trace < 0.98:
         out += (f"<path d='{arc(r, a0, a1, cx, cy)}' pathLength='100' stroke-width='2.1' stroke-dasharray='22 78' "
                 f"stroke-dashoffset='{n(-100 * ease_in_out(trace))}' stroke-opacity='{n(0.9 * bump(trace))}'/>")
     return out
 
 
-def trail(r, a, t, direction=1, reach=80, cx=9, cy=9):
-    """A comet trail behind something orbiting at angle a: longer while it
-    moves fast, gone when it rests. Thin and faint at its far end, building
-    to the moving shape."""
-    lag = reach * ease_speed(t)
-    if lag < 4:
+def trail(r, angle, t, back=0.07, cx=9, cy=9):
+    """A trail behind something going round a circle of radius r: it runs from
+    where the thing was a moment ago (angle(t - back)) to where it is, so it
+    grows with speed, turns round when the motion does and is gone at rest.
+    Thin and faint at its far end, building to the moving shape."""
+    a0, a1 = angle(t - back), angle(t)
+    if abs(a1 - a0) < 4:
         return ""
-    return taper(r, a - direction * lag, a, lambda u: 0.15 + 1.2 * u ** 1.3, lambda u: 0.75 * u ** 1.6, 16, cx, cy)
+    return taper(r, a0, a1, lambda u: 0.15 + 1.25 * u ** 1.3, lambda u: 0.75 * u ** 1.6, 12, cx, cy)
 
 
-def comet(r, a, tail, t, direction=1, k=1.5, width=1.0):
-    """A diamond at angle a on a circle of radius r, with a tail that fades
-    behind it and stretches while it moves fast."""
-    tail += 50 * ease_speed(t)
-    out = taper(r, a - direction * tail, a, lambda u: width * (0.2 + 1.8 * u ** 1.2), lambda u: 0.05 + 0.9 * u ** 1.4, 24)
+def comet(r, angle, tail, t, direction=1, k=1.5, width=1.0):
+    """A diamond going round a circle of radius r (angle(t) in degrees), with
+    a tail that fades behind it and stretches with its real speed."""
+    a = angle(t)
+    tail += 0.6 * abs(a - angle(t - 0.06))
+    out = taper(r, a - direction * tail, a, lambda u: width * (0.2 + 1.8 * u ** 1.2), lambda u: 0.05 + 0.9 * u ** 1.4, 16)
     x, y = 9 + r * cos(radians(a)), 9 + r * sin(radians(a))
     return out + gem(_diamond(x, y, k + 0.3 * bump(t)))
 
 
-def ghosts(draw, reach, t):
-    """Fading copies of a glass shape at earlier positions, shown only while it
-    moves fast; three blend into a smooth smear."""
-    speed = ease_speed(t)
-    if speed < 0.15:
+def blur(shape_at, pos, t, dt=0.035, scale=1.2):
+    """Motion blur: fading copies of a shape where it really was a moment
+    earlier, as strong as it is moving fast. shape_at(t) draws it at time t;
+    pos(t) is how far along it is (in grid units), so the copies follow every
+    overshoot and fall-back exactly."""
+    speed = clamp(abs(pos(t) - pos(t - 3 * dt)) / scale)
+    if speed < 0.12:
         return ""
-    return "".join(f"<g opacity='{n(speed * (0.32 - 0.09 * i))}'>{draw(reach * (i + 1) / 3)}</g>" for i in range(3))
+    return "".join(f"<g opacity='{n(speed * (0.32 - 0.09 * i))}'>{shape_at(t - (i + 1) * dt)}</g>" for i in range(3))
 
 
 # ---- library button ---------------------------------------------------------
@@ -917,39 +958,62 @@ FOLLOW_LIBRARY = {2: 12}   # what "Follow the icon set" shows with Circuit
 
 
 # ---- Zen's own, animated --------------------------------------------------------
-# Zen's icons (or New Icons', when installed) keep their artwork; each gets a
-# motion of its own. --zzicon-t transitions from 0 to 1 on hover, so the motion
-# builds up and settles, reverses on leave and picks up mid-way like Circuit's.
-# Every value is 0-based at t = 0: B is a bump (0 -> 1 -> 0), W a wiggle.
+# Zen's icons (or New Icons', when installed) keep their artwork and move to a
+# pose of their own while hovered: back slides left, reload turns, downloads
+# drop. --zzicon-t carries the pose on Circuit's spring, so it builds up from
+# rest, overshoots, falls back and settles, holds while hovered, and plays back
+# on leave, picking up mid-way. --zzicon-v runs the same spring plus its speed,
+# so v - t is how fast the icon is moving: moving icons stretch along their path
+# and leave a faint trail that grows with speed and is gone at rest.
 T = "var(--zzicon-t)"
-B = f"sin({T} * 180deg)"
-W = f"sin({T} * 360deg)"
-nudge = lambda dx, dy=0: {"translate": f"calc({B} * {dx * 1.2:.3g}px + {T} * {dx * 0.5:.3g}px) calc({B} * {dy * 1.2:.3g}px + {T} * {dy * 0.5:.3g}px)"}
-hop = lambda dy: {"translate": f"0 calc({B} * {dy}px)"}
-pop = lambda k: {"scale": f"calc(1 + {B} * {k})"}
-turn_by = lambda deg: {"rotate": f"calc({T} * {deg}deg)"}
-wiggle = lambda deg: {"rotate": f"calc({W} * {deg}deg)"}
+V = "(var(--zzicon-v) - var(--zzicon-t))"        # signed speed, 1 at its fastest
+A = f"max({V}, -1 * {V})"
+
+
+def pose(x=0, y=0, turn=0, grow=0, sx=0, sy=0):
+    return {"x": x, "y": y, "turn": turn, "sx": grow + sx, "sy": grow + sy}
+
+
+slide = lambda x, y=0: pose(x, y)
+spin = lambda deg, **k: pose(turn=deg, **k)
+swell = lambda k: pose(grow=k)
+stretch = lambda sx, sy: pose(sx=sx, sy=sy)
+
+
+def motion_props(m):
+    out, x, y = {}, m["x"], m["y"]
+    if x or y:
+        out["translate"] = f"calc({T} * {x:g}px) calc({T} * {y:g}px)"
+    if m["turn"]:
+        out["rotate"] = f"calc({T} * {m['turn']:g}deg)"
+    ux, uy = (abs(x) / (abs(x) + abs(y)), abs(y) / (abs(x) + abs(y))) if x or y else (0, 0)
+    sx = [f"{T} * {m['sx']:g}"] * bool(m["sx"]) + [f"{A} * {0.2 * ux - 0.08 * uy:.3g}"] * bool(ux or uy)
+    sy = [f"{T} * {m['sy']:g}"] * bool(m["sy"]) + [f"{A} * {0.2 * uy - 0.08 * ux:.3g}"] * bool(ux or uy)
+    if sx or sy:
+        out["scale"] = f"calc(1 + {' + '.join(sx) or 0}) calc(1 + {' + '.join(sy) or 0})"
+    trail = (f"drop-shadow(calc({V} * {-0.8 * x:.3g}px) calc({V} * {-0.8 * y:.3g}px) .4px "
+             f"color-mix(in srgb, currentColor calc(min({A}, 1) * 45%), transparent))") if x or y else ""
+    out["filter"] = f"{trail} var(--zzicon-zen-glow,)" if trail else "var(--zzicon-zen-glow, none)"
+    return " ".join(f"{k}: {v} !important;" for k, v in out.items())
+
+
 ZEN_MOTION = {
-    "back": nudge(-1.5), "forward": nudge(1.5), "reload": turn_by(360), "stop": turn_by(90), "home": hop(-2),
-    "new-tab": turn_by(180), "menu": {"scale": f"calc(1 + {B} * 0.18) calc(1 - {B} * 0.12)"},
-    "sidebar": {"translate": f"calc({B} * -1.5px) 0", "scale": f"calc(1 - {B} * 0.1) 1"},
-    "expand-sidebar": nudge(1.2), "site-data": wiggle(-8), "downloads": nudge(0, 1.6), "extensions": wiggle(-12),
-    "bookmark": {"scale": f"calc(1 + {B} * 0.22)", "rotate": f"calc({T} * 72deg)"},
-    "bookmarked": {"scale": f"calc(1 + {B} * 0.22)", "rotate": f"calc({T} * 72deg)"},
-    "reader": {"rotate": f"calc({B} * -8deg)", "translate": f"0 calc({B} * -1px)"},
-    "share": nudge(1, -1), "history": turn_by(-360), "screenshot": pop(-0.15), "overflow": nudge(1.4), "chevron": nudge(0, 1.2),
-    "close-unpinned": hop(2), "play": pop(0.18), "pause": pop(0.18), "next": nudge(1.6), "previous": nudge(-1.6),
-    "volume": wiggle(10), "muted": wiggle(10), "media-close": turn_by(90), "pip": pop(-0.12),
-    "save-page": nudge(0, 1.6), "print": hop(1.6), "find": {"rotate": f"calc({W} * 12deg)", "scale": f"calc(1 + {B} * 0.1)"},
-    "open-file": {"rotate": f"calc({B} * -10deg)"}, "zoom-in": pop(0.2), "zoom-out": pop(-0.2), "cut": wiggle(10),
-    "copy": nudge(0.9, 0.9), "paste": hop(1.5), "encoding": pop(0.15), "email": hop(-1.5), "logins": wiggle(-10),
-    "sync": turn_by(360), "send-tab": nudge(1.2, -1.2), "import": nudge(-1.2, 1.2), "settings": turn_by(120),
-    "forget": pop(-0.2), "private": hop(-1.2), "firefox-view": pop(0.12), "developer": {"scale": f"calc(1 + {B} * 0.2) 1"},
-    "new-window": pop(0.15), "fullscreen": pop(0.2), "firefox-library": hop(-1.5), "account": hop(-1.5),
-    "app-menu": {"scale": f"1 calc(1 + {B} * 0.2)"}, "compact": nudge(-1.2), "reopen": hop(-1.8), "help": wiggle(12),
-    "quit": turn_by(90), "minus": {"scale": f"calc(1 - {B} * 0.35) 1"},
+    "back": slide(-1.5), "forward": slide(1.5), "reload": spin(360), "stop": spin(90), "home": slide(0, -1.5),
+    "new-tab": spin(90), "menu": stretch(0.18, -0.1), "sidebar": pose(x=-1.2, sx=-0.1), "expand-sidebar": slide(1.2),
+    "site-data": spin(-15), "downloads": slide(0, 1.5), "extensions": pose(y=-0.6, turn=-15),
+    "bookmark": pose(y=-0.8, grow=0.15), "bookmarked": pose(y=-0.8, grow=0.15), "reader": pose(y=-1, turn=-8),
+    "share": slide(1, -1), "history": spin(-360), "screenshot": swell(-0.15), "overflow": slide(1.4), "chevron": slide(0, 1.2),
+    "close-unpinned": slide(0, 1.5), "play": swell(0.15), "pause": swell(0.15), "next": slide(1.5), "previous": slide(-1.5),
+    "volume": stretch(0.12, 0), "muted": stretch(0.12, 0), "media-close": spin(90), "pip": swell(-0.12),
+    "save-page": slide(0, 1.5), "print": slide(0, 1.5), "find": spin(-12, grow=0.1), "open-file": spin(-10),
+    "zoom-in": swell(0.2), "zoom-out": swell(-0.2), "cut": spin(12), "copy": slide(0.9, 0.9), "paste": slide(0, 1.5),
+    "encoding": swell(0.15), "email": slide(0, -1.5), "logins": spin(-12), "sync": spin(180), "send-tab": slide(1.2, -1.2),
+    "import": slide(-1.2, 1.2), "settings": spin(90), "forget": swell(-0.2), "private": slide(0, -1.2),
+    "firefox-view": swell(0.12), "developer": stretch(0.2, 0), "new-window": swell(0.15), "fullscreen": swell(0.2),
+    "firefox-library": slide(0, -1.5), "account": slide(0, -1.5), "app-menu": stretch(0, 0.2), "compact": stretch(-0.18, 0),
+    "reopen": slide(0, -1.5), "help": spin(12), "quit": spin(90), "minus": stretch(-0.35, 0),
 }
-MENU_DEFAULT = pop(0.15)
+MENU_DEFAULT = swell(0.15)
 # Context menu items that do what a toolbar button does move the same way.
 MENU_ITEMS = {
     "back": ["context-back"], "forward": ["context-forward"], "reload": ["context-reload", "context_reloadTab", "context_reloadSelectedTabs"],
@@ -965,29 +1029,58 @@ MENU_ITEMS = {
     "reopen": ["context_undoCloseTab", "toolbar-context-undoCloseTab"],
     "compact": ["zen-context-menu-compact-mode-toggle", "zen-toolbar-context-compact-mode-enable"],
 }
-ZEN_SET, ZEN_ANIMATED = 3, 6     # zzicon.set value; per-button override
-EASE = "cubic-bezier(.65, 0, .35, 1)"   # builds up from rest and settles, like Circuit's frames
+ZEN_ANIMATED = 6                 # per-button override: Zen's own, animated
 
 
-def motion_props(m):
-    return " ".join(f"{k}: {v} !important;" for k, v in m.items())
+def warp(x):
+    """How the motion gathers speed: the time warp the eye exam tunes."""
+    return x
+
+
+def _spring_easings(n=60):
+    """The spring and its speed as linear() easings, for hover and for leave.
+    Leave replays the spring backwards, as Circuit plays its strip back."""
+    pos = [settle(warp(i / n)) for i in range(n + 1)]
+    vel = [(pos[min(i + 1, n)] - pos[max(i - 1, 0)]) / ((min(i + 1, n) - max(i - 1, 0)) / n) for i in range(n + 1)]
+    top = max(abs(v) for v in vel)
+    back = [1 - p for p in reversed(pos)]
+    curves = (pos, [p + v / top for p, v in zip(pos, vel)], back, [q + v / top for q, v in zip(back, reversed(vel))])
+    for c in curves:
+        c[0], c[-1] = 0, 1
+    return tuple("linear(" + ", ".join(f"{v:.3f}" for v in c) + ")" for c in curves)
+
+
+# Builds up from rest, overshoots, falls back and settles, like Circuit's frames.
+EASE, SPEED_EASE, BACK_EASE, BACK_SPEED_EASE = _spring_easings()
 
 
 def zen_css():
     out = ["/* Zen's own, animated */",
-           '@property --zzicon-t { syntax: "<number>"; inherits: false; initial-value: 0; }']
+           '@property --zzicon-t { syntax: "<number>"; inherits: false; initial-value: 0; }',
+           '@property --zzicon-v { syntax: "<number>"; inherits: false; initial-value: 0; }']
+    out.append(f":root {{ --zzicon-spring: {EASE};\n  --zzicon-spring-speed: {SPEED_EASE};\n"
+               f"  --zzicon-spring-back: {BACK_EASE};\n  --zzicon-spring-back-speed: {BACK_SPEED_EASE}; }}")
+    ride = lambda way: (f"transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring{way}), "
+                        f"--zzicon-v var(--zzicon-duration) var(--zzicon-spring{way}-speed) !important;")
+    move = ride("-back") + " animation: none !important;"
+    lit = ride("") + " --zzicon-t: 1 !important; --zzicon-v: 1 !important;"
+    every = []
     for key, (label, _, targets) in TOOLBAR.items():
         k = SETTING.get(key, key)
         icons = ", ".join(i + OWN for i, _ in targets)
         hovers = ", ".join(h + OWN for _, h in targets)
+        every += [i for i, _ in targets]
         out.append(f"/* {label}, Zen's own animated */\n"
-                   f'@media ((-moz-pref("zzicon.set", {ZEN_SET})) and (-moz-pref("zzicon.button.{k}", 0))) or (-moz-pref("zzicon.button.{k}", {ZEN_ANIMATED})) {{\n'
-                   f"  {icons} {{ transition: --zzicon-t var(--zzicon-duration) {EASE}, filter .2s !important; animation: none !important; {motion_props(ZEN_MOTION[key])} }}\n"
-                   f'  @media (-moz-pref("zzicon.animate")) {{ {hovers} {{ --zzicon-t: 1 !important; filter: var(--zzicon-circuit-glow, none) !important; }} }}\n}}')
+                   f'@media ((-moz-pref("zzicon.set", 0)) and (-moz-pref("zzicon.button.{k}", 0))) or (-moz-pref("zzicon.button.{k}", {ZEN_ANIMATED})) {{\n'
+                   f"  {icons} {{ {move} {motion_props(ZEN_MOTION[key])} }}\n"
+                   f'  @media (-moz-pref("zzicon.animate")) {{ {hovers} {{ {lit} }} }}\n}}')
+    # The glow rises with the pose, so it lights as the icon moves.
+    out.append('@media (-moz-pref("zzicon.circuit.glow")) {\n'
+               f"  {', '.join(dict.fromkeys(every))} {{ --zzicon-zen-glow: drop-shadow(0 0 2.5px color-mix(in srgb, currentColor calc(clamp(0, {T}, 1) * 65%), transparent)); }}\n}}")
     items = "menupopup :is(menuitem, menu)"         # descendants: the Back/Reload row sits in a menugroup
     out.append(f"/* Menu icons */\n@media (-moz-pref(\"zzicon.menu.animate\")) {{\n"
-               f"  {items} > .menu-icon {{ transition: --zzicon-t var(--zzicon-duration) {EASE} !important; {motion_props(MENU_DEFAULT)} }}\n"
-               f"  {items}[_moz-menuactive] > .menu-icon {{ --zzicon-t: 1 !important; }}")
+               f"  {items} > .menu-icon {{ {move} {motion_props(MENU_DEFAULT)} }}\n"
+               f"  {items}[_moz-menuactive] > .menu-icon {{ {lit} }}")
     for key, ids in MENU_ITEMS.items():
         out.append(f"  {', '.join('#' + i + ' > .menu-icon' for i in ids)} {{ {motion_props(ZEN_MOTION[key])} }}")
     out.append("}")
@@ -1048,6 +1141,90 @@ def strip(draw, frames, zoom=1.0):
             f"<stop offset='.55' stop-color='white' stop-opacity='0'/></linearGradient>{body}</svg>\n")
 
 
+def _mul(p, q):
+    return (p[0] * q[0] + p[2] * q[1], p[1] * q[0] + p[3] * q[1], p[0] * q[2] + p[2] * q[3],
+            p[1] * q[2] + p[3] * q[3], p[0] * q[4] + p[2] * q[5] + p[4], p[1] * q[4] + p[3] * q[5] + p[5])
+
+
+def _matrix(spec):
+    """An SVG transform list as a 2x3 matrix (a, b, c, d, e, f)."""
+    m = (1, 0, 0, 1, 0, 0)
+    for name, args in re.findall(r"(\w+)\(([^)]*)\)", spec or ""):
+        v = [float(x) for x in re.split(r"[ ,]+", args.strip())]
+        if name == "translate":
+            q = (1, 0, 0, 1, v[0], v[1] if len(v) > 1 else 0)
+        elif name == "scale":
+            q = (v[0], 0, 0, v[1] if len(v) > 1 else v[0], 0, 0)
+        elif name == "matrix":
+            q = tuple(v)
+        elif name == "rotate":
+            a, (cx, cy) = radians(v[0]), (v[1:3] if len(v) > 2 else (0, 0))
+            c, s_ = cos(a), sin(a)
+            q = (c, s_, -s_, c, cx - c * cx + s_ * cy, cy - s_ * cx - c * cy)
+        else:
+            continue
+        m = _mul(m, q)
+    return m
+
+
+NUM = r"-?\d*\.?\d+(?:e-?\d+)?"
+
+
+def _points(d):
+    """Every point and control point of an absolute path (M L H V Q C A Z)."""
+    pts, x, y = [], 0.0, 0.0
+    for cmd, args in re.findall(r"([MLHVQCAZ])([^MLHVQCAZ]*)", d):
+        v = [float(a) for a in re.findall(NUM, args)]
+        if cmd in "ML":
+            for k in range(0, len(v) - 1, 2):
+                x, y = v[k], v[k + 1]
+                pts.append((x, y))
+        elif cmd in "HV":
+            for k in v:
+                x, y = (k, y) if cmd == "H" else (x, k)
+                pts.append((x, y))
+        elif cmd in "QC":
+            pts += [(v[k], v[k + 1]) for k in range(0, len(v) - 1, 2)]
+            x, y = (v[-2], v[-1]) if len(v) >= 2 else (x, y)
+        elif cmd == "A":
+            for k in range(0, len(v) - 6, 7):
+                x, y = v[k + 5], v[k + 6]
+                pts.append((x, y))
+    return pts
+
+
+def extent(draw, frames):
+    """How far a design reaches from the frame's centre over all its frames,
+    lines' half-widths included. Points and control points are used, so
+    curves are covered; arcs count by their ends (only light traces use them)."""
+    reach = 0.0
+    def walk(el, m, width, defs):
+        nonlocal reach
+        m = _mul(m, _matrix(el.get("transform")))
+        width = float(el.get("stroke-width", width))
+        ref = (el.get("href") or "").lstrip("#")
+        d = el.get("d") if el.tag == "path" and not el.get("id") else defs.get(ref) if el.tag == "use" else None
+        if d and "context-stroke" not in (el.get("stroke"), el.get("fill")):   # the soft halo may clip
+            pad = 0 if el.get("stroke") == "none" else width / 2
+            for x, y in _points(d):
+                X, Y = m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]
+                reach = max(reach, abs(X - 9) + pad, abs(Y - 9) + pad)
+        for c in el:
+            if c.tag != "defs":
+                walk(c, m, width, defs)
+    for i in range(frames):
+        _ids[0] = 0
+        root = ET.fromstring(f"<g>{draw(i / (frames - 1))}</g>")
+        walk(root, (1, 0, 0, 1, 0, 0), 1.4, {e.get("id"): e.get("d") for e in root.iter("path") if e.get("id")})
+    return reach
+
+
+def fit(draw, frames, most=1.25):
+    """The largest zoom, up to most, that keeps every frame of a design inside
+    its frame: small designs fill the slot, wide ones are not cut off."""
+    return round(max(1.0, min(most, 8.6 / max(extent(draw, frames), 1e-6))), 3)
+
+
 def save(rel, svg):
     """Write one strip next to icons.css; Zen loads it only when a rule uses it."""
     path = OUT.parent / rel
@@ -1079,7 +1256,7 @@ def main():
         old.unlink()
     url = {}
     for key, (_, draw, _) in TOOLBAR.items():
-        url[key] = save(f"icons/circuit/{key}.svg", strip(draw, FRAMES, ZOOM))
+        url[key] = save(f"icons/circuit/{key}.svg", strip(draw, FRAMES, fit(draw, FRAMES)))
     for value, (_, draw) in LIBRARY.items():
         if value != 12:                     # Circuit stack uses the toolbar strip
             url["library", value] = save(f"icons/library/{value}.svg", strip(draw, LIB_FRAMES))
@@ -1102,7 +1279,7 @@ def main():
                    f"    {own} {{ {STILL_MOTION} }}\n  }}\n}}")
     icons = ", ".join(i for i, _ in TOOLBAR["reload"][2])
     for value, (label, draw) in RELOAD_STYLES.items():
-        rel = save(f"icons/circuit/reload-{value}.svg", strip(draw, FRAMES, ZOOM))
+        rel = save(f"icons/circuit/reload-{value}.svg", strip(draw, FRAMES, fit(draw, FRAMES)))
         css.append(f"/* Reload: {label} */\n@media ({uses('reload')}) and (-moz-pref(\"zzicon.reload.style\", {value})) {{\n"
                    f"  {icons} {{ background-image: {rel} !important; }}\n}}")
     for value, (label, _) in LIBRARY.items():
@@ -1115,6 +1292,8 @@ def main():
                        "  #zen-library-button { --zen-library-sprite-size: 16px !important; }\n"
                        "  #zen-library-button .zen-library-sprite { scale: 1 !important; translate: none !important; }\n"
                        "  #zen-library-button .zen-library-sprite::before {\n"
+                       # Zen's own ::before is 36 frames wide; one frame here.
+                       "    width: 100% !important;\n"
                        f"    background-image: {url['firefox-library']} !important;\n"
                        f"    background-size: {FRAMES * 100}% 100% !important;\n"
                        f"    background-position: calc(var(--zzicon-frame) * 100% / {FRAMES - 1}) 0 !important;\n"

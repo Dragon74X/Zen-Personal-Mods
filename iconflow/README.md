@@ -2,23 +2,26 @@
 
 Icon sets and hover motion for [Zen Browser](https://zen-browser.app/).
 
-- **Zen's own, animated**: Zen's icons (or New Icons', when installed) keep
-  their artwork, and each gets a motion of its own on hover: reload turns
-  once, back and forward nudge their way, the star pops and turns a fifth,
-  downloads drop, close turns a quarter. Like Circuit, the motion builds up
-  and settles, plays back when the pointer leaves, and picks up mid-way.
+- **Zen's own**: Zen's icons (or New Icons', when installed) keep their
+  artwork and move to a pose of their own on hover: reload turns once, back
+  and forward slide their way, downloads drop, close turns a quarter. On
+  Circuit's spring, the pose builds up from rest, overshoots, falls back and
+  settles, holds while hovered, plays back when the pointer leaves, and picks
+  up mid-way. A moving icon stretches along its path and leaves a faint trail
+  that grows with its speed. **Animate icons** off keeps them still.
 - **Animate menu icons** (off by default): icons in context menus and other
   menus, Zen's or those Context Menu Icons adds, move when highlighted.
   Items that match a toolbar button (Back, Reload, Bookmark, Copy, Save and
   so on) move the same way; the rest pop gently.
-- **Circuit**, an animated icon set. Each icon plays its own 48-frame
+- **Circuit**, an animated icon set. Each icon plays its own 96-frame
   animation while hovered and plays it back when the pointer leaves.
   - High-tech glass. Shapes are chamfered, with every corner rounded, even
     on pointed shapes. Closed shapes are glass: a translucent body, a sheen
     across the top and a rim. Lines are neon tubes. On hover, a light runs
     round outlines and along tubes.
-  - Motion starts from rest, builds up speed and settles. Parts that move
-    fast leave smooth trails.
+  - Motion starts from rest, builds up speed, overshoots and settles back,
+    like a spring. Parts that move fast leave smooth trails that stretch
+    with their speed. Lines morph into one another rather than fading.
   - No full circles (arcs are always open), clock faces or five-point stars.
 - **Glass behind buttons**: plates made like Glassflow's window buttons,
   while hovered or always.
@@ -42,11 +45,11 @@ Requires `sine.allow-unsafe-js` set to `true` in `about:config`.
 
 | Setting | Default | Notes |
 |---|---|---|
-| Icon set | Zen's own | Zen's icons, or New Icons' if that mod is installed; Zen's own, animated; or Circuit |
+| Icon set | Zen's own | Zen's icons, or New Icons' if that mod is installed; or Circuit |
 | Animate menu icons | off | Context menus and other menus |
-| Animate icons on hover | on | |
+| Animate icons | on | Off keeps every icon still, Zen's own and Circuit |
 | Animation speed | Smooth (0.45s) | Quick 0.3s, Slow 0.7s |
-| Glow on hover | on | A soft light in the icon's own colour while hovered, for Circuit and Zen's own animated |
+| Glow on hover | on | A soft light in the icon's own colour while hovered, for Circuit and Zen's own; it rises with the motion |
 | Soft glow around lines | on | Circuit's faint neon halo; off draws crisp lines only |
 | Glass plates | Off | While hovered, or Always. A light fill, a sheen across the top, a rim and an 8px blur of what is behind. With Glassflow installed, its own sheen and rim are used, so plates follow its Glass settings |
 | Plate shape | Squircle | Pill or Circle |
@@ -54,7 +57,7 @@ Requires `sine.allow-unsafe-js` set to `true` in `about:config`.
 **Each button** can follow the set, or use Zen's own icon (still or
 animated) or Circuit (animated or still). These buttons are covered:
 - **Navigation:** back, forward, reload, stop, home, the new tab buttons, the application menu, the workspace "⋯", compact mode, the sidebar toggle and expand sidebar.
-- **Address bar and toolbar:** site settings, downloads, extensions, the bookmark ribbon (saved or not, and the bookmarks menu button), reader view, share and copy link, history (a stack of pages), screenshot.
+- **Address bar and toolbar:** site settings, downloads, extensions, the bookmark ribbon (saved or not, and the bookmarks menu button), reader view, share and copy link, history (a timeline), screenshot.
 - **Overflow:** the more-tools and bookmarks overflow chevrons, and "clear unpinned tabs".
 - **Media player:** play and pause, next, previous, mute and unmute, close, and picture-in-picture.
 - **Menus and panels:** the application menu's items (new tab, windows, history, bookmarks, downloads, passwords, add-ons, print, save, find, zoom, full screen, settings, more tools, help, quit) and the History panel's (recently closed tabs and windows, search, clear recent history, manage history).
@@ -76,14 +79,14 @@ Iconflow 1.3 dropped the Flow set. Anyone using Flow is moved to Circuit.
 
 ### How the icons animate
 
-Each icon is a strip of 48 frames on Zen's 18-unit icon grid, cropped to
-the middle 15 units so it fills Zen's 16px slot like Zen's own icons, saved as its
+Each icon is a strip of 96 frames on Zen's 18-unit icon grid, scaled up as
+far as its shape allows so it fills Zen's 16px slot, saved as its
 own file under `icons/`. Zen only loads the icons a rule uses, so
 `icons.css` stays small. Iconflow counts through the frames with a
 transition, so leaving the button plays the strip in reverse, and nothing
 plays when a window opens. The count is a whole number, so a hover that
 interrupts one still playing picks up from the frame shown and never slides
-between two. Open arcs, trails and comet tails taper to a point. Lines use the toolbar's icon colour. `tools/iconflow-icons.py`
+between two. Open arcs, trails and comet tails taper smoothly to a point. Lines use the toolbar's icon colour. `tools/iconflow-icons.py`
 draws every icon, writes the strips, and writes their rules to `icons.css`.
 
 ## Hover motion

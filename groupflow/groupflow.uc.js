@@ -75,7 +75,7 @@
       if (!data || !data.startsWith(PREFIX)) return;
       iconRules = null;                    // reparsed on the next refresh
       if (["favicons", "icon-rules", "section-icons", "icon-shape", "color-source", "subfolder.include-folders"].some(k => data === PREFIX + k)) schedule();
-      if (["folder-height", "connector-scroll", "hover-count", "scroll-glow"].some(k => data === PREFIX + k)) fitSoon();
+      if (["folder-height", "connector-scroll", "hover-count", "scroll-glow", "glow-follows"].some(k => data === PREFIX + k)) fitSoon();
       const name = "--" + data.replace(/\./g, "-");
       const value = readPrefValue(data);
       try {
@@ -954,14 +954,9 @@
     box.toggleAttribute("zzgf-more-below", scrolls && y < max - 0.5);
     box.toggleAttribute("zzgf-glow", scrolls);
     const header = box.parentElement?.labelContainerElement;
-    if (!scrolls) { header?.querySelectorAll(":scope > .zzgf-more").forEach(a => a.remove()); return; }
-    // Every position is read before any is written, so this lays out once.
-    const b = box.getBoundingClientRect(), h = header?.getBoundingClientRect();
-    const subs = [...box.querySelectorAll("tab-group:not([split-view-group]) > .tab-group-container")];
-    const tops = subs.map(sub => sub.getBoundingClientRect().top - b.top);
-    const light = y / max * box.clientHeight;
-    box.style.setProperty("--zzgf-glow", light + "px");
-    subs.forEach((sub, i) => sub.style.setProperty("--zzgf-glow", light - tops[i] + "px"));
+    if (!scrolls) { header?.querySelectorAll(":scope > .zzgf-more").forEach(a => a.remove()); lightSoon(); return; }
+    box.style.setProperty("--zzgf-glow", y / max * box.clientHeight + "px");
+    lightSoon();                              // its subfolders' lines follow
     if (!header) return;
     if (!header.querySelector(":scope > .zzgf-more")) {
       for (const dir of ["up", "down"]) {
@@ -973,33 +968,48 @@
         header.appendChild(arrow);
       }
     }
-    header.style.setProperty("--zzgf-more-x", b.left + b.width / 2 - h.left + "px");
-    header.style.setProperty("--zzgf-more-top", b.top - h.top + "px");
-    header.style.setProperty("--zzgf-more-bottom", b.bottom - h.top + "px");
   }
-  // The list scrolls too. While it does, connectors in folders that do not
-  // scroll inside themselves share one light at the list's scroll position:
-  // the top of the view at the list's top, its bottom at the list's end.
-  // Every rect is read before any light is written, so this lays out once.
+  // Dynamic connectors: every connector line carries a light showing where
+  // you are, scrolling or not, so a folder looks the same however it opens.
+  // Each line, subfolders included, has its own: how far you are through
+  // that line, like a scrollbar thumb. A line taller than its view counts how
+  // much of it has scrolled past; a shorter one, how far it has travelled up
+  // through the view; so the light moves the same way for both. A folder that
+  // scrolls inside itself lights its own line (markEdges) and is the view its
+  // subfolders are seen through. With "the selected tab", lines holding it
+  // light at its row instead. Every rect is read before any light is written.
   const listPorts = new Set();
   let listFrame = 0;
+  const through = (top, height, vt, vh) => Math.min(1, Math.max(0, height > vh
+    ? (vt - top) / (height - vh)
+    : (vt + vh - top - height) / Math.max(vh - height, 1)));
   function lightLists() {
     listFrame = 0;
     const glow = bool("scroll-glow", true);
+    const sel = glow && num("glow-follows", 0) === 1 ? gBrowser.selectedTab : null;
+    const lit = [];
     for (const host of document.querySelectorAll("zen-workspace arrowscrollbox")) {
       const port = host.scrollbox;
       if (!port) continue;
-      const max = port.scrollHeight - port.clientHeight;
       const view = port.getBoundingClientRect();
-      const light = view.top + port.scrollTop / Math.max(max, 1) * port.clientHeight;
-      const lit = [];
       for (const box of topBoxes(host)) {
-        const on = glow && max > 0.5 && !box.hasAttribute("zzgf-glow") && box.getBoundingClientRect().height > 0;
-        lit.push([box, on, on ? [box, ...box.querySelectorAll(bodySelector)].map(c => [c, c.getBoundingClientRect().top]) : []]);
+        const b = box.getBoundingClientRect(), on = glow && b.height > 0, rails = [];
+        if (on) {
+          const own = box.hasAttribute("zzgf-glow");
+          if (!own) rails.push([box, b, view]);
+          for (const c of box.querySelectorAll(bodySelector)) rails.push([c, c.getBoundingClientRect(), own ? b : view]);
+        }
+        lit.push([box, on, rails]);
       }
-      for (const [box, on, rails] of lit) {
-        box.toggleAttribute("zzgf-list-glow", on);
-        for (const [c, top] of rails) c.style.setProperty("--zzgf-glow", light - top + "px");
+    }
+    const s = sel?.getBoundingClientRect();
+    for (const [box, on, rails] of lit) {
+      box.toggleAttribute("zzgf-list-glow", on);
+      for (const [c, r, v] of rails) {
+        const at = s?.height && c.parentElement?.contains(sel)
+          ? Math.min(r.height, Math.max(0, s.top + s.height / 2 - r.top))
+          : through(r.top, r.height, v.top, v.height) * r.height;
+        c.style.setProperty("--zzgf-glow", at + "px");
       }
     }
   }

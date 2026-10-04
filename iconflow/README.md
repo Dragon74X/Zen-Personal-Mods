@@ -2,16 +2,15 @@
 
 Icon sets and hover motion for [Zen Browser](https://zen-browser.app/).
 
-- Two animated icon sets, each icon playing its own 48-frame animation
-  while hovered and playing it back when the pointer leaves:
-  - **Flow**: clean line icons with softened corners, round line ends and
-    squircle-like rectangles.
-  - **Circuit**: high-tech glass. Shapes are chamfered, with every corner
-    rounded, even on pointed shapes. Closed shapes are glass: a translucent
-    body, a sheen across the top and a rim. Lines are neon tubes. On hover,
-    a light runs round outlines and along tubes.
-  - Neither set uses full circles (arcs are always open), clock faces or
-    five-point stars.
+- **Circuit**, an animated icon set. Each icon plays its own 48-frame
+  animation while hovered and plays it back when the pointer leaves.
+  - High-tech glass. Shapes are chamfered, with every corner rounded, even
+    on pointed shapes. Closed shapes are glass: a translucent body, a sheen
+    across the top and a rim. Lines are neon tubes. On hover, a light runs
+    round outlines and along tubes.
+  - Motion starts from rest, builds up speed and settles. Parts that move
+    fast leave smooth trails.
+  - No full circles (arcs are always open), clock faces or five-point stars.
 - **Glass behind buttons**: plates made like Glassflow's window buttons,
   while hovered or always.
 - **Hover motion** for whole buttons, with any icon set: close buttons,
@@ -34,41 +33,34 @@ Requires `sine.allow-unsafe-js` set to `true` in `about:config`.
 
 | Setting | Default | Notes |
 |---|---|---|
-| Icon set | Zen's own | Zen's icons, or New Icons' if that mod is installed; Flow; or Circuit |
+| Icon set | Zen's own | Zen's icons, or New Icons' if that mod is installed; or Circuit |
 | Animate icons on hover | on | |
 | Animation speed | Smooth (0.45s) | Quick 0.3s, Slow 0.7s |
 | Circuit icons glow on hover | on | A soft light in the icon's own colour, like a lit neon tube |
 | Glass plates | Off | While hovered, or Always. A light fill, a sheen across the top, a rim and an 8px blur of what is behind. With Glassflow installed, its own sheen and rim are used, so plates follow its Glass settings |
 | Plate shape | Squircle | Pill or Circle |
 
-**Each button** can follow the set, or use Zen's own icon, Flow (animated or
-still), or Circuit (animated or still). These buttons are covered:
+**Each button** can follow the set, or use Zen's own icon or Circuit
+(animated or still). These buttons are covered:
 - **Navigation:** back, forward, reload, stop, home, the new tab buttons, the menu and workspace "⋯", the sidebar toggle and expand sidebar.
 - **Address bar and toolbar:** site settings, downloads, extensions, the bookmark ribbon (saved or not), reader view, share and copy link, history (a stack of pages), screenshot.
 - **Overflow:** the more-tools and bookmarks overflow chevrons, and "clear unpinned tabs".
 - **Media player:** play and pause, next, previous, mute and unmute, close, and picture-in-picture.
 
-Some buttons also have a **style**, in both sets. Moving parts leave smooth
-trails while they move fast; orbits are used only where the motion means
-something (reload's loop).
-
-| Button | Styles |
-|---|---|
-| Back and forward | Chevron (default), Trail |
-| Close and stop (and the media player's close) | Spin (default), Counter spin: the two bars turn opposite ways |
-| New tab | Spin (default), Counter spin |
-| Downloads | Drop (default), Trail drop |
-| Extensions | Lift (default), Counter lift: opposite tiles lift and sink, turning against each other |
-| Reload | Hook (default), Spiral, Satellite (a diamond travels round the loop), Twin arcs, Orbit pair, Counter orbit |
-| Bookmark | Ribbon (default), Slot (the ribbon drops into a slot, as if filed), Tag, Flag, Spark (Circuit only) |
+**Reload** has a **style**:
+- **Orbit pair** (the default): two glass diamonds circle the open arc at
+  different speeds.
+- **Twin comets:** two comets go opposite ways and nearly meet at the end.
 
 Bookmarks are filled once the page is saved, in every style.
 
 New Icons keeps working alongside Iconflow: with **Zen's own**, Iconflow
-leaves every icon alone, so New Icons' show. With **Flow**, Flow replaces
-the icons it covers.
+leaves every icon alone, so New Icons' show. With **Circuit**, Circuit
+replaces the icons it covers.
 
-### How Flow animates
+Iconflow 1.3 dropped the Flow set. Anyone using Flow is moved to Circuit.
+
+### How the icons animate
 
 Each icon is a strip of 48 frames on Zen's 18-unit icon grid, saved as its
 own file under `icons/`. Zen only loads the icons a rule uses, so
@@ -111,7 +103,7 @@ The Library button is the button at the bottom of the sidebar that opens
 downloads and the Library.
 
 The choices are:
-- **Follow the icon set** (the default): Zen's icon with Zen's own set, Layers with Flow, and Circuit stack with Circuit.
+- **Follow the icon set** (the default): Zen's icon with Zen's own set, and Circuit stack with Circuit.
 - **Zen's animated icon.**
 - **An animated outline of Zen's icon.**
 - **Eight animated line shapes:** Layers, Hex scan, Focus, Grid, Chevrons, Orbit, Split and Pulse.
@@ -141,5 +133,5 @@ Glassflow's **Tab roundness** and Groupflow's **Header roundness**.
 ## Credits
 
 Better New Tab button by themaster5209 suggested the new tab options. They
-are written anew here; none of its code is used. Flow, Circuit and the
-Library shapes are drawn for this mod. No New Icons artwork is used.
+are written anew here; none of its code is used. Circuit and the Library
+shapes are drawn for this mod. No New Icons artwork is used.

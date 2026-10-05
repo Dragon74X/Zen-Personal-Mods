@@ -198,6 +198,49 @@
   },
   {
     "type": "separator",
+    "label": "Icon picker",
+    "size": "17px",
+    "margin": "22px 0 10px 0",
+    "id": "zzicon.ui.section.picker",
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}]
+  },
+  {
+    "type": "checkbox",
+    "property": "zzicon.picker.enabled",
+    "label": "Coloured icons in Zen's icon picker *For spaces and folders: 158 icons at the top of the picker's SVG page, with a style, a colour and a search. Picked icons keep working without Iconflow.*",
+    "defaultValue": true,
+    "operator": "AND",
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}]
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzicon.picker.style",
+    "label": "Style *Also switchable in the picker.*",
+    "defaultValue": 0,
+    "operator": "AND",
+    "options": [{"label": "Glass: gradient line and body, with a sheen", "value": 0}, {"label": "Tile: white symbol on a coloured plate", "value": 1}, {"label": "Solid: filled, in a gradient", "value": 2}],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.picker.enabled", "value": true}}], "operator": "OR"}]
+  },
+  {
+    "type": "dropdown",
+    "property": "zzicon.picker.colour",
+    "label": "Colour *Also switchable in the picker.*",
+    "defaultValue": "aurora",
+    "operator": "AND",
+    "options": [{"label": "Aurora", "value": "aurora"}, {"label": "Frost", "value": "frost"}, {"label": "Silver", "value": "silver"}, {"label": "Graphite", "value": "graphite"}, {"label": "Sapphire", "value": "sapphire"}, {"label": "Aquamarine", "value": "aquamarine"}, {"label": "Emerald", "value": "emerald"}, {"label": "Amethyst", "value": "amethyst"}, {"label": "Ruby", "value": "ruby"}, {"label": "Topaz", "value": "topaz"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.picker.enabled", "value": true}}], "operator": "OR"}]
+  },
+  {
+    "type": "checkbox",
+    "property": "zzicon.picker.sites",
+    "label": "Site icons in the picker *The icons of sites open in the space, on a glass plate. The picture is saved with the space and stays on your computer.*",
+    "defaultValue": true,
+    "operator": "AND",
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.picker.enabled", "value": true}}], "operator": "OR"}]
+  },
+  {
+    "type": "separator",
     "label": "Each button",
     "size": "17px",
     "margin": "22px 0 10px 0",

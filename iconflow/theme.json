@@ -3,8 +3,8 @@
   "name": "Iconflow",
   "description": "Icon sets and hover motion for Zen. Circuit, a set of glass and neon icons that animate on hover; Zen's own icons animated; menu icon animation; motion for close, plus, minus and other buttons; Library button icons; and new tab button options (takes over Better New Tab button).",
   "author": "Dragon74X",
-  "version": "1.16.2",
-  "updatedAt": "2026-10-05T06:33:30Z",
+  "version": "1.17.0",
+  "updatedAt": "2026-10-05T23:29:33Z",
   "homepage": "https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/iconflow",
   "readme": "https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/main/iconflow/README.md",
   "style": {
@@ -27,7 +27,7 @@
     },
     "iconflow.uc.js": {
       "name": "Iconflow",
-      "description": "Writes Iconflow's preference variables and defaults.",
+      "description": "Writes Iconflow's preference variables and defaults, and adds coloured and site icons to Zen's icon picker.",
       "include": [
         "chrome://browser/content/browser.xhtml"
       ]

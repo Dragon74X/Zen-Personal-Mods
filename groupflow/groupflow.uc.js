@@ -992,22 +992,29 @@
     : (vt + vh - top - height) / Math.max(vh - height, 1)));
   const past = (r, v) => r.height > v.height ? through(r.top, r.height, v.top, v.height) * r.height
     : Math.min(r.height, Math.max(0, v.top - r.top));
-  // Whatever you did last decides a folder's own line: scrolling through its
-  // tabs (selecting one) lights the selected tab; scrolling the folder itself
-  // lights where you are in it, until a tab in it is selected again. Pointing
-  // at its connector shows where you are while the pointer is there.
-  let pointed = null;
-  const scrolled = new WeakSet();           // boxes last scrolled by you, not by a tab selection
-  const roams = box => box === pointed || scrolled.has(box);
+  // Whatever you did or pointed at last decides a folder's own line. Its
+  // tabs (pointing at one, or selecting one, by scrolling over them or
+  // otherwise) light the selected tab; its connector, the strip left of it
+  // and its header arrows (pointing at them, or scrolling the folder) light
+  // where you are in it. Leaving the sidebar keeps whichever it was.
+  const scrolled = new WeakSet();           // boxes whose line shows where you are
+  const roams = box => scrolled.has(box);
+  function showWhere(box, where) {
+    if (!box || scrolled.has(box) === where) return;
+    if (where) scrolled.add(box); else scrolled.delete(box);
+    lightSoon();
+  }
   let pointFrame = 0, pointEvent = null;
   function pointAt(event) {
-    pointEvent = event.type === "mouseleave" ? null : event;
+    pointEvent = event;
     pointFrame ||= requestAnimationFrame(() => {
       pointFrame = 0;
-      const ev = pointEvent, hit = ev?.target;
-      const box = hit && gBrowser.tabContainer.contains(hit) &&
-        !hit.closest?.(".tabbrowser-tab, .tab-group-label-container, toolbarbutton, button") ? boxAt(ev, hit) : null;
-      if (box !== pointed) { pointed = box; lightSoon(); }
+      const ev = pointEvent, hit = ev.target;
+      if (!hit?.closest || !gBrowser.tabContainer.contains(hit)) return;
+      const chip = hit.closest(".zzgf-more"), body = hit.closest(bodySelector);
+      if (chip) showWhere(chip.parentElement.parentElement?.querySelector(":scope > .tab-group-container"), true);
+      else if (hit.closest(".tabbrowser-tab")) showWhere(body && folderBox(body), false);
+      else if (!hit.closest(".tab-group-label-container, toolbarbutton, button")) showWhere(boxAt(ev, hit), true);
     });
   }
   // The tab a subfolder's line marks when the selected tab is elsewhere.
@@ -1073,7 +1080,7 @@
     const box = arrow.parentElement.parentElement?.querySelector(":scope > .tab-group-container");
     const measured = box && measureBox(box);
     if (!measured) return;
-    scrolled.add(box);
+    showWhere(box, true);
     const from = glides.get(box)?.to ?? box.scrollTop, down = arrow.classList.contains("down");
     const ahead = measured.positions.filter(y => down ? y > from + 0.5 : y < from - 0.5);
     scrollBox(box, ahead.length ? nearest(ahead, from + (down ? 1 : -1) * box.clientHeight) : from, false, measured);
@@ -1138,7 +1145,7 @@
     if (event.deltaY > 0 ? from >= positions.at(-1) - 0.5 : from <= 0.5) return false;
     event.preventDefault();                 // also cancels any tab switch by scrolling
     event.stopPropagation();
-    scrolled.add(box);
+    showWhere(box, true);
     if (event.deltaMode === event.DOM_DELTA_PIXEL) {
       // Touchpads send many small deltas: follow them, then settle on a row.
       scrollBox(box, Math.max(0, Math.min(positions.at(-1), box.scrollTop + event.deltaY)), true);
@@ -1233,8 +1240,7 @@
     const box = event.type === "TabSelect" && topBoxes().find(b => b.contains(event.target));
     if (box) {
       // Selecting a tab is the latest thing done here: its line follows the tab.
-      scrolled.delete(box);
-      if (pointed === box) pointed = null;
+      showWhere(box, false);
       if (bool("connector-scroll", true)) fitBox(box, false, true);
     }
     lightSoon();
@@ -1302,7 +1308,6 @@
     strip.addEventListener("DOMMouseScroll", scrollOnConnectors, { capture: true, passive: true });
     gNavToolbox.addEventListener("wheel", onWheel, { capture: true, passive: false });
     gNavToolbox.addEventListener("mousemove", pointAt, { passive: true });
-    gNavToolbox.addEventListener("mouseleave", pointAt);
     strip.addEventListener("scroll", holdRail, { capture: true, passive: true });
     for (const ev of FIT_EVENTS) window.addEventListener(ev, onFitEvent, true);
     // The tab area also changes size without any event: the media bar or a
@@ -1365,7 +1370,6 @@
       strip.removeEventListener("DOMMouseScroll", scrollOnConnectors, true);
       gNavToolbox.removeEventListener("wheel", onWheel, true);
       gNavToolbox.removeEventListener("mousemove", pointAt);
-      gNavToolbox.removeEventListener("mouseleave", pointAt);
       cancelAnimationFrame(pointFrame);
       strip.removeEventListener("scroll", holdRail, true);
       for (const ev of FIT_EVENTS) window.removeEventListener(ev, onFitEvent, true);

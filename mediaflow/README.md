@@ -42,7 +42,11 @@ anything: its next update turns it into Mediaflow.
 - With **Always show title and progress** on, the player is measured again
   whenever its size changes, so the expanded rows push the tab list up
   instead of covering tabs.
-- Groupflow refits its folders when the preview resizes the tab list.
+- The preview's room is made just above the music bar, as space the tab list
+  gives up, instead of by setting the tab list's height. On Zen 1.23b the bar
+  follows the tab list, so the old way shrank the list to nothing and pushed
+  the bar and a small preview to the top of the sidebar.
+- Groupflow refits its folders when the preview takes or gives back room.
 
 ## Settings
 

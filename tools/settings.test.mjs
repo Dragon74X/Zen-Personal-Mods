@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 
-const mods = ["download-prompt", "glassflow", "glassflow-library", "groupflow", "iconflow", "tab-router", "tab-unloader", "zen-turbo", "mediaflow"];
+const mods = ["download-prompt", "glassflow", "glassflow-library", "groupflow", "iconflow", "tab-router", "tab-unloader", "zen-turbo", "mediaflow", "peekflow"];
 const paged = { glassflow: "zzglass.ui.page", groupflow: "zzgroup.ui.page", iconflow: "zzicon.ui.page" };
 const read = async mod => JSON.parse(await readFile(new URL(`../${mod}/preferences.json`, import.meta.url), "utf8"));
 const watched = conditions => (Array.isArray(conditions) ? conditions : [conditions]).flatMap(c =>

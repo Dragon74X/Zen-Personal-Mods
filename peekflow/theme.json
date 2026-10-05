@@ -1,0 +1,35 @@
+{
+  "id": "zz-peekflow",
+  "name": "Peekflow",
+  "description": "Zen's tab hover preview, placed where you choose around the tab, with a picture of unloaded tabs as you last left them.",
+  "author": "Dragon74X",
+  "version": "1.0.0",
+  "updatedAt": "2026-10-05T05:20:56Z",
+  "homepage": "https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/peekflow",
+  "readme": "https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/main/peekflow/README.md",
+  "style": {
+    "chrome": "userChrome.css"
+  },
+  "scripts": {
+    "sine-update-guard.sys.mjs": {
+      "name": "Sine Update Guard",
+      "description": "Serialize installs/updates and wait for replacement files before reading preferences.",
+      "loadOrder": 1
+    },
+    "peekflow.uc.js": {
+      "name": "Peekflow",
+      "description": "Places the tab preview and remembers how unloaded tabs looked.",
+      "include": [
+        "chrome://browser/content/browser.xhtml"
+      ]
+    }
+  },
+  "preferences": "preferences.json",
+  "tags": [
+    "tabs",
+    "preview"
+  ],
+  "fork": [
+    "zen"
+  ]
+}

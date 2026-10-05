@@ -171,6 +171,19 @@
     try { syncOtherMods(); } catch (e) { console.error("[Glassflow] other mods failed:", e); }
     for (const branch of OTHER_WATCH) Services.prefs.addObserver(branch, otherModsObserver);
     try { gBrowser.addTabsProgressListener(iconKeeper); } catch (e) { console.error("[Glassflow] favicon hold failed to start:", e); }
+    // The compact sidebar's blur sometimes stayed missing after the sidebar
+    // slid in, until the page under it repainted. Redraw it once the slide
+    // ends and on every tab switch: a filter that looks the same but is not,
+    // for two frames (userChrome.css, [zzg-redraw]).
+    // ponytail: a nudge, not a cause found; drop it if Firefox fixes stale backdrops.
+    const toolbox = document.getElementById("navigator-toolbox");
+    const redraw = e => {
+      if (e.type === "transitionend" && (e.target !== toolbox || e.propertyName !== "translate")) return;
+      toolbox?.setAttribute("zzg-redraw", "");
+      requestAnimationFrame(() => requestAnimationFrame(() => toolbox?.removeAttribute("zzg-redraw")));
+    };
+    toolbox?.addEventListener("transitionend", redraw);
+    gBrowser.tabContainer.addEventListener("TabSelect", redraw);
     // Sine cleanup and window unload can both run; retire this copy once.
     let retired = false;
     const cleanup = () => {
@@ -181,6 +194,9 @@
       for (const branch of OTHER_WATCH) try { Services.prefs.removeObserver(branch, otherModsObserver); } catch {}
       restoreInstantUI();
       try { gBrowser.removeTabsProgressListener(iconKeeper); } catch {}
+      toolbox?.removeEventListener("transitionend", redraw);
+      gBrowser.tabContainer.removeEventListener("TabSelect", redraw);
+      toolbox?.removeAttribute("zzg-redraw");
     };
     window.addEventListener("unload", cleanup, { once: true });
     // Registered with Sine, so an update re-injects this script live, no

@@ -922,6 +922,7 @@
   const glides = new Map();                // box -> { to, raf }; entries leave when done
   const setTops = new WeakMap();            // box -> the scrollTop this mod last set
   function scrollBox(box, to, instant, measured) {
+    if (!instant && glides.get(box)?.to === to) return;   // already gliding there
     cancelAnimationFrame(glides.get(box)?.raf);
     glides.delete(box);
     if (measured) box.style.setProperty("--zzgf-box-fit", measured.fitAt(to) + "px");
@@ -955,9 +956,7 @@
     box.toggleAttribute("zzgf-glow", scrolls);
     const header = box.parentElement?.labelContainerElement;
     if (!scrolls) { header?.querySelectorAll(":scope > .zzgf-more").forEach(a => a.remove()); lightSoon(); return; }
-    // A folder lit at the selected tab's row is lit by lightLists.
-    if (!holdsSelected(box)) box.style.setProperty("--zzgf-glow", y / max * box.clientHeight + "px");
-    lightSoon();                              // its subfolders' lines follow
+    lightSoon();                              // its line and its subfolders' follow
     if (!header) return;
     if (!header.querySelector(":scope > .zzgf-more")) {
       for (const dir of ["up", "down"]) {
@@ -977,11 +976,12 @@
   // lights its own line (markEdges) and is the view its subfolders are seen
   // through; one that fits shows how far it has travelled up through the
   // list, and rests at its top while no tab in it is loaded. A subfolder's
-  // line starts at its own top and lights how much of it has scrolled past.
-  // With "the selected tab", lines holding it light at its row, except in the
-  // folder you point at or scroll from its connector: that one shows where
-  // you are. The light glides between the two (userChrome.css). Every rect is
-  // read before any light is written.
+  // line lights how much of it has scrolled past. With "the selected tab",
+  // lines holding it light at its row and other subfolders rest at their own
+  // top, except in the folder you point at or scroll from its connector: that
+  // one shows where you are. The light glides between the two
+  // (userChrome.css). lightLists is the only writer; every rect is read
+  // before any light is written, and unchanged lights are not rewritten.
   const LOADED = ".tabbrowser-tab:not([pending], [discarded], [zen-empty-tab])";
   const listPorts = new Set();
   let listFrame = 0;
@@ -992,8 +992,6 @@
     : Math.min(r.height, Math.max(0, v.top - r.top));
   // The folder whose connector is under the pointer (and so is scrolled from it).
   let pointed = null;
-  const roams = box => box === pointed;
-  const holdsSelected = box => !roams(box) && num("glow-follows", 1) === 1 && box.parentElement?.contains(gBrowser.selectedTab);
   let pointFrame = 0, pointEvent = null;
   function pointAt(event) {
     pointEvent = event.type === "mouseleave" ? null : event;
@@ -1017,7 +1015,7 @@
       for (const box of topBoxes(host)) {
         const b = box.getBoundingClientRect(), on = glow && b.height > 0, rails = [];
         if (on) {
-          const own = box.hasAttribute("zzgf-glow"), roam = roams(box);
+          const own = box.hasAttribute("zzgf-glow"), roam = box === pointed;
           // A folder that scrolls inside itself shows how far it has scrolled
           // unless its line is following the selected tab.
           const max = box.scrollHeight - box.clientHeight;
@@ -1031,12 +1029,13 @@
     for (const [box, on, rails] of lit) {
       box.toggleAttribute("zzgf-list-glow", on);
       for (const [c, r, v, sub, roam, own] of rails) {
-        const at = s?.height && !roam && c.parentElement?.contains(sel)
+        const at = !roam && s?.height && c.parentElement?.contains(sel)
           ? Math.min(r.height, Math.max(0, s.top + s.height / 2 - r.top))
           : own != null ? own
-          : sub ? past(r, v)
+          : sub ? (roam || !sel ? past(r, v) : 0)
           : roam || c.parentElement?.querySelector(LOADED) ? through(r.top, r.height, v.top, v.height) * r.height : 0;
-        c.style.setProperty("--zzgf-glow", at + "px");
+        const px = at + "px";
+        if (c.style.getPropertyValue("--zzgf-glow") !== px) c.style.setProperty("--zzgf-glow", px);
       }
     }
   }

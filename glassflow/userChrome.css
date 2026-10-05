@@ -568,13 +568,21 @@
 @media (-moz-pref("zzglass.corner.sidebar", 3)) { :root { --zzg-corner-side: superellipse(var(--zzglass-corner-value, 2.3)); } }
 @media (-moz-pref("zzglass.corner.sidebar", 4)) { :root { --zzg-corner-side: square; } }
 
+/* Gradient behind the whole strip: one wash on the sidebar's own surface
+   (the floating panel in compact mode), edge to edge. It used to sit on the
+   tab list's boxes, which stop short of the panel and the bottom bar, so
+   the tabs looked boxed in. Sidebar glass adds it as a layer of its own. */
 @media (-moz-pref("zzglass.strip.enabled")) {
-  #tabbrowser-tabs, #vertical-tabs, #vertical-pinned-tabs-container, .zen-essentials-container {
-    background-image: linear-gradient(var(--zzg-tdir),
+  #navigator-toolbox {
+    --zzg-strip-wash: linear-gradient(var(--zzg-tdir),
       color-mix(in srgb,
         color-mix(in srgb, var(--zen-primary-color, #7c8cf8), black var(--zzg-tone))
         var(--zzglass-strip-strength, 16%), transparent),
-      transparent 70%) !important;
+      transparent 70%);
+  }
+  :root:not([zen-compact-mode="true"]) #navigator-toolbox,
+  :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background {
+    background-image: var(--zzg-strip-wash) !important;
     background-repeat: no-repeat !important;
     background-size: 100% 100% !important;
   }
@@ -618,7 +626,7 @@
 @media (-moz-pref("zzglass.sidebar.enabled")) {
   /* docked */
   :root:not([zen-compact-mode="true"]) #navigator-toolbox {
-    background-image: var(--zzg-sb-img) !important;
+    background-image: var(--zzg-strip-wash, none), var(--zzg-sb-img) !important;
     background-repeat: no-repeat !important;
     background-size: 100% 100% !important;
   }
@@ -646,7 +654,7 @@
     --zzg-pb: var(--zzg-pbase);
     --zzg-pdir: to bottom;
     background-color: transparent !important;
-    background-image: linear-gradient(var(--zzg-pdir), var(--zzg-pa) 0%, var(--zzg-pb) var(--zzglass-sidebar-panel-spread, 100%)) !important;
+    background-image: var(--zzg-strip-wash, none), linear-gradient(var(--zzg-pdir), var(--zzg-pa) 0%, var(--zzg-pb) var(--zzglass-sidebar-panel-spread, 100%)) !important;
     background-repeat: no-repeat !important;
     background-size: 100% 100% !important;
     border-radius: var(--zzglass-sidebar-blur-radius-corner, 12px) !important;
@@ -666,7 +674,7 @@
   @media (-moz-pref("zzglass.sidebar.panel-direction", 5)) { :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background { --zzg-pdir: 315deg; } }
   @media (-moz-pref("zzglass.sidebar.panel-sheen")) {
     :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background {
-      background-image: var(--zzg-sheen), linear-gradient(var(--zzg-pdir), var(--zzg-pa) 0%, var(--zzg-pb) var(--zzglass-sidebar-panel-spread, 100%)) !important;
+      background-image: var(--zzg-sheen), var(--zzg-strip-wash, none), linear-gradient(var(--zzg-pdir), var(--zzg-pa) 0%, var(--zzg-pb) var(--zzglass-sidebar-panel-spread, 100%)) !important;
     }
   }
   /* Zen's workspace gradient lives on the panel's pseudo-elements. */

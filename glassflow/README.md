@@ -11,7 +11,7 @@ off costs nothing, and nothing in one depends on another.
 - **Tabs** — container-, workspace- or custom-tinted gradients, with separate
   tint, opacity, gradient, sheen, rim and glow for the **selected**,
   **unselected**, **hovered** and **unloaded** states.
-- **Tab strip** — one gradient wash behind the whole strip, rather than per tab.
+- **Tab strip** — one gradient wash across the whole sidebar, rather than per tab.
 - **Sidebar** — tint, fill, sheen, rim, compact-mode glass, Zen's own blur
   made adjustable, and an optional blur of the page while the sidebar is out.
 - **Window buttons** — macOS-style traffic lights, round and glassy (purple
@@ -150,8 +150,10 @@ one white 1px top highlight and 1px ring per state.
 
 ## Tab strip
 
-A separate wash behind every tab rather than per tab. It always uses the
-workspace colour, since container colour only exists per tab.
+One wash across the whole sidebar rather than per tab, painted on the sidebar
+itself (the floating panel in compact mode), so it reaches every edge and the
+bottom bar. It always uses the workspace colour, since container colour only
+exists per tab.
 
 | Setting | Default |
 |---|---|

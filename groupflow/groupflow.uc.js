@@ -1173,8 +1173,8 @@
   // Refit a resting box after tabs, folders or the window change: nearest row,
   // keeping a selected tab inside the box fully in view unless told to keep
   // the rows where they are.
-  function fitBox(box, keep) {
-    if (glides.has(box) && keep) return;
+  function fitBox(box, keep, glide = false) {
+    if (glides.has(box) && !glide) return;
     const measured = measureBox(box);
     if (!measured) return;
     const y = box.scrollTop;
@@ -1186,7 +1186,7 @@
       const showing = choices.filter(p => top >= p && bottom <= p + measured.fitAt(p));
       if (showing.length) choices = showing;
     }
-    scrollBox(box, nearest(choices, y), true, measured);
+    scrollBox(box, nearest(choices, y), !glide, measured);
   }
   let fitTimer = null, showSelected = false;
   function fitAll(keep = true) {
@@ -1211,9 +1211,9 @@
     fitTimer = setTimeout(() => { const keep = !showSelected; showSelected = false; countTabs(); fitAll(keep); }, 150);
   };
   const onFitEvent = event => {
-    // A selected tab comes into view at once, so switching tabs by scrolling keeps up.
+    // A selected tab glides into view at once, so switching tabs by scrolling keeps up.
     const box = event.type === "TabSelect" && topBoxes().find(b => b.contains(event.target));
-    if (box && bool("connector-scroll", true)) fitBox(box, false);
+    if (box && bool("connector-scroll", true)) fitBox(box, false, true);
     lightSoon();
     fitSoon(event.type === "TabSelect");
   };

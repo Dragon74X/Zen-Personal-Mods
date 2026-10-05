@@ -1433,7 +1433,7 @@ async function groupflowStartupEnv() {
   const document = { documentElement: element(), hit: null, elementFromPoint() { return this.hit; }, getElementById: () => null,
     querySelector: () => null, querySelectorAll: selector => groups.filter(g => selector.split(", ").includes(g.tagName)) };
   const gNavToolbox = { ...element(), contains: () => true };
-  const gBrowser = { tabGroups: groups, selectedTab: { label: "selected tab" },
+  const gBrowser = { tabGroups: groups, selectedTab: { label: "selected tab", getBoundingClientRect: () => ({ top: 0, height: 0 }) },
     tabContainer: { ...element(), _invalidateCachedVisibleTabs() {} } };
   class StartupTab { get visible() { return true; } }
   class StartupGroup { get visible() { return true; } }
@@ -1516,7 +1516,7 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
     getBoundingClientRect() { const height = parseFloat(this.style["--zzgf-box-fit"]) || 480; return { top: 100, height, bottom: 100 + height }; },
     querySelector: () => rows[0], querySelectorAll: selector => selector.includes("tab-group-container") ? [] : rows };
   const rows = Array.from({ length: 25 }, (_, i) => ({ getBoundingClientRect: () => ({ top: 100 + i * 40 - box.top, height: 40 }) }));
-  const top = { tagName: "tab-group", hasAttribute: () => false, parentElement: { closest: () => null }, querySelector: () => box };
+  const top = { tagName: "tab-group", hasAttribute: () => false, parentElement: { closest: () => null }, querySelector: () => box, contains: () => false };
   box.parentElement = top;
   const sub = { tagName: "tab-group", hasAttribute: () => false, matches: () => true, parentElement: { closest: () => top } };
   const gutter = { classList: { contains: c => c === "tab-group-container" }, parentElement: sub };
@@ -1544,6 +1544,11 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
   const tab = { classList: { contains: () => false }, closest: selector => selector.includes("tab-group-container") ? gutter : null };
   assert.equal(wheel(tab, -1), true, "the wheel over a tab inside the body scrolls the body, up as well");
   assert.equal(box.scrollTop, 0);
+  const prefs = e.Services.prefs.getBoolPref, realTab = { ...tab, closest: selector => selector === ".tabbrowser-tab" ? realTab : tab.closest(selector) };
+  e.Services.prefs.getBoolPref = (k, d) => k === "toolkit.tabbox.switchByScrolling" || prefs(k, d);
+  assert.equal(wheel(realTab, 3), false, "with switch-tabs-by-scrolling on, the wheel over a tab switches tabs instead");
+  assert.equal(box.scrollTop, 0);
+  e.Services.prefs.getBoolPref = prefs;
   // The body takes what the header leaves of the list: 375px, trimmed to rows.
   e.document.querySelectorAll = selector => selector === "zen-workspace arrowscrollbox" ? [list] : [box];
   e.w.fire("TabOpen", { type: "TabOpen" });

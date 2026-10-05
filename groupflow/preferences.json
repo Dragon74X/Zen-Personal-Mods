@@ -1275,7 +1275,7 @@
   {
     "type": "checkbox",
     "property": "zzgroup.connector-scroll",
-    "label": "Scroll inside folders *Top-level folders stay on screen and share the list's height; scrolling over a folder's tabs, subfolders or connector lines slides them inside the folder while every header stays put. Scrolling over a header or a loose tab scrolls the list, and so does scrolling on past the end of a folder. A folder that fits scrolls the list from its connector too, without switching tabs when Firefox's switch-tabs-by-scrolling (toolkit.tabbox.switchByScrolling) is on.*",
+    "label": "Scroll inside folders *Top-level folders stay on screen and share the list's height; scrolling over a folder's tabs, subfolders or connector lines slides them inside the folder while every header stays put. Scrolling over a header or a loose tab scrolls the list, and so does scrolling on past the end of a folder. A folder that fits scrolls the list from its connector too. With Firefox's switch-tabs-by-scrolling (toolkit.tabbox.switchByScrolling) on, the wheel over a tab selects tabs instead and the folder brings the selected one into view; connectors never switch tabs.*",
     "defaultValue": true,
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "layout"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
@@ -1301,8 +1301,8 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.glow-follows",
-    "label": "Light follows *Where you are: how far you have scrolled through each line. Subfolders' lines start at their own top, as does a folder with no loaded tab. The selected tab: lines holding it light at its row; the rest follow where you are.*",
-    "defaultValue": 0,
+    "label": "Light follows *The selected tab: lines holding it light at its row, so switching tabs moves the light. Point at or scroll a folder's connector and that folder shows where you are in it instead, gliding between the two. Where you are: every line always shows how far you have scrolled through it. Either way subfolders' lines start at their own top, as does a folder with no loaded tab.*",
+    "defaultValue": 1,
     "options": [
       {
         "label": "Where you are",

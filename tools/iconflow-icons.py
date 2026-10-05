@@ -258,7 +258,8 @@ def c_cross(t, plus=False):
     d = (f"M{n(9 + (a - 9) * k)} {n(9 + (a - 9) * k)}L{n(9 + (b - 9) * k)} {n(9 + (b - 9) * k)}"
          f"M{n(9 + (b - 9) * k)} {n(9 + (a - 9) * k)}L{n(9 + (a - 9) * k)} {n(9 + (b - 9) * k)}") if not plus else (
         f"M9 {n(9 - 5.2 * k)}V{n(9 + 5.2 * k)}M{n(9 - 5.2 * k)} 9H{n(9 + 5.2 * k)}")
-    return g(tube(d, lit=bump(t)), f"rotate({n(90 * ease_out_back(t, 1.4))} 9 9)")
+    # Closing turns counterclockwise, adding clockwise.
+    return g(tube(d, lit=bump(t)), f"rotate({n((90 if plus else -90) * ease_out_back(t, 1.4))} 9 9)")
 
 
 def c_stop(t):
@@ -1033,20 +1034,20 @@ def motion_props(m):
 
 
 ZEN_MOTION = {
-    "back": slide(-1.5), "forward": slide(1.5), "reload": spin(360), "stop": spin(90), "home": slide(0, -1.5),
+    "back": slide(-1.5), "forward": slide(1.5), "reload": spin(360), "stop": spin(-90), "home": slide(0, -1.5),
     "new-tab": spin(90), "menu": stretch(0.18, -0.1), "sidebar": pose(x=-1.2, sx=-0.1), "expand-sidebar": slide(1.2),
     "site-data": spin(-15), "downloads": slide(0, 1.5), "extensions": pose(y=-0.6, turn=-15),
     "bookmark": pose(y=-0.8, grow=0.15), "bookmarked": pose(y=-0.8, grow=0.15), "reader": pose(y=-1, turn=-8),
     "share": slide(1, -1), "history": spin(-360), "screenshot": swell(-0.15), "overflow": slide(1.4), "chevron": slide(0, 1.2),
     "close-unpinned": slide(0, 1.5), "play": swell(0.15), "pause": swell(0.15), "next": slide(1.5), "previous": slide(-1.5),
-    "volume": stretch(0.12, 0), "muted": stretch(0.12, 0), "media-close": spin(90), "pip": swell(-0.12),
-    "save-page": slide(0, 1.5), "print": slide(0, 1.5), "find": spin(-12, grow=0.1), "open-file": spin(-10),
+    "volume": stretch(0.12, 0), "muted": stretch(0.12, 0), "media-close": spin(-90), "pip": swell(-0.12),
+    "save-page": slide(0, 1.5), "print": slide(0, 1.5), "find": spin(-12, grow=0.1), "open-file": spin(10),
     "zoom-in": swell(0.2), "zoom-out": swell(-0.2), "cut": spin(12), "copy": slide(0.9, 0.9), "paste": slide(0, 1.5),
     "encoding": swell(0.15), "email": slide(0, -1.5), "logins": spin(-12), "sync": spin(180), "send-tab": slide(1.2, -1.2),
     "import": slide(-1.2, 1.2), "settings": spin(90), "forget": swell(-0.2), "private": slide(0, -1.2),
     "firefox-view": swell(0.12), "developer": stretch(0.2, 0), "new-window": swell(0.15), "fullscreen": swell(0.2),
     "firefox-library": slide(0, -1.5), "account": slide(0, -1.5), "app-menu": stretch(0, 0.2), "compact": stretch(-0.18, 0),
-    "reopen": slide(0, -1.5), "help": spin(12), "quit": spin(90), "minus": stretch(-0.35, 0),
+    "reopen": slide(0, -1.5), "help": spin(12), "quit": spin(-90), "minus": stretch(-0.35, 0),
 }
 MENU_DEFAULT = swell(0.15)
 # Context menu items that do what a toolbar button does move the same way.
@@ -1390,8 +1391,10 @@ RELOAD_STYLES = {1: ("Twin comets", c_reload_comets)}   # zzicon.reload.style; 0
 # spring (smooth at any refresh rate), not a strip of frames. Shapes that
 # change keep their frames.
 _T = "var(--zzicon-t)"
+# Closing, cancelling, removing and rewinding turn counterclockwise; opening
+# and adding turn clockwise.
 CSS_MOTION = {
-    "stop": f"rotate: calc({_T} * 90deg)", "quit": f"rotate: calc({_T} * 90deg)", "media-close": f"rotate: calc({_T} * 90deg)",
+    "stop": f"rotate: calc({_T} * -90deg)", "quit": f"rotate: calc({_T} * -90deg)", "media-close": f"rotate: calc({_T} * -90deg)",
     "new-tab": f"rotate: calc({_T} * 90deg)", "settings": f"rotate: calc({_T} * 60deg)",
     "forward": f"translate: calc({_T} * 1.4px) 0", "back": f"translate: calc({_T} * -1.4px) 0",
     "zoom-in": f"scale: calc(1 + {_T} * 0.2)", "zoom-out": f"scale: calc(1 - {_T} * 0.2)", "minus": f"scale: calc(1 - {_T} * 0.4) 1",

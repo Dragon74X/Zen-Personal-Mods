@@ -358,7 +358,9 @@
     const rewind = [on(R.frame, spin(-360, { lead: "gap", trail: 40 })),
                     on(R.all(R.rest, R.above(0.5, 0.06)), spin(-360, { lead: "none", about: R.frame })),
                     on(R.all(R.rest, R.below(0.5, 0.06)), spin(-30, { lead: "none", about: R.frame }))];
-    const whip = [spin(90, { trail: 35 })];
+    // Closing, cancelling and removing turn counterclockwise (as the rewinds
+    // above do); opening and adding turn clockwise.
+    const whip = [spin(-90, { trail: 35 })];
     const MOTION = {
       back: [slide(-2, 0)], forward: [slide(2, 0)], chevron: [slide(1.6, 0)], overflow: [slide(1.6, 0, { lag: 0.35 })],
       previous: [slide(-1.6, 0)], next: [slide(1.6, 0)], "close-unpinned": [slide(0, 1.8, { lag: 0.35 })],

@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.2.0
+// @version        2.3.0
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==
@@ -1311,6 +1311,32 @@
     const onPref = () => setTimeout(remeasure, 350);
     Services.prefs.addObserver(EXPANDED_PREF, onPref);
     undo.push(() => Services.prefs.removeObserver(EXPANDED_PREF, onPref));
+
+    // Zen makes a card only as a tab starts making sound, and only if the
+    // tab's media controller is active at that moment. A video whose
+    // controller wakes a little later, or whose card went with a page change
+    // while the sound played on, is left with no bar. Ask Zen again for a
+    // while after each sound change or lost card; it skips a tab that
+    // already has a card.
+    let tries = 0, retry = null;
+    const askZen = () => {
+      retry = null;
+      const playing = document.querySelectorAll(".tabbrowser-tab[soundplaying]:not(zen-library *)");
+      if (playing.length <= mediaBar.querySelectorAll(":scope > .zen-media-card.playing").length) return;
+      for (const tab of playing) {
+        const c = safe(() => tab.linkedBrowser.browsingContext.mediaController);
+        if (c?.isActive && c.isPlaying) safe(() => window.gZenMediaController.onAudioPlaybackStarted(tab.linkedBrowser));
+      }
+      if (++tries < 8) retry = setTimeout(askZen, 2000);
+    };
+    const askSoon = () => { tries = 0; clearTimeout(retry); retry = setTimeout(askZen, 1500); };
+    const onSound = e => { if (e.detail?.changed?.includes("soundplaying")) askSoon(); };
+    window.addEventListener("TabAttrModified", onSound);
+    watching(new MutationObserver(records => {
+      if (records.some(r => [...r.removedNodes].some(n => n.classList?.contains("zen-media-card")))) askSoon();
+    })).observe(mediaBar, { childList: true });
+    askSoon();
+    undo.push(() => { window.removeEventListener("TabAttrModified", onSound); clearTimeout(retry); });
   }
 
   // Retire: stop every source this window drives, put Zen's own controls

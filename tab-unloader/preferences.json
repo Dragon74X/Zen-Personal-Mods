@@ -102,7 +102,7 @@
   {
     "type": "checkbox",
     "property": "zzunload.exclude-workspace-anchor",
-    "label": "Keep the last tab you used in each workspace *Switching workspaces leaves that tab selected in the workspace you left, so it stays loaded and switching back is instant instead of waiting for a reload. It protects that specific tab, not the position: close it and nothing inherits the exemption, and the protection moves only when you select a different tab in that workspace. TabUnloader.anchors() lists what is currently held.*",
+    "label": "Keep the last tab you used in each workspace *Switching workspaces leaves that tab selected in the workspace you left, so it stays loaded and switching back is instant instead of waiting for a reload. It protects that specific tab, not the position: close it and nothing inherits the exemption, and the protection moves only when you select a different tab in that workspace. A workspace already keeping a tab loaded because it is playing, in picture-in-picture or sharing does not hold a second one. TabUnloader.anchors() lists what is currently held.*",
     "defaultValue": true,
     "conditions": [{"if": {"property": "zzunload.enabled", "value": true}}]
   },

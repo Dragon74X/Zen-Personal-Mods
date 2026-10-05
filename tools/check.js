@@ -1,8 +1,11 @@
 // Zen Personal Mods -- settings and health check.
 //
 // Paste into the Browser Console (Ctrl+Shift+J), press Enter, then click
-// back on the Zen window within 3 seconds: Zen draws its blur only in the
-// active window. A few seconds later the report is on the clipboard.
+// on the Zen window: Zen draws its blur only in the active window, so the
+// check waits for it (up to a minute). It then records the music bar and
+// video preview for 15 seconds: switch away from a playing video's tab so
+// the bar opens, and point at the preview. The report is then on the
+// clipboard.
 //
 // It reads settings, versions, styles and counts, never page titles or
 // addresses, text settings that could hold them, or file paths. The one
@@ -240,7 +243,13 @@
     }));
     const box = e => { const r = e?.getBoundingClientRect(); return r && [r.x, r.y, r.width, r.height].map(Math.round).join(" "); };
 
-    await wait(3000);
+    // Pressing Enter in the console leaves the Zen window inactive; wait for
+    // it to come back, then for its styles to settle.
+    if (d.documentElement.matches(":-moz-window-inactive")) {
+      console.log("Click on the Zen window to finish the check.");
+      for (let i = 0; i < 300 && d.documentElement.matches(":-moz-window-inactive"); i++) await wait(200);
+    }
+    await wait(1000);
     const out = {
       zen: Services.appinfo.version, os: Services.appinfo.OS, dpr: w.devicePixelRatio,
       windowActive: !d.documentElement.matches(":-moz-window-inactive"),
@@ -265,9 +274,34 @@
       tokens: Object.fromEntries(["--zzg-acrylic", "--zzg-blur-size", "--zzg-blur-pad", "--zzg-panel-radius", "--arc-compact-sidebar-blur", "--zen-backdrop-underlay"].map(v => [v, cs(d.documentElement).getPropertyValue(v).trim()])),
       overlays: { media: filter("#zen-media-controls-toolbar > .zen-media-card"), urlbar: filter("#urlbar[breakout-extend] .urlbar-background"), menu: filter("menupopup"), } };
 
+    // The music bar and video preview over 15 seconds: position, size,
+    // transform and opacity whenever one changes, and which attributes
+    // changed. No text or style values are read.
+    const bar = d.getElementById("zen-media-controls-toolbar");
+    {
+      console.log("Recording the music bar for 15 seconds: switch away from the playing video's tab now, then point at the preview.");
+      const pipEl = () => d.getElementById("zen-sidebar-pip-container"), t0 = w.performance.now();
+      const geo = e => { if (!e) return null; const b = e.getBoundingClientRect(), s = cs(e); return [Math.round(b.top), Math.round(b.height), Math.round(b.width), s.transform === "none" ? 0 : s.transform.replace(/matrix\((?:[^,]*,){5}\s*([^)]*)\)/, "y$1"), (+s.opacity).toFixed(2)].join(" "); };
+      const frames = [], changes = [], last = {};
+      const mo = new w.MutationObserver(rs => { for (const m of rs) if (changes.length < 200) changes.push([Math.round(w.performance.now() - t0), m.target === bar ? "bar" : m.target.classList?.contains("zen-media-card") ? "card" : m.target.localName, m.type === "childList" ? "children" : m.attributeName]); });
+      if (bar) mo.observe(bar, { subtree: true, childList: true, attributes: true });
+      await new Promise(done => {
+        const tick = () => {
+          const now = Math.round(w.performance.now() - t0), front = bar?.querySelector(":scope > .zen-media-card:not([hidden]):not([stacked-behind])");
+          const row = { bar: bar?.hidden ? "hidden" : geo(bar), card: geo(front), preview: geo(pipEl()), collapsed: bar?.style.getPropertyValue("--zen-media-collapsed-height") };
+          const changed = Object.fromEntries(Object.entries(row).filter(([k, v]) => last[k] !== v));
+          if (Object.keys(changed).length && frames.length < 500) { frames.push([now, changed]); Object.assign(last, row); }
+          if (now < 15000) w.requestAnimationFrame(tick); else done();
+        };
+        tick();
+      });
+      mo.disconnect();
+      out.mediaTrace = { columns: "top height width transform opacity", frames, changes };
+    }
+
     // Mediaflow and Zen's media bar. If Zen has a playing tab but no card, it
     // is asked once to make one, to tell a missed start from a broken bar.
-    const Z = w.gZenMediaController, bar = d.getElementById("zen-media-controls-toolbar"), ws = w.gZenWorkspaces?.activeWorkspace;
+    const Z = w.gZenMediaController, ws = w.gZenWorkspaces?.activeWorkspace;
     const tabs = [...d.querySelectorAll(".tabbrowser-tab:not(zen-library *)")];
     const cards = () => [...(bar?.querySelectorAll(".zen-media-card") ?? [])].map(c => ({ hidden: c.hidden, hiding: c.getAttribute("zen-hiding"), playing: c.classList.contains("playing"), h: Math.round(c.getBoundingClientRect().height) }));
     const ctl = t => { try { const c = t.linkedBrowser?.browsingContext?.mediaController; return c && { active: c.isActive, playing: c.isPlaying, audible: c.isAudible, state: c.playbackState, pip: c.isBeingUsedInPIPModeOrFullscreen }; } catch (e) { return strip(e); } };

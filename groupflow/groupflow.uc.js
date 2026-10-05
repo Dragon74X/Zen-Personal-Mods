@@ -975,11 +975,13 @@
   // that line, like a scrollbar thumb. A folder that scrolls inside itself
   // lights its own line (markEdges) and is the view its subfolders are seen
   // through; one that fits shows how far it has travelled up through the
-  // list, and rests at its top while no tab in it is loaded. A subfolder's
-  // line lights how much of it has scrolled past. With "the selected tab",
-  // lines holding it light at its row and other subfolders rest at their own
-  // top, except in the folder you point at or scroll from its connector: that
-  // one shows where you are. The light glides between the two
+  // list, and rests at its top while no tab in it is loaded. With "the
+  // selected tab", lines holding it light at its row, except the folder you
+  // point at or scroll from its connector: its line shows where you are. A
+  // subfolder's line goes by its own tabs only, never by where it sits in
+  // its folder: the selected tab, else its most recently used loaded tab,
+  // else its own top. With "where you are", a subfolder's line lights how
+  // much of it has scrolled past. The light glides between positions
   // (userChrome.css). lightLists is the only writer; every rect is read
   // before any light is written, and unchanged lights are not rewritten.
   const LOADED = ".tabbrowser-tab:not([pending], [discarded], [zen-empty-tab])";
@@ -1003,11 +1005,18 @@
       if (box !== pointed) { pointed = box; lightSoon(); }
     });
   }
+  // The tab a subfolder's line marks when the selected tab is elsewhere.
+  function recentTab(group) {
+    let best = null;
+    for (const t of group.querySelectorAll(LOADED)) if (!best || t.lastAccessed > best.lastAccessed) best = t;
+    return best;
+  }
   function lightLists() {
     listFrame = 0;
     const glow = bool("scroll-glow", true);
     const sel = glow && num("glow-follows", 1) === 1 ? gBrowser.selectedTab : null;
-    const lit = [];
+    const s = sel?.getBoundingClientRect(), lit = [];
+    const mark = rect => rect?.height ? rect : null;
     for (const host of document.querySelectorAll("zen-workspace arrowscrollbox")) {
       const port = host.scrollbox;
       if (!port) continue;
@@ -1016,23 +1025,25 @@
         const b = box.getBoundingClientRect(), on = glow && b.height > 0, rails = [];
         if (on) {
           const own = box.hasAttribute("zzgf-glow"), roam = box === pointed;
-          // A folder that scrolls inside itself shows how far it has scrolled
-          // unless its line is following the selected tab.
           const max = box.scrollHeight - box.clientHeight;
-          rails.push([box, b, own ? b : view, false, roam, own ? box.scrollTop / max * box.clientHeight : null]);
-          for (const c of box.querySelectorAll(bodySelector)) rails.push([c, c.getBoundingClientRect(), own ? b : view, true, roam]);
+          rails.push({ c: box, r: b, v: own ? b : view, roam,
+            tab: !roam && s?.height && box.contains(sel) ? s : null,
+            own: own ? box.scrollTop / max * box.clientHeight : null });
+          for (const c of box.querySelectorAll(bodySelector)) {
+            const g = c.parentElement;
+            rails.push({ c, r: c.getBoundingClientRect(), v: own ? b : view, sub: true,
+              tab: sel ? (g.contains(sel) ? mark(s) : mark(recentTab(g)?.getBoundingClientRect())) : null });
+          }
         }
         lit.push([box, on, rails]);
       }
     }
-    const s = sel?.getBoundingClientRect();
     for (const [box, on, rails] of lit) {
       box.toggleAttribute("zzgf-list-glow", on);
-      for (const [c, r, v, sub, roam, own] of rails) {
-        const at = !roam && s?.height && c.parentElement?.contains(sel)
-          ? Math.min(r.height, Math.max(0, s.top + s.height / 2 - r.top))
+      for (const { c, r, v, sub, roam, tab, own } of rails) {
+        const at = tab ? Math.min(r.height, Math.max(0, tab.top + tab.height / 2 - r.top))
+          : sub ? (sel ? 0 : past(r, v))
           : own != null ? own
-          : sub ? (roam || !sel ? past(r, v) : 0)
           : roam || c.parentElement?.querySelector(LOADED) ? through(r.top, r.height, v.top, v.height) * r.height : 0;
         const px = at + "px";
         if (c.style.getPropertyValue("--zzgf-glow") !== px) c.style.setProperty("--zzgf-glow", px);

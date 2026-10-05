@@ -122,11 +122,12 @@ part with its own setting (all on by default):
   colour, there, easing to a dim floor away from it. By default (**Light
   follows: The selected tab**) lines holding the selected tab light at its
   row, so switching tabs moves the light. Point at or scroll a folder's
-  connector and that folder shows where you are in it instead: its line by
-  how far it has scrolled, each subfolder's by how much of it has scrolled
-  past. The light glides between the two. Other subfolders rest at their
-  own top, as does a folder with no loaded tab. **Where you are** shows
-  where you are on every line all the time. Off gives static connectors with
+  connector and its line shows where you are in it instead: how far it has
+  scrolled. A subfolder's line goes by its own tabs only, never by where it
+  sits in its folder: the selected tab, else its most recently used loaded
+  tab, else its own top. A folder with no loaded tab rests at its top. The
+  light glides between positions. **Where you are** shows where you are on
+  every line all the time. Off gives static connectors with
   the line's own gradient (**Soft ends** or a fade). Colour, width, shape and
   pill ends stay as set.
 - **Edge fade:** the folder's top or bottom edge fades while more tabs are
@@ -134,9 +135,9 @@ part with its own setting (all on by default):
   edges while it scrolls, so folders, subfolders and tabs fade as they leave
   the list even when no folder scrolls inside itself, and with **Scroll
   inside folders** off.
-- **Arrows on hover:** hovering the folder shows an up and a down chip in
-  its header, beside the tab count; clicking one scrolls a page that way. The arrow at an end stays
-  faint.
+- **Arrows on hover:** hovering the folder's header, like the tab count,
+  shows an up and a down chip there beside the count; clicking one scrolls a
+  page that way. The arrow at an end stays faint.
 - **Tab count on hover:** hovering any folder or subfolder header shows how
   many tabs it holds, subfolders included.
 

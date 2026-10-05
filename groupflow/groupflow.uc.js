@@ -1107,11 +1107,15 @@
     }
   }
   const lightSoon = () => { listFrame ||= requestAnimationFrame(lightLists); };
+  // Only "where you are" reads the list's own scroll; following the selected
+  // tab, every line goes by its own rows or its own scroll, so scrolling the
+  // list re-measures nothing.
+  const onListScroll = () => { if (num("glow-follows", 1) !== 1) lightSoon(); };
   function watchLists() {
     for (const host of document.querySelectorAll("zen-workspace arrowscrollbox")) {
       const port = host.scrollbox;
       if (!port || listPorts.has(port)) continue;
-      port.addEventListener("scroll", lightSoon, { passive: true });
+      port.addEventListener("scroll", onListScroll, { passive: true });
       listPorts.add(port);
     }
     lightSoon();
@@ -1419,7 +1423,7 @@
       stopScrolling();
       for (const mark of document.querySelectorAll(".tab-group-label-container > :is(.zzgf-more, .zzgf-count)")) mark.remove();
       for (const box of document.querySelectorAll(".tab-group-container[zzgf-glow]")) markEdges(box, false);
-      for (const port of listPorts) port.removeEventListener("scroll", lightSoon);
+      for (const port of listPorts) port.removeEventListener("scroll", onListScroll);
       cancelAnimationFrame(listFrame);
       for (const box of document.querySelectorAll(".tab-group-container[zzgf-list-glow]")) box.removeAttribute("zzgf-list-glow");
       window.removeEventListener("TabGroupCreate", dressCopies, true);

@@ -1659,7 +1659,7 @@
         } catch {}
 
         const r = {
-          version: "1.34.13",
+          version: "1.34.14",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The

@@ -153,15 +153,15 @@ def check_subfolder_styles(m):
     profiles = {
         "inactive": {"tint": "31%", "opacity": "0.32", "direction": 1, "end-mode": 0,
                      "end-tint": "41%", "spread": "53%", "sheen": False, "rim": False,
-                     "glow": False, "blur": False, "blur-radius": "4px", "label-color": "#a1b2c3",
+                     "glow": False, "label-color": "#a1b2c3",
                      "rim-direction": 1, "rim-reach": "42%"},
         "hover": {"tint": "47%", "opacity": "0.54", "direction": 4, "end-mode": 1,
                   "end-tint": "23%", "spread": "79%", "sheen": True, "rim": True,
-                  "glow": True, "blur": True, "blur-radius": "7px", "label-color": "#b2c3d4",
+                  "glow": True, "label-color": "#b2c3d4",
                   "rim-direction": 2, "rim-reach": "67%"},
         "active": {"tint": "63%", "opacity": "0.76", "direction": 3, "end-mode": 3,
                    "end-tint": "35%", "spread": "91%", "sheen": False, "rim": True,
-                   "glow": False, "blur": True, "blur-radius": "11px", "label-color": "#c3d4e5",
+                   "glow": False, "label-color": "#c3d4e5",
                    "rim-direction": 4, "rim-reach": "83%"},
     }
     baseline = m.script("return (async()=>{" + HELPERS + """
@@ -235,7 +235,7 @@ def check_subfolder_styles(m):
         opacity_keys = ('folderHeaderOpacity', 'folderLabelOpacity') if native else ('headerOpacity', 'labelOpacity')
         assert value['opacity'] == p['opacity'] and value['headerOpacity'] == baseline[opacity_keys[0]] and value['labelOpacity'] == baseline[opacity_keys[1]], (state, value)
         assert value['width'] > 0 and direction in value['paint'] and p['spread'] in value['paint'], (state, value)
-        assert value['blur'] == (f"blur({p['blur-radius']})" if p['blur'] else 'none'), (state, value)
+        assert value['blur'] == 'none', (state, value)   # folders blur nothing: Zen's panel does
         rim_direction = {"inactive": "to right", "hover": "to left", "active": "to top"}[state]
         assert value['rim'] and rim_direction in value['rim']['mask'] and p['rim-reach'] in value['rim']['mask'], (state, value)
 

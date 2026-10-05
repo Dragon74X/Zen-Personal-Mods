@@ -5,7 +5,7 @@
    as a dialog window of its own, so every Glassflow token on :root is
    in scope here: --zzg-round and --zzg-corner for the shape,
    --zzg-sheen for the highlight, --zzg-rim-all and --zzg-rim-top for
-   the edges, --zzg-fx for the colour treatment, and the sidebar
+   the edges, --zzg-acrylic for the blur (Zen's own), and the sidebar
    panel's own colour recipe for the fill. Turn a knob in Glassflow and
    this follows. Every one of them has a fallback, so the mod looks
    right on its own too.
@@ -53,7 +53,8 @@
   background-color: transparent;
   background-image: var(--zzg-sheen, none),
                     linear-gradient(to bottom, var(--zzdl-a) 0%, var(--zzdl-base) 100%);
-  backdrop-filter: blur(var(--zzglass-sidebar-blur-radius, 18px)) var(--zzg-fx, );
+  /* Zen's own blur, as Glassflow sets it (Customise Zen's blur). */
+  backdrop-filter: var(--zzg-acrylic, blur(42px) saturate(110%) brightness(0.25) contrast(100%));
   box-shadow:
     0 1px 0 var(--zzg-rim-top, rgb(255 255 255 / 0.35)) inset,
     0 18px 56px rgb(0 0 0 / 0.42);
@@ -100,7 +101,6 @@
   border: 1px solid var(--zzg-rim-all, rgb(255 255 255 / 0.14));
   background-color: color-mix(in srgb, var(--zzdl-acc) 14%, transparent);
   background-image: var(--zzg-sheen, none);
-  backdrop-filter: blur(12px) var(--zzg-fx, );
   transition: background-color 120ms ease-out, transform 90ms ease-out;
 }
 

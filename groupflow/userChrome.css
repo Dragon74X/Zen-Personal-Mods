@@ -25,7 +25,6 @@
   --zzgf-rscale: 1;
   --zzgf-rbase: var(--zzgroup-header-roundness, 12px);
   --zzgf-round: calc(var(--zzgf-rbase) * var(--zzgf-rscale));
-  --zzgf-fx: var(--zzg-fx, );
   --zzgf-sheen: var(--zzg-sheen, linear-gradient(to bottom,
       rgb(255 255 255 / 0.20) 0%, rgb(255 255 255 / 0.05) 45%,
       rgb(255 255 255 / 0) 55%, rgb(0 0 0 / 0.05) 100%));
@@ -294,12 +293,6 @@
 @media (-moz-pref("zzgroup.corner.mode", 6)) { :root { --zzgf-corner: notch; } }
 @media (-moz-pref("zzgroup.corner.mode", 7)) { :root { --zzgf-corner: scoop; } }
 
-@media (-moz-pref("zzgroup.header.blur")) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-label-container {
-    backdrop-filter: blur(var(--zzgroup-header-blur-radius, 14px)) var(--zzgf-fx);
-  }
-}
-
 :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) .tab-group-label {
   background: none !important;
   color: var(--zzgroup-label-color, inherit) !important;
@@ -461,11 +454,6 @@
   @media (-moz-pref("zzgroup.line.shadow")) {
     :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container::before {
       box-shadow: 0 1px 3px rgb(0 0 0 / 0.28) !important;
-    }
-  }
-  @media (-moz-pref("zzgroup.line.blur")) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container::before {
-      backdrop-filter: blur(8px) var(--zzgf-fx);
     }
   }
 }
@@ -1429,11 +1417,6 @@
     background-position: left top, left top, left top !important;
   }
 }
-@media (-moz-pref("zzgroup.connector", 5)) and (-moz-pref("zzgroup.line.blur")) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-label-container {
-    backdrop-filter: blur(8px) var(--zzgf-fx);
-  }
-}
 
 /* Flared rails, used by Flowing. Same curves, but the ribbon spreads
    where it meets the header and eases back to its weight, so the line
@@ -1756,7 +1739,6 @@
     --zzgf-state-rim-dir: var(--zzgf-state-dir);
     --zzgf-state-rim-reach: var(--zzgroup-subfolder-inactive-rim-reach, 60%);
     --zzgf-state-glow: 0 0 0 transparent;
-    --zzgf-state-blur: none;
     @media (-moz-pref("zzgroup.subfolder.inactive.direction", 1)) { --zzgf-state-dir: to left; }
     @media (-moz-pref("zzgroup.subfolder.inactive.direction", 2)) { --zzgf-state-dir: to bottom; }
     @media (-moz-pref("zzgroup.subfolder.inactive.direction", 3)) { --zzgf-state-dir: to top; }
@@ -1781,7 +1763,6 @@
     @media (-moz-pref("zzgroup.subfolder.inactive.rim-direction", 7)) { --zzgf-state-rim-dir: 45deg; }
     @media (-moz-pref("zzgroup.subfolder.inactive.rim-direction", 8)) { --zzgf-state-rim-dir: 225deg; }
     @media (-moz-pref("zzgroup.subfolder.inactive.glow")) { --zzgf-state-glow: 0 2px 12px color-mix(in srgb, var(--zzgf-accent) 35%, transparent); }
-    @media (-moz-pref("zzgroup.subfolder.inactive.blur")) { --zzgf-state-blur: blur(var(--zzgroup-subfolder-inactive-blur-radius, 20px)) var(--zzgf-fx); }
 
     :is(tab-group, zen-folder):has(.tabbrowser-tab:is([selected], [visuallyselected])) > &:not(:hover) {
       --zzgf-state-tint: var(--zzgroup-subfolder-active-tint, 25%);
@@ -1798,7 +1779,6 @@
       --zzgf-state-rim-dir: var(--zzgf-state-dir);
       --zzgf-state-rim-reach: var(--zzgroup-subfolder-active-rim-reach, 60%);
       --zzgf-state-glow: 0 0 0 transparent;
-      --zzgf-state-blur: none;
       @media (-moz-pref("zzgroup.subfolder.active.direction", 1)) { --zzgf-state-dir: to left; }
       @media (-moz-pref("zzgroup.subfolder.active.direction", 2)) { --zzgf-state-dir: to bottom; }
       @media (-moz-pref("zzgroup.subfolder.active.direction", 3)) { --zzgf-state-dir: to top; }
@@ -1823,7 +1803,6 @@
       @media (-moz-pref("zzgroup.subfolder.active.rim-direction", 7)) { --zzgf-state-rim-dir: 45deg; }
       @media (-moz-pref("zzgroup.subfolder.active.rim-direction", 8)) { --zzgf-state-rim-dir: 225deg; }
       @media (-moz-pref("zzgroup.subfolder.active.glow")) { --zzgf-state-glow: 0 2px 12px color-mix(in srgb, var(--zzgf-accent) 35%, transparent); }
-      @media (-moz-pref("zzgroup.subfolder.active.blur")) { --zzgf-state-blur: blur(var(--zzgroup-subfolder-active-blur-radius, 20px)) var(--zzgf-fx); }
     }
 
     /* Hover wins over active, and belongs to this header alone. */
@@ -1842,7 +1821,6 @@
       --zzgf-state-rim-dir: var(--zzgf-state-dir);
       --zzgf-state-rim-reach: var(--zzgroup-subfolder-hover-rim-reach, 60%);
       --zzgf-state-glow: 0 0 0 transparent;
-      --zzgf-state-blur: none;
       @media (-moz-pref("zzgroup.subfolder.hover.direction", 1)) { --zzgf-state-dir: to left; }
       @media (-moz-pref("zzgroup.subfolder.hover.direction", 2)) { --zzgf-state-dir: to bottom; }
       @media (-moz-pref("zzgroup.subfolder.hover.direction", 3)) { --zzgf-state-dir: to top; }
@@ -1867,7 +1845,6 @@
       @media (-moz-pref("zzgroup.subfolder.hover.rim-direction", 7)) { --zzgf-state-rim-dir: 45deg; }
       @media (-moz-pref("zzgroup.subfolder.hover.rim-direction", 8)) { --zzgf-state-rim-dir: 225deg; }
       @media (-moz-pref("zzgroup.subfolder.hover.glow")) { --zzgf-state-glow: 0 2px 12px color-mix(in srgb, var(--zzgf-accent) 35%, transparent); }
-      @media (-moz-pref("zzgroup.subfolder.hover.blur")) { --zzgf-state-blur: blur(var(--zzgroup-subfolder-hover-blur-radius, 20px)) var(--zzgf-fx); }
     }
   }
 
@@ -1890,7 +1867,7 @@
       color: var(--zzgf-state-label-color, var(--zzgroup-label-color, inherit)) !important;
     }
 
-    /* The fill owns opacity and blur; text and controls remain unchanged. */
+    /* The fill owns opacity; text and controls remain unchanged. */
     &::before {
       content: "" !important;
       position: absolute !important;
@@ -1905,7 +1882,6 @@
       background-color: transparent !important;
       background-image: var(--zzgf-state-sheen), var(--zzgf-state-background);
       box-shadow: var(--zzgf-state-glow);
-      backdrop-filter: var(--zzgf-state-blur);
     }
 
     /* A separate masked rim leaves the fill and connector fades independent. */
@@ -1965,7 +1941,7 @@
         color: var(--zzgf-state-label-color, var(--zzgroup-label-color, inherit)) !important;
       }
 
-      /* The fill owns opacity and blur; text and controls remain unchanged. */
+      /* The fill owns opacity; text and controls remain unchanged. */
       &::before {
         content: "" !important;
         position: absolute !important;
@@ -1980,7 +1956,6 @@
         background-color: transparent !important;
         background-image: var(--zzgf-state-sheen), var(--zzgf-state-background);
         box-shadow: var(--zzgf-state-glow);
-        backdrop-filter: var(--zzgf-state-blur);
       }
 
       /* A separate masked rim leaves the fill and connector fades independent. */

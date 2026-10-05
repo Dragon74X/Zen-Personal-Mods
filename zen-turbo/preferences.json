@@ -38,7 +38,7 @@
   {
     "type": "checkbox",
     "property": "zzturbo.smooth-workspace-switch",
-    "label": "Suspend tab effects during workspace animations *Temporarily disables tab-strip blur and transitions and hides sidebar videos. Keeps the floating sidebar and native page-strip blur active. Restores effects after 1500 ms even if Zen leaves an animation marker set. Frame-time impact is not measured.*",
+    "label": "Suspend tab effects during workspace animations *Temporarily pauses tab-strip transitions and animations and hides sidebar videos. Zen's blur behind the sidebar stays on. Restores effects after 1500 ms even if Zen leaves an animation marker set. Frame-time impact is not measured.*",
     "defaultValue": true
   },
   {

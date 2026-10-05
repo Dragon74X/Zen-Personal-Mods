@@ -61,7 +61,7 @@ Requires `sine.allow-unsafe-js` set to `true` in `about:config`.
 | Animation speed | Smooth (0.45s) | Quick 0.3s, Slow 0.7s |
 | Glow on hover | on | A soft light in the icon's own colour while hovered, for Circuit and Zen's own; it rises with the motion |
 | Soft glow around lines | on | Circuit's faint neon halo; off draws crisp lines only |
-| Glass plates | Off | While hovered, or Always. A light fill, a sheen across the top, a rim and an 8px blur of what is behind. With Glassflow installed, its own sheen and rim are used, so plates follow its Glass settings |
+| Glass plates | Off | While hovered, or Always. A light fill, a sheen across the top and a rim, over Zen's own blur behind the sidebar. With Glassflow installed, its own sheen and rim are used, so plates follow its Glass settings |
 | Plate shape | Squircle | Pill or Circle |
 
 **Each button** can follow the set, or use Zen's own icon (still or

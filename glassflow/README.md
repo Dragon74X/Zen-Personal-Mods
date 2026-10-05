@@ -9,11 +9,11 @@ pipeline that every section reads from. Sections are independent: turning one
 off costs nothing, and nothing in one depends on another.
 
 - **Tabs** — container-, workspace- or custom-tinted gradients, with separate
-  tint, opacity, gradient, sheen, rim, glow and blur for the **selected**,
+  tint, opacity, gradient, sheen, rim and glow for the **selected**,
   **unselected**, **hovered** and **unloaded** states.
 - **Tab strip** — one gradient wash behind the whole strip, rather than per tab.
-- **Sidebar** — tint, fill, sheen, rim, compact-mode glass, and optional
-  blurring of the page behind or beside it.
+- **Sidebar** — tint, fill, sheen, rim, compact-mode glass, Zen's own blur
+  made adjustable, and an optional blur of the page while the sidebar is out.
 - **Window buttons** — macOS-style traffic lights, round and glassy (purple
   close, blue minimise, green maximise), placeable at either end of the
   sidebar row.
@@ -84,7 +84,6 @@ Settings -> Appearance. The final fallback is `#7c8cf8`.
 
 | Setting | Default | Notes |
 |---|---|---|
-| Colourless glass | on | Glass reads as light and depth rather than as a colour cast |
 | Glass intensity | `1` | Master multiplier over every sheen and rim in the mod |
 | Sheen strength | `1` | |
 | Sheen direction | Top to bottom | |
@@ -108,8 +107,6 @@ set of controls, so a state can be styled without touching the others.
 | Glass sheen | on | off | off | off |
 | Glass rim | on | off | off | off |
 | Outer glow | off | off | off | off |
-| Frosted blur | on | off | off | off |
-| Blur strength | `20px` | `20px` | `20px` | `20px` |
 
 An unloaded tab's **Opacity** fades its background, title and favicon;
 **Greyscale favicon** (off by default) also drains the favicon's colour. The tab's tint,
@@ -125,8 +122,10 @@ faster than a colour difference.
 **Glass rim** is the difference between "glassy" and "just translucent".
 Translucency alone tends to read as washed out.
 
-**Frosted blur** is a compositor pass per tab, and it is the first thing to
-turn off if scrolling the tab strip feels heavy.
+Tabs have no blur of their own. In compact mode Zen's acrylic blurs the page
+behind the whole sidebar, and every see-through tab shows it; a second blur per
+tab cost a compositor pass each and added nothing you could see. Docked, nothing
+moves behind the sidebar, so there is nothing to blur.
 
 Turning on **Detailed rim control** (under *Tabs, shared*) exposes per-state rim
 colour, edge, highlight thickness and ring thickness. Without it the rim uses
@@ -178,70 +177,28 @@ down and let this own it.
 | Workspace gradient through the panel | `0` | `1` lets Zen's gradient through, lighter and hazier |
 | Panel shadow | on | Zen's own |
 | Panel accent tint / corner radius | `10%` / `12px` | |
-| Blur behind the floating panel | off | Native `backdrop-filter`; result depends on Zen and transparency settings |
-| Blur radius / contrast / saturation | `25px` / `1` / `1` | |
-| Native blur through transparent pages | off | Native SVG filter restricted to the page region covered by the compact sidebar; no snapshots. Applies live |
-| Sampled glass (experimental) | off | Downscales the viewport to 10% per axis, then paints it blurred behind the panel. Idle delay defaults to 250 ms; changed frames use 80 ms. Hidden windows start no snapshots; hidden private sidebars retain no sample |
-| Sample blur / opacity / interval | `18px` / `1` / `250` | the last frame stays up while the sidebar is hidden, so it shows at once |
+| Customise Zen's blur | off | Off keeps Zen's acrylic exactly as Zen sets it. On sets the four values below, see [Zen's blur](#zens-blur). Shown whether or not sidebar styling is on |
+| Blur strength / brightness / saturation / contrast | `42px` / `0.25` / `1.1` / `1` | Zen's own values |
 
 ### Library button
 
 The Library button's icon options moved to [Iconflow](../iconflow/), with the
 other icon and hover-motion settings. Settings chosen here carry over.
 
-### Live blur without snapshots
+### Zen's blur
 
-For the floating compact sidebar, enable **Enable sidebar styling** and
-**Blur behind the floating panel**, and disable **Sampled glass**. Leave
-**Blur the page when the sidebar shows** and the static page-strip effect off
-if you want only the area behind the sidebar blurred. Keep panel opacity
-below 100% so the backdrop is visible.
+Zen 1.23 blurs the page behind its compact sidebar and floating toolbar itself
+(*acrylic elements*, on by default): `blur(42px) saturate(110%)
+brightness(0.25)`. That is the only live blur these mods run. Tabs, folders and
+buttons sit on the panel and their see-through fills show it; the overlays
+below and the other mods' glass use the same values. **Customise Zen's blur**
+changes the values on Zen's own element, so it stays one blur rather than a
+second layer on top. Glassflow's panel needs **Panel opacity** below 100% for it
+to show through.
 
-For Zen Internet transparency, enable **Native blur through transparent pages**.
-This replaces the old clip-path workaround. An SVG filter blurs the rendered
-page region underneath the sidebar and preserves the original pixels outside
-that region. Transparent pixels retain their alpha; the sidebar's native
-backdrop filter still handles the browser background. The page updates through
-Firefox's rendering pipeline without snapshot reads or image encoding.
-
-Geometry is recomputed during sidebar movement and resize. Its animation-frame
-tracker stops after the panel settles, with a 1500 ms cap. Disabling sidebar
-styling, hiding the panel, entering content fullscreen, or retiring the script
-removes the content filter. `Glassflow.native.status()` reports the active
-filter and geometry-tracking state. In this mode `Glassflow.sample.status()`
-should show no active sampling and no new ticks or frames.
-
-The target is the combined backdrop: page text/images plus whatever browser
-background shows through transparent gaps. A native filter can only use the
-backdrop exposed to it; ancestor backdrop roots can limit that area
-([MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/backdrop-filter#backdrop_root)).
-Page transparency alone does not prove native blur is unavailable. Conversely,
-the sampler's opaque-pixel heuristic does not prove it works. A page snapshot
-also cannot reproduce the complete window backdrop through transparent gaps.
-
-The isolated Zen 1.22.2b/Firefox 156 check with Arc verifies changing transparent
-page content, unchanged pixels outside the strip, zero snapshot calls, and
-cleanup. It does not measure Windows GPU frame time or OS acrylic rendering.
-See the [audit and source references](../docs/AUDIT-2026-09-18.md).
-
-Pending samples are discarded after a tab/document change, history clearing, or script retirement. The pixel signature preserves RGBA channel order, so equal-total red/green changes refresh the sample. These lifecycle checks do not measure frame-time improvements.
-
-`Glassflow.sample.status()` in the console says whether sampling is running
-and which strip of the page it last read. `ticks` counts reads started; `frames` counts frames painted; `busyForMs` and `frameAgeMs` report pending-read duration and displayed-frame age.
-
-The refresh timer continues while a snapshot or PNG encoding is pending. A read pending for more than 2000 ms is superseded on the next timer tick; late results cannot overwrite a newer frame. Pixel signatures are committed only after painting, so stalled encoding remains retryable even when pixels are unchanged. Changed frames request the next read after 80 ms; unchanged or pending reads use the configured interval (250 ms by default).
-
-In a private window the last frame is dropped as soon as the sidebar
-hides, rather than kept for a quick re-show, and clearing recent history
-drops it in every window.
-
-Two optional page-side effects, both off:
-
-- **Blur the page when the sidebar shows** — blurs the whole page while the
-  compact sidebar is out (`6px`, `160ms` fade by default), so the sidebar
-  reads as glass over content.
-- **Blur a strip of the page** — blurs only a `260px` band along one edge,
-  with its own radius, offsets, corner and feather.
+**Blur the page when the sidebar shows** (off) blurs the whole page while the
+compact sidebar is out (`6px`, `160ms` fade by default), so the sidebar reads as
+glass over content.
 
 ## Library
 
@@ -251,8 +208,8 @@ with the [Glassflow Library](../glassflow-library/) mod.
 
 ## Overlays
 
-On by default. Frosted glass behind what Zen floats inside the window, blurring
-whatever is underneath:
+On by default. Glass behind what Zen floats inside the window, blurring whatever
+is underneath with [Zen's blur](#zens-blur):
 
 | Surface | What changes |
 |---|---|
@@ -265,7 +222,6 @@ whatever is underneath:
 | Setting | Default | Notes |
 |---|---|---|
 | Glass behind overlays | on | |
-| Overlay blur radius | `20px` | |
 | Overlay fill | `55%` | `0%` is clear glass |
 | Menu and panel fill (Windows 11) | `50%` | Zen's own value; lower shows more of the blur |
 | Music player fill | the overlay fill | Any CSS colour. Mediaflow decides which rows the player shows |
@@ -304,7 +260,7 @@ on `zen.view.experimental-force-window-controls-left`.
 | Show glyphs on hover | on | |
 | Glyph size | `0.62` | |
 | Button opacity | `1` | |
-| Glass sheen / rim / frosted blur | on / on / on | |
+| Glass sheen / rim | on / on | |
 | When the window is not focused | Keep my colours, slightly muted | Or unchanged, or neutral grey |
 | On hover | Keep my colour, no change | Or deepen it, or use the three hover colours below |
 | Hover intensity | `1` | Used by *Deepen my colour* |
@@ -422,7 +378,7 @@ by default.
 | Zen's unloaded-tab fade | `browser.tabs.fadeOutUnloadedTabs` | The Unloaded tab state is on |
 | SuperPins | Unloaded dimming and strikethrough | The Unloaded tab state is on |
 | Sidebar Expand on Hover | Fade sleeping tabs | The Unloaded tab state is on |
-| Transparent Zen | Compact sidebar type set to Default (Push and Mask leave nothing to blur) | Sidebar blur is on |
+| Transparent Zen | Compact sidebar type set to Default (Push and Mask leave nothing to blur) | Zen's blur (acrylic) is on |
 
 Left alone on purpose: Arc's font (it has no "off"), Arc's music player
 background (a look you choose; it draws over the player glass), and
@@ -441,17 +397,17 @@ even though Glassflow wins the cascade. Its container glow can be hidden from
 wins on source order. Sine also injects mod CSS as a `USER_SHEET`, and
 user-origin `!important` outranks author-origin `!important`.
 
-**Transparency mods** — if tabs look muddy, turn off **Frosted blur** on each
-state first. `backdrop-filter` composes poorly when several mods each
-contribute their own blur pass.
+**Transparency mods** — Glassflow adds no blur over Zen's, so there is one pass
+however the fills stack. If tabs look muddy, lower each state's tint or
+opacity, and turn off any blur another mod adds to tabs.
 
 **Transparent Zen** — use its *Normal* compact-sidebar mode for glass over
 the page. *Mask* deliberately hides the page under the sidebar; *Push* moves
 it away. Neither leaves the same page content beneath the panel to blur.
 
-**Zen Turbo** — its *Smooth workspace switching* suspends Glassflow's blurs
-inside the tab strip during a workspace slide, with a 1500 ms limit if Zen's
-animation marker sticks. The floating sidebar and native page filter stay active.
+**Zen Turbo** — its *Smooth workspace switching* pauses transitions and
+animations inside the tab strip during a workspace slide, with a 1500 ms limit
+if Zen's animation marker sticks.
 
 **Desktop blur** — `backdrop-filter` can only blur what the browser itself
 painted; it cannot blur the desktop. Real glass on Windows needs a

@@ -215,23 +215,6 @@
   },
   {
     "type": "checkbox",
-    "property": "zzgroup.header.blur",
-    "label": "Glass blur on headers *Backdrop blur behind group headers. Headers are few, so this is far cheaper than per-tab blur, and Zen Turbo's workspace-switch smoothing suspends it during slides automatically.*",
-    "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "headers"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
-  },
-  {
-    "type": "string",
-    "property": "zzgroup.header-blur-radius",
-    "label": "Header blur radius *Only used when glass blur is on.*",
-    "defaultValue": "14px",
-    "placeholder": "14px",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "headers"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.header.blur", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
-  },
-  {
-    "type": "checkbox",
     "property": "zzgroup.hide-atg-icon",
     "label": "Hide Advanced Tab Groups' icon chip *Removes ATG's color or emoji square from the header so the favicon is the only icon. ATG's collapse marker button is kept.*",
     "defaultValue": true,
@@ -720,23 +703,6 @@
     "operator": "AND"
   },
   {
-    "type": "checkbox",
-    "property": "zzgroup.subfolder.active.blur",
-    "label": "Frosted blur *Blurs what is behind folder headers in this state.*",
-    "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
-  },
-  {
-    "type": "string",
-    "property": "zzgroup.subfolder.active.blur-radius",
-    "label": "Blur strength *CSS length, for example 14px.*",
-    "defaultValue": "20px",
-    "placeholder": "20px",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"if": {"property": "zzgroup.subfolder.active.blur", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
-  },
-  {
     "type": "string",
     "property": "zzgroup.subfolder.active.label-color",
     "label": "Label colour *Any CSS colour. Default follows the shared Label colour setting and theme foreground.*",
@@ -945,23 +911,6 @@
     "operator": "AND"
   },
   {
-    "type": "checkbox",
-    "property": "zzgroup.subfolder.inactive.blur",
-    "label": "Frosted blur *Blurs what is behind folder headers in this state.*",
-    "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
-  },
-  {
-    "type": "string",
-    "property": "zzgroup.subfolder.inactive.blur-radius",
-    "label": "Blur strength *CSS length, for example 14px.*",
-    "defaultValue": "20px",
-    "placeholder": "20px",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"if": {"property": "zzgroup.subfolder.inactive.blur", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
-  },
-  {
     "type": "string",
     "property": "zzgroup.subfolder.inactive.label-color",
     "label": "Label colour *Any CSS colour. Default follows the shared Label colour setting and theme foreground.*",
@@ -1167,23 +1116,6 @@
     "label": "Outer glow *A soft halo around folder headers in this state.*",
     "defaultValue": false,
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
-  },
-  {
-    "type": "checkbox",
-    "property": "zzgroup.subfolder.hover.blur",
-    "label": "Frosted blur *Blurs what is behind folder headers in this state.*",
-    "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
-  },
-  {
-    "type": "string",
-    "property": "zzgroup.subfolder.hover.blur-radius",
-    "label": "Blur strength *CSS length, for example 14px.*",
-    "defaultValue": "20px",
-    "placeholder": "20px",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"if": {"property": "zzgroup.subfolder.hover.blur", "value": true}}], "operator": "AND"}],
     "operator": "AND"
   },
   {
@@ -1656,14 +1588,6 @@
     "type": "checkbox",
     "property": "zzgroup.line.shadow",
     "label": "Drop shadow under the line *Lifts the rail off the sidebar, matching Glassflow's buttons.*",
-    "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
-  },
-  {
-    "type": "checkbox",
-    "property": "zzgroup.line.blur",
-    "label": "Glass blur behind the line *Only visible when the rail is partly transparent -- lower the line strength to see it. Cheap here: the rail is a few pixels wide.*",
     "defaultValue": false,
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
     "operator": "AND"

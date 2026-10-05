@@ -124,11 +124,11 @@
     position: absolute !important;
     inset: calc(-1 * var(--zzg-blur-pad)) !important;
     box-sizing: border-box !important;
-    /* The content box is the panel; its corners are the panel's. */
-    padding: var(--zzg-blur-pad) !important;
-    border-radius: calc(var(--zzg-panel-radius) + var(--zzg-blur-pad)) !important;
-    corner-shape: var(--zzg-panel-corner) !important;
-    clip-path: content-box !important;
+    /* Cut back to the panel. clip-path: content-box would follow the
+       border radius by the spec, but Gecko clips it square, so the corners
+       are rounded here. ponytail: a round clip; other corner shapes
+       (squircle, bevel) differ from it by a pixel or so at the corners. */
+    clip-path: inset(var(--zzg-blur-pad) round var(--zzg-panel-radius)) !important;
     background: transparent !important;
     backdrop-filter: var(--zzg-acrylic) !important;
     z-index: -2 !important;

@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.3.0
+// @version        2.3.1
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==
@@ -61,8 +61,10 @@
     PIP_OPEN_DEBOUNCE_MS: 1500,
     PIP_OBSERVE_TIMEOUT_MS: 3000,
   });
+  // The preview and its caption hang from their bottom edge, set every frame
+  // from the bar's top, so they move with the bar instead of trailing it;
+  // only their size and side ease, for the grow on hover.
   const LAYOUT_TRANSITION =
-    `top ${CONFIG.LAYOUT_ANIM_MS}ms ease-out, ` +
     `left ${CONFIG.LAYOUT_ANIM_MS}ms ease-out, ` +
     `width ${CONFIG.LAYOUT_ANIM_MS}ms ease-out, ` +
     `height ${CONFIG.LAYOUT_ANIM_MS}ms ease-out`;
@@ -100,7 +102,7 @@
       pointer-events: auto;
       transform-origin: 50% 100%;
       transition: ${LAYOUT_TRANSITION};
-      will-change: opacity, transform, top, left, width, height;
+      will-change: opacity, transform, bottom, left, width, height;
     }
     #zen-sidebar-pip-container[zzmf-clickable] { cursor: pointer; }
     #zen-sidebar-pip-container::after {
@@ -146,9 +148,8 @@
       transform: translateY(4px) scale(0.96);
       transform-origin: 50% 100%;
       transition: opacity ${CONFIG.CAPTION_ANIM_MS}ms ease,
-                  transform ${CONFIG.CAPTION_ANIM_MS}ms ease,
-                  top ${CONFIG.LAYOUT_ANIM_MS}ms ease-out;
-      will-change: opacity, transform, top;
+                  transform ${CONFIG.CAPTION_ANIM_MS}ms ease;
+      will-change: opacity, transform, bottom;
     }
     #zen-sidebar-pip-caption[zzmf-caption-visible="true"] {
       opacity: var(--zzmf-caption-opacity, 1);
@@ -446,7 +447,7 @@
           cs.left = left + "px";
           captionHeight = Math.ceil(captionContainer.getBoundingClientRect().height);
           captionTop = mediaTop - CONFIG.GAP - captionHeight;
-          cs.top = captionTop + "px";
+          cs.bottom = window.innerHeight - (mediaTop - CONFIG.GAP) + "px";
           if (pipVisible) videoBottom = captionTop - CONFIG.GAP;
         } else {
           captionContainer.style.display = "none";
@@ -504,7 +505,7 @@
             s.width = shownWidth + "px";
             s.height = shownHeight + "px";
             s.left = adjustedLeft + "px";
-            s.top = top + "px";
+            s.bottom = window.innerHeight - videoBottom + "px";
             lastTop = top;
             lastLeft = adjustedLeft;
             lastWidth = shownWidth;
@@ -686,7 +687,11 @@
     if (!clickToTab() || event.button !== 0) return;
     const browser = safe(() => sourceBC?.top?.embedderElement);
     const tab = browser && gBrowser.getTabForBrowser(browser);
-    if (tab) gBrowser.selectedTab = tab;
+    if (!tab) return;
+    // A tab in another workspace needs that workspace first; selecting it
+    // alone leaves you where you are. Zen's own music card does the same.
+    if (window.gZenWorkspaces?.switchTabIfNeeded) window.gZenWorkspaces.switchTabIfNeeded(tab);
+    else gBrowser.selectedTab = tab;
   });
 
   on(musicPlayerUI, "mouseenter", () => {

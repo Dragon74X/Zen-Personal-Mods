@@ -56,6 +56,8 @@ anything: its next update turns it into Mediaflow.
 | | Frame rate | 15 fps |
 | | Captions | Follow YouTube |
 | | Captions while the preview is hidden | off |
+| | Grow on hover (1.5×, 2×, 3×, half the window, or off) | 2× |
+| | Click the preview to go to its tab | on |
 | Music bar | Always show title and progress | off |
 | | Hide the title row (also hides picture-in-picture and close) | off |
 | | Hide the progress bar | off |

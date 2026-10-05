@@ -79,6 +79,25 @@
     "conditions": [{"not": {"property": "zzmedia.preview.captions", "value": "off"}}]
   },
   {
+    "type": "dropdown",
+    "property": "zzmedia.preview.hover-size",
+    "label": "Grow on hover *Pointing at the preview enlarges it over the page, away from the sidebar, keeping its bottom edge in place. Its room above the music bar stays the resting size.*",
+    "defaultValue": "2",
+    "options": [
+      { "label": "Off", "value": "1" },
+      { "label": "A little (1.5×)", "value": "1.5" },
+      { "label": "Double (2×)", "value": "2" },
+      { "label": "Triple (3×)", "value": "3" },
+      { "label": "Half the window", "value": "half" }
+    ]
+  },
+  {
+    "type": "checkbox",
+    "property": "zzmedia.preview.click-to-tab",
+    "label": "Click the preview to go to its tab *Switches to the tab the video is playing in.*",
+    "defaultValue": true
+  },
+  {
     "type": "separator",
     "label": "Music bar",
     "size": "17px",

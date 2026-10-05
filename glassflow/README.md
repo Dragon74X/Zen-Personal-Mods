@@ -43,8 +43,12 @@ sections are off until you switch them on.
 
 **Show settings for**, at the top of the settings page, shows one part of the
 browser at a time (*Colour and glass*; *Tabs*; *Sidebar*; *Overlays, dialogs
-and status*; *Window buttons*; *Corners, fonts and motion*; *Troubleshooting*)
-or *Everything*. Hidden settings keep their values. Each row's tooltip shows the preference it
+and status*; *Blur and transparency*; *Window buttons*; *Corners, fonts and
+motion*; *Other mods*; *Troubleshooting*) or *Everything*. *Blur and
+transparency* gathers every blur and see-through setting in one place: Zen's
+blur and its values, the sidebar panel's opacity and gradient, the page blur,
+and each overlay's glass; they also stay on their own pages. Hidden settings
+keep their values. Each row's tooltip shows the preference it
 sets.
 
 ## Replaces these mods
@@ -188,13 +192,18 @@ other icon and hover-motion settings. Settings chosen here carry over.
 ### Zen's blur
 
 Zen 1.23 blurs the page behind its compact sidebar and floating toolbar itself
-(*acrylic elements*, on by default): `blur(42px) saturate(110%)
-brightness(0.25)`. That is the only live blur these mods run. Tabs, folders and
-buttons sit on the panel and their see-through fills show it; the overlays
-below and the other mods' glass use the same values. **Customise Zen's blur**
-changes the values on Zen's own element, so it stays one blur rather than a
-second layer on top. Glassflow's panel needs **Panel opacity** below 100% for it
-to show through.
+(*acrylic elements*, on by default, and a row here): `blur(42px) saturate(110%)
+brightness(0.25)`, over Zen's underlay, which lays the page on black or white
+first so translucent pages still blur. That is the only live blur these mods
+run. Tabs, folders and buttons sit on the panel and their see-through fills show
+it; the overlays below and the other mods' glass use the same values.
+
+Glassflow sets that blur on Zen's panels itself, on the same element and
+property, so it stays one blur, and so another mod cannot remove it: Arc 2.0
+replaces Zen's blur with its own *Compact sidebar blur*, which Glassflow used to
+set to `0px`, leaving no blur at all. That value is now put back, and Glassflow's
+blur wins on the panel. **Customise Zen's blur** changes the values. Glassflow's
+panel needs **Panel opacity** below 100% for it to show through.
 
 **Blur the page when the sidebar shows** (off) blurs the whole page while the
 compact sidebar is out (`6px`, `160ms` fade by default), so the sidebar reads as
@@ -209,7 +218,11 @@ with the [Glassflow Library](../glassflow-library/) mod.
 ## Overlays
 
 On by default. Glass behind what Zen floats inside the window, blurring whatever
-is underneath with [Zen's blur](#zens-blur):
+is underneath with [Zen's blur](#zens-blur). Each surface has its own setting:
+**Off** leaves it as Zen draws it, **Zen's blur** (the default) blurs without
+darkening, since the glass brings its own fill, and **Zen's blur, darkened like
+the sidebar** also applies the panel's brightness. All three follow **Customise
+Zen's blur**.
 
 | Surface | What changes |
 |---|---|
@@ -218,14 +231,17 @@ is underneath with [Zen's blur](#zens-blur):
 | Glance's side buttons | Translucent over a blur of the page |
 | Library media preview | The dimmed window behind it is blurred too |
 | Music player at the bottom of the sidebar | Glass; its title row floats over the tabs on hover |
+| Download Prompt's question | Its own glass; this row only picks the blur |
 
 | Setting | Default | Notes |
 |---|---|---|
 | Glass behind overlays | on | |
+| Library download stack / Toasts / Glance's side buttons / Behind the library media preview / Music player / Download question | Zen's blur | Each: Off, Zen's blur, or darkened like the sidebar |
 | Overlay fill | `55%` | `0%` is clear glass |
 | Menu and panel fill (Windows 11) | `50%` | Zen's own value; lower shows more of the blur |
 | Music player fill | the overlay fill | Any CSS colour. Mediaflow decides which rows the player shows |
 | Glass status pill | on | The link address at the bottom of the page, as a floating glass pill. Turn off Arc 2.0's floating status bar so only one styles it |
+| Status pill glass | Zen's blur | Off, Zen's blur, or darkened like the sidebar |
 | Theme-coloured dialogs | on | Dialogs take the menu colour, their main button the accent colour |
 
 Menus, context menus and panels (including the tab hover preview) are
@@ -372,7 +388,7 @@ by default.
 | Row | Switched off | While |
 |---|---|---|
 | Arc 2.0 | macOS-style buttons | Glassflow's window buttons are on |
-| | Compact sidebar blur and fill | Sidebar styling is on |
+| | Compact sidebar fill (its blur is replaced by Zen's, on the same panel) | Sidebar styling is on |
 | | Greyscale unloaded tabs | The Unloaded tab state is on |
 | | Folder backgrounds, Arc tab groups | Groupflow is on |
 | Zen's unloaded-tab fade | `browser.tabs.fadeOutUnloadedTabs` | The Unloaded tab state is on |

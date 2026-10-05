@@ -113,7 +113,7 @@ def check(m, root, arc, transparent):
     filters = m.script("""document.documentElement.setAttribute('animating-background','true');
       return {sidebar:getComputedStyle(document.getElementById('zen-toolbar-background')).backdropFilter,
               page:getComputedStyle(document.getElementById('tabbrowser-tabbox')).filter};""")
-    assert filters["sidebar"].startswith("blur(12px)") and filters["page"] == "none", filters
+    assert "zen-backdrop-filters.svg#underlay" in filters["sidebar"] and "blur(12px)" in filters["sidebar"] and filters["page"] == "none", filters
     m.script("document.documentElement.removeAttribute('animating-background'); DownloadPrompt.preview(); return true;")
     modal = m.script("""let d=document.getElementById('zzdl-ask');return {modal:d.matches(':modal'),
       focus:d.contains(document.activeElement),name:d.getAttribute('aria-labelledby')};""")

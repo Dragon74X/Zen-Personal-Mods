@@ -42,8 +42,9 @@ anything: its next update turns it into Mediaflow.
 - With **Always show title and progress** on, the player is measured again
   whenever its size changes, so the expanded rows push the tab list up
   instead of covering tabs.
-- The preview's room is made just above the music bar, as space the tab list
-  gives up, instead of by setting the tab list's height. On Zen 1.23b the bar
+- The preview sits in front of the tabs. With **Make room above the preview**
+  on, its room is made just above the music bar instead, as space the tab list
+  gives up, rather than by setting the tab list's height. On Zen 1.23b the bar
   follows the tab list, so the old way shrank the list to nothing and pushed
   the bar and a small preview to the top of the sidebar.
 - Groupflow refits its folders when the preview takes or gives back room.
@@ -58,6 +59,7 @@ anything: its next update turns it into Mediaflow.
 | | Captions while the preview is hidden | off |
 | | Grow on hover (1.5×, 2×, 3×, half the window, or off) | 2× |
 | | Click the preview to go to its tab | on |
+| | Make room above the preview (off: it sits in front of the tabs; on: the tab list ends above it) | off |
 | Music bar | Always show title and progress | off |
 | | Hide the title row (also hides picture-in-picture and close) | off |
 | | Hide the progress bar | off |

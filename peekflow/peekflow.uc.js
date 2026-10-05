@@ -2,7 +2,7 @@
 // @name           Peekflow
 // @description    Places Zen's tab hover preview and remembers how unloaded tabs looked.
 // @include        chrome://browser/content/browser.xhtml
-// @version        1.1.0
+// @version        1.2.0
 // ==/UserScript==
 
 (() => {
@@ -52,14 +52,16 @@
   // are small JPEG blobs held in memory against the tab: closing the tab or
   // the window drops them, and nothing is written to disk.
   const shots = new WeakMap();
-  async function photograph(tab) {
-    if (!tab?.linkedBrowser || tab.closing || tab.hasAttribute("pending") || !bool("last-view", true)) return;
+  // A picture of a loaded tab at the preview's size, or null.
+  async function capture(tab) {
     const canvas = document.createElementNS(HTML, "canvas"), dpr = window.devicePixelRatio || 1;
     canvas.width = Math.round(280 * dpr); canvas.height = Math.round(140 * dpr);
-    try {
-      if (!(await window.PageThumbs.captureTabPreviewThumbnail(tab.linkedBrowser, canvas))) return;
-    } catch { return; }
-    canvas.toBlob(blob => { if (blob && !retired) shots.set(tab, { blob, at: Date.now() }); }, "image/jpeg", 0.82);
+    try { return (await window.PageThumbs.captureTabPreviewThumbnail(tab.linkedBrowser, canvas)) ? canvas : null; }
+    catch { return null; }
+  }
+  async function photograph(tab) {
+    if (!tab?.linkedBrowser || tab.closing || tab.hasAttribute("pending") || !bool("last-view", true)) return;
+    (await capture(tab))?.toBlob(blob => { if (blob && !retired) shots.set(tab, { blob, at: Date.now() }); }, "image/jpeg", 0.82);
   }
   // Only a tab you actually looked at (selected for a second or more) is
   // photographed, at an idle moment: scrolling through tabs takes none.
@@ -81,6 +83,9 @@
   // ---- the preview panel ------------------------------------------------------
   let tabPanel = null, panel = null, current = null, retired = false;
   let shotImg = null, shotTab = null, shotURL = null;
+  // Firefox shows the selected tab without a picture, as you are looking at
+  // it; Peekflow takes one as you point at it, shown and not kept.
+  let live = null;                          // { tab, canvas }
   const ago = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
   function since(ms) {
     const s = (ms - Date.now()) / 1000;
@@ -96,9 +101,10 @@
     if (!panel || !tab) return;
     const box = panel.querySelector(".tab-preview-thumbnail-container");
     const text = panel.querySelector(".tab-preview-text-container");
-    const unloaded = tab.hasAttribute("pending") || tab.hasAttribute("discarded");
-    const shot = unloaded && bool("pictures", true) && bool("last-view", true) ? shots.get(tab) : null;
-    if (box && shot) {
+    const unloaded = tab.hasAttribute("pending") || tab.hasAttribute("discarded"), selected = tab.selected;
+    const shot = unloaded && !selected && bool("pictures", true) && bool("last-view", true) ? shots.get(tab) : null;
+    let picture = selected && live?.tab === tab ? live.canvas : null;
+    if (shot) {
       if (shotTab !== tab) {
         if (shotURL) URL.revokeObjectURL(shotURL);
         shotURL = URL.createObjectURL(shot.blob);
@@ -106,9 +112,13 @@
         shotImg.src = shotURL;
         shotTab = tab;
       }
-      if (box.firstChild !== shotImg) box.replaceChildren(shotImg);
+      picture = shotImg;
+    }
+    if (box && picture) {
+      if (box.firstChild !== picture) box.replaceChildren(picture);
       box.classList.remove("hide-thumbnail");
-    } else if (shotImg?.isConnected) shotImg.remove();
+    }
+    for (const own of [shotImg, live?.canvas]) if (own && own !== picture && own.isConnected) own.remove();
     let line = text?.querySelector(":scope > .zzpeek-seen");
     if (text && !line) {
       line = Object.assign(document.createElementNS(HTML, "div"), { className: "zzpeek-seen" });
@@ -116,8 +126,8 @@
     }
     if (line) {
       const used = shot?.at ?? tab.lastAccessed;
-      line.hidden = !unloaded;
-      line.textContent = !unloaded ? "" : Number.isFinite(used) && used > 0
+      line.hidden = !unloaded && !selected;
+      line.textContent = selected ? "Current tab" : !unloaded ? "" : Number.isFinite(used) && used > 0
         ? `Unloaded · ${shot ? "seen" : "last used"} ${since(used)}` : "Unloaded";
     }
   }
@@ -139,7 +149,19 @@
       },
     });
     const activate = Object.getPrototypeOf(tabPanel).activate;
-    tabPanel.activate = function (tab) { current = tab; return activate.call(this, tab); };
+    tabPanel.activate = function (tab) {
+      current = tab;
+      if (live?.tab !== tab) live = null;
+      if (tab?.selected && !tab.hasAttribute("pending") && bool("pictures", true)) {
+        capture(tab).then(canvas => {
+          if (!canvas || retired || current !== tab) return;
+          canvas.className = "zzpeek-shot";
+          live = { tab, canvas };
+          dress();
+        });
+      }
+      return activate.call(this, tab);
+    };
     panel.addEventListener("TabPreviewUpdated", dress);
   }
   function release() {
@@ -151,7 +173,7 @@
     panel?.querySelectorAll(".zzpeek-seen").forEach(n => n.remove());
     shotImg?.remove();
     if (shotURL) URL.revokeObjectURL(shotURL);
-    tabPanel = panel = current = shotImg = shotTab = shotURL = null;
+    tabPanel = panel = current = shotImg = shotTab = shotURL = live = null;
   }
 
   const observer = { observe(_, __, name) { if (!name.startsWith(P + "saved.")) { syncFirefox(false); adopt(); } } };

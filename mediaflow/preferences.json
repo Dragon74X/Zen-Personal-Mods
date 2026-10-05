@@ -98,6 +98,12 @@
     "defaultValue": true
   },
   {
+    "type": "checkbox",
+    "property": "zzmedia.preview.make-room",
+    "label": "Make room above the preview *Off, the preview sits in front of the tabs. On, the tab list ends above it, so no tab is ever behind it.*",
+    "defaultValue": false
+  },
+  {
     "type": "separator",
     "label": "Music bar",
     "size": "17px",
@@ -135,7 +141,7 @@
   },
   {
     "type": "separator",
-    "label": "*Colour and glass behind the player are in Glassflow, under Overlays.*",
+    "label": "*Colour and glass behind the player are in Glassflow, under Overlays or Blur and transparency.*",
     "size": "13px",
     "margin": "14px 0 4px 0"
   }

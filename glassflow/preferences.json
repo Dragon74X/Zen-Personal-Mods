@@ -28,6 +28,10 @@
         "value": "overlays"
       },
       {
+        "label": "Blur and transparency",
+        "value": "glass"
+      },
+      {
         "label": "Window buttons",
         "value": "buttons"
       },
@@ -1490,15 +1494,6 @@
     "id": "zzglass.ui.section.floating-panel-compact-mode"
   },
   {
-    "type": "string",
-    "property": "zzglass.sidebar.panel-opacity",
-    "label": "Panel opacity *How solid the floating panel's base is, as a percentage. 70% is the dark, defined look; 0% is see-through with only the tint.*",
-    "defaultValue": "70%",
-    "placeholder": "70%",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
-  },
-  {
     "type": "dropdown",
     "value": "number",
     "property": "zzglass.sidebar.panel-color-mode",
@@ -1662,15 +1657,6 @@
     "operator": "AND"
   },
   {
-    "type": "string",
-    "property": "zzglass.sidebar.gradient-show",
-    "label": "Workspace gradient through the panel *Zen paints the workspace gradient on the panel. 0 hides it for a clean dark panel; 1 lets it through, which reads lighter and hazier.*",
-    "defaultValue": "0",
-    "placeholder": "0",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
-  },
-  {
     "type": "checkbox",
     "property": "zzglass.sidebar.shadow",
     "label": "Panel shadow *Zen's own drop shadow under the floating panel.*",
@@ -1697,11 +1683,25 @@
     "operator": "AND"
   },
   {
+    "type": "separator",
+    "id": "zzglass.ui.section.zen-blur",
+    "label": "Zen's blur",
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}]
+  },
+  {
+    "type": "checkbox",
+    "property": "zen.theme.acrylic-elements",
+    "label": "Zen's blur *Zen's own Acrylic elements switch: it blurs what is behind the compact sidebar, the floating toolbar and the urlbar. Off, Zen draws them solid; Customise Zen's blur below still blurs Glassflow's sidebar panel.*",
+    "defaultValue": true,
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
     "type": "checkbox",
     "property": "zzglass.sidebar.blur",
     "label": "Customise Zen's blur *Zen's acrylic blurs whatever is behind its compact sidebar and floating toolbar, and Glassflow's overlays and the other mods' glass use the same blur. Off keeps Zen's own values; on uses the four below for all of them.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1710,7 +1710,7 @@
     "label": "Blur strength *Zen uses 42px. Higher smears more; lower keeps shapes legible.*",
     "defaultValue": "42px",
     "placeholder": "42px",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.blur", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.blur", "value": true}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1719,7 +1719,7 @@
     "label": "Brightness *Zen uses 0.25, which keeps text readable over bright pages. Raise it to let more of the page through.*",
     "defaultValue": "0.25",
     "placeholder": "0.25",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.blur", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.blur", "value": true}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1728,7 +1728,7 @@
     "label": "Saturation *Zen uses 1.1. Raise it for richer colour through the glass; lower drains it.*",
     "defaultValue": "1.1",
     "placeholder": "1.1",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.blur", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.blur", "value": true}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1737,7 +1737,32 @@
     "label": "Contrast *Zen uses 1. Above 1 deepens what shows through, below 1 flattens it.*",
     "defaultValue": "1",
     "placeholder": "1",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.blur", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.blur", "value": true}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "separator",
+    "id": "zzglass.ui.section.see-through",
+    "label": "See-through sidebar",
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.sidebar.panel-opacity",
+    "label": "Panel opacity *How solid the floating panel's base is, as a percentage. 70% is the dark, defined look; 0% is see-through with only the tint.*",
+    "defaultValue": "70%",
+    "placeholder": "70%",
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.sidebar.gradient-show",
+    "label": "Workspace gradient through the panel *Zen paints the workspace gradient on the panel. 0 hides it for a clean dark panel; 1 lets it through, which reads lighter and hazier.*",
+    "defaultValue": "0",
+    "placeholder": "0",
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1745,7 +1770,7 @@
     "property": "zzglass.sidebar.page-follow",
     "label": "Blur the page when the sidebar shows *Follows the sidebar exactly, with nothing to measure or line up, because it runs in the browser where the sidebar's state is known. It blurs the whole page rather than a strip -- a filter cannot be clipped to one region -- so it reads as the page receding while the sidebar is up. Turning this on disables the strip method below.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1753,7 +1778,7 @@
     "property": "zzglass.sidebar.page-follow-always",
     "label": "Also when not in compact mode *A docked sidebar never covers the page, so this is purely a look: the page softens whenever the sidebar is hovered.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}, {"if": {"property": "zzglass.sidebar.page-follow", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}, {"if": {"property": "zzglass.sidebar.page-follow", "value": true}}], "operator": "AND"}],
     "operator": "AND"
   },
   {
@@ -1762,7 +1787,7 @@
     "label": "Page blur radius *Small values read as depth; large values make the page unreadable while the sidebar is open, which some people want and some hate.*",
     "defaultValue": "6px",
     "placeholder": "6px",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}, {"if": {"property": "zzglass.sidebar.page-follow", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}, {"if": {"property": "zzglass.sidebar.page-follow", "value": true}}], "operator": "AND"}],
     "operator": "AND"
   },
   {
@@ -1771,7 +1796,7 @@
     "label": "Page saturation while blurred *1 leaves colour alone; below 1 drains it as the page recedes.*",
     "defaultValue": "1",
     "placeholder": "1",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}, {"if": {"property": "zzglass.sidebar.page-follow", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}, {"if": {"property": "zzglass.sidebar.page-follow", "value": true}}], "operator": "AND"}],
     "operator": "AND"
   },
   {
@@ -1780,7 +1805,7 @@
     "label": "Blur fade speed *How quickly the page softens and clears as the sidebar comes and goes.*",
     "defaultValue": "160ms",
     "placeholder": "160ms",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}, {"if": {"property": "zzglass.sidebar.page-follow", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}, {"if": {"property": "zzglass.sidebar.page-follow", "value": true}}], "operator": "AND"}],
     "operator": "AND"
   },
   {
@@ -1789,14 +1814,14 @@
     "size": "17px",
     "margin": "22px 0 10px 0",
     "id": "zzglass.ui.section.overlays",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}]
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}]
   },
   {
     "type": "checkbox",
     "property": "zzglass.overlays.enabled",
     "label": "Glass behind overlays *Glass blurred with Zen's own blur (Sidebar > Customise Zen's blur), for Zen's surfaces that float inside the window: the library's download stack (hover the library button), toasts, glance's side buttons and the library media preview. Zen fades the tabs out under the download stack; with this on they stay and show through blurred.*",
     "defaultValue": true,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1805,7 +1830,145 @@
     "label": "Overlay fill *How much tint covers the blur. 0% is clear glass; 100% hides what is behind.*",
     "defaultValue": "55%",
     "placeholder": "55%",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.overlays.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.overlays.enabled", "value": true}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.overlays.downloads",
+    "label": "Library download stack *Hover the library button. Off lets Zen fade the tabs out under it again.*",
+    "defaultValue": 1,
+    "options": [
+      {
+        "label": "Off: as Zen draws it",
+        "value": 0
+      },
+      {
+        "label": "Zen's blur",
+        "value": 1
+      },
+      {
+        "label": "Zen's blur, darkened like the sidebar",
+        "value": 2
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.overlays.enabled", "value": true}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.overlays.toasts",
+    "label": "Toasts *The small messages Zen shows, such as \"Copied\".*",
+    "defaultValue": 1,
+    "options": [
+      {
+        "label": "Off: as Zen draws it",
+        "value": 0
+      },
+      {
+        "label": "Zen's blur",
+        "value": 1
+      },
+      {
+        "label": "Zen's blur, darkened like the sidebar",
+        "value": 2
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.overlays.enabled", "value": true}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.overlays.glance",
+    "label": "Glance's side buttons *Close, expand and split, beside a glance.*",
+    "defaultValue": 1,
+    "options": [
+      {
+        "label": "Off: as Zen draws it",
+        "value": 0
+      },
+      {
+        "label": "Zen's blur",
+        "value": 1
+      },
+      {
+        "label": "Zen's blur, darkened like the sidebar",
+        "value": 2
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.overlays.enabled", "value": true}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.overlays.media-preview",
+    "label": "Behind the library media preview *Zen dims the window behind it; this also blurs it.*",
+    "defaultValue": 1,
+    "options": [
+      {
+        "label": "Off: as Zen draws it",
+        "value": 0
+      },
+      {
+        "label": "Zen's blur",
+        "value": 1
+      },
+      {
+        "label": "Zen's blur, darkened like the sidebar",
+        "value": 2
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.overlays.enabled", "value": true}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.overlays.music",
+    "label": "Music player *The card at the bottom of the sidebar, whose title row floats over the tabs on hover.*",
+    "defaultValue": 1,
+    "options": [
+      {
+        "label": "Off: as Zen draws it",
+        "value": 0
+      },
+      {
+        "label": "Zen's blur",
+        "value": 1
+      },
+      {
+        "label": "Zen's blur, darkened like the sidebar",
+        "value": 2
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.overlays.enabled", "value": true}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.overlays.dialog",
+    "label": "Download question *Download Prompt's \"open or save\" question. On its own, that mod uses Zen's blur.*",
+    "defaultValue": 1,
+    "options": [
+      {
+        "label": "Off: as Zen draws it",
+        "value": 0
+      },
+      {
+        "label": "Zen's blur",
+        "value": 1
+      },
+      {
+        "label": "Zen's blur, darkened like the sidebar",
+        "value": 2
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.overlays.enabled", "value": true}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1814,7 +1977,7 @@
     "label": "Menu and panel fill (Windows 11) *Menus and panels are separate windows, so only Windows can blur behind them. On Windows 11 22H2 and later Firefox turns on Windows' acrylic for them and Zen tints it 50%; lower shows more of the blur. No effect on Windows 10, or when Windows shows an accent colour on title bars with a custom inactive colour, because Firefox turns the acrylic off there.*",
     "defaultValue": "50%",
     "placeholder": "50%",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.overlays.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.overlays.enabled", "value": true}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1823,9 +1986,9 @@
     "label": "Music player fill *The media player at the bottom of the sidebar, whose title row floats over the tabs on hover. Any CSS colour; the default is the Overlay fill above. Which rows the player shows is set in Mediaflow.*",
     "defaultValue": "var(--zzg-ov-fill)",
     "placeholder": "var(--zzg-ov-fill)",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.overlays.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND",
-    "border": "value"
+    "border": "value",
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.overlays.enabled", "value": true}}], "operator": "OR"}],
+    "operator": "AND"
   },
   {
     "type": "checkbox",
@@ -1833,6 +1996,29 @@
     "label": "Glass status pill *The link address shown at the bottom of the page while hovering a link, as a floating pill of overlay glass. Replaces Floating Statusbar. Arc 2.0 also floats it; turn Arc's version off so only one styles it.*",
     "defaultValue": true,
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.overlays.status",
+    "label": "Status pill glass *Behind the link address pill.*",
+    "defaultValue": 1,
+    "options": [
+      {
+        "label": "Off: as Zen draws it",
+        "value": 0
+      },
+      {
+        "label": "Zen's blur",
+        "value": 1
+      },
+      {
+        "label": "Zen's blur, darkened like the sidebar",
+        "value": 2
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.overlays.status-pill", "value": true}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -2630,7 +2816,7 @@
   {
     "type": "checkbox",
     "property": "zzglass.other.arc",
-    "label": "Arc 2.0 *macOS-style buttons, while Glassflow's window buttons are on. Compact sidebar blur and fill, while Glassflow's sidebar styling is on. Greyscale unloaded tabs, while the Unloaded tab state is on. Folder backgrounds and Arc's tab group styling, while Groupflow is on.*",
+    "label": "Arc 2.0 *macOS-style buttons, while Glassflow's window buttons are on. Compact sidebar fill, while Glassflow's sidebar styling is on (its blur is left alone: Glassflow's Zen blur replaces it on the same panel). Greyscale unloaded tabs, while the Unloaded tab state is on. Folder backgrounds and Arc's tab group styling, while Groupflow is on.*",
     "defaultValue": true,
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "others"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"

@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.1.3
+// @version        2.2.0
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==
@@ -511,9 +511,10 @@
             activeUntil = now + CONFIG.ANIM_TAIL_MS;
           }
         }
-        // Keep a small separation between the final tab and what sits above the bar.
+        // Keep a small separation between the final tab and what sits above
+        // the bar, when room is made for it; otherwise it floats over the tabs.
         const above = (pipVisible ? height + CONFIG.GAP : 0) + (captionTop !== null ? captionHeight + CONFIG.GAP : 0);
-        if (above) setReserve(Math.ceil(above + CONFIG.TAB_LIST_GAP));
+        if (above && makeRoom()) setReserve(Math.ceil(above + CONFIG.TAB_LIST_GAP));
         else clearReserve();
       }
     } else {
@@ -648,6 +649,12 @@
   syncClickable();
   safe(() => Services.prefs.addObserver(CLICK_PREF, syncClickable));
   undo.push(() => safe(() => Services.prefs.removeObserver(CLICK_PREF, syncClickable)));
+  // Off (the default), the preview sits in front of the tabs; on, the tab
+  // list ends above it.
+  const ROOM_PREF = "zzmedia.preview.make-room";
+  const makeRoom = () => safe(() => Services.prefs.getBoolPref(ROOM_PREF, false)) ?? false;
+  safe(() => Services.prefs.addObserver(ROOM_PREF, bump));
+  undo.push(() => safe(() => Services.prefs.removeObserver(ROOM_PREF, bump)));
   // In compact mode Zen hides the sidebar once the pointer leaves it, and the
   // preview (growing over the page) sits outside it: pointing at the preview
   // keeps the sidebar open, through Zen's own hover state, and leaving it

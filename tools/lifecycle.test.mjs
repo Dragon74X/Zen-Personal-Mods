@@ -1548,13 +1548,15 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
   const prefs = e.Services.prefs.getBoolPref, realTab = { ...tab, closest: selector => selector === ".tabbrowser-tab" ? realTab : tab.closest(selector) };
   e.Services.prefs.getBoolPref = (k, d) => k === "toolkit.tabbox.switchByScrolling" || prefs(k, d);
   const selected = e.gBrowser.selectedTab;
-  selected.getBoundingClientRect = () => ({ top: 200, height: 40 });
-  assert.equal(wheel(realTab, 3), false, "with switch-tabs-by-scrolling on, the wheel over a tab switches tabs instead");
-  assert.equal(box.scrollTop, 0);
-  selected.getBoundingClientRect = () => ({ top: 0, height: 0 });
-  assert.equal(wheel(realTab, 3), true, "but with the selected tab scrolled out of view");
-  assert.equal(e.gBrowser.selectedTab, realTab, "it picks up at the tab under the pointer");
+  e.gBrowser.tabContainer.contains = () => false;   // this check is about where scrolling starts, not the light
+  e.gNavToolbox.fire("mousemove", { target: realTab, screenX: 5, screenY: 5 });
+  assert.equal(wheel(realTab, 3), true, "with switch-tabs-by-scrolling on, a scroll over a tab the pointer moved onto starts at that tab");
+  assert.equal(e.gBrowser.selectedTab, realTab);
+  assert.equal(box.scrollTop, 0, "and does not scroll the folder");
   e.gBrowser.selectedTab = selected;
+  assert.equal(wheel(realTab, 3), false, "then carries on tab to tab (Firefox switches), not back to the pointer");
+  e.gNavToolbox.fire("mousemove", { target: realTab, screenX: 5, screenY: 5 });
+  assert.equal(wheel(realTab, 3), false, "rows moving under a still pointer do not restart it");
   e.Services.prefs.getBoolPref = prefs;
   // The body takes what the header leaves of the list: 375px, trimmed to rows.
   e.document.querySelectorAll = selector => selector === "zen-workspace arrowscrollbox" ? [list] : [box];

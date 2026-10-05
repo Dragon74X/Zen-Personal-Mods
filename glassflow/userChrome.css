@@ -118,6 +118,10 @@
   :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background {
     backdrop-filter: var(--zzg-acrylic-flat) !important;
   }
+  /* Redraw (glassflow.uc.js): the same look, a different filter, for two frames. */
+  :root[zen-compact-mode="true"] #navigator-toolbox[zzg-redraw] #titlebar #zen-toolbar-background {
+    backdrop-filter: var(--zzg-acrylic-flat) contrast(1.001) !important;
+  }
 }
 /* Sidebar > Darken the sidebar's edges: a shade painted just inside the
    panel, above its blur and below everything on it. */

@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.3.1
+// @version        2.3.2
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==
@@ -312,6 +312,7 @@
     return {
       top,
       baseTop: baseRect.top,
+      bottom: baseRect.bottom,
       left: baseRect.left,
       width: baseRect.width,
     };
@@ -338,6 +339,7 @@
     return { visible: true, opacity: parseFloat(cs.opacity), onScreen };
   }
 
+  let maxRise = 0, riseCards = 0;
   function syncPosition() {
     scheduled = false;
     if (!isStreaming) return;
@@ -391,9 +393,20 @@
       const {
         top: mediaTopRaw,
         baseTop,
+        bottom: mediaBottom,
         left,
         width: playerWidth,
       } = getMediaTopEdge(true);
+      // Pointing at the bar raises its hover rows; if the preview rose with
+      // them, the edge between the two would move under the pointer and
+      // hover would flip back and forth. So the preview keeps clear of the
+      // tallest the bar has stood with the cards it has now, and pointing at
+      // the bar moves nothing. ponytail: learned, not measured (collapsed
+      // rows do not report their open height), so the first hover with a new
+      // set of cards may lift it once; capped against a stray spike.
+      const cards = musicPlayerUI.querySelectorAll(".zen-media-card:not([hidden])").length;
+      if (cards && cards !== riseCards) { riseCards = cards; maxRise = 0; }
+      maxRise = Math.min(Math.max(maxRise, mediaBottom - mediaTopRaw), mediaBottom - baseTop + 160);
       if (playerWidth !== 0) {
         const now = performance.now();
         let mediaTop = mediaTopRaw;
@@ -437,6 +450,7 @@
           lastCommittedMediaTop = mediaTop;
         }
 
+        mediaTop = Math.min(mediaTop, mediaBottom - maxRise);
         let captionHeight = 0;
         let videoBottom = mediaTop - CONFIG.GAP;
         let captionTop = null;

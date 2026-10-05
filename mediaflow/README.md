@@ -49,8 +49,10 @@ anything: its next update turns it into Mediaflow.
   the bar and a small preview to the top of the sidebar.
 - Groupflow refits its folders when the preview takes or gives back room.
 - The preview and its captions hang from their bottom edge and move with the
-  bar frame by frame, instead of easing after it, so they no longer trail or
-  slide under the bar as its hover rows open and close.
+  bar frame by frame, instead of easing after it. They keep clear of the room
+  the bar's hover rows rise into, so pointing at the bar moves nothing and
+  the edge between the two stays put under the pointer. (The first time the
+  rows open with a new set of cards, the preview may rise once.)
 - Zen makes a music card only as a tab starts making sound, and only if the
   page's media controls are ready at that moment, so a video could play in a
   background tab with no bar at all. Mediaflow asks Zen again for a few

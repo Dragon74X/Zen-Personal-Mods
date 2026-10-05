@@ -73,7 +73,7 @@
     url("chrome://browser/content/zen-styles/zen-backdrop-filters.svg#underlay-light"),
     url("chrome://browser/content/zen-styles/zen-backdrop-filters.svg#underlay-dark")));
   --zzg-blur-size: 42px;
-  /* The recipe without the underlay: what the sidebar's own layer uses. */
+  /* The recipe without the underlay: what the sidebar's panel uses. */
   --zzg-acrylic-flat: blur(42px) saturate(110%) brightness(0.25) contrast(100%);
   --zzg-acrylic: var(--zzg-underlay) var(--zzg-acrylic-flat);
   /* The same blur without the panel's darkening, for glass that brings its
@@ -98,19 +98,13 @@
    is on, or Customise Zen's blur is. It also stays on through the slide and
    in a window that is not focused, where Zen drops it.
 
-   The sidebar panel's blur is drawn on a layer of its own beneath it
-   (#titlebar::before, which Zen leaves unused), reaching past the panel by
-   one and a half blur radii and clipped back to the panel's own shape. A
-   blur only samples inside its own box, so on the panel itself the page
-   showed through clearer near every edge; the wider layer has page to
-   sample right up to them. The layer leaves out Zen's underlay: an SVG
-   filter on a clipped layer is redrawn unevenly whenever anything on the
-   panel repaints, so the darkening near its edges flickered on every
-   hover. Over the page there is nothing for an underlay to fill. */
+   The sidebar's panel leaves out Zen's underlay. A wider layer of its own,
+   clipped back to the panel, kept the blur even up to the edges, but any
+   repaint on the panel redrew it unevenly, so its edges flickered whenever
+   the pointer moved over the sidebar; the panel blurring itself does not. */
 :root {
   --zzg-panel-radius: calc(var(--zen-native-inner-radius, 8px) - var(--zen-compact-mode-no-padding-radius-fix, 0px));
   --zzg-panel-corner: var(--zzg-corner);
-  --zzg-blur-pad: calc(var(--zzg-blur-size) * 1.5);
   /* A spring that overshoots a little and settles: Iconflow's curve. */
   --zzg-spring: linear(0.000, 0.000, 0.001, 0.007, 0.023, 0.053, 0.104, 0.181, 0.280, 0.389, 0.501, 0.613, 0.721, 0.820, 0.910, 0.988, 1.053, 1.106, 1.146, 1.174, 1.192, 1.199, 1.198, 1.190, 1.177, 1.159, 1.139, 1.117, 1.094, 1.072, 1.051, 1.031, 1.013, 0.998, 0.986, 0.975, 0.968, 0.963, 0.959, 0.958, 0.958, 0.959, 0.961, 0.964, 0.967, 0.970, 0.974, 0.977, 0.980, 0.983, 0.986, 0.988, 0.990, 0.992, 0.994, 0.996, 0.997, 0.998, 0.999, 0.999, 1.000);
 }
@@ -118,29 +112,11 @@
   :root { --zzg-panel-radius: var(--zzglass-sidebar-blur-radius-corner, 12px); --zzg-panel-corner: var(--zzg-corner-side); }
 }
 @media (-moz-pref("zen.theme.acrylic-elements")) and (not (prefers-reduced-transparency: reduce)), (-moz-pref("zzglass.sidebar.blur")) {
-  :root[zen-compact-mode="true"] .zen-toolbar-background,
-  :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background {
+  :root[zen-compact-mode="true"] .zen-toolbar-background {
     backdrop-filter: var(--zzg-acrylic) !important;
   }
-  /* Settled (not mid-slide, where #titlebar is not the panel's box): the
-     wider layer takes over from the panel's own. */
-  :root[zen-compact-mode="true"] #navigator-toolbox:not([animate="true"]) #titlebar #zen-toolbar-background {
-    backdrop-filter: none !important;
-  }
-  :root[zen-compact-mode="true"] #navigator-toolbox:not([animate="true"]) #titlebar::before {
-    content: "" !important;
-    position: absolute !important;
-    inset: calc(-1 * var(--zzg-blur-pad)) !important;
-    box-sizing: border-box !important;
-    /* Cut back to the panel. clip-path: content-box would follow the
-       border radius by the spec, but Gecko clips it square, so the corners
-       are rounded here. ponytail: a round clip; other corner shapes
-       (squircle, bevel) differ from it by a pixel or so at the corners. */
-    clip-path: inset(var(--zzg-blur-pad) round var(--zzg-panel-radius)) !important;
-    background: transparent !important;
+  :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background {
     backdrop-filter: var(--zzg-acrylic-flat) !important;
-    z-index: -2 !important;
-    pointer-events: none !important;
   }
 }
 /* Sidebar > Darken the sidebar's edges: a shade painted just inside the
@@ -1478,22 +1454,31 @@
 }
 
 /* Sidebar > Workspaces: the switcher at the bottom of the sidebar, in the
-   same glass as the window buttons and tabs. Hover effects move the icon
-   only, never the buttons, so nothing beside them shifts. */
+   same glass as the window buttons and tabs, and moving like them: glass
+   fades in 180ms, icons grow on the spring Essentials use. Hover effects
+   move the icon only, never the buttons, so nothing beside them shifts. */
 @media (-moz-pref("zzglass.workspaces.enabled")) {
   #navigator-toolbox #zen-workspaces-button {
     --zzg-ws-radius: var(--zzg-rbase);
     & toolbarbutton {
       border-radius: calc(var(--zzg-ws-radius) - 3px) !important;
       corner-shape: var(--zzg-corner) !important;
-      transition: filter .2s, opacity .2s, background-color .2s, box-shadow .2s, width .1s !important;
-      &:hover, &[dragged="true"] { background-color: color-mix(in srgb, currentColor 9%, transparent) !important; }
+      transition: background-color 180ms ease-out, box-shadow 180ms ease-out, opacity 180ms ease-out, filter 180ms ease-out, width .1s !important;
+      &::after { transition: opacity 180ms ease-out !important; }
+      /* One motion per icon: Zen shrinks the icons it turns into dots with
+         transform, on a curve of its own, which fought the growth below.
+         Both are scale here, on one spring. */
       & .zen-workspace-icon {
+        transform: none !important;
+        transition: opacity 180ms ease-out, filter 180ms ease-out !important;
         @media (prefers-reduced-motion: no-preference) {
-          transition: scale .45s var(--zzg-spring), opacity .15s, transform .15s, filter .2s !important;
+          transition: scale .45s var(--zzg-spring), opacity 180ms ease-out, filter 180ms ease-out !important;
         }
       }
     }
+    /* Dots (more workspaces than fit) stay bare, as Zen keeps them. */
+    &:not([icons-overflow]) toolbarbutton:is(:hover, [dragged="true"]) { background-color: color-mix(in srgb, currentColor 9%, transparent) !important; }
+    &[icons-overflow] toolbarbutton:not([active="true"], :hover) .zen-workspace-icon { scale: .8; }
   }
   @media (-moz-pref("zzglass.workspaces.capsule", 1)) {
     #navigator-toolbox #zen-workspaces-button {
@@ -1509,7 +1494,7 @@
     #navigator-toolbox #zen-workspaces-button toolbarbutton:hover .zen-workspace-icon { scale: 1.3; }
   }
   @media (-moz-pref("zzglass.workspaces.hover", 2)) {
-    #navigator-toolbox #zen-workspaces-button toolbarbutton:is(:hover + toolbarbutton, :has(+ toolbarbutton:hover)) .zen-workspace-icon { scale: 1.12; }
+    #navigator-toolbox #zen-workspaces-button:not([icons-overflow]) toolbarbutton:is(:hover + toolbarbutton, :has(+ toolbarbutton:hover)) .zen-workspace-icon { scale: 1.12; }
   }
   /* Inactive workspaces: Zen greys and fades them. */
   @media (-moz-pref("zzglass.workspaces.inactive", 1)) {
@@ -1537,6 +1522,10 @@
       border-radius: 50%;
       background: var(--zen-primary-color);
       pointer-events: none;
+      @media (prefers-reduced-motion: no-preference) {
+        transition: scale .45s var(--zzg-spring);
+        @starting-style { scale: 0; }
+      }
     }
   }
   @media (-moz-pref("zzglass.workspaces.active", 3)) {
@@ -1544,18 +1533,20 @@
       filter: drop-shadow(0 0 4px color-mix(in srgb, var(--zen-primary-color) 75%, transparent));
     }
   }
-  /* Steady dots: with more workspaces than fit, Zen shrinks the others to
-     dots and widens the one pointed at, pushing its neighbours along (and
-     shrinks the current one while another is pointed at). Each keeps its
-     width here; the icon shows in place. */
+  /* Zen also shrinks the current workspace to a dot while another is
+     pointed at. Steady dots keeps it, and keeps every dot's width: Zen
+     widens the one pointed at, pushing its neighbours along. */
   @media (-moz-pref("zzglass.workspaces.steady-dots")) {
     #navigator-toolbox #zen-workspaces-button[icons-overflow] {
       & toolbarbutton:not([active="true"]) { min-width: 14px !important; max-width: 14px !important; width: 14px !important; }
       &:has(toolbarbutton:hover) toolbarbutton[active="true"]:not([dragged="true"]) {
         &::after { opacity: 0 !important; }
-        & .zen-workspace-icon { opacity: 1 !important; transform: none !important; }
+        & .zen-workspace-icon { opacity: 1 !important; }
       }
     }
+  }
+  @media not (-moz-pref("zzglass.workspaces.steady-dots")) {
+    #navigator-toolbox #zen-workspaces-button[icons-overflow]:has(toolbarbutton:hover) toolbarbutton[active="true"]:not([dragged="true"], :hover) .zen-workspace-icon { scale: .8; }
   }
 }
 

@@ -263,15 +263,15 @@
     out.ourPrefs = prefs("zz");
     out.otherModPrefs = prefs("arc", "btr", "uc.", "mod.", "superpins", "sine.");
 
-    // Glassflow: the blur layer behind the sidebar and the glass on overlays.
-    const tb = d.getElementById("titlebar"), layer = cs(tb, "::before");
+    // Glassflow: the sidebar panel's blur, its edge shade and the glass on overlays.
+    const tb = d.getElementById("titlebar"), shade = cs(tb, "::after");
     const panel = d.querySelector("#navigator-toolbox .zen-toolbar-background, #zen-toolbar-background");
     const filter = sel => { const e = d.querySelector(sel); return e ? strip(cs(e).backdropFilter) : "absent"; };
     out.glass = {
       animating: d.getElementById("navigator-toolbox")?.getAttribute("animate"),
-      layer: layer && { content: layer.content, filter: strip(layer.backdropFilter), clip: layer.clipPath, inset: [layer.top, layer.right, layer.bottom, layer.left].join(" "), padding: layer.padding, radius: layer.borderRadius },
+      edgeShade: shade && { content: shade.content, shadow: shade.boxShadow, radius: shade.borderRadius },
       titlebarBox: box(tb), panel: panel && { filter: strip(cs(panel).backdropFilter), bg: cs(panel).backgroundColor, box: box(panel) },
-      tokens: Object.fromEntries(["--zzg-acrylic", "--zzg-blur-size", "--zzg-blur-pad", "--zzg-panel-radius", "--arc-compact-sidebar-blur", "--zen-backdrop-underlay"].map(v => [v, cs(d.documentElement).getPropertyValue(v).trim()])),
+      tokens: Object.fromEntries(["--zzg-acrylic", "--zzg-blur-size", "--zzg-panel-radius", "--arc-compact-sidebar-blur", "--zen-backdrop-underlay"].map(v => [v, cs(d.documentElement).getPropertyValue(v).trim()])),
       overlays: { media: filter("#zen-media-controls-toolbar > .zen-media-card"), urlbar: filter("#urlbar[breakout-extend] .urlbar-background"), menu: filter("menupopup"), } };
 
     // The music bar and video preview over 15 seconds: position, size,

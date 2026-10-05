@@ -189,7 +189,9 @@ down and let this own it.
 
 The row of workspace icons at the bottom of the sidebar, in the same glass as
 the tabs and window buttons. Pointing at an icon only ever moves the icon, so
-the buttons beside it stay put. While this is on, Arc 2.0's own workspace
+the buttons beside it stay put. It moves like the rest of Glassflow: the glass
+fades in 180ms, as on tabs, and icons grow on the spring the Essentials use,
+one motion each (Zen's own shrink for dots is replaced, not stacked). While this is on, Arc 2.0's own workspace
 styles are switched off (see [Other mods](#other-mods)).
 
 | Setting | Default | |
@@ -222,16 +224,13 @@ set to `0px`, leaving no blur at all. That value is now put back, and Glassflow'
 blur wins on the panel. **Customise Zen's blur** changes the values. Glassflow's
 panel needs **Panel opacity** below 100% for it to show through.
 
-A blur only samples what is inside its own box, so on the panel itself the
-page showed through clearer near every edge. The sidebar's blur is drawn on a
-layer of its own that reaches one and a half blur radii past the panel and is
-clipped back to the panel's shape and corners, so it is even right up to the
-edges. That layer leaves out Zen's underlay: the underlay is an SVG filter,
-and on a clipped layer it was redrawn unevenly whenever anything on the panel
-repainted, so the darkening near the edges flickered on every hover. Over the
-page it has nothing to fill. **Darken the sidebar's edges** paints that
-darkening instead, so it holds still. While the sidebar slides in or out, the
-panel blurs directly, as Zen does.
+The sidebar's panel blurs without Zen's underlay, an SVG filter that a repaint
+on the panel redrew unevenly. Glassflow used to draw the sidebar's blur on a
+wider layer of its own, so the page did not show through clearer near the
+panel's edges, but every repaint redrew that layer unevenly too, and its edges
+flickered whenever the pointer moved over the sidebar. The panel now blurs
+itself, as Zen's does. **Darken the sidebar's edges** shades the edges, which
+also evens them out.
 
 **Blur the page when the sidebar shows** (off) blurs the whole page while the
 compact sidebar is out (`6px`, `160ms` fade by default), so the sidebar reads as

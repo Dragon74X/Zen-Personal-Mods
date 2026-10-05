@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.0.2
+// @version        2.1.0
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==
@@ -97,11 +97,12 @@
       overflow: hidden;
       contain: strict;
       z-index: 10;
-      pointer-events: none;
+      pointer-events: auto;
       transform-origin: 50% 100%;
       transition: ${LAYOUT_TRANSITION};
       will-change: opacity, transform, top, left, width, height;
     }
+    #zen-sidebar-pip-container[zzmf-clickable] { cursor: pointer; }
     #zen-sidebar-pip-container::after {
       content: "";
       position: absolute;
@@ -448,11 +449,25 @@
             height = maxHeight;
             width = height * videoAspect;
           }
-          const adjustedLeft = left + (playerWidth - width) / 2;
+          let adjustedLeft = left + (playerWidth - width) / 2;
+          // Pointed at, it grows over the page, away from the sidebar, with
+          // its bottom edge where it was. The room it keeps above the bar
+          // stays the resting size.
+          let shownWidth = width, shownHeight = height;
+          const grow = pipHover ? hoverGrowth(width) : 1;
+          if (grow > 1) {
+            shownWidth = width * grow;
+            shownHeight = shownWidth / videoAspect;
+            const room = Math.max(2, videoBottom - 8);
+            if (shownHeight > room) { shownHeight = room; shownWidth = room * videoAspect; }
+            const towardRight = left + playerWidth / 2 < window.innerWidth / 2;
+            adjustedLeft = towardRight ? adjustedLeft : adjustedLeft + width - shownWidth;
+            adjustedLeft = Math.max(4, Math.min(window.innerWidth - shownWidth - 4, adjustedLeft));
+          }
 
           const nextCaptureMaxDimension = Math.max(
             160,
-            Math.ceil(Math.max(width, height)),
+            Math.ceil(Math.max(shownWidth, shownHeight)),
           );
           if (nextCaptureMaxDimension !== captureMaxDimension) {
             captureMaxDimension = nextCaptureMaxDimension;
@@ -460,20 +475,20 @@
             info?.setMaxDimension?.(captureMaxDimension);
           }
 
-          const top = videoBottom - height;
+          const top = videoBottom - shownHeight;
           if (
             top !== lastTop ||
             adjustedLeft !== lastLeft ||
-            width !== lastWidth
+            shownWidth !== lastWidth
           ) {
             const s = pipContainer.style;
-            s.width = width + "px";
-            s.height = height + "px";
+            s.width = shownWidth + "px";
+            s.height = shownHeight + "px";
             s.left = adjustedLeft + "px";
             s.top = top + "px";
             lastTop = top;
             lastLeft = adjustedLeft;
-            lastWidth = width;
+            lastWidth = shownWidth;
             activeUntil = now + CONFIG.ANIM_TAIL_MS;
           }
         }
@@ -598,6 +613,30 @@
     sourceTabActive = false;
     _notifyTickState();
   }
+
+  // Pointing at the preview grows it (Grow on hover); clicking it goes to the
+  // tab the video plays in.
+  let pipHover = false;
+  const HOVER_PREF = "zzmedia.preview.hover-size", CLICK_PREF = "zzmedia.preview.click-to-tab";
+  function hoverGrowth(width) {
+    const v = safe(() => Services.prefs.getStringPref(HOVER_PREF, "2")) ?? "2";
+    if (v === "half") return Math.max(1, window.innerWidth * 0.5 / width);
+    const k = parseFloat(v);
+    return Number.isFinite(k) && k > 1 ? k : 1;
+  }
+  const clickToTab = () => safe(() => Services.prefs.getBoolPref(CLICK_PREF, true)) ?? true;
+  const syncClickable = () => pipContainer.toggleAttribute("zzmf-clickable", clickToTab());
+  syncClickable();
+  safe(() => Services.prefs.addObserver(CLICK_PREF, syncClickable));
+  undo.push(() => safe(() => Services.prefs.removeObserver(CLICK_PREF, syncClickable)));
+  on(pipContainer, "mouseenter", () => { pipHover = true; bump(); });
+  on(pipContainer, "mouseleave", () => { pipHover = false; bump(); });
+  on(pipContainer, "click", event => {
+    if (!clickToTab() || event.button !== 0) return;
+    const browser = safe(() => sourceBC?.top?.embedderElement);
+    const tab = browser && gBrowser.getTabForBrowser(browser);
+    if (tab) gBrowser.selectedTab = tab;
+  });
 
   on(musicPlayerUI, "mouseenter", () => {
     hoverActive = true;

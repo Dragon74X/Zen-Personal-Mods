@@ -1505,7 +1505,7 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
   const header = { getBoundingClientRect: () => ({ top: 76, bottom: 100, height: 24 }) };
   const list = { localName: "arrowscrollbox", scrollbox: port,
     querySelectorAll: selector => selector.includes("> * >") ? [header, box] : [box] };
-  const box = { scrollHeight: 1000, clientHeight: 480, top: 0, closest: () => null,
+  const box = { scrollHeight: 1000, clientHeight: 480, top: 0, closest: () => null, contains: () => false,
     classList: { contains: c => c === "tab-group-container" }, marks: new Set(),
     toggleAttribute(name, on) { if (on) this.marks.add(name); else this.marks.delete(name); },
     hasAttribute(name) { return this.marks.has(name); },
@@ -1516,7 +1516,7 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
     getBoundingClientRect() { const height = parseFloat(this.style["--zzgf-box-fit"]) || 480; return { top: 100, height, bottom: 100 + height }; },
     querySelector: () => rows[0], querySelectorAll: selector => selector.includes("tab-group-container") ? [] : rows };
   const rows = Array.from({ length: 25 }, (_, i) => ({ getBoundingClientRect: () => ({ top: 100 + i * 40 - box.top, height: 40 }) }));
-  const top = { tagName: "tab-group", hasAttribute: () => false, parentElement: { closest: () => null }, querySelector: () => box, contains: () => false };
+  const top = { tagName: "tab-group", hasAttribute: () => false, parentElement: { closest: () => null }, querySelector: () => box, querySelectorAll: () => [], contains: () => false };
   box.parentElement = top;
   const sub = { tagName: "tab-group", hasAttribute: () => false, matches: () => true, parentElement: { closest: () => top } };
   const gutter = { classList: { contains: c => c === "tab-group-container" }, parentElement: sub };
@@ -1531,7 +1531,7 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
   assert.equal(box.scrollTop, 40, "three lines snap to the nearest row");
   assert.equal(box.style["--zzgf-box-scroll"], "40px", "the rail moved in the same frame");
   assert.equal(box.style["--zzgf-box-fit"], "480px", "the box ends on a row");
-  assert.deepEqual([...box.marks].sort(), ["zzgf-glow", "zzgf-list-glow", "zzgf-more-above", "zzgf-more-below"], "rows hidden on both sides are marked, and the line is lit");
+  assert.deepEqual([...box.marks].filter(m => m !== "zzgf-glide").sort(), ["zzgf-glow", "zzgf-list-glow", "zzgf-more-above", "zzgf-more-below"], "rows hidden on both sides are marked, and the line is lit");
   assert.equal(box.style["--zzgf-glow"], 40 / 520 * 480 + "px", "the light sits as far down the line as the body is scrolled");
   assert.equal(wheel(gutter, 1), true); assert.equal(box.scrollTop, 80, "a small notch still moves one row");
   assert.equal(wheel(gutter, -100), true); assert.equal(box.scrollTop, 0, "clamped at the top");
@@ -1557,6 +1557,12 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
   assert.equal(wheel(realTab, 3), false, "then carries on tab to tab (Firefox switches), not back to the pointer");
   e.gNavToolbox.fire("mousemove", { target: realTab, screenX: 5, screenY: 5 });
   assert.equal(wheel(realTab, 3), false, "rows moving under a still pointer do not restart it");
+  const subHeader = { classList: { contains: () => false },
+    closest: selector => selector.includes("tab-group-container") ? gutter : selector === "tab-group, zen-folder" ? sub : null };
+  assert.equal(wheel(subHeader, 3), false, "a subfolder counts as tabs: Firefox switches, the folder does not scroll");
+  let stopped = false;
+  e.gBrowser.tabContainer.fire("DOMMouseScroll", { target: subHeader, stopPropagation() { stopped = true; } });
+  assert.equal(stopped, false, "and Firefox's tab switch is let through there");
   e.Services.prefs.getBoolPref = prefs;
   // The body takes what the header leaves of the list: 375px, trimmed to rows.
   e.document.querySelectorAll = selector => selector === "zen-workspace arrowscrollbox" ? [list] : [box];
@@ -1574,6 +1580,12 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
   assert.equal(e.c.timers.size, 1, "a scroll it did not make is settled on a row");
   box.scrollHeight = 480;
   assert.equal(wheel(gutter), false, "a group that fits leaves the list to scroll");
+  const refit = () => { e.w.fire("TabOpen", { type: "TabOpen" }); for (const [id, fn] of [...e.c.timers]) { e.c.clearTimeout(id); fn(); } run(); };
+  refit();
+  const rest = box.style["--zzgf-glow"];
+  box.getBoundingClientRect = () => ({ top: 300, height: 480, bottom: 780 });   // a folder above it grew
+  refit();
+  assert.equal(box.style["--zzgf-glow"], rest, "a folder that fits goes by its own tabs, so other folders moving it leave its light alone");
   box.scrollHeight = 1000; enabled = false;
   assert.equal(wheel(gutter), false, "the setting turns it off");
 });

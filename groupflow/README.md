@@ -95,7 +95,10 @@ and Zen's own wheel shortcuts (zoom, switching spaces) work as before.
 Top-level folders stay on screen; their contents scroll inside them.
 Scrolling anywhere over a top-level folder's contents (its tabs, subfolders
 and connector lines, or the strip left of the line) slides them inside the
-folder, up or down. The folder's header, the other folders and the loose tabs
+folder, up or down. With Firefox's switch-tabs-by-scrolling on, tabs and
+subfolders (their headers and lines too) switch tabs instead, so rows sliding
+under a still pointer never flip between switching and scrolling; the
+folder's own connector and the strip left of it still scroll it. The folder's header, the other folders and the loose tabs
 stay put. Scrolling over a top-level header or a loose tab scrolls the list,
 which only moves when there is more than fits. Scrolling on past the end of a
 folder's contents carries on into the list, so the wheel never stops dead.
@@ -125,8 +128,10 @@ part with its own setting (all on by default):
   lone tab or a lone subfolder sits at the top. Rows are counted rather than
   measured, so the light stays put while the list scrolls. A subfolder's line
   goes by its own tabs only: the selected tab, else its most recently used
-  loaded tab, else its own top. A folder with no loaded tab rests at its top.
-  Point at or scroll a folder's own connector (or the strip left of it) or
+  loaded tab, else its own top. So does a folder that fits without
+  scrolling: each line answers to its own tabs, never to where it sits in
+  the list, so one folder moving or resizing leaves the others' lights
+  alone. Point at or scroll a scrolling folder's own connector (or the strip left of it) or
   its header arrows, and its line shows where you are in it instead: how far
   it has scrolled. Point at its tabs or subfolders, or select a tab, and it
   goes back to the selected tab. Whatever you did or pointed at last wins,

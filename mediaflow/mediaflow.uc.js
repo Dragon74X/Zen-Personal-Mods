@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.1.1
+// @version        2.1.2
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==
@@ -208,6 +208,7 @@
   let scheduled = false;
   let activeUntil = 0;
   let hoverActive = false;
+  let playerSeen = true;                    // the music bar is on screen (syncPosition)
   let lastElevatedTop = null;
   let lastElevatedAt = 0;
   let lastCommittedMediaTop = null;
@@ -327,14 +328,24 @@
     if (r.width === 0 || r.height === 0) {
       return { visible: false, opacity: 0 };
     }
-    return { visible: true, opacity: parseFloat(cs.opacity) };
+    // Compact mode slides the hidden sidebar off the window, still laid out:
+    // the layout stays, but nothing there can be seen.
+    const onScreen = r.right > 0 && r.left < window.innerWidth && r.bottom > 0 && r.top < window.innerHeight;
+    return { visible: true, opacity: parseFloat(cs.opacity), onScreen };
   }
 
   function syncPosition() {
     scheduled = false;
     if (!isStreaming) return;
 
-    const { visible, opacity } = getMediaPlayerVisibility();
+    const { visible, opacity, onScreen } = getMediaPlayerVisibility();
+    // No frames are copied, and no captions read, while the music bar cannot
+    // be seen (compact mode's hidden sidebar, a collapsed or hidden bar).
+    const seen = visible && opacity > 0.01 && onScreen && !sidebarAway();
+    if (seen !== playerSeen) {
+      playerSeen = seen;
+      _notifyTickState();
+    }
     const pipVisible =
       visible &&
       opacity > 0.01 &&
@@ -437,6 +448,11 @@
         } else {
           captionContainer.style.display = "none";
         }
+
+        // Pointed at, the preview keeps the bottom edge it had: the bar folding
+        // its hover rows away beneath it would otherwise drop it mid-grow.
+        if (pipHover) videoBottom = hoverBottom ??= videoBottom;
+        else hoverBottom = null;
 
         let height = 0;
         if (pipVisible) {
@@ -616,7 +632,7 @@
 
   // Pointing at the preview grows it (Grow on hover); clicking it goes to the
   // tab the video plays in.
-  let pipHover = false;
+  let pipHover = false, hoverBottom = null;
   const HOVER_PREF = "zzmedia.preview.hover-size", CLICK_PREF = "zzmedia.preview.click-to-tab";
   function hoverGrowth(width) {
     const v = safe(() => Services.prefs.getStringPref(HOVER_PREF, "2")) ?? "2";
@@ -691,6 +707,25 @@
     attributeFilter: ["hidden", "style", "class", "open"],
   });
   on(window, "resize", bump);
+  // Compact mode shows the hidden sidebar while one of these is on it (the
+  // same test Glassflow uses); recheck as they change, so copying stops while
+  // the sidebar is away and resumes as it comes back.
+  const SIDEBAR_SHOW_ATTRS = ["zen-has-hover", "zen-user-show", "zen-has-empty-tab",
+    "flash-popup", "has-popup-menu", "movingtab", "zen-compact-mode-active"];
+  function sidebarAway() {
+    const root = document.documentElement, toolbox = document.getElementById("navigator-toolbox");
+    if (root.getAttribute("zen-compact-mode") !== "true" || !toolbox || root.hasAttribute("customizing")) return false;
+    const hides = safe(() => Services.prefs.getBoolPref("zen.view.compact.hide-tabbar", true) ||
+      Services.prefs.getBoolPref("zen.view.use-single-toolbar", false)) ?? true;
+    return hides && root.getAttribute("zen-renaming-tab") !== "true" &&
+      !SIDEBAR_SHOW_ATTRS.some(a => toolbox.hasAttribute(a));
+  }
+  safe(() => {
+    const toolbox = document.getElementById("navigator-toolbox");
+    const showing = watching(new MutationObserver(bump));
+    if (toolbox) showing.observe(toolbox, { attributes: true, attributeFilter: SIDEBAR_SHOW_ATTRS });
+    showing.observe(document.documentElement, { attributes: true, attributeFilter: ["zen-compact-mode", "zen-renaming-tab", "customizing", "inDOMFullscreen"] });
+  });
 
   function updateBrowserActivity() {
     const nextActive =
@@ -877,12 +912,13 @@
 
   function _notifyTickState() {
     const frameProcessingActive =
-      isStreaming && !userHidden && !sourceTabActive && browserWindowActive;
+      isStreaming && playerSeen && !userHidden && !sourceTabActive && browserWindowActive;
     const info = sourceBC ? actorRegistry.get(sourceBC.id) : null;
     if (!info) return;
 
     const captionProcessingActive =
       isStreaming &&
+      playerSeen &&
       captionMode !== "off" &&
       !sourceTabActive &&
       browserWindowActive &&

@@ -72,6 +72,7 @@
   --zzg-underlay: var(--zen-backdrop-underlay, light-dark(
     url("chrome://browser/content/zen-styles/zen-backdrop-filters.svg#underlay-light"),
     url("chrome://browser/content/zen-styles/zen-backdrop-filters.svg#underlay-dark")));
+  --zzg-blur-size: 42px;
   --zzg-acrylic: var(--zzg-underlay) blur(42px) saturate(110%) brightness(0.25) contrast(100%);
   /* The same blur without the panel's darkening, for glass that brings its
      own fill (the overlays). */
@@ -79,6 +80,7 @@
 }
 @media (-moz-pref("zzglass.sidebar.blur")) {
   :root {
+    --zzg-blur-size: var(--zzglass-sidebar-blur-radius, 42px);
     --zzg-acrylic: var(--zzg-underlay) blur(var(--zzglass-sidebar-blur-radius, 42px)) saturate(var(--zzglass-sidebar-blur-saturate, 1.1))
       brightness(var(--zzglass-sidebar-blur-brightness, 0.25)) contrast(var(--zzglass-sidebar-blur-contrast, 1));
     --zzg-acrylic-clear: var(--zzg-underlay) blur(var(--zzglass-sidebar-blur-radius, 42px)) saturate(var(--zzglass-sidebar-blur-saturate, 1.1))
@@ -91,11 +93,46 @@
    from its compact-sidebar blur); this one is a user sheet that loads last
    and outranks Arc's selector, so the blur is there whenever Zen's acrylic
    is on, or Customise Zen's blur is. It also stays on through the slide and
-   in a window that is not focused, where Zen drops it. */
+   in a window that is not focused, where Zen drops it.
+
+   The sidebar panel's blur is drawn on a layer of its own beneath it
+   (#titlebar::before, which Zen leaves unused), reaching past the panel by
+   one and a half blur radii and clipped back to the panel's own shape. A
+   blur only samples inside its own box, so on the panel itself the page
+   showed through clearer near every edge; the wider layer has page to
+   sample right up to them. */
+:root {
+  --zzg-panel-radius: calc(var(--zen-native-inner-radius, 8px) - var(--zen-compact-mode-no-padding-radius-fix, 0px));
+  --zzg-panel-corner: var(--zzg-corner);
+  --zzg-blur-pad: calc(var(--zzg-blur-size) * 1.5);
+}
+@media (-moz-pref("zzglass.sidebar.enabled")) {
+  :root { --zzg-panel-radius: var(--zzglass-sidebar-blur-radius-corner, 12px); --zzg-panel-corner: var(--zzg-corner-side); }
+}
 @media (-moz-pref("zen.theme.acrylic-elements")) and (not (prefers-reduced-transparency: reduce)), (-moz-pref("zzglass.sidebar.blur")) {
   :root[zen-compact-mode="true"] .zen-toolbar-background,
   :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background {
     backdrop-filter: var(--zzg-acrylic) !important;
+  }
+  /* Settled (not mid-slide, where #titlebar is not the panel's box): the
+     wider layer takes over from the panel's own. */
+  :root[zen-compact-mode="true"] #navigator-toolbox:not([animate="true"]) #titlebar #zen-toolbar-background {
+    backdrop-filter: none !important;
+  }
+  :root[zen-compact-mode="true"] #navigator-toolbox:not([animate="true"]) #titlebar::before {
+    content: "" !important;
+    position: absolute !important;
+    inset: calc(-1 * var(--zzg-blur-pad)) !important;
+    box-sizing: border-box !important;
+    /* The content box is the panel; its corners are the panel's. */
+    padding: var(--zzg-blur-pad) !important;
+    border-radius: calc(var(--zzg-panel-radius) + var(--zzg-blur-pad)) !important;
+    corner-shape: var(--zzg-panel-corner) !important;
+    clip-path: content-box !important;
+    background: transparent !important;
+    backdrop-filter: var(--zzg-acrylic) !important;
+    z-index: -2 !important;
+    pointer-events: none !important;
   }
 }
 

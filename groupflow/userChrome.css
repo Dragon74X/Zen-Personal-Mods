@@ -2087,26 +2087,30 @@
    each connector, in that connector's own pixels. */
 /* Where you are, on the connector. While a folder scrolls inside itself
    (zzgf-glow) or the tab list scrolls past it (zzgf-list-glow), the line's
-   gradient along its length moves with you: the line is at full strength
-   with a bright band of its own colour at --zzgf-glow, easing down to a dim
-   floor away from it. Each line, subfolders included, has its own light
+   gradient along its length moves with you: the line is brightest at
+   --zzgf-glow, with a band of its own colour, and darkest at both of its
+   ends (the dim floor), fading smoothly over the whole length between, so a
+   one-row subfolder fades as fully as a long folder. The fade holds its
+   brightness for most of the way (the colour hints) before it falls off. Each line, subfolders included, has its own light
    (groupflow.uc.js), always, scrolling or not. This takes the place of the
    static along-the-line gradient (Soft ends or a fade); the line's own ends,
    their pill shape included, stay. Everything across the line's width
    (colour, rounding, sheen, rim) and its shape stay as set. */
 @media (-moz-pref("zzgroup.scroll-glow")) {
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container:is([zzgf-glow], [zzgf-list-glow], :is([zzgf-glow], [zzgf-list-glow]) .tab-group-container)::before {
-    --zzgf-glow-reach: var(--zzgroup-glow-reach, min(34%, 120px));
     --zzgf-glow-floor: var(--zzgroup-glow-floor, 0.35);
+    /* Halfway points of each fade, placed 65% of the way out from the light. */
+    --zzgf-glow-up: calc(var(--zzgf-glow-at) * 0.35);
+    --zzgf-glow-down: calc(var(--zzgf-glow-at) + (100% - var(--zzgf-glow-at)) * 0.65);
     --zzgf-light: linear-gradient(to bottom,
-      transparent calc(var(--zzgf-glow-at) - var(--zzgf-glow-reach)),
+      transparent 0%, var(--zzgf-glow-up),
       color-mix(in srgb, var(--zzgf-accent) 45%, white) var(--zzgf-glow-at),
-      transparent calc(var(--zzgf-glow-at) + var(--zzgf-glow-reach)));
+      var(--zzgf-glow-down), transparent 100%);
     mask-image: var(--zzgf-shapemask, linear-gradient(#000, #000)),
       linear-gradient(to bottom,
-        rgb(0 0 0 / var(--zzgf-glow-floor)) calc(var(--zzgf-glow-at) - var(--zzgf-glow-reach)),
+        rgb(0 0 0 / var(--zzgf-glow-floor)) 0%, var(--zzgf-glow-up),
         #000 var(--zzgf-glow-at),
-        rgb(0 0 0 / var(--zzgf-glow-floor)) calc(var(--zzgf-glow-at) + var(--zzgf-glow-reach))) !important;
+        var(--zzgf-glow-down), rgb(0 0 0 / var(--zzgf-glow-floor)) 100%) !important;
     mask-composite: intersect !important;
     mask-size: 100% 100% !important;
     mask-repeat: no-repeat !important;

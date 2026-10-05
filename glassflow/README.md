@@ -205,6 +205,13 @@ set to `0px`, leaving no blur at all. That value is now put back, and Glassflow'
 blur wins on the panel. **Customise Zen's blur** changes the values. Glassflow's
 panel needs **Panel opacity** below 100% for it to show through.
 
+A blur only samples what is inside its own box, so on the panel itself the
+page showed through clearer near every edge. The sidebar's blur is drawn on a
+layer of its own that reaches one and a half blur radii past the panel and is
+clipped back to the panel's shape and corners, so it is even right up to the
+edges. While the sidebar slides in or out, the panel blurs directly, as Zen
+does.
+
 **Blur the page when the sidebar shows** (off) blurs the whole page while the
 compact sidebar is out (`6px`, `160ms` fade by default), so the sidebar reads as
 glass over content.
@@ -388,9 +395,10 @@ by default.
 | Row | Switched off | While |
 |---|---|---|
 | Arc 2.0 | macOS-style buttons | Glassflow's window buttons are on |
-| | Compact sidebar fill (its blur is replaced by Zen's, on the same panel) | Sidebar styling is on |
 | | Greyscale unloaded tabs | The Unloaded tab state is on |
 | | Folder backgrounds, Arc tab groups | Groupflow is on |
+| Arc 2.0 blur and transparency (also on *Blur and transparency*) | Compact sidebar fill | Sidebar styling is on |
+| | Custom menu opacity | Overlays are on |
 | Zen's unloaded-tab fade | `browser.tabs.fadeOutUnloadedTabs` | The Unloaded tab state is on |
 | SuperPins | Unloaded dimming and strikethrough | The Unloaded tab state is on |
 | Sidebar Expand on Hover | Fade sleeping tabs | The Unloaded tab state is on |

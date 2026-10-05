@@ -111,7 +111,7 @@ def check(m, root, arc, transparent):
     # The one blur is Zen's own, on Zen's panel, with Glassflow's values; the
     # page itself is never filtered, and Zen Turbo leaves it on during motion.
     filters = m.script("""document.documentElement.setAttribute('animating-background','true');
-      return {sidebar:getComputedStyle(document.getElementById('zen-toolbar-background')).backdropFilter,
+      return {sidebar:getComputedStyle(document.getElementById('titlebar'),'::before').backdropFilter,
               page:getComputedStyle(document.getElementById('tabbrowser-tabbox')).filter};""")
     assert "zen-backdrop-filters.svg#underlay" in filters["sidebar"] and "blur(12px)" in filters["sidebar"] and filters["page"] == "none", filters
     m.script("document.documentElement.removeAttribute('animating-background'); DownloadPrompt.preview(); return true;")

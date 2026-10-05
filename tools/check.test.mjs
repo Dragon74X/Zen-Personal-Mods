@@ -33,3 +33,10 @@ test("health report follows Sine OR, nested AND, negation and unset defaults", a
       ["and-hidden", "not-hidden", "string-hidden", "nested-hidden"]);
   }
 });
+
+test("health report reads no page titles, addresses or file paths", async () => {
+  const source = await readFile(new URL("check.js", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /(?<!pref)\.label\b|\.title\b|currentURI|\.spec\b|documentURI|location/);
+  // Every caught error passes through strip(), which cuts paths to file names.
+  assert.doesNotMatch(source, /\$\{e\}|\+ e[;) ]/);
+});

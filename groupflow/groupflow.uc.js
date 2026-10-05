@@ -992,8 +992,13 @@
     : (vt + vh - top - height) / Math.max(vh - height, 1)));
   const past = (r, v) => r.height > v.height ? through(r.top, r.height, v.top, v.height) * r.height
     : Math.min(r.height, Math.max(0, v.top - r.top));
-  // The folder whose connector is under the pointer (and so is scrolled from it).
+  // Whatever you did last decides a folder's own line: scrolling through its
+  // tabs (selecting one) lights the selected tab; scrolling the folder itself
+  // lights where you are in it, until a tab in it is selected again. Pointing
+  // at its connector shows where you are while the pointer is there.
   let pointed = null;
+  const scrolled = new WeakSet();           // boxes last scrolled by you, not by a tab selection
+  const roams = box => box === pointed || scrolled.has(box);
   let pointFrame = 0, pointEvent = null;
   function pointAt(event) {
     pointEvent = event.type === "mouseleave" ? null : event;
@@ -1024,7 +1029,7 @@
       for (const box of topBoxes(host)) {
         const b = box.getBoundingClientRect(), on = glow && b.height > 0, rails = [];
         if (on) {
-          const own = box.hasAttribute("zzgf-glow"), roam = box === pointed;
+          const own = box.hasAttribute("zzgf-glow"), roam = roams(box);
           const max = box.scrollHeight - box.clientHeight;
           rails.push({ c: box, r: b, v: own ? b : view, roam,
             tab: !roam && s?.height && box.contains(sel) ? s : null,
@@ -1068,6 +1073,7 @@
     const box = arrow.parentElement.parentElement?.querySelector(":scope > .tab-group-container");
     const measured = box && measureBox(box);
     if (!measured) return;
+    scrolled.add(box);
     const from = glides.get(box)?.to ?? box.scrollTop, down = arrow.classList.contains("down");
     const ahead = measured.positions.filter(y => down ? y > from + 0.5 : y < from - 0.5);
     scrollBox(box, ahead.length ? nearest(ahead, from + (down ? 1 : -1) * box.clientHeight) : from, false, measured);
@@ -1132,6 +1138,7 @@
     if (event.deltaY > 0 ? from >= positions.at(-1) - 0.5 : from <= 0.5) return false;
     event.preventDefault();                 // also cancels any tab switch by scrolling
     event.stopPropagation();
+    scrolled.add(box);
     if (event.deltaMode === event.DOM_DELTA_PIXEL) {
       // Touchpads send many small deltas: follow them, then settle on a row.
       scrollBox(box, Math.max(0, Math.min(positions.at(-1), box.scrollTop + event.deltaY)), true);
@@ -1224,7 +1231,12 @@
   const onFitEvent = event => {
     // A selected tab glides into view at once, so switching tabs by scrolling keeps up.
     const box = event.type === "TabSelect" && topBoxes().find(b => b.contains(event.target));
-    if (box && bool("connector-scroll", true)) fitBox(box, false, true);
+    if (box) {
+      // Selecting a tab is the latest thing done here: its line follows the tab.
+      scrolled.delete(box);
+      if (pointed === box) pointed = null;
+      if (bool("connector-scroll", true)) fitBox(box, false, true);
+    }
     lightSoon();
     fitSoon(event.type === "TabSelect");
   };

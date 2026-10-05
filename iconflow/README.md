@@ -40,6 +40,9 @@ Icon sets and hover motion for [Zen Browser](https://zen-browser.app/).
   controls.
 - **Library button** icons, which moved here from Glassflow.
 - **New tab button** options, which replace Better New Tab button.
+- **Icon picker**: 158 coloured icons at the top of the SVG page of Zen's
+  icon picker (spaces, folders, new spaces), in Glass, Tile or Solid and ten
+  colours, with a search; and the icons of sites open in the space.
 
 Settings open on one page at a time through **Show settings for**.
 
@@ -102,6 +105,25 @@ plays when a window opens. The count is a whole number, so a hover that
 interrupts one still playing picks up from the frame shown and never slides
 between two. Open arcs, trails and comet tails taper smoothly to a point. Lines use the toolbar's icon colour. `tools/iconflow-icons.py`
 draws every icon, writes the strips, and writes their rules to `icons.css`.
+
+## Icon picker
+
+Zen's icon picker draws any icon whose address ends in `.svg` as a picture,
+so Iconflow adds its own at the top of the picker's SVG page, above Zen's.
+Above them: Glass, Tile or Solid, ten colour swatches and a search. Each
+picked icon is saved as self-contained picture data, so it stays if Iconflow
+is turned off. Pinned tabs keep Zen's own picker, which would turn these into
+text.
+
+| Setting | Default | |
+|---|---|---|
+| Coloured icons in Zen's icon picker | on | |
+| Style | Glass | Glass (gradient line and body, with a sheen), Tile (white symbol on a coloured plate), Solid (filled, in a gradient) |
+| Colour | Aurora | Aurora, Frost, Silver, Graphite, Sapphire, Aquamarine, Emerald, Amethyst, Ruby, Topaz |
+| Site icons in the picker | on | The icons of sites open in the space, on a glass plate. The picture is saved with the space and stays on your computer |
+
+The style and colour can also be switched in the picker; both places set the
+same settings.
 
 ## Hover motion
 
@@ -174,3 +196,7 @@ Glassflow's **Tab roundness** and Groupflow's **Header roundness**.
 Better New Tab button by themaster5209 suggested the new tab options. They
 are written anew here; none of its code is used. Circuit and the Library
 shapes are drawn for this mod. No New Icons artwork is used.
+
+The icon picker's symbols are [Phosphor Icons](https://phosphoricons.com)
+2.1.1 (duotone and fill), MIT License, Copyright (c) 2023 Phosphor Icons; see
+`icons/phosphor-LICENSE.txt`. The colours and plates are Iconflow's.

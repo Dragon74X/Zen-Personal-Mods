@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.0.1
+// @version        2.0.2
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==
@@ -72,8 +72,6 @@
 
   const MUSIC_PLAYER_SELECTORS =
     "#zen-media-controls-toolbar, .zen-sidebar-bottom-buttons";
-  const TAB_LIST_SELECTORS =
-    "#zen-tabs-wrapper, #tabbrowser-arrowscrollbox, #tabbrowser-tabs";
   const PIP_BUTTON_SELECTORS = [
     '[id*="pictureinpicture" i]',
     '[class*="pictureinpicture" i]',
@@ -155,13 +153,8 @@
       opacity: var(--zzmf-caption-opacity, 1);
       transform: translateY(0) scale(1);
     }
-    [zzmf-tab-list-sized="true"] {
-      box-sizing: border-box !important;
-      min-height: 0 !important;
-      height: var(--zzmf-tab-list-height) !important;
-      max-height: var(--zzmf-tab-list-height) !important;
-      flex: 0 1 var(--zzmf-tab-list-height) !important;
-      padding-bottom: 0 !important;
+    [zzmf-reserve="true"] {
+      margin-top: var(--zzmf-reserve) !important;
     }
     .zen-sidebar-pip-toggle {
       flex: 0 0 auto;
@@ -262,35 +255,32 @@
     }
   }
 
-  let lastTabListHeight = -1;
-  let sizedTabList = null;
-  function getTabListTarget() {
-    if (sizedTabList?.isConnected) return sizedTabList;
-    return document.querySelector(TAB_LIST_SELECTORS);
+  // Room for the preview is made above the music bar, as a top margin, so
+  // the tab list gives it up wherever the bar sits. Sizing the tab list
+  // instead looped wherever the bar follows the list (Zen 1.23 puts a spring
+  // after it): the list shrank, the bar rose with it, the preview rose and
+  // the list shrank again, until no tab was left.
+  let lastReserve = -1;
+  function clearReserve() {
+    musicPlayerUI.removeAttribute("zzmf-reserve");
+    musicPlayerUI.style.removeProperty("--zzmf-reserve");
+    lastReserve = -1;
   }
-  function clearTabListHeight() {
-    if (sizedTabList?.isConnected) {
-      sizedTabList.removeAttribute("zzmf-tab-list-sized");
-      sizedTabList.style.removeProperty("--zzmf-tab-list-height");
-    }
-    sizedTabList = null;
-    lastTabListHeight = -1;
+  function setReserve(px) {
+    if (px === lastReserve) return;
+    musicPlayerUI.setAttribute("zzmf-reserve", "true");
+    musicPlayerUI.style.setProperty("--zzmf-reserve", px + "px");
+    lastReserve = px;
+    // The bar moves by our own hand: follow it at once, not after the hold
+    // that rides out YouTube's control flicker.
+    lastCommittedMediaTop = null;
+    pendingDownAt = 0;
+    bump();
   }
-  function setTabListHeight(px) {
-    const target = px >= 0 ? getTabListTarget() : null;
-    if (px === lastTabListHeight && target === sizedTabList) return;
-
-    if (target !== sizedTabList) clearTabListHeight();
-    if (target) {
-      // Clean up the attribute and property used by versions that reserved
-      // space with bottom padding instead of changing the list height.
-      target.removeAttribute("zzmf-tab-padding");
-      target.style.removeProperty("--zzmf-tab-list-padding");
-      target.setAttribute("zzmf-tab-list-sized", "true");
-      target.style.setProperty("--zzmf-tab-list-height", px + "px");
-      sizedTabList = target;
-      lastTabListHeight = px;
-    }
+  // A live update from a version that sized the tab list.
+  for (const el of document.querySelectorAll("[zzmf-tab-list-sized]")) {
+    el.removeAttribute("zzmf-tab-list-sized");
+    el.style.removeProperty("--zzmf-tab-list-height");
   }
 
   function getMediaTopEdge(walkDescendants) {
@@ -447,17 +437,15 @@
           captionContainer.style.display = "none";
         }
 
-        let occupiedTop = captionTop;
+        let height = 0;
         if (pipVisible) {
-          const availableHeight = Math.max(2, videoBottom);
+          // The bar's width, at the video's shape: never taller than wide,
+          // nor than half the window.
           let width = playerWidth;
-          let height = width / videoAspect;
-          const effectiveMaxHeight = Math.max(
-            2,
-            Math.min(playerWidth, availableHeight),
-          );
-          if (height > effectiveMaxHeight) {
-            height = effectiveMaxHeight;
+          height = width / videoAspect;
+          const maxHeight = Math.max(2, Math.min(playerWidth, window.innerHeight * 0.5));
+          if (height > maxHeight) {
+            height = maxHeight;
             width = height * videoAspect;
           }
           const adjustedLeft = left + (playerWidth - width) / 2;
@@ -473,7 +461,6 @@
           }
 
           const top = videoBottom - height;
-          occupiedTop = top;
           if (
             top !== lastTop ||
             adjustedLeft !== lastLeft ||
@@ -490,22 +477,14 @@
             activeUntil = now + CONFIG.ANIM_TAIL_MS;
           }
         }
-        const tabList = getTabListTarget();
-        if (tabList && occupiedTop !== null) {
-          const tabListTop = tabList.getBoundingClientRect().top;
-          // Keep a small separation between the final tab and the fixed PiP.
-          const availableTabListHeight = Math.max(
-            0,
-            Math.floor(occupiedTop - CONFIG.TAB_LIST_GAP - tabListTop),
-          );
-          setTabListHeight(availableTabListHeight);
-        } else if (!pipVisible) {
-          clearTabListHeight();
-        }
+        // Keep a small separation between the final tab and what sits above the bar.
+        const above = (pipVisible ? height + CONFIG.GAP : 0) + (captionTop !== null ? captionHeight + CONFIG.GAP : 0);
+        if (above) setReserve(Math.ceil(above + CONFIG.TAB_LIST_GAP));
+        else clearReserve();
       }
     } else {
       captionContainer.style.display = "none";
-      clearTabListHeight();
+      clearReserve();
     }
 
     if (performance.now() < activeUntil) schedule();
@@ -615,7 +594,7 @@
     // restart instead of re-seeding mid-glitch. (pendingDownAt is reset — a
     // fresh timer per stream is fine and self-heals on the next up-frame.)
     pendingDownAt = 0;
-    clearTabListHeight();
+    clearReserve();
     sourceTabActive = false;
     _notifyTickState();
   }
@@ -659,7 +638,7 @@
     if (!browserWindowActive) {
       pipContainer.style.visibility = "hidden";
       captionContainer.style.visibility = "hidden";
-      clearTabListHeight();
+      clearReserve();
     }
     if (isStreaming) bump();
     _notifyTickState();
@@ -737,7 +716,7 @@
       e.stopPropagation();
       userHidden = !userHidden;
       syncToggleIcons();
-      if (userHidden) clearTabListHeight();
+      if (userHidden) clearReserve();
       bump();
       _notifyTickState();
     });
@@ -924,7 +903,7 @@
     setSourceTabActive(active) {
       if (sourceTabActive === active) return;
       sourceTabActive = active;
-      if (sourceTabActive) clearTabListHeight();
+      if (sourceTabActive) clearReserve();
       if (isStreaming) bump();
       _notifyTickState();
     },
@@ -1239,7 +1218,7 @@
     for (const t of [animateOutTimer, captionHideTimer, captionExitTimer]) clearTimeout(t);
     isStreaming = false;
     activeUntil = 0;
-    safe(clearTabListHeight);
+    safe(clearReserve);
     for (const [nativeButton, toggle] of togglesByNativeButton) {
       toggle.remove();
       nativeButton.removeAttribute("zzmf-parked");

@@ -183,6 +183,7 @@ down and let this own it.
 | Panel accent tint / corner radius | `10%` / `12px` | |
 | Customise Zen's blur | off | Off keeps Zen's acrylic exactly as Zen sets it. On sets the four values below, see [Zen's blur](#zens-blur). Shown whether or not sidebar styling is on |
 | Blur strength / brightness / saturation / contrast | `42px` / `0.25` / `1.1` / `1` | Zen's own values |
+| Darken the sidebar's edges | Soft | Off, Soft, Medium or Strong: a shade painted just inside the compact sidebar's edges |
 
 ### Library button
 
@@ -209,8 +210,12 @@ A blur only samples what is inside its own box, so on the panel itself the
 page showed through clearer near every edge. The sidebar's blur is drawn on a
 layer of its own that reaches one and a half blur radii past the panel and is
 clipped back to the panel's shape and corners, so it is even right up to the
-edges. While the sidebar slides in or out, the panel blurs directly, as Zen
-does.
+edges. That layer leaves out Zen's underlay: the underlay is an SVG filter,
+and on a clipped layer it was redrawn unevenly whenever anything on the panel
+repainted, so the darkening near the edges flickered on every hover. Over the
+page it has nothing to fill. **Darken the sidebar's edges** paints that
+darkening instead, so it holds still. While the sidebar slides in or out, the
+panel blurs directly, as Zen does.
 
 **Blur the page when the sidebar shows** (off) blurs the whole page while the
 compact sidebar is out (`6px`, `160ms` fade by default), so the sidebar reads as

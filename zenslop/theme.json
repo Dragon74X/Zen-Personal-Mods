@@ -3,8 +3,8 @@
   "name": "Mediaflow",
   "description": "A live preview of the playing video above Zen's music bar, plus options for the music bar itself. Formerly Zenslop (a fork of Firebolt9907/Zenslop, MIT) and Better Music Bar.",
   "author": "Dragon74X (video preview forked from Rishu Sharma's Zenslop)",
-  "version": "2.1.3",
-  "updatedAt": "2026-10-05T06:33:30Z",
+  "version": "2.2.0",
+  "updatedAt": "2026-10-05T06:47:38Z",
   "homepage": "https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/mediaflow",
   "readme": "https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/main/mediaflow/README.md",
   "style": {

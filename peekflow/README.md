@@ -16,6 +16,10 @@ tabs as you last left them.
 Unloaded tabs also get a line under the site: "Unloaded · seen 5 minutes ago",
 or "last used" when there is no picture of them yet.
 
+The current tab previews too. Firefox shows it without a picture, as you are
+already looking at it; Peekflow takes one as you point at it (shown, not kept)
+and the line reads "Current tab".
+
 ## Privacy
 
 A tab is photographed once when its first load finishes, and again when you

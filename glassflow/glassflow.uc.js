@@ -205,7 +205,6 @@
   const OTHER_MODS = {
     arc: [
       ["arc-macos-style-buttons", false, "zzglass.buttons.enabled"],
-      ["arc-compact-sidebar-blur", "0px", "zzglass.sidebar.enabled"],
       ["arc-compact-sidebar-bg", "transparent", "zzglass.sidebar.enabled"],
       ["arc-grayscale-unloaded-tabs", false, "zzglass.pending.enabled"],
       ["arc-folder-bg", false, "zzgroup.enabled"],
@@ -253,6 +252,14 @@
           }
         } catch (e) { console.warn("[Glassflow] other mods:", name, e); }
       }
+    }
+    // A setting no longer on any row (Arc's compact-sidebar blur, which this
+    // used to zero) goes back to what it was, unless changed by hand since.
+    const listed = new Set(Object.values(OTHER_MODS).flat().map(([name]) => name));
+    for (const [name, was] of Object.entries(saved)) {
+      if (listed.has(name)) continue;
+      try { if (get(name) === was.applied) was.had ? set(name, was.v) : S.clearUserPref(name); } catch {}
+      delete saved[name];
     }
     try { S.setStringPref(OTHER_SAVED, JSON.stringify(saved)); } catch {}
   }

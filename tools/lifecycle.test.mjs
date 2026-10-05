@@ -1735,6 +1735,17 @@ test("Other mods: settings that double up are switched off, then restored; hand 
   assert.deepEqual({ ...JSON.parse(now("zzglass-saved.other-mods")) }, {});
 });
 
+test("Other mods: a setting no longer on any row goes back to what it was", async () => {
+  const saved = { "arc-compact-sidebar-blur": { had: true, v: "25px", applied: "0px" } };
+  const prefs = prefStore({ "zzglass.sidebar.enabled": true, "arc-compact-sidebar-blur": "0px",
+    "zzglass-saved.other-mods": JSON.stringify(saved) });
+  const w = browser();
+  const h = await load("glassflow", "syncOtherMods", { window: w, document: w.document, Services: { prefs, wm: { getMostRecentWindow: () => w } } });
+  h.syncOtherMods();
+  assert.equal(prefs.user.get("arc-compact-sidebar-blur"), "25px", "Arc gets its blur back: Glassflow's Zen blur outranks it now");
+  assert.deepEqual({ ...JSON.parse(prefs.user.get("zzglass-saved.other-mods")) }, {});
+});
+
 test("Disabling Glassflow or Tab Unloader in Sine hands other mods their settings back", async () => {
   const prefs = prefStore({ "zzglass.buttons.enabled": true, "arc-macos-style-buttons": true,
     "zzunload.enabled": true, "arc-tab-auto-unload": "30m" });

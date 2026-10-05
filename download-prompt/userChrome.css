@@ -53,8 +53,9 @@
   background-color: transparent;
   background-image: var(--zzg-sheen, none),
                     linear-gradient(to bottom, var(--zzdl-a) 0%, var(--zzdl-base) 100%);
-  /* Zen's own blur, as Glassflow sets it (Customise Zen's blur). */
-  backdrop-filter: var(--zzg-acrylic, blur(42px) saturate(110%) brightness(0.25) contrast(100%));
+  /* Zen's own blur. Glassflow > Overlays > Download question chooses how,
+     or off; on its own this mod uses Zen's blur without the darkening. */
+  backdrop-filter: var(--zzg-ov-dialog, var(--zen-backdrop-underlay, ) blur(42px) saturate(110%) contrast(100%));
   box-shadow:
     0 1px 0 var(--zzg-rim-top, rgb(255 255 255 / 0.35)) inset,
     0 18px 56px rgb(0 0 0 / 0.42);

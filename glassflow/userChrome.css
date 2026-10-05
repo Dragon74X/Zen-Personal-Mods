@@ -66,18 +66,37 @@
   /* The one blur every glass in these mods uses: Zen's own acrylic, the
      filter Zen puts on the compact panel. Elements on the panel need none
      of their own, since their see-through fills already show it. Sidebar >
-     Customise Zen's blur changes it here and on Zen's panel together. */
-  --zzg-acrylic: blur(42px) saturate(110%) brightness(0.25) contrast(100%);
+     Customise Zen's blur changes it here and on Zen's panel together.
+     The underlay is Zen's too (its urlbar's): the page is laid on black or
+     white first, so a translucent page still blurs rather than vanishing. */
+  --zzg-underlay: var(--zen-backdrop-underlay, light-dark(
+    url("chrome://browser/content/zen-styles/zen-backdrop-filters.svg#underlay-light"),
+    url("chrome://browser/content/zen-styles/zen-backdrop-filters.svg#underlay-dark")));
+  --zzg-acrylic: var(--zzg-underlay) blur(42px) saturate(110%) brightness(0.25) contrast(100%);
+  /* The same blur without the panel's darkening, for glass that brings its
+     own fill (the overlays). */
+  --zzg-acrylic-clear: var(--zzg-underlay) blur(42px) saturate(110%) contrast(100%);
 }
 @media (-moz-pref("zzglass.sidebar.blur")) {
   :root {
-    --zzg-acrylic: blur(var(--zzglass-sidebar-blur-radius, 42px)) saturate(var(--zzglass-sidebar-blur-saturate, 1.1))
+    --zzg-acrylic: var(--zzg-underlay) blur(var(--zzglass-sidebar-blur-radius, 42px)) saturate(var(--zzglass-sidebar-blur-saturate, 1.1))
       brightness(var(--zzglass-sidebar-blur-brightness, 0.25)) contrast(var(--zzglass-sidebar-blur-contrast, 1));
+    --zzg-acrylic-clear: var(--zzg-underlay) blur(var(--zzglass-sidebar-blur-radius, 42px)) saturate(var(--zzglass-sidebar-blur-saturate, 1.1))
+      contrast(var(--zzglass-sidebar-blur-contrast, 1));
   }
-  /* Zen's own panels (the compact sidebar and the floating toolbar), on
-     the same element and property, so it replaces Zen's filter rather
-     than adding a second one. */
-  .zen-toolbar-background { backdrop-filter: var(--zzg-acrylic) !important; }
+}
+/* Zen's own panels (the compact sidebar and the floating toolbar) get the
+   blur from here, on the same element and property as Zen's, so it stays
+   one blur. Zen's rule loses to any mod that sets its own (Arc 2.0 does,
+   from its compact-sidebar blur); this one is a user sheet that loads last
+   and outranks Arc's selector, so the blur is there whenever Zen's acrylic
+   is on, or Customise Zen's blur is. It also stays on through the slide and
+   in a window that is not focused, where Zen drops it. */
+@media (-moz-pref("zen.theme.acrylic-elements")) and (not (prefers-reduced-transparency: reduce)), (-moz-pref("zzglass.sidebar.blur")) {
+  :root[zen-compact-mode="true"] .zen-toolbar-background,
+  :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background {
+    backdrop-filter: var(--zzg-acrylic) !important;
+  }
 }
 
 :root {
@@ -1276,14 +1295,36 @@
    acrylic (Firefox's -moz-windows-mica-popups) and only its tint is
    set here. Zen already blurs the floating urlbar, the compact
    sidebar and notification bars. The share overlay is skipped: the
-   page under it is hidden, leaving nothing to blur. Each blurs with
-   Zen's acrylic (--zzg-acrylic), so one setting changes them all.
+   page under it is hidden, leaving nothing to blur.
+
+   Each surface has its own setting: Off leaves it as Zen draws it; on, it
+   blurs with Zen's blur (--zzg-acrylic-clear), or darkened like Zen's
+   panel (--zzg-acrylic). Both follow Sidebar > Customise Zen's blur.
    ============================================================ */
 :root {
   --zzg-ov-fill: light-dark(rgb(255 255 255 / var(--zzglass-overlays-opacity, 55%)),
                             rgb(24 24 24 / var(--zzglass-overlays-opacity, 55%)));
+  --zzg-ov-downloads: var(--zzg-acrylic-clear);
+  --zzg-ov-toasts: var(--zzg-acrylic-clear);
+  --zzg-ov-glance: var(--zzg-acrylic-clear);
+  --zzg-ov-preview: var(--zzg-acrylic-clear);
+  --zzg-ov-music: var(--zzg-acrylic-clear);
+  --zzg-ov-status: var(--zzg-acrylic-clear);
 }
+@media (-moz-pref("zzglass.overlays.downloads", 2)) { :root { --zzg-ov-downloads: var(--zzg-acrylic); } }
+@media (-moz-pref("zzglass.overlays.toasts", 2)) { :root { --zzg-ov-toasts: var(--zzg-acrylic); } }
+@media (-moz-pref("zzglass.overlays.glance", 2)) { :root { --zzg-ov-glance: var(--zzg-acrylic); } }
+@media (-moz-pref("zzglass.overlays.media-preview", 2)) { :root { --zzg-ov-preview: var(--zzg-acrylic); } }
+@media (-moz-pref("zzglass.overlays.music", 2)) { :root { --zzg-ov-music: var(--zzg-acrylic); } }
+@media (-moz-pref("zzglass.overlays.status", 2)) { :root { --zzg-ov-status: var(--zzg-acrylic); } }
+@media (-moz-pref("zzglass.overlays.status", 0)) { :root { --zzg-ov-status: none; } }
+/* Download Prompt's question reads this; it is not Glassflow's to draw. */
 @media (-moz-pref("zzglass.overlays.enabled")) {
+  :root { --zzg-ov-dialog: var(--zzg-acrylic-clear); }
+  @media (-moz-pref("zzglass.overlays.dialog", 2)) { :root { --zzg-ov-dialog: var(--zzg-acrylic); } }
+  @media (-moz-pref("zzglass.overlays.dialog", 0)) { :root { --zzg-ov-dialog: none; } }
+}
+@media (-moz-pref("zzglass.overlays.enabled")) and (not (-moz-pref("zzglass.overlays.downloads", 0))) {
   /* Library download stack. Zen masks the tab list out under it; keep
      the tabs so the glass has them to blur. */
   #TabsToolbar-customization-target:is([zen-library-stack-open], [zen-library-stack-closing]) {
@@ -1291,25 +1332,33 @@
   }
   #zen-library-download-list .zen-library-download-list-download {
     background: var(--zzg-ov-fill) !important;
-    backdrop-filter: var(--zzg-acrylic) !important;
+    backdrop-filter: var(--zzg-ov-downloads) !important;
     &:hover { background: color-mix(in srgb, currentColor 10%, var(--zzg-ov-fill)) !important; }
   }
+}
+@media (-moz-pref("zzglass.overlays.enabled")) and (not (-moz-pref("zzglass.overlays.toasts", 0))) {
   #zen-toast-container .zen-toast {
     background: linear-gradient(to bottom,
       color-mix(in srgb, var(--zen-primary-color) var(--zzglass-overlays-opacity, 55%), transparent) -40%,
       color-mix(in srgb, color-mix(in srgb, var(--zen-primary-color), #0f0f0f 20%) var(--zzglass-overlays-opacity, 55%), transparent)) !important;
-    backdrop-filter: var(--zzg-acrylic) !important;
+    backdrop-filter: var(--zzg-ov-toasts) !important;
   }
+}
+@media (-moz-pref("zzglass.overlays.enabled")) and (not (-moz-pref("zzglass.overlays.glance", 0))) {
   .zen-glance-sidebar-container toolbarbutton {
     background: color-mix(in srgb, color-mix(in srgb, light-dark(rgb(24, 24, 24), rgb(231, 231, 231)) 96%, var(--zen-primary-color))
       var(--zzglass-overlays-opacity, 55%), transparent) !important;
-    backdrop-filter: var(--zzg-acrylic) !important;
+    backdrop-filter: var(--zzg-ov-glance) !important;
     &:hover { background: color-mix(in srgb, light-dark(rgb(41, 41, 41), rgb(204, 204, 204)) var(--zzglass-overlays-opacity, 55%), transparent) !important; }
   }
+}
+@media (-moz-pref("zzglass.overlays.enabled")) and (not (-moz-pref("zzglass.overlays.media-preview", 0))) {
   /* Zen dims the window behind the preview; blur it as well. */
   .zen-library-media-preview-backdrop {
-    backdrop-filter: var(--zzg-acrylic) !important;
+    backdrop-filter: var(--zzg-ov-preview) !important;
   }
+}
+@media (-moz-pref("zzglass.overlays.enabled")) {
   @media (-moz-windows-mica-popups) {
     menupopup, panel[type="arrow"]:not(#feature-callout) {
       --panel-background-color: light-dark(rgb(255 255 255 / var(--zzglass-popups-opacity, 50%)),
@@ -1321,10 +1370,10 @@
 /* The music player card floats its title row over the tabs on hover. Its
    colour is set on Zen's own variable so the fade at the title's edge
    matches. Setting: Overlays > Music player fill. */
-@media (-moz-pref("zzglass.overlays.enabled")) {
+@media (-moz-pref("zzglass.overlays.enabled")) and (not (-moz-pref("zzglass.overlays.music", 0))) {
   #zen-media-controls-toolbar > .zen-media-card {
     --zen-sidebar-notification-bg: var(--zzglass-overlays-media-color, var(--zzg-ov-fill)) !important;
-    backdrop-filter: var(--zzg-acrylic) !important;
+    backdrop-filter: var(--zzg-ov-music) !important;
   }
 }
 
@@ -1383,7 +1432,7 @@
     padding: 6px 12px !important;
     border: none !important;
     background: var(--zzg-ov-fill) !important;
-    backdrop-filter: var(--zzg-acrylic) !important;
+    backdrop-filter: var(--zzg-ov-status) !important;
   }
 }
 

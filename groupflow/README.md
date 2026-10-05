@@ -121,9 +121,10 @@ part with its own setting (all on by default):
   carries its own light: full strength, with a bright band of its own
   colour, there, easing to a dim floor away from it. By default (**Light
   follows: The selected tab**) lines holding the selected tab light at its
-  row, so switching tabs moves the light. Point at or scroll a folder's
-  connector and its line shows where you are in it instead: how far it has
-  scrolled. A subfolder's line goes by its own tabs only, never by where it
+  row, so switching tabs moves the light. Scroll a folder itself (its
+  connector or its arrows) and its line shows where you are in it instead,
+  how far it has scrolled, until you select a tab in it again; pointing at
+  its connector shows that too. Whatever you did last wins. A subfolder's line goes by its own tabs only, never by where it
   sits in its folder: the selected tab, else its most recently used loaded
   tab, else its own top. A folder with no loaded tab rests at its top. The
   light glides between positions. **Where you are** shows where you are on

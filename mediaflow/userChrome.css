@@ -22,6 +22,14 @@
   #zen-media-controls-toolbar .zen-media-card .zen-media-progress-hbox { padding-top: 0 !important; }
 }
 
+/* Zen pads the title and progress rows by 5px while the player is hovered.
+   With the rows already showing (Arc 2.0), that padding is all the player
+   grows by, and the growth moves the preview and resizes the glass behind
+   the card every frame. */
+@media (-moz-pref("zzmedia.bar.still-on-hover")) and (not (-moz-pref("zzmedia.bar.always-expanded"))) {
+  #zen-media-controls-toolbar .zen-media-card .show-on-hover { padding-block: 0 !important; }
+}
+
 @media (-moz-pref("zzmedia.bar.hide-info")) {
   #zen-media-controls-toolbar .zen-media-info-container { display: none !important; }
 }

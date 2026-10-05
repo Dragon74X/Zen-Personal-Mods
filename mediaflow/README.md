@@ -70,6 +70,7 @@ anything: its next update turns it into Mediaflow.
 | | Click the preview to go to its tab (switching workspace if it is in another) | on |
 | | Make room above the preview (off: it sits in front of the tabs; on: the tab list ends above it) | off |
 | Music bar | Always show title and progress | off |
+| | Keep the player's size when pointed at (no extra space around the title and progress rows on hover) | on |
 | | Hide the title row (also hides picture-in-picture and close) | off |
 | | Hide the progress bar | off |
 | | Hide the playback buttons | off |

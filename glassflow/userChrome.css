@@ -111,6 +111,8 @@
   --zzg-panel-radius: calc(var(--zen-native-inner-radius, 8px) - var(--zen-compact-mode-no-padding-radius-fix, 0px));
   --zzg-panel-corner: var(--zzg-corner);
   --zzg-blur-pad: calc(var(--zzg-blur-size) * 1.5);
+  /* A spring that overshoots a little and settles: Iconflow's curve. */
+  --zzg-spring: linear(0.000, 0.000, 0.001, 0.007, 0.023, 0.053, 0.104, 0.181, 0.280, 0.389, 0.501, 0.613, 0.721, 0.820, 0.910, 0.988, 1.053, 1.106, 1.146, 1.174, 1.192, 1.199, 1.198, 1.190, 1.177, 1.159, 1.139, 1.117, 1.094, 1.072, 1.051, 1.031, 1.013, 0.998, 0.986, 0.975, 0.968, 0.963, 0.959, 0.958, 0.958, 0.959, 0.961, 0.964, 0.967, 0.970, 0.974, 0.977, 0.980, 0.983, 0.986, 0.988, 0.990, 0.992, 0.994, 0.996, 0.997, 0.998, 0.999, 0.999, 1.000);
 }
 @media (-moz-pref("zzglass.sidebar.enabled")) {
   :root { --zzg-panel-radius: var(--zzglass-sidebar-blur-radius-corner, 12px); --zzg-panel-corner: var(--zzg-corner-side); }
@@ -1466,7 +1468,6 @@
 :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[zen-essential="true"] .tab-icon-image {
   /* Firefox sets transition: none on loaded tab icons, which a user sheet
      overrides only with !important; unloaded ones keep its 1s fade. */
-  --zzg-spring: linear(0.000, 0.000, 0.001, 0.007, 0.023, 0.053, 0.104, 0.181, 0.280, 0.389, 0.501, 0.613, 0.721, 0.820, 0.910, 0.988, 1.053, 1.106, 1.146, 1.174, 1.192, 1.199, 1.198, 1.190, 1.177, 1.159, 1.139, 1.117, 1.094, 1.072, 1.051, 1.031, 1.013, 0.998, 0.986, 0.975, 0.968, 0.963, 0.959, 0.958, 0.958, 0.959, 0.961, 0.964, 0.967, 0.970, 0.974, 0.977, 0.980, 0.983, 0.986, 0.988, 0.990, 0.992, 0.994, 0.996, 0.997, 0.998, 0.999, 0.999, 1.000);
   @media (prefers-reduced-motion: no-preference) {
     transition: scale .45s var(--zzg-spring) !important;
     &[pending] { transition: scale .45s var(--zzg-spring), filter 1s, opacity 1s !important; }
@@ -1474,6 +1475,88 @@
 }
 :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[zen-essential="true"]:hover .tab-icon-image {
   scale: var(--zzg-ess-grow, 1);
+}
+
+/* Sidebar > Workspaces: the switcher at the bottom of the sidebar, in the
+   same glass as the window buttons and tabs. Hover effects move the icon
+   only, never the buttons, so nothing beside them shifts. */
+@media (-moz-pref("zzglass.workspaces.enabled")) {
+  #navigator-toolbox #zen-workspaces-button {
+    --zzg-ws-radius: var(--zzg-rbase);
+    & toolbarbutton {
+      border-radius: calc(var(--zzg-ws-radius) - 3px) !important;
+      corner-shape: var(--zzg-corner) !important;
+      transition: filter .2s, opacity .2s, background-color .2s, box-shadow .2s, width .1s !important;
+      &:hover, &[dragged="true"] { background-color: color-mix(in srgb, currentColor 9%, transparent) !important; }
+      & .zen-workspace-icon {
+        @media (prefers-reduced-motion: no-preference) {
+          transition: scale .45s var(--zzg-spring), opacity .15s, transform .15s, filter .2s !important;
+        }
+      }
+    }
+  }
+  @media (-moz-pref("zzglass.workspaces.capsule", 1)) {
+    #navigator-toolbox #zen-workspaces-button {
+      padding: 3px !important;
+      border-radius: var(--zzg-ws-radius) !important;
+      corner-shape: var(--zzg-corner) !important;
+      background: var(--zzg-sheen), color-mix(in srgb, currentColor 6%, transparent) !important;
+      box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important;
+    }
+  }
+  /* Hover: the icon grows in place, or (Dock) its neighbours a little too. */
+  @media (-moz-pref("zzglass.workspaces.hover", 1)), (-moz-pref("zzglass.workspaces.hover", 2)) {
+    #navigator-toolbox #zen-workspaces-button toolbarbutton:hover .zen-workspace-icon { scale: 1.3; }
+  }
+  @media (-moz-pref("zzglass.workspaces.hover", 2)) {
+    #navigator-toolbox #zen-workspaces-button toolbarbutton:is(:hover + toolbarbutton, :has(+ toolbarbutton:hover)) .zen-workspace-icon { scale: 1.12; }
+  }
+  /* Inactive workspaces: Zen greys and fades them. */
+  @media (-moz-pref("zzglass.workspaces.inactive", 1)) {
+    #navigator-toolbox #zen-workspaces-button toolbarbutton { filter: none !important; }
+  }
+  @media (-moz-pref("zzglass.workspaces.inactive", 2)) {
+    #navigator-toolbox #zen-workspaces-button toolbarbutton { filter: none !important; opacity: 1 !important; }
+  }
+  /* The current workspace. */
+  @media (-moz-pref("zzglass.workspaces.active", 1)) {
+    #navigator-toolbox #zen-workspaces-button toolbarbutton[active="true"] {
+      background: var(--zzg-sheen), color-mix(in srgb, currentColor 15%, transparent) !important;
+      box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all), 0 1px 3px rgb(0 0 0 / .18) !important;
+    }
+  }
+  @media (-moz-pref("zzglass.workspaces.active", 2)) {
+    #navigator-toolbox #zen-workspaces-button toolbarbutton[active="true"]::before {
+      content: "";
+      position: absolute;
+      bottom: 2px;
+      left: 50%;
+      translate: -50% 0;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--zen-primary-color);
+      pointer-events: none;
+    }
+  }
+  @media (-moz-pref("zzglass.workspaces.active", 3)) {
+    #navigator-toolbox #zen-workspaces-button toolbarbutton[active="true"] .zen-workspace-icon {
+      filter: drop-shadow(0 0 4px color-mix(in srgb, var(--zen-primary-color) 75%, transparent));
+    }
+  }
+  /* Steady dots: with more workspaces than fit, Zen shrinks the others to
+     dots and widens the one pointed at, pushing its neighbours along (and
+     shrinks the current one while another is pointed at). Each keeps its
+     width here; the icon shows in place. */
+  @media (-moz-pref("zzglass.workspaces.steady-dots")) {
+    #navigator-toolbox #zen-workspaces-button[icons-overflow] {
+      & toolbarbutton:not([active="true"]) { min-width: 14px !important; max-width: 14px !important; width: 14px !important; }
+      &:has(toolbarbutton:hover) toolbarbutton[active="true"]:not([dragged="true"]) {
+        &::after { opacity: 0 !important; }
+        & .zen-workspace-icon { opacity: 1 !important; transform: none !important; }
+      }
+    }
+  }
 }
 
 /* Tabs, shared > Hide the pinned-tabs separator (was Remove Tabs Separator). */

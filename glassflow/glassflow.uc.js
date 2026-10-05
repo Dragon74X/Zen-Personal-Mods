@@ -216,6 +216,9 @@
       ["arc-compact-sidebar-bg", "transparent", "zzglass.sidebar.enabled"],
       ["arc-menu-opacity", false, "zzglass.overlays.enabled"],
     ],
+    // Arc's workspace icon styles sit on the same switcher as ours; 3 is its
+    // "Disable".
+    "arc-workspaces": [["arc-workspace-style", 3, "zzglass.workspaces.enabled"]],
     "zen-fade": [["browser.tabs.fadeOutUnloadedTabs", false, "zzglass.pending.enabled"]],
     superpins: [
       ["uc.tabs.dim-type", "", "zzglass.pending.enabled"],

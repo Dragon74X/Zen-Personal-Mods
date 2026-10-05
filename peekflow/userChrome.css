@@ -1,0 +1,13 @@
+/* Peekflow: the last view of an unloaded tab sits where Firefox puts its
+   live picture, at the same size. */
+#tab-preview-panel .tab-preview-thumbnail-container > img.zzpeek-shot {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 2 / 1;
+  object-fit: cover;
+}
+#tab-preview-panel .zzpeek-seen {
+  font-size: 0.85em;
+  opacity: 0.7;
+}

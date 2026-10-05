@@ -1,0 +1,51 @@
+[
+  {
+    "type": "separator",
+    "label": "Peekflow",
+    "size": "20px",
+    "margin": "2px 0 12px 0"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzpeek.show",
+    "label": "Preview tabs on hover *Zen's own preview of a tab's title and site, shown while you point at the tab. Zen ships with it off; this turns it on, and turning Peekflow off puts your old setting back.*",
+    "defaultValue": true
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzpeek.place",
+    "label": "Where it opens *Relative to the tab you point at. If there is no room on that side, it moves to fit on screen.*",
+    "defaultValue": 0,
+    "options": [
+      { "label": "Beside the tab (Zen's default)", "value": 0 },
+      { "label": "Right", "value": 1 },
+      { "label": "Left", "value": 2 },
+      { "label": "Above", "value": 3 },
+      { "label": "Below", "value": 4 },
+      { "label": "Above, to the right", "value": 5 },
+      { "label": "Above, to the left", "value": 6 },
+      { "label": "Below, to the right", "value": 7 },
+      { "label": "Below, to the left", "value": 8 }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzpeek.gap",
+    "label": "Gap from the tab *In pixels. Applies to every place but Zen's default.*",
+    "defaultValue": "6",
+    "placeholder": "6"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzpeek.pictures",
+    "label": "Picture of the page *Loaded tabs show a live picture of the page.*",
+    "defaultValue": true
+  },
+  {
+    "type": "checkbox",
+    "property": "zzpeek.last-view",
+    "label": "Last view of unloaded tabs *An unloaded tab shows the page as you last left it, and how long ago that was. Pictures stay in memory for this session only and are never saved to disk; a private window's are gone when it closes. Needs Picture of the page.*",
+    "defaultValue": true
+  }
+]

@@ -154,7 +154,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzicon.plate",
-    "label": "Glass plates *A glass plate behind sidebar and toolbar buttons, made like Glassflow's window buttons: a light fill, a sheen across the top, a rim, and a blur of what is behind. With Glassflow installed it uses Glassflow's own sheen and rim, so they follow its Glass settings.*",
+    "label": "Glass plates *A glass plate behind sidebar and toolbar buttons, made like Glassflow's window buttons: a light fill, a sheen across the top and a rim, over Zen's own blur. With Glassflow installed it uses Glassflow's own sheen and rim, so they follow its Glass settings.*",
     "defaultValue": 0,
     "options": [
       {

@@ -63,8 +63,21 @@
   --zzg-rim-top: rgb(255 255 255 / calc(0.42 * var(--zzg-glass)));
   --zzg-rim-all: rgb(255 255 255 / calc(0.12 * var(--zzg-glass)));
 
-  /* Colourless by default: pure blur, no hue shift. */
-  --zzg-fx: ;
+  /* The one blur every glass in these mods uses: Zen's own acrylic, the
+     filter Zen puts on the compact panel. Elements on the panel need none
+     of their own, since their see-through fills already show it. Sidebar >
+     Customise Zen's blur changes it here and on Zen's panel together. */
+  --zzg-acrylic: blur(42px) saturate(110%) brightness(0.25) contrast(100%);
+}
+@media (-moz-pref("zzglass.sidebar.blur")) {
+  :root {
+    --zzg-acrylic: blur(var(--zzglass-sidebar-blur-radius, 42px)) saturate(var(--zzglass-sidebar-blur-saturate, 1.1))
+      brightness(var(--zzglass-sidebar-blur-brightness, 0.25)) contrast(var(--zzglass-sidebar-blur-contrast, 1));
+  }
+  /* Zen's own panels (the compact sidebar and the floating toolbar), on
+     the same element and property, so it replaces Zen's filter rather
+     than adding a second one. */
+  .zen-toolbar-background { backdrop-filter: var(--zzg-acrylic) !important; }
 }
 
 :root {
@@ -98,9 +111,6 @@
   --zzg-glyph: transparent;
   --zzg-width: 100%;
   --zzg-width-hover: 100%;
-}
-@media (not (-moz-pref("zzglass.glass.colorless"))) {
-  :root { --zzg-fx: saturate(180%) brightness(1.06) contrast(1.05); }
 }
 
 
@@ -208,9 +218,6 @@
     :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-background, :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-stack .tab-background { box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all),
       0 2px 12px color-mix(in srgb, var(--zzg-accent) 35%, transparent) !important; }
   }
-  @media (-moz-pref("zzglass.selected.blur")) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-background, :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-stack .tab-background { backdrop-filter: blur(var(--zzglass-selected-blur-radius, 20px)) var(--zzg-fx) !important; }
-  }
 }
 
 /* ---------- Unselected tab ---------- */
@@ -261,9 +268,6 @@
   @media (-moz-pref("zzglass.unselected.glow")) {
     :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-background, :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-stack .tab-background { box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all),
       0 2px 12px color-mix(in srgb, var(--zzg-accent) 35%, transparent) !important; }
-  }
-  @media (-moz-pref("zzglass.unselected.blur")) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-background, :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-stack .tab-background { backdrop-filter: blur(var(--zzglass-unselected-blur-radius, 20px)) var(--zzg-fx) !important; }
   }
 }
 
@@ -316,9 +320,6 @@
     :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-background, :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-stack .tab-background { box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all),
       0 2px 12px color-mix(in srgb, var(--zzg-accent) 35%, transparent) !important; }
   }
-  @media (-moz-pref("zzglass.hover.blur")) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-background, :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-stack .tab-background { backdrop-filter: blur(var(--zzglass-hover-blur-radius, 20px)) var(--zzg-fx) !important; }
-  }
 }
 
 /* ---------- Unloaded tab ---------- */
@@ -361,8 +362,7 @@
   }
   /* The title and favicon fade with the background (the setting fades the
      whole tab), and the favicon can lose its colour. Only those two: the
-     tab's own colours (tint, rim, marks) stay as the state draws them, and
-     the background keeps its frosted blur. */
+     tab's own colours (tint, rim, marks) stay as the state draws them. */
   :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] :is(.tab-icon-stack, .tab-label-container) {
     opacity: var(--zzglass-pending-opacity, 0.62) !important;
     transition: opacity 180ms ease-out, filter 180ms ease-out !important;
@@ -397,9 +397,6 @@
   @media (-moz-pref("zzglass.pending.glow")) {
     :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] .tab-background, :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] .tab-stack .tab-background { box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all),
       0 2px 12px color-mix(in srgb, var(--zzg-accent) 35%, transparent) !important; }
-  }
-  @media (-moz-pref("zzglass.pending.blur")) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] .tab-background, :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] .tab-stack .tab-background { backdrop-filter: blur(var(--zzglass-pending-blur-radius, 20px)) var(--zzg-fx) !important; }
   }
 }
 
@@ -645,99 +642,6 @@
     }
   }
 
-  /* Native live blur of the available backdrop. Transparency and ancestor
-     backdrop roots can affect which pixels are visible to the filter;
-     a separate content process alone does not establish that it cannot work.
-     Keep the filter through the sidebar animation to avoid flicker. */
-  @media (-moz-pref("zzglass.sidebar.blur")) {
-    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background {
-      backdrop-filter:
-        blur(var(--zzglass-sidebar-blur-radius, 25px))
-        contrast(var(--zzglass-sidebar-blur-contrast, 1))
-        saturate(var(--zzglass-sidebar-blur-saturate, 1)) !important;
-    }
-  }
-
-  /* Live native filter on the page region covered by the compact sidebar.
-     The script supplies geometry; Firefox supplies changing content pixels.
-     The sidebar's backdrop filter still handles the chrome behind it. */
-  @media (-moz-pref("zzglass.sidebar.blur-through-transparent")) {
-    #tabbrowser-tabbox[zzglass-native-strip] {
-      filter: url("chrome://browser/content/browser.xhtml#zzglass-native-strip-filter") !important;
-    }
-  }
-
-  /* Sampled glass: glassflow.uc.js snaps the page strip under the panel
-     and paints it on #zzglass-sample, an element of its own that it puts
-     first inside the panel, and marks the panel with zzglass-sample
-     while a picture is up. The panel goes see-through over it and the
-     native backdrop pass is dropped while a sample is displayed. The
-     picture reaches past the panel by twice the blur so the edges do not
-     fade, and is clipped back to the panel's own rounded box afterwards
-     -- clip-path applies after filter -- so nothing else is clipped or
-     moved. isolation keeps the negative z-index inside the panel. */
-  @media (-moz-pref("zzglass.sidebar.sample")) {
-    /* The sample sits at a negative z-index; that only stays inside the
-       panel if the panel is a stacking context of its own. Without one it
-       falls through to the window's and paints BEHIND the web page. */
-    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] {
-      isolation: isolate !important;
-      position: relative !important;
-    }
-    /* The panel keeps its fill: over an opaque page the real blur sits
-       under it, and here the sample does -- with a solid backing, so the
-       page cannot show through unblurred beneath our blurred copy. */
-    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] #zen-toolbar-background {
-      backdrop-filter: none !important;
-    }
-    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] #zen-toolbar-background::before,
-    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] #zen-toolbar-background::after {
-      opacity: 0 !important;
-    }
-    #titlebar > #zzglass-sample {
-      display: none;
-    }
-    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] > #zzglass-sample {
-      display: block !important;
-      position: absolute !important;
-      inset: calc(-2 * var(--zzglass-sidebar-sample-blur, 18px)) !important;
-      z-index: -2 !important;
-      pointer-events: none !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      /* The picture is the whole viewport; only the part under the panel
-         is kept, so the blur has only that much to do. */
-      overflow: hidden !important;
-      background-color: light-dark(#f2f2f2, #0d0d10) !important;
-      filter: blur(var(--zzglass-sidebar-sample-blur, 18px))
-              saturate(var(--zzglass-sidebar-blur-saturate, 1))
-              contrast(var(--zzglass-sidebar-blur-contrast, 1)) !important;
-      clip-path: inset(calc(2 * var(--zzglass-sidebar-sample-blur, 18px))
-                       round var(--zzglass-sidebar-blur-radius-corner, 12px)) !important;
-      opacity: var(--zzglass-sidebar-sample-opacity, 1) !important;
-    }
-    /* Two frames under the one blur. The new frame fades in ON TOP of the
-       old one, which stays at full strength beneath it until the fade is
-       over. A plain crossfade (old fading out while the new fades in)
-       showed the dark backing through both at the midpoint: a dip in
-       brightness on every frame change, a flicker on any bright page. */
-    /* Each layer is placed by the script over the page's own box, and
-       sized 100%: the picture maps to the page one to one. */
-    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] > #zzglass-sample > div {
-      position: absolute !important;
-      background-size: 100% 100% !important;
-      background-position: 0 0 !important;
-      background-repeat: no-repeat !important;
-      z-index: 0;
-    }
-    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] > #zzglass-sample > div[front] {
-      z-index: 1;
-    }
-    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar[zzglass-sample] > #zzglass-sample[zzglass-fade] > div[front] {
-      animation: zzglass-sample-in var(--zzglass-sample-fade, 250ms) linear;
-    }
-    @keyframes zzglass-sample-in { from { opacity: 0; } }
-  }
 }
 
 /* ============================================================
@@ -833,7 +737,6 @@
         0 1px 3px rgb(0 0 0 / 0.25) !important;
     }
   }
-  @media (-moz-pref("zzglass.buttons.blur")) { .titlebar-button { backdrop-filter: blur(8px) var(--zzg-fx) !important; } }
   @media (-moz-pref("zzglass.buttons.oval-hover")) {
     .titlebar-button:hover {
       height: calc(var(--zzg-btn-size) * var(--zzg-btn-oval)) !important;
@@ -1373,10 +1276,10 @@
    acrylic (Firefox's -moz-windows-mica-popups) and only its tint is
    set here. Zen already blurs the floating urlbar, the compact
    sidebar and notification bars. The share overlay is skipped: the
-   page under it is hidden, leaving nothing to blur.
+   page under it is hidden, leaving nothing to blur. Each blurs with
+   Zen's acrylic (--zzg-acrylic), so one setting changes them all.
    ============================================================ */
 :root {
-  --zzg-ov-blur: blur(var(--zzglass-overlays-blur-radius, 20px)) var(--zzg-fx);
   --zzg-ov-fill: light-dark(rgb(255 255 255 / var(--zzglass-overlays-opacity, 55%)),
                             rgb(24 24 24 / var(--zzglass-overlays-opacity, 55%)));
 }
@@ -1388,24 +1291,24 @@
   }
   #zen-library-download-list .zen-library-download-list-download {
     background: var(--zzg-ov-fill) !important;
-    backdrop-filter: var(--zzg-ov-blur) !important;
+    backdrop-filter: var(--zzg-acrylic) !important;
     &:hover { background: color-mix(in srgb, currentColor 10%, var(--zzg-ov-fill)) !important; }
   }
   #zen-toast-container .zen-toast {
     background: linear-gradient(to bottom,
       color-mix(in srgb, var(--zen-primary-color) var(--zzglass-overlays-opacity, 55%), transparent) -40%,
       color-mix(in srgb, color-mix(in srgb, var(--zen-primary-color), #0f0f0f 20%) var(--zzglass-overlays-opacity, 55%), transparent)) !important;
-    backdrop-filter: var(--zzg-ov-blur) !important;
+    backdrop-filter: var(--zzg-acrylic) !important;
   }
   .zen-glance-sidebar-container toolbarbutton {
     background: color-mix(in srgb, color-mix(in srgb, light-dark(rgb(24, 24, 24), rgb(231, 231, 231)) 96%, var(--zen-primary-color))
       var(--zzglass-overlays-opacity, 55%), transparent) !important;
-    backdrop-filter: var(--zzg-ov-blur) !important;
+    backdrop-filter: var(--zzg-acrylic) !important;
     &:hover { background: color-mix(in srgb, light-dark(rgb(41, 41, 41), rgb(204, 204, 204)) var(--zzglass-overlays-opacity, 55%), transparent) !important; }
   }
   /* Zen dims the window behind the preview; blur it as well. */
   .zen-library-media-preview-backdrop {
-    backdrop-filter: var(--zzg-ov-blur) !important;
+    backdrop-filter: var(--zzg-acrylic) !important;
   }
   @media (-moz-windows-mica-popups) {
     menupopup, panel[type="arrow"]:not(#feature-callout) {
@@ -1421,7 +1324,7 @@
 @media (-moz-pref("zzglass.overlays.enabled")) {
   #zen-media-controls-toolbar > .zen-media-card {
     --zen-sidebar-notification-bg: var(--zzglass-overlays-media-color, var(--zzg-ov-fill)) !important;
-    backdrop-filter: var(--zzg-ov-blur) !important;
+    backdrop-filter: var(--zzg-acrylic) !important;
   }
 }
 
@@ -1480,7 +1383,7 @@
     padding: 6px 12px !important;
     border: none !important;
     background: var(--zzg-ov-fill) !important;
-    backdrop-filter: var(--zzg-ov-blur) !important;
+    backdrop-filter: var(--zzg-acrylic) !important;
   }
 }
 

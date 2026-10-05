@@ -2,7 +2,7 @@
 // @name           Peekflow
 // @description    Places Zen's tab hover preview and remembers how unloaded tabs looked.
 // @include        chrome://browser/content/browser.xhtml
-// @version        1.0.1
+// @version        1.1.0
 // ==/UserScript==
 
 (() => {
@@ -47,7 +47,8 @@
   };
 
   // ---- last views of unloaded tabs -------------------------------------------
-  // A tab is photographed as you leave it, while it is still loaded. Pictures
+  // A tab is photographed once its first load finishes, and again as you
+  // leave it after looking at it, while it is still loaded. Pictures
   // are small JPEG blobs held in memory against the tab: closing the tab or
   // the window drops them, and nothing is written to disk.
   const shots = new WeakMap();
@@ -68,6 +69,13 @@
     const prev = event.detail?.previousTab, looked = Date.now() - selectedAt >= LOOKED_MS;
     selectedAt = Date.now();
     if (prev && looked) window.requestIdleCallback(() => photograph(prev), { timeout: 1500 });
+  };
+  // A tab's first finished load is photographed too, so one opened in the
+  // background and unloaded before you looked at it still has a picture.
+  const onLoaded = event => {
+    const tab = event.target;
+    if (!event.detail?.changed?.includes("busy") || tab.hasAttribute?.("busy") || shots.has(tab)) return;
+    window.requestIdleCallback(() => { if (!shots.has(tab)) photograph(tab); }, { timeout: 3000 });
   };
 
   // ---- the preview panel ------------------------------------------------------
@@ -152,12 +160,14 @@
     adopt();
     S.addObserver(P, observer);
     window.addEventListener("TabSelect", onSelect, true);
+    window.addEventListener("TabAttrModified", onLoaded, true);
   }
   function cleanup() {
     if (retired) return;
     retired = true;
     try { S.removeObserver(P, observer); } catch {}
     window.removeEventListener("TabSelect", onSelect, true);
+    window.removeEventListener("TabAttrModified", onLoaded, true);
     release();
   }
   instance.retire = cleanup;

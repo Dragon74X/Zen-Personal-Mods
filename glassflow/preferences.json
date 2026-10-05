@@ -146,14 +146,6 @@
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "colour"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}]
   },
   {
-    "type": "checkbox",
-    "property": "zzglass.glass.colorless",
-    "label": "Colourless glass *On: blur only, no saturation or brightness shift, so glass never alters the hue behind it. Off: adds saturation and contrast, which looks richer but tints whatever is underneath. Turn this on if glass is introducing colour you did not pick.*",
-    "defaultValue": true,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "colour"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
-  },
-  {
     "type": "string",
     "property": "zzglass.glass.intensity",
     "label": "Glass intensity *Scales every sheen, rim and glow at once. 0 removes the glass look. The per-state switches decide where glass appears; this decides how strong.*",
@@ -165,7 +157,7 @@
   {
     "type": "string",
     "property": "zzglass.glass.sheen-strength",
-    "label": "Sheen strength *The white highlight band only. Lower this if glass looks washed out rather than tinted. 0 removes the sheen but keeps rims and blur.*",
+    "label": "Sheen strength *The white highlight band only. Lower this if glass looks washed out rather than tinted. 0 removes the sheen but keeps the rims.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "colour"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
@@ -442,23 +434,6 @@
     "operator": "AND"
   },
   {
-    "type": "checkbox",
-    "property": "zzglass.selected.blur",
-    "label": "Frosted blur *One compositor pass per tab in this state. The most expensive option here.*",
-    "defaultValue": true,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.selected.blur-radius",
-    "label": "Blur strength *Only used when frosted blur is on for this state.*",
-    "defaultValue": "20px",
-    "placeholder": "20px",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}, {"if": {"property": "zzglass.selected.blur", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
-  },
-  {
     "type": "separator",
     "label": "Unselected tab",
     "size": "17px",
@@ -682,23 +657,6 @@
     "operator": "AND"
   },
   {
-    "type": "checkbox",
-    "property": "zzglass.unselected.blur",
-    "label": "Frosted blur *One compositor pass per tab in this state. The most expensive option here.*",
-    "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.unselected.blur-radius",
-    "label": "Blur strength *Only used when frosted blur is on for this state.*",
-    "defaultValue": "20px",
-    "placeholder": "20px",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}, {"if": {"property": "zzglass.unselected.blur", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
-  },
-  {
     "type": "separator",
     "label": "Hovered tab",
     "size": "17px",
@@ -919,23 +877,6 @@
     "label": "Outer glow *A soft tinted halo. Replaces the rim shadow, so it includes the rim when both are on.*",
     "defaultValue": false,
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
-  },
-  {
-    "type": "checkbox",
-    "property": "zzglass.hover.blur",
-    "label": "Frosted blur *One compositor pass per tab in this state. The most expensive option here.*",
-    "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.hover.blur-radius",
-    "label": "Blur strength *Only used when frosted blur is on for this state.*",
-    "defaultValue": "20px",
-    "placeholder": "20px",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}, {"if": {"property": "zzglass.hover.blur", "value": true}}], "operator": "AND"}],
     "operator": "AND"
   },
   {
@@ -1248,23 +1189,6 @@
     "operator": "AND"
   },
   {
-    "type": "checkbox",
-    "property": "zzglass.pending.blur",
-    "label": "Frosted blur *One compositor pass per tab in this state. The most expensive option here.*",
-    "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.pending.blur-radius",
-    "label": "Blur strength *Only used when frosted blur is on for this state.*",
-    "defaultValue": "20px",
-    "placeholder": "20px",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}, {"if": {"property": "zzglass.pending.blur", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
-  },
-  {
     "type": "separator",
     "label": "Tabs, shared",
     "size": "17px",
@@ -1398,7 +1322,7 @@
   {
     "type": "checkbox",
     "property": "zzglass.strip.enabled",
-    "label": "Gradient behind the whole strip *One wash spanning the full strip rather than per tab. Also gives frosted blur something with structure to work against.*",
+    "label": "Gradient behind the whole strip *One wash spanning the full strip rather than per tab.*",
     "defaultValue": false,
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
@@ -1775,79 +1699,45 @@
   {
     "type": "checkbox",
     "property": "zzglass.sidebar.blur",
-    "label": "Blur behind the floating panel *Live native backdrop-filter, with no snapshots. Blurs the pixels Zen makes available behind the panel. Transparent pages and other themes can affect the result. Disable Sampled glass to use only this mode.*",
+    "label": "Customise Zen's blur *Zen's acrylic blurs whatever is behind its compact sidebar and floating toolbar, and Glassflow's overlays and the other mods' glass use the same blur. Off keeps Zen's own values; on uses the four below for all of them.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
     "type": "string",
     "property": "zzglass.sidebar.blur-radius",
-    "label": "Sidebar blur radius *Arc uses 25px. Higher smears more; lower keeps shapes legible.*",
-    "defaultValue": "25px",
-    "placeholder": "25px",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}, {"if": {"property": "zzglass.sidebar.blur", "value": true}}], "operator": "AND"}],
+    "label": "Blur strength *Zen uses 42px. Higher smears more; lower keeps shapes legible.*",
+    "defaultValue": "42px",
+    "placeholder": "42px",
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.blur", "value": true}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
     "type": "string",
-    "property": "zzglass.sidebar.blur-contrast",
-    "label": "Sidebar blur contrast *1 leaves it alone. Above 1 deepens what shows through, below 1 flattens it.*",
-    "defaultValue": "1",
-    "placeholder": "1",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}, {"if": {"property": "zzglass.sidebar.blur", "value": true}}], "operator": "AND"}],
+    "property": "zzglass.sidebar.blur-brightness",
+    "label": "Brightness *Zen uses 0.25, which keeps text readable over bright pages. Raise it to let more of the page through.*",
+    "defaultValue": "0.25",
+    "placeholder": "0.25",
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.blur", "value": true}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
     "type": "string",
     "property": "zzglass.sidebar.blur-saturate",
-    "label": "Sidebar blur saturation *1 leaves it alone. Raise it for the colour-rich frosted look, lower toward 0 for grey glass.*",
+    "label": "Saturation *Zen uses 1.1. Raise it for richer colour through the glass; lower drains it.*",
+    "defaultValue": "1.1",
+    "placeholder": "1.1",
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.blur", "value": true}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzglass.sidebar.blur-contrast",
+    "label": "Contrast *Zen uses 1. Above 1 deepens what shows through, below 1 flattens it.*",
     "defaultValue": "1",
     "placeholder": "1",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}, {"if": {"property": "zzglass.sidebar.blur", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
-  },
-  {
-    "type": "checkbox",
-    "property": "zzglass.sidebar.blur-through-transparent",
-    "label": "Native blur through transparent pages *Blurs the live page region covered by the compact sidebar using an SVG filter. Tracks sidebar geometry, then stops its animation-frame tracker. No page snapshots. Use with panel blur on and Sampled glass off; applies immediately.*",
-    "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}, {"if": {"property": "zzglass.sidebar.blur", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
-  },
-  {
-    "type": "checkbox",
-    "property": "zzglass.sidebar.sample",
-    "label": "Sampled glass (fallback) *Reads a downscaled viewport and crossfades it behind the sidebar. Disable to use native blur through transparent pages. Captures page pixels, not the complete window backdrop. Stops when sidebar styling is disabled.*",
-    "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.sidebar.sample-blur",
-    "label": "Sample blur radius *How soft the page reads through the sidebar.*",
-    "defaultValue": "18px",
-    "placeholder": "18px",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}, {"if": {"property": "zzglass.sidebar.sample", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.sidebar.sample-opacity",
-    "label": "Sample opacity *1 shows the blurred page at full strength; lower fades it toward the plain tint.*",
-    "defaultValue": "1",
-    "placeholder": "1",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}, {"if": {"property": "zzglass.sidebar.sample", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.sidebar.sample-interval",
-    "label": "Sample interval (ms) *How often the strip under the panel is re-read while nothing is changing. A read that finds a change is followed quickly on its own, so a scroll or a video is tracked at any setting; 100 is the floor.*",
-    "defaultValue": "250",
-    "placeholder": "250",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}, {"if": {"property": "zzglass.sidebar.sample", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.blur", "value": true}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1894,96 +1784,6 @@
     "operator": "AND"
   },
   {
-    "type": "checkbox",
-    "property": "zzglass.sidebar.page-blur",
-    "label": "Blur a strip of the page *The older of the two page-blur methods, and the one that needs lining up by hand: it blurs a fixed strip down the page's own edge, so its position and size are numbers you set rather than the sidebar's real bounds. Switched off automatically while the sidebar-following blur above is on, since that one does the same job without measurements.*",
-    "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.sidebar.page-blur-width",
-    "label": "Blurred strip width *Match this to your sidebar's width. Too wide and you will see blurred page beyond the sidebar's edge; too narrow and text peeks out sharp underneath it.*",
-    "defaultValue": "260px",
-    "placeholder": "260px",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}, {"if": {"property": "zzglass.sidebar.page-blur", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.sidebar.page-blur-radius",
-    "label": "Blurred strip radius *How soft the page goes under the sidebar.*",
-    "defaultValue": "20px",
-    "placeholder": "20px",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}, {"if": {"property": "zzglass.sidebar.page-blur", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.sidebar.page-blur-top",
-    "label": "Strip top offset *How far down the strip starts. The sidebar begins below the titlebar, so without an offset the blur shows above the sidebar's top edge.*",
-    "defaultValue": "0px",
-    "placeholder": "38px",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}, {"if": {"property": "zzglass.sidebar.page-blur", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.sidebar.page-blur-bottom",
-    "label": "Strip bottom offset *How far up from the bottom the strip ends.*",
-    "defaultValue": "0px",
-    "placeholder": "0px",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}, {"if": {"property": "zzglass.sidebar.page-blur", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.sidebar.page-blur-inset",
-    "label": "Strip edge offset *How far in from the window edge the strip starts, for sidebars that float with a margin around them.*",
-    "defaultValue": "0px",
-    "placeholder": "0px",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}, {"if": {"property": "zzglass.sidebar.page-blur", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.sidebar.page-blur-corner",
-    "label": "Strip corner radius *Round the strip to match the sidebar's own corners.*",
-    "defaultValue": "0px",
-    "placeholder": "12px",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}, {"if": {"property": "zzglass.sidebar.page-blur", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.sidebar.page-blur-feather",
-    "label": "Strip edge feather *Fades the strip out at its edges instead of ending in a hard line. Useful when the strip does not exactly match the sidebar -- a few pixels of feather hides the mismatch.*",
-    "defaultValue": "0px",
-    "placeholder": "8px",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}, {"if": {"property": "zzglass.sidebar.page-blur", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
-  },
-  {
-    "type": "dropdown",
-    "value": "number",
-    "property": "zzglass.sidebar.page-blur-side",
-    "label": "Which edge *Match your sidebar's side.*",
-    "defaultValue": 0,
-    "options": [
-      {
-        "label": "Left",
-        "value": 0
-      },
-      {
-        "label": "Right",
-        "value": 1
-      }
-    ],
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}, {"if": {"property": "zzglass.sidebar.page-blur", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
-  },
-  {
     "type": "separator",
     "label": "Overlays",
     "size": "17px",
@@ -1994,18 +1794,9 @@
   {
     "type": "checkbox",
     "property": "zzglass.overlays.enabled",
-    "label": "Glass behind overlays *Frosted glass, blurring what is underneath, for Zen's surfaces that float inside the window: the library's download stack (hover the library button), toasts, glance's side buttons and the library media preview. Zen fades the tabs out under the download stack; with this on they stay and show through blurred.*",
+    "label": "Glass behind overlays *Glass blurred with Zen's own blur (Sidebar > Customise Zen's blur), for Zen's surfaces that float inside the window: the library's download stack (hover the library button), toasts, glance's side buttons and the library media preview. Zen fades the tabs out under the download stack; with this on they stay and show through blurred.*",
     "defaultValue": true,
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
-  },
-  {
-    "type": "string",
-    "property": "zzglass.overlays.blur-radius",
-    "label": "Overlay blur radius *How strongly what is behind an overlay is blurred.*",
-    "defaultValue": "20px",
-    "placeholder": "20px",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.overlays.enabled", "value": true}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -2177,14 +1968,6 @@
     "type": "checkbox",
     "property": "zzglass.buttons.rim",
     "label": "Glass rim on buttons *Independent switch.*",
-    "defaultValue": true,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "buttons"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.buttons.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
-  },
-  {
-    "type": "checkbox",
-    "property": "zzglass.buttons.blur",
-    "label": "Frosted blur on buttons *Cheap here: three small elements, not one per tab.*",
     "defaultValue": true,
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "buttons"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.buttons.enabled", "value": true}}], "operator": "OR"}],
     "operator": "AND"
@@ -2879,7 +2662,7 @@
   {
     "type": "checkbox",
     "property": "zzglass.other.transparent-zen",
-    "label": "Transparent Zen *Compact sidebar type set to Default while Glassflow's sidebar blur is on: Push and Mask leave nothing under the panel to blur.*",
+    "label": "Transparent Zen *Compact sidebar type set to Default while Zen's blur (acrylic) is on: Push and Mask leave nothing under the panel to blur.*",
     "defaultValue": true,
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "others"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"

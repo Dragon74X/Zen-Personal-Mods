@@ -57,7 +57,6 @@
   box-shadow:
     0 1px 2px rgba(0, 0, 0, 0.10),
     0 8px 22px rgba(0, 0, 0, 0.22);
-  backdrop-filter: blur(12px) saturate(160%);
   pointer-events: none;
 }
 
@@ -141,9 +140,6 @@
   #zzgroup-custom-color { display: none !important; }
 }
 
-@media not (-moz-pref("zzgroup.header.blur")) {
-  #zzgroup-header-blur-radius { display: none !important; }
-}
 
 @media not (-moz-pref("zzgroup.favicons")) {
   #zzgroup-icon-size,
@@ -202,7 +198,6 @@
   #zzgroup-line-glow,
   #zzgroup-line-glow-radius,
   #zzgroup-line-shadow,
-  #zzgroup-line-blur,
   #zzgroup-line-opacity,
   #zzgroup-line-continuous,
   #zzgroup-line-match-tab { display: none !important; }

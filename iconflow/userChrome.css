@@ -81,7 +81,8 @@
 
 /* ---- Glass behind buttons ------------------------------------------------- */
 /* The recipe of Glassflow's window buttons: a light fill, a sheen across the
-   top, a rim and a blur of what is behind. Uses Glassflow's sheen and rim
+   top and a rim. No blur of its own: the plate sits on Zen's blurred panel,
+   which shows through the fill. Uses Glassflow's sheen and rim
    when it is installed, so they follow its Glass settings. The plate is the
    button itself; Zen's own hover tint on the icon is cleared so the two do
    not stack. */
@@ -104,7 +105,6 @@
     &:not([disabled]):hover {
       background: var(--zzicon-plate-hover) !important;
       box-shadow: var(--zzicon-plate-rim) !important;
-      backdrop-filter: blur(8px) var(--zzg-fx, saturate(1.3)) !important;
     }
     & > .toolbarbutton-icon, & > .toolbarbutton-badge-stack { background-color: transparent !important; box-shadow: none !important; }
   }
@@ -113,6 +113,5 @@
   #navigator-toolbox .toolbarbutton-1:not(:hover) {
     background: var(--zzicon-plate) !important;
     box-shadow: var(--zzicon-plate-rim) !important;
-    backdrop-filter: blur(8px) var(--zzg-fx, saturate(1.3)) !important;
   }
 }

@@ -42,7 +42,7 @@ Clearing browsing history clears this window's warmup counters, origin records, 
 
 ## Workspace animation CSS
 
-`zzturbo.smooth-workspace-switch` suspends tab-strip blur, transitions and animations and hides its videos during workspace motion. Glassflow's floating-panel and native page-strip filters remain active. Effects resume when the marker clears or after 1500 ms; a stale marker cannot freeze them indefinitely. Actual frame-time impact requires profiling the installed theme, browser, and hardware.
+`zzturbo.smooth-workspace-switch` pauses tab-strip transitions and animations and hides its videos during workspace motion. Zen's blur behind the sidebar stays on. Effects resume when the marker clears or after 1500 ms; a stale marker cannot freeze them indefinitely. Actual frame-time impact requires profiling the installed theme, browser, and hardware.
 
 ## Diagnostics and limits
 

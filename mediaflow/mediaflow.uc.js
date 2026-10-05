@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.1.2
+// @version        2.1.3
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==
@@ -289,7 +289,10 @@
     const baseRect = musicPlayerUI.getBoundingClientRect();
     let top = baseRect.top;
     if (walkDescendants && (hoverActive || performance.now() < activeUntil)) {
-      const kids = musicPlayerUI.querySelectorAll("*");
+      // Zen's cards hold every row that rises on hover, so their edges are
+      // enough; other markup (another music-bar mod) falls back to all of it.
+      let kids = musicPlayerUI.querySelectorAll(".zen-media-card");
+      if (!kids.length) kids = musicPlayerUI.querySelectorAll("*");
       for (let i = 0; i < kids.length; i++) {
         const kid = kids[i];
         const r = kid.getBoundingClientRect();

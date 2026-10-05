@@ -172,12 +172,12 @@ headers too, while retaining native folder controls and connectors:
 - **Inactive:** neither active nor hovered.
 
 Each profile controls tint, background opacity, gradient direction, end mode,
-end tint, spread, sheen, rim, rim fade direction and reach, glow, blur, blur radius
-and label colour. Rim direction can follow the fill or fade independently toward
+end tint, spread, sheen, rim, rim fade direction and reach, glow and label
+colour. Rim direction can follow the fill or fade independently toward
 any side or diagonal; its mask leaves the fill and connectors unchanged.
 Defaults retain the group's saved ATG colour or complete gradient. Without a
 saved gradient, all 3 states start at 25% tint, fading left to right to transparent
-at 50% of the header. Sheen, rim, glow and blur start off. Folder colours do not
+at 50% of the header. Sheen, rim and glow start off. Folder colours do not
 inherit Glassflow's darkening; selecting **Glassflow accent** enables that source.
 Tint also adjusts saved gradients: 25% retains their original strength, 0% removes
 the fill, and higher values strengthen it without changing its colours or shape.
@@ -244,8 +244,8 @@ and `python tools/zen-routing-smoke.py --zen /path/to/zen`.
 
 ## What it styles
 
-**Headers** — accent tint and gradient, roundness, optional sheen, rim light
-and glass blur. The accent uses the group's own colour by default. **Tab container
+**Headers** — accent tint and gradient, roundness, optional sheen and rim
+light. The accent uses the group's own colour by default. **Tab container
 colour** uses the most common container across all member tabs, including nested
 groups; ties use the first encountered tied container. It reads Firefox's container
 colour and follows container-colour edits. Select **Accent source → Tab container
@@ -263,7 +263,7 @@ uppercase, and a favicon in place of the group icon.
 **Layout, Connector line and Marks on tabs** cover subgroup indent, row
 inset and gap, and a whole connector system:
 - accent guide lines with gradient, thickness, shape (including curves),
-  caps, sheen, rim, glow, shadow and blur;
+  caps, sheen, rim, glow and shadow;
 - per-tab and per-subgroup membership marks with their own shading, glow,
   shadow, size and opacity.
 
@@ -398,9 +398,10 @@ header roundness has always been its own value.
 
 ## Performance
 
-Headers are few, so even the optional header blur is far cheaper than
-per-tab blur -- and Zen Turbo's workspace-switch smoothing suspends it during
-slides automatically, like everything else.
+Nothing in Groupflow runs a blur of its own. Headers, lines and marks sit on
+the sidebar, and their see-through fills show Zen's own blur (Glassflow >
+Sidebar > Customise Zen's blur) behind the whole panel, so a folder costs no
+extra compositor pass however many there are.
 
 ## License
 

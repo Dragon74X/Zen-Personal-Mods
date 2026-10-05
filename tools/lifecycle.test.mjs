@@ -161,62 +161,6 @@ test("history purge and retirement discard pending creator/icon results", async 
   }
 });
 
-async function glassEnv(privateWindow = false) {
-  const root = element(), toolbox = element(), panel = element(), browser = element();
-  root.setAttribute("zen-compact-mode", "true"); toolbox.setAttribute("zen-has-hover", "");
-  const snapshot = deferred(), blob = deferred(), blobStarted = deferred(), c = clock();
-  let snapshots = 0, closed = 0, conversions = 0, now = 10000;
-  const snapshotQueue = [], blobQueue = [];
-  const pixels = [0, 0, 0, 0];
-  browser.browsingContext = { currentWindowGlobal: { drawSnapshot() { snapshots++; return snapshotQueue.length ? snapshotQueue.shift() : snapshot.promise; } } };
-  const revoked = [], prefs = new Map();
-  const h = await load("glassflow", "sampleOnce, clearSample, syncSampleNow, syncSampling, sidebarShown, hide: () => document.hidden = true, navigate: () => gBrowser.selectedBrowser.browsingContext.currentWindowGlobal = {}", {
-    ...c, Date: { now: () => now }, window: { windowUtils: { getBoundsWithoutFlushing: el => el.getBoundingClientRect() } },
-    document: { documentElement: root, getElementById: id => ({ titlebar: panel, "navigator-toolbox": toolbox })[id], createElementNS: element },
-    gBrowser: { selectedBrowser: browser },
-    Services: { prefs: { getBoolPref: k => prefs.get(k) ?? true } },
-    ChromeUtils: { importESModule: () => ({ PrivateBrowsingUtils: { isWindowPrivate: () => privateWindow } }) },
-    OffscreenCanvas: class {
-      width = 10; height = 10;
-      getContext() { return { drawImage() {}, getImageData: () => ({ data: pixels }) }; }
-      convertToBlob() { conversions++; blobStarted.resolve(); return blobQueue.length ? blobQueue.shift() : blob.promise; }
-    },
-    URL: { createObjectURL: () => `blob:test-${conversions}`, revokeObjectURL: url => revoked.push(url) },
-    cancelAnimationFrame() {}, requestAnimationFrame: () => 1,
-  });
-  return { h, panel, toolbox, root, prefs, snapshot, blob, blobStarted, revoked, pixels, timers: c.timers,
-    snapshotQueue, blobQueue, advance: ms => { now += ms; },
-    fireTimer() {
-      const [id, fn] = c.timers.entries().next().value;
-      c.timers.delete(id);
-      return fn();
-    }, get conversions() { return conversions; }, get snapshots() { return snapshots; },
-    bitmap: { width: 10, height: 10, close() { closed++; } }, get closed() { return closed; } };
-}
-
-test("history purge invalidates a pending snapshot before it paints", async () => {
-  const e = await glassEnv(); const sample = e.h.sampleOnce();
-  e.h.clearSample(); e.snapshot.resolve(e.bitmap);
-  await sample;
-  assert.equal(e.closed, 1);
-  assert.equal(e.panel.hasAttribute("zzglass-sample"), false);
-});
-
-test("history purge invalidates pending blob conversion and revokes its URL", async () => {
-  const e = await glassEnv(); const sample = e.h.sampleOnce();
-  e.snapshot.resolve(e.bitmap); await e.blobStarted.promise;
-  e.h.clearSample(); e.blob.resolve({}); await sample;
-  assert.equal(e.panel.hasAttribute("zzglass-sample"), false);
-  assert.deepEqual(e.revoked, ["blob:test-1"]);
-});
-
-test("hidden private sidebar does not warm a snapshot", async () => {
-  const e = await glassEnv(true);
-  e.toolbox.removeAttribute("zen-has-hover");
-  await e.h.sampleOnce(true);
-  assert.equal(e.snapshots, 0);
-});
-
 test("purge ignores an icon whose image decode completes afterward", async () => {
   const decode = deferred();
   const e = await routerEnv({ createImageBitmap: () => decode.promise,
@@ -232,18 +176,6 @@ test("purge ignores an icon whose image decode completes afterward", async () =>
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(e.h.iconMap().size, 0);
   assert.equal(e.prefs.get("zzrouter.avatars"), "{}");
-});
-
-test("private sidebar hiding invalidates the snapshot already in flight", async () => {
-  const e = await glassEnv(true);
-  const sample = e.h.sampleOnce();
-  e.h.syncSampling();
-  e.toolbox.removeAttribute("zen-has-hover");
-  e.h.syncSampling();
-  e.snapshot.resolve(e.bitmap);
-  await sample;
-  assert.equal(e.closed, 1);
-  assert.equal(e.panel.hasAttribute("zzglass-sample"), false);
 });
 
 test("question ownership remains visible after shared hook handoff", async () => {
@@ -358,29 +290,6 @@ test("failed Turbo requests are not counted or throttled as successful warmups",
   assert.equal(e.w.ZenTurbo.status().recentOriginContexts, 0);
 });
 
-test("sidebar sampling distinguishes red from green at equal channel totals", async () => {
-  const e = await glassEnv();
-  e.pixels.splice(0, 4, 255, 0, 0, 128);
-  const first = e.h.sampleOnce();
-  e.snapshot.resolve(e.bitmap); e.blob.resolve({}); await first;
-  e.pixels.splice(0, 4, 0, 255, 0, 128);
-  await e.h.sampleOnce();
-  assert.equal(e.conversions, 2);
-});
-
-test("hidden windows start no sidebar snapshots", async () => {
-  const e = await glassEnv(); e.h.hide();
-  await e.h.sampleOnce(true);
-  assert.equal(e.snapshots, 0);
-});
-
-test("navigation discards an old document's pending sidebar snapshot", async () => {
-  const e = await glassEnv(); const sample = e.h.sampleOnce();
-  e.h.navigate(); e.snapshot.resolve(e.bitmap); await sample;
-  assert.equal(e.conversions, 0);
-  assert.equal(e.closed, 1);
-});
-
 test("router cancels the stream at 512 KiB and completes once", async () => {
   const e = await routerEnv(); const results = [];
   e.h.fetchAnon("https://example.com", 0, body => results.push(body));
@@ -389,93 +298,6 @@ test("router cancels the stream at 512 KiB and completes once", async () => {
   assert.equal(results[0].length, 512 * 1024);
   assert.equal(e.cancelled, 1);
   assert.equal(e.c.timers.size, 0);
-});
-
-test("sidebar loop keeps refreshing without reopening the panel", async () => {
-  const e = await glassEnv();
-  e.snapshot.resolve(e.bitmap); e.blob.resolve({});
-  e.h.syncSampling();
-  await new Promise(resolve => setImmediate(resolve));
-  for (let frame = 1; frame <= 3; frame++) {
-    e.pixels[0] = frame;
-    await e.fireTimer();
-    assert.equal(e.conversions, frame + 1);
-    assert.equal(e.timers.size, 1);
-  }
-});
-
-test("sidebar loop recovers when a later snapshot stalls", async () => {
-  const e = await glassEnv(), stalled = deferred();
-  e.snapshot.resolve(e.bitmap); e.blob.resolve({});
-  e.h.syncSampling();
-  await new Promise(resolve => setImmediate(resolve));
-  e.snapshotQueue.push(stalled.promise);
-  const pending = e.fireTimer();
-  assert.equal(e.timers.size, 1, "next tick must exist while snapshot is pending");
-  e.advance(2001); e.pixels[0] = 42;
-  await e.fireTimer();
-  assert.equal(e.conversions, 2);
-  const front = e.panel.children[0].children.find(layer => layer.hasAttribute("front"));
-  assert.equal(front.style.backgroundImage, 'url("blob:test-2")');
-  stalled.resolve(e.bitmap); await pending;
-  assert.equal(e.conversions, 2, "late stale snapshot must not paint");
-  assert.equal(e.timers.size, 1);
-});
-
-test("sidebar loop recovers when a later PNG encoding stalls", async () => {
-  const e = await glassEnv(), stalled = deferred();
-  e.snapshot.resolve(e.bitmap); e.blob.resolve({});
-  e.h.syncSampling();
-  await new Promise(resolve => setImmediate(resolve));
-  e.pixels[0] = 1; e.blobQueue.push(stalled.promise);
-  const pending = e.fireTimer();
-  await new Promise(resolve => setImmediate(resolve));
-  assert.equal(e.timers.size, 1, "next tick must exist while encoding is pending");
-  e.advance(2001); e.pixels[0] = 2;
-  await e.fireTimer();
-  assert.equal(e.conversions, 3);
-  stalled.resolve({}); await pending;
-  assert.equal(e.timers.size, 1);
-});
-
-test("stalled encoding retries unchanged pixels without invalidating the newer painted frame", async () => {
-  const e = await glassEnv();
-  const stale = e.h.sampleOnce();
-  e.snapshot.resolve(e.bitmap); await e.blobStarted.promise;
-  e.advance(2001); e.blobQueue.push(Promise.resolve({}));
-  await e.h.sampleOnce();
-  assert.equal(e.conversions, 2);
-  assert.equal(e.panel.hasAttribute("zzglass-sample"), true);
-  e.blob.resolve({}); await stale;
-  await e.h.sampleOnce();
-  assert.equal(e.conversions, 2, "stale encoding must not clear the newer signature");
-});
-
-test("hiding the sidebar stops retries even if an old snapshot completes", async () => {
-  const e = await glassEnv(), stalled = deferred();
-  e.snapshot.resolve(e.bitmap); e.blob.resolve({});
-  e.h.syncSampling();
-  await new Promise(resolve => setImmediate(resolve));
-  e.snapshotQueue.push(stalled.promise); e.pixels[0] = 7;
-  const pending = e.fireTimer();
-  e.toolbox.removeAttribute("zen-has-hover"); e.h.syncSampling();
-  assert.equal(e.timers.size, 0);
-  stalled.resolve(e.bitmap); await pending;
-  assert.equal(e.timers.size, 0);
-});
-
-test("hide/reopen during a pending read leaves one refresh timer", async () => {
-  const e = await glassEnv(), stalled = deferred();
-  e.snapshot.resolve(e.bitmap); e.blob.resolve({});
-  e.h.syncSampling();
-  await new Promise(resolve => setImmediate(resolve));
-  e.snapshotQueue.push(stalled.promise); e.pixels[0] = 7;
-  const pending = e.fireTimer();
-  e.toolbox.removeAttribute("zen-has-hover"); e.h.syncSampling();
-  e.toolbox.setAttribute("zen-has-hover", ""); e.h.syncSampling();
-  assert.equal(e.timers.size, 1);
-  stalled.resolve(e.bitmap); await pending;
-  assert.equal(e.timers.size, 1);
 });
 
 test("download question uses a labelled native modal", async () => {
@@ -491,30 +313,6 @@ test("download question uses a labelled native modal", async () => {
   const escaped = a.w.DownloadPrompt.preview();
   a.w.document.body.children.at(-1).fire("cancel", { preventDefault() {} });
   assert.equal(await escaped, "cancel", "Escape cancels");
-});
-
-test("Glassflow stops sampling when its sidebar master switch is disabled", async () => {
-  const e = await glassEnv();
-  e.h.syncSampling();
-  e.prefs.set("zzglass.sidebar.enabled", false);
-  e.h.syncSampling();
-  e.snapshot.resolve(e.bitmap);
-  await new Promise(resolve => setImmediate(resolve));
-  assert.equal(e.timers.size, 0);
-  assert.equal(e.panel.hasAttribute("zzglass-sample"), false);
-  const before = e.snapshots;
-  await e.h.sampleOnce(true);
-  assert.equal(e.snapshots, before);
-});
-
-test("Glassflow recognises all Zen compact-sidebar reveal states", async () => {
-  const e = await glassEnv(); e.toolbox.removeAttribute("zen-has-hover");
-  for (const attr of ["zen-has-hover", "zen-user-show", "zen-has-empty-tab", "flash-popup", "has-popup-menu", "movingtab", "zen-compact-mode-active"]) {
-    e.toolbox.setAttribute(attr, ""); assert.equal(e.h.sidebarShown(), true, attr);
-    e.toolbox.removeAttribute(attr); assert.equal(e.h.sidebarShown(), false, attr);
-  }
-  e.root.setAttribute("zen-renaming-tab", "true"); assert.equal(e.h.sidebarShown(), true);
-  e.root.setAttribute("inDOMFullscreen", "true"); assert.equal(e.h.sidebarShown(), false);
 });
 
 test("Glassflow restores only the animation setting it changed", async () => {
@@ -1133,6 +931,7 @@ test("Groupflow migrates unchanged folder profiles and shared defaults to declar
   const e = await folderDefaultsEnv();
   assert.equal(e.h.migrateFolderDefaults(e.declared), true);
   for (const [key, value] of e.stored) {
+    if (key !== "zzgroup.folder-defaults-v1" && !e.defaults.has(key)) continue;   // since removed (the blur rows)
     assert.equal(value, key === "zzgroup.folder-defaults-v1" ? true : e.defaults.get(key), key);
   }
   assert.equal(e.stored.get("zzgroup.gradient-direction"), 3);

@@ -124,9 +124,9 @@ part with its own setting (all on by default):
   row, so switching tabs moves the light. Point at or scroll a folder's
   connector and that folder shows where you are in it instead: its line by
   how far it has scrolled, each subfolder's by how much of it has scrolled
-  past. The light glides between the two. **Where you are** shows that on
-  every line all the time. Subfolders' lines otherwise start at their own
-  top, as does a folder with no loaded tab. Off gives static connectors with
+  past. The light glides between the two. Other subfolders rest at their
+  own top, as does a folder with no loaded tab. **Where you are** shows
+  where you are on every line all the time. Off gives static connectors with
   the line's own gradient (**Soft ends** or a fade). Colour, width, shape and
   pill ends stay as set.
 - **Edge fade:** the folder's top or bottom edge fades while more tabs are

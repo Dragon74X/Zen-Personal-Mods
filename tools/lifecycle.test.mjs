@@ -1509,7 +1509,7 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
     classList: { contains: c => c === "tab-group-container" }, marks: new Set(),
     toggleAttribute(name, on) { if (on) this.marks.add(name); else this.marks.delete(name); },
     hasAttribute(name) { return this.marks.has(name); },
-    style: { setProperty(k, v) { this[k] = v; }, removeProperty(k) { delete this[k]; } },
+    style: { setProperty(k, v) { this[k] = v; }, removeProperty(k) { delete this[k]; }, getPropertyValue(k) { return this[k] ?? ""; } },
     computed: { getPropertyValue: k => k === "--zzgf-box-cap" ? "480px" : "" },
     get scrollTop() { return this.top; },
     set scrollTop(v) { this.top = Math.max(0, Math.min(1000 - (parseFloat(this.style["--zzgf-box-fit"]) || 480), v)); },
@@ -1523,6 +1523,7 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
   const frames = [];
   e.w.requestAnimationFrame = fn => frames.push(fn);
   const run = () => { let now = 0; while (frames.length) { now += 16; frames.shift()(now); } };
+  e.document.querySelectorAll = selector => selector === "zen-workspace arrowscrollbox" ? [list] : [box];
   const wheel = (target, deltaY = 3, deltaMode = 1) => { const ev = { target, deltaY, deltaMode, DOM_DELTA_PIXEL: 0, DOM_DELTA_LINE: 1,
     DOM_DELTA_PAGE: 2, prevented: false, preventDefault() { this.prevented = true; }, stopPropagation() {} };
     e.document.hit = target; e.gNavToolbox.fire("wheel", ev); run(); return ev.prevented; };
@@ -1530,7 +1531,7 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
   assert.equal(box.scrollTop, 40, "three lines snap to the nearest row");
   assert.equal(box.style["--zzgf-box-scroll"], "40px", "the rail moved in the same frame");
   assert.equal(box.style["--zzgf-box-fit"], "480px", "the box ends on a row");
-  assert.deepEqual([...box.marks].sort(), ["zzgf-glow", "zzgf-more-above", "zzgf-more-below"], "rows hidden on both sides are marked");
+  assert.deepEqual([...box.marks].sort(), ["zzgf-glow", "zzgf-list-glow", "zzgf-more-above", "zzgf-more-below"], "rows hidden on both sides are marked, and the line is lit");
   assert.equal(box.style["--zzgf-glow"], 40 / 520 * 480 + "px", "the light sits as far down the line as the body is scrolled");
   assert.equal(wheel(gutter, 1), true); assert.equal(box.scrollTop, 80, "a small notch still moves one row");
   assert.equal(wheel(gutter, -100), true); assert.equal(box.scrollTop, 0, "clamped at the top");

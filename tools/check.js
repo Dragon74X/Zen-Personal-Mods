@@ -109,7 +109,7 @@
                     "zz-iconflow":"__zziconInstance", "zz-peekflow":"__zzpeekInstance",
                     "zz-tab-router":"__zzrouterInstance", "zz-tab-unloader":"__zzunloadInstance",
                     "zz-zen-turbo":"__zzturboInstance" }[id]];
-    out.injected = gen ? `yes (generation ${gen.generation})` : "no marker -- old version or never injected";
+    if (id !== "zz-mediaflow") out.injected = gen ? `yes${gen.generation ? ` (generation ${gen.generation})` : ""}` : "no marker -- old version or never injected";
 
     // The version actually on disk. Settings that exist in the repository but
     // not here mean Sine has not pulled the update -- which looks exactly like
@@ -178,10 +178,11 @@
       }
     } catch (e) { out.problems.push(`live state: ${strip(e)}`); }
 
-    // A separator carrying conditions makes Sine's panel builder throw on
-    // it, and every row after it vanishes. Checked here so it cannot recur.
+    // Sine finds a conditional row by its id or property; a separator with
+    // conditions and neither makes its panel builder throw, and every row
+    // after it vanishes. Checked here so it cannot recur.
     for (const pref of prefs) {
-      if (pref?.type === "separator" && pref.conditions) out.problems.push(`separator "${pref.label}" has conditions: rows after it will not render`);
+      if (pref?.type === "separator" && pref.conditions && !pref.id && !pref.property) out.problems.push(`separator "${pref.label}" has conditions: rows after it will not render`);
     }
 
     if (String(out.installedVersion).includes("NetworkError")) {

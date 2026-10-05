@@ -402,7 +402,7 @@ async function unloaderEnv() {
   const states = new Map(), calls = [];
   const gBrowser = { tabs, async prepareDiscardBrowser(t) { calls.push(["prepare", t]); },
     discardBrowser(t) { calls.push(["discard", t]); t.setAttribute("pending", ""); return true; } };
-  const h = await load("tab-unloader", "sweep, hasFields, whyKeep, retire: () => retired = true", {
+  const h = await load("tab-unloader", "sweep, hasFields, whyKeep, onTabSelect, retire: () => retired = true", {
     window: {}, document: { documentElement: element(), querySelectorAll: () => tabs }, gBrowser,
     SessionStore: { getTabState: t => JSON.stringify(states.get(t) ?? {}) },
     Services: { prefs: { PREF_INT: 64, getPrefType: () => 64, getIntPref: k => values.get(k),
@@ -460,6 +460,18 @@ test("Router rejects empty or disconnected groups without collecting descendant 
   for (const id of [0, 2, 2, 0]) { const t = tab(); t.setAttribute("usercontextid", String(id)); members.push(t); }
   assert.equal(e.h.majorityContext(group), 0, "first container wins a tie, including container 0");
   members.push(members[1]); assert.equal(e.h.majorityContext(group), 2);
+});
+
+test("Unloader lets a playing tab stand in for its workspace's last-used tab", async () => {
+  const e = await unloaderEnv(), [last, video] = e.tabs;
+  e.values.set("zzunload.exclude-workspace-anchor", true);
+  for (const t of e.tabs) { t.setAttribute("zen-workspace-id", "w1"); t.lastAccessed = 1; }
+  e.h.onTabSelect({ target: last });
+  assert.equal(e.h.whyKeep(last, Date.now()), "last tab in its workspace");
+  video.setAttribute("soundplaying", "true");
+  assert.equal(e.h.whyKeep(last, Date.now()), null);
+  video.setAttribute("zen-workspace-id", "w2");
+  assert.equal(e.h.whyKeep(last, Date.now()), "last tab in its workspace", "another workspace's video does not count");
 });
 
 test("Unloader protects actual Zen split and native protected tabs", async () => {

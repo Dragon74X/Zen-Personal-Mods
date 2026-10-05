@@ -177,6 +177,16 @@
     return held === tab;
   }
 
+  // A workspace that already keeps a tab loaded because it is playing,
+  // in picture-in-picture or sharing has that tab to come back to, so its
+  // anchor need not hold a second one.
+  function workspaceKeepsAnother(tab, cfg) {
+    const ws = workspaceOf(tab);
+    return allTabs().some(t => t !== tab && workspaceOf(t) === ws && !t.hasAttribute("pending") &&
+      ((cfg.audio && t.hasAttribute("soundplaying")) || (cfg.pip && t.hasAttribute("pictureinpicture")) ||
+       (cfg.sharing && t.hasAttribute("sharing"))));
+  }
+
   // whyKeep was reading a dozen prefs PER TAB. On a 73-tab window that is
   // roughly nine hundred pref reads per sweep to decide something that does
   // not change between tabs. Read them once and pass them down.
@@ -210,7 +220,7 @@
     const idleFor = (now - (tab.lastAccessed || now)) / 1000;
     if (idleFor < cfg.idleSec) return `idle ${Math.round(idleFor)}s of ${cfg.idleSec}s`;
 
-    if (cfg.anchor && isWorkspaceAnchor(tab)) return "last tab in its workspace";
+    if (cfg.anchor && isWorkspaceAnchor(tab) && !workspaceKeepsAnother(tab, cfg)) return "last tab in its workspace";
     if (cfg.audio && tab.hasAttribute("soundplaying")) return "playing audio";
     if (cfg.attention && tab.hasAttribute("attention")) return "wants attention";
     if (cfg.sharing && tab.hasAttribute("sharing")) return "sharing camera/mic/screen";

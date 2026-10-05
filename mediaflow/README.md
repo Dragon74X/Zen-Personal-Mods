@@ -48,6 +48,10 @@ anything: its next update turns it into Mediaflow.
   follows the tab list, so the old way shrank the list to nothing and pushed
   the bar and a small preview to the top of the sidebar.
 - Groupflow refits its folders when the preview takes or gives back room.
+- Zen makes a music card only as a tab starts making sound, and only if the
+  page's media controls are ready at that moment, so a video could play in a
+  background tab with no bar at all. Mediaflow asks Zen again for a few
+  seconds after a tab starts or stops sound, or loses its card.
 
 ## Settings
 

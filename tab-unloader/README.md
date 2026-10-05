@@ -44,7 +44,7 @@ Candidates are sorted oldest-idle-first; eligibility is evaluated only until the
 
 Every toggleable category is independent, and all of them default to on.
 
-**Last tab per workspace** is worth understanding, because it is the one rule that is not a plain attribute check. Switching workspaces leaves the tab you were on still selected in *its* workspace, so the tab last selected in each workspace is exactly "the one you switched away from" -- and coming back to a workspace to find it blank is the thing this prevents. The anchor is a specific tab, dropped when that tab closes, so a closed tab never passes its protection on to whatever takes its place. `TabUnloader.anchors()` shows the current one per workspace.
+**Last tab per workspace** is worth understanding, because it is the one rule that is not a plain attribute check. Switching workspaces leaves the tab you were on still selected in *its* workspace, so the tab last selected in each workspace is exactly "the one you switched away from" -- and coming back to a workspace to find it blank is the thing this prevents. The anchor is a specific tab, dropped when that tab closes, so a closed tab never passes its protection on to whatever takes its place. A workspace that already keeps a tab loaded because it is playing, in picture-in-picture or sharing has that tab to come back to, so its last tab is not held as well. `TabUnloader.anchors()` shows the current one per workspace.
 
 A workspace animation defers a sweep for at most 10 seconds. A stale animation marker therefore cannot disable unloading indefinitely.
 

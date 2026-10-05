@@ -91,7 +91,9 @@ Iconflow 1.3 dropped the Flow set. Anyone using Flow is moved to Circuit.
 
 Icons that only turn, slide or scale (close, new tab, back and forward,
 settings, zoom, minus) are one drawing moved by CSS on the same spring, so
-the motion is recomputed every screen refresh. Every other each icon is a strip of 96 frames on Zen's 18-unit icon grid, scaled up as
+the motion is recomputed every screen refresh. Turns keep one rule in every
+set: closing, cancelling, removing and rewinding turn counterclockwise;
+opening and adding turn clockwise. Every other icon is a strip of 96 frames on Zen's 18-unit icon grid, scaled up as
 far as its shape allows so it fills Zen's 16px slot, saved as its
 own file under `icons/`. Zen only loads the icons a rule uses, so
 `icons.css` stays small. Iconflow counts through the frames with a

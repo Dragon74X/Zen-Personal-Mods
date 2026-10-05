@@ -205,10 +205,16 @@
   const OTHER_MODS = {
     arc: [
       ["arc-macos-style-buttons", false, "zzglass.buttons.enabled"],
-      ["arc-compact-sidebar-bg", "transparent", "zzglass.sidebar.enabled"],
       ["arc-grayscale-unloaded-tabs", false, "zzglass.pending.enabled"],
       ["arc-folder-bg", false, "zzgroup.enabled"],
       ["arc.tab-groups-disable", 1, "zzgroup.enabled"],
+    ],
+    // Arc's blur and transparency settings that sit on the same surfaces as
+    // ours. Its compact-sidebar blur is not here: Glassflow's Zen blur
+    // replaces it on the panel itself.
+    "arc-glass": [
+      ["arc-compact-sidebar-bg", "transparent", "zzglass.sidebar.enabled"],
+      ["arc-menu-opacity", false, "zzglass.overlays.enabled"],
     ],
     "zen-fade": [["browser.tabs.fadeOutUnloadedTabs", false, "zzglass.pending.enabled"]],
     superpins: [

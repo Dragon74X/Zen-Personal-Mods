@@ -407,7 +407,10 @@
     background: var(--zzgf-light, linear-gradient(transparent, transparent)), var(--zzgf-grad) !important;
     mask-image: var(--zzgf-railmask);
     opacity: var(--zzgroup-line-opacity, 1);
-    transition: opacity 130ms ease-out, filter 130ms ease-out;
+    /* The light glides to where it is set (groupflow.uc.js), so moving
+       between the selected tab and where you are is smooth. */
+    --zzgf-glow-at: var(--zzgf-glow, 0px);
+    transition: opacity 130ms ease-out, filter 130ms ease-out, --zzgf-glow-at 280ms cubic-bezier(.2, .8, .3, 1);
     pointer-events: none;
   }
 
@@ -2119,14 +2122,14 @@
     --zzgf-glow-reach: var(--zzgroup-glow-reach, min(34%, 120px));
     --zzgf-glow-floor: var(--zzgroup-glow-floor, 0.35);
     --zzgf-light: linear-gradient(to bottom,
-      transparent calc(var(--zzgf-glow, 0px) - var(--zzgf-glow-reach)),
-      color-mix(in srgb, var(--zzgf-accent) 45%, white) var(--zzgf-glow, 0px),
-      transparent calc(var(--zzgf-glow, 0px) + var(--zzgf-glow-reach)));
+      transparent calc(var(--zzgf-glow-at) - var(--zzgf-glow-reach)),
+      color-mix(in srgb, var(--zzgf-accent) 45%, white) var(--zzgf-glow-at),
+      transparent calc(var(--zzgf-glow-at) + var(--zzgf-glow-reach)));
     mask-image: var(--zzgf-shapemask, linear-gradient(#000, #000)),
       linear-gradient(to bottom,
-        rgb(0 0 0 / var(--zzgf-glow-floor)) calc(var(--zzgf-glow, 0px) - var(--zzgf-glow-reach)),
-        #000 var(--zzgf-glow, 0px),
-        rgb(0 0 0 / var(--zzgf-glow-floor)) calc(var(--zzgf-glow, 0px) + var(--zzgf-glow-reach))) !important;
+        rgb(0 0 0 / var(--zzgf-glow-floor)) calc(var(--zzgf-glow-at) - var(--zzgf-glow-reach)),
+        #000 var(--zzgf-glow-at),
+        rgb(0 0 0 / var(--zzgf-glow-floor)) calc(var(--zzgf-glow-at) + var(--zzgf-glow-reach))) !important;
     mask-composite: intersect !important;
     mask-size: 100% 100% !important;
     mask-repeat: no-repeat !important;
@@ -2202,6 +2205,7 @@
    its ends. The mask sits on the arrowscrollbox, which stays still while its
    inner scrollbox scrolls (Sine's user-origin sheets cannot reach ::part).
    The fade grows in rather than appearing at the first pixel. */
+@property --zzgf-glow-at { syntax: "<length>"; inherits: false; initial-value: 0px; }
 @property --zzgf-list-fade-above { syntax: "<length>"; inherits: false; initial-value: 0px; }
 @property --zzgf-list-fade-below { syntax: "<length>"; inherits: false; initial-value: 0px; }
 @media (-moz-pref("zzgroup.scroll-fade")) {

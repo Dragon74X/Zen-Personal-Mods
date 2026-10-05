@@ -118,14 +118,17 @@ While a folder's contents scroll, Groupflow shows what is out of view, each
 part with its own setting (all on by default):
 
 - **Dynamic connectors:** every connector line, each subfolder's included,
-  carries its own light showing where you are in that line: full strength,
-  with a bright band of its own colour, there, easing to a dim floor away
-  from it. It slides down as you scroll through that line, whether the
-  folder scrolls inside itself or the tab list scrolls, and looks the same
-  when nothing can scroll. **Light follows** can pin it to the selected
-  tab's row instead. Off gives static connectors with the line's own
-  gradient (**Soft ends** or a fade). Colour, width, shape and pill ends stay
-  as set.
+  carries its own light: full strength, with a bright band of its own
+  colour, there, easing to a dim floor away from it. By default (**Light
+  follows: The selected tab**) lines holding the selected tab light at its
+  row, so switching tabs moves the light. Point at or scroll a folder's
+  connector and that folder shows where you are in it instead: its line by
+  how far it has scrolled, each subfolder's by how much of it has scrolled
+  past. The light glides between the two. **Where you are** shows that on
+  every line all the time. Subfolders' lines otherwise start at their own
+  top, as does a folder with no loaded tab. Off gives static connectors with
+  the line's own gradient (**Soft ends** or a fade). Colour, width, shape and
+  pill ends stay as set.
 - **Edge fade:** the folder's top or bottom edge fades while more tabs are
   hidden past it. The same setting fades the tab list's own top and bottom
   edges while it scrolls, so folders, subfolders and tabs fade as they leave
@@ -139,8 +142,9 @@ part with its own setting (all on by default):
 
 A folder that fits has nothing to scroll, so its connector scrolls the list.
 With Firefox's **switch tabs by scrolling** setting on
-(`toolkit.tabbox.switchByScrolling`), the connector never selects or loads a
-tab; its tabs still switch as usual. **Scroll inside folders** turns all of
+(`toolkit.tabbox.switchByScrolling`), the wheel over a tab selects the next or
+previous tab, and its folder brings that tab into view; the connector scrolls
+and never selects or loads a tab. **Scroll inside folders** turns all of
 this off and removes the cap. Split-view groups and Zen's native folders are
 not capped.
 

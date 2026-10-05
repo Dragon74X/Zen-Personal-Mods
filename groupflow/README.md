@@ -124,7 +124,8 @@ part with its own setting (all on by default):
   carries its own light: brightest there, with a band of its own colour,
   and darkest at both ends of the line, fading smoothly over its whole
   length, so a one-row subfolder's line fades as fully as a long folder's.
-  By default (**Light
+  **Light spread** sets how far it stays bright before dimming: Tight, Medium
+  (default), Wide or Full. By default (**Light
   follows: The selected tab**) a line holding the selected tab lights at its
   place in the folder: the first row at the top, the last at the bottom, so a
   lone tab or a lone subfolder sits at the top. Rows are counted rather than

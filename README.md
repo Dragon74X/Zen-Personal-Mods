@@ -19,7 +19,7 @@ Source-targeted Zen Browser modifications.
 
 Each mod contains a `.uc.js` script and requires Sine user-script loading. Compatibility depends on current Zen, Firefox, and Sine internals; test after updates.
 
-Run `tools/check.js` in the Browser Console (`Ctrl+Shift+J`), then click back on the Zen window within 3 seconds. It copies a report of settings, versions, styles and counts to the clipboard, with no page names, addresses or file paths. It requires Firefox chrome globals and does not run under Node.
+Run `tools/check.js` in the Browser Console (`Ctrl+Shift+J`), then click on the Zen window; it waits for that. It copies a report of settings, versions, styles and counts to the clipboard, with no page names, addresses or file paths. It requires Firefox chrome globals and does not run under Node.
 
 Individual READMEs define settings, exclusions, and known limits.
 

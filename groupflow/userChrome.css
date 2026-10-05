@@ -2090,18 +2090,23 @@
    gradient along its length moves with you: the line is brightest at
    --zzgf-glow, with a band of its own colour, and darkest at both of its
    ends (the dim floor), fading smoothly over the whole length between, so a
-   one-row subfolder fades as fully as a long folder. The fade holds its
-   brightness for most of the way (the colour hints) before it falls off. Each line, subfolders included, has its own light
+   one-row subfolder fades as fully as a long folder. Light spread sets where
+   each side is half as bright (the colour hints): close to the light falls
+   off quickly, so the bright spot stands out. Each line, subfolders included, has its own light
    (groupflow.uc.js), always, scrolling or not. This takes the place of the
    static along-the-line gradient (Soft ends or a fade); the line's own ends,
    their pill shape included, stay. Everything across the line's width
    (colour, rounding, sheen, rim) and its shape stay as set. */
+@media (-moz-pref("zzgroup.glow-spread", 0)) { :root { --zzgroup-glow-half: 0.15; } }
+@media (-moz-pref("zzgroup.glow-spread", 2)) { :root { --zzgroup-glow-half: 0.5; } }
+@media (-moz-pref("zzgroup.glow-spread", 3)) { :root { --zzgroup-glow-half: 0.65; } }
 @media (-moz-pref("zzgroup.scroll-glow")) {
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container:is([zzgf-glow], [zzgf-list-glow], :is([zzgf-glow], [zzgf-list-glow]) .tab-group-container)::before {
     --zzgf-glow-floor: var(--zzgroup-glow-floor, 0.35);
-    /* Halfway points of each fade, placed 65% of the way out from the light. */
-    --zzgf-glow-up: calc(var(--zzgf-glow-at) * 0.35);
-    --zzgf-glow-down: calc(var(--zzgf-glow-at) + (100% - var(--zzgf-glow-at)) * 0.65);
+    /* Halfway points of each fade, this far out from the light. */
+    --zzgf-glow-half: var(--zzgroup-glow-half, 0.3);
+    --zzgf-glow-up: calc(var(--zzgf-glow-at) * (1 - var(--zzgf-glow-half)));
+    --zzgf-glow-down: calc(var(--zzgf-glow-at) + (100% - var(--zzgf-glow-at)) * var(--zzgf-glow-half));
     --zzgf-light: linear-gradient(to bottom,
       transparent 0%, var(--zzgf-glow-up),
       color-mix(in srgb, var(--zzgf-accent) 45%, white) var(--zzgf-glow-at),

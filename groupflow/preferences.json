@@ -1249,6 +1249,68 @@
     "operator": "AND"
   },
   {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.glow-spread",
+    "label": "Light spread *How far the light stays bright before it dims. Tight shows where you are most clearly; Full keeps most of the line bright. Every choice still fades over the whole line, down to the dim floor at its ends.*",
+    "defaultValue": 1,
+    "options": [
+      {
+        "label": "Tight",
+        "value": 0
+      },
+      {
+        "label": "Medium",
+        "value": 1
+      },
+      {
+        "label": "Wide",
+        "value": 2
+      },
+      {
+        "label": "Full",
+        "value": 3
+      }
+    ],
+    "conditions": [
+      {
+        "conditions": [
+          {
+            "if": {
+              "property": "zzgroup.ui.page",
+              "value": "layout"
+            }
+          },
+          {
+            "if": {
+              "property": "zzgroup.ui.page",
+              "value": "all"
+            }
+          },
+          {
+            "if": {
+              "property": "zzgroup.ui.page",
+              "value": ""
+            }
+          }
+        ],
+        "operator": "OR"
+      },
+      {
+        "conditions": [
+          {
+            "if": {
+              "property": "zzgroup.scroll-glow",
+              "value": true
+            }
+          }
+        ],
+        "operator": "OR"
+      }
+    ],
+    "operator": "AND"
+  },
+  {
     "type": "checkbox",
     "property": "zzgroup.scroll-fade",
     "label": "Fade the edge where tabs are hidden *The tab list's top or bottom edge softly fades while more tabs are scrolled past it, so folders, subfolders and tabs fade as they leave the list. A folder whose contents scroll inside it fades its own edges the same way.*",

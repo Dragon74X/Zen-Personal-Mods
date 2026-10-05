@@ -23,6 +23,12 @@ Run `tools/check.js` in the Browser Console (`Ctrl+Shift+J`), then click on the 
 
 Individual READMEs define settings, exclusions, and known limits.
 
+## Design resources
+
+[Iconflow design resources](resources/iconflow/) contains 23 line-art themes,
+138 interactive button concepts, editable source, and offline checks. Download
+the HTML preview to run it in a browser. These resources do not install a mod.
+
 [September 18 audit](docs/AUDIT-2026-09-18.md): findings, pinned upstream sources, native blur checks and remaining runtime limits.
 
 ## Regression checks

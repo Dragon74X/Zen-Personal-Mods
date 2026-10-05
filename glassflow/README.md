@@ -146,7 +146,7 @@ one white 1px top highlight and 1px ring per state.
 | Hide Arc's container glow | on | Only matters with Arc 2.0 installed |
 | Close button on the left | on | Hovering a regular tab swaps its icon for the close button. Pinned tabs keep their icon with the button beside it; Essentials keep their icon (the original mod left them blank) |
 | Hide the pinned-tabs separator | on | SuperPins' *Show separator* controls the same line; set only one |
-| Essentials favicon grows on hover | Medium (1.3×) | Off, 1.15×, 1.3× or 1.5×, with a small spring (instant with reduced motion) |
+| Essentials favicon grows on hover | Medium (1.3×) | Off, 1.15×, 1.3× or 1.5×; it overshoots a little and settles, like Iconflow's icons (instant with reduced motion) |
 
 ## Tab strip
 

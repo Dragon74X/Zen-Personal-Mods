@@ -48,6 +48,9 @@ anything: its next update turns it into Mediaflow.
   follows the tab list, so the old way shrank the list to nothing and pushed
   the bar and a small preview to the top of the sidebar.
 - Groupflow refits its folders when the preview takes or gives back room.
+- The preview and its captions hang from their bottom edge and move with the
+  bar frame by frame, instead of easing after it, so they no longer trail or
+  slide under the bar as its hover rows open and close.
 - Zen makes a music card only as a tab starts making sound, and only if the
   page's media controls are ready at that moment, so a video could play in a
   background tab with no bar at all. Mediaflow asks Zen again for a few
@@ -62,7 +65,7 @@ anything: its next update turns it into Mediaflow.
 | | Captions | Follow YouTube |
 | | Captions while the preview is hidden | off |
 | | Grow on hover (1.5×, 2×, 3×, half the window, or off) | 2× |
-| | Click the preview to go to its tab | on |
+| | Click the preview to go to its tab (switching workspace if it is in another) | on |
 | | Make room above the preview (off: it sits in front of the tabs; on: the tab list ends above it) | off |
 | Music bar | Always show title and progress | off |
 | | Hide the title row (also hides picture-in-picture and close) | off |

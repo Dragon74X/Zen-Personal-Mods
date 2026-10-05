@@ -1741,6 +1741,63 @@
     "operator": "AND"
   },
   {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.sidebar.edge-shade",
+    "label": "Darken the sidebar's edges *A soft shade just inside the compact sidebar's edges, painted rather than blurred so it holds still while you hover.*",
+    "defaultValue": 1,
+    "options": [
+      {
+        "label": "Off",
+        "value": 0
+      },
+      {
+        "label": "Soft",
+        "value": 1
+      },
+      {
+        "label": "Medium",
+        "value": 2
+      },
+      {
+        "label": "Strong",
+        "value": 3
+      }
+    ],
+    "conditions": [
+      {
+        "conditions": [
+          {
+            "if": {
+              "property": "zzglass.ui.page",
+              "value": "glass"
+            }
+          },
+          {
+            "if": {
+              "property": "zzglass.ui.page",
+              "value": "sidebar"
+            }
+          },
+          {
+            "if": {
+              "property": "zzglass.ui.page",
+              "value": "all"
+            }
+          },
+          {
+            "if": {
+              "property": "zzglass.ui.page",
+              "value": ""
+            }
+          }
+        ],
+        "operator": "OR"
+      }
+    ],
+    "operator": "AND"
+  },
+  {
     "type": "separator",
     "id": "zzglass.ui.section.see-through",
     "label": "See-through sidebar",

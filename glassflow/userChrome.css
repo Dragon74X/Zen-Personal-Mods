@@ -73,7 +73,9 @@
     url("chrome://browser/content/zen-styles/zen-backdrop-filters.svg#underlay-light"),
     url("chrome://browser/content/zen-styles/zen-backdrop-filters.svg#underlay-dark")));
   --zzg-blur-size: 42px;
-  --zzg-acrylic: var(--zzg-underlay) blur(42px) saturate(110%) brightness(0.25) contrast(100%);
+  /* The recipe without the underlay: what the sidebar's own layer uses. */
+  --zzg-acrylic-flat: blur(42px) saturate(110%) brightness(0.25) contrast(100%);
+  --zzg-acrylic: var(--zzg-underlay) var(--zzg-acrylic-flat);
   /* The same blur without the panel's darkening, for glass that brings its
      own fill (the overlays). */
   --zzg-acrylic-clear: var(--zzg-underlay) blur(42px) saturate(110%) contrast(100%);
@@ -81,8 +83,9 @@
 @media (-moz-pref("zzglass.sidebar.blur")) {
   :root {
     --zzg-blur-size: var(--zzglass-sidebar-blur-radius, 42px);
-    --zzg-acrylic: var(--zzg-underlay) blur(var(--zzglass-sidebar-blur-radius, 42px)) saturate(var(--zzglass-sidebar-blur-saturate, 1.1))
+    --zzg-acrylic-flat: blur(var(--zzglass-sidebar-blur-radius, 42px)) saturate(var(--zzglass-sidebar-blur-saturate, 1.1))
       brightness(var(--zzglass-sidebar-blur-brightness, 0.25)) contrast(var(--zzglass-sidebar-blur-contrast, 1));
+    --zzg-acrylic: var(--zzg-underlay) var(--zzg-acrylic-flat);
     --zzg-acrylic-clear: var(--zzg-underlay) blur(var(--zzglass-sidebar-blur-radius, 42px)) saturate(var(--zzglass-sidebar-blur-saturate, 1.1))
       contrast(var(--zzglass-sidebar-blur-contrast, 1));
   }
@@ -100,7 +103,10 @@
    one and a half blur radii and clipped back to the panel's own shape. A
    blur only samples inside its own box, so on the panel itself the page
    showed through clearer near every edge; the wider layer has page to
-   sample right up to them. */
+   sample right up to them. The layer leaves out Zen's underlay: an SVG
+   filter on a clipped layer is redrawn unevenly whenever anything on the
+   panel repaints, so the darkening near its edges flickered on every
+   hover. Over the page there is nothing for an underlay to fill. */
 :root {
   --zzg-panel-radius: calc(var(--zen-native-inner-radius, 8px) - var(--zen-compact-mode-no-padding-radius-fix, 0px));
   --zzg-panel-corner: var(--zzg-corner);
@@ -130,8 +136,24 @@
        (squircle, bevel) differ from it by a pixel or so at the corners. */
     clip-path: inset(var(--zzg-blur-pad) round var(--zzg-panel-radius)) !important;
     background: transparent !important;
-    backdrop-filter: var(--zzg-acrylic) !important;
+    backdrop-filter: var(--zzg-acrylic-flat) !important;
     z-index: -2 !important;
+    pointer-events: none !important;
+  }
+}
+/* Sidebar > Darken the sidebar's edges: a shade painted just inside the
+   panel, above its blur and below everything on it. */
+@media (-moz-pref("zzglass.sidebar.edge-shade", 2)) { :root { --zzg-edge-shade: 32%; } }
+@media (-moz-pref("zzglass.sidebar.edge-shade", 3)) { :root { --zzg-edge-shade: 50%; } }
+@media not (-moz-pref("zzglass.sidebar.edge-shade", 0)) {
+  :root[zen-compact-mode="true"] #navigator-toolbox #titlebar::after {
+    content: "" !important;
+    position: absolute !important;
+    inset: 0 !important;
+    border-radius: var(--zzg-panel-radius) !important;
+    corner-shape: var(--zzg-panel-corner) !important;
+    box-shadow: inset 0 0 calc(var(--zzg-blur-size) * 1.2) color-mix(in srgb, black var(--zzg-edge-shade, 18%), transparent) !important;
+    z-index: -1 !important;
     pointer-events: none !important;
   }
 }

@@ -407,11 +407,13 @@
     background: var(--zzgf-light, linear-gradient(transparent, transparent)), var(--zzgf-grad) !important;
     mask-image: var(--zzgf-railmask);
     opacity: var(--zzgroup-line-opacity, 1);
-    /* The light glides to where it is set (groupflow.uc.js), so moving
-       between the selected tab and where you are is smooth. */
     --zzgf-glow-at: var(--zzgf-glow, 0px);
-    transition: opacity 130ms ease-out, filter 130ms ease-out, --zzgf-glow-at 280ms cubic-bezier(.2, .8, .3, 1);
+    transition: opacity 130ms ease-out, filter 130ms ease-out;
     pointer-events: none;
+  }
+  /* The light glides only when it jumps (groupflow.uc.js marks the line). */
+  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container[zzgf-glide]::before {
+    transition: opacity 130ms ease-out, filter 130ms ease-out, --zzgf-glow-at 280ms cubic-bezier(.2, .8, .3, 1);
   }
 
   /* Glassflow's button vocabulary, applied to the rail. Each layer is

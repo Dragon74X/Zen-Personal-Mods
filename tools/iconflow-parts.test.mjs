@@ -60,5 +60,14 @@ test("Closing, cancelling and rewinding turn counterclockwise; opening and addin
     assert.ok(found.every(d => Math.sign(d) === sign), `${label} turns ${sign < 0 ? "counter" : ""}clockwise: ${found}`);
   }
   assert.match(source, /const whip = \[spin\(-90/, "Zen's own close buttons turn counterclockwise");
+  // Hover motion: the close buttons' (tabs included) Spin and Full turn run backwards; the plus forwards.
+  assert.match(css, /@keyframes zzicon-spin-back \{ to \{ rotate: -180deg; \} \}/);
+  assert.match(css, /@keyframes zzicon-turn-back \{ to \{ rotate: -360deg; \} \}/);
+  for (const [group, back] of [["close", true], ["minus", true], ["plus", false]]) {
+    for (const v of [2, 3]) {
+      const rule = css.split("\n").find(l => l.startsWith(`@media (-moz-pref("zzicon.motion.${group}", ${v}))`));
+      assert.equal(/zzicon-(spin|turn)-back/.test(rule), back, `${group} hover motion ${v}`);
+    }
+  }
   assert.match(source, /"new-tab": \[spin\(90/, "and its plus clockwise");
 });

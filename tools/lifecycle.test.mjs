@@ -1547,8 +1547,14 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
   assert.equal(box.scrollTop, 0);
   const prefs = e.Services.prefs.getBoolPref, realTab = { ...tab, closest: selector => selector === ".tabbrowser-tab" ? realTab : tab.closest(selector) };
   e.Services.prefs.getBoolPref = (k, d) => k === "toolkit.tabbox.switchByScrolling" || prefs(k, d);
+  const selected = e.gBrowser.selectedTab;
+  selected.getBoundingClientRect = () => ({ top: 200, height: 40 });
   assert.equal(wheel(realTab, 3), false, "with switch-tabs-by-scrolling on, the wheel over a tab switches tabs instead");
   assert.equal(box.scrollTop, 0);
+  selected.getBoundingClientRect = () => ({ top: 0, height: 0 });
+  assert.equal(wheel(realTab, 3), true, "but with the selected tab scrolled out of view");
+  assert.equal(e.gBrowser.selectedTab, realTab, "it picks up at the tab under the pointer");
+  e.gBrowser.selectedTab = selected;
   e.Services.prefs.getBoolPref = prefs;
   // The body takes what the header leaves of the list: 375px, trimmed to rows.
   e.document.querySelectorAll = selector => selector === "zen-workspace arrowscrollbox" ? [list] : [box];
@@ -1558,6 +1564,7 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
   assert.equal(wheel(gutter, 100), true); assert.equal(box.scrollTop, 640, "the body scrolls to its last rows");
   assert.equal(wheel(gutter, 3), false, "at its end the body passes the wheel on, so the list keeps scrolling");
   assert.equal(box.scrollTop, 640);
+  for (const [id, fn] of [...e.c.timers]) { e.c.clearTimeout(id); fn(); } run();   // the light's glide ending
   e.gBrowser.tabContainer.fire("scroll", { target: box });
   assert.equal(e.c.timers.size, 0, "its own scroll is not refitted back to the selected tab");
   box.top = 600;

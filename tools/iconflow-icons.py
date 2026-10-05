@@ -1228,8 +1228,15 @@ MOTION_GROUPS = {
 }
 
 
+# Buttons that close, cancel or remove: their spins and turns run
+# counterclockwise, as every turn of that kind does.
+BACKWARD = {"close", "minus"}
+TURNS = {2, 3}
+
+
 def motion_css():
     out = [f"@keyframes {name} {{ {frames} }}" for _, name, frames, _ in MOTIONS.values()]
+    out += [f"@keyframes {MOTIONS[v][1]}-back {{ {MOTIONS[v][2].replace('rotate: ', 'rotate: -')} }}" for v in sorted(TURNS)]
     for key, (label, targets) in MOTION_GROUPS.items():
         out.append(f"/* Hover motion: {label} */")
         still = f"{targets}, {parents(split_list(targets))} {{ {STILL_MOTION} }}"
@@ -1239,6 +1246,7 @@ def motion_css():
         out.append(f'@media (not (-moz-pref("zzicon.motion.{key}", 0))) and (not (-moz-pref("zzicon.animate"))) {{ {still} }}')
         out.append(f'@media (not (-moz-pref("zzicon.motion.{key}", 0))) and (prefers-reduced-motion: reduce) {{ {still} }}')
         for value, (_, name, _, timing) in MOTIONS.items():
+            name += "-back" if key in BACKWARD and value in TURNS else ""
             out.append(f'@media (-moz-pref("zzicon.motion.{key}", {value})) and {MOVES} {{ {targets} {{ animation: {name} var(--zzicon-motion-duration) {timing} !important; }}'
                        f' {parents(split_list(targets))} {{ animation: none !important; transform: none !important; }} }}')
     return out

@@ -1017,12 +1017,21 @@
       else if (!hit.closest(".tab-group-label-container, toolbarbutton, button")) showWhere(boxAt(ev, hit), true);
     });
   }
-  // The tab a subfolder's line marks when the selected tab is elsewhere.
+  // The tab a subfolder's line marks when the selected tab is elsewhere, and
+  // whether a folder holds a loaded tab. Both only change when tabs do, so
+  // they are kept until the next tab event (onFitEvent) rather than looked
+  // up on every frame of a scroll.
+  let tabFacts = new WeakMap();
   function recentTab(group) {
+    if (tabFacts.has(group)) return tabFacts.get(group);
     let best = null;
     for (const t of group.querySelectorAll(LOADED)) if (!best || t.lastAccessed > best.lastAccessed) best = t;
+    tabFacts.set(group, best);
     return best;
   }
+  const gliding = new Set();
+  let glideTimer = null;
+  const endGlides = () => { for (const c of gliding) c.toggleAttribute("zzgf-glide", false); gliding.clear(); };
   function lightLists() {
     listFrame = 0;
     const glow = bool("scroll-glow", true);
@@ -1056,9 +1065,14 @@
         const at = tab ? Math.min(r.height, Math.max(0, tab.top + tab.height / 2 - r.top))
           : sub ? (sel ? 0 : past(r, v))
           : own != null ? own
-          : roam || c.parentElement?.querySelector(LOADED) ? through(r.top, r.height, v.top, v.height) * r.height : 0;
-        const px = at + "px";
-        if (c.style.getPropertyValue("--zzgf-glow") !== px) c.style.setProperty("--zzgf-glow", px);
+          : roam || recentTab(c.parentElement) ? through(r.top, r.height, v.top, v.height) * r.height : 0;
+        const px = at + "px", was = parseFloat(c.style.getPropertyValue("--zzgf-glow"));
+        if (c.style.getPropertyValue("--zzgf-glow") === px) continue;
+        // Glide only when the light jumps (a tab selected, a switch between
+        // the tab and where you are); while scrolling it follows directly, so
+        // no line animates on every frame.
+        if (Math.abs(at - was) > 12) { c.toggleAttribute("zzgf-glide", true); gliding.add(c); clearTimeout(glideTimer); glideTimer = setTimeout(endGlides, 320); }
+        c.style.setProperty("--zzgf-glow", px);
       }
     }
   }
@@ -1185,13 +1199,29 @@
     to.scrollBy({ top: event.deltaY * unit, behavior: event.deltaMode === event.DOM_DELTA_PIXEL ? "instant" : "smooth" });
   }
   // With Firefox's switch-tabs-by-scrolling on, the wheel over a tab selects
-  // the next or previous tab; its folder then brings it into view.
+  // the next or previous tab; its folder then brings it into view. When the
+  // selected tab has been scrolled out of view, the wheel picks up at the tab
+  // under the pointer instead of jumping back to where the selected one is.
   const switching = () => Services.prefs.getBoolPref("toolkit.tabbox.switchByScrolling", false);
+  function inView(tab, near) {
+    const r = tab.getBoundingClientRect(), body = near.closest(bodySelector);
+    const v = (body && folderBox(body) || near.closest("arrowscrollbox")?.scrollbox || near).getBoundingClientRect();
+    return r.height > 0 && r.top + r.height / 2 > v.top && r.top + r.height / 2 < v.bottom;
+  }
   function onWheel(event) {
     if (!event.deltaY || event.ctrlKey || event.altKey || event.shiftKey || event.metaKey) return;
     const hit = hitOf(event);
     if (!hit || !gNavToolbox.contains(hit)) return;
-    if (hit.closest?.(".tabbrowser-tab") && switching()) return;
+    const overTab = hit.closest?.(".tabbrowser-tab");
+    if (overTab && switching()) {
+      const sel = gBrowser.selectedTab;
+      if (overTab !== sel && !inView(sel, overTab)) {
+        event.preventDefault();             // no switch from the far-away tab
+        event.stopPropagation();
+        gBrowser.selectedTab = overTab;
+      }
+      return;
+    }
     if (bool("connector-scroll", true) && scrollFolder(event, hit)) return;
     if (bool("hover-scroll", true)) scrollHovered(event, hit);
   }
@@ -1238,6 +1268,7 @@
   const onFitEvent = event => {
     // A selected tab glides into view at once, so switching tabs by scrolling keeps up.
     const box = event.type === "TabSelect" && topBoxes().find(b => b.contains(event.target));
+    tabFacts = new WeakMap();
     if (box) {
       // Selecting a tab is the latest thing done here: its line follows the tab.
       showWhere(box, false);
@@ -1371,6 +1402,8 @@
       gNavToolbox.removeEventListener("wheel", onWheel, true);
       gNavToolbox.removeEventListener("mousemove", pointAt);
       cancelAnimationFrame(pointFrame);
+      clearTimeout(glideTimer);
+      endGlides();
       strip.removeEventListener("scroll", holdRail, true);
       for (const ev of FIT_EVENTS) window.removeEventListener(ev, onFitEvent, true);
       tabArea.disconnect();

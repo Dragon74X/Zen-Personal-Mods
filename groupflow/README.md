@@ -147,7 +147,9 @@ A folder that fits has nothing to scroll, so its connector scrolls the list.
 With Firefox's **switch tabs by scrolling** setting on
 (`toolkit.tabbox.switchByScrolling`), the wheel over a tab selects the next or
 previous tab, and its folder brings that tab into view; the connector scrolls
-and never selects or loads a tab. **Scroll inside folders** turns all of
+and never selects or loads a tab. If you have scrolled the selected tab out of
+view, the wheel picks up at the tab under the pointer instead of jumping back
+to it. **Scroll inside folders** turns all of
 this off and removes the cap. Split-view groups and Zen's native folders are
 not capped.
 

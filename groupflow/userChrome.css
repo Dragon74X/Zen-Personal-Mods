@@ -2188,13 +2188,14 @@
       &.up { inset-inline-end: calc(var(--zzgf-chip-end, 36px) + 25px); &::before { rotate: 180deg; } }
       &:hover { background: color-mix(in srgb, var(--zzgf-accent) 45%, color-mix(in srgb, var(--toolbar-bgcolor, #1b1626) 80%, transparent)); }
     }
-    #navigator-toolbox tab-group:hover > .tab-group-label-container > .zzgf-more {
+    /* Only while the folder's own header is hovered, like the tab count. */
+    #navigator-toolbox tab-group > .tab-group-label-container:hover > .zzgf-more {
       opacity: 0.9;
       pointer-events: auto;
     }
     /* At an end there is nothing more that way: that arrow stays faint. */
-    #navigator-toolbox tab-group:hover:has(> .tab-group-container:not([zzgf-more-above])) > .tab-group-label-container > .zzgf-more.up,
-    #navigator-toolbox tab-group:hover:has(> .tab-group-container:not([zzgf-more-below])) > .tab-group-label-container > .zzgf-more.down {
+    #navigator-toolbox tab-group:has(> .tab-group-container:not([zzgf-more-above])) > .tab-group-label-container:hover > .zzgf-more.up,
+    #navigator-toolbox tab-group:has(> .tab-group-container:not([zzgf-more-below])) > .tab-group-label-container:hover > .zzgf-more.down {
       opacity: 0.3;
     }
   }

@@ -1684,6 +1684,87 @@
   },
   {
     "type": "separator",
+    "label": "Workspaces",
+    "margin": "18px 0 8px 0",
+    "size": "15px",
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "id": "zzglass.ui.section.workspaces"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.workspaces.enabled",
+    "label": "Style the workspace switcher *The row of workspace icons at the bottom of the sidebar, in the same glass as the tabs and window buttons. Pointing at an icon moves only the icon, so nothing beside it shifts. While this is on, Arc 2.0's own workspace styles are switched off (Other mods).*",
+    "defaultValue": true,
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.workspaces.capsule",
+    "label": "Background",
+    "defaultValue": 1,
+    "options": [
+      {"label": "None", "value": 0},
+      {"label": "Glass capsule", "value": 1}
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.workspaces.enabled", "value": true}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.workspaces.hover",
+    "label": "Pointed at *The icon grows with a small spring and settles; Dock also lifts its neighbours a little. Only icons move, never the buttons.*",
+    "defaultValue": 1,
+    "options": [
+      {"label": "Stays still", "value": 0},
+      {"label": "Grows", "value": 1},
+      {"label": "Dock", "value": 2}
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.workspaces.enabled", "value": true}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.workspaces.inactive",
+    "label": "Other workspaces",
+    "defaultValue": 0,
+    "options": [
+      {"label": "Grey and faded (Zen's)", "value": 0},
+      {"label": "Faded colour", "value": 1},
+      {"label": "Full colour", "value": 2}
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.workspaces.enabled", "value": true}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzglass.workspaces.active",
+    "label": "Current workspace",
+    "defaultValue": 1,
+    "options": [
+      {"label": "As Zen marks it", "value": 0},
+      {"label": "Glass plate", "value": 1},
+      {"label": "Dot beneath", "value": 2},
+      {"label": "Glow", "value": 3}
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.workspaces.enabled", "value": true}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.workspaces.steady-dots",
+    "label": "Steady dots *With more workspaces than fit, Zen shrinks the others to dots and widens the one you point at, pushing its neighbours along. On, every dot keeps its width and shows its icon in place.*",
+    "defaultValue": true,
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.workspaces.enabled", "value": true}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "separator",
     "id": "zzglass.ui.section.zen-blur",
     "label": "Zen's blur",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}]
@@ -2882,6 +2963,14 @@
     "type": "checkbox",
     "property": "zzglass.other.arc-glass",
     "label": "Arc 2.0 blur and transparency *Its compact sidebar fill, while Glassflow's sidebar styling is on, and its custom menu opacity, while Glassflow's overlays are on (they set the same menu fill). Arc's compact sidebar blur needs nothing: Glassflow's Zen blur replaces it on the same panel.*",
+    "defaultValue": true,
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "others"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzglass.other.arc-workspaces",
+    "label": "Arc 2.0 workspace icons *Its workspace icon style (set to Disable) while Glassflow styles the workspace switcher.*",
     "defaultValue": true,
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "others"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"

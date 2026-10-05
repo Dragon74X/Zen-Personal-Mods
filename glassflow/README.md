@@ -185,6 +185,22 @@ down and let this own it.
 | Blur strength / brightness / saturation / contrast | `42px` / `0.25` / `1.1` / `1` | Zen's own values |
 | Darken the sidebar's edges | Soft | Off, Soft, Medium or Strong: a shade painted just inside the compact sidebar's edges |
 
+### Workspaces
+
+The row of workspace icons at the bottom of the sidebar, in the same glass as
+the tabs and window buttons. Pointing at an icon only ever moves the icon, so
+the buttons beside it stay put. While this is on, Arc 2.0's own workspace
+styles are switched off (see [Other mods](#other-mods)).
+
+| Setting | Default | |
+|---|---|---|
+| Style the workspace switcher | on | |
+| Background | Glass capsule | None, or a capsule with the sheen and rim of Glassflow's glass |
+| Pointed at | Grows | Stays still; Grows (the icon springs a little larger and settles); Dock (its neighbours grow a little too) |
+| Other workspaces | Grey and faded (Zen's) | Faded colour, or full colour |
+| Current workspace | Glass plate | As Zen marks it; a glass plate; a dot beneath; a glow |
+| Steady dots | on | With more workspaces than fit, Zen shrinks the others to dots and widens the one you point at, pushing its neighbours; on, every dot keeps its width and shows its icon in place |
+
 ### Library button
 
 The Library button's icon options moved to [Iconflow](../iconflow/), with the
@@ -403,6 +419,7 @@ by default.
 | | Greyscale unloaded tabs | The Unloaded tab state is on |
 | | Folder backgrounds, Arc tab groups | Groupflow is on |
 | Arc 2.0 blur and transparency (also on *Blur and transparency*) | Compact sidebar fill | Sidebar styling is on |
+| Arc 2.0 workspace icons | Workspace icon style, set to Disable | Style the workspace switcher is on |
 | | Custom menu opacity | Overlays are on |
 | Zen's unloaded-tab fade | `browser.tabs.fadeOutUnloadedTabs` | The Unloaded tab state is on |
 | SuperPins | Unloaded dimming and strikethrough | The Unloaded tab state is on |

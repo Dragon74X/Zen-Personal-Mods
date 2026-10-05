@@ -1747,6 +1747,24 @@ test("Other mods: settings that double up are switched off, then restored; hand 
   assert.deepEqual({ ...JSON.parse(now("zzglass-saved.other-mods")) }, {});
 });
 
+test("Other mods: every row has its checkbox, and Arc's workspace style is switched to Disable and back", async () => {
+  const src = await readFile(new URL("../glassflow/glassflow.uc.js", import.meta.url), "utf8");
+  const block = src.slice(src.indexOf("const OTHER_MODS = {"), src.indexOf("const OTHER_SAVED"));
+  const rows = [...block.matchAll(/^    "?([a-z-]+)"?: \[/gm)].map(m => m[1]);
+  const props = new Set(JSON.parse(await readFile(new URL("../glassflow/preferences.json", import.meta.url), "utf8")).map(p => p.property));
+  assert.ok(rows.includes("arc-workspaces"));
+  for (const row of rows) assert.ok(props.has("zzglass.other." + row), `zzglass.other.${row} has no settings row`);
+
+  const prefs = prefStore({ "zzglass.workspaces.enabled": true, "arc-workspace-style": 2 });
+  const w = browser();
+  const h = await load("glassflow", "syncOtherMods", { window: w, document: w.document, Services: { prefs, wm: { getMostRecentWindow: () => w } } });
+  h.syncOtherMods();
+  assert.equal(prefs.user.get("arc-workspace-style"), 3);
+  prefs.setBoolPref("zzglass.workspaces.enabled", false);
+  h.syncOtherMods();
+  assert.equal(prefs.user.get("arc-workspace-style"), 2);
+});
+
 test("Other mods: a setting no longer on any row goes back to what it was", async () => {
   const saved = { "arc-compact-sidebar-blur": { had: true, v: "25px", applied: "0px" } };
   const prefs = prefStore({ "zzglass.sidebar.enabled": true, "arc-compact-sidebar-blur": "0px",

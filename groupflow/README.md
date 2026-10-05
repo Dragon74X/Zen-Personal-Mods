@@ -120,18 +120,21 @@ part with its own setting (all on by default):
 - **Dynamic connectors:** every connector line, each subfolder's included,
   carries its own light: full strength, with a bright band of its own
   colour, there, easing to a dim floor away from it. By default (**Light
-  follows: The selected tab**) lines holding the selected tab light at its
-  row, so switching tabs moves the light. Point at or scroll a folder's
-  connector (or the strip left of it) or its header arrows, and its line
-  shows where you are in it instead: how far it has scrolled. Point at or
-  select one of its tabs and it goes back to the selected tab. Whatever you
-  did or pointed at last wins, and leaving the sidebar keeps it. A subfolder's line goes by its own tabs only, never by where it
-  sits in its folder: the selected tab, else its most recently used loaded
-  tab, else its own top. A folder with no loaded tab rests at its top. The
-  light glides between positions. **Where you are** shows where you are on
-  every line all the time. Off gives static connectors with
-  the line's own gradient (**Soft ends** or a fade). Colour, width, shape and
-  pill ends stay as set.
+  follows: The selected tab**) a line holding the selected tab lights at its
+  place in the folder: the first row at the top, the last at the bottom, so a
+  lone tab or a lone subfolder sits at the top. Rows are counted rather than
+  measured, so the light stays put while the list scrolls. A subfolder's line
+  goes by its own tabs only: the selected tab, else its most recently used
+  loaded tab, else its own top. A folder with no loaded tab rests at its top.
+  Point at or scroll a folder's own connector (or the strip left of it) or
+  its header arrows, and its line shows where you are in it instead: how far
+  it has scrolled. Point at its tabs or subfolders, or select a tab, and it
+  goes back to the selected tab. Whatever you did or pointed at last wins,
+  and leaving the sidebar keeps it. Rows scrolling under a still pointer do
+  not count as pointing. The light glides between positions. **Where you
+  are** shows where you are on every line all the time. Off gives static
+  connectors with the line's own gradient (**Soft ends** or a fade). Colour,
+  width, shape and pill ends stay as set.
 - **Edge fade:** the folder's top or bottom edge fades while more tabs are
   hidden past it. The same setting fades the tab list's own top and bottom
   edges while it scrolls, so folders, subfolders and tabs fade as they leave
@@ -147,9 +150,9 @@ A folder that fits has nothing to scroll, so its connector scrolls the list.
 With Firefox's **switch tabs by scrolling** setting on
 (`toolkit.tabbox.switchByScrolling`), the wheel over a tab selects the next or
 previous tab, and its folder brings that tab into view; the connector scrolls
-and never selects or loads a tab. If you have scrolled the selected tab out of
-view, the wheel picks up at the tab under the pointer instead of jumping back
-to it. **Scroll inside folders** turns all of
+and never selects or loads a tab. Moving the pointer onto a tab makes the next scroll start
+there; from then on it carries on tab to tab, however the rows move under a
+still pointer, until you move the pointer onto another tab. **Scroll inside folders** turns all of
 this off and removes the cap. Split-view groups and Zen's native folders are
 not capped.
 

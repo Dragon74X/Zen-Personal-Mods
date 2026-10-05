@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.1.0
+// @version        2.1.1
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==
@@ -629,8 +629,33 @@
   syncClickable();
   safe(() => Services.prefs.addObserver(CLICK_PREF, syncClickable));
   undo.push(() => safe(() => Services.prefs.removeObserver(CLICK_PREF, syncClickable)));
-  on(pipContainer, "mouseenter", () => { pipHover = true; bump(); });
-  on(pipContainer, "mouseleave", () => { pipHover = false; bump(); });
+  // In compact mode Zen hides the sidebar once the pointer leaves it, and the
+  // preview (growing over the page) sits outside it: pointing at the preview
+  // keeps the sidebar open, through Zen's own hover state, and leaving it
+  // starts Zen's usual countdown. Docked and other modes are untouched.
+  let holdTimer = null;
+  function holdSidebar(hold) {
+    const cm = window.gZenCompactModeManager, side = cm?.sidebar;
+    clearTimeout(holdTimer);
+    if (!cm?.preference || !side) return;
+    const id = "has-hover" + side.id;
+    const keep = () => {
+      safe(() => cm.clearFlashTimeout(id));
+      if (!side.hasAttribute("zen-has-hover")) safe(() => cm._setElementExpandAttribute(side, true));
+    };
+    if (hold) {
+      keep();
+      // Zen checks the sidebar a moment after the pointer left it and starts
+      // its hide countdown then; cancel that one too.
+      holdTimer = setTimeout(() => { if (pipHover) keep(); }, (cm.HOVER_HACK_DELAY || 0) + 40);
+    } else if (!side.matches(":hover")) {
+      const ms = safe(() => Services.prefs.getIntPref("zen.view.compact.sidebar-keep-hover.duration", 0)) ?? 0;
+      safe(() => cm.flashElement(side, ms, id, "zen-has-hover"));
+    }
+  }
+  undo.push(() => clearTimeout(holdTimer));
+  on(pipContainer, "mouseenter", () => { pipHover = true; holdSidebar(true); bump(); });
+  on(pipContainer, "mouseleave", () => { pipHover = false; holdSidebar(false); bump(); });
   on(pipContainer, "click", event => {
     if (!clickToTab() || event.button !== 0) return;
     const browser = safe(() => sourceBC?.top?.embedderElement);

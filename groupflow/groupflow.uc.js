@@ -993,10 +993,11 @@
   const past = (r, v) => r.height > v.height ? through(r.top, r.height, v.top, v.height) * r.height
     : Math.min(r.height, Math.max(0, v.top - r.top));
   // Whatever you did or pointed at last decides a folder's own line. Its
-  // tabs (pointing at one, or selecting one, by scrolling over them or
-  // otherwise) light the selected tab; its connector, the strip left of it
-  // and its header arrows (pointing at them, or scrolling the folder) light
-  // where you are in it. Leaving the sidebar keeps whichever it was.
+  // tabs and subfolders (pointing at them, or selecting a tab, by scrolling
+  // over the tabs or otherwise) light the selected tab; its own connector,
+  // the strip left of it and its header arrows (pointing at them, or
+  // scrolling the folder) light where you are in it. Leaving the sidebar
+  // keeps whichever it was.
   const scrolled = new WeakSet();           // boxes whose line shows where you are
   const roams = box => scrolled.has(box);
   function showWhere(box, where) {
@@ -1004,16 +1005,26 @@
     if (where) scrolled.add(box); else scrolled.delete(box);
     lightSoon();
   }
-  let pointFrame = 0, pointEvent = null;
+  // Firefox also sends a mousemove when the rows scroll under a pointer that
+  // has not moved; only a pointer that moved counts, or the light would flip
+  // between the two as tabs and gutters pass beneath it.
+  let pointFrame = 0, pointEvent = null, pointX = NaN, pointY = NaN;
+  let pointTab = null, startTab = null;     // the tab the pointer moved onto; where the next scroll starts
   function pointAt(event) {
+    if (event.screenX === pointX && event.screenY === pointY) return;
+    pointX = event.screenX; pointY = event.screenY;
+    const tab = event.target.closest?.(".tabbrowser-tab") ?? null;
+    if (tab !== pointTab) startTab = pointTab = tab;
     pointEvent = event;
     pointFrame ||= requestAnimationFrame(() => {
       pointFrame = 0;
       const ev = pointEvent, hit = ev.target;
       if (!hit?.closest || !gBrowser.tabContainer.contains(hit)) return;
       const chip = hit.closest(".zzgf-more"), body = hit.closest(bodySelector);
-      if (chip) showWhere(chip.parentElement.parentElement?.querySelector(":scope > .tab-group-container"), true);
-      else if (hit.closest(".tabbrowser-tab")) showWhere(body && folderBox(body), false);
+      if (chip) { showWhere(chip.parentElement.parentElement?.querySelector(":scope > .tab-group-container"), true); return; }
+      const box = body && folderBox(body);
+      // Inside a subfolder (its header, tabs or line) counts as the tabs.
+      if (box && (hit.closest(".tabbrowser-tab") || hit.closest("tab-group, zen-folder") !== box.parentElement)) showWhere(box, false);
       else if (!hit.closest(".tab-group-label-container, toolbarbutton, button")) showWhere(boxAt(ev, hit), true);
     });
   }
@@ -1032,12 +1043,23 @@
   const gliding = new Set();
   let glideTimer = null;
   const endGlides = () => { for (const c of gliding) c.toggleAttribute("zzgf-glide", false); gliding.clear(); };
+  // Where a tab sits on a line: by its place among the line's own rows (its
+  // tabs and subfolders), first at the top and last at the bottom, so a lone
+  // tab or a lone subfolder is at the top. Rows are counted, not measured,
+  // so the light does not move while the list scrolls.
+  function placeOf(container, tab) {
+    // A collapsed folder shows only the rows it keeps (loaded and last-used tabs).
+    const folded = container.parentElement?.hasAttribute("collapsed");
+    const rows = [...container.children].filter(n => n.matches?.(".tabbrowser-tab, tab-group, zen-folder") && !n.hidden &&
+      (!folded || n.hasAttribute("zzgf-visible") || !!n.querySelector?.("[zzgf-visible]")));
+    const i = rows.findIndex(n => n === tab || n.contains(tab));
+    return i < 0 ? null : rows.length > 1 ? i / (rows.length - 1) : 0;
+  }
   function lightLists() {
     listFrame = 0;
     const glow = bool("scroll-glow", true);
     const sel = glow && num("glow-follows", 1) === 1 ? gBrowser.selectedTab : null;
-    const s = sel?.getBoundingClientRect(), lit = [];
-    const mark = rect => rect?.height ? rect : null;
+    const lit = [];
     for (const host of document.querySelectorAll("zen-workspace arrowscrollbox")) {
       const port = host.scrollbox;
       if (!port) continue;
@@ -1048,12 +1070,11 @@
           const own = box.hasAttribute("zzgf-glow"), roam = roams(box);
           const max = box.scrollHeight - box.clientHeight;
           rails.push({ c: box, r: b, v: own ? b : view, roam,
-            tab: !roam && s?.height && box.contains(sel) ? s : null,
+            place: !roam && sel && box.contains(sel) ? placeOf(box, sel) : null,
             own: own ? box.scrollTop / max * box.clientHeight : null });
           for (const c of box.querySelectorAll(bodySelector)) {
-            const g = c.parentElement;
-            rails.push({ c, r: c.getBoundingClientRect(), v: own ? b : view, sub: true,
-              tab: sel ? (g.contains(sel) ? mark(s) : mark(recentTab(g)?.getBoundingClientRect())) : null });
+            const g = c.parentElement, t = sel && (g.contains(sel) ? sel : recentTab(g));
+            rails.push({ c, r: c.getBoundingClientRect(), v: own ? b : view, sub: true, place: t ? placeOf(c, t) : null });
           }
         }
         lit.push([box, on, rails]);
@@ -1061,8 +1082,8 @@
     }
     for (const [box, on, rails] of lit) {
       box.toggleAttribute("zzgf-list-glow", on);
-      for (const { c, r, v, sub, roam, tab, own } of rails) {
-        const at = tab ? Math.min(r.height, Math.max(0, tab.top + tab.height / 2 - r.top))
+      for (const { c, r, v, sub, roam, place, own } of rails) {
+        const at = place != null ? place * r.height
           : sub ? (sel ? 0 : past(r, v))
           : own != null ? own
           : roam || recentTab(c.parentElement) ? through(r.top, r.height, v.top, v.height) * r.height : 0;
@@ -1199,24 +1220,21 @@
     to.scrollBy({ top: event.deltaY * unit, behavior: event.deltaMode === event.DOM_DELTA_PIXEL ? "instant" : "smooth" });
   }
   // With Firefox's switch-tabs-by-scrolling on, the wheel over a tab selects
-  // the next or previous tab; its folder then brings it into view. When the
-  // selected tab has been scrolled out of view, the wheel picks up at the tab
-  // under the pointer instead of jumping back to where the selected one is.
+  // the next or previous tab; its folder then brings it into view. Moving
+  // the pointer onto a tab makes the next scroll start there; from then on
+  // it carries on tab to tab, however the rows move under a still pointer,
+  // until the pointer moves onto another tab (pointAt sets startTab).
   const switching = () => Services.prefs.getBoolPref("toolkit.tabbox.switchByScrolling", false);
-  function inView(tab, near) {
-    const r = tab.getBoundingClientRect(), body = near.closest(bodySelector);
-    const v = (body && folderBox(body) || near.closest("arrowscrollbox")?.scrollbox || near).getBoundingClientRect();
-    return r.height > 0 && r.top + r.height / 2 > v.top && r.top + r.height / 2 < v.bottom;
-  }
   function onWheel(event) {
     if (!event.deltaY || event.ctrlKey || event.altKey || event.shiftKey || event.metaKey) return;
     const hit = hitOf(event);
     if (!hit || !gNavToolbox.contains(hit)) return;
     const overTab = hit.closest?.(".tabbrowser-tab");
     if (overTab && switching()) {
-      const sel = gBrowser.selectedTab;
-      if (overTab !== sel && !inView(sel, overTab)) {
-        event.preventDefault();             // no switch from the far-away tab
+      const start = startTab;
+      startTab = null;
+      if (start === overTab && overTab !== gBrowser.selectedTab) {
+        event.preventDefault();             // start here, not next to the old tab
         event.stopPropagation();
         gBrowser.selectedTab = overTab;
       }

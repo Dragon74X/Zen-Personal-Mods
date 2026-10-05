@@ -2,7 +2,7 @@
 // @name           Peekflow
 // @description    Places Zen's tab hover preview and remembers how unloaded tabs looked.
 // @include        chrome://browser/content/browser.xhtml
-// @version        1.0.0
+// @version        1.0.1
 // ==/UserScript==
 
 (() => {
@@ -60,7 +60,15 @@
     } catch { return; }
     canvas.toBlob(blob => { if (blob && !retired) shots.set(tab, { blob, at: Date.now() }); }, "image/jpeg", 0.82);
   }
-  const onSelect = event => photograph(event.detail?.previousTab);
+  // Only a tab you actually looked at (selected for a second or more) is
+  // photographed, at an idle moment: scrolling through tabs takes none.
+  const LOOKED_MS = 1000;
+  let selectedAt = Date.now();
+  const onSelect = event => {
+    const prev = event.detail?.previousTab, looked = Date.now() - selectedAt >= LOOKED_MS;
+    selectedAt = Date.now();
+    if (prev && looked) window.requestIdleCallback(() => photograph(prev), { timeout: 1500 });
+  };
 
   // ---- the preview panel ------------------------------------------------------
   let tabPanel = null, panel = null, current = null, retired = false;

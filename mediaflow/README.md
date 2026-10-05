@@ -53,7 +53,7 @@ anything: its next update turns it into Mediaflow.
 | Section | Setting | Default |
 |---|---|---|
 | Video preview | Video quality | 360p |
-| | Frame rate | 15 fps |
+| | Frame rate (no frames are copied while the music bar can't be seen, such as compact mode's hidden sidebar) | 15 fps |
 | | Captions | Follow YouTube |
 | | Captions while the preview is hidden | off |
 | | Grow on hover (1.5×, 2×, 3×, half the window, or off) | 2× |

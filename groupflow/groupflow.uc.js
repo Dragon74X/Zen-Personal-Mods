@@ -974,14 +974,14 @@
   // Each line, subfolders included, has its own: how far you are through
   // that line, like a scrollbar thumb. A folder that scrolls inside itself
   // lights its own line (markEdges) and is the view its subfolders are seen
-  // through; one that fits shows how far it has travelled up through the
-  // list, and rests at its top while no tab in it is loaded. With "the
-  // selected tab", lines holding it light at its row, except the folder you
-  // point at or scroll from its connector: its line shows where you are. A
-  // subfolder's line goes by its own tabs only, never by where it sits in
-  // its folder: the selected tab, else its most recently used loaded tab,
-  // else its own top. With "where you are", a subfolder's line lights how
-  // much of it has scrolled past. The light glides between positions
+  // through. With "the selected tab", lines holding it light at its row,
+  // except a scrolling folder you point at or scroll from its connector: its
+  // line shows where you are. Every other line goes by its own tabs only,
+  // never by where it sits (other folders move that): the selected tab,
+  // else its most recently used loaded tab, else its own top. With "where
+  // you are", a folder that fits shows how far it has travelled up through
+  // the list (resting at its top while nothing in it is loaded), and a
+  // subfolder's line how much of it has scrolled past. The light glides between positions
   // (userChrome.css). lightLists is the only writer; every rect is read
   // before any light is written, and unchanged lights are not rewritten.
   const LOADED = ".tabbrowser-tab:not([pending], [discarded], [zen-empty-tab])";
@@ -1008,6 +1008,14 @@
   // Firefox also sends a mousemove when the rows scroll under a pointer that
   // has not moved; only a pointer that moved counts, or the light would flip
   // between the two as tabs and gutters pass beneath it.
+  // A subfolder (its header, line and tabs) counts as tabs, for pointing and
+  // for the wheel alike, so rows passing under a still pointer never flip a
+  // folder between switching tabs and scrolling.
+  function asTab(hit) {
+    if (hit?.closest?.(".tabbrowser-tab")) return true;
+    const body = hit?.closest?.(bodySelector), box = body && folderBox(body);
+    return !!box && hit.closest("tab-group, zen-folder") !== box.parentElement;
+  }
   let pointFrame = 0, pointEvent = null, pointX = NaN, pointY = NaN;
   let pointTab = null, startTab = null;     // the tab the pointer moved onto; where the next scroll starts
   function pointAt(event) {
@@ -1022,9 +1030,7 @@
       if (!hit?.closest || !gBrowser.tabContainer.contains(hit)) return;
       const chip = hit.closest(".zzgf-more"), body = hit.closest(bodySelector);
       if (chip) { showWhere(chip.parentElement.parentElement?.querySelector(":scope > .tab-group-container"), true); return; }
-      const box = body && folderBox(body);
-      // Inside a subfolder (its header, tabs or line) counts as the tabs.
-      if (box && (hit.closest(".tabbrowser-tab") || hit.closest("tab-group, zen-folder") !== box.parentElement)) showWhere(box, false);
+      if (body && asTab(hit)) showWhere(folderBox(body), false);
       else if (!hit.closest(".tab-group-label-container, toolbarbutton, button")) showWhere(boxAt(ev, hit), true);
     });
   }
@@ -1068,9 +1074,12 @@
         const b = box.getBoundingClientRect(), on = glow && b.height > 0, rails = [];
         if (on) {
           const own = box.hasAttribute("zzgf-glow"), roam = roams(box);
-          const max = box.scrollHeight - box.clientHeight;
-          rails.push({ c: box, r: b, v: own ? b : view, roam,
-            place: !roam && sel && box.contains(sel) ? placeOf(box, sel) : null,
+          const max = box.scrollHeight - box.clientHeight, holds = sel && box.contains(sel);
+          // A folder that fits has no scroll of its own to show, and never goes
+          // by where it sits in the list (other folders move it there): like a
+          // subfolder, it lights the selected tab, else its last used loaded tab.
+          const t = own ? !roam && holds && sel : holds ? sel : sel && recentTab(box.parentElement);
+          rails.push({ c: box, r: b, v: own ? b : view, roam, place: t ? placeOf(box, t) : null,
             own: own ? box.scrollTop / max * box.clientHeight : null });
           for (const c of box.querySelectorAll(bodySelector)) {
             const g = c.parentElement, t = sel && (g.contains(sel) ? sel : recentTab(g));
@@ -1086,7 +1095,7 @@
         const at = place != null ? place * r.height
           : sub ? (sel ? 0 : past(r, v))
           : own != null ? own
-          : roam || recentTab(c.parentElement) ? through(r.top, r.height, v.top, v.height) * r.height : 0;
+          : !sel && (roam || recentTab(c.parentElement)) ? through(r.top, r.height, v.top, v.height) * r.height : 0;
         const px = at + "px", was = parseFloat(c.style.getPropertyValue("--zzgf-glow"));
         if (c.style.getPropertyValue("--zzgf-glow") === px) continue;
         // Glide only when the light jumps (a tab selected, a switch between
@@ -1229,11 +1238,10 @@
     if (!event.deltaY || event.ctrlKey || event.altKey || event.shiftKey || event.metaKey) return;
     const hit = hitOf(event);
     if (!hit || !gNavToolbox.contains(hit)) return;
-    const overTab = hit.closest?.(".tabbrowser-tab");
-    if (overTab && switching()) {
-      const start = startTab;
+    if (switching() && asTab(hit)) {
+      const start = startTab, overTab = hit.closest(".tabbrowser-tab");
       startTab = null;
-      if (start === overTab && overTab !== gBrowser.selectedTab) {
+      if (overTab && start === overTab && overTab !== gBrowser.selectedTab) {
         event.preventDefault();             // start here, not next to the old tab
         event.stopPropagation();
         gBrowser.selectedTab = overTab;
@@ -1314,9 +1322,8 @@
   // that handler so the list scrolls natively instead.
   function scrollOnConnectors(event) {
     const hit = hitOf(event);
-    // A tab in a body that fits still switches tabs; only the gutters do not.
-    if (bool("connector-scroll", true) && (gutterOf(hit) ||
-        (boxAt(event, hit) && !hit?.closest?.(".tabbrowser-tab")))) event.stopPropagation();
+    // Tabs and subfolders still switch tabs; only the folder's own gutters do not.
+    if (bool("connector-scroll", true) && !asTab(hit) && (gutterOf(hit) || boxAt(event, hit))) event.stopPropagation();
   }
 
   function foldStartupGroups() {

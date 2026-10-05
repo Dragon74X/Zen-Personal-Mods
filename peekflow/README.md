@@ -18,8 +18,9 @@ or "last used" when there is no picture of them yet.
 
 ## Privacy
 
-A tab is photographed only when you switch away from it, while it is still
-loaded. Pictures are small JPEGs held in memory against the tab. They are never
+A tab is photographed only when you switch away from it after looking at it for
+a second or more, while it is still loaded, at an idle moment: scrolling
+through tabs takes no pictures. Pictures are small JPEGs held in memory against the tab. They are never
 written to disk, closing the tab or window drops them, and a private window's
 pictures are gone when it closes. Tabs restored at startup have no picture until
 you have visited them in this session.

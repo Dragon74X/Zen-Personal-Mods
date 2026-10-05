@@ -49,3 +49,16 @@ test("Every button Iconflow covers is a target, with a choreography or the fallb
   assert.doesNotMatch(css, /::[\w-]+[:.#[]/, "a pseudo element ends its selector, or the whole rule is dropped");
   assert.equal(FRAMES, 96, "the frame counter's last frame, 95, is the strip's");
 });
+
+test("Closing, cancelling and rewinding turn counterclockwise; opening and adding clockwise", async () => {
+  const css = await readFile(new URL("../iconflow/icons.css", import.meta.url), "utf8");
+  const turns = label => css.split("/* ").filter(b => b.startsWith(label + ":") || b.startsWith(label + ", Zen's own"))
+    .flatMap(b => [...b.matchAll(/rotate: calc\(var\(--zzicon-t\) \* (-?[\d.]+)deg\)/g)].map(m => +m[1]));
+  for (const [label, sign] of [["Stop", -1], ["Quit", -1], ["Close player", -1], ["History", -1], ["New tab", 1], ["Open file", 1], ["Reload", 1]]) {
+    const found = turns(label);
+    assert.ok(found.length, label + " turns");
+    assert.ok(found.every(d => Math.sign(d) === sign), `${label} turns ${sign < 0 ? "counter" : ""}clockwise: ${found}`);
+  }
+  assert.match(source, /const whip = \[spin\(-90/, "Zen's own close buttons turn counterclockwise");
+  assert.match(source, /"new-tab": \[spin\(90/, "and its plus clockwise");
+});

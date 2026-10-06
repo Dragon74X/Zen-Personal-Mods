@@ -122,6 +122,18 @@
     "defaultValue": true
   },
   {
+    "type": "dropdown",
+    "property": "zzmedia.bar.hover-delay",
+    "label": "Wait before expanding *Pointing at the music bar raises its title and progress rows, and pointing at the preview grows it. Both wait this long, so passing over them on the way somewhere else leaves them as they are.*",
+    "defaultValue": "0.3",
+    "options": [
+      { "label": "No wait", "value": "0" },
+      { "label": "Short (0.15 s)", "value": "0.15" },
+      { "label": "Medium (0.3 s)", "value": "0.3" },
+      { "label": "Long (0.5 s)", "value": "0.5" }
+    ]
+  },
+  {
     "type": "checkbox",
     "property": "zzmedia.bar.hide-info",
     "label": "Hide the title row *Also hides the picture-in-picture and close buttons, which sit in that row.*",

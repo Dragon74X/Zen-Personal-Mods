@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.4.0
+// @version        2.5.0
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==
@@ -688,15 +688,34 @@
       keep();
       // Zen checks the sidebar a moment after the pointer left it and starts
       // its hide countdown then; cancel that one too.
-      holdTimer = setTimeout(() => { if (pipHover) keep(); }, (cm.HOVER_HACK_DELAY || 0) + 40);
+      holdTimer = setTimeout(() => { if (pipContainer.matches(":hover")) keep(); }, (cm.HOVER_HACK_DELAY || 0) + 40);
     } else if (!side.matches(":hover")) {
       const ms = safe(() => Services.prefs.getIntPref("zen.view.compact.sidebar-keep-hover.duration", 0)) ?? 0;
       safe(() => cm.flashElement(side, ms, id, "zen-has-hover"));
     }
   }
   undo.push(() => clearTimeout(holdTimer));
-  on(pipContainer, "mouseenter", () => { pipHover = true; holdSidebar(true); bump(); });
-  on(pipContainer, "mouseleave", () => { pipHover = false; holdSidebar(false); bump(); });
+  // Wait before expanding: the preview grows, and the music bar's rows rise
+  // (userChrome.css), only once the pointer has stayed a moment.
+  const DELAY_PREF = "zzmedia.bar.hover-delay";
+  let hoverDelay = 0, growTimer = null;
+  const syncDelay = () => {
+    hoverDelay = Math.max(0, parseFloat(safe(() => Services.prefs.getStringPref(DELAY_PREF, "0.3")) ?? "0.3") || 0);
+    musicPlayerUI.style.setProperty("--zzmf-hover-delay", hoverDelay + "s");
+  };
+  syncDelay();
+  safe(() => Services.prefs.addObserver(DELAY_PREF, syncDelay));
+  undo.push(() => {
+    safe(() => Services.prefs.removeObserver(DELAY_PREF, syncDelay));
+    clearTimeout(growTimer);
+    musicPlayerUI.style.removeProperty("--zzmf-hover-delay");
+  });
+  on(pipContainer, "mouseenter", () => {
+    holdSidebar(true);
+    clearTimeout(growTimer);
+    growTimer = setTimeout(() => { pipHover = true; bump(); }, hoverDelay * 1000);
+  });
+  on(pipContainer, "mouseleave", () => { clearTimeout(growTimer); pipHover = false; holdSidebar(false); bump(); });
   on(pipContainer, "click", event => {
     if (!clickToTab() || event.button !== 0) return;
     const browser = safe(() => sourceBC?.top?.embedderElement);

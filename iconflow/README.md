@@ -124,7 +124,9 @@ text.
 
 The style and colour can also be switched in the picker; both places set the
 same settings. In the workspace switcher Iconflow's icons draw at 18px, a
-little larger than Zen's 14px slot for emoji, since they fill their box.
+little larger than Zen's 14px slot for emoji, since they fill their box. Site
+icons picked under 1.17.0 had a glass plate of their own; it is taken off on
+startup, keeping the picture.
 
 ## Hover motion
 

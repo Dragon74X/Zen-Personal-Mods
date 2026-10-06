@@ -178,9 +178,14 @@
       return m ? parseFloat(m[1]) / (m[2] === "%" ? 100 : 1) : 1;
     };
     const seeThrough = () => alpha(getComputedStyle(gBrowser.selectedBrowser).backgroundColor) < 1;
+    // Follows the panel every frame while it slides, in and out, so the blur
+    // moves with it and stays until it has gone.
+    let frame = 0;
+    const sliding = () => toolbox.getAnimations().some(a => a.transitionProperty === "translate" && a.playState === "running");
     const update = () => {
-      const p = document.getElementById("zen-toolbar-background")?.getBoundingClientRect();
-      if (!wanted() || root.getAttribute("zen-compact-mode") !== "true" || !toolbox.matches(SHOWN) || !p?.width || !seeThrough()) {
+      frame = 0;
+      const p = document.getElementById("zen-toolbar-background")?.getBoundingClientRect(), moving = sliding();
+      if (!wanted() || root.getAttribute("zen-compact-mode") !== "true" || !(toolbox.matches(SHOWN) || moving) || !p?.width || !seeThrough()) {
         box.style.removeProperty("filter");
         return;
       }
@@ -189,8 +194,9 @@
       for (const e of [flood, blur]) for (const [k, v] of Object.entries({ x: p.left - b.left, y: p.top - b.top, width: p.width, height: p.height })) e.setAttribute(k, v);
       blur.setAttribute("stdDeviation", r);
       box.style.setProperty("filter", "url(#zzg-strip)", "important");
+      if (moving) frame = requestAnimationFrame(update);
     };
-    const soon = () => requestAnimationFrame(update);
+    const soon = () => { frame ||= requestAnimationFrame(update); };
     const mo = new MutationObserver(soon);
     mo.observe(toolbox, { attributes: true, attributeFilter: ["zen-has-hover", "zen-user-show", "zen-has-empty-tab", "flash-popup", "has-popup-menu", "movingtab", "zen-compact-mode-active", "zzg-redraw"] });
     mo.observe(root, { attributes: true, attributeFilter: ["zen-compact-mode"] });
@@ -198,12 +204,15 @@
     S.addObserver(PREFIX + "sidebar.", prefs);
     window.addEventListener("resize", soon);
     toolbox.addEventListener("transitionend", soon);
+    toolbox.addEventListener("transitionrun", soon);
     update();
     return () => {
       mo.disconnect();
       S.removeObserver(PREFIX + "sidebar.", prefs);
       window.removeEventListener("resize", soon);
       toolbox.removeEventListener("transitionend", soon);
+      toolbox.removeEventListener("transitionrun", soon);
+      cancelAnimationFrame(frame);
       box.style.removeProperty("filter");
       svg.remove();
     };

@@ -30,6 +30,13 @@
   #zen-media-controls-toolbar .zen-media-card .show-on-hover { padding-block: 0 !important; }
 }
 
+/* Wait before expanding: the rows (and the stacked cards) start rising only
+   after the pointer has stayed a moment; leaving drops them at once. The
+   delay comes from mediaflow.uc.js, which also holds the preview's grow. */
+#zen-media-controls-toolbar:hover :is(.show-on-hover, .zen-media-card) {
+  transition-delay: var(--zzmf-hover-delay, 0s) !important;
+}
+
 @media (-moz-pref("zzmedia.bar.hide-info")) {
   #zen-media-controls-toolbar .zen-media-info-container { display: none !important; }
 }

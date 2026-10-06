@@ -71,6 +71,7 @@ anything: its next update turns it into Mediaflow.
 | | Make room above the preview (off: it sits in front of the tabs; on: the tab list ends above it) | off |
 | Music bar | Always show title and progress | off |
 | | Keep the player's size when pointed at (no extra space around the title and progress rows on hover) | on |
+| | Wait before expanding (the bar's rows rise and the preview grows only after the pointer stays; none, 0.15 s, 0.3 s or 0.5 s) | 0.3 s |
 | | Hide the title row (also hides picture-in-picture and close) | off |
 | | Hide the progress bar | off |
 | | Hide the playback buttons | off |

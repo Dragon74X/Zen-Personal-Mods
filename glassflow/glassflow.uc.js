@@ -145,6 +145,61 @@
     },
   };
 
+  // ---- transparent pages under the compact sidebar ---------------------
+  // A page made see-through (Transparent Zen, Zen Internet) leaves the
+  // sidebar's blur nothing to blur: its text sits on nothing, a blurred copy
+  // of it is all but invisible, and the sharp original shows through. While
+  // the compact sidebar shows, an SVG filter on the page box blurs the strip
+  // under the panel instead, keeping the rest of the page as it is.
+  // ponytail: a rectangle; the panel's rounded corners may show a sliver of
+  // blurred page. A rounded mask (feImage) if that ever shows.
+  const SHOWN = "[zen-has-hover], [zen-user-show], [zen-has-empty-tab], [flash-popup], [has-popup-menu], [movingtab], [zen-compact-mode-active]";
+  function transparentPageBlur() {
+    const NS = "http://www.w3.org/2000/svg", S = Services.prefs, root = document.documentElement;
+    const toolbox = document.getElementById("navigator-toolbox"), box = document.getElementById("tabbrowser-tabbox");
+    if (!toolbox || !box) return () => {};
+    const el = (parent, tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.append(e); return e; };
+    const svg = el(document.documentElement, "svg", { width: 0, height: 0, style: "position:fixed;pointer-events:none", "aria-hidden": "true" });
+    const filter = el(svg, "filter", { id: "zzg-strip", filterUnits: "userSpaceOnUse", primitiveUnits: "userSpaceOnUse", "color-interpolation-filters": "sRGB" });
+    const flood = el(filter, "feFlood", { "flood-color": "#fff", result: "m" });
+    const blur = el(filter, "feGaussianBlur", { in: "SourceGraphic", edgeMode: "duplicate", result: "b" });
+    el(filter, "feComposite", { in: "SourceGraphic", in2: "m", operator: "out", result: "o" });
+    const merge = el(filter, "feMerge", {});
+    el(merge, "feMergeNode", { in: "o" });
+    el(merge, "feMergeNode", { in: "b" });
+    const wanted = () => S.getBoolPref(PREFIX + "sidebar.blur-transparent-pages", true) &&
+      (S.getBoolPref(PREFIX + "sidebar.blur", false) || S.getBoolPref("zen.theme.acrylic-elements", false));
+    const update = () => {
+      const p = document.getElementById("zen-toolbar-background")?.getBoundingClientRect();
+      if (!wanted() || root.getAttribute("zen-compact-mode") !== "true" || !toolbox.matches(SHOWN) || !p?.width) {
+        box.style.removeProperty("filter");
+        return;
+      }
+      const b = box.getBoundingClientRect(), r = parseFloat(S.getStringPref(PREFIX + "sidebar.blur-radius", "")) || 42;
+      for (const [k, v] of Object.entries({ x: 0, y: 0, width: b.width, height: b.height })) filter.setAttribute(k, v);
+      for (const e of [flood, blur]) for (const [k, v] of Object.entries({ x: p.left - b.left, y: p.top - b.top, width: p.width, height: p.height })) e.setAttribute(k, v);
+      blur.setAttribute("stdDeviation", r);
+      box.style.setProperty("filter", "url(#zzg-strip)", "important");
+    };
+    const soon = () => requestAnimationFrame(update);
+    const mo = new MutationObserver(soon);
+    mo.observe(toolbox, { attributes: true, attributeFilter: ["zen-has-hover", "zen-user-show", "zen-has-empty-tab", "flash-popup", "has-popup-menu", "movingtab", "zen-compact-mode-active", "zzg-redraw"] });
+    mo.observe(root, { attributes: true, attributeFilter: ["zen-compact-mode"] });
+    const prefs = { observe: soon };
+    S.addObserver(PREFIX + "sidebar.", prefs);
+    window.addEventListener("resize", soon);
+    toolbox.addEventListener("transitionend", soon);
+    update();
+    return () => {
+      mo.disconnect();
+      S.removeObserver(PREFIX + "sidebar.", prefs);
+      window.removeEventListener("resize", soon);
+      toolbox.removeEventListener("transitionend", soon);
+      box.style.removeProperty("filter");
+      svg.remove();
+    };
+  }
+
   function start() {
     // Once, for Glassflow 3.53: unloaded tabs keep their dimmed colours
     // rather than going grey. The greyscale switch stays for those who want it.
@@ -184,6 +239,8 @@
     };
     toolbox?.addEventListener("transitionend", redraw);
     gBrowser.tabContainer.addEventListener("TabSelect", redraw);
+    let stopPageBlur = () => {};
+    try { stopPageBlur = transparentPageBlur(); } catch (e) { console.error("[Glassflow] page blur failed to start:", e); }
     // Sine cleanup and window unload can both run; retire this copy once.
     let retired = false;
     const cleanup = () => {
@@ -197,6 +254,7 @@
       toolbox?.removeEventListener("transitionend", redraw);
       gBrowser.tabContainer.removeEventListener("TabSelect", redraw);
       toolbox?.removeAttribute("zzg-redraw");
+      try { stopPageBlur(); } catch {}
     };
     window.addEventListener("unload", cleanup, { once: true });
     // Registered with Sine, so an update re-injects this script live, no

@@ -14,6 +14,28 @@
   --zzicon-motion-duration: var(--zzicon-motion-speed, 0.25s);
 }
 
+/* ---- Icon size -------------------------------------------------------- */
+/* Zen draws toolbar and sidebar icons at 16px in a 28px box (6px padding).
+   A larger size takes it from the padding, so buttons keep their size. The
+   Library sprite keeps Zen's proportion to the others (18 to 16). */
+:root { --zzicon-box: 16px; }
+@media (-moz-pref("zzicon.size", 1)) { :root { --zzicon-box: 18px; } }
+@media (-moz-pref("zzicon.size", 2)) { :root { --zzicon-box: 20px; } }
+@media (-moz-pref("zzicon.size", 3)) { :root { --zzicon-box: 22px; } }
+@media not (-moz-pref("zzicon.size", 0)) {
+  .toolbarbutton-1:not(#tabs-newtab-button, .zen-workspaces-actions) > .toolbarbutton-icon,
+  .toolbarbutton-1 > .toolbarbutton-badge-stack {
+    padding: calc(6px - (var(--zzicon-box) - 16px) / 2) !important;
+  }
+  .toolbarbutton-1 > .toolbarbutton-badge-stack > .toolbarbutton-icon {
+    width: var(--zzicon-box) !important;
+    height: var(--zzicon-box) !important;
+  }
+  @media not (-moz-pref("zzicon.library.size")) {
+    #zen-library-button { --zen-library-sprite-size: calc(var(--zzicon-box) * 1.125) !important; }
+  }
+}
+
 /* ---- Library button ----------------------------------------------------- */
 /* Zen draws it as a 36-frame sprite (#zen-library-button, which replaced
    #library-button, so New Icons no longer reaches it). The line shapes are
@@ -27,7 +49,7 @@
 /* Zen draws the sprite at 18px and scales it up 8%; other buttons are 16px. */
 @media (-moz-pref("zzicon.library.size")) {
   #zen-library-button {
-    --zen-library-sprite-size: 16px !important;
+    --zen-library-sprite-size: var(--zzicon-box) !important;
     & .zen-library-sprite { scale: 1 !important; translate: 1px 1px; }
   }
 }

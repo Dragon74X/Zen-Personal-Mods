@@ -234,7 +234,7 @@
   {
     "type": "checkbox",
     "property": "zzicon.picker.sites",
-    "label": "Site icons in the picker *The icons of sites open in the space, on a glass plate. The picture is saved with the space and stays on your computer.*",
+    "label": "Site icons in the picker *The icons of sites open in the space, as they are. The picture is saved with the space and stays on your computer.*",
     "defaultValue": true,
     "operator": "AND",
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.picker.enabled", "value": true}}], "operator": "OR"}]

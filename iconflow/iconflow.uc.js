@@ -89,7 +89,7 @@
   // ".svg" as a picture, so Iconflow's coloured icons go at the top of the
   // picker's SVG page as self-contained data (they keep working without
   // Iconflow), with a style, a colour and a search above them, then the
-  // icons of sites open in this workspace on a glass plate.
+  // icons of sites open in this workspace.
   const COLOURS = {
     aurora: ["#5ee0c8", "#9a7bff"], frost: ["#ffffff", "#a9c6dd"], silver: ["#f4f6fa", "#8a94a6"],
     graphite: ["#d9dee8", "#5b6b86"], sapphire: ["#8fc2ff", "#2c4fd6"], aquamarine: ["#b6f4ff", "#2aa8c4"],
@@ -100,14 +100,14 @@
   const SHEEN = `<linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".5"/><stop offset=".55" stop-color="#fff" stop-opacity="0"/></linearGradient>`;
   function art([, , tint, line, fill], style, [a, b]) {
     const g = `<linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient>`;
-    if (style === 1) return svgURL(`<defs>${g}${SHEEN}</defs><rect x="4" y="4" width="248" height="248" rx="64" fill="url(#g)"/><rect x="4" y="4" width="248" height="248" rx="64" fill="url(#s)" opacity=".55"/><path d="${fill}" fill="#fff" transform="translate(48 48) scale(.625)"/>`);
+    if (style === 1) return svgURL(`<defs>${g}${SHEEN}</defs><rect width="256" height="256" rx="64" fill="url(#g)"/><rect width="256" height="256" rx="64" fill="url(#s)" opacity=".55"/><path d="${fill}" fill="#fff" transform="translate(38 38) scale(.703)"/>`);
     if (style === 2) return svgURL(`<defs>${g}</defs><path d="${fill}" fill="url(#g)"/>`);
     return svgURL(`<defs>${g}${SHEEN}</defs><path d="${tint}" fill="url(#g)" opacity=".5"/><path d="${tint}" fill="url(#s)" opacity=".6"/><path d="${line}" fill="url(#g)"/>`);
   }
   let iconData = null;
   const loadIcons = () => iconData ??= fetch(`chrome://sine/content/${MOD_ID}/workspace-icons.json`).then(r => r.json()).then(j => j.icons).catch(() => (iconData = null, []));
-  // A site's icon, drawn on a glass plate. Pictures can't load anything from
-  // inside an icon, so the site icon is copied in as PNG data.
+  // A site's icon as it is; the switcher's button is its plate. Pictures
+  // can't load anything from inside an icon, so it is copied in as PNG.
   async function siteIcon(src) {
     const img = new Image();
     img.src = src;
@@ -115,7 +115,7 @@
     const c = document.createElementNS(HTML, "canvas");
     c.width = c.height = 64;
     c.getContext("2d").drawImage(img, 0, 0, 64, 64);
-    return svgURL(`<defs>${SHEEN}</defs><rect x="8" y="8" width="240" height="240" rx="60" fill="#fff" fill-opacity=".13"/><rect x="8" y="8" width="240" height="240" rx="60" fill="url(#s)" opacity=".35"/><rect x="8" y="8" width="240" height="240" rx="60" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="6"/><image href="${c.toDataURL("image/png")}" x="52" y="52" width="152" height="152"/>`);
+    return svgURL(`<image href="${c.toDataURL("image/png")}" width="256" height="256"/>`);
   }
   function siteSources() {
     const ws = window.gZenWorkspaces?.activeWorkspace, seen = new Set(), out = [];

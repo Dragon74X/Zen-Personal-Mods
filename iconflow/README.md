@@ -120,10 +120,11 @@ text.
 | Coloured icons in Zen's icon picker | on | |
 | Style | Glass | Glass (gradient line and body, with a sheen), Tile (white symbol on a coloured plate), Solid (filled, in a gradient) |
 | Colour | Aurora | Aurora, Frost, Silver, Graphite, Sapphire, Aquamarine, Emerald, Amethyst, Ruby, Topaz |
-| Site icons in the picker | on | The icons of sites open in the space, on a glass plate. The picture is saved with the space and stays on your computer |
+| Site icons in the picker | on | The icons of sites open in the space, as they are. The picture is saved with the space and stays on your computer |
 
 The style and colour can also be switched in the picker; both places set the
-same settings.
+same settings. In the workspace switcher Iconflow's icons draw at 18px, a
+little larger than Zen's 14px slot for emoji, since they fill their box.
 
 ## Hover motion
 

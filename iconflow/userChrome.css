@@ -116,6 +116,13 @@
   }
 }
 
+/* Iconflow's picked icons (SVG data) in the workspace switcher: Zen's 14px
+   slot is sized for emoji; these fill their box, so they read small there. */
+#zen-workspaces-button .zen-workspace-icon:is(img)[src^="data:image/svg+xml"] {
+  width: 18px !important;
+  height: 18px !important;
+}
+
 /* Zen's icon picker: Iconflow's icons and site icons at the top of the SVG
    page (iconflow.uc.js). Zen hides the picture on emoji items; these show it. */
 #PanelUI-zen-emojis-picker-svgs {

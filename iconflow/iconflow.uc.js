@@ -186,6 +186,20 @@
     draw();
     list.prepend(block);
   }
+  // Site icons picked under 1.17.0 carry a glass plate of their own inside
+  // the switcher button's; take it off, keeping the picture.
+  const PLATED = "data:image/svg+xml,";
+  window.gZenWorkspaces?.promiseInitialized?.then(() => {
+    for (const ws of gZenWorkspaces.getWorkspaces()) {
+      const icon = ws.icon;
+      if (!icon?.startsWith(PLATED) || !icon.endsWith("#.svg")) continue;
+      const svg = decodeURIComponent(icon.slice(PLATED.length, -5));
+      const png = svg.includes('rx="60"') && svg.match(/<image href="(data:image\/png;base64,[^"]+)" x="52"/)?.[1];
+      if (!png) continue;
+      ws.icon = svgURL(`<image href="${png}" width="256" height="256"/>`);
+      gZenWorkspaces.saveWorkspace(ws);
+    }
+  }).catch(() => {});
   const onPicker = e => { fillPicker(e).catch(err => console.error("[Iconflow] icon picker:", err)); };
   document.getElementById("PanelUI-zen-emojis-picker")?.addEventListener("popupshowing", onPicker);
 

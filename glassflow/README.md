@@ -186,7 +186,7 @@ down and let this own it.
 | Customise Zen's blur | off | Off keeps Zen's acrylic exactly as Zen sets it. On sets the four values below, see [Zen's blur](#zens-blur). Shown whether or not sidebar styling is on |
 | Blur strength / brightness / saturation / contrast | `42px` / `0.25` / `1.1` / `1` | Zen's own values |
 | Darken the sidebar's edges | Soft | Off, Soft, Medium or Strong: a shade painted just inside the compact sidebar's edges |
-| Blur see-through pages too | on | A page made see-through (Transparent Zen, Zen Internet) leaves the sidebar's blur nothing to blur, so its text showed through sharp. While the compact sidebar shows, the page itself is blurred under it |
+| Blur see-through pages too | on | A page made see-through (Transparent Zen's transparent tint, Zen Internet) leaves the sidebar's blur nothing to blur, so its text showed through sharp. While the compact sidebar shows over such a page, the page itself is blurred under it. Pages with a solid background (Zen's default) get Zen's blur alone |
 
 ### Workspaces
 

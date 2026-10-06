@@ -149,8 +149,11 @@
   // A page made see-through (Transparent Zen, Zen Internet) leaves the
   // sidebar's blur nothing to blur: its text sits on nothing, a blurred copy
   // of it is all but invisible, and the sharp original shows through. While
-  // the compact sidebar shows, an SVG filter on the page box blurs the strip
-  // under the panel instead, keeping the rest of the page as it is.
+  // the compact sidebar shows over such a page, an SVG filter on the page box
+  // blurs the strip under the panel instead, keeping the rest of the page as
+  // it is. Zen gives every page a solid background unless a mod takes it
+  // away, so a page whose browser background is solid is left to Zen's blur
+  // alone and nothing extra runs.
   // ponytail: a rectangle; the panel's rounded corners may show a sliver of
   // blurred page. A rounded mask (feImage) if that ever shows.
   const SHOWN = "[zen-has-hover], [zen-user-show], [zen-has-empty-tab], [flash-popup], [has-popup-menu], [movingtab], [zen-compact-mode-active]";
@@ -169,9 +172,15 @@
     el(merge, "feMergeNode", { in: "b" });
     const wanted = () => S.getBoolPref(PREFIX + "sidebar.blur-transparent-pages", true) &&
       (S.getBoolPref(PREFIX + "sidebar.blur", false) || S.getBoolPref("zen.theme.acrylic-elements", false));
+    const alpha = c => {
+      if (c === "transparent") return 0;
+      const m = c.match(/^rgba\((?:[^,]+,){3}\s*([\d.]+)\)$/) || c.match(/\/\s*([\d.]+)(%?)\s*\)$/);
+      return m ? parseFloat(m[1]) / (m[2] === "%" ? 100 : 1) : 1;
+    };
+    const seeThrough = () => alpha(getComputedStyle(gBrowser.selectedBrowser).backgroundColor) < 1;
     const update = () => {
       const p = document.getElementById("zen-toolbar-background")?.getBoundingClientRect();
-      if (!wanted() || root.getAttribute("zen-compact-mode") !== "true" || !toolbox.matches(SHOWN) || !p?.width) {
+      if (!wanted() || root.getAttribute("zen-compact-mode") !== "true" || !toolbox.matches(SHOWN) || !p?.width || !seeThrough()) {
         box.style.removeProperty("filter");
         return;
       }

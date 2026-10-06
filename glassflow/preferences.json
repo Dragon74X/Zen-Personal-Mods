@@ -1881,7 +1881,7 @@
   {
     "type": "checkbox",
     "property": "zzglass.sidebar.blur-transparent-pages",
-    "label": "Blur see-through pages too *A page made see-through (Transparent Zen, Zen Internet) leaves the sidebar's blur nothing to blur, so its text shows through sharp. This blurs the page itself under the compact sidebar while it shows.*",
+    "label": "Blur see-through pages too *A page made see-through (Transparent Zen's transparent tint, Zen Internet) leaves the sidebar's blur nothing to blur, so its text shows through sharp. This blurs the page itself under the compact sidebar while it shows, only on see-through pages; on others Zen's blur works alone.*",
     "defaultValue": true,
     "operator": "AND",
     "conditions": [

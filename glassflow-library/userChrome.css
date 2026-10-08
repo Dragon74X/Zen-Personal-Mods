@@ -55,3 +55,107 @@ zen-library .zen-library-space-header {
       inset 0 0 0 1px var(--zzg-rim-all, rgb(255 255 255 / 0.12));
   }
 }
+
+/* ============================================================
+   Floating Library. Zen slides the Library in on the tab bar's side and
+   moves the page, the toasts and the sidebar out of its way; the script
+   leaves those where they are and sets zzlib-float to the side it floats
+   on, plus the slide in and out. The panel takes Zen's window background,
+   as it now sits over the page rather than beside it.
+   ============================================================ */
+zen-library[zzlib-float] {
+  top: var(--zzlib-float-gap, 10px) !important;
+  bottom: var(--zzlib-float-gap, 10px) !important;
+  max-width: calc(100% - 2 * var(--zzlib-float-gap, 10px));
+  border-radius: var(--zzlib-float-radius, 14px);
+  overflow: clip;
+  background: var(--zen-main-browser-background);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.35),
+    inset 0 0 0 1px var(--zzg-rim-all, rgb(255 255 255 / 0.12));
+}
+zen-library[zzlib-float="left"] {
+  left: var(--zzlib-float-gap, 10px) !important;
+  right: auto !important;
+  & #zen-library-panel { flex-direction: row !important; }
+}
+zen-library[zzlib-float="right"] {
+  left: auto !important;
+  right: var(--zzlib-float-gap, 10px) !important;
+  & #zen-library-panel { flex-direction: row-reverse !important; }
+}
+zen-library[zzlib-float="centre"] {
+  left: 50% !important;
+  right: auto !important;
+  translate: -50% 0;
+  & #zen-library-panel { flex-direction: row !important; }
+}
+
+/* ============================================================
+   Recent downloads: the list that rises above the Library button.
+   Which of them show, and on hover or click, is the script's; how many
+   (Zen builds four, the script adds older ones above), their order, their
+   size and the box behind them are here.
+   ============================================================ */
+@media (-moz-pref("zzlib.stack.count", 1)) { #zen-library-download-list > :nth-last-child(n + 2) { display: none !important; } }
+@media (-moz-pref("zzlib.stack.count", 2)) { #zen-library-download-list > :nth-last-child(n + 3) { display: none !important; } }
+@media (-moz-pref("zzlib.stack.count", 3)) { #zen-library-download-list > :nth-last-child(n + 4) { display: none !important; } }
+
+@media (-moz-pref("zzlib.stack.order", 1)) {
+  #zen-library-download-list { flex-direction: column-reverse !important; }
+}
+
+/* Size scales Zen's row: 52px tall, a 20px picture drawn at twice its size,
+   11pt and 9pt text. At 1 every value is Zen's own. */
+#zen-library-download-list .zen-library-download-list-download {
+  --zzlib-s: var(--zzlib-stack-size, 1);
+  height: calc(52px * var(--zzlib-s)) !important;
+  border-radius: calc(16px * var(--zzlib-s)) !important;
+
+  & .zen-library-download-badge:not([downloading]) {
+    width: calc(20px * var(--zzlib-s)) !important;
+    height: calc(20px * var(--zzlib-s)) !important;
+  }
+  & .zen-library-download-badge[downloading] {
+    width: calc(25px * var(--zzlib-s)) !important;
+    height: calc(25px * var(--zzlib-s)) !important;
+  }
+  :root[zen-sidebar-expanded="true"] & .zen-library-download-badge {
+    /* The picture is drawn at twice its box; keep its outer edge where Zen has it. */
+    margin-inline: calc(8px + 10px * (var(--zzlib-s) - 1)) calc(20px + 10px * (var(--zzlib-s) - 1)) !important;
+  }
+  & .zen-library-download-list-title { font-size: calc(11pt * var(--zzlib-s)) !important; }
+  & .zen-library-download-list-subtitle { font-size: calc(9pt * var(--zzlib-s)) !important; }
+}
+
+/* One box behind them all. It fades in with the list; with Glassflow's
+   overlay glass on for the stack, it takes that glass and the rows lose
+   theirs. */
+@media (-moz-pref("zzlib.stack.box")) {
+  #zen-sidebar-foot-buttons #zen-library-download-list {
+    padding: 6px !important;
+    bottom: calc(100% + 6px) !important;
+
+    &::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: var(--zzg-panel-radius, 20px);
+      background: var(--zzg-ov-fill, light-dark(rgb(255 255 255 / 0.7), rgb(28 28 28 / 0.75)));
+      box-shadow: 0 8px 24px rgb(0 0 0 / 0.22),
+        inset 0 0 0 1px var(--zzg-rim-all, rgb(255 255 255 / 0.1));
+      opacity: var(--zen-library-progress);
+      pointer-events: none;
+    }
+
+    & .zen-library-download-list-download {
+      background: transparent !important;
+      backdrop-filter: none !important;
+      &:hover { background: color-mix(in srgb, currentColor 10%, transparent) !important; }
+    }
+  }
+  @media (-moz-pref("zzglass.overlays.enabled")) and (not (-moz-pref("zzglass.overlays.downloads", 0))) {
+    #zen-sidebar-foot-buttons #zen-library-download-list::before {
+      backdrop-filter: var(--zzg-ov-downloads) !important;
+    }
+  }
+}

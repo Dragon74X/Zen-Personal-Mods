@@ -1,10 +1,10 @@
 {
   "id": "zz-glassflow-library",
   "name": "Glassflow Library",
-  "description": "Glass styling and sizing for Zen's Library space cards. Pairs with Glassflow and Groupflow, whose tab and folder styling also apply inside the cards.",
+  "description": "Zen's Library as a floating panel on either side, the recent-downloads list's count, order, size, background box and hover-or-click opening, and glass styling for the Library's space cards. Pairs with Glassflow and Groupflow.",
   "author": "Dragon74X",
-  "version": "1.0.3",
-  "updatedAt": "2026-10-04T23:00:35Z",
+  "version": "1.1.0",
+  "updatedAt": "2026-10-08T00:21:37Z",
   "homepage": "https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/glassflow-library",
   "readme": "https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/main/glassflow-library/README.md",
   "style": {
@@ -13,6 +13,7 @@
   "preferences": "preferences.json",
   "tags": [
     "library",
+    "downloads",
     "glass"
   ],
   "fork": [
@@ -26,7 +27,7 @@
     },
     "glassflow-library.uc.js": {
       "name": "Glassflow Library",
-      "description": "Writes preference variables and declared defaults, so settings apply on launch.",
+      "description": "Floats the Library, shows recent downloads on hover or click, adds rows above four, and writes preference variables.",
       "include": [
         "chrome://browser/content/browser.xhtml"
       ]

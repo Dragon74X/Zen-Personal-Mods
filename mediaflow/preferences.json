@@ -76,7 +76,14 @@
     "property": "zzmedia.preview.captions-when-hidden",
     "label": "Captions while the preview is hidden *Keeps captions on screen after the preview's hide button is pressed.*",
     "defaultValue": false,
-    "conditions": [{"not": {"property": "zzmedia.preview.captions", "value": "off"}}]
+    "conditions": [
+      {
+        "not": {
+          "property": "zzmedia.preview.captions",
+          "value": "off"
+        }
+      }
+    ]
   },
   {
     "type": "dropdown",
@@ -84,11 +91,26 @@
     "label": "Grow on hover *Pointing at the preview enlarges it over the page, away from the sidebar, keeping its bottom edge in place. Its room above the music bar stays the resting size.*",
     "defaultValue": "2",
     "options": [
-      { "label": "Off", "value": "1" },
-      { "label": "A little (1.5×)", "value": "1.5" },
-      { "label": "Double (2×)", "value": "2" },
-      { "label": "Triple (3×)", "value": "3" },
-      { "label": "Half the window", "value": "half" }
+      {
+        "label": "Off",
+        "value": "1"
+      },
+      {
+        "label": "A little (1.5×)",
+        "value": "1.5"
+      },
+      {
+        "label": "Double (2×)",
+        "value": "2"
+      },
+      {
+        "label": "Triple (3×)",
+        "value": "3"
+      },
+      {
+        "label": "Half the window",
+        "value": "half"
+      }
     ]
   },
   {
@@ -96,6 +118,44 @@
     "property": "zzmedia.preview.click-to-tab",
     "label": "Click the preview to go to its tab *Switches to the tab the video is playing in.*",
     "defaultValue": true
+  },
+  {
+    "type": "checkbox",
+    "property": "zzmedia.preview.controls",
+    "label": "Controls on the preview *Like Firefox's Picture-in-Picture window, shown while pointing at the preview: play and pause, skip back and forward, a timeline to drag, mute, open it in Picture-in-Picture, and hide the preview. Pausing from here keeps the preview up.*",
+    "defaultValue": true
+  },
+  {
+    "type": "dropdown",
+    "property": "zzmedia.preview.seek-step",
+    "label": "Skip back and forward by",
+    "defaultValue": "10",
+    "options": [
+      {
+        "label": "5 seconds",
+        "value": "5"
+      },
+      {
+        "label": "10 seconds",
+        "value": "10"
+      },
+      {
+        "label": "15 seconds",
+        "value": "15"
+      },
+      {
+        "label": "30 seconds",
+        "value": "30"
+      }
+    ],
+    "conditions": [
+      {
+        "if": {
+          "property": "zzmedia.preview.controls",
+          "value": true
+        }
+      }
+    ]
   },
   {
     "type": "checkbox",
@@ -127,10 +187,22 @@
     "label": "Wait before expanding *Pointing at the music bar raises its title and progress rows, and pointing at the preview grows it. Both wait this long, so passing over them on the way somewhere else leaves them as they are.*",
     "defaultValue": "0.3",
     "options": [
-      { "label": "No wait", "value": "0" },
-      { "label": "Short (0.15 s)", "value": "0.15" },
-      { "label": "Medium (0.3 s)", "value": "0.3" },
-      { "label": "Long (0.5 s)", "value": "0.5" }
+      {
+        "label": "No wait",
+        "value": "0"
+      },
+      {
+        "label": "Short (0.15 s)",
+        "value": "0.15"
+      },
+      {
+        "label": "Medium (0.3 s)",
+        "value": "0.3"
+      },
+      {
+        "label": "Long (0.5 s)",
+        "value": "0.5"
+      }
     ]
   },
   {

@@ -79,6 +79,7 @@ export class ZzMediaflowChild extends JSWindowActorChild {
       event.type === "loadedmetadata" ||
       event.type === "canplay"
     ) {
+      if (target === this._video && (event.type === "play" || event.type === "playing")) this._holdPaused = false;
       this._tryStart(target);
       return;
     }
@@ -96,6 +97,8 @@ export class ZzMediaflowChild extends JSWindowActorChild {
 
     if (event.type === "pause" || event.type === "ended" || event.type === "emptied") {
       if (target !== this._video) return;
+      // Paused from the preview's own controls: it stays up with a play button.
+      if (event.type === "pause" && this._holdPaused) return;
       this._stopAndNotify("event:" + event.type);
     }
   }
@@ -862,6 +865,10 @@ export class ZzMediaflowChild extends JSWindowActorChild {
     // freeze, and for music videos the visual is secondary — keeping the feed
     // live is preferable to a stall.
 
+    // A held pause sends one still frame (and one after each seek), then the
+    // parent's keepalive tick is all that runs.
+    if (video.paused && this._sentAt === video.currentTime) return;
+
     const maxDim = parseInt(quality, 10) || MAX_FRAME_DIMENSION;
     const { tw, th } = this._encodeSize(video.videoWidth, video.videoHeight, maxDim);
 
@@ -885,7 +892,12 @@ export class ZzMediaflowChild extends JSWindowActorChild {
         buf: img.data.buffer,
         width: canvas.width,
         height: canvas.height,
+        // For the preview's controls: where the video is, and whether it plays.
+        time: video.currentTime,
+        duration: video.duration,
+        paused: video.paused,
       }, [img.data.buffer]);
+      this._sentAt = video.seeking ? undefined : video.currentTime;
     } catch (e) {
       this._debug("[Mediaflow/content] _captureFrame threw:", String(e), e?.name, e?.message);
     }
@@ -921,6 +933,8 @@ export class ZzMediaflowChild extends JSWindowActorChild {
       this._visBound = null;
     }
     this._video = null;
+    this._holdPaused = false;
+    this._sentAt = undefined;
     this._videoListeners = null;
     this._scaleCanvas = null;
     this._scaleCtx = null;
@@ -942,12 +956,36 @@ export class ZzMediaflowChild extends JSWindowActorChild {
       this._stopAndNotify("parent:stop");
       return;
     }
+    if (msg.name === "ZenPiP:Control") {
+      this._control(msg.data?.action, msg.data?.value);
+      return;
+    }
     if (msg.name === "ZenPiP:SetProcessingState") {
       this._setProcessingActive(
         msg.data?.active,
         msg.data?.captionMode,
         msg.data?.captionsActive,
       );
+    }
+  }
+
+  // The preview's controls act on the mirrored video itself.
+  _control(action, value) {
+    const video = this._video;
+    if (!video) return;
+    const end = Number.isFinite(video.duration) ? video.duration : Infinity;
+    if (action === "toggle") {
+      if (video.paused) {
+        this._holdPaused = false;
+        video.play()?.catch?.(() => {});
+      } else {
+        this._holdPaused = true;
+        video.pause();
+      }
+    } else if (action === "seekBy" && Number.isFinite(value)) {
+      video.currentTime = Math.max(0, Math.min(end, video.currentTime + value));
+    } else if (action === "seekTo" && Number.isFinite(value) && Number.isFinite(end)) {
+      video.currentTime = Math.max(0, Math.min(1, value)) * end;
     }
   }
 

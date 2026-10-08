@@ -13,7 +13,7 @@ Source-targeted Zen Browser modifications.
 | [Tab Unloader](tab-unloader/) | Time-based tab unloading |
 | [Zen Turbo](zen-turbo/) | Preference packs with captured-value restoration |
 | [Peekflow](peekflow/) | Places the tab hover preview around the tab, with last-view pictures of unloaded tabs |
-| [Mediaflow](mediaflow/) | Live video preview above the music bar, and music bar options (formerly Zenslop and Better Music Bar) |
+| [Mediaflow](mediaflow/) | Live video preview above the music bar with Picture-in-Picture style controls, and music bar options (formerly Zenslop and Better Music Bar) |
 
 ## Runtime requirements
 

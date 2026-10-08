@@ -1836,3 +1836,33 @@ test("Iconflow's frame counter spans each strip it uses", async () => {
   for (const [rule] of css.matchAll(/#zen-library-button \.zen-library-sprite::before \{[^}]*--zzicon-frame[^}]*\}/g))
     assert.match(rule, /width: 100% !important/);
 });
+
+test("Mediaflow: the preview's controls act on the video, and pausing from them keeps the preview", async () => {
+  const source = (await readFile(new URL("../mediaflow/content-actor.sys.mjs", import.meta.url), "utf8")).replace("export class", "class");
+  const sent = [];
+  class JSWindowActorChild { sendAsyncMessage(name, data) { sent.push([name, data]); } }
+  const ctx = vm.createContext({ JSWindowActorChild });
+  vm.runInContext(source + "\nthis.Child = ZzMediaflowChild;", ctx);
+  const actor = new ctx.Child();
+  const video = { tagName: "VIDEO", paused: false, ended: false, currentTime: 30, duration: 100, seeking: false,
+    play() { this.paused = false; actor.handleEvent({ type: "play", target: this }); },
+    pause() { this.paused = true; actor.handleEvent({ type: "pause", target: this }); } };
+  actor._video = video;
+  actor._teardown = () => { actor._video = null; };
+
+  actor._control("seekBy", 10);
+  assert.equal(video.currentTime, 40);
+  actor._control("seekBy", -60);
+  assert.equal(video.currentTime, 0, "never before the start");
+  actor._control("seekTo", 0.25);
+  assert.equal(video.currentTime, 25);
+
+  actor._control("toggle");
+  assert.ok(video.paused && actor._video === video, "a pause from the preview keeps it");
+  assert.ok(!sent.some(([name]) => name === "ZenPiP:VideoStopped"));
+  actor._control("toggle");
+  assert.ok(!video.paused && !actor._holdPaused);
+  video.pause();   // paused anywhere else: the preview goes, as before
+  assert.equal(actor._video, null);
+  assert.ok(sent.some(([name]) => name === "ZenPiP:VideoStopped"));
+});

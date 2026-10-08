@@ -5,6 +5,11 @@ sidebar:
 
 - **Video preview.** While a video plays in another tab, a live preview of it
   sits above the player, with optional captions and a button to hide it.
+- **Controls on the preview**, like Firefox's Picture-in-Picture window:
+  play and pause, skip back and forward, a timeline to drag, mute (the tab's),
+  open it in Picture-in-Picture, and hide the preview. They show while you
+  point at it. Pausing from them keeps the preview up, with a play button;
+  pausing anywhere else hides it as before.
 - **Music bar options.** Keep the title and progress always showing, or hide
   any of its rows.
 
@@ -72,6 +77,8 @@ anything: its next update turns it into Mediaflow.
 | | Grow on hover (1.5×, 2×, 3×, half the window, or off) | 2× |
 | | Click the preview to go to its tab (switching workspace if it is in another) | on |
 | | Make room above the preview (off: it sits in front of the tabs; on: the tab list ends above it) | off |
+| | Controls on the preview | on |
+| | Skip back and forward by (5, 10, 15 or 30 seconds) | 10 seconds |
 | Music bar | Always show title and progress | off |
 | | Keep the player's size when pointed at (no extra space around the title and progress rows on hover) | on |
 | | Wait before expanding (the bar's rows rise and the preview grows only after the pointer stays; none, 0.15 s, 0.3 s or 0.5 s) | 0.3 s |

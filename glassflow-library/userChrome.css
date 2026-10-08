@@ -127,10 +127,21 @@ zen-library[zzlib-float="centre"] {
   & .zen-library-download-list-subtitle { font-size: calc(9pt * var(--zzlib-s)) !important; }
 }
 
-/* One box behind them all. It fades in with the list; with Glassflow's
-   overlay glass on for the stack, it takes that glass and the rows lose
-   theirs. */
+/* While the list is up it sits above everything else in the sidebar. */
+#zen-sidebar-foot-buttons:is([zen-library-stack-open], [zen-library-stack-closing]) {
+  z-index: 100 !important;
+}
+
+/* One box behind them all. It fades in with the list. Zen fades the tab
+   list and the media cards out under the list; Glassflow's overlay glass
+   keeps them there to blur, so the box puts Zen's fade back: what is under
+   the box is hidden, not shown through it, and there is nothing left to
+   blur. */
 @media (-moz-pref("zzlib.stack.box")) {
+  #TabsToolbar #TabsToolbar-customization-target:is([zen-library-stack-open], [zen-library-stack-closing]) {
+    mask-image: linear-gradient(to bottom, black calc(100% - var(--zen-library-mask-ramp)), transparent 100%) !important;
+  }
+
   #zen-sidebar-foot-buttons #zen-library-download-list {
     padding: 6px !important;
     bottom: calc(100% + 6px) !important;
@@ -151,11 +162,6 @@ zen-library[zzlib-float="centre"] {
       background: transparent !important;
       backdrop-filter: none !important;
       &:hover { background: color-mix(in srgb, currentColor 10%, transparent) !important; }
-    }
-  }
-  @media (-moz-pref("zzglass.overlays.enabled")) and (not (-moz-pref("zzglass.overlays.downloads", 0))) {
-    #zen-sidebar-foot-buttons #zen-library-download-list::before {
-      backdrop-filter: var(--zzg-ov-downloads) !important;
     }
   }
 }

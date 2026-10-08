@@ -53,3 +53,11 @@
 @media (-moz-pref("zzmedia.bar.hide-info")) and (-moz-pref("zzmedia.bar.hide-progress")) and (-moz-pref("zzmedia.bar.hide-controls")) {
   #zen-media-controls-toolbar { display: none !important; }
 }
+
+/* The Library's recent-downloads list rises over the bottom of the sidebar,
+   where the video preview sits. The preview is drawn above the whole window,
+   so nothing in the sidebar can cover it: it steps aside while the list is up. */
+:root:has(#zen-sidebar-foot-buttons:is([zen-library-stack-open], [zen-library-stack-closing])) :is(#zen-sidebar-pip-container, #zen-sidebar-pip-caption) {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}

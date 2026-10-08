@@ -49,6 +49,9 @@ export class ZzMediaflowParent extends JSWindowActorParent {
             setMaxDimension: (maxDimension) => {
               this._setMaxDimension(maxDimension);
             },
+            control: (action, value) => {
+              try { this.sendAsyncMessage("ZenPiP:Control", { action, value }); } catch (_) {}
+            },
             win,
           });
           controller.offerVideo(msg.data.width, msg.data.height, this.browsingContext);

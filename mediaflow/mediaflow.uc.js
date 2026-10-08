@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.5.1
+// @version        2.6.0
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==
@@ -171,6 +171,79 @@
     .zen-media-card:not([can-pip]) .zen-sidebar-pip-toggle {
       display: none !important;
     }
+    /* The preview's controls, after Firefox's Picture-in-Picture window:
+       close and pop-out at the top, skip and play in the middle, the
+       timeline and mute along the bottom. They show while pointing at the
+       preview, and stay while it is paused from them. */
+    .zzmf-pip-controls {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      display: none;
+      opacity: 0;
+      transition: opacity 150ms ease;
+      background: linear-gradient(to bottom, rgb(0 0 0 / 0.45), transparent 30%, transparent 62%, rgb(0 0 0 / 0.6));
+      color: white;
+      font: 600 11px/1 system-ui, sans-serif;
+    }
+    #zen-sidebar-pip-container[zzmf-controls] .zzmf-pip-controls { display: block; }
+    #zen-sidebar-pip-container:is(:hover, [zzmf-paused]) .zzmf-pip-controls { opacity: 1; }
+    .zzmf-pip-controls button {
+      appearance: none;
+      position: absolute;
+      width: 26px;
+      height: 26px;
+      padding: 0;
+      border: none;
+      border-radius: 50%;
+      background: center / 16px no-repeat var(--zzmf-icon);
+      -moz-context-properties: fill;
+      fill: white;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+    }
+    .zzmf-pip-controls button:hover { background-color: rgb(255 255 255 / 0.18); }
+    .zzmf-pip-close { top: 4px; right: 4px; --zzmf-icon: url("chrome://browser/skin/zen-icons/close.svg"); }
+    .zzmf-pip-popout { top: 4px; left: 4px; --zzmf-icon: url("chrome://global/skin/media/picture-in-picture-open.svg"); }
+    .zzmf-pip-back, .zzmf-pip-play, .zzmf-pip-forward { top: calc(50% - 14px); }
+    .zzmf-pip-play { left: calc(50% - 17px); width: 34px; height: 34px; top: calc(50% - 19px); background-size: 20px;
+      --zzmf-icon: url("chrome://browser/skin/zen-icons/media-pause.svg"); }
+    #zen-sidebar-pip-container[zzmf-paused] .zzmf-pip-play { --zzmf-icon: url("chrome://browser/skin/zen-icons/media-play.svg"); }
+    .zzmf-pip-back { left: calc(50% - 56px); --zzmf-icon: url("chrome://browser/skin/zen-icons/arrow-rotate-anticlockwise.svg"); }
+    .zzmf-pip-forward { left: calc(50% + 30px); --zzmf-icon: url("chrome://browser/skin/zen-icons/arrow-rotate-anticlockwise.svg"); transform: scaleX(-1); }
+    .zzmf-pip-back::after, .zzmf-pip-forward::after {
+      content: attr(data-step);
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      font-size: 7px;
+    }
+    .zzmf-pip-forward::after { transform: scaleX(-1); }
+    .zzmf-pip-mute { bottom: 3px; right: 4px; --zzmf-icon: url("chrome://browser/skin/zen-icons/media-unmute.svg"); }
+    #zen-sidebar-pip-container[zzmf-muted] .zzmf-pip-mute { --zzmf-icon: url("chrome://browser/skin/zen-icons/media-mute.svg"); }
+    .zzmf-pip-time { position: absolute; left: 8px; bottom: 11px; font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px rgb(0 0 0 / 0.6); }
+    .zzmf-pip-track {
+      position: absolute;
+      left: 8px;
+      right: 36px;
+      bottom: 4px;
+      height: 10px;
+      cursor: pointer;
+    }
+    .zzmf-pip-track::before, .zzmf-pip-fill {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: 3px;
+      height: 3px;
+      border-radius: 2px;
+    }
+    .zzmf-pip-track::before { right: 0; background: rgb(255 255 255 / 0.3); }
+    .zzmf-pip-fill { width: calc(var(--zzmf-progress, 0) * 100%); background: var(--zen-primary-color, white); }
+    .zzmf-pip-track:hover :is(.zzmf-pip-fill), .zzmf-pip-track:hover::before { height: 5px; bottom: 2px; }
+    #zen-sidebar-pip-container[zzmf-live] :is(.zzmf-pip-track, .zzmf-pip-time, .zzmf-pip-back, .zzmf-pip-forward) { display: none; }
     [zzmf-parked="true"] {
       display: none !important;
       visibility: collapse !important;
@@ -727,6 +800,85 @@
     else gBrowser.selectedTab = tab;
   });
 
+  // Controls on the preview (Controls on the preview). They act on the video
+  // through its actor; mute is the tab's, like Zen's own mute button.
+  const CONTROLS_PREF = "zzmedia.preview.controls", STEP_PREF = "zzmedia.preview.seek-step";
+  const controls = document.createElement("div");
+  controls.className = "zzmf-pip-controls";
+  const control = (cls, label, act) => {
+    const b = document.createElement("button");
+    b.className = cls;
+    b.title = label;
+    b.setAttribute("aria-label", label);
+    b.addEventListener("click", e => { e.stopPropagation(); safe(act); });
+    controls.appendChild(b);
+    return b;
+  };
+  const tell = (action, value) => safe(() => actorRegistry.get(sourceBC?.id)?.control?.(action, value));
+  const sourceTab = () => safe(() => gBrowser.getTabForBrowser(sourceBC?.top?.embedderElement)) || null;
+  const seekStep = () => parseFloat(safe(() => Services.prefs.getStringPref(STEP_PREF, "10")) ?? "10") || 10;
+  control("zzmf-pip-popout", "Open in Picture-in-Picture", () =>
+    sourceBC.currentWindowGlobal.getActor("PictureInPictureLauncher").sendAsyncMessage("PictureInPicture:KeyToggle"));
+  control("zzmf-pip-close", "Hide the preview", () => setUserHidden(true));
+  const back = control("zzmf-pip-back", "Back", () => tell("seekBy", -seekStep()));
+  control("zzmf-pip-play", "Play or pause", () => tell("toggle"));
+  const forward = control("zzmf-pip-forward", "Forward", () => tell("seekBy", seekStep()));
+  control("zzmf-pip-mute", "Mute or unmute the tab", () => { sourceTab()?.toggleMuteAudio(); syncMuted(); });
+  const time = document.createElement("span");
+  time.className = "zzmf-pip-time";
+  const track = document.createElement("div");
+  track.className = "zzmf-pip-track";
+  track.innerHTML = '<div class="zzmf-pip-fill"></div>';
+  controls.append(time, track);
+  pipContainer.appendChild(controls);
+  const syncMuted = () => pipContainer.toggleAttribute("zzmf-muted", !!sourceTab()?.linkedBrowser?.audioMuted);
+  const syncControls = () => {
+    pipContainer.toggleAttribute("zzmf-controls", safe(() => Services.prefs.getBoolPref(CONTROLS_PREF, true)) ?? true);
+    for (const b of [back, forward]) b.dataset.step = String(seekStep());
+  };
+  syncControls();
+  for (const p of [CONTROLS_PREF, STEP_PREF]) {
+    safe(() => Services.prefs.addObserver(p, syncControls));
+    undo.push(() => safe(() => Services.prefs.removeObserver(p, syncControls)));
+  }
+  const clock = t => {
+    const s = Math.max(0, Math.floor(t)), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, sec = String(s % 60).padStart(2, "0");
+    return h ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`;
+  };
+  // Dragging along the timeline shows where it will land; letting go seeks.
+  let dragging = false, lastDuration = 0;
+  const fraction = e => { const r = track.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); };
+  on(track, "click", e => e.stopPropagation());
+  on(track, "pointerdown", e => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    dragging = true;
+    track.setPointerCapture(e.pointerId);
+    pipContainer.style.setProperty("--zzmf-progress", fraction(e));
+  });
+  on(track, "pointermove", e => {
+    if (!dragging) return;
+    const f = fraction(e);
+    pipContainer.style.setProperty("--zzmf-progress", f);
+    if (lastDuration) time.textContent = `${clock(f * lastDuration)} / ${clock(lastDuration)}`;
+  });
+  on(track, "pointerup", e => {
+    if (!dragging) return;
+    dragging = false;
+    tell("seekTo", fraction(e));
+  });
+  function updateControls({ time: t, duration: d, paused }) {
+    if (!Number.isFinite(t)) return;
+    pipContainer.toggleAttribute("zzmf-paused", !!paused);
+    const live = !(Number.isFinite(d) && d > 0);
+    pipContainer.toggleAttribute("zzmf-live", live);
+    syncMuted();
+    if (live || dragging) return;
+    lastDuration = d;
+    pipContainer.style.setProperty("--zzmf-progress", t / d);
+    time.textContent = `${clock(t)} / ${clock(d)}`;
+  }
+
   on(musicPlayerUI, "mouseenter", () => {
     hoverActive = true;
     bump();
@@ -861,13 +1013,17 @@
     btn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      userHidden = !userHidden;
-      syncToggleIcons();
-      if (userHidden) clearReserve();
-      bump();
-      _notifyTickState();
+      setUserHidden(!userHidden);
     });
     return btn;
+  }
+
+  function setUserHidden(hidden) {
+    userHidden = hidden;
+    syncToggleIcons();
+    if (userHidden) clearReserve();
+    bump();
+    _notifyTickState();
   }
 
   function placeToggles() {
@@ -1019,7 +1175,9 @@
     getActiveBC() {
       return sourceBC;
     },
-    drawFrame({ buf, width, height }) {
+    drawFrame(frame) {
+      const { buf, width, height } = frame;
+      safe(() => updateControls(frame));
       try {
         // Adaptive capture resolution is independent from layout. The source
         // aspect is established by MirrorStarted/offerVideo; using each

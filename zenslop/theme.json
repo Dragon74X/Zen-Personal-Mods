@@ -1,10 +1,10 @@
 {
   "id": "zz-mediaflow",
   "name": "Mediaflow",
-  "description": "A live preview of the playing video above Zen's music bar, plus options for the music bar itself. Formerly Zenslop (a fork of Firebolt9907/Zenslop, MIT) and Better Music Bar.",
+  "description": "A live preview of the playing video above Zen's music bar, with Picture-in-Picture style controls, plus options for the music bar itself. Formerly Zenslop (a fork of Firebolt9907/Zenslop, MIT) and Better Music Bar.",
   "author": "Dragon74X (video preview forked from Rishu Sharma's Zenslop)",
-  "version": "2.5.1",
-  "updatedAt": "2026-10-08T05:27:08Z",
+  "version": "2.6.0",
+  "updatedAt": "2026-10-08T05:32:59Z",
   "homepage": "https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/mediaflow",
   "readme": "https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/main/mediaflow/README.md",
   "style": {
@@ -27,7 +27,7 @@
     },
     "mediaflow.uc.js": {
       "name": "Mediaflow",
-      "description": "Sidebar video preview, its window actor, and music bar sizing.",
+      "description": "Sidebar video preview and its controls, its window actor, and music bar sizing.",
       "include": [
         "chrome://browser/content/browser.xhtml"
       ]

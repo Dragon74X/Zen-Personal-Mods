@@ -565,7 +565,7 @@
   {
     "type": "checkbox",
     "property": "zzlib.stack.box",
-    "label": "One box behind them *The downloads sit together on one panel instead of each being its own pill. With Glassflow installed the panel takes its overlay glass (Glassflow > Overlays, dialogs and status > Library download stack).*",
+    "label": "One box behind them *The downloads sit together on one panel instead of each being its own pill, above the tabs and media cards, which fade out under it as in Zen. With Glassflow installed the panel takes its overlay fill (Glassflow > Overlays, dialogs and status).*",
     "defaultValue": false,
     "conditions": [
       {

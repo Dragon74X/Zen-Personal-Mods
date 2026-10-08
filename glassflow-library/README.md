@@ -35,7 +35,10 @@ The list that rises above the Library button.
 | How many | `4` | Zen's is 4; up to 8 |
 | Order | newest at the bottom | or newest at the top |
 | Size | Zen's | row height, picture and text together |
-| One box behind them | off | one panel instead of a pill per download. With Glassflow, the panel takes its overlay glass (Glassflow > Overlays, dialogs and status > Library download stack) |
+| One box behind them | off | one panel instead of a pill per download, above the tabs and media cards, which fade out under it as in Zen. With Glassflow, the panel takes its overlay fill (Glassflow > Overlays, dialogs and status) |
+
+While the list is up it sits above the rest of the sidebar. Mediaflow's
+video preview steps aside for it.
 
 Rows past Zen's four open their download on click, like Zen's; they have no
 right-click menu and can't be dragged out.

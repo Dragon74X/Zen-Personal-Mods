@@ -48,6 +48,9 @@ anything: its next update turns it into Mediaflow.
   follows the tab list, so the old way shrank the list to nothing and pushed
   the bar and a small preview to the top of the sidebar.
 - Groupflow refits its folders when the preview takes or gives back room.
+- The preview steps aside while the Library button's recent-downloads list
+  is up. The preview is drawn above the whole window, so the list could not
+  otherwise cover it.
 - The preview and its captions hang from their bottom edge and move with the
   bar frame by frame, instead of easing after it. They keep clear of the room
   the bar's hover rows rise into, so pointing at the bar moves nothing and

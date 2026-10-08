@@ -6,7 +6,7 @@ Source-targeted Zen Browser modifications.
 |---|---|
 | [Download Prompt](download-prompt/) | Handles duplicate download filenames |
 | [Glassflow](glassflow/) | Shared UI token and surface styles |
-| [Glassflow Library](glassflow-library/) | Glass styling and sizing for the Library's space cards |
+| [Glassflow Library](glassflow-library/) | Floating Library, the recent-downloads list's count, order, size and box, and glass for the Library's space cards |
 | [Groupflow](groupflow/) | Nested-group persistence, controls, icons and styling |
 | [Iconflow](iconflow/) | Animated Circuit icon set, hover motion, Library button icons, new tab button options (replaces Better New Tab button) |
 | [Tab Router](tab-router/) | Rule-based tab grouping |

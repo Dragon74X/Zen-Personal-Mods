@@ -1701,9 +1701,12 @@ test("Glassflow Library seeds unset defaults and writes its string prefs as vari
     addObserver: (_p, o) => observers.push(o), removeObserver() {} } };
   const declared = JSON.parse(await readFile(new URL("../glassflow-library/preferences.json", import.meta.url), "utf8"));
   const window = { addEventListener() {} };
-  const document = { documentElement: { style: { setProperty: (k, v) => style.set(k, v), removeProperty: k => style.delete(k) } } };
+  const document = { documentElement: { style: { setProperty: (k, v) => style.set(k, v), removeProperty: k => style.delete(k) } },
+    getElementById: () => null, querySelector: () => null };
+  const customElements = { get() {}, whenDefined: () => new Promise(() => {}) };
+  class MutationObserver { observe() {} disconnect() {} }
   const source = await readFile(new URL("../glassflow-library/glassflow-library.uc.js", import.meta.url), "utf8");
-  vm.runInContext(source, vm.createContext({ window, document, Services, fetch: async () => ({ json: async () => declared }) }));
+  vm.runInContext(source, vm.createContext({ window, document, Services, customElements, MutationObserver, fetch: async () => ({ json: async () => declared }) }));
   assert.equal(style.get("--zzlib-card-width"), "300px", "a chosen value is written at once");
   await new Promise(r => setImmediate(r));
   assert.equal(prefs.get("zzlib.card.width"), "300px", "a chosen value is never overwritten");

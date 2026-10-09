@@ -2013,7 +2013,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzglass.overlays.downloads",
-    "label": "Library download stack *Hover the library button. Off lets Zen fade the tabs out under it again.*",
+    "label": "Library download stack *Hover the library button.*",
     "defaultValue": 1,
     "options": [
       {

@@ -258,7 +258,7 @@ Zen's blur**.
 
 | Surface | What changes |
 |---|---|
-| Library download stack (hover the library button) | Each entry gets glass. Zen fades the tabs out under the stack; they stay and show through blurred |
+| Library download stack (hover the library button) | Each entry gets glass. Zen still fades the tabs and the music player out under the stack, so nothing behind shows through |
 | Toasts | The accent fill turns translucent over a blur |
 | Glance's side buttons | Translucent over a blur of the page |
 | Library media preview | The dimmed window behind it is blurred too |

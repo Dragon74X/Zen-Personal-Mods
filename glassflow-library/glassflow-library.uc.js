@@ -166,7 +166,7 @@
   // four, older ones get rows of the same make above Zen's, filled here.
   // ponytail: these extra rows open on click but have no context menu or drag; add both if they are missed.
   const EXTRA = "zzlib-extra";
-  let downloads = [], data = null, view = null;
+  let downloads = [], data = null, view = null, inBatch = false;
   const lazy = {};
   function watchDownloads() {
     if (view || pref("zzlib.stack.count", 4) <= 4) return;
@@ -177,8 +177,8 @@
       BrowserUtils: "resource://gre/modules/BrowserUtils.sys.mjs",
     });
     view = {
-      onDownloadBatchStarting() {},
-      onDownloadBatchEnded() { if (stackOpen()) fillExtras(); },
+      onDownloadBatchStarting() { inBatch = true; },
+      onDownloadBatchEnded() { inBatch = false; if (stackOpen()) fillExtras(); },
       onDownloadAdded(download, { insertBefore } = {}) {
         const at = insertBefore ? downloads.indexOf(insertBefore) : -1;
         if (at < 0) downloads.push(download); else downloads.splice(at, 0, download);
@@ -226,10 +226,11 @@
     return row;
   }
   function fillExtras() {
+    if (inBatch) return;
     const list = document.getElementById("zen-library-download-list");
     if (!list) return;
     const want = view ? Math.max(0, Math.min(8, pref("zzlib.stack.count", 4)) - 4) : 0;
-    const older = want ? downloads.slice(0, -4).slice(-want) : [];   // oldest first, like Zen's rows
+    const older = want ? downloads.slice(-want - 4, -4) : [];   // oldest first, like Zen's rows
     const rows = [...list.querySelectorAll(`:scope > .${EXTRA}`)];
     while (rows.length > older.length) rows.shift().remove();
     while (rows.length < older.length) { const row = makeRow(); list.prepend(row); rows.unshift(row); }
@@ -251,6 +252,7 @@
   // download changes; rows added or hidden here change that height.
   function measure(list) {
     window.promiseDocumentFlushed(() => list.getBoundingClientRect().height).then(height => {
+      if (window[INSTANCE_KEY] !== instance) return;
       document.getElementById("TabsToolbar-customization-target")?.style.setProperty("--zen-library-stack-height", `${height}px`);
     }).catch(() => {});
   }

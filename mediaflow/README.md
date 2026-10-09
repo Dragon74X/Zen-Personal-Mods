@@ -8,7 +8,8 @@ sidebar:
 - **Controls on the preview**, like Firefox's Picture-in-Picture window:
   play and pause, skip back and forward, a timeline to drag, mute (the tab's),
   open it in Picture-in-Picture, and hide the preview. They show while you
-  point at it. Pausing from them keeps the preview up, with a play button;
+  point at it or focus a control with the keyboard. The timeline supports
+  keyboard seeking. Pausing from them keeps the preview up, with a play button;
   pausing anywhere else hides it as before.
 - **Music bar options.** Keep the title and progress always showing, or hide
   any of its rows.
@@ -44,8 +45,14 @@ defaults.
 ## Changes from the originals
 
 - Releases carry `updatedAt`, so Sine updates them like the other mods here.
+- Actor module URLs carry a version so Gecko loads their replacement code on
+  Sine updates instead of reusing the previous module until a browser restart.
 - Internal names (window actor, resource alias, controller) are its own, so it
   cannot collide with the original Zenslop if both are installed.
+- Playback state follows native video events independently of captured frames.
+  Switching sources stops the previous source's capture and caption clocks;
+  its video remains available when the replacement stops. Picture-in-Picture
+  opens the mirrored video through Firefox's native launcher.
 - The mod finds its folder through Sine's registered chrome URL instead of a
   hardcoded profile path, so it works under Sine and Cosine alike.
 - With **Always show title and progress** on, the player is measured again

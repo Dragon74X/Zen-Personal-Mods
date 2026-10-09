@@ -171,7 +171,7 @@
     el(merge, "feMergeNode", { in: "o" });
     el(merge, "feMergeNode", { in: "b" });
     const wanted = () => S.getBoolPref(PREFIX + "sidebar.blur-transparent-pages", true) &&
-      (S.getBoolPref(PREFIX + "sidebar.blur", false) || S.getBoolPref("zen.theme.acrylic-elements", false));
+      (S.getBoolPref(PREFIX + "sidebar.blur", false) || S.getBoolPref("zen.theme.acrylic-sidebar", false));
     const alpha = c => {
       if (c === "transparent") return 0;
       const m = c.match(/^rgba\((?:[^,]+,){3}\s*([\d.]+)\)$/) || c.match(/\/\s*([\d.]+)(%?)\s*\)$/);
@@ -184,12 +184,15 @@
     const sliding = () => toolbox.getAnimations().some(a => a.transitionProperty === "translate" && a.playState === "running");
     const update = () => {
       frame = 0;
-      const p = document.getElementById("zen-toolbar-background")?.getBoundingClientRect(), moving = sliding();
-      if (!wanted() || root.getAttribute("zen-compact-mode") !== "true" || !(toolbox.matches(SHOWN) || moving) || !p?.width || !seeThrough()) {
+      const panel = document.getElementById("zen-toolbar-background"), p = panel?.getBoundingClientRect(), moving = sliding();
+      // Computed CSS resolves lengths (rem, calc, etc.) and the native/custom
+      // switch once. A zero radius or disabled backdrop needs no page filter.
+      const r = panel ? parseFloat(getComputedStyle(panel).backdropFilter.match(/\bblur\(([^)]+)\)/)?.[1]) : NaN;
+      if (!wanted() || !(r > 0) || root.getAttribute("zen-compact-mode") !== "true" || !(toolbox.matches(SHOWN) || root.getAttribute("zen-renaming-tab") === "true" || moving) || !p?.width || !seeThrough()) {
         box.style.removeProperty("filter");
         return;
       }
-      const b = box.getBoundingClientRect(), r = parseFloat(S.getStringPref(PREFIX + "sidebar.blur-radius", "")) || 42;
+      const b = box.getBoundingClientRect();
       for (const [k, v] of Object.entries({ x: 0, y: 0, width: b.width, height: b.height })) filter.setAttribute(k, v);
       for (const e of [flood, blur]) for (const [k, v] of Object.entries({ x: p.left - b.left, y: p.top - b.top, width: p.width, height: p.height })) e.setAttribute(k, v);
       blur.setAttribute("stdDeviation", r);
@@ -199,16 +202,21 @@
     const soon = () => { frame ||= requestAnimationFrame(update); };
     const mo = new MutationObserver(soon);
     mo.observe(toolbox, { attributes: true, attributeFilter: ["zen-has-hover", "zen-user-show", "zen-has-empty-tab", "flash-popup", "has-popup-menu", "movingtab", "zen-compact-mode-active", "zzg-redraw"] });
-    mo.observe(root, { attributes: true, attributeFilter: ["zen-compact-mode"] });
+    mo.observe(root, { attributes: true, attributeFilter: ["zen-compact-mode", "zen-renaming-tab"] });
     const prefs = { observe: soon };
+    const transparency = window.matchMedia("(prefers-reduced-transparency: reduce)");
+    transparency.addEventListener("change", soon);
     S.addObserver(PREFIX + "sidebar.", prefs);
+    S.addObserver("zen.theme.acrylic-sidebar", prefs);
     window.addEventListener("resize", soon);
     toolbox.addEventListener("transitionend", soon);
     toolbox.addEventListener("transitionrun", soon);
     update();
     return () => {
       mo.disconnect();
+      transparency.removeEventListener("change", soon);
       S.removeObserver(PREFIX + "sidebar.", prefs);
+      S.removeObserver("zen.theme.acrylic-sidebar", prefs);
       window.removeEventListener("resize", soon);
       toolbox.removeEventListener("transitionend", soon);
       toolbox.removeEventListener("transitionrun", soon);
@@ -297,7 +305,7 @@
       ["uc.tabs.strikethrough-on-pending", false, "zzglass.pending.enabled"],
     ],
     "sidebar-expand": [["mod.autoexpand.fade_sleeping_tabs", false, "zzglass.pending.enabled"]],
-    "transparent-zen": [["mod.sameerasw_zen_compact_sidebar_type", "0", "zen.theme.acrylic-elements"]],
+    "transparent-zen": [["mod.sameerasw_zen_compact_sidebar_type", "0", "zen.theme.acrylic-sidebar"]],
   };
   const OTHER_SAVED = "zzglass-saved.other-mods";   // outside PREFIX: not a CSS variable
   // release: Glassflow is being disabled or removed, so every override goes back.
@@ -344,7 +352,7 @@
     }
     try { S.setStringPref(OTHER_SAVED, JSON.stringify(saved)); } catch {}
   }
-  const OTHER_WATCH = [PREFIX, "zzgroup.enabled", "zen.theme.acrylic-elements"];
+  const OTHER_WATCH = [PREFIX, "zzgroup.enabled", "zen.theme.acrylic-sidebar"];
   const otherModsObserver = { observe: () => syncOtherMods() };
 
   // ---- declared defaults --------------------------------------------------
@@ -389,6 +397,18 @@
     }
     return wrote > 0;
   }
+
+  // Preserve the existing sidebar switch once; keep the old value for rollback.
+  // An explicit new native choice, including Off, always wins.
+  try {
+    const S = Services.prefs, done = PREFIX + "migrated.acrylic-sidebar";
+    if (!S.getBoolPref(done, false)) {
+      if (S.prefHasUserValue("zen.theme.acrylic-elements") && !S.prefHasUserValue("zen.theme.acrylic-sidebar")) {
+        S.setBoolPref("zen.theme.acrylic-sidebar", S.getBoolPref("zen.theme.acrylic-elements"));
+      }
+      S.setBoolPref(done, true);
+    }
+  } catch {}
 
   // Written the moment this script is injected, not from start(). These
   // variables need only Services.prefs and the document element -- never

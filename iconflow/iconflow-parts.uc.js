@@ -477,7 +477,7 @@
           p.setAttribute("d", writePath(it.subs, (q, sub) => apply(it.inv, field(...apply(it.m, q), tau, k, it.parts[sub]))));
           el.replaceWith(p);
         });
-        for (const e of [...c.querySelectorAll(KEEP)]) if (e.isConnected) e.remove();
+        for (const e of c.querySelectorAll(KEEP)) e.remove();
         return [...c.childNodes].map(e => ser.serializeToString(e)).join("");
       };
       // A faint trail while a slide is fast, gone at rest. Not on turns, where

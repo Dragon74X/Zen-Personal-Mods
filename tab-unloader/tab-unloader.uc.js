@@ -482,7 +482,6 @@
     } catch { return false; }
 
     const S = Services.prefs;
-    let wrote = 0;
     for (const pref of declared) {
       const name = pref?.property;
       const value = pref?.defaultValue;
@@ -492,11 +491,8 @@
         if (typeof value === "boolean") S.setBoolPref(name, value);
         else if (typeof value === "number") S.setIntPref(name, value);
         else if (typeof value === "string") S.setStringPref(name, value);
-        else continue;
-        wrote++;
       } catch {}
     }
-    return wrote > 0;
   }
 
   // ---- startup ------------------------------------------------------------

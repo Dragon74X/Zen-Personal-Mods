@@ -10,7 +10,7 @@ tabs as you last left them.
 | Preview tabs on hover | On | Turns on Firefox's tab preview (`browser.tabs.hoverPreview.enabled`), which Zen ships off. |
 | Where it opens | Beside the tab | Zen's default, or right, left, above, below, or any of the four diagonals of the tab you point at. If there is no room on that side, the preview moves to fit on screen. |
 | Gap from the tab | 6 | Pixels between the tab and the preview, for every place but Zen's default. |
-| Picture of the page | On | Loaded tabs show a live picture (`browser.tabs.hoverPreview.showThumbnails`). |
+| Picture of the page | On | Loaded tabs show a live picture (`browser.tabs.hoverPreview.showThumbnails`). Off removes current pictures and stops new captures, including last views. |
 | Last view of unloaded tabs | On | An unloaded tab shows the page as you last left it and how long ago that was. |
 
 Unloaded tabs also get a line under the site: "Unloaded · seen 5 minutes ago",
@@ -32,7 +32,13 @@ you have visited them in this session.
 ## Turning it off
 
 Peekflow sets the two Firefox switches above from its own settings. When Sine
-turns Peekflow off, it puts back the values you had before.
+turns Peekflow off in the final active window, it restores the previous values
+and removes user overrides that did not exist before. Later manual edits to
+the native switches survive settings refreshes and shutdown. Changing the
+corresponding Peekflow setting applies that choice again.
+
+Snapshots from versions before 1.2.1 lack the original override-presence flag;
+their saved values are restored as user overrides on the first disable.
 
 ## Not included
 

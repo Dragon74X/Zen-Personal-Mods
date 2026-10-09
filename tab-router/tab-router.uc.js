@@ -775,15 +775,7 @@
   }
 
   // ["Work", "Email"] for a tab inside Email inside Work.
-  function chainOf(tab) {
-    const out = [];
-    let g = tab.group ?? null;
-    while (g && g.tagName === "tab-group") {
-      out.unshift((g.label ?? "").trim());
-      g = parentOf(g);
-    }
-    return out;
-  }
+  const chainOf = tab => ancestorsOf(tab).reverse().map(g => (g.label ?? "").trim());
 
   const samePath = (a, b) =>
     a.length === b.length && a.every((s, i) => s.toLowerCase() === b[i].toLowerCase());
@@ -1302,19 +1294,14 @@
 
   // File as soon as a URL is known. Coalesce only the current event turn;
   // title/redirect bursts must not keep postponing a tab's move.
-  const pendingRoute = new WeakMap();
-  // The ids as well, because a WeakMap cannot be emptied at cleanup and a
-  // retired copy still routing tabs from its own caches is a second mod
-  // fighting the live one.
-  const pendingIds = new Set();
+  const pendingRoute = new Map();
   function queueRoute(tab, why) {
     if (retired || !bool("enabled", false) || pendingRoute.has(tab)) return;
     const id = setTimeout(() => {
-      pendingRoute.delete(tab); pendingIds.delete(id);
+      pendingRoute.delete(tab);
       route(tab, why);
     }, 0);
     pendingRoute.set(tab, id);
-    pendingIds.add(id);
   }
   const progress = {
     onStateChange(browser, wp, _req, flags) {
@@ -1659,7 +1646,7 @@
         } catch {}
 
         const r = {
-          version: "1.34.14",
+          version: "1.34.15",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The
@@ -1710,8 +1697,8 @@
       cancelLookups();
       try { delete window.TabRouter; } catch {}
       clearTimeout(orderTimer); orderTimer = null;
-      for (const id of pendingIds) clearTimeout(id);
-      pendingIds.clear();
+      for (const id of pendingRoute.values()) clearTimeout(id);
+      pendingRoute.clear();
       for (const id of startupTimers) clearTimeout(id);
       startupTimers.length = 0;
       try { gBrowser.removeTabsProgressListener(progress); } catch {}
@@ -1762,7 +1749,6 @@
     } catch { return false; }
 
     const S = Services.prefs;
-    let wrote = 0;
     for (const pref of declared) {
       const name = pref?.property;
       const value = pref?.defaultValue;
@@ -1772,11 +1758,8 @@
         if (typeof value === "boolean") S.setBoolPref(name, value);
         else if (typeof value === "number") S.setIntPref(name, value);
         else if (typeof value === "string") S.setStringPref(name, value);
-        else continue;
-        wrote++;
       } catch {}
     }
-    return wrote > 0;
   }
 
   // ---- startup ------------------------------------------------------------

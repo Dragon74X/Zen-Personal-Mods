@@ -119,7 +119,7 @@
 @media (-moz-pref("zzglass.sidebar.enabled")) {
   :root { --zzg-panel-radius: var(--zzglass-sidebar-blur-radius-corner, 12px); --zzg-panel-corner: var(--zzg-corner-side); }
 }
-@media (-moz-pref("zen.theme.acrylic-elements")) and (not (prefers-reduced-transparency: reduce)), (-moz-pref("zzglass.sidebar.blur")) {
+@media (-moz-pref("zen.theme.acrylic-sidebar")) and (not (prefers-reduced-transparency: reduce)), (-moz-pref("zzglass.sidebar.blur")) {
   :root[zen-compact-mode="true"] .zen-toolbar-background {
     backdrop-filter: var(--zzg-acrylic) !important;
   }
@@ -1363,6 +1363,7 @@
   --zzg-ov-fill: light-dark(rgb(255 255 255 / var(--zzglass-overlays-opacity, 55%)),
                             rgb(24 24 24 / var(--zzglass-overlays-opacity, 55%)));
   --zzg-ov-downloads: var(--zzg-ov-glass);
+  --zzg-ov-downloads-fill: var(--zzg-ov-fill);
   --zzg-ov-toasts: var(--zzg-ov-glass);
   --zzg-ov-glance: var(--zzg-ov-glass);
   --zzg-ov-preview: var(--zzg-ov-glass);
@@ -1376,6 +1377,22 @@
 @media (-moz-pref("zzglass.overlays.music", 2)) { :root { --zzg-ov-music: var(--zzg-ov-glass-dim); } }
 @media (-moz-pref("zzglass.overlays.status", 2)) { :root { --zzg-ov-status: var(--zzg-ov-glass-dim); } }
 @media (-moz-pref("zzglass.overlays.status", 0)) { :root { --zzg-ov-status: none; } }
+/* Tokens are consumed by other mods too; Off must reach those consumers. */
+@media (-moz-pref("zzglass.overlays.downloads", 0)), not (-moz-pref("zzglass.overlays.enabled")) {
+  :root {
+    --zzg-ov-downloads: none;
+    --zzg-ov-downloads-fill: var(--zen-main-browser-background, light-dark(rgb(235 235 235), rgb(27 27 27)));
+  }
+}
+@media not (-moz-pref("zzglass.overlays.enabled")) {
+  :root {
+    --zzg-ov-toasts: none;
+    --zzg-ov-glance: none;
+    --zzg-ov-preview: none;
+    --zzg-ov-music: none;
+    --zzg-ov-status: none;
+  }
+}
 /* Download Prompt's question reads this; it is not Glassflow's to draw. */
 @media (-moz-pref("zzglass.overlays.enabled")) {
   :root { --zzg-ov-dialog: var(--zzg-ov-glass); }

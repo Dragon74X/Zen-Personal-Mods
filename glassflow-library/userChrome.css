@@ -133,8 +133,9 @@ zen-library[zzlib-float="centre"] {
 }
 
 /* One box behind them all. It fades in with the list. With Glassflow it is
-   glass, its overlay fill over the tab list Glassflow blurs underneath;
-   without, it is solid, Zen's window colour, over the tab list Zen fades out. */
+   glass: its overlay fill and blur, one layer, so no tab shows between the
+   rows. Without, it is solid, Zen's window colour, over the tab list Zen
+   fades out. */
 @media (-moz-pref("zzlib.stack.box")) {
   #zen-sidebar-foot-buttons #zen-library-download-list {
     padding: 6px !important;
@@ -146,6 +147,7 @@ zen-library[zzlib-float="centre"] {
       inset: 0;
       border-radius: var(--zzg-panel-radius, 20px);
       background: var(--zzg-ov-fill, var(--zen-main-browser-background, light-dark(rgb(235 235 235), rgb(27 27 27))));
+      backdrop-filter: var(--zzg-ov-downloads, none);
       box-shadow: inset 0 0 0 1px var(--zzg-rim-all, rgb(255 255 255 / 0.1)), 0 8px 24px rgb(0 0 0 / 0.22);
       opacity: var(--zen-library-progress);
       pointer-events: none;
@@ -153,6 +155,7 @@ zen-library[zzlib-float="centre"] {
 
     & .zen-library-download-list-download {
       background: transparent !important;
+      backdrop-filter: none !important;
       &:hover { background: color-mix(in srgb, currentColor 10%, transparent) !important; }
     }
   }

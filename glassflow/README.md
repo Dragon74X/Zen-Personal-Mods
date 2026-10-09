@@ -256,20 +256,19 @@ darkening, since the glass brings its own fill, and **Zen's blur, darkened like
 the sidebar** also applies the panel's brightness. All three follow **Customise
 Zen's blur**.
 
-Over the tab list, a blur behind an overlay finds nothing to blur: Firefox
-leaves the tab list and the music player out of what it sees there, so they
-showed through sharp. So the download stack and the music player blur the
-part of the tab list under them themselves, while they are up. **Blur over the
-tab list** sets how strong (`8px`; Zen's `42px` all but erases text this
-small); saturation and contrast follow **Customise Zen's blur**.
+The overlays blur with Zen's recipe at a strength of their own, **Overlay
+blur** (`8px`). Zen's `42px` suits its big panel; on a 52px download row it
+smeared everything flat and, worse, let the sharp original show through, so
+the row looked unblurred. Saturation and contrast follow **Customise Zen's
+blur**.
 
 | Surface | What changes |
 |---|---|
-| Library download stack (hover the library button) | Each entry gets glass. The tabs and the music player under the stack stay, blurred, instead of Zen fading them out |
+| Library download stack (hover the library button) | Each entry gets glass. Zen fades the tabs out under the stack; they stay and show through blurred |
 | Toasts | The accent fill turns translucent over a blur |
 | Glance's side buttons | Translucent over a blur of the page |
 | Library media preview | The dimmed window behind it is blurred too |
-| Music player at the bottom of the sidebar | Glass; its title row floats over the tabs on hover, and the tabs under it blur |
+| Music player at the bottom of the sidebar | Glass; its title row floats over the tabs on hover |
 | Download Prompt's question | Its own glass; this row only picks the blur |
 
 | Setting | Default | Notes |
@@ -277,7 +276,7 @@ small); saturation and contrast follow **Customise Zen's blur**.
 | Glass behind overlays | on | |
 | Library download stack / Toasts / Glance's side buttons / Behind the library media preview / Music player / Download question | Zen's blur | Each: Off, Zen's blur, or darkened like the sidebar |
 | Overlay fill | `55%` | `0%` is clear glass |
-| Blur over the tab list | `8px` | Under the download stack and the music player's rows |
+| Overlay blur | `8px` | How strongly every overlay above blurs |
 | Menu and panel fill (Windows 11) | `50%` | Zen's own value; lower shows more of the blur |
 | Music player fill | the overlay fill | Any CSS colour. Mediaflow decides which rows the player shows |
 | Glass status pill | on | The link address at the bottom of the page, as a floating glass pill. Turn off Arc 2.0's floating status bar so only one styles it |

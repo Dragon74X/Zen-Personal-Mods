@@ -36,7 +36,7 @@ The list that rises above the Library button.
 | How many | `4` | Zen's is 4; up to 8 |
 | Order | newest at the bottom | or newest at the top |
 | Size | Zen's | row height, picture and text together |
-| One box behind them | off | one panel instead of a pill per download. With Glassflow it is glass: Glassflow's overlay fill over the tabs and music player, which Glassflow blurs under it (Glassflow > Overlays, dialogs and status). Without, it is solid, Zen's window colour, and the tabs fade out under it as in Zen |
+| One box behind them | off | one panel instead of a pill per download. With Glassflow it is glass, Glassflow's overlay fill and blur, with nothing showing between the downloads (Glassflow > Overlays, dialogs and status). Without, it is solid, Zen's window colour, and the tabs fade out under it as in Zen |
 
 While the list is up it sits above the rest of the sidebar. Mediaflow's
 video preview steps aside for it.

@@ -66,7 +66,8 @@
   /* The one blur every glass in these mods uses: Zen's own acrylic, the
      filter Zen puts on the compact panel. Elements on the panel need none
      of their own, since their see-through fills already show it. Sidebar >
-     Customise Zen's blur changes it here and on Zen's panel together.
+     Customise Zen's blur changes it here and on Zen's panel together; the
+     overlays take its recipe at a strength of their own (--zzg-ov-glass).
      The underlay is Zen's too (its urlbar's): the page is laid on black or
      white first, so a translucent page still blurs rather than vanishing. */
   --zzg-underlay: var(--zen-backdrop-underlay, light-dark(
@@ -76,9 +77,14 @@
   /* The recipe without the underlay: what the sidebar's panel uses. */
   --zzg-acrylic-flat: blur(42px) saturate(110%) brightness(0.25) contrast(100%);
   --zzg-acrylic: var(--zzg-underlay) var(--zzg-acrylic-flat);
-  /* The same blur without the panel's darkening, for glass that brings its
-     own fill (the overlays). */
-  --zzg-acrylic-clear: var(--zzg-underlay) blur(42px) saturate(110%) contrast(100%);
+  /* The overlays' glass: the same recipe, at Overlay blur's strength, with
+     the underlay laid again last. They are small next to Zen's blur: under
+     42px, an underlay the size of a 52px download row mixes with the clear
+     space around it, the result turns see-through, and Firefox draws it over
+     the sharp original, so the row looked unblurred. The second underlay
+     keeps them solid at any size. -dim adds the panel's darkening. */
+  --zzg-ov-glass: var(--zzg-underlay) blur(var(--zzglass-overlays-blur, 8px)) saturate(110%) contrast(100%) var(--zzg-underlay);
+  --zzg-ov-glass-dim: var(--zzg-underlay) blur(var(--zzglass-overlays-blur, 8px)) saturate(110%) brightness(0.25) contrast(100%) var(--zzg-underlay);
 }
 @media (-moz-pref("zzglass.sidebar.blur")) {
   :root {
@@ -86,8 +92,10 @@
     --zzg-acrylic-flat: blur(var(--zzglass-sidebar-blur-radius, 42px)) saturate(var(--zzglass-sidebar-blur-saturate, 1.1))
       brightness(var(--zzglass-sidebar-blur-brightness, 0.25)) contrast(var(--zzglass-sidebar-blur-contrast, 1));
     --zzg-acrylic: var(--zzg-underlay) var(--zzg-acrylic-flat);
-    --zzg-acrylic-clear: var(--zzg-underlay) blur(var(--zzglass-sidebar-blur-radius, 42px)) saturate(var(--zzglass-sidebar-blur-saturate, 1.1))
-      contrast(var(--zzglass-sidebar-blur-contrast, 1));
+    --zzg-ov-glass: var(--zzg-underlay) blur(var(--zzglass-overlays-blur, 8px)) saturate(var(--zzglass-sidebar-blur-saturate, 1.1))
+      contrast(var(--zzglass-sidebar-blur-contrast, 1)) var(--zzg-underlay);
+    --zzg-ov-glass-dim: var(--zzg-underlay) blur(var(--zzglass-overlays-blur, 8px)) saturate(var(--zzglass-sidebar-blur-saturate, 1.1))
+      brightness(var(--zzglass-sidebar-blur-brightness, 0.25)) contrast(var(--zzglass-sidebar-blur-contrast, 1)) var(--zzg-underlay);
   }
 }
 /* Zen's own panels (the compact sidebar and the floating toolbar) get the
@@ -1337,11 +1345,10 @@
 /* ============================================================
    Overlays: glass behind what floats inside the window.
 
-   These are drawn in the browser window itself. Over the page,
-   backdrop-filter blurs what is under them. Over the tab list (the
-   library stack, the music player's rows) it reads an empty backdrop,
-   so the tab list blurs itself under them instead (glassflow.uc.js,
-   "under the sidebar's overlays"). Menus and panels are separate native
+   These are drawn in the browser window itself, so backdrop-filter
+   reads whatever is painted under them (no ancestor of the library
+   stack is a backdrop root); --zzg-ov-glass says why they blur less
+   than Zen's panel. Menus and panels are separate native
    windows: CSS cannot see behind them, so they get Windows' own
    acrylic (Firefox's -moz-windows-mica-popups) and only its tint is
    set here. Zen already blurs the floating urlbar, the compact
@@ -1349,36 +1356,41 @@
    page under it is hidden, leaving nothing to blur.
 
    Each surface has its own setting: Off leaves it as Zen draws it; on, it
-   blurs with Zen's blur (--zzg-acrylic-clear), or darkened like Zen's
-   panel (--zzg-acrylic). Both follow Sidebar > Customise Zen's blur.
+   blurs (--zzg-ov-glass), or darkened like Zen's panel (--zzg-ov-glass-dim).
+   Saturation, contrast and brightness follow Sidebar > Customise Zen's blur.
    ============================================================ */
 :root {
   --zzg-ov-fill: light-dark(rgb(255 255 255 / var(--zzglass-overlays-opacity, 55%)),
                             rgb(24 24 24 / var(--zzglass-overlays-opacity, 55%)));
-  --zzg-ov-toasts: var(--zzg-acrylic-clear);
-  --zzg-ov-glance: var(--zzg-acrylic-clear);
-  --zzg-ov-preview: var(--zzg-acrylic-clear);
-  --zzg-ov-status: var(--zzg-acrylic-clear);
+  --zzg-ov-downloads: var(--zzg-ov-glass);
+  --zzg-ov-toasts: var(--zzg-ov-glass);
+  --zzg-ov-glance: var(--zzg-ov-glass);
+  --zzg-ov-preview: var(--zzg-ov-glass);
+  --zzg-ov-music: var(--zzg-ov-glass);
+  --zzg-ov-status: var(--zzg-ov-glass);
 }
-@media (-moz-pref("zzglass.overlays.toasts", 2)) { :root { --zzg-ov-toasts: var(--zzg-acrylic); } }
-@media (-moz-pref("zzglass.overlays.glance", 2)) { :root { --zzg-ov-glance: var(--zzg-acrylic); } }
-@media (-moz-pref("zzglass.overlays.media-preview", 2)) { :root { --zzg-ov-preview: var(--zzg-acrylic); } }
-@media (-moz-pref("zzglass.overlays.status", 2)) { :root { --zzg-ov-status: var(--zzg-acrylic); } }
+@media (-moz-pref("zzglass.overlays.downloads", 2)) { :root { --zzg-ov-downloads: var(--zzg-ov-glass-dim); } }
+@media (-moz-pref("zzglass.overlays.toasts", 2)) { :root { --zzg-ov-toasts: var(--zzg-ov-glass-dim); } }
+@media (-moz-pref("zzglass.overlays.glance", 2)) { :root { --zzg-ov-glance: var(--zzg-ov-glass-dim); } }
+@media (-moz-pref("zzglass.overlays.media-preview", 2)) { :root { --zzg-ov-preview: var(--zzg-ov-glass-dim); } }
+@media (-moz-pref("zzglass.overlays.music", 2)) { :root { --zzg-ov-music: var(--zzg-ov-glass-dim); } }
+@media (-moz-pref("zzglass.overlays.status", 2)) { :root { --zzg-ov-status: var(--zzg-ov-glass-dim); } }
 @media (-moz-pref("zzglass.overlays.status", 0)) { :root { --zzg-ov-status: none; } }
 /* Download Prompt's question reads this; it is not Glassflow's to draw. */
 @media (-moz-pref("zzglass.overlays.enabled")) {
-  :root { --zzg-ov-dialog: var(--zzg-acrylic-clear); }
-  @media (-moz-pref("zzglass.overlays.dialog", 2)) { :root { --zzg-ov-dialog: var(--zzg-acrylic); } }
+  :root { --zzg-ov-dialog: var(--zzg-ov-glass); }
+  @media (-moz-pref("zzglass.overlays.dialog", 2)) { :root { --zzg-ov-dialog: var(--zzg-ov-glass-dim); } }
   @media (-moz-pref("zzglass.overlays.dialog", 0)) { :root { --zzg-ov-dialog: none; } }
 }
 @media (-moz-pref("zzglass.overlays.enabled")) and (not (-moz-pref("zzglass.overlays.downloads", 0))) {
-  /* Library download stack. Zen fades the tab list out under it; it stays,
-     blurred by the script, so the glass has something behind it. */
+  /* Library download stack. Zen fades the tab list out under it; keep
+     the tabs so the glass has them to blur. */
   #TabsToolbar-customization-target:is([zen-library-stack-open], [zen-library-stack-closing]) {
     mask-image: none !important;
   }
   #zen-library-download-list .zen-library-download-list-download {
     background: var(--zzg-ov-fill) !important;
+    backdrop-filter: var(--zzg-ov-downloads) !important;
     &:hover { background: color-mix(in srgb, currentColor 10%, var(--zzg-ov-fill)) !important; }
   }
 }
@@ -1419,6 +1431,7 @@
 @media (-moz-pref("zzglass.overlays.enabled")) and (not (-moz-pref("zzglass.overlays.music", 0))) {
   #zen-media-controls-toolbar > .zen-media-card {
     --zen-sidebar-notification-bg: var(--zzglass-overlays-media-color, var(--zzg-ov-fill)) !important;
+    backdrop-filter: var(--zzg-ov-music) !important;
   }
 }
 

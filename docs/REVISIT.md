@@ -16,21 +16,27 @@ entry says what is true today, what would change, and what to check first.
 
 ## Glassflow: blur behind overlays
 
-- **Today:** over the tab list, `backdrop-filter` reads an empty backdrop: the
-  tab list and the music player are not in it, so the download stack's rows
-  and the music player's hover rows let them show through sharp (a Windows
-  screenshot, 9 October 2026). Glassflow 3.68.0 blurs the tab list under them
-  with an SVG filter instead, 8px by default (**Blur over the tab list**).
-  Over the page, on the test renderer, `backdrop-filter` captured nothing
-  either. Toasts, Glance's buttons, the status pill and the download question
-  still use it; not checked on a GPU.
-- **Change:** if Firefox samples the tab list there, put `backdrop-filter`
-  back on the rows and the music card and drop `underOverlayBlur()`. If the
-  page overlays turn out not to blur on a GPU either, the page strip filter
-  (`transparentPageBlur()`) is the pattern to copy.
+- **Today:** every overlay uses the native `backdrop-filter`, with Zen's recipe
+  at its own strength (**Overlay blur**, 8px) and Zen's underlay laid again
+  last (Glassflow 3.69.0).
+- **Why:** the download stack's rows let the tabs and music player under them
+  show through sharp (a Windows screenshot, 9 October 2026). Zen's recipe lays
+  the underlay first and then blurs 42px. On an element much smaller than the
+  blur, the underlay mixes with the clear space around it, the result turns
+  see-through, and WebRender draws it over the sharp original. Measured on a
+  52px box over the tabs, the share of edge detail left was 90% at 42px, 42%
+  at 8px, and 40% with the underlay last at either strength. A big panel such
+  as Zen's sidebar is not affected.
+- **Corrected:** Glassflow 3.68.0 took this for Firefox not seeing the tab list
+  and blurred it with an SVG filter instead, the see-through-page method
+  (`transparentPageBlur()`). That was wrong: with a solid colour behind the
+  tab list, the native blur of the rows blurred the tabs. 3.69.0 removed the
+  filter.
+- **Still open:** over the page, the test renderer showed no blur at any
+  setting; not checked on a GPU.
 - **Check first:** Zen run under Xvfb with software WebRender, captured from
-  the X display (Marionette's own screenshots skip `backdrop-filter`). Put
-  `backdrop-filter: blur(8px)` on a row and look for sharp tab text under it.
+  the X display (Marionette's own screenshots skip `backdrop-filter`); measure
+  edge detail inside a box against the same area without it.
 
 ## Tab Router: grouped tabs and explicit Zen domain routes
 

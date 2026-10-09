@@ -1374,11 +1374,8 @@
   @media (-moz-pref("zzglass.overlays.dialog", 0)) { :root { --zzg-ov-dialog: none; } }
 }
 @media (-moz-pref("zzglass.overlays.enabled")) and (not (-moz-pref("zzglass.overlays.downloads", 0))) {
-  /* Library download stack. Zen masks the tab list out under it; keep
-     the tabs so the glass has them to blur. */
-  #TabsToolbar-customization-target:is([zen-library-stack-open], [zen-library-stack-closing]) {
-    mask-image: none !important;
-  }
+  /* Library download stack. Zen fades the tab list and the music player
+     out under it, which stays: blur alone left their text showing through. */
   #zen-library-download-list .zen-library-download-list-download {
     background: var(--zzg-ov-fill) !important;
     backdrop-filter: var(--zzg-ov-downloads) !important;

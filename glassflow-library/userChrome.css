@@ -135,13 +135,8 @@ zen-library[zzlib-float="centre"] {
 /* One box behind them all. It fades in with the list. It is solid: Zen's
    window colour, with Glassflow's overlay tint over it, so nothing behind it
    (tabs, the media bar, whatever sits under the bottom of the sidebar)
-   shows through. Zen's fade of the tab list under the list is put back too,
-   which Glassflow's overlay glass turns off. */
+   shows through. */
 @media (-moz-pref("zzlib.stack.box")) {
-  #TabsToolbar #TabsToolbar-customization-target:is([zen-library-stack-open], [zen-library-stack-closing]) {
-    mask-image: linear-gradient(to bottom, black calc(100% - var(--zen-library-mask-ramp)), transparent 100%) !important;
-  }
-
   #zen-sidebar-foot-buttons #zen-library-download-list {
     padding: 6px !important;
     bottom: calc(100% + 6px) !important;

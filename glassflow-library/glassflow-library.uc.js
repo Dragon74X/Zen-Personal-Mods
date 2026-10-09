@@ -258,6 +258,33 @@
   // The list may be built after this runs; watch the attribute wherever it lands.
   footWatch.observe(document.documentElement, { attributes: true, subtree: true, attributeFilter: ["zen-library-stack-open"] });
 
+  // ---- Get the Library ready after startup ----
+  // Zen builds the Library the first time it opens, so the first open of a
+  // session waits on loading its code and stylesheet and building its page.
+  // 2 builds it once the browser has settled (the page then stays built,
+  // and up to date, until the Library is first opened and closed, as Zen
+  // keeps it for 30 seconds after any close); 1 only loads the code and
+  // stylesheet; 0 leaves it to Zen.
+  const SECTIONS = ["History", "Downloads", "Boosts", "Media", "Spaces"];
+  let warmTimer = null, warmIdle = null, preload = null;
+  function warmLibrary() {
+    warmIdle = null;
+    const how = pref("zzlib.warm", 2);
+    if (window[INSTANCE_KEY] !== instance || !how || !pref("zen.library.enabled", true) || libraryNode()) return;
+    const load = url => ChromeUtils.importESModule(url, { global: "current" });
+    try {
+      if (how == 2) {
+        (Library() ?? load("moz-src:///zen/library/ZenLibrary.mjs").ZenLibrary).getInstance();
+        return;
+      }
+      for (const name of SECTIONS) load(`moz-src:///zen/library/sections/ZenLibrary${name}Section.mjs`);
+      preload = document.createElementNS("http://www.w3.org/1999/xhtml", "link");
+      Object.assign(preload, { rel: "preload", as: "style", href: "chrome://browser/content/zen-styles/zen-library.css" });
+      document.documentElement.appendChild(preload);
+    } catch (e) { console.error(e); }
+  }
+  warmTimer = setTimeout(() => { warmIdle = window.requestIdleCallback(warmLibrary, { timeout: 5000 }); }, 4000);
+
   const onSetting = name => {
     if (name.startsWith("zzlib.float.")) replace();
     if (name === "zzlib.stack.open") syncButton();
@@ -277,6 +304,9 @@
     window.removeEventListener("command", onCommand, true);
     window.removeEventListener("mousedown", onDown, true);
     footWatch.disconnect();
+    clearTimeout(warmTimer);
+    if (warmIdle) window.cancelIdleCallback(warmIdle);
+    preload?.remove();
     try { data?.removeView(view); } catch {}
     for (const row of document.querySelectorAll(`#zen-library-download-list > .${EXTRA}`)) row.remove();
     document.getElementById("zen-library-button")?.setAttribute("command", "cmd_zenToggleLibrary");

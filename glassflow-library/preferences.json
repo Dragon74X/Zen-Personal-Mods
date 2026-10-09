@@ -62,6 +62,53 @@
     ]
   },
   {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzlib.warm",
+    "label": "Get the Library ready after startup *Zen builds the Library the first time it opens, so the first open of a session is the slow one. Built: done a few seconds after startup while the browser is idle; until you first open and close the Library its page stays built and kept up to date, as Zen keeps it for 30 seconds after any close. Code only: loads its code and stylesheet and nothing keeps running.*",
+    "defaultValue": 2,
+    "options": [
+      {
+        "label": "Built",
+        "value": 2
+      },
+      {
+        "label": "Code only",
+        "value": 1
+      },
+      {
+        "label": "Off (Zen's)",
+        "value": 0
+      }
+    ],
+    "conditions": [
+      {
+        "conditions": [
+          {
+            "if": {
+              "property": "zzlib.ui.page",
+              "value": "window"
+            }
+          },
+          {
+            "if": {
+              "property": "zzlib.ui.page",
+              "value": "all"
+            }
+          },
+          {
+            "if": {
+              "property": "zzlib.ui.page",
+              "value": ""
+            }
+          }
+        ],
+        "operator": "OR"
+      }
+    ],
+    "operator": "AND"
+  },
+  {
     "type": "checkbox",
     "property": "zzlib.float.enabled",
     "label": "Float the Library *Opens it as a panel floating over the page. Zen's own Library always slides in on the tab bar's side and pushes the page and the sidebar aside; off keeps that.*",
@@ -565,7 +612,7 @@
   {
     "type": "checkbox",
     "property": "zzlib.stack.box",
-    "label": "One box behind them *The downloads sit together on one panel instead of each being its own pill, above the tabs and media cards, which fade out under it as in Zen. With Glassflow installed the panel takes its overlay fill (Glassflow > Overlays, dialogs and status).*",
+    "label": "One box behind them *The downloads sit together on one solid panel instead of each being its own pill, so nothing behind it shows through; the tabs and media cards fade out under it as in Zen. With Glassflow installed its overlay fill tints the panel (Glassflow > Overlays, dialogs and status).*",
     "defaultValue": false,
     "conditions": [
       {

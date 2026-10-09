@@ -1706,7 +1706,7 @@ test("Glassflow Library seeds unset defaults and writes its string prefs as vari
   const customElements = { get() {}, whenDefined: () => new Promise(() => {}) };
   class MutationObserver { observe() {} disconnect() {} }
   const source = await readFile(new URL("../glassflow-library/glassflow-library.uc.js", import.meta.url), "utf8");
-  vm.runInContext(source, vm.createContext({ window, document, Services, customElements, MutationObserver, fetch: async () => ({ json: async () => declared }) }));
+  vm.runInContext(source, vm.createContext({ window, document, Services, customElements, MutationObserver, setTimeout: () => 0, clearTimeout() {}, fetch: async () => ({ json: async () => declared }) }));
   assert.equal(style.get("--zzlib-card-width"), "300px", "a chosen value is written at once");
   await new Promise(r => setImmediate(r));
   assert.equal(prefs.get("zzlib.card.width"), "300px", "a chosen value is never overwritten");

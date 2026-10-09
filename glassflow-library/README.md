@@ -16,6 +16,7 @@ them.
 
 | Setting | Default | Notes |
 |---|---|---|
+| Get the Library ready after startup | built | Zen builds the Library the first time it opens, so a session's first open is the slow one. **Built**: done a few seconds after startup while the browser is idle; until you first open and close it, its page stays built and up to date, as Zen keeps it for 30 seconds after any close. **Code only**: loads its code and stylesheet, nothing keeps running. **Off**: Zen's |
 | Float the Library | off | off is Zen's sliding Library |
 | Where it floats | the tab bar's side | or left, right, centre of the window |
 | Space from the window's edges | `10px` | |
@@ -35,7 +36,7 @@ The list that rises above the Library button.
 | How many | `4` | Zen's is 4; up to 8 |
 | Order | newest at the bottom | or newest at the top |
 | Size | Zen's | row height, picture and text together |
-| One box behind them | off | one panel instead of a pill per download, above the tabs and media cards, which fade out under it as in Zen. With Glassflow, the panel takes its overlay fill (Glassflow > Overlays, dialogs and status) |
+| One box behind them | off | one solid panel instead of a pill per download: Zen's window colour, so nothing behind it shows through, and the tabs and media cards fade out under it as in Zen. With Glassflow, its overlay fill tints the panel (Glassflow > Overlays, dialogs and status) |
 
 While the list is up it sits above the rest of the sidebar. Mediaflow's
 video preview steps aside for it.

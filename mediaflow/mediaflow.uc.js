@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.6.0
+// @version        2.6.1
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==
@@ -19,16 +19,6 @@
   const CAPTIONS_WHEN_PIP_HIDDEN_PREF =
     "zzmedia.preview.captions-when-hidden";
   const CAPTION_MODES = new Set(["off", "on", "youtube"]);
-  // Settings chosen under the original Zenslop's names carry over once.
-  for (const [from, to] of [["quality", "quality"], ["framerate", "framerate"],
-    ["captions", "captions"], ["captionsWhenPipHidden", "captions-when-hidden"]]) {
-    try {
-      const S = Services.prefs, old = "mod.zenslop." + from, next = "zzmedia.preview." + to;
-      if (!S.prefHasUserValue(old) || S.prefHasUserValue(next)) continue;
-      if (S.getPrefType(old) === S.PREF_BOOL) S.setBoolPref(next, S.getBoolPref(old));
-      else S.setStringPref(next, S.getStringPref(old));
-    } catch {}
-  }
   const log = (...a) => console.log(LOG_PREFIX, ...a);
   const warn = (...a) => console.warn(LOG_PREFIX, ...a);
   const err = (...a) => console.error(LOG_PREFIX, ...a);
@@ -56,10 +46,7 @@
     // lets the PiP rise instantly but resists transient drops.
     TOP_SPIKE_MAX: 32,
     DOWN_HOLD_MS: 400,
-    MAX_HEIGHT: 600,
     DEFAULT_ASPECT: 16 / 9,
-    PIP_OPEN_DEBOUNCE_MS: 1500,
-    PIP_OBSERVE_TIMEOUT_MS: 3000,
   });
   // The preview and its caption hang from their bottom edge, set every frame
   // from the bar's top, so they move with the bar instead of trailing it;
@@ -300,14 +287,9 @@
       Services.prefs.getStringPref(CAPTIONS_PREF, "youtube"),
     );
     if (CAPTION_MODES.has(mode)) return mode;
-    // Preserve the meaning of the short-lived checkbox version of this pref.
-    const legacyEnabled = safe(() =>
-      Services.prefs.getBoolPref(CAPTIONS_PREF),
-    );
-    if (typeof legacyEnabled === "boolean") {
-      return legacyEnabled ? "youtube" : "off";
-    }
-    return "youtube";
+    // The setting was briefly a checkbox; a profile may still hold that form.
+    const checkbox = safe(() => Services.prefs.getBoolPref(CAPTIONS_PREF));
+    return checkbox === false ? "off" : "youtube";
   }
   let captionMode = getCaptionMode();
   let captionsWhenPipHidden = safe(() =>
@@ -1062,7 +1044,6 @@
 
   let sourceBC = null;
   let sourceTabActive = false;
-  let lastPipOpenAt = 0;
   const availableSources = new Map();
   const actorRegistry = new Map();
 
@@ -1106,14 +1087,6 @@
     return false;
   }
 
-  function getActiveActor() {
-    if (!sourceBC) return null;
-    return (
-      safe(() => sourceBC.currentWindowGlobal?.getActor("ZzMediaflow")) ||
-      null
-    );
-  }
-
   function _notifyTickState() {
     const frameProcessingActive =
       isStreaming && playerSeen && !userHidden && !sourceTabActive && browserWindowActive;
@@ -1138,38 +1111,6 @@
       info.stopTick();
     }
   }
-
-  function awaitNextPipWindow() {
-    let timeoutId = null;
-    const unregister = () =>
-      safe(() => Services.ww.unregisterNotification(observer));
-    const observer = {
-      observe(subject, topic) {
-        if (topic !== "domwindowopened") return;
-        subject.addEventListener(
-          "load",
-          () => {
-            const wt =
-              subject.document?.documentElement?.getAttribute("windowtype");
-            if (wt !== "Toolkit:PictureInPicture") return;
-            unregister();
-            if (timeoutId) clearTimeout(timeoutId);
-          },
-          { once: true },
-        );
-      },
-    };
-    Services.ww.registerNotification(observer);
-    timeoutId = setTimeout(unregister, CONFIG.PIP_OBSERVE_TIMEOUT_MS);
-  }
-
-  on(window, "deactivate", () => {
-    if (!isStreaming) return;
-    if (performance.now() - lastPipOpenAt < CONFIG.PIP_OPEN_DEBOUNCE_MS) return;
-    if (!getActiveActor()) return;
-    awaitNextPipWindow();
-    lastPipOpenAt = performance.now();
-  });
 
   window.ZzMediaflowController = {
     getActiveBC() {
@@ -1473,16 +1414,6 @@
   }
 
   // ---- music bar ----------------------------------------------------------
-  // Better Music Bar's settings carry over once, under Mediaflow's names.
-  for (const [from, to] of [["alwaysshow", "always-expanded"], ["hidemusicinfo", "hide-info"],
-    ["hideprogress", "hide-progress"], ["hidecontrol", "hide-controls"], ["hideparticles", "hide-notes"]]) {
-    try {
-      const S = Services.prefs, old = "mod.zenbettermusicbar." + from, next = "zzmedia.bar." + to;
-      if (S.getBoolPref("mod.zenbettermusicbar.enabled", true) && S.prefHasUserValue(old) &&
-          !S.prefHasUserValue(next)) S.setBoolPref(next, S.getBoolPref(old));
-    } catch {}
-  }
-
   // Zen measures the player's height once, when it appears, and floats the
   // hover rows above that height. Always expanded, those rows are part of the
   // player, so measure again whenever the front card's size changes.

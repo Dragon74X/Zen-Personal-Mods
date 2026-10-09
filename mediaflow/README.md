@@ -32,10 +32,14 @@ Mediaflow joins two mods:
 ## Install
 
 Remove **Zenslop** and **Better Music Bar** first, then add this folder's
-URL in Sine. Your settings from both carry over, once.
+URL in Sine. Releases up to 2.6.0 carried settings from both over once; that
+step was retired in the 9 October 2026 audit
+([docs/AUDIT-2026-10-09.md](../docs/AUDIT-2026-10-09.md)), so a fresh install
+now starts from Mediaflow's defaults.
 
 If you had installed this repository's Zenslop fork, you do not need to do
-anything: its next update turns it into Mediaflow.
+anything: its next update turns it into Mediaflow, starting from Mediaflow's
+defaults.
 
 ## Changes from the originals
 

@@ -3,19 +3,16 @@
 Items reviewed in October 2026 and deliberately left unchanged for now. Each
 entry says what is true today, what would change, and what to check first.
 
-## Glassflow: native strip blur and the snapshot sampler
+## Glassflow: native strip blur and the snapshot sampler (settled)
 
-- **Today:** *Native blur through transparent pages* filters `#tabbrowser-tabbox`
-  with an SVG filter whose mask is an `feImage`. Firefox 156 ships
-  `gfx.webrender.svg-filter-effects.feimage` disabled, so the filter graph
-  likely falls back to CPU painting of the whole content area on GPU builds.
-  This is from Firefox source; it has not been measured on a GPU machine.
-- **Change:** build the mask from `feFlood` with a primitive subregion instead
-  of `feImage`; keep the filter attached while enabled and park the strip when
-  the sidebar hides, so the stacking context is not rebuilt as the slide starts.
-- **Then:** test on the actual machine. Remove the snapshot sampler only if the
-  live path covers every case. The sampler is off by default, so removing it
-  saves no work on the default path.
+- **Done:** the snapshot sampler was removed in `4b68079` (5 October 2026,
+  "One blur: Zen's own acrylic"). The see-through-page blur was rebuilt in
+  `18bb149` (6 October 2026) with an `feFlood` mask instead of `feImage`, and
+  is attached only while the compact sidebar shows over a see-through page.
+- **Still open:** not measured on a GPU machine. The mask is a rectangle, so
+  the panel's rounded corners may show a sliver of blurred page (the
+  `ponytail:` note in `glassflow.uc.js` says what to do if it does).
+- **Recorded:** 9 October 2026 audit ([AUDIT-2026-10-09.md](AUDIT-2026-10-09.md)).
 
 ## Tab Router: grouped tabs and explicit Zen domain routes
 

@@ -219,26 +219,6 @@
   }
 
   function start() {
-    // Once, for Glassflow 3.53: unloaded tabs keep their dimmed colours
-    // rather than going grey. The greyscale switch stays for those who want it.
-    try {
-      const S = Services.prefs, mark = "zzglass-migrated.greyscale-off";   // outside PREFIX
-      if (!S.getBoolPref(mark, false)) {
-        S.setBoolPref(PREFIX + "pending.greyscale", false);
-        S.setBoolPref(mark, true);
-      }
-    } catch {}
-    // Once, for Glassflow 3.57: Customise Zen's blur starts from Zen's own
-    // values. Ones never changed from the old defaults move to Zen's.
-    try {
-      const S = Services.prefs, mark = "zzglass-migrated.zen-blur";
-      if (!S.getBoolPref(mark, false)) {
-        for (const [key, was, now] of [["sidebar.blur-radius", "25px", "42px"], ["sidebar.blur-saturate", "1", "1.1"]]) {
-          if (S.getStringPref(PREFIX + key, "") === was) S.setStringPref(PREFIX + key, now);
-        }
-        S.setBoolPref(mark, true);
-      }
-    } catch {}
     syncInstantUI();
     Services.prefs.addObserver(PREFIX, prefVarObserver);
     try { syncOtherMods(); } catch (e) { console.error("[Glassflow] other mods failed:", e); }

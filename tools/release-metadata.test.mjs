@@ -17,3 +17,12 @@ test("the old zenslop folder forwards installs to Mediaflow", async () => {
   assert.equal(await read("zenslop"), await read("mediaflow"));
   assert.match(JSON.parse(await read("zenslop")).homepage, /\/tree\/main\/mediaflow$/);
 });
+
+test("Mediaflow actor module cache keys match its release", async () => {
+  const theme = JSON.parse(await readFile(new URL("../mediaflow/theme.json", import.meta.url), "utf8"));
+  const source = await readFile(new URL("../mediaflow/mediaflow.uc.js", import.meta.url), "utf8");
+  assert.equal(source.match(/const ACTOR_VERSION = "([^"]+)"/)?.[1], theme.version);
+  for (const actor of ["parent", "content"]) {
+    assert.ok(source.includes(`${actor}-actor.sys.mjs?v=\${ACTOR_VERSION}`), actor);
+  }
+});

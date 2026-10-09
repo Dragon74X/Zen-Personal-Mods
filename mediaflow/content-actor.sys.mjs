@@ -81,6 +81,12 @@ export class ZzMediaflowChild extends JSWindowActorChild {
     ) {
       if (target === this._video && (event.type === "play" || event.type === "playing")) this._holdPaused = false;
       this._tryStart(target);
+      if (target === this._video) this._sendPlaybackState();
+      return;
+    }
+
+    if (event.type === "durationchange" || event.type === "seeked") {
+      if (target === this._video && this._processingActive) this._sendPlaybackState();
       return;
     }
 
@@ -98,7 +104,10 @@ export class ZzMediaflowChild extends JSWindowActorChild {
     if (event.type === "pause" || event.type === "ended" || event.type === "emptied") {
       if (target !== this._video) return;
       // Paused from the preview's own controls: it stays up with a play button.
-      if (event.type === "pause" && this._holdPaused) return;
+      if (event.type === "pause" && this._holdPaused) {
+        this._sendPlaybackState();
+        return;
+      }
       this._stopAndNotify("event:" + event.type);
     }
   }
@@ -157,16 +166,15 @@ export class ZzMediaflowChild extends JSWindowActorChild {
   }
 
   _startMirror(video) {
-    const win = this.contentWindow;
     const srcWidth = video.videoWidth;
     const srcHeight = video.videoHeight;
 
     this._video = video;
-    this._startTime = win.performance.now();
     this.sendAsyncMessage("ZenPiP:MirrorStarted", {
       width: srcWidth,
       height: srcHeight,
     });
+    this._sendPlaybackState();
 
     const doc = this.contentWindow?.document;
     if (doc && !this._visBound) {
@@ -820,6 +828,12 @@ export class ZzMediaflowChild extends JSWindowActorChild {
     this._processingActive = active;
     this._captionMode = captionMode;
     this._captionsActive = captionsActive;
+    if (active) {
+      // The chrome canvas may now contain another source. Restore even a
+      // held paused frame once when this source becomes visible again.
+      this._sentAt = undefined;
+      this._sendPlaybackState();
+    }
     if (captionsActive) {
       this._startCaptionTracking();
     } else {
@@ -892,7 +906,8 @@ export class ZzMediaflowChild extends JSWindowActorChild {
         buf: img.data.buffer,
         width: canvas.width,
         height: canvas.height,
-        // For the preview's controls: where the video is, and whether it plays.
+        // Preserve progress at the capture cadence; state events still update
+        // play/pause and seeks when an unchanged bitmap is suppressed.
         time: video.currentTime,
         duration: video.duration,
         paused: video.paused,
@@ -901,6 +916,17 @@ export class ZzMediaflowChild extends JSWindowActorChild {
     } catch (e) {
       this._debug("[Mediaflow/content] _captureFrame threw:", String(e), e?.name, e?.message);
     }
+  }
+
+  _sendPlaybackState() {
+    const video = this._video;
+    if (!video) return;
+    // Native media events update controls even when a paused bitmap is unchanged.
+    this.sendAsyncMessage("ZenPiP:PlaybackState", {
+      time: video.currentTime,
+      duration: video.duration,
+      paused: video.paused,
+    });
   }
 
   _stopAndNotify(reason) {
@@ -986,6 +1012,11 @@ export class ZzMediaflowChild extends JSWindowActorChild {
       video.currentTime = Math.max(0, Math.min(end, video.currentTime + value));
     } else if (action === "seekTo" && Number.isFinite(value) && Number.isFinite(end)) {
       video.currentTime = Math.max(0, Math.min(1, value)) * end;
+    } else if (action === "popout") {
+      // Firefox's keyboard command chooses a document-wide candidate. Pass the
+      // mirrored element to its native launcher instead.
+      this.manager.getActor("PictureInPictureLauncher")
+        .togglePictureInPicture({ video }).catch(() => {});
     }
   }
 

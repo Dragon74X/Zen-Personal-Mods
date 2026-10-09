@@ -2,7 +2,7 @@
 // @name           Peekflow
 // @description    Places Zen's tab hover preview and remembers how unloaded tabs looked.
 // @include        chrome://browser/content/browser.xhtml
-// @version        1.2.0
+// @version        1.2.1
 // ==/UserScript==
 
 (() => {
@@ -11,7 +11,7 @@
   // One copy per window: a second injection retires the first.
   const INSTANCE_KEY = "__zzpeekInstance";
   try { window[INSTANCE_KEY]?.retire?.(); } catch {}
-  const instance = { retire: () => {} };
+  const instance = { active: false, retire: () => {} };
   window[INSTANCE_KEY] = instance;
 
   const P = "zzpeek.", S = Services.prefs, HTML = "http://www.w3.org/1999/xhtml";
@@ -21,18 +21,35 @@
 
   // ---- Firefox's own switches ----------------------------------------------
   // The preview and its picture are Firefox prefs. Peekflow sets them from its
-  // own settings and, when Sine turns Peekflow off, puts back what was there.
+  // own settings. The final window restores only overrides still owned by us.
   const OWNED = { "browser.tabs.hoverPreview.enabled": "show", "browser.tabs.hoverPreview.showThumbnails": "pictures" };
   function syncFirefox(release) {
+    if (release) for (const w of Services.wm.getEnumerator("navigator:browser")) if (w[INSTANCE_KEY]?.active) return;
     for (const [pref, key] of Object.entries(OWNED)) {
-      const saved = P + "saved." + key;
+      const saved = P + "saved." + key, had = saved + ".had", applied = saved + ".applied";
       try {
+        const wanted = bool(key, true), now = S.getBoolPref(pref, false), owned = S.prefHasUserValue(saved);
+        // ponytail: pre-1.2.1 snapshots lack user-value presence; preserve their
+        // saved value until released, then new snapshots record presence exactly.
+        const last = S.getBoolPref(applied, wanted);
         if (release) {
-          if (S.prefHasUserValue(saved)) { S.setBoolPref(pref, S.getBoolPref(saved)); S.clearUserPref(saved); }
+          if (owned && S.prefHasUserValue(pref) && now === last) {
+            if (S.getBoolPref(had, true)) S.setBoolPref(pref, S.getBoolPref(saved));
+            else S.clearUserPref(pref);
+          }
+          for (const name of [saved, had, applied]) S.clearUserPref(name);
           continue;
         }
-        if (!S.prefHasUserValue(saved)) S.setBoolPref(saved, S.getBoolPref(pref, false));
-        if (S.getBoolPref(pref, false) !== bool(key, true)) S.setBoolPref(pref, bool(key, true));
+        if (owned && last === wanted) {
+          if (!S.prefHasUserValue(applied)) S.setBoolPref(applied, last);
+          continue; // Unrelated settings must not overwrite a later manual edit.
+        }
+        if (!owned || now !== last || !S.prefHasUserValue(pref)) {
+          S.setBoolPref(had, S.prefHasUserValue(pref));
+          S.setBoolPref(saved, now);
+        }
+        S.setBoolPref(pref, wanted);
+        S.setBoolPref(applied, wanted);
       } catch {}
     }
   }
@@ -60,8 +77,10 @@
     catch { return null; }
   }
   async function photograph(tab) {
-    if (!tab?.linkedBrowser || tab.closing || tab.hasAttribute("pending") || !bool("last-view", true)) return;
-    (await capture(tab))?.toBlob(blob => { if (blob && !retired) shots.set(tab, { blob, at: Date.now() }); }, "image/jpeg", 0.82);
+    if (retired || !tab?.linkedBrowser || tab.closing || tab.hasAttribute("pending") || !bool("pictures", true) || !bool("last-view", true)) return;
+    (await capture(tab))?.toBlob(blob => {
+      if (blob && !retired && bool("pictures", true) && bool("last-view", true)) shots.set(tab, { blob, at: Date.now() });
+    }, "image/jpeg", 0.82);
   }
   // Only a tab you actually looked at (selected for a second or more) is
   // photographed, at an idle moment: scrolling through tabs takes none.
@@ -86,6 +105,7 @@
   // Firefox shows the selected tab without a picture, as you are looking at
   // it; Peekflow takes one as you point at it, shown and not kept.
   let live = null;                          // { tab, canvas }
+  let captureId = 0;
   const ago = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
   function since(ms) {
     const s = (ms - Date.now()) / 1000;
@@ -97,13 +117,20 @@
   // After Firefox fills the preview: an unloaded tab gets its last view and a
   // line saying it is unloaded and when it was last used.
   function dress() {
-    const tab = current;
+    const tab = current, pictures = bool("pictures", true);
+    if (!pictures) {
+      captureId++;
+      live?.canvas.remove();
+      live = null;
+      shotImg?.remove();
+    }
     if (!panel || !tab) return;
     const box = panel.querySelector(".tab-preview-thumbnail-container");
     const text = panel.querySelector(".tab-preview-text-container");
     const unloaded = tab.hasAttribute("pending") || tab.hasAttribute("discarded"), selected = tab.selected;
-    const shot = unloaded && !selected && bool("pictures", true) && bool("last-view", true) ? shots.get(tab) : null;
-    let picture = selected && live?.tab === tab ? live.canvas : null;
+    if (!pictures) box?.classList.add("hide-thumbnail");
+    const shot = unloaded && !selected && pictures && bool("last-view", true) ? shots.get(tab) : null;
+    let picture = pictures && selected && live?.tab === tab ? live.canvas : null;
     if (shot) {
       if (shotTab !== tab) {
         if (shotURL) URL.revokeObjectURL(shotURL);
@@ -150,11 +177,12 @@
     });
     const activate = Object.getPrototypeOf(tabPanel).activate;
     tabPanel.activate = function (tab) {
+      const request = ++captureId;
       current = tab;
-      if (live?.tab !== tab) live = null;
+      if (live?.tab !== tab) { live?.canvas.remove(); live = null; }
       if (tab?.selected && !tab.hasAttribute("pending") && bool("pictures", true)) {
         capture(tab).then(canvas => {
-          if (!canvas || retired || current !== tab) return;
+          if (!canvas || retired || current !== tab || request !== captureId || !bool("pictures", true)) return;
           canvas.className = "zzpeek-shot";
           live = { tab, canvas };
           dress();
@@ -165,6 +193,7 @@
     panel.addEventListener("TabPreviewUpdated", dress);
   }
   function release() {
+    captureId++;
     if (tabPanel) {
       delete tabPanel.popupOptions;
       delete tabPanel.activate;
@@ -172,12 +201,14 @@
     panel?.removeEventListener("TabPreviewUpdated", dress);
     panel?.querySelectorAll(".zzpeek-seen").forEach(n => n.remove());
     shotImg?.remove();
+    live?.canvas.remove();
     if (shotURL) URL.revokeObjectURL(shotURL);
     tabPanel = panel = current = shotImg = shotTab = shotURL = live = null;
   }
 
-  const observer = { observe(_, __, name) { if (!name.startsWith(P + "saved.")) { syncFirefox(false); adopt(); } } };
+  const observer = { observe(_, __, name) { if (!name.startsWith(P + "saved.")) { syncFirefox(false); adopt(); dress(); } } };
   function start() {
+    instance.active = true;
     syncFirefox(false);
     adopt();
     S.addObserver(P, observer);
@@ -187,6 +218,7 @@
   function cleanup() {
     if (retired) return;
     retired = true;
+    instance.active = false;
     try { S.removeObserver(P, observer); } catch {}
     window.removeEventListener("TabSelect", onSelect, true);
     window.removeEventListener("TabAttrModified", onLoaded, true);

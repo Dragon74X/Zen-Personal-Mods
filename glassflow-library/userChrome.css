@@ -146,7 +146,7 @@ zen-library[zzlib-float="centre"] {
       position: absolute;
       inset: 0;
       border-radius: var(--zzg-panel-radius, 20px);
-      background: var(--zzg-ov-fill, var(--zen-main-browser-background, light-dark(rgb(235 235 235), rgb(27 27 27))));
+      background: var(--zzg-ov-downloads-fill, var(--zen-main-browser-background, light-dark(rgb(235 235 235), rgb(27 27 27))));
       backdrop-filter: var(--zzg-ov-downloads, none);
       box-shadow: inset 0 0 0 1px var(--zzg-rim-all, rgb(255 255 255 / 0.1)), 0 8px 24px rgb(0 0 0 / 0.22);
       opacity: var(--zen-library-progress);

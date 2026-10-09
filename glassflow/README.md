@@ -183,8 +183,8 @@ down and let this own it.
 | Workspace gradient through the panel | `0` | `1` lets Zen's gradient through, lighter and hazier |
 | Panel shadow | on | Zen's own |
 | Panel accent tint / corner radius | `10%` / `12px` | |
-| Customise Zen's blur | off | Off keeps Zen's acrylic exactly as Zen sets it. On sets the four values below, see [Zen's blur](#zens-blur). Shown whether or not sidebar styling is on |
-| Blur strength / brightness / saturation / contrast | `42px` / `0.25` / `1.1` / `1` | Zen's own values |
+| Customise Zen's blur | off | Off keeps Glassflow's existing blur preset. On sets the four values below, see [Zen's blur](#zens-blur). Shown whether or not sidebar styling is on |
+| Blur strength / brightness / saturation / contrast | `42px` / `0.25` / `1.1` / `1` | Custom preset; native Zen 1.23 brightness is `0.5` |
 | Darken the sidebar's edges | Soft | Off, Soft, Medium or Strong: a shade painted just inside the compact sidebar's edges |
 | Blur see-through pages too | on | A page made see-through (Transparent Zen's transparent tint, Zen Internet) leaves the sidebar's blur nothing to blur, so its text showed through sharp. While the compact sidebar shows over such a page, the page itself is blurred under it. Pages with a solid background (Zen's default) get Zen's blur alone |
 
@@ -215,18 +215,32 @@ over once; that step was retired in the 9 October 2026 audit
 
 ### Zen's blur
 
-Zen 1.23 blurs the page behind its compact sidebar and floating toolbar itself
-(*acrylic elements*, on by default, and a row here): `blur(42px) saturate(110%)
-brightness(0.25)`, over Zen's underlay, which lays the page on black or white
-first so translucent pages still blur. That is the only live blur these mods
-run. Tabs, folders and buttons sit on the panel and their see-through fills show
-it; the overlays below and the other mods' glass use the same values.
+Zen 1.23.1b has separate native **Sidebar blur** and **URL bar blur**
+switches (`zen.theme.acrylic-sidebar`, `zen.theme.acrylic-urlbar`). Glassflow
+exposes both. On the first upgrade, an explicit old
+`zen.theme.acrylic-elements` value carries over to the sidebar only if its
+new native switch has no user value. Explicit native choices win; the URL-bar
+choice is untouched. The old value remains available for rollback.
+
+With customization off, Glassflow preserves its existing sidebar recipe:
+`blur(42px) saturate(110%) brightness(0.25) contrast(100%)`.
+Zen 1.23.1b's native brightness is `0.5`; keeping Glassflow's `0.25` avoids
+changing existing appearance during this update. Custom values remain unchanged. Glassflow also applies the sidebar recipe to the floating
+toolbar; overlays use their separate **Overlay blur** radius. Tabs, folders
+and buttons share the panel's blur through their translucent fills.
+
+Source: [Zen 1.23.1b sidebar CSS](https://github.com/zen-browser/desktop/blob/1.23.1b/src/zen/compact-mode/sidebar.inc.css)
+and [native preferences](https://github.com/zen-browser/desktop/blob/1.23.1b/prefs/zen/theme.yaml).
 
 Glassflow sets that blur on Zen's panels itself, on the same element and
 property, so it stays one blur, and so another mod cannot remove it: Arc 2.0
 replaces Zen's blur with its own *Compact sidebar blur*, which Glassflow used to
 set to `0px`, leaving no blur at all. That value is now put back, and Glassflow's
-blur wins on the panel. **Customise Zen's blur** changes the values. Glassflow's
+blur wins on the panel. **Customise Zen's blur** changes the values. The live
+page-strip fallback
+reads the panel's computed blur radius, including CSS lengths such as `rem`
+and `calc()`. A zero radius removes that fallback; native preference changes
+apply without reopening the sidebar. Glassflow's
 panel needs **Panel opacity** below 100% for it to show through.
 
 The sidebar's panel blurs without Zen's underlay, an SVG filter that a repaint
@@ -290,9 +304,9 @@ and later Firefox gives them Windows' own acrylic, which does, and Zen tints it
 with a custom inactive colour, Firefox turns that acrylic off and nothing can
 blur behind menus.
 
-Zen already blurs the floating urlbar (*acrylic elements*, on by default since
-1.23b), the compact sidebar and notification bars. The share overlay is left
-alone: the page under it is hidden, so there is nothing to blur.
+Zen 1.23.1b controls the floating URL bar and compact sidebar with separate
+native acrylic switches. The share overlay is left alone: the page under it
+is hidden, so there is nothing to blur.
 
 ## Window buttons
 

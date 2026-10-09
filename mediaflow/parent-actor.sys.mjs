@@ -93,6 +93,14 @@ export class ZzMediaflowParent extends JSWindowActorParent {
         break;
       }
 
+      case "ZenPiP:PlaybackState": {
+        const controller = win.ZzMediaflowController;
+        if (controller?.getActiveBC()?.id === this.browsingContext.id) {
+          controller.updateControls(msg.data);
+        }
+        break;
+      }
+
       case "ZenPiP:Caption": {
         if (this._captionMode === "off") break;
         const controller = win.ZzMediaflowController;
@@ -107,7 +115,7 @@ export class ZzMediaflowParent extends JSWindowActorParent {
         const reason = msg.data?.reason || "";
         console.log("[Mediaflow/parent] VideoStopped reason:", reason);
         const controller = win.ZzMediaflowController;
-        if (controller) {
+        if (controller?.getActiveBC()?.id === this.browsingContext.id) {
           if (reason.includes("pause")) {
             controller.hideCaption?.();
           } else {

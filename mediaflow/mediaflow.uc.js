@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.6.1
+// @version        2.6.2
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==
@@ -15,6 +15,9 @@
   const watching = observer => { undo.push(() => observer.disconnect()); return observer; };
 
   const LOG_PREFIX = "[Mediaflow]";
+  // Gecko caches actor modules across unregister/re-register. Bump with actor
+  // changes so Sine updates load replacement code without a browser restart.
+  const ACTOR_VERSION = "2.6.2";
   const CAPTIONS_PREF = "zzmedia.preview.captions";
   const CAPTIONS_WHEN_PIP_HIDDEN_PREF =
     "zzmedia.preview.captions-when-hidden";
@@ -174,7 +177,7 @@
       font: 600 11px/1 system-ui, sans-serif;
     }
     #zen-sidebar-pip-container[zzmf-controls] .zzmf-pip-controls { display: block; }
-    #zen-sidebar-pip-container:is(:hover, [zzmf-paused]) .zzmf-pip-controls { opacity: 1; }
+    #zen-sidebar-pip-container:is(:hover, :focus-within, [zzmf-paused]) .zzmf-pip-controls { opacity: 1; }
     .zzmf-pip-controls button {
       appearance: none;
       position: absolute;
@@ -191,6 +194,7 @@
       cursor: pointer;
     }
     .zzmf-pip-controls button:hover { background-color: rgb(255 255 255 / 0.18); }
+    .zzmf-pip-controls :is(button, input):focus-visible { outline: 2px solid white; outline-offset: 1px; }
     .zzmf-pip-close { top: 4px; right: 4px; --zzmf-icon: url("chrome://browser/skin/zen-icons/close.svg"); }
     .zzmf-pip-popout { top: 4px; left: 4px; --zzmf-icon: url("chrome://global/skin/media/picture-in-picture-open.svg"); }
     .zzmf-pip-back, .zzmf-pip-play, .zzmf-pip-forward { top: calc(50% - 14px); }
@@ -212,24 +216,27 @@
     #zen-sidebar-pip-container[zzmf-muted] .zzmf-pip-mute { --zzmf-icon: url("chrome://browser/skin/zen-icons/media-mute.svg"); }
     .zzmf-pip-time { position: absolute; left: 8px; bottom: 11px; font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px rgb(0 0 0 / 0.6); }
     .zzmf-pip-track {
+      appearance: none;
       position: absolute;
       left: 8px;
-      right: 36px;
+      width: calc(100% - 44px);
       bottom: 4px;
       height: 10px;
+      margin: 0;
+      padding: 0;
+      border: none;
+      background: transparent;
       cursor: pointer;
     }
-    .zzmf-pip-track::before, .zzmf-pip-fill {
-      content: "";
-      position: absolute;
-      left: 0;
-      bottom: 3px;
+    .zzmf-pip-track::-moz-range-track, .zzmf-pip-track::-moz-range-progress {
       height: 3px;
       border-radius: 2px;
     }
-    .zzmf-pip-track::before { right: 0; background: rgb(255 255 255 / 0.3); }
-    .zzmf-pip-fill { width: calc(var(--zzmf-progress, 0) * 100%); background: var(--zen-primary-color, white); }
-    .zzmf-pip-track:hover :is(.zzmf-pip-fill), .zzmf-pip-track:hover::before { height: 5px; bottom: 2px; }
+    .zzmf-pip-track::-moz-range-track { background: rgb(255 255 255 / 0.3); }
+    .zzmf-pip-track::-moz-range-progress { background: var(--zen-primary-color, white); }
+    .zzmf-pip-track::-moz-range-thumb { width: 0; height: 0; border: none; }
+    .zzmf-pip-track:is(:hover, :focus-visible)::-moz-range-track,
+    .zzmf-pip-track:is(:hover, :focus-visible)::-moz-range-progress { height: 5px; }
     #zen-sidebar-pip-container[zzmf-live] :is(.zzmf-pip-track, .zzmf-pip-time, .zzmf-pip-back, .zzmf-pip-forward) { display: none; }
     [zzmf-parked="true"] {
       display: none !important;
@@ -743,7 +750,7 @@
       keep();
       // Zen checks the sidebar a moment after the pointer left it and starts
       // its hide countdown then; cancel that one too.
-      holdTimer = setTimeout(() => { if (pipContainer.matches(":hover")) keep(); }, (cm.HOVER_HACK_DELAY || 0) + 40);
+      holdTimer = setTimeout(() => { if (pipContainer.matches(":hover, :focus-within")) keep(); }, (cm.HOVER_HACK_DELAY || 0) + 40);
     } else if (!side.matches(":hover")) {
       const ms = safe(() => Services.prefs.getIntPref("zen.view.compact.sidebar-keep-hover.duration", 0)) ?? 0;
       safe(() => cm.flashElement(side, ms, id, "zen-has-hover"));
@@ -770,7 +777,9 @@
     clearTimeout(growTimer);
     growTimer = setTimeout(() => { pipHover = true; bump(); }, hoverDelay * 1000);
   });
-  on(pipContainer, "mouseleave", () => { clearTimeout(growTimer); pipHover = false; holdSidebar(false); bump(); });
+  on(pipContainer, "mouseleave", () => { clearTimeout(growTimer); pipHover = false; if (!pipContainer.matches(":focus-within")) holdSidebar(false); bump(); });
+  on(pipContainer, "focusin", () => holdSidebar(true));
+  on(pipContainer, "focusout", e => { if (!pipContainer.contains(e.relatedTarget) && !pipContainer.matches(":hover")) holdSidebar(false); });
   on(pipContainer, "click", event => {
     if (!clickToTab() || event.button !== 0) return;
     const browser = safe(() => sourceBC?.top?.embedderElement);
@@ -799,8 +808,7 @@
   const tell = (action, value) => safe(() => actorRegistry.get(sourceBC?.id)?.control?.(action, value));
   const sourceTab = () => safe(() => gBrowser.getTabForBrowser(sourceBC?.top?.embedderElement)) || null;
   const seekStep = () => parseFloat(safe(() => Services.prefs.getStringPref(STEP_PREF, "10")) ?? "10") || 10;
-  control("zzmf-pip-popout", "Open in Picture-in-Picture", () =>
-    sourceBC.currentWindowGlobal.getActor("PictureInPictureLauncher").sendAsyncMessage("PictureInPicture:KeyToggle"));
+  control("zzmf-pip-popout", "Open in Picture-in-Picture", () => tell("popout"));
   control("zzmf-pip-close", "Hide the preview", () => setUserHidden(true));
   const back = control("zzmf-pip-back", "Back", () => tell("seekBy", -seekStep()));
   control("zzmf-pip-play", "Play or pause", () => tell("toggle"));
@@ -808,9 +816,15 @@
   control("zzmf-pip-mute", "Mute or unmute the tab", () => { sourceTab()?.toggleMuteAudio(); syncMuted(); });
   const time = document.createElement("span");
   time.className = "zzmf-pip-time";
-  const track = document.createElement("div");
+  const track = document.createElement("input");
+  track.type = "range";
+  track.min = "0";
+  track.max = "1";
+  track.step = "0.001";
+  track.value = "0";
+  track.disabled = true;
+  track.setAttribute("aria-label", "Video position");
   track.className = "zzmf-pip-track";
-  track.innerHTML = '<div class="zzmf-pip-fill"></div>';
   controls.append(time, track);
   pipContainer.appendChild(controls);
   const syncMuted = () => pipContainer.toggleAttribute("zzmf-muted", !!sourceTab()?.linkedBrowser?.audioMuted);
@@ -828,37 +842,43 @@
     return h ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`;
   };
   // Dragging along the timeline shows where it will land; letting go seeks.
-  let dragging = false, lastDuration = 0;
-  const fraction = e => { const r = track.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); };
+  let dragging = false, lastDuration = 0, lastPlaybackState = null;
   on(track, "click", e => e.stopPropagation());
-  on(track, "pointerdown", e => {
-    if (e.button !== 0) return;
-    e.stopPropagation();
+  on(track, "input", () => {
     dragging = true;
-    track.setPointerCapture(e.pointerId);
-    pipContainer.style.setProperty("--zzmf-progress", fraction(e));
+    const label = `${clock(track.valueAsNumber * lastDuration)} / ${clock(lastDuration)}`;
+    time.textContent = label;
+    track.setAttribute("aria-valuetext", label);
   });
-  on(track, "pointermove", e => {
-    if (!dragging) return;
-    const f = fraction(e);
-    pipContainer.style.setProperty("--zzmf-progress", f);
-    if (lastDuration) time.textContent = `${clock(f * lastDuration)} / ${clock(lastDuration)}`;
-  });
-  on(track, "pointerup", e => {
-    if (!dragging) return;
+  on(track, "change", () => {
     dragging = false;
-    tell("seekTo", fraction(e));
+    if (!track.disabled) tell("seekTo", track.valueAsNumber);
   });
-  function updateControls({ time: t, duration: d, paused }) {
-    if (!Number.isFinite(t)) return;
+  for (const event of ["pointercancel", "blur"]) on(track, event, () => {
+    dragging = false;
+    if (lastPlaybackState) updateControls(lastPlaybackState);
+  });
+  function updateControls(state) {
+    lastPlaybackState = state;
+    const { time: t, duration: d, paused } = state;
     pipContainer.toggleAttribute("zzmf-paused", !!paused);
     const live = !(Number.isFinite(d) && d > 0);
     pipContainer.toggleAttribute("zzmf-live", live);
     syncMuted();
-    if (live || dragging) return;
-    lastDuration = d;
-    pipContainer.style.setProperty("--zzmf-progress", t / d);
-    time.textContent = `${clock(t)} / ${clock(d)}`;
+    lastDuration = live ? 0 : d;
+    track.disabled = live;
+    if (live) {
+      dragging = false;
+      track.value = "0";
+      time.textContent = "";
+      track.removeAttribute("aria-valuetext");
+      return;
+    }
+    if (dragging) return;
+    const position = Number.isFinite(t) ? Math.max(0, Math.min(d, t)) : 0;
+    track.value = String(position / d);
+    time.textContent = `${clock(position)} / ${clock(d)}`;
+    track.setAttribute("aria-valuetext", time.textContent);
   }
 
   on(musicPlayerUI, "mouseenter", () => {
@@ -1044,6 +1064,8 @@
 
   let sourceBC = null;
   let sourceTabActive = false;
+  // Keep the active entry too, so a pre-empted (including held-paused) source
+  // remains eligible until its actor reports VideoStopped.
   const availableSources = new Map();
   const actorRegistry = new Map();
 
@@ -1079,7 +1101,7 @@
     if (!bc) return false;
     try {
       for (const tab of gBrowser.tabs) {
-        if (tab.linkedBrowser?.browsingContext?.id === bc.id) {
+        if (tab.linkedBrowser?.browsingContext?.id === bc.top.id) {
           return tab.hasAttribute("soundplaying");
         }
       }
@@ -1131,6 +1153,7 @@
         err("drawFrame error:", e?.name, e?.message);
       }
     },
+    updateControls,
     setCaption(text) {
       if (captionMode === "off") {
         clearCaptionImmediately();
@@ -1220,19 +1243,25 @@
       }, CONFIG.ANIM_MS + 60);
     },
     _activateSource(width, height, browsingContext) {
-      availableSources.delete(browsingContext.id);
       log("showVideo", width, "x", height, "tab", browsingContext?.id);
       setSourceDimensions(width, height);
       const previousSourceBC = sourceBC;
       const nextSourceBC = browsingContext || null;
       const sourceChanged =
         previousSourceBC && nextSourceBC && previousSourceBC.id !== nextSourceBC.id;
-      if (sourceChanged) clearCaptionImmediately();
+      if (sourceChanged) {
+        const previous = actorRegistry.get(previousSourceBC.id);
+        previous?.setProcessingActive?.(false, captionMode, false);
+        previous?.stopTick();
+        clearCaptionImmediately();
+      }
       sourceBC = nextSourceBC;
+      dragging = false;
+      updateControls({ time: 0, duration: 0, paused: false });
 
       if (sourceBC) {
         try {
-          sourceTabActive = gBrowser?.selectedBrowser?.browsingContext?.id === sourceBC.id;
+          sourceTabActive = gBrowser?.selectedBrowser?.browsingContext?.id === sourceBC.top.id;
         } catch (_) {
           sourceTabActive = false;
         }
@@ -1378,10 +1407,10 @@
 
     ChromeUtils.registerWindowActor("ZzMediaflow", {
       parent: {
-        esModuleURI: "resource://zz-mediaflow/parent-actor.sys.mjs",
+        esModuleURI: `resource://zz-mediaflow/parent-actor.sys.mjs?v=${ACTOR_VERSION}`,
       },
       child: {
-        esModuleURI: "resource://zz-mediaflow/content-actor.sys.mjs",
+        esModuleURI: `resource://zz-mediaflow/content-actor.sys.mjs?v=${ACTOR_VERSION}`,
         events: {
           DOMContentLoaded: {},
           pageshow: {},
@@ -1393,6 +1422,8 @@
           ended: { capture: true, mozSystemGroup: true },
           emptied: { capture: true, mozSystemGroup: true },
           volumechange: { capture: true, mozSystemGroup: true },
+          durationchange: { capture: true, mozSystemGroup: true },
+          seeked: { capture: true, mozSystemGroup: true },
         },
       },
       messageManagerGroups: ["browsers"],

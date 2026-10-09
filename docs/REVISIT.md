@@ -14,6 +14,24 @@ entry says what is true today, what would change, and what to check first.
   `ponytail:` note in `glassflow.uc.js` says what to do if it does).
 - **Recorded:** 9 October 2026 audit ([AUDIT-2026-10-09.md](AUDIT-2026-10-09.md)).
 
+## Glassflow: blur behind overlays
+
+- **Today:** over the tab list, `backdrop-filter` reads an empty backdrop: the
+  tab list and the music player are not in it, so the download stack's rows
+  and the music player's hover rows let them show through sharp (a Windows
+  screenshot, 9 October 2026). Glassflow 3.68.0 blurs the tab list under them
+  with an SVG filter instead, 8px by default (**Blur over the tab list**).
+  Over the page, on the test renderer, `backdrop-filter` captured nothing
+  either. Toasts, Glance's buttons, the status pill and the download question
+  still use it; not checked on a GPU.
+- **Change:** if Firefox samples the tab list there, put `backdrop-filter`
+  back on the rows and the music card and drop `underOverlayBlur()`. If the
+  page overlays turn out not to blur on a GPU either, the page strip filter
+  (`transparentPageBlur()`) is the pattern to copy.
+- **Check first:** Zen run under Xvfb with software WebRender, captured from
+  the X display (Marionette's own screenshots skip `backdrop-filter`). Put
+  `backdrop-filter: blur(8px)` on a row and look for sharp tab text under it.
+
 ## Tab Router: grouped tabs and explicit Zen domain routes
 
 - **Today:** a tab already filed under its target group path stays in its

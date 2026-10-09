@@ -145,6 +145,9 @@
     },
   };
 
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const svgEl = (parent, tag, attrs) => { const e = document.createElementNS(SVG_NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.append(e); return e; };
+
   // ---- transparent pages under the compact sidebar ---------------------
   // A page made see-through (Transparent Zen, Zen Internet) leaves the
   // sidebar's blur nothing to blur: its text sits on nothing, a blurred copy
@@ -158,10 +161,9 @@
   // blurred page. A rounded mask (feImage) if that ever shows.
   const SHOWN = "[zen-has-hover], [zen-user-show], [zen-has-empty-tab], [flash-popup], [has-popup-menu], [movingtab], [zen-compact-mode-active]";
   function transparentPageBlur() {
-    const NS = "http://www.w3.org/2000/svg", S = Services.prefs, root = document.documentElement;
+    const S = Services.prefs, root = document.documentElement, el = svgEl;
     const toolbox = document.getElementById("navigator-toolbox"), box = document.getElementById("tabbrowser-tabbox");
     if (!toolbox || !box) return () => {};
-    const el = (parent, tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.append(e); return e; };
     const svg = el(document.documentElement, "svg", { width: 0, height: 0, style: "position:fixed;pointer-events:none", "aria-hidden": "true" });
     const filter = el(svg, "filter", { id: "zzg-strip", filterUnits: "userSpaceOnUse", primitiveUnits: "userSpaceOnUse", "color-interpolation-filters": "sRGB" });
     const flood = el(filter, "feFlood", { "flood-color": "#fff", result: "m" });
@@ -218,6 +220,122 @@
     };
   }
 
+  // ---- under the sidebar's overlays ------------------------------------
+  // The Library's recent downloads and the music player's hover rows sit
+  // over the tab list. A backdrop-filter on them reads an empty backdrop
+  // (the tab list and the player are not in it), so what is under them
+  // showed through sharp. Instead the part under the overlay blurs itself,
+  // with a filter like the page strip's above: under the downloads, the tab
+  // list and the player; under the player's rows, the tabs.
+  function underOverlayBlur() {
+    const S = Services.prefs;
+    const area = document.getElementById("TabsToolbar-customization-target"), tabs = document.getElementById("tabbrowser-tabs");
+    const player = document.getElementById("zen-media-controls-toolbar");
+    if (!area || !tabs) return () => {};
+    const svg = svgEl(document.documentElement, "svg", { width: 0, height: 0, style: "position:fixed;pointer-events:none", "aria-hidden": "true" });
+    const make = (id, target, kind) => {
+      const filter = svgEl(svg, "filter", { id, filterUnits: "userSpaceOnUse", primitiveUnits: "userSpaceOnUse", "color-interpolation-filters": "sRGB" });
+      const flood = svgEl(filter, "feFlood", { "flood-color": "#fff", result: "m" });
+      const blur = svgEl(filter, "feGaussianBlur", { in: "SourceGraphic", edgeMode: "duplicate", result: "b" });
+      const tone = svgEl(filter, "feComponentTransfer", { in: "b", result: "t" });
+      const funcs = ["R", "G", "B"].map(c => svgEl(tone, "feFunc" + c, { type: "linear" }));
+      const sat = svgEl(filter, "feColorMatrix", { in: "t", type: "saturate", result: "s" });
+      svgEl(filter, "feComposite", { in: "SourceGraphic", in2: "m", operator: "out", result: "o" });
+      const merge = svgEl(filter, "feMerge", {});
+      svgEl(merge, "feMergeNode", { in: "o" });
+      svgEl(merge, "feMergeNode", { in: "s" });
+      return { id, target, kind, flood, blur, funcs, sat, filter, r: 0 };
+    };
+    const on = kind => S.getBoolPref(PREFIX + "overlays.enabled", true) && S.getIntPref(PREFIX + "overlays." + kind, 1) !== 0;
+    // Its own strength (Zen's 42px all but erases text this small); the rest
+    // is Zen's blur, or Customise Zen's blur, and "darkened like the sidebar"
+    // also takes its brightness.
+    const look = kind => {
+      const own = S.getBoolPref(PREFIX + "sidebar.blur", false), num = (k, d) => own ? parseFloat(S.getStringPref(PREFIX + "sidebar.blur-" + k, "")) || d : d;
+      return { r: parseFloat(S.getStringPref(PREFIX + "overlays.tab-list-blur", "")) || 8, sat: num("saturate", 1.1), con: num("contrast", 1),
+        bri: S.getIntPref(PREFIX + "overlays." + kind, 1) === 2 ? num("brightness", 0.25) : 1 };
+    };
+    // Blurs c.target from viewport y `top` down, at radius r; nothing to
+    // blur takes the filter off.
+    function set(c, top, r) {
+      c.r = r;
+      const b = c.target.getBoundingClientRect(), y = Math.max(0, top - b.top);
+      if (!(b.height - y >= 1) || r < 0.5) { c.target.style.removeProperty("filter"); return; }
+      const { sat, con, bri } = look(c.kind);
+      for (const [k, v] of Object.entries({ x: 0, y: 0, width: b.width, height: b.height })) c.filter.setAttribute(k, v);
+      for (const e of [c.flood, c.blur]) for (const [k, v] of Object.entries({ x: 0, y, width: b.width, height: b.height - y })) e.setAttribute(k, v);
+      c.blur.setAttribute("stdDeviation", r);
+      for (const f of c.funcs) { f.setAttribute("slope", bri * con); f.setAttribute("intercept", 0.5 - 0.5 * con); }
+      c.sat.setAttribute("values", sat);
+      c.target.style.setProperty("filter", `url(#${c.id})`, "important");
+    }
+
+    // The downloads: everything under the list, the blur rising and falling
+    // with it (Zen's 0.3s open and close).
+    const dl = make("zzg-under-downloads", area, "downloads");
+    let tween = 0, sized = null;
+    const listTop = () => {
+      const list = document.getElementById("zen-library-download-list");
+      if (!list) return Infinity;
+      if (!sized) { sized = new ResizeObserver(() => syncDownloads(true)); sized.observe(list); }
+      // Zen's list starts 10px above its first row; a box behind it starts at its edge.
+      const boxed = getComputedStyle(list, "::before").content !== "none";
+      return list.getBoundingClientRect().top + (boxed ? 0 : parseFloat(getComputedStyle(list).paddingTop) || 0);
+    };
+    function syncDownloads(resized) {
+      const open = area.hasAttribute("zen-library-stack-open"), up = open || area.hasAttribute("zen-library-stack-closing");
+      if (!up || !on("downloads")) { cancelAnimationFrame(tween); tween = 0; return set(dl, Infinity, 0); }
+      // A resize mid-way is picked up by the next step.
+      if (resized) { if (!tween) set(dl, listTop(), dl.r); return; }
+      cancelAnimationFrame(tween);
+      const to = open ? look("downloads").r : 0, from = dl.r, t0 = performance.now();
+      const step = now => {
+        const t = Math.min(1, (now - t0) / 300), k = 1 - (1 - t) ** 3;
+        set(dl, listTop(), from + (to - from) * k);
+        tween = t < 1 ? requestAnimationFrame(step) : 0;
+      };
+      tween = requestAnimationFrame(step);
+    }
+
+    // The music player: the tabs under its cards, which grow upward on
+    // hover (after Mediaflow's wait, if any). Followed every frame while they
+    // move; it rests when they rest.
+    const mu = make("zzg-under-music", tabs, "music");
+    let frame = 0, still = 0, last = NaN;
+    const follow = () => {
+      frame = 0;
+      let top = Infinity;
+      if (player && !player.hidden && on("music")) {
+        for (const card of player.querySelectorAll(".zen-media-card")) {
+          const r = card.getBoundingClientRect();
+          if (r.height && r.top < top) top = r.top;
+        }
+      }
+      if (top === last) still++;
+      else { still = 0; last = top; set(mu, top, look("music").r); }
+      if (still < 10) frame = requestAnimationFrame(follow);
+    };
+    const wake = () => { still = 0; frame ||= requestAnimationFrame(follow); };
+
+    const mo = new MutationObserver(() => syncDownloads());
+    mo.observe(area, { attributes: true, attributeFilter: ["zen-library-stack-open", "zen-library-stack-closing"] });
+    const events = ["mouseenter", "mouseleave", "transitionrun", "transitionstart", "transitionend"];
+    for (const type of events) player?.addEventListener(type, wake);
+    const prefs = { observe() { syncDownloads(true); last = NaN; wake(); } };
+    for (const branch of [PREFIX + "overlays.", PREFIX + "sidebar.blur"]) S.addObserver(branch, prefs);
+    return () => {
+      mo.disconnect();
+      sized?.disconnect();
+      for (const type of events) player?.removeEventListener(type, wake);
+      for (const branch of [PREFIX + "overlays.", PREFIX + "sidebar.blur"]) S.removeObserver(branch, prefs);
+      cancelAnimationFrame(tween);
+      cancelAnimationFrame(frame);
+      area.style.removeProperty("filter");
+      tabs.style.removeProperty("filter");
+      svg.remove();
+    };
+  }
+
   function start() {
     syncInstantUI();
     Services.prefs.addObserver(PREFIX, prefVarObserver);
@@ -237,8 +355,9 @@
     };
     toolbox?.addEventListener("transitionend", redraw);
     gBrowser.tabContainer.addEventListener("TabSelect", redraw);
-    let stopPageBlur = () => {};
+    let stopPageBlur = () => {}, stopUnderBlur = () => {};
     try { stopPageBlur = transparentPageBlur(); } catch (e) { console.error("[Glassflow] page blur failed to start:", e); }
+    try { stopUnderBlur = underOverlayBlur(); } catch (e) { console.error("[Glassflow] overlay blur failed to start:", e); }
     // Sine cleanup and window unload can both run; retire this copy once.
     let retired = false;
     const cleanup = () => {
@@ -253,6 +372,7 @@
       gBrowser.tabContainer.removeEventListener("TabSelect", redraw);
       toolbox?.removeAttribute("zzg-redraw");
       try { stopPageBlur(); } catch {}
+      try { stopUnderBlur(); } catch {}
     };
     window.addEventListener("unload", cleanup, { once: true });
     // Registered with Sine, so an update re-injects this script live, no

@@ -89,7 +89,9 @@ New Icons keeps working alongside Iconflow: with **Zen's own**, Iconflow
 leaves every icon alone, so New Icons' show. With **Circuit**, Circuit
 replaces the icons it covers.
 
-Iconflow 1.3 dropped the Flow set. Anyone using Flow is moved to Circuit.
+Iconflow 1.3 dropped the Flow set. Releases up to 1.18.0 moved anyone using
+Flow to Circuit; that step was retired in the 9 October 2026 audit
+([docs/AUDIT-2026-10-09.md](../docs/AUDIT-2026-10-09.md)).
 
 ### How the icons animate
 
@@ -178,7 +180,9 @@ The choices are:
 The shapes use Zen's own 36-frame sprite format, so Zen's hover animation
 plays them. **Same size as the other buttons** draws the icon at 16px.
 
-Settings chosen in Glassflow 3.50 carry over.
+Releases up to 1.18.0 carried settings chosen in Glassflow 3.50 over once;
+that step was retired in the 9 October 2026 audit
+([docs/AUDIT-2026-10-09.md](../docs/AUDIT-2026-10-09.md)).
 
 ## New tab button
 

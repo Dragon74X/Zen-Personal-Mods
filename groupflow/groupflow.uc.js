@@ -1503,42 +1503,6 @@
   // been set, removes the disagreement for all three at once. Nothing that
   // was already chosen is touched.
   const MOD_ID = "zz-groupflow";
-  function migrateFolderDefaults(declared) {
-    const S = Services.prefs, marker = PREFIX + "folder-defaults-v1";
-    if (S.getBoolPref(marker, false)) return false;
-    // Only unchanged 1.44.0 profiles migrate; edited profiles keep every value.
-    const common = { opacity: "1", direction: 0, "end-mode": 0, spread: "100%", glow: false,
-      "blur-radius": "20px", "label-color": "var(--zzgroup-label-color, inherit)" };
-    const oldProfiles = {
-      active: { ...common, tint: "42%", "end-tint": "17%", sheen: true, rim: true, blur: true },
-      inactive: { ...common, tint: "12%", "end-tint": "4%", sheen: false, rim: false, blur: false },
-      hover: { ...common, tint: "24%", "end-tint": "9%", sheen: false, rim: false, blur: false },
-    };
-    const read = (key, value) => {
-      try { return S[typeof value === "boolean" ? "getBoolPref" :
-        typeof value === "number" ? "getIntPref" : "getStringPref"](key, value); }
-      catch { return undefined; } // A different pref type counts as an edit.
-    };
-    const replacements = new Map();
-    for (const [state, values] of Object.entries(oldProfiles)) {
-      const prefix = PREFIX + "subfolder." + state + ".";
-      if (Object.entries(values).every(([key, value]) => read(prefix + key, value) === value)) {
-        for (const key of Object.keys(values)) replacements.set(prefix + key, values[key]);
-      }
-    }
-    for (const [key, value] of [["gradient-direction", 0], ["active-tint", "42%"]]) {
-      if (read(PREFIX + key, value) === value) replacements.set(PREFIX + key, value);
-    }
-    let wrote = false;
-    for (const pref of declared) {
-      const value = pref.defaultValue;
-      if (!replacements.has(pref.property) || replacements.get(pref.property) === value) continue;
-      S[typeof value === "boolean" ? "setBoolPref" : typeof value === "number" ? "setIntPref" : "setStringPref"](pref.property, value);
-      wrote = true;
-    }
-    S.setBoolPref(marker, true);
-    return wrote;
-  }
   async function seedDefaults() {
     let declared;
     try {
@@ -1548,16 +1512,7 @@
     } catch { return false; }
 
     const S = Services.prefs;
-    let wrote = migrateFolderDefaults(declared) ? 1 : 0;
-    // 1.63.0: the light follows the selected tab by default; the folder you
-    // point at shows where you are. Profiles still on the old default move once.
-    if (!S.getBoolPref(PREFIX + "glow-follows-v2", false)) {
-      if (S.getPrefType(PREFIX + "glow-follows") === S.PREF_INT && S.getIntPref(PREFIX + "glow-follows") === 0) {
-        S.setIntPref(PREFIX + "glow-follows", 1);
-        wrote++;
-      }
-      S.setBoolPref(PREFIX + "glow-follows-v2", true);
-    }
+    let wrote = false;
     for (const pref of declared) {
       const name = pref?.property;
       const value = pref?.defaultValue;
@@ -1568,10 +1523,10 @@
         else if (typeof value === "number") S.setIntPref(name, value);
         else if (typeof value === "string") S.setStringPref(name, value);
         else continue;
-        wrote++;
+        wrote = true;
       } catch {}
     }
-    return wrote > 0;
+    return wrote;
   }
 
   try { injectPrefVars(); } catch {}

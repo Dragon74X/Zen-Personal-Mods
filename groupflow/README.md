@@ -200,8 +200,9 @@ same 25% starting tint. Main groups and native folders join the state profiles
 only when **Apply profiles to main folders too** is enabled. Turning the subfolder switch off
 uses the shared Header/States settings and restores native folder styling.
 When replacing a saved ATG gradient, tint controls use its first valid colour stop;
-an invalid colour falls back to the theme accent. Updating from 1.44.0 migrates
-unchanged state profiles once. Edited profiles retain all their values.
+an invalid colour falls back to the theme accent. Releases up to 1.70.0 moved
+unchanged 1.44.0 state profiles to the current defaults once; that step was
+retired in the 9 October 2026 audit ([docs/AUDIT-2026-10-09.md](../docs/AUDIT-2026-10-09.md)).
 
 ## Without Advanced Tab Groups
 

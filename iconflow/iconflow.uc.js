@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Iconflow
-// @description    Writes Iconflow's preference variables and defaults; carries over Glassflow's Library button settings; adds coloured and site icons to Zen's icon picker.
+// @description    Writes Iconflow's preference variables and defaults; adds coloured and site icons to Zen's icon picker.
 // @include        chrome://browser/content/browser.xhtml
 // ==/UserScript==
 
@@ -18,7 +18,7 @@
   const MOD_ID = "zz-iconflow";
   const root = document.documentElement;
 
-  // Strings and ints become --zzlib-foo-bar on the root, as Sine names them,
+  // Strings and ints become --zzicon-foo-bar on the root, as Sine names them,
   // written now rather than after Sine's async read. Booleans are read with
   // -moz-pref() and never written; reading one as a string would log an error.
   function write(full) {
@@ -48,41 +48,6 @@
       else S.setStringPref(name, String(value));
     }
   }
-
-  // Glassflow's Library button settings moved here; carry them over once.
-  for (const [from, to] of [["zzglass.sidebar.library-style", "zzicon.library.style"], ["zzglass.sidebar.library-size", "zzicon.library.size"]]) {
-    try {
-      const S = Services.prefs;
-      if (!S.prefHasUserValue(from) || S.prefHasUserValue(to)) continue;
-      if (S.getPrefType(from) === S.PREF_BOOL) S.setBoolPref(to, S.getBoolPref(from));
-      else S.setIntPref(to, S.getIntPref(from));
-    } catch {}
-  }
-
-  // Once, for Iconflow 1.7: the Library button follows the icon set again
-  // (Circuit stack with Circuit), and minus buttons narrow like zoom out.
-  try {
-    const S = Services.prefs, mark = "zzicon-migrated.1-7";
-    if (!S.getBoolPref(mark, false)) {
-      if (S.prefHasUserValue("zzicon.library.style")) S.setIntPref("zzicon.library.style", 11);
-      if (S.getIntPref("zzicon.motion.minus", 4) === 4) S.setIntPref("zzicon.motion.minus", 11);
-      S.setBoolPref(mark, true);
-    }
-  } catch {}
-
-  // Iconflow 1.8 folded "Zen's own, animated" into Zen's own: Animate icons
-  // now decides whether Zen's icons move.
-  try { if (Services.prefs.getIntPref("zzicon.set", 0) === 3) Services.prefs.setIntPref("zzicon.set", 0); } catch {}
-
-  // Iconflow 1.3 dropped the Flow set; move its users to Circuit.
-  try {
-    const S = Services.prefs;
-    if (S.getIntPref("zzicon.set", 0) === 1) S.setIntPref("zzicon.set", 2);
-    for (const name of S.getChildList("zzicon.button.")) {
-      const v = S.getIntPref(name, 0);
-      if (v === 2 || v === 3) S.setIntPref(name, v + 2);   // Flow animated/still -> Circuit animated/still
-    }
-  } catch {}
 
   // ---- Zen's icon picker -----------------------------------------------------
   // Zen draws any workspace, folder or new-space icon whose value ends in

@@ -209,7 +209,9 @@ styles are switched off (see [Other mods](#other-mods)).
 ### Library button
 
 The Library button's icon options moved to [Iconflow](../iconflow/), with the
-other icon and hover-motion settings. Settings chosen here carry over.
+other icon and hover-motion settings. Iconflow carried settings chosen here
+over once; that step was retired in the 9 October 2026 audit
+([docs/AUDIT-2026-10-09.md](../docs/AUDIT-2026-10-09.md)).
 
 ### Zen's blur
 
@@ -484,7 +486,7 @@ tooltip field in `preferences.json`, so each explanation is written in
 settings panels are untouched.
 
 `glassflow.uc.js` initializes string and numeric CSS variables synchronously,
-tracks native blur geometry, owns the optional snapshot fallback and restores
+tracks native blur geometry and restores
 the Motion animation override. Current Sine also injects string variables,
 asynchronously; Glassflow additionally covers numeric dropdowns. Booleans use
 `-moz-pref()` directly.

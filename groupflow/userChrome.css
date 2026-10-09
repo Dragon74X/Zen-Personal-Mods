@@ -638,363 +638,83 @@
     opacity: 1;
   }
 }
-/* Marks 14 and up. They come after the drawing rule above, which resets the
-   shape at the same specificity. */
-/* Lituus spiral mark. */
-@media (-moz-pref("zzgroup.marker", 14)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-lituus-spiral); }
-  @media (-moz-pref("zzgroup.marker-sub", 0)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-lituus-spiral); }
-  }
-}
-@media (-moz-pref("zzgroup.marker-sub", 15)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-lituus-spiral); }
-}
-/* Coil mark. */
-@media (-moz-pref("zzgroup.marker", 15)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-coil); }
-  @media (-moz-pref("zzgroup.marker-sub", 0)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-coil); }
-  }
-}
-@media (-moz-pref("zzgroup.marker-sub", 16)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-coil); }
-}
-/* Serpentine mark. */
-@media (-moz-pref("zzgroup.marker", 16)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-serpentine); }
-  @media (-moz-pref("zzgroup.marker-sub", 0)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-serpentine); }
-  }
-}
-@media (-moz-pref("zzgroup.marker-sub", 17)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-serpentine); }
-}
-/* Softened shapes, matching Iconflow's Flow style. Options only. */
-/* Pill: A short upright capsule. */
-@media (-moz-pref("zzgroup.marker", 17)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-pill); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-pill-neon); } }
-  @media (-moz-pref("zzgroup.marker-sub", 0)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-pill); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-pill-neon); } }
-  }
-}
-@media (-moz-pref("zzgroup.marker-sub", 18)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-pill); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-pill-neon); } }
-}
-/* Squircle: A dot with squircle corners. */
-@media (-moz-pref("zzgroup.marker", 18)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-squircle); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-squircle-neon); } }
-  @media (-moz-pref("zzgroup.marker-sub", 0)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-squircle); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-squircle-neon); } }
-  }
-}
-@media (-moz-pref("zzgroup.marker-sub", 19)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-squircle); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-squircle-neon); } }
-}
-/* Soft diamond: A diamond with rounded points. */
-@media (-moz-pref("zzgroup.marker", 19)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-soft-diamond); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-soft-diamond-neon); } }
-  @media (-moz-pref("zzgroup.marker-sub", 0)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-soft-diamond); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-soft-diamond-neon); } }
-  }
-}
-@media (-moz-pref("zzgroup.marker-sub", 20)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-soft-diamond); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-soft-diamond-neon); } }
-}
-/* Soft chevron: A chevron whose point is a short curve. */
-@media (-moz-pref("zzgroup.marker", 20)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-soft-chevron); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-soft-chevron-neon); } }
-  @media (-moz-pref("zzgroup.marker-sub", 0)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-soft-chevron); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-soft-chevron-neon); } }
-  }
-}
-@media (-moz-pref("zzgroup.marker-sub", 21)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-soft-chevron); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-soft-chevron-neon); } }
-}
-/* Arc: An open ring, its gap toward the rail. */
-@media (-moz-pref("zzgroup.marker", 21)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-arc); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-arc-neon); } }
-  @media (-moz-pref("zzgroup.marker-sub", 0)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-arc); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-arc-neon); } }
-  }
-}
-@media (-moz-pref("zzgroup.marker-sub", 22)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-arc); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-arc-neon); } }
-}
-/* Soft bracket: An open bracket with rounded corners, facing the item. */
-@media (-moz-pref("zzgroup.marker", 22)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-soft-bracket); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-soft-bracket-neon); } }
-  @media (-moz-pref("zzgroup.marker-sub", 0)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-soft-bracket); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-soft-bracket-neon); } }
-  }
-}
-@media (-moz-pref("zzgroup.marker-sub", 23)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-soft-bracket); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-soft-bracket-neon); } }
-}
-/* Chevron: a soft arrow aimed at the item. */
-@media (-moz-pref("zzgroup.marker", 1)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-chevron); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-chevron-neon); }
-  }
-  @media (-moz-pref("zzgroup.marker-sub", 0)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-chevron); }
-    @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-      :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-chevron-neon); }
-    }
-  }
-}
-@media (-moz-pref("zzgroup.marker-sub", 2)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-chevron); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-chevron-neon); }
-  }
-}
-/* Brace: an open rounded sweep. */
-@media (-moz-pref("zzgroup.marker", 2)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-brace); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-brace-neon); }
-  }
-  @media (-moz-pref("zzgroup.marker-sub", 0)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-brace); }
-    @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-      :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-brace-neon); }
-    }
-  }
-}
-@media (-moz-pref("zzgroup.marker-sub", 3)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-brace); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-brace-neon); }
-  }
-}
-/* Dot. */
-@media (-moz-pref("zzgroup.marker", 3)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-dot); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-dot-neon); }
-  }
-  @media (-moz-pref("zzgroup.marker-sub", 0)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-dot); }
-    @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-      :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-dot-neon); }
-    }
-  }
-}
-@media (-moz-pref("zzgroup.marker-sub", 4)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-dot); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-dot-neon); }
-  }
-}
-/* Dash: a rounded bar reaching toward the item. */
-@media (-moz-pref("zzgroup.marker", 4)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-dash); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-dash-neon); }
-  }
-  @media (-moz-pref("zzgroup.marker-sub", 0)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-dash); }
-    @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-      :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-dash-neon); }
-    }
-  }
-}
-@media (-moz-pref("zzgroup.marker-sub", 5)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-dash); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-dash-neon); }
-  }
-}
-/* Curve: a quarter-circle elbow off the rail. */
-@media (-moz-pref("zzgroup.marker", 5)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-curve); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-curve-neon); }
-  }
-  @media (-moz-pref("zzgroup.marker-sub", 0)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-curve); }
-    @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-      :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-curve-neon); }
-    }
-  }
-}
-@media (-moz-pref("zzgroup.marker-sub", 6)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-curve); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-curve-neon); }
-  }
-}
-/* Half moon: a true semicircle, flat on the rail side. */
-@media (-moz-pref("zzgroup.marker", 6)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-half-moon); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-half-moon-neon); }
-  }
-  @media (-moz-pref("zzgroup.marker-sub", 0)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-half-moon); }
-    @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-      :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-half-moon-neon); }
-    }
-  }
-}
-@media (-moz-pref("zzgroup.marker-sub", 7)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-half-moon); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-half-moon-neon); }
-  }
-}
-/* Crescent: a long slender curve with pointed tips. */
-@media (-moz-pref("zzgroup.marker", 7)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-crescent); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-crescent-neon); }
-  }
-  @media (-moz-pref("zzgroup.marker-sub", 0)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-crescent); }
-    @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-      :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-crescent-neon); }
-    }
-  }
-}
-@media (-moz-pref("zzgroup.marker-sub", 8)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-crescent); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-crescent-neon); }
-  }
-}
-/* Double chevron. */
-@media (-moz-pref("zzgroup.marker", 8)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-double-chevron); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-double-chevron-neon); }
-  }
-  @media (-moz-pref("zzgroup.marker-sub", 0)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-double-chevron); }
-    @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-      :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-double-chevron-neon); }
-    }
-  }
-}
-@media (-moz-pref("zzgroup.marker-sub", 9)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-double-chevron); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-double-chevron-neon); }
-  }
-}
-/* Triangle. */
-@media (-moz-pref("zzgroup.marker", 9)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-triangle); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-triangle-neon); }
-  }
-  @media (-moz-pref("zzgroup.marker-sub", 0)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-triangle); }
-    @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-      :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-triangle-neon); }
-    }
-  }
-}
-@media (-moz-pref("zzgroup.marker-sub", 10)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-triangle); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-triangle-neon); }
-  }
-}
-/* Diamond. */
-@media (-moz-pref("zzgroup.marker", 10)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-diamond); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-diamond-neon); }
-  }
-  @media (-moz-pref("zzgroup.marker-sub", 0)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-diamond); }
-    @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-      :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-diamond-neon); }
-    }
-  }
-}
-@media (-moz-pref("zzgroup.marker-sub", 11)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-diamond); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-diamond-neon); }
-  }
-}
-/* Bar: a short upright rounded line. */
-@media (-moz-pref("zzgroup.marker", 11)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-bar); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-bar-neon); }
-  }
-  @media (-moz-pref("zzgroup.marker-sub", 0)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-bar); }
-    @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-      :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-bar-neon); }
-    }
-  }
-}
-@media (-moz-pref("zzgroup.marker-sub", 12)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-bar); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-bar-neon); }
-  }
-}
-/* Arrow: a line with a head. */
-@media (-moz-pref("zzgroup.marker", 12)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-arrow); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-arrow-neon); }
-  }
-  @media (-moz-pref("zzgroup.marker-sub", 0)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-arrow); }
-    @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-      :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-arrow-neon); }
-    }
-  }
-}
-@media (-moz-pref("zzgroup.marker-sub", 13)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-arrow); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-arrow-neon); }
-  }
-}
-/* Wave: a soft S curve. */
-@media (-moz-pref("zzgroup.marker", 13)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-wave); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-mark-wave-neon); }
-  }
-  @media (-moz-pref("zzgroup.marker-sub", 0)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-wave); }
-    @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-      :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-wave-neon); }
-    }
-  }
-}
-@media (-moz-pref("zzgroup.marker-sub", 14)) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-wave); }
-  @media (-moz-pref("zzgroup.marker-gradient", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-mark-wave-neon); }
-  }
+/* Mark styles. Each names its flat shape and its Rounded (3D) one; the
+   shared rules at the end give tabs and subgroups their shape. Lituus,
+   coil and serpentine have no Rounded shape and stay flat. Subgroup
+   values count one higher (0 is Same as tabs, 1 is None). They come after
+   the drawing rule above, which resets the shape at the same specificity. */
+/* 1. Chevron: a soft arrow aimed at the item. */
+@media (-moz-pref("zzgroup.marker", 1)) { :root { --zzgf-tab-flat: var(--zzgf-mark-chevron); --zzgf-tab-neon: var(--zzgf-mark-chevron-neon); } }
+@media (-moz-pref("zzgroup.marker-sub", 2)) { :root { --zzgf-sub-flat: var(--zzgf-mark-chevron); --zzgf-sub-neon: var(--zzgf-mark-chevron-neon); } }
+/* 2. Brace: an open rounded sweep. */
+@media (-moz-pref("zzgroup.marker", 2)) { :root { --zzgf-tab-flat: var(--zzgf-mark-brace); --zzgf-tab-neon: var(--zzgf-mark-brace-neon); } }
+@media (-moz-pref("zzgroup.marker-sub", 3)) { :root { --zzgf-sub-flat: var(--zzgf-mark-brace); --zzgf-sub-neon: var(--zzgf-mark-brace-neon); } }
+/* 3. Dot. */
+@media (-moz-pref("zzgroup.marker", 3)) { :root { --zzgf-tab-flat: var(--zzgf-mark-dot); --zzgf-tab-neon: var(--zzgf-mark-dot-neon); } }
+@media (-moz-pref("zzgroup.marker-sub", 4)) { :root { --zzgf-sub-flat: var(--zzgf-mark-dot); --zzgf-sub-neon: var(--zzgf-mark-dot-neon); } }
+/* 4. Dash: a rounded bar reaching toward the item. */
+@media (-moz-pref("zzgroup.marker", 4)) { :root { --zzgf-tab-flat: var(--zzgf-mark-dash); --zzgf-tab-neon: var(--zzgf-mark-dash-neon); } }
+@media (-moz-pref("zzgroup.marker-sub", 5)) { :root { --zzgf-sub-flat: var(--zzgf-mark-dash); --zzgf-sub-neon: var(--zzgf-mark-dash-neon); } }
+/* 5. Curve: a quarter-circle elbow off the rail. */
+@media (-moz-pref("zzgroup.marker", 5)) { :root { --zzgf-tab-flat: var(--zzgf-mark-curve); --zzgf-tab-neon: var(--zzgf-mark-curve-neon); } }
+@media (-moz-pref("zzgroup.marker-sub", 6)) { :root { --zzgf-sub-flat: var(--zzgf-mark-curve); --zzgf-sub-neon: var(--zzgf-mark-curve-neon); } }
+/* 6. Half moon: a true semicircle, flat on the rail side. */
+@media (-moz-pref("zzgroup.marker", 6)) { :root { --zzgf-tab-flat: var(--zzgf-mark-half-moon); --zzgf-tab-neon: var(--zzgf-mark-half-moon-neon); } }
+@media (-moz-pref("zzgroup.marker-sub", 7)) { :root { --zzgf-sub-flat: var(--zzgf-mark-half-moon); --zzgf-sub-neon: var(--zzgf-mark-half-moon-neon); } }
+/* 7. Crescent: a long slender curve with pointed tips. */
+@media (-moz-pref("zzgroup.marker", 7)) { :root { --zzgf-tab-flat: var(--zzgf-mark-crescent); --zzgf-tab-neon: var(--zzgf-mark-crescent-neon); } }
+@media (-moz-pref("zzgroup.marker-sub", 8)) { :root { --zzgf-sub-flat: var(--zzgf-mark-crescent); --zzgf-sub-neon: var(--zzgf-mark-crescent-neon); } }
+/* 8. Double chevron. */
+@media (-moz-pref("zzgroup.marker", 8)) { :root { --zzgf-tab-flat: var(--zzgf-mark-double-chevron); --zzgf-tab-neon: var(--zzgf-mark-double-chevron-neon); } }
+@media (-moz-pref("zzgroup.marker-sub", 9)) { :root { --zzgf-sub-flat: var(--zzgf-mark-double-chevron); --zzgf-sub-neon: var(--zzgf-mark-double-chevron-neon); } }
+/* 9. Triangle. */
+@media (-moz-pref("zzgroup.marker", 9)) { :root { --zzgf-tab-flat: var(--zzgf-mark-triangle); --zzgf-tab-neon: var(--zzgf-mark-triangle-neon); } }
+@media (-moz-pref("zzgroup.marker-sub", 10)) { :root { --zzgf-sub-flat: var(--zzgf-mark-triangle); --zzgf-sub-neon: var(--zzgf-mark-triangle-neon); } }
+/* 10. Diamond. */
+@media (-moz-pref("zzgroup.marker", 10)) { :root { --zzgf-tab-flat: var(--zzgf-mark-diamond); --zzgf-tab-neon: var(--zzgf-mark-diamond-neon); } }
+@media (-moz-pref("zzgroup.marker-sub", 11)) { :root { --zzgf-sub-flat: var(--zzgf-mark-diamond); --zzgf-sub-neon: var(--zzgf-mark-diamond-neon); } }
+/* 11. Bar: a short upright rounded line. */
+@media (-moz-pref("zzgroup.marker", 11)) { :root { --zzgf-tab-flat: var(--zzgf-mark-bar); --zzgf-tab-neon: var(--zzgf-mark-bar-neon); } }
+@media (-moz-pref("zzgroup.marker-sub", 12)) { :root { --zzgf-sub-flat: var(--zzgf-mark-bar); --zzgf-sub-neon: var(--zzgf-mark-bar-neon); } }
+/* 12. Arrow: a line with a head. */
+@media (-moz-pref("zzgroup.marker", 12)) { :root { --zzgf-tab-flat: var(--zzgf-mark-arrow); --zzgf-tab-neon: var(--zzgf-mark-arrow-neon); } }
+@media (-moz-pref("zzgroup.marker-sub", 13)) { :root { --zzgf-sub-flat: var(--zzgf-mark-arrow); --zzgf-sub-neon: var(--zzgf-mark-arrow-neon); } }
+/* 13. Wave: a soft S curve. */
+@media (-moz-pref("zzgroup.marker", 13)) { :root { --zzgf-tab-flat: var(--zzgf-mark-wave); --zzgf-tab-neon: var(--zzgf-mark-wave-neon); } }
+@media (-moz-pref("zzgroup.marker-sub", 14)) { :root { --zzgf-sub-flat: var(--zzgf-mark-wave); --zzgf-sub-neon: var(--zzgf-mark-wave-neon); } }
+/* 14. Lituus spiral mark. */
+@media (-moz-pref("zzgroup.marker", 14)) { :root { --zzgf-tab-flat: var(--zzgf-mark-lituus-spiral); } }
+@media (-moz-pref("zzgroup.marker-sub", 15)) { :root { --zzgf-sub-flat: var(--zzgf-mark-lituus-spiral); } }
+/* 15. Coil mark. */
+@media (-moz-pref("zzgroup.marker", 15)) { :root { --zzgf-tab-flat: var(--zzgf-mark-coil); } }
+@media (-moz-pref("zzgroup.marker-sub", 16)) { :root { --zzgf-sub-flat: var(--zzgf-mark-coil); } }
+/* 16. Serpentine mark. */
+@media (-moz-pref("zzgroup.marker", 16)) { :root { --zzgf-tab-flat: var(--zzgf-mark-serpentine); } }
+@media (-moz-pref("zzgroup.marker-sub", 17)) { :root { --zzgf-sub-flat: var(--zzgf-mark-serpentine); } }
+/* 17. Pill: A short upright capsule. */
+@media (-moz-pref("zzgroup.marker", 17)) { :root { --zzgf-tab-flat: var(--zzgf-mark-pill); --zzgf-tab-neon: var(--zzgf-mark-pill-neon); } }
+@media (-moz-pref("zzgroup.marker-sub", 18)) { :root { --zzgf-sub-flat: var(--zzgf-mark-pill); --zzgf-sub-neon: var(--zzgf-mark-pill-neon); } }
+/* 18. Squircle: A dot with squircle corners. */
+@media (-moz-pref("zzgroup.marker", 18)) { :root { --zzgf-tab-flat: var(--zzgf-mark-squircle); --zzgf-tab-neon: var(--zzgf-mark-squircle-neon); } }
+@media (-moz-pref("zzgroup.marker-sub", 19)) { :root { --zzgf-sub-flat: var(--zzgf-mark-squircle); --zzgf-sub-neon: var(--zzgf-mark-squircle-neon); } }
+/* 19. Soft diamond: A diamond with rounded points. */
+@media (-moz-pref("zzgroup.marker", 19)) { :root { --zzgf-tab-flat: var(--zzgf-mark-soft-diamond); --zzgf-tab-neon: var(--zzgf-mark-soft-diamond-neon); } }
+@media (-moz-pref("zzgroup.marker-sub", 20)) { :root { --zzgf-sub-flat: var(--zzgf-mark-soft-diamond); --zzgf-sub-neon: var(--zzgf-mark-soft-diamond-neon); } }
+/* 20. Soft chevron: A chevron whose point is a short curve. */
+@media (-moz-pref("zzgroup.marker", 20)) { :root { --zzgf-tab-flat: var(--zzgf-mark-soft-chevron); --zzgf-tab-neon: var(--zzgf-mark-soft-chevron-neon); } }
+@media (-moz-pref("zzgroup.marker-sub", 21)) { :root { --zzgf-sub-flat: var(--zzgf-mark-soft-chevron); --zzgf-sub-neon: var(--zzgf-mark-soft-chevron-neon); } }
+/* 21. Arc: An open ring, its gap toward the rail. */
+@media (-moz-pref("zzgroup.marker", 21)) { :root { --zzgf-tab-flat: var(--zzgf-mark-arc); --zzgf-tab-neon: var(--zzgf-mark-arc-neon); } }
+@media (-moz-pref("zzgroup.marker-sub", 22)) { :root { --zzgf-sub-flat: var(--zzgf-mark-arc); --zzgf-sub-neon: var(--zzgf-mark-arc-neon); } }
+/* 22. Soft bracket: An open bracket with rounded corners, facing the item. */
+@media (-moz-pref("zzgroup.marker", 22)) { :root { --zzgf-tab-flat: var(--zzgf-mark-soft-bracket); --zzgf-tab-neon: var(--zzgf-mark-soft-bracket-neon); } }
+@media (-moz-pref("zzgroup.marker-sub", 23)) { :root { --zzgf-sub-flat: var(--zzgf-mark-soft-bracket); --zzgf-sub-neon: var(--zzgf-mark-soft-bracket-neon); } }
+@media (-moz-pref("zzgroup.marker-sub", 0)) { :root { --zzgf-sub-flat: var(--zzgf-tab-flat); --zzgf-sub-neon: var(--zzgf-tab-neon); } }
+:is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-tab-flat, linear-gradient(transparent, transparent)); }
+:is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-sub-flat, linear-gradient(transparent, transparent)); }
+@media (-moz-pref("zzgroup.marker-gradient", 4)) {
+  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-tab-neon, var(--zzgf-tab-flat, linear-gradient(transparent, transparent))); }
+  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-sub-neon, var(--zzgf-sub-flat, linear-gradient(transparent, transparent))); }
 }
 /* Fill: the group body sits on a faint accent card, so membership reads
    as containment rather than lines. */

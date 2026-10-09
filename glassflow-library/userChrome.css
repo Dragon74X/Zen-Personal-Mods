@@ -132,10 +132,9 @@ zen-library[zzlib-float="centre"] {
   z-index: 100 !important;
 }
 
-/* One box behind them all. It fades in with the list. It is solid: Zen's
-   window colour, with Glassflow's overlay tint over it, so nothing behind it
-   (tabs, the media bar, whatever sits under the bottom of the sidebar)
-   shows through. */
+/* One box behind them all. It fades in with the list. With Glassflow it is
+   glass, its overlay fill over the tab list Glassflow blurs underneath;
+   without, it is solid, Zen's window colour, over the tab list Zen fades out. */
 @media (-moz-pref("zzlib.stack.box")) {
   #zen-sidebar-foot-buttons #zen-library-download-list {
     padding: 6px !important;
@@ -146,19 +145,14 @@ zen-library[zzlib-float="centre"] {
       position: absolute;
       inset: 0;
       border-radius: var(--zzg-panel-radius, 20px);
-      background: var(--zen-main-browser-background, light-dark(rgb(235 235 235), rgb(27 27 27)));
-      /* The tint is an inset shadow over that background, so a gradient
-         window colour still works as the single background layer. */
-      box-shadow: inset 0 0 0 1px var(--zzg-rim-all, rgb(255 255 255 / 0.1)),
-        inset 0 0 0 100vmax var(--zzg-ov-fill, transparent),
-        0 8px 24px rgb(0 0 0 / 0.22);
+      background: var(--zzg-ov-fill, var(--zen-main-browser-background, light-dark(rgb(235 235 235), rgb(27 27 27))));
+      box-shadow: inset 0 0 0 1px var(--zzg-rim-all, rgb(255 255 255 / 0.1)), 0 8px 24px rgb(0 0 0 / 0.22);
       opacity: var(--zen-library-progress);
       pointer-events: none;
     }
 
     & .zen-library-download-list-download {
       background: transparent !important;
-      backdrop-filter: none !important;
       &:hover { background: color-mix(in srgb, currentColor 10%, transparent) !important; }
     }
   }

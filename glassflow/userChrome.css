@@ -1337,9 +1337,11 @@
 /* ============================================================
    Overlays: glass behind what floats inside the window.
 
-   These are drawn in the browser window itself, so backdrop-filter
-   reads whatever is painted under them (no ancestor of the library
-   stack is a backdrop root). Menus and panels are separate native
+   These are drawn in the browser window itself. Over the page,
+   backdrop-filter blurs what is under them. Over the tab list (the
+   library stack, the music player's rows) it reads an empty backdrop,
+   so the tab list blurs itself under them instead (glassflow.uc.js,
+   "under the sidebar's overlays"). Menus and panels are separate native
    windows: CSS cannot see behind them, so they get Windows' own
    acrylic (Firefox's -moz-windows-mica-popups) and only its tint is
    set here. Zen already blurs the floating urlbar, the compact
@@ -1353,18 +1355,14 @@
 :root {
   --zzg-ov-fill: light-dark(rgb(255 255 255 / var(--zzglass-overlays-opacity, 55%)),
                             rgb(24 24 24 / var(--zzglass-overlays-opacity, 55%)));
-  --zzg-ov-downloads: var(--zzg-acrylic-clear);
   --zzg-ov-toasts: var(--zzg-acrylic-clear);
   --zzg-ov-glance: var(--zzg-acrylic-clear);
   --zzg-ov-preview: var(--zzg-acrylic-clear);
-  --zzg-ov-music: var(--zzg-acrylic-clear);
   --zzg-ov-status: var(--zzg-acrylic-clear);
 }
-@media (-moz-pref("zzglass.overlays.downloads", 2)) { :root { --zzg-ov-downloads: var(--zzg-acrylic); } }
 @media (-moz-pref("zzglass.overlays.toasts", 2)) { :root { --zzg-ov-toasts: var(--zzg-acrylic); } }
 @media (-moz-pref("zzglass.overlays.glance", 2)) { :root { --zzg-ov-glance: var(--zzg-acrylic); } }
 @media (-moz-pref("zzglass.overlays.media-preview", 2)) { :root { --zzg-ov-preview: var(--zzg-acrylic); } }
-@media (-moz-pref("zzglass.overlays.music", 2)) { :root { --zzg-ov-music: var(--zzg-acrylic); } }
 @media (-moz-pref("zzglass.overlays.status", 2)) { :root { --zzg-ov-status: var(--zzg-acrylic); } }
 @media (-moz-pref("zzglass.overlays.status", 0)) { :root { --zzg-ov-status: none; } }
 /* Download Prompt's question reads this; it is not Glassflow's to draw. */
@@ -1374,11 +1372,13 @@
   @media (-moz-pref("zzglass.overlays.dialog", 0)) { :root { --zzg-ov-dialog: none; } }
 }
 @media (-moz-pref("zzglass.overlays.enabled")) and (not (-moz-pref("zzglass.overlays.downloads", 0))) {
-  /* Library download stack. Zen fades the tab list and the music player
-     out under it, which stays: blur alone left their text showing through. */
+  /* Library download stack. Zen fades the tab list out under it; it stays,
+     blurred by the script, so the glass has something behind it. */
+  #TabsToolbar-customization-target:is([zen-library-stack-open], [zen-library-stack-closing]) {
+    mask-image: none !important;
+  }
   #zen-library-download-list .zen-library-download-list-download {
     background: var(--zzg-ov-fill) !important;
-    backdrop-filter: var(--zzg-ov-downloads) !important;
     &:hover { background: color-mix(in srgb, currentColor 10%, var(--zzg-ov-fill)) !important; }
   }
 }
@@ -1419,7 +1419,6 @@
 @media (-moz-pref("zzglass.overlays.enabled")) and (not (-moz-pref("zzglass.overlays.music", 0))) {
   #zen-media-controls-toolbar > .zen-media-card {
     --zen-sidebar-notification-bg: var(--zzglass-overlays-media-color, var(--zzg-ov-fill)) !important;
-    backdrop-filter: var(--zzg-ov-music) !important;
   }
 }
 

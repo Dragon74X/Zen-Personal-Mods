@@ -2010,6 +2010,15 @@
     "operator": "AND"
   },
   {
+    "type": "string",
+    "property": "zzglass.overlays.tab-list-blur",
+    "label": "Blur over the tab list *The download stack and the music player blur the tabs under them themselves, since Firefox's own blur cannot see the tab list there. Zen's 42px all but erases text this small; 8px keeps shapes. Saturation and contrast follow Customise Zen's blur.*",
+    "defaultValue": "8px",
+    "placeholder": "8px",
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.overlays.enabled", "value": true}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
     "type": "dropdown",
     "value": "number",
     "property": "zzglass.overlays.downloads",

@@ -79,6 +79,50 @@ test("Library downloads batch once and select only the four older rows", async (
   assert.equal(rows.length, 0);
 });
 
+test("Library extra rows delegate blocked downloads to native confirmation without opening them", async () => {
+  const source = await readFile(new URL("../glassflow-library/glassflow-library.uc.js", import.meta.url), "utf8");
+  const calls = [], strings = { stateFailed: "failed", stateBlockedParentalControls: "parental" };
+  const window = { MozXULElement: { parseXULToFragment: () => ({ firstElementChild: {
+    addEventListener(name, fn) { this[name] = fn; },
+  } }) }, openTrustedLinkIn: url => calls.push(["navigate", url]) };
+  const lazy = {
+    DownloadsCommon: { strings, openDownload: download => { calls.push(["open", download]); return Promise.resolve(); } },
+    blockedText: download => "blocked:" + download.error.reputationCheckVerdict,
+    confirmUnblock: (download, owner, open) => calls.push(["confirm", download, owner, open]),
+  };
+  const context = vm.createContext({ window, lazy, EXTRA: "zzlib-extra", console });
+  vm.runInContext(source.slice(source.indexOf("  function status(download)"), source.indexOf("  function fillExtras()")), context);
+  const row = context.makeRow();
+  for (const verdict of ["uncommon", "insecure", "potentially_unwanted", "malware"]) {
+    calls.length = 0;
+    const download = { stopped: true, source: { url: "https://example.com/file" },
+      error: { becauseBlockedByReputationCheck: true, reputationCheckVerdict: verdict } };
+    row.download = download;
+    assert.equal(context.status(download), "blocked:" + verdict);
+    row.click({ button: 2 });
+    assert.equal(calls.length, 0);
+    row.click({ button: 0 });
+    assert.equal(calls.length, 1, "only native confirmation, no open or navigation");
+    const [action, target, owner, open] = calls[0];
+    assert.equal(action, "confirm");
+    assert.equal(target, download);
+    assert.equal(owner, window);
+    await open(download); // Native helper invokes this only after the user chooses Open.
+    assert.deepEqual(calls[1], ["open", download]);
+  }
+  assert.equal(context.status({ stopped: true, error: { becauseBlockedByParentalControls: true } }), "parental");
+  calls.length = 0;
+  row.download = { stopped: false };
+  row.click({ button: 0 });
+  assert.equal(calls.length, 0);
+  row.download = { stopped: true, succeeded: true };
+  row.click({ button: 0 });
+  assert.deepEqual(calls[0], ["open", row.download]);
+  row.download = { stopped: true, source: { url: "https://example.com/failed" } };
+  row.click({ button: 0 });
+  assert.deepEqual(calls[1], ["navigate", row.download.source.url]);
+});
+
 const mediaRoot = new URL("../mediaflow/", import.meta.url);
 const mediaSource = readFileSync(new URL("mediaflow.uc.js", mediaRoot), "utf8");
 function mediaActor(file, name, base) {

@@ -168,6 +168,8 @@ so the two never stack. Zen's own icons, such as the tab close button, do.
 
 The Library button is the button at the bottom of the sidebar that opens
 downloads and the Library.
+The download pop-out shown while the sidebar is hidden uses the same selected
+icon at its resting frame. Zen keeps control of the pop-out's movement and timing.
 
 The choices are:
 - **Follow the icon set** (the default): Zen's icon with Zen's own set, and Circuit stack with Circuit. Circuit stack is the Firefox Library icon itself, played at 16px like the other buttons.

@@ -12,6 +12,8 @@
   --zzicon-blank: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18'/%3E");
   --zzicon-duration: var(--zzicon-speed, 0.45s);
   --zzicon-motion-duration: var(--zzicon-motion-speed, 0.25s);
+  --zzicon-library-image: url("chrome://browser/skin/zen-icons/library/library-sprite.svg");
+  --zzicon-library-frames: 36;
 }
 
 /* ---- Icon size -------------------------------------------------------- */
@@ -37,12 +39,26 @@
 }
 
 /* ---- Library button ----------------------------------------------------- */
+/* The hidden-sidebar download pop-out uses the same artwork, at frame zero.
+   Zen owns its entry/exit motion; no second animation or download observer. */
+#zen-library-button .zen-library-sprite::before {
+  background-image: var(--zzicon-library-image) !important;
+}
+.zen-download-box-animation-icon {
+  background-image: var(--zzicon-library-image) !important;
+  background-size: calc(var(--zzicon-library-frames) * 100%) 100% !important;
+  background-position: left top !important;
+  transform: none !important;
+  -moz-context-properties: fill, fill-opacity, stroke !important;
+  stroke: var(--zzicon-halo, var(--toolbar-color));
+}
 /* Zen draws it as a 36-frame sprite (#zen-library-button, which replaced
    #library-button, so New Icons no longer reaches it). The line shapes are
    generated; this traces Zen's own sprite to a ~1px outline with an SVG
    filter, keeping its animation. */
 @media (-moz-pref("zzicon.library.style", 1)) {
-  #zen-library-button .zen-library-sprite {
+  #zen-library-button .zen-library-sprite,
+  .zen-download-box-animation-icon {
     filter: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><filter id='o' x='-10%25' y='-10%25' width='120%25' height='120%25'><feMorphology in='SourceAlpha' operator='erode' radius='1.1' result='inner'/><feComposite in='SourceGraphic' in2='inner' operator='out'/></filter></svg>#o") !important;
   }
 }

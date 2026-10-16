@@ -1440,6 +1440,7 @@ def main():
     for key, (label, _, targets) in TOOLBAR.items():
         k = SETTING.get(key, key)
         icons = ", ".join(i for i, _ in targets)
+        if key == "downloads": icons += ", .zen-download-box-animation-icon" + OWN
         hovers = ", ".join(h for _, h in targets)
         own = ", ".join(h + OWN for _, h in targets)
         if key in CSS_MOTION:
@@ -1473,8 +1474,10 @@ def main():
                    f"    {own} {{ {STILL_MOTION} }}\n  }}\n}}")
     for key in LINE_KEYS:
         k = SETTING.get(key, key)
+        icons = ", ".join(i for i, _ in TOOLBAR[key][2])
+        if key == "downloads": icons += ", .zen-download-box-animation-icon" + OWN
         css.append(f"/* {TOOLBAR[key][0]}: line art */\n@media (-moz-pref(\"zzicon.button.{k}\", {LINED})) {{\n"
-                   f"  {', '.join(i for i, _ in TOOLBAR[key][2])} {{ background-image: {url[key, 'line']} !important; }}\n}}")
+                   f"  {icons} {{ background-image: {url[key, 'line']} !important; }}\n}}")
     icons = ", ".join(i for i, _ in TOOLBAR["reload"][2])
     for value, (label, draw) in RELOAD_STYLES.items():
         rel = save(f"icons/circuit/reload-{value}.svg", strip(draw, FRAMES, fit(draw, FRAMES)))
@@ -1487,12 +1490,12 @@ def main():
             # Circuit stack: the Firefox Library icon itself, stepped by the
             # frame counter at 16px like every toolbar icon, not Zen's sprite.
             css.append(f"/* Library: {label} */\n@media (-moz-pref(\"zzicon.library.style\", {value})){follow} {{\n"
-                       f"  :root {{ --zzicon-library-image: {url['firefox-library']} !important; --zzicon-library-frames: {FRAMES} !important; }}\n"
                        "  #zen-library-button { --zen-library-sprite-size: 16px !important; }\n"
                        "  #zen-library-button .zen-library-sprite { scale: 1 !important; translate: none !important; }\n"
                        "  #zen-library-button .zen-library-sprite::before {\n"
                        # Zen's own ::before is 36 frames wide; one frame here.
                        "    width: 100% !important;\n"
+                       f"    background-image: {url['firefox-library']} !important;\n"
                        f"    background-size: {FRAMES * 100}% 100% !important;\n"
                        f"    background-position: calc(var(--zzicon-frame) * 100% / {FRAMES - 1}) 0 !important;\n"
                        "    background-repeat: no-repeat !important;\n    animation: none !important;\n"
@@ -1506,7 +1509,7 @@ def main():
                        f"  #zen-library-button:hover > .zen-library-sprite{OWN} {{ {STILL_MOTION} }}\n}}")
             continue
         css.append(f"/* Library: {label} */\n@media (-moz-pref(\"zzicon.library.style\", {value})){follow} {{\n"
-                   f"  :root {{ --zzicon-library-image: {url['library', value]} !important; }}\n"
+                   f"  #zen-library-button .zen-library-sprite::before {{ background-image: {url['library', value]} !important; }}\n"
                    f"  #zen-library-button:hover > .zen-library-sprite{OWN} {{ {STILL_MOTION} }}\n}}")
     write_targets()
     css += motion_css()

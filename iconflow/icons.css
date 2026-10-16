@@ -261,7 +261,7 @@
 }
 /* Downloads */
 @media ((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.downloads", 0))) or (-moz-pref("zzicon.button.downloads", 4)) or (-moz-pref("zzicon.button.downloads", 5)) or (-moz-pref("zzicon.button.downloads", 7)) {
-  #downloads-button .toolbarbutton-icon, #appMenu-downloads-button .toolbarbutton-icon {
+  #downloads-button .toolbarbutton-icon, #appMenu-downloads-button .toolbarbutton-icon, .zen-download-box-animation-icon:not(#zzicon-own) {
     list-style-image: var(--zzicon-blank) !important;
     -moz-context-properties: fill, fill-opacity, stroke !important;
     stroke: var(--zzicon-halo, currentColor) !important;
@@ -1262,7 +1262,7 @@
 }
 /* Downloads: line art */
 @media (-moz-pref("zzicon.button.downloads", 7)) {
-  #downloads-button .toolbarbutton-icon, #appMenu-downloads-button .toolbarbutton-icon { background-image: url("icons/circuit/downloads-line.svg") !important; }
+  #downloads-button .toolbarbutton-icon, #appMenu-downloads-button .toolbarbutton-icon, .zen-download-box-animation-icon:not(#zzicon-own) { background-image: url("icons/circuit/downloads-line.svg") !important; }
 }
 /* Reload: Twin comets */
 @media (((-moz-pref("zzicon.set", 2)) and (-moz-pref("zzicon.button.reload", 0))) or (-moz-pref("zzicon.button.reload", 4)) or (-moz-pref("zzicon.button.reload", 5))) and (-moz-pref("zzicon.reload.style", 1)) {
@@ -1270,56 +1270,56 @@
 }
 /* Library: Still line icon */
 @media (-moz-pref("zzicon.library.style", 2)) {
-  :root { --zzicon-library-image: url("icons/library/2.svg") !important; }
+  #zen-library-button .zen-library-sprite::before { background-image: url("icons/library/2.svg") !important; }
   #zen-library-button:hover > .zen-library-sprite:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; transform: none !important; }
 }
 /* Library: Layers */
 @media (-moz-pref("zzicon.library.style", 3)) {
-  :root { --zzicon-library-image: url("icons/library/3.svg") !important; }
+  #zen-library-button .zen-library-sprite::before { background-image: url("icons/library/3.svg") !important; }
   #zen-library-button:hover > .zen-library-sprite:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; transform: none !important; }
 }
 /* Library: Hex scan */
 @media (-moz-pref("zzicon.library.style", 4)) {
-  :root { --zzicon-library-image: url("icons/library/4.svg") !important; }
+  #zen-library-button .zen-library-sprite::before { background-image: url("icons/library/4.svg") !important; }
   #zen-library-button:hover > .zen-library-sprite:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; transform: none !important; }
 }
 /* Library: Focus */
 @media (-moz-pref("zzicon.library.style", 5)) {
-  :root { --zzicon-library-image: url("icons/library/5.svg") !important; }
+  #zen-library-button .zen-library-sprite::before { background-image: url("icons/library/5.svg") !important; }
   #zen-library-button:hover > .zen-library-sprite:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; transform: none !important; }
 }
 /* Library: Grid */
 @media (-moz-pref("zzicon.library.style", 6)) {
-  :root { --zzicon-library-image: url("icons/library/6.svg") !important; }
+  #zen-library-button .zen-library-sprite::before { background-image: url("icons/library/6.svg") !important; }
   #zen-library-button:hover > .zen-library-sprite:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; transform: none !important; }
 }
 /* Library: Chevrons */
 @media (-moz-pref("zzicon.library.style", 7)) {
-  :root { --zzicon-library-image: url("icons/library/7.svg") !important; }
+  #zen-library-button .zen-library-sprite::before { background-image: url("icons/library/7.svg") !important; }
   #zen-library-button:hover > .zen-library-sprite:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; transform: none !important; }
 }
 /* Library: Orbit */
 @media (-moz-pref("zzicon.library.style", 8)) {
-  :root { --zzicon-library-image: url("icons/library/8.svg") !important; }
+  #zen-library-button .zen-library-sprite::before { background-image: url("icons/library/8.svg") !important; }
   #zen-library-button:hover > .zen-library-sprite:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; transform: none !important; }
 }
 /* Library: Split */
 @media (-moz-pref("zzicon.library.style", 9)) {
-  :root { --zzicon-library-image: url("icons/library/9.svg") !important; }
+  #zen-library-button .zen-library-sprite::before { background-image: url("icons/library/9.svg") !important; }
   #zen-library-button:hover > .zen-library-sprite:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; transform: none !important; }
 }
 /* Library: Pulse */
 @media (-moz-pref("zzicon.library.style", 10)) {
-  :root { --zzicon-library-image: url("icons/library/10.svg") !important; }
+  #zen-library-button .zen-library-sprite::before { background-image: url("icons/library/10.svg") !important; }
   #zen-library-button:hover > .zen-library-sprite:not(#zzicon-own) { animation: none !important; rotate: none !important; scale: none !important; translate: none !important; transform: none !important; }
 }
 /* Library: Circuit stack */
 @media (-moz-pref("zzicon.library.style", 12)) or ((-moz-pref("zzicon.library.style", 11)) and (-moz-pref("zzicon.set", 2))) {
-  :root { --zzicon-library-image: url("icons/circuit/firefox-library.svg") !important; --zzicon-library-frames: 96 !important; }
   #zen-library-button { --zen-library-sprite-size: 16px !important; }
   #zen-library-button .zen-library-sprite { scale: 1 !important; translate: none !important; }
   #zen-library-button .zen-library-sprite::before {
     width: 100% !important;
+    background-image: url("icons/circuit/firefox-library.svg") !important;
     background-size: 9600% 100% !important;
     background-position: calc(var(--zzicon-frame) * 100% / 95) 0 !important;
     background-repeat: no-repeat !important;

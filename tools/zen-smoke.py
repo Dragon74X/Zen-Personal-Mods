@@ -249,27 +249,26 @@ def check(m, root, arc, transparent):
       for(const id of ['zen-library-button','downloads-button'])document.getElementById(id)?.style.setProperty('display','none','important');
       const host=document.createElement('zen-download-animation');document.body.appendChild(host);
       host.initializeAnimation({clientX:500,clientY:200});return true;""")
-    icon_cases = [(style, 0) for style in range(11)] + [(12, 0), (11, 0), (11, 2)]
-    for style, icon_set in icon_cases:
-        m.script(f"Services.prefs.setIntPref('zzicon.library.style',{style});Services.prefs.setIntPref('zzicon.set',{icon_set});return true;")
+    icon_cases = [(0, button, icon_set) for icon_set in [0, 2] for button in [0, 1, 4, 5, 6, 7]]
+    icon_cases += [(library, 7, 2) for library in [1, 8, 12]]
+    for library, button, icon_set in icon_cases:
+        m.script(f"Services.prefs.setIntPref('zzicon.library.style',{library});Services.prefs.setIntPref('zzicon.button.downloads',{button});Services.prefs.setIntPref('zzicon.set',{icon_set});return true;")
         settle()
         icons = m.script("""const popup=document.querySelector('.zen-download-box-animation-icon');
-          const button=document.querySelector('#zen-library-button .zen-library-sprite');
-          const p=getComputedStyle(popup),b=getComputedStyle(button,'::before');
-          return {popup:p.backgroundImage,button:b.backgroundImage,size:p.backgroundSize,
-            position:p.backgroundPosition,transform:p.transform,animation:p.animationName,
-            outline:p.filter===getComputedStyle(button).filter};""")
-        selected = 12 if style == 11 and icon_set == 2 else 0 if style == 11 else style
-        expected = "library-sprite.svg" if selected < 2 else "firefox-library.svg" if selected == 12 else f"library/{selected}.svg"
-        assert icons["popup"] == icons["button"] and expected in icons["popup"], (style, icon_set, icons)
-        assert icons["size"] == ("9600% 100%" if selected == 12 else "3600% 100%"), icons
-        assert icons["position"] == "0% 0%" and icons["transform"] == "none" and icons["animation"] == "none", icons
-        assert icons["outline"], icons
+          const p=getComputedStyle(popup);
+          return {popup:p.backgroundImage,size:p.backgroundSize,
+            position:p.backgroundPosition,transform:p.transform,animation:p.animationName,filter:p.filter};""")
+        circuit = button in [4, 5, 7] or (button == 0 and icon_set == 2)
+        expected = "circuit/downloads-line.svg" if button == 7 else "circuit/downloads.svg" if circuit else "skin/downloads/downloads.svg"
+        assert expected in icons["popup"] and "library" not in icons["popup"], (library, button, icon_set, icons)
+        assert icons["size"] == ("9600% 100%" if circuit else "100% 100%"), icons
+        assert icons["position"] in ["0px 0px", "0% 0px", "0% 0%"], icons
+        assert icons["transform"] == "none" and icons["animation"] == "none" and icons["filter"] == "none", icons
     m.script("""document.querySelector('.zen-download-box-animation').remove();
       document.querySelector('zen-download-animation').remove();
       for(const id of ['zen-library-button','downloads-button'])document.getElementById(id)?.style.removeProperty('display');
       Services.prefs.clearUserPref('zen.downloads.download-animation-duration');
-      Services.prefs.setIntPref('zzicon.library.style',11);Services.prefs.setIntPref('zzicon.set',0);
+      Services.prefs.setIntPref('zzicon.library.style',11);Services.prefs.setIntPref('zzicon.button.downloads',0);Services.prefs.setIntPref('zzicon.set',0);
       return true;""")
     result["downloadPopupIconChecks"] = len(icon_cases)
     m.script("""for(const k of ['__zzdlInstance','__zzglassInstance','__zzgroupInstance','__zzrouterInstance','__zzunloadInstance','__zzturboInstance']) window[k].retire();

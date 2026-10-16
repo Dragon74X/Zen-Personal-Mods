@@ -38,6 +38,7 @@ Icon sets and hover motion for [Zen Browser](https://zen-browser.app/).
 - **Hover motion** for whole buttons, with any icon set: close buttons,
   plus and minus buttons, the Library button, toolbar buttons and media
   controls.
+- **Download pop-out:** a download arrow, following Downloads' native/Circuit/line-art selection at rest. Library icon settings do not affect it. Zen retains movement and timing.
 - **Library button** icons, which moved here from Glassflow.
 - **New tab button** options, which replace Better New Tab button.
 - **Icon picker**: 158 coloured icons at the top of the SVG page of Zen's
@@ -168,8 +169,6 @@ so the two never stack. Zen's own icons, such as the tab close button, do.
 
 The Library button is the button at the bottom of the sidebar that opens
 downloads and the Library.
-The download pop-out shown while the sidebar is hidden uses the same selected
-icon at its resting frame. Zen keeps control of the pop-out's movement and timing.
 
 The choices are:
 - **Follow the icon set** (the default): Zen's icon with Zen's own set, and Circuit stack with Circuit. Circuit stack is the Firefox Library icon itself, played at 16px like the other buttons.

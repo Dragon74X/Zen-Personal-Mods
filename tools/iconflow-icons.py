@@ -1487,12 +1487,12 @@ def main():
             # Circuit stack: the Firefox Library icon itself, stepped by the
             # frame counter at 16px like every toolbar icon, not Zen's sprite.
             css.append(f"/* Library: {label} */\n@media (-moz-pref(\"zzicon.library.style\", {value})){follow} {{\n"
+                       f"  :root {{ --zzicon-library-image: {url['firefox-library']} !important; --zzicon-library-frames: {FRAMES} !important; }}\n"
                        "  #zen-library-button { --zen-library-sprite-size: 16px !important; }\n"
                        "  #zen-library-button .zen-library-sprite { scale: 1 !important; translate: none !important; }\n"
                        "  #zen-library-button .zen-library-sprite::before {\n"
                        # Zen's own ::before is 36 frames wide; one frame here.
                        "    width: 100% !important;\n"
-                       f"    background-image: {url['firefox-library']} !important;\n"
                        f"    background-size: {FRAMES * 100}% 100% !important;\n"
                        f"    background-position: calc(var(--zzicon-frame) * 100% / {FRAMES - 1}) 0 !important;\n"
                        "    background-repeat: no-repeat !important;\n    animation: none !important;\n"
@@ -1506,7 +1506,7 @@ def main():
                        f"  #zen-library-button:hover > .zen-library-sprite{OWN} {{ {STILL_MOTION} }}\n}}")
             continue
         css.append(f"/* Library: {label} */\n@media (-moz-pref(\"zzicon.library.style\", {value})){follow} {{\n"
-                   f"  #zen-library-button .zen-library-sprite::before {{ background-image: {url['library', value]} !important; }}\n"
+                   f"  :root {{ --zzicon-library-image: {url['library', value]} !important; }}\n"
                    f"  #zen-library-button:hover > .zen-library-sprite{OWN} {{ {STILL_MOTION} }}\n}}")
     write_targets()
     css += motion_css()

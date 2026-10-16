@@ -1,6 +1,6 @@
 # Glassflow Library
 
-For Zen's Library (Zen 1.23b and later): it can float the Library over the
+For Zen's Library (Zen 1.23.2b and later): it can float the Library over the
 page, changes the recent-downloads list above the Library button, and styles
 the space cards in the Spaces view.
 
@@ -43,6 +43,8 @@ video preview steps aside for it.
 
 Rows past Zen's four open their download on click, like Zen's; they have no
 right-click menu and can't be dragged out.
+Blocked downloads use Zen's native confirmation and verdict text, including
+the extra rows. Nothing is unblocked or opened before the native prompt allows it.
 
 ## Space cards
 

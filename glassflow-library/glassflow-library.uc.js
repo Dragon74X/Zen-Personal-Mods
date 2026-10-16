@@ -175,6 +175,8 @@
       DownloadsViewUI: "moz-src:///browser/components/downloads/DownloadsViewUI.sys.mjs",
       DownloadUtils: "resource://gre/modules/DownloadUtils.sys.mjs",
       BrowserUtils: "resource://gre/modules/BrowserUtils.sys.mjs",
+      blockedText: "moz-src:///zen/library/ZenLibraryUtils.sys.mjs",
+      confirmUnblock: "moz-src:///zen/library/ZenLibraryUtils.sys.mjs",
     });
     view = {
       onDownloadBatchStarting() { inBatch = true; },
@@ -206,6 +208,8 @@
       return join(lazy.DownloadsViewUI.getSizeWithUnits(download), host, lazy.DownloadUtils.getReadableDates(new Date(download.endTime))[0]);
     }
     if (download.canceled && download.hasPartialData) return join(strings.statePaused, lazy.DownloadUtils.getTransferTotal(download.currentBytes, total));
+    if (download.error?.becauseBlockedByParentalControls) return strings.stateBlockedParentalControls;
+    if (download.error?.becauseBlockedByReputationCheck) return lazy.blockedText(download);
     return download.canceled ? strings.stateCanceled : strings.stateFailed;
   }
   function makeRow() {
@@ -220,6 +224,10 @@
     row.addEventListener("click", event => {
       const download = row.download;
       if (event.button !== 0 || !download?.stopped) return;
+      if (download.error?.becauseBlockedByReputationCheck) {
+        lazy.confirmUnblock(download, window, d => lazy.DownloadsCommon.openDownload(d));
+        return;
+      }
       if (download.succeeded) lazy.DownloadsCommon.openDownload(download).catch(console.error);
       else if (download.source?.url) window.openTrustedLinkIn(download.source.url, "tab");
     });

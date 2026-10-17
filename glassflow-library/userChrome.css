@@ -96,9 +96,9 @@ zen-library[zzlib-float="centre"] {
    (Zen builds four, the script adds older ones above), their order, their
    size and the box behind them are here.
    ============================================================ */
-@media (-moz-pref("zzlib.stack.count", 1)) { #zen-library-download-list > :nth-last-child(n + 2) { display: none !important; } }
-@media (-moz-pref("zzlib.stack.count", 2)) { #zen-library-download-list > :nth-last-child(n + 3) { display: none !important; } }
-@media (-moz-pref("zzlib.stack.count", 3)) { #zen-library-download-list > :nth-last-child(n + 4) { display: none !important; } }
+@media (-moz-pref("zzlib.stack.count", 1)) { #zen-library-download-list > :nth-last-child(n + 2 of :not([hidden])) { display: none !important; } }
+@media (-moz-pref("zzlib.stack.count", 2)) { #zen-library-download-list > :nth-last-child(n + 3 of :not([hidden])) { display: none !important; } }
+@media (-moz-pref("zzlib.stack.count", 3)) { #zen-library-download-list > :nth-last-child(n + 4 of :not([hidden])) { display: none !important; } }
 
 @media (-moz-pref("zzlib.stack.order", 1)) {
   #zen-library-download-list { flex-direction: column-reverse !important; }

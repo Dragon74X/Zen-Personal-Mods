@@ -36,7 +36,7 @@ Icon sets and hover motion for [Zen Browser](https://zen-browser.app/).
     like a spring, with a slower, longer settle (Linger). Parts that move fast leave smooth trails that stretch
     with their speed. Lines morph into one another rather than fading.
   - No full circles (arcs are always open), clock faces or five-point stars.
-- **Circuit: clean**: the same shapes, functions and spring motion, with Library-like restrained fills, crisp lines, no glass sheen, neon halo or hover glow. Saved bookmarks retain their stronger fill. Choose it under **Icon set**; switch back to **Circuit: glass and neon** at any time. Explicit per-button choices keep their own style.
+- **Circuit: clean**: the same functions and spring motion, with solid arrow strokes and bars, one-frame window controls, and Library-like restrained panel fills. No glass sheen, neon halo or hover glow. Saved bookmarks retain their stronger fill. Choose it under **Icon set**; switch back to **Circuit: glass and neon** at any time. Explicit per-button choices keep their own style.
 - **Glass behind buttons**: plates made like Glassflow's window buttons,
   while hovered or always.
 - **Hover motion** for whole buttons, with any icon set: close buttons,

@@ -43,9 +43,14 @@ video preview steps aside for it. In compact mode, returning from the list
 to the sidebar cancels a pending auto-hide; leaving for the page still hides
 the sidebar normally.
 
-All rows use Zen's session download list. Rows past Zen's four also show
-download speed, retry stopped downloads, and offer Cancel or Show in Folder.
-They have no right-click menu and can't be dragged out. Requires Zen 1.23.3b.
+Recent downloads include saved history from earlier sessions. Zen keeps its
+four session rows; older entries fill the remaining slots up to the chosen
+count (1–8). History lookup uses Firefox's 42-entry limit. Private windows
+show private-session downloads only.
+
+Added rows show download speed, retry stopped downloads, and offer Cancel or
+Show in Folder. They have no right-click menu and can't be dragged out.
+Zen's four native rows retain their context menus and drag behavior. Requires Zen 1.23.3b.
 Blocked downloads use Zen's native confirmation and verdict text, including
 the extra rows. Nothing is unblocked or opened before the native prompt allows it.
 

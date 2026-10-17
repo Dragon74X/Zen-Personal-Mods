@@ -135,10 +135,23 @@
       compact.clearFlashTimeout("has-hover" + event.target.id);
       window.cancelAnimationFrame(compact._removeHoverFrames?.[event.target.id]);
     }
-    if (letEnter || event.target?.id !== "zen-library-button") return;
+    if (event.target?.id !== "zen-library-button") return;
     const mode = stackMode();
-    if (mode == 0 || (mode == 1 && stackOpen())) return;
-    event.stopImmediatePropagation();
+    if (!letEnter && mode != 0 && !(mode == 1 && stackOpen())) {
+      event.stopImmediatePropagation();
+      return;
+    }
+    watchDownloads();
+    fillExtras();
+    const list = document.getElementById("zen-library-download-list");
+    // Zen opens only with session downloads. History-only rows use the same
+    // stack attributes and its existing mouseleave/close animation.
+    if (!stackOpen() && list?.querySelector(`.${EXTRA}`) &&
+        !list.querySelector(`:scope > .zen-library-download-list-download:not(.${EXTRA}):not([hidden])`)) {
+      const wrapper = document.getElementById("TabsToolbar-customization-target");
+      wrapper.removeAttribute("zen-library-stack-closing");
+      for (const host of [foot(), wrapper]) host.setAttribute("zen-library-stack-open", "true");
+    }
   }
   // On click the button drops Zen's command, so its click arrives here first.
   function syncButton() {
@@ -147,9 +160,13 @@
     if (stackMode() == 1) button.removeAttribute("command");
     else if (!button.hasAttribute("command")) button.setAttribute("command", "cmd_zenToggleLibrary");
   }
-  function onCommand(event) {
+  async function onCommand(event) {
     const button = event.target;
     if (button?.id !== "zen-library-button" || button.hasAttribute("command")) return;
+    watchDownloads();
+    await downloadsReady;
+    if (window[INSTANCE_KEY] !== instance) return;
+    fillExtras();
     const anyShown = document.querySelector("#zen-library-download-list > .zen-library-download-list-download:not([hidden])");
     if (!stackOpen() && anyShown && !Library()?.isLibraryOpen) {
       letEnter = true;
@@ -169,14 +186,14 @@
   window.addEventListener("command", onCommand, true);
   window.addEventListener("mousedown", onDown, true);
 
-  // Zen builds four rows and fills them with the newest downloads. Above
-  // four, older ones get rows of the same make above Zen's, filled here.
+  // Keep Zen's four session rows and fill remaining slots from recent history.
   // ponytail: these extra rows open on click but have no context menu or drag; add both if they are missed.
   const EXTRA = "zzlib-extra";
   let downloads = [], data = null, view = null, inBatch = false;
+  let downloadsReady = Promise.resolve();
   const lazy = {};
   function watchDownloads() {
-    if (view || pref("zzlib.stack.count", 4) <= 4) return;
+    if (window[INSTANCE_KEY] !== instance || view || stackMode() == 2) return;
     ChromeUtils.defineESModuleGetters(lazy, {
       DownloadsCommon: "moz-src:///browser/components/downloads/DownloadsCommon.sys.mjs",
       DownloadsViewUI: "moz-src:///browser/components/downloads/DownloadsViewUI.sys.mjs",
@@ -189,9 +206,17 @@
       retryDownload: "moz-src:///zen/library/ZenLibraryUtils.sys.mjs",
       transferText: "moz-src:///zen/library/ZenLibraryUtils.sys.mjs",
     });
+    let ready;
+    downloadsReady = new Promise(resolve => { ready = resolve; });
     view = {
       onDownloadBatchStarting() { inBatch = true; },
-      onDownloadBatchEnded() { inBatch = false; if (stackOpen()) fillExtras(); },
+      onDownloadBatchEnded() {
+        inBatch = false;
+        fillExtras();
+        ready();
+        const button = document.getElementById("zen-library-button");
+        if (stackMode() == 0 && button?.matches(":hover")) button.dispatchEvent(new MouseEvent("mouseenter"));
+      },
       onDownloadAdded(download, { insertBefore } = {}) {
         const at = insertBefore ? downloads.indexOf(insertBefore) : -1;
         if (at < 0) downloads.push(download); else downloads.splice(at, 0, download);
@@ -204,7 +229,9 @@
         if (stackOpen()) fillExtras();
       },
     };
-    data = lazy.DownloadsCommon.getData(window);
+    // Native limited history caps the query at 42 entries and excludes public
+    // history in private windows (privateAll stays false).
+    data = lazy.DownloadsCommon.getData(window, true, false, true);
     data.addView(view);
   }
   function status(download) {
@@ -262,15 +289,17 @@
     if (inBatch) return;
     const list = document.getElementById("zen-library-download-list");
     if (!list) return;
-    const want = view ? Math.max(0, Math.min(8, pref("zzlib.stack.count", 4)) - 4) : 0;
-    const older = want ? downloads.slice(-want - 4, -4) : [];   // oldest first, like Zen's rows
+    const nativeCount = list.querySelectorAll(`:scope > .zen-library-download-list-download:not(.${EXTRA}):not([hidden])`).length;
+    const want = view ? Math.max(0, Math.min(8, pref("zzlib.stack.count", 4)) - nativeCount) : 0;
+    const end = Math.max(0, downloads.length - nativeCount);
+    const older = want ? downloads.slice(Math.max(0, end - want), end) : []; // bounded slice, oldest first
     const rows = [...list.querySelectorAll(`:scope > .${EXTRA}`)];
     while (rows.length > older.length) rows.shift().remove();
     while (rows.length < older.length) { const row = makeRow(); list.prepend(row); rows.unshift(row); }
     older.forEach((download, i) => {
       const row = rows[i], badge = row.querySelector(".zen-library-download-badge"), pending = !download.stopped || (download.canceled && download.hasPartialData);
       row.download = download;
-      row.style.setProperty("--zen-library-entry-index", older.length - i + 3);   // rises after Zen's four
+      row.style.setProperty("--zen-library-entry-index", older.length - i + nativeCount - 1);
       row.toggleAttribute("downloading", !download.stopped);
       row.toggleAttribute("show-in-folder", !!download.succeeded && !download.deleted && !!download.target.exists);
       document.l10n.setAttributes(row.querySelector(".zen-library-download-action"),
@@ -331,7 +360,7 @@
   const observer = { observe(_s, _t, data) { if (data?.startsWith(PREFIX)) { write(data); try { onSetting(data); } catch (e) { console.error(e); } } } };
   const sideObserver = { observe() { replace(); } };
   writeAll();
-  seedDefaults().catch(() => {});
+  seedDefaults().then(watchDownloads).catch(() => {});
   syncButton();
   Services.prefs.addObserver(PREFIX, observer);
   Services.prefs.addObserver("zen.tabs.vertical.right-side", sideObserver);

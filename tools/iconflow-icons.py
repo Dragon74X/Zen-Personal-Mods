@@ -178,15 +178,18 @@ def shape(d):
 
 
 LINE = [False]   # line art: outlines only, no glass body, sheen or halo
-CLEAN = [False]  # same geometry and motion; restrained fill, no sheen or halo
+CLEAN = [False]  # flat glyphs and restrained panel fills; no sheen or halo
 
 
-def glass(d, lit=0.0, trace=None, body=0.16):
+def glass(d, lit=0.0, trace=None, body=0.16, clean_fill=None):
     """Glass body: fill, sheen, rim. lit brightens it; trace (0..1) runs a light round the rim."""
     i, out = shape(d)
     if LINE[0]:
         return out + f"<use href='#{i}' stroke-width='1.5'/>"
     if CLEAN[0]:
+        # Narrow glyphs are strokes, not hollow glass ribbons with two rims.
+        if clean_fill is not None:
+            return out + f"<use href='#{i}' fill='context-fill' fill-opacity='{n(clean_fill)}' stroke='none'/>"
         # Library's restrained plate fills, with saved/active fills kept distinct.
         return out + (f"<use href='#{i}' fill='context-fill' fill-opacity='{n(body + 0.08 * lit)}' "
                       "stroke-width='1.25'/>")
@@ -227,7 +230,7 @@ def c_back(t, flip=False):
     # A glass blade that dashes out, blurring while it moves fast, then settles.
     dx = lambda tt: 0.5 * bump(span(tt, 0, 0.2)) - 1.7 * ease_out_back(span(tt, 0.1, 1), 2)
     out = blur(lambda tt: glass(blade(5.2 + dx(tt), 9, 5.6, 5.8, 2.6), body=0.12), dx, t)
-    out += glass(blade(5.2 + dx(t), 9, 5.6, 5.8, 2.6), lit=bump(t), trace=t)
+    out += glass(blade(5.2 + dx(t), 9, 5.6, 5.8, 2.6), lit=bump(t), trace=t, clean_fill=1)
     return g(out, "matrix(-1 0 0 1 18 0)") if flip else out
 
 
@@ -286,7 +289,7 @@ def c_dots(t):
     for i, x in enumerate((3.8, 9, 14.2)):
         e = bump(span(t, i * 0.15, i * 0.15 + 0.55))
         y = 9 - 1.4 * e
-        out += glass(rpoly([(x, y - 2.2), (x + 2.2, y), (x, y + 2.2), (x - 2.2, y)], 0.55), lit=e, body=0.35)
+        out += glass(rpoly([(x, y - 2.2), (x + 2.2, y), (x, y + 2.2), (x - 2.2, y)], 0.55), lit=e, body=0.35, clean_fill=1)
     return out
 
 
@@ -295,10 +298,10 @@ def c_sidebar(t, expand=False):
     if expand:
         x = 6.4 + 1.4 * ease_out_back(t, 2)
         dx = 0.9 * ease_out_back(span(t, 0.15, 1), 2)
-        return glass(frame, trace=t) + tube(f"M{n(x)} 4V14") + glass(blade(10.2 + 2.7 + dx, 9, -2.2, 2.4, 1.4, flip=False), lit=bump(t), body=0.4)
+        return glass(frame, trace=t) + tube(f"M{n(x)} 4V14") + glass(blade(10.2 + 2.7 + dx, 9, -2.2, 2.4, 1.4, flip=False), lit=bump(t), body=0.4, clean_fill=1)
     x = 7.4 - 2 * ease_out_back(t, 2)
     w = max(0.0, x - 5.6)
-    ticks = tube(f"M4 6.4H{n(4 + w)}M4 9H{n(4 + w)}") if w > 0.2 else ""
+    ticks = tube(f"M4 6.4H{n(4 + w)}M4 9H{n(4 + w)}") if w > 0.2 and not CLEAN[0] else ""
     return glass(frame, trace=t) + tube(f"M{n(x)} 4V14", lit=bump(t)) + ticks
 
 
@@ -312,7 +315,7 @@ def c_sliders(t):
     for y, a, b in ((6, 11.6, 6.4), (12, 6.4, 11.6)):
         k = a + (b - a) * e
         out += tube(f"M2.6 {y}H{n(k - 2.4)}M{n(k + 2.4)} {y}H15.4")
-        out += glass(rpoly([(k, y - 2), (k + 2, y), (k, y + 2), (k - 2, y)], 0.55), lit=bump(t), body=0.3)
+        out += glass(rpoly([(k, y - 2), (k + 2, y), (k, y + 2), (k - 2, y)], 0.55), lit=bump(t), body=0.3, clean_fill=1)
     return out
 
 
@@ -365,7 +368,7 @@ def c_share(t):
                          f"L{n(q[0] - 2.4 * (q[0] - pts[0][0]) / ((q[0] - pts[0][0]) ** 2 + (q[1] - pts[0][1]) ** 2) ** 0.5)} "
                          f"{n(q[1] - 2.4 * (q[1] - pts[0][1]) / ((q[0] - pts[0][0]) ** 2 + (q[1] - pts[0][1]) ** 2) ** 0.5)}", trace=t)
                     for q in pts[1:])
-    return links + "".join(glass(hexa(x, y), lit=bump(t), body=0.3) for x, y in pts)
+    return links + "".join(glass(hexa(x, y), lit=bump(t), body=0.3, clean_fill=1) for x, y in pts)
 
 
 def c_screenshot(t):
@@ -377,42 +380,42 @@ def c_screenshot(t):
                f"M{n(a + L)} {n(b)}H{n(a + 1.2)}Q{n(a)} {n(b)} {n(a)} {n(b - 1.2)}V{n(b - L)}")
     r = 1.8 + 0.7 * ease_out_back(span(t, 0.2, 1))
     dia = rpoly(turn([(9, 9 - r), (9 + r, 9), (9, 9 + r), (9 - r, 9)], 90 * ease_out_back(span(t, 0.1, 1))), 0.5)
-    return tube(corners, lit=bump(t)) + glass(dia, lit=bump(t), body=0.35)
+    return tube(corners, lit=bump(t)) + glass(dia, lit=bump(t), body=0.35, clean_fill=1)
 
 
 def c_overflow(t):
     out = ""
     for i, x in enumerate((3.4, 8.6)):
         dx = 1.4 * bump(span(t, i * 0.12, i * 0.12 + 0.6)) + 0.4 * ease_out(span(t, 0.5, 1))
-        out += glass(blade(x + 5 + dx, 9, -4.2, 4.6, 2.2), lit=bump(span(t, i * 0.12, i * 0.12 + 0.6)))
+        out += glass(blade(x + 5 + dx, 9, -4.2, 4.6, 2.2), lit=bump(span(t, i * 0.12, i * 0.12 + 0.6)), clean_fill=1)
     return out
 
 
 def c_chevron(t):
     dx = 1.6 * bump(span(t, 0, 0.6)) + 0.5 * ease_out(span(t, 0.45, 1))
-    return glass(blade(12.6 + dx, 9, -5, 5.4, 2.5), lit=bump(t), trace=t)
+    return glass(blade(12.6 + dx, 9, -5, 5.4, 2.5), lit=bump(t), trace=t, clean_fill=1)
 
 
 def c_dart(t):
     dy = 1.6 * bump(span(t, 0, 0.6)) + 0.5 * ease_out(span(t, 0.45, 1))
     chev = rpoly([(3.6, 5 + dy), (9, 10.4 + dy), (14.4, 5 + dy), (14.4, 7.6 + dy), (9, 13 + dy), (3.6, 7.6 + dy)], 0.85)
-    return glass(chev, lit=bump(t))
+    return glass(chev, lit=bump(t), clean_fill=1)
 
 
 def c_play(t):
     k = 1 + 0.1 * bump(span(t, 0, 0.7))
     dx = 0.6 * ease_out_back(t, 2)
-    return glass(rpoly(move(scale([(5.4, 3.4), (14.6, 9), (5.4, 14.6)], k, 9.5, 9), dx), 1.3), lit=bump(t), trace=t)
+    return glass(rpoly(move(scale([(5.4, 3.4), (14.6, 9), (5.4, 14.6)], k, 9.5, 9), dx), 1.3), lit=bump(t), trace=t, clean_fill=1)
 
 
 def c_pause(t):
     sq = 1 - 0.18 * bump(t)
-    return "".join(glass(chamfer(x, 9 - 5.4 * sq, 3.2, 10.8 * sq, 0.9, 0.5), lit=bump(t)) for x in (4.4, 10.4))
+    return "".join(glass(chamfer(x, 9 - 5.4 * sq, 3.2, 10.8 * sq, 0.9, 0.5), lit=bump(t), clean_fill=1) for x in (4.4, 10.4))
 
 
 def c_skip(t, flip=False):
     dx = 1.2 * bump(span(t, 0, 0.6)) + 0.4 * ease_out(span(t, 0.45, 1))
-    out = glass(rpoly(move([(3.4, 4), (11, 9), (3.4, 14)], dx), 1.1), lit=bump(t)) + glass(chamfer(12.6 + dx * 0.5, 4, 2.4, 10, 0.7, 0.4), lit=bump(t))
+    out = glass(rpoly(move([(3.4, 4), (11, 9), (3.4, 14)], dx), 1.1), lit=bump(t), clean_fill=1) + glass(chamfer(12.6 + dx * 0.5, 4, 2.4, 10, 0.7, 0.4), lit=bump(t), clean_fill=1)
     return g(out, "matrix(-1 0 0 1 18 0)") if flip else out
 
 
@@ -444,7 +447,7 @@ def c_muted(t):
 def c_pip(t):
     e = ease_out_back(t, 1.8)
     x, y = 9.2 - 5.4 * e, 9 - 4.4 * e
-    return glass(chamfer(1.8, 2.8, 14.4, 12.4, 2.2), trace=t) + glass(chamfer(x, y, 5.2, 4, 1, 0.45), lit=1, body=0.45)
+    return glass(chamfer(1.8, 2.8, 14.4, 12.4, 2.2), trace=t) + glass(chamfer(x, y, 5.2, 4, 1, 0.45), lit=1, body=0.45, clean_fill=0.55)
 
 
 def peek(step):
@@ -643,8 +646,8 @@ def c_developer(t):
     # Slim blades push apart round a slash that tilts and lights.
     d = 0.9 * ease_out_back(t, 2)
     slash = g(tube("M10 5.4L8 12.6", lit=bump(t)), f"rotate({n(10 * bump(t))} 9 9)")
-    return (glass(blade(2.4 - d, 9, 3, 4, 1.35), lit=bump(t), body=0.3)
-            + glass(blade(15.6 + d, 9, 3, 4, 1.35, flip=True), lit=bump(t), body=0.3) + slash)
+    return (glass(blade(2.4 - d, 9, 3, 4, 1.35), lit=bump(t), body=0.3, clean_fill=1)
+            + glass(blade(15.6 + d, 9, 3, 4, 1.35, flip=True), lit=bump(t), body=0.3, clean_fill=1) + slash)
 
 
 def c_new_window(t):
@@ -659,7 +662,7 @@ def c_fullscreen(t):
     e = ease_out_back(t, 1.6)
     w, h = 4.4 + 6.4 * e, 3.4 + 5.6 * e
     return (tube(chamfer(2.4, 3.4, 13.2, 11.2, 1.8, 0.7))
-            + glass(chamfer(3.6, 13.4 - h, w, h, 1.1, 0.5), lit=bump(t), trace=t, body=0.3))
+            + glass(chamfer(3.6, 13.4 - h, w, h, 1.1, 0.5), lit=bump(t), trace=t, body=0.3, clean_fill=0.4))
 
 
 def c_account(t):
@@ -673,7 +676,7 @@ def c_app_menu(t):
     # Three glass bars, a panel's rows, spread apart while a light runs round the top one.
     gap = 1.1 * ease_out_back(t, 2.2)
     bar = lambda y, lit=0.0, trace=None: glass(rpoly([(2.6, y - 1.2), (15.4, y - 1.2), (15.4, y + 1.2), (2.6, y + 1.2)], 1.1),
-                                               lit=lit, trace=trace, body=0.2)
+                                               lit=lit, trace=trace, body=0.2, clean_fill=1)
     return bar(13.4 + gap) + bar(9) + bar(4.6 - gap, bump(t), t)
 
 
@@ -683,6 +686,11 @@ def c_compact(t):
     e = ease_out_back(t, 1.6)
     side = max(0.8, 3.8 - 2.9 * e)                # narrows to a sliver, never vanishes
     out = glass(chamfer(1.8, 3, 14.4, 12, 2, 0.7), trace=t, body=0.08)
+    if CLEAN[0]:
+        # One window boundary and one moving divider, without inset frames.
+        pane = P(chamfer(2.5, 3.7, side + 0.5, 10.6, 0.7, 0.35),
+                 " fill='context-fill' fill-opacity='.2' stroke='none'")
+        return out + pane + tube(f"M{n(3 + side)} 3.7V14.3")
     out += glass(chamfer(3, 4.3, side, 9.4, 0.7, 0.35), lit=bump(t), body=0.35)
     left = 3 + side + 0.8
     return out + glass(chamfer(left, 4.3, 15 - left, 9.4, 1, 0.45), body=0.18)
@@ -717,7 +725,7 @@ def c_history(t):
     out = tube("M5 3V15")
     for py in (3.6, 8.2, 12.8):
         passed = clamp((py + 1.4 - y) / 2.4) if t > 0 else 0
-        out += glass(chamfer(7.4, py - 1.3, 7.8, 3, 1.2), lit=passed * bump(span(t, 0, 1)) + 0.0, body=0.15 + 0.15 * passed)
+        out += glass(chamfer(7.4, py - 1.3, 7.8, 3, 1.2), lit=passed * bump(span(t, 0, 1)) + 0.0, body=0.15 + 0.15 * passed, clean_fill=0.55 + 0.45 * passed)
     return out + gem(_diamond(5, y, 1.15))
 
 
@@ -822,7 +830,7 @@ def _diamond(x, y, k):
 
 def gem(d):
     """A small solid glass shape, for things that orbit."""
-    return glass(d, lit=1, body=0.62)
+    return glass(d, lit=1, body=0.62, clean_fill=1)
 
 
 def taper(r, a0, a1, width, alpha, steps=18, cx=9, cy=9, paint="context-fill"):

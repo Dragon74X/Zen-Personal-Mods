@@ -41,8 +41,9 @@ The list that rises above the Library button.
 While the list is up it sits above the rest of the sidebar. Mediaflow's
 video preview steps aside for it.
 
-Rows past Zen's four open their download on click, like Zen's; they have no
-right-click menu and can't be dragged out.
+All rows use Zen's session download list. Rows past Zen's four also show
+download speed, retry stopped downloads, and offer Cancel or Show in Folder.
+They have no right-click menu and can't be dragged out. Requires Zen 1.23.3b.
 Blocked downloads use Zen's native confirmation and verdict text, including
 the extra rows. Nothing is unblocked or opened before the native prompt allows it.
 

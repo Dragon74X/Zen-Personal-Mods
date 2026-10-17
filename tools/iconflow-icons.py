@@ -178,6 +178,7 @@ def shape(d):
 
 
 LINE = [False]   # line art: outlines only, no glass body, sheen or halo
+CLEAN = [False]  # same geometry and motion; restrained fill, no sheen or halo
 
 
 def glass(d, lit=0.0, trace=None, body=0.16):
@@ -185,6 +186,10 @@ def glass(d, lit=0.0, trace=None, body=0.16):
     i, out = shape(d)
     if LINE[0]:
         return out + f"<use href='#{i}' stroke-width='1.5'/>"
+    if CLEAN[0]:
+        # Library's restrained plate fills, with saved/active fills kept distinct.
+        return out + (f"<use href='#{i}' fill='context-fill' fill-opacity='{n(body + 0.08 * lit)}' "
+                      "stroke-width='1.25'/>")
     out += (f"<use href='#{i}' fill='context-fill' fill-opacity='{n(body + 0.3 * lit)}' stroke='none'/>"
             f"<use href='#{i}' fill='url(#sheen)' stroke='none'/>"
             f"<use href='#{i}' stroke-width='1.25' stroke-opacity='{n(0.85 + 0.15 * lit)}'/>")
@@ -198,8 +203,8 @@ def tube(d, lit=0.0, trace=None):
     """Neon tube: a bright core and a soft wide halo. The halo is painted with
     context-stroke, so the Soft glow setting can turn it off from CSS."""
     i, out = shape(d)
-    if LINE[0]:
-        return out + f"<use href='#{i}' stroke-width='1.5'/>"
+    if LINE[0] or CLEAN[0]:
+        return out + f"<use href='#{i}' stroke-width='{1.5 if LINE[0] else 1.45}'/>"
     out += (f"<use href='#{i}' stroke='context-stroke' stroke-width='2.8' stroke-opacity='{n(0.22 + 0.2 * lit)}'/>"
             f"<use href='#{i}' stroke-width='1.45'/>")
     if trace is not None and 0.02 < trace < 0.98:
@@ -828,7 +833,7 @@ def taper(r, a0, a1, width, alpha, steps=18, cx=9, cy=9, paint="context-fill"):
     seams. (The gradient runs along the chord, which follows the arc closely
     for the short arcs of tails and trails.)"""
     us = [i / steps for i in range(steps + 1)]
-    if max(alpha(u) for u in us) < 0.02:
+    if (CLEAN[0] and paint == "context-stroke") or max(alpha(u) for u in us) < 0.02:
         return ""
     at = lambda u, side=0: (cx + (r + side * width(u) / 2) * cos(radians(a0 + (a1 - a0) * u)),
                             cy + (r + side * width(u) / 2) * sin(radians(a0 + (a1 - a0) * u)))
@@ -879,7 +884,7 @@ def taper_tube(r, a0, a1, lit=0.0, trace=None, cx=9, cy=9, comet=False):
         k = lambda u: ease_in_out(clamp(min(u, 1 - u) / 0.24))   # 0 at the ends, 1 along the middle
     out = (taper(r, a0, a1, lambda u: 2.8 * (0.35 + 0.65 * k(u)), lambda u: (0.22 + 0.2 * lit) * k(u), 20, cx, cy, "context-stroke")
            + taper(r, a0, a1, lambda u: (1.6 + 1.4 * k(u)) * min(1, u / 0.08 + 0.35) if comet else (0.3 + 1.15 * k(u)), lambda u: (0.8 + 0.2 * k(u)) if comet else (0.3 + 0.7 * k(u)), 20, cx, cy))
-    if trace is not None and 0.02 < trace < 0.98:
+    if not CLEAN[0] and trace is not None and 0.02 < trace < 0.98:
         out += (f"<path d='{arc(r, a0, a1, cx, cy)}' pathLength='100' stroke-width='2.1' stroke-dasharray='22 78' "
                 f"stroke-dashoffset='{n(-100 * ease_in_out(trace))}' stroke-opacity='{n(0.9 * bump(trace))}'/>")
     return out
@@ -891,7 +896,7 @@ def trail(r, angle, t, back=0.07, cx=9, cy=9):
     grows with speed, turns round when the motion does and is gone at rest.
     Thin and faint at its far end, building to the moving shape."""
     a0, a1 = angle(t - back), angle(t)
-    if abs(a1 - a0) < 4:
+    if CLEAN[0] or abs(a1 - a0) < 4:
         return ""
     return taper(r, a0, a1, lambda u: 0.15 + 1.25 * u ** 1.3, lambda u: 0.75 * u ** 1.6, 12, cx, cy)
 
@@ -912,7 +917,7 @@ def blur(shape_at, pos, t, dt=0.035, scale=1.2):
     pos(t) is how far along it is (in grid units), so the copies follow every
     overshoot and fall-back exactly."""
     speed = clamp(abs(pos(t) - pos(t - 3 * dt)) / scale)
-    if speed < 0.12:
+    if CLEAN[0] or speed < 0.12:
         return ""
     return "".join(f"<g opacity='{n(speed * (0.32 - 0.09 * i))}'>{shape_at(t - (i + 1) * dt)}</g>" for i in range(3))
 
@@ -990,7 +995,7 @@ LIBRARY = {2: ("Still line icon", lambda t: lib_layers(0)), 3: ("Layers", lib_la
            5: ("Focus", lib_focus), 6: ("Grid", lib_grid), 7: ("Chevrons", lib_chevrons), 8: ("Orbit", lib_orbit),
            9: ("Split", lib_split), 10: ("Pulse", lib_pulse)}
 LIBRARY[12] = ("Circuit stack", lib_circuit)
-FOLLOW_LIBRARY = {2: 12}   # what "Follow the icon set" shows with Circuit
+FOLLOW_LIBRARY = {2: 12, 3: 12}   # what "Follow the icon set" shows with Circuit
 
 
 # ---- Zen's own, animated --------------------------------------------------------
@@ -1391,7 +1396,7 @@ def parents(hovers):
     return ", ".join(out)
 
 OWN = ":not(#zzicon-own)"   # an id's weight, so this outranks the motion rules' :not(#id) lists
-SET, ANIMATED, STILL = 2, 4, 5   # zzicon.set value for Circuit; per-button overrides
+SET, CLEAN_SET, ANIMATED, STILL = 2, 3, 4, 5   # zzicon.set value for Circuit; per-button overrides
 RELOAD_STYLES = {1: ("Twin comets", c_reload_comets)}   # zzicon.reload.style; 0 is Orbit pair
 
 
@@ -1413,7 +1418,7 @@ LINED = 7                                              # per-button: Circuit, li
 
 def uses(key):
     k = SETTING.get(key, key)
-    return (f'((-moz-pref("zzicon.set", {SET})) and (-moz-pref("zzicon.button.{k}", 0))) or '
+    return (f'(((-moz-pref("zzicon.set", {SET})) or (-moz-pref("zzicon.set", {CLEAN_SET}))) and (-moz-pref("zzicon.button.{k}", 0))) or '
             f'(-moz-pref("zzicon.button.{k}", {ANIMATED})) or (-moz-pref("zzicon.button.{k}", {STILL}))'
             + (f' or (-moz-pref("zzicon.button.{k}", {LINED}))' if key in LINE_KEYS else ""))
 
@@ -1428,7 +1433,11 @@ def main():
         old.unlink()
     url = {}
     for key, (_, draw, _) in TOOLBAR.items():
-        url[key] = save(f"icons/circuit/{key}.svg", strip(draw, 1 if key in CSS_MOTION else FRAMES, fit(draw, FRAMES)))
+        frames, zoom = 1 if key in CSS_MOTION else FRAMES, fit(draw, FRAMES)
+        url[key] = save(f"icons/circuit/{key}.svg", strip(draw, frames, zoom))
+        CLEAN[0] = True
+        url[key, "clean"] = save(f"icons/clean/{key}.svg", strip(draw, frames, zoom))
+        CLEAN[0] = False
     LINE[0] = True
     for key in LINE_KEYS:
         draw = TOOLBAR[key][1]
@@ -1448,7 +1457,7 @@ def main():
             css.append(f"/* {label}: moved by CSS */\n@media {uses(key)} {{\n"
                        f"  {', '.join(i + OWN for i, _ in targets)} {{\n    list-style-image: var(--zzicon-blank) !important;\n"
                        f"    -moz-context-properties: fill, fill-opacity, stroke !important;\n    stroke: var(--zzicon-halo, currentColor) !important;\n"
-                       f"    background-image: {url[key]} !important;\n    background-size: 100% 100% !important;\n"
+                       f"    mask: none !important; background-color: transparent !important;\n    background-image: {url[key]} !important;\n    background-size: 100% 100% !important;\n"
                        f"    background-position: 0 0 !important;\n    background-repeat: no-repeat !important;\n"
                        f"    background-origin: content-box !important;\n    background-clip: content-box !important;\n"
                        f"    animation: none !important; transform: none !important;\n"
@@ -1462,7 +1471,7 @@ def main():
         css.append(f"/* {label} */\n@media {uses(key)} {{\n"
                    f"  {icons} {{\n    list-style-image: var(--zzicon-blank) !important;\n"
                    f"    -moz-context-properties: fill, fill-opacity, stroke !important;\n    stroke: var(--zzicon-halo, currentColor) !important;\n"
-                   f"    background-image: {url[key]} !important;\n"
+                   f"    mask: none !important; background-color: transparent !important;\n    background-image: {url[key]} !important;\n"
                    f"    background-size: {FRAMES * 100}% 100% !important;\n"
                    f"    background-position: calc(var(--zzicon-frame) * 100% / {FRAMES - 1}) 0 !important;\n"
                    f"    background-repeat: no-repeat !important;\n"
@@ -1480,7 +1489,11 @@ def main():
                    f"  {icons} {{ background-image: {url[key, 'line']} !important; }}\n}}")
     icons = ", ".join(i for i, _ in TOOLBAR["reload"][2])
     for value, (label, draw) in RELOAD_STYLES.items():
-        rel = save(f"icons/circuit/reload-{value}.svg", strip(draw, FRAMES, fit(draw, FRAMES)))
+        zoom = fit(draw, FRAMES)
+        rel = save(f"icons/circuit/reload-{value}.svg", strip(draw, FRAMES, zoom))
+        CLEAN[0] = True
+        url["reload", value, "clean"] = save(f"icons/clean/reload-{value}.svg", strip(draw, FRAMES, zoom))
+        CLEAN[0] = False
         css.append(f"/* Reload: {label} */\n@media ({uses('reload')}) and (-moz-pref(\"zzicon.reload.style\", {value})) {{\n"
                    f"  {icons} {{ background-image: {rel} !important; }}\n}}")
     for value, (label, _) in LIBRARY.items():
@@ -1511,6 +1524,19 @@ def main():
         css.append(f"/* Library: {label} */\n@media (-moz-pref(\"zzicon.library.style\", {value})){follow} {{\n"
                    f"  #zen-library-button .zen-library-sprite::before {{ background-image: {url['library', value]} !important; }}\n"
                    f"  #zen-library-button:hover > .zen-library-sprite{OWN} {{ {STILL_MOTION} }}\n}}")
+    # A finish variant shares all shape, sizing, timing and reduced-motion rules.
+    for key, (_, _, targets) in TOOLBAR.items():
+        k = SETTING.get(key, key)
+        icons = ", ".join(i + OWN for i, _ in targets)
+        if key == "downloads": icons += ", .zen-download-box-animation-icon" + OWN
+        css.append(f'@media (-moz-pref("zzicon.set", {CLEAN_SET})) and (-moz-pref("zzicon.button.{k}", 0)) {{\n'
+                   f'  {icons} {{ background-image: {url[key, "clean"]} !important; --zzicon-circuit-glow: none; }}\n}}')
+        if key == "reload":
+            for value in RELOAD_STYLES:
+                css.append(f'@media (-moz-pref("zzicon.set", {CLEAN_SET})) and (-moz-pref("zzicon.button.{k}", 0)) and (-moz-pref("zzicon.reload.style", {value})) {{\n'
+                           f'  {icons} {{ background-image: {url["reload", value, "clean"]} !important; }}\n}}')
+    css.append(f'@media (-moz-pref("zzicon.set", {CLEAN_SET})) and (-moz-pref("zzicon.library.style", 11)) {{\n'
+               f'  #zen-library-button .zen-library-sprite::before {{ background-image: {url["firefox-library", "clean"]} !important; --zzicon-circuit-glow: none; }}\n}}')
     write_targets()
     css += motion_css()
     css += zen_css()

@@ -63,6 +63,69 @@ class Marionette:
         return Image.open(io.BytesIO(base64.b64decode(data))).convert("RGB")
 
 
+def check_icons(m, root):
+    # Use Sine's chrome mapping and Gecko's default SVG policy. A data/file
+    # sprite can decode successfully yet lose all contextual fill or stroke.
+    m.script("return gZenStartup.promiseInitialized.then(()=>true);")
+    m.script("""Services.prefs.setBoolPref('svg.context-properties.content.enabled',false);
+      Services.prefs.setBoolPref('zzicon.animate',true);Services.prefs.setIntPref('zzicon.set',0);
+      const ss=Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService);
+      window.zzsmokeIconCSS=Services.io.newURI('chrome://sine/content/zz-iconflow/userChrome.css');
+      ss.loadAndRegisterSheet(zzsmokeIconCSS,ss.USER_SHEET);return true;""")
+    m.script((root / 'iconflow/iconflow-parts.uc.js').read_text() + '\nreturn true;')
+    info = m.script("""return (async()=>{
+      const selectors=['#back-button .toolbarbutton-icon','#reload-button .toolbarbutton-icon',
+        '#PanelUI-menu-button .toolbarbutton-icon','#tabs-newtab-button .toolbarbutton-icon'];
+      for(let i=0;i<100 && !selectors.every(s=>document.querySelector(s)?.hasAttribute('zzicon-own'));i++)
+        await new Promise(r=>setTimeout(r,50));
+      const native=selectors.map(s=>getComputedStyle(document.querySelector(s)).backgroundImage);
+      if(native.some(s=>!s.includes('resource://zz-iconflow-')))throw new Error('Native icon cache missing: '+JSON.stringify(native));
+      window.zzsmokeIconNative=native;
+      Services.prefs.setIntPref('zzicon.set',2);await new Promise(r=>setTimeout(r,150));
+      const circuit=selectors.map(s=>getComputedStyle(document.querySelector(s)).backgroundImage);
+      if(circuit.some(s=>!s.includes('chrome://sine/content/zz-iconflow/')))throw new Error('Circuit lost chrome scope');
+      Services.prefs.setIntPref('zzicon.set',3);await new Promise(r=>setTimeout(r,150));
+      const clean=selectors.map(s=>getComputedStyle(document.querySelector(s)).backgroundImage);
+      if(clean.some(s=>!s.includes('/icons/clean/')))throw new Error('Clean set not selected: '+JSON.stringify(clean));
+      const cleanSize=selectors.map(s=>getComputedStyle(document.querySelector(s)).backgroundSize);
+      if(cleanSize.join('|')!=='100% 100%|9600% 100%|9600% 100%|100% 100%')throw new Error('Clean frame sizing changed');
+      Services.prefs.setIntPref('zzicon.library.style',11);
+      const library=getComputedStyle(document.querySelector('#zen-library-button .zen-library-sprite'),'::before');
+      if(!library.backgroundImage.includes('/icons/clean/firefox-library.svg') || library.backgroundSize!=='9600% 100%')throw new Error('Library did not follow clean set');
+      const box=document.createElementNS('http://www.w3.org/1999/xhtml','div');
+      box.id='zzsmoke-icons';box.style.cssText='position:fixed;left:400px;top:100px;z-index:2147483647;background:black;display:grid;grid-template-columns:repeat(8,40px);gap:4px;padding:4px;';
+      document.documentElement.append(box);
+      const cells=[];
+      for(const [index,url] of [...native,...circuit,...clean].entries())for(const [width,height] of [[16,16],[24,16],[16,24]])for(const frame of [0,95]){
+        const el=document.createElementNS(box.namespaceURI,'div');el.className='toolbarbutton-1';
+        el.style.cssText=`width:${width}px;height:${height}px;padding:0;background-image:${url};background-size:${index>=4&&(index%4===0||index%4===3)?100:9600}% 100%;background-position:${frame/95*100}% 0;background-repeat:no-repeat;fill:lime;stroke:lime;fill-opacity:1;stroke-opacity:1;-moz-context-properties:fill,fill-opacity,stroke,stroke-opacity;`;
+        box.append(el);cells.push({index,width,height,frame,rect:el.getBoundingClientRect().toJSON()});
+      }
+      await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+      return cells;
+    })();""")
+    pixels = m.shot()
+    for case in info:
+        r = case['rect']
+        crop = pixels.crop((round(r['left']), round(r['top']), round(r['right']), round(r['bottom'])))
+        painted = sum(g > red + 40 and g > b + 40 for red, g, b in crop.get_flattened_data())
+        assert painted >= 8, (case, painted)
+    cleanup = m.script("""return (async()=>{
+      const uri=Services.io.newURI(zzsmokeIconNative[0].slice(5,-2));
+      const res=Services.io.getProtocolHandler('resource').QueryInterface(Ci.nsIResProtocolHandler);
+      const dir=Services.io.newURI(res.resolveURI(uri)).QueryInterface(Ci.nsIFileURL).file.parent.path;
+      await window.__zziconPartsInstance.retire();
+      const clean=!res.hasSubstitution(uri.host) && !await IOUtils.exists(dir);
+      document.getElementById('zzsmoke-icons').remove();
+      Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService).unregisterSheet(zzsmokeIconCSS,1);
+      Services.prefs.clearUserPref('svg.context-properties.content.enabled');
+      Services.prefs.setIntPref('zzicon.set',0);
+      delete window.zzsmokeIconCSS;delete window.zzsmokeIconNative;return clean;
+    })();""")
+    assert cleanup, 'Icon cache survives retirement'
+    return len(info)
+
+
 def check(m, root, arc, transparent):
     mods = ["download-prompt", "glassflow", "glassflow-library", "groupflow", "iconflow", "tab-router", "tab-unloader", "zen-turbo", "mediaflow"]
     prefs = {}
@@ -81,6 +144,7 @@ def check(m, root, arc, transparent):
         prefs["zzturbo.pack-" + pack] = False
     m.script("for (const [k,v] of Object.entries(" + json.dumps(prefs) + ")) {"
              "Services.prefs[typeof v==='boolean'?'setBoolPref':typeof v==='number'?'setIntPref':'setStringPref'](k,v); } return true;")
+    icon_paint_checks = check_icons(m, root)
     page = """<!doctype html><style>html,body{margin:0;background:transparent}
       #pattern{position:fixed;inset:0;background:repeating-linear-gradient(90deg,black 0px 4px,transparent 4px 8px)}
       h1{position:absolute;left:20px;top:250px;font:40px sans-serif;color:red}</style>
@@ -100,7 +164,7 @@ def check(m, root, arc, transparent):
       style.textContent='#titlebar > :not(#zen-toolbar-background){visibility:hidden!important} #zen-toolbar-background::before,#zen-toolbar-background::after{display:none!important}';
       document.body.appendChild(style);
       ss.loadAndRegisterSheet(Services.io.newURI('data:text/css,'+encodeURIComponent(
-        ':root #tabbrowser-tabbox browser {background-color:transparent!important}' +
+        ':root #tabbrowser-tabbox browser {background-color:transparent!important;transition:none!important}' +
         ':root[zzsmoke-opaque] #tabbrowser-tabbox browser {background-color:white!important}')),ss.USER_SHEET);
       return true;""")
     for mod in mods:
@@ -110,11 +174,13 @@ def check(m, root, arc, transparent):
       apis:['DownloadPrompt','Groupflow','TabRouter','TabUnloader','ZenTurbo'].map(k=>[k,!!window[k]]),
       download:DownloadPrompt.status()};""")
     assert all(present for _, present in result["apis"]), result
+    result['iconPaintChecks'] = icon_paint_checks
     def settle():
         m.script("return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))));")
 
     def state():
         return m.script("""const panel=document.getElementById('zen-toolbar-background');return {
+          custom:Services.prefs.getBoolPref("zzglass.sidebar.blur"),native:Services.prefs.getBoolPref("zen.theme.acrylic-sidebar"),
           sidebar:getComputedStyle(panel).backdropFilter,
           page:getComputedStyle(document.getElementById('tabbrowser-tabbox')).filter,
           radius:document.querySelector('#zzg-strip feGaussianBlur').getAttribute('stdDeviation'),
@@ -249,7 +315,7 @@ def check(m, root, arc, transparent):
       for(const id of ['zen-library-button','downloads-button'])document.getElementById(id)?.style.setProperty('display','none','important');
       const host=document.createElement('zen-download-animation');document.body.appendChild(host);
       host.initializeAnimation({clientX:500,clientY:200});return true;""")
-    icon_cases = [(0, button, icon_set) for icon_set in [0, 2] for button in [0, 1, 4, 5, 6, 7]]
+    icon_cases = [(0, button, icon_set) for icon_set in [0, 2, 3] for button in [0, 1, 4, 5, 6, 7]]
     icon_cases += [(library, 7, 2) for library in [1, 8, 12]]
     for library, button, icon_set in icon_cases:
         m.script(f"Services.prefs.setIntPref('zzicon.library.style',{library});Services.prefs.setIntPref('zzicon.button.downloads',{button});Services.prefs.setIntPref('zzicon.set',{icon_set});return true;")
@@ -258,8 +324,8 @@ def check(m, root, arc, transparent):
           const p=getComputedStyle(popup);
           return {popup:p.backgroundImage,size:p.backgroundSize,
             position:p.backgroundPosition,transform:p.transform,animation:p.animationName,filter:p.filter};""")
-        circuit = button in [4, 5, 7] or (button == 0 and icon_set == 2)
-        expected = "circuit/downloads-line.svg" if button == 7 else "circuit/downloads.svg" if circuit else "skin/downloads/downloads.svg"
+        circuit = button in [4, 5, 7] or (button == 0 and icon_set in [2, 3])
+        expected = "clean/downloads.svg" if button == 0 and icon_set == 3 else "circuit/downloads-line.svg" if button == 7 else "circuit/downloads.svg" if circuit else "skin/downloads/downloads.svg"
         assert expected in icons["popup"] and "library" not in icons["popup"], (library, button, icon_set, icons)
         assert icons["size"] == ("9600% 100%" if circuit else "100% 100%"), icons
         assert icons["position"] in ["0px 0px", "0% 0px", "0% 0%"], icons
@@ -271,6 +337,37 @@ def check(m, root, arc, transparent):
       Services.prefs.setIntPref('zzicon.library.style',11);Services.prefs.setIntPref('zzicon.button.downloads',0);Services.prefs.setIntPref('zzicon.set',0);
       return true;""")
     result["downloadPopupIconChecks"] = len(icon_cases)
+    # Native session downloads feed both Zen's four rows and our optional four.
+    # Retry is intercepted on fixture objects; no network download is started.
+    library = m.script("""return (async()=>{
+      const {Downloads}=ChromeUtils.importESModule('resource://gre/modules/Downloads.sys.mjs');
+      const list=await Downloads.getList(Downloads.PUBLIC),downloads=[];
+      Services.prefs.setBoolPref('zen.downloads.download-animation',false);
+      Services.prefs.setIntPref('zzlib.stack.count',8);
+      try {
+        for(let i=0;i<8;i++){
+          const d=await Downloads.createDownload({source:'https://example.invalid/fixture-'+i,
+            target:PathUtils.join(PathUtils.tempDir,'zzsmoke-library-'+i)});
+          d.canceled=true;d.startTime=new Date(Date.now()+i);downloads.push(d);await list.add(d);
+        }
+        document.getElementById('zen-sidebar-foot-buttons').setAttribute('zen-library-stack-open','');
+        await new Promise(r=>setTimeout(r,150));
+        const rows=[...document.querySelectorAll('#zen-library-download-list > .zzlib-extra')];
+        const ordered=rows.length===4 && rows.every((r,i)=>r.download===downloads[i]);
+        let retries=0;downloads[0].start=async()=>{retries++;};
+        rows[0].dispatchEvent(new MouseEvent('click',{button:0}));
+        const action=rows[0].querySelector('.zen-library-download-action');
+        const named=action.getAttribute('data-l10n-id')==='library-downloads-show-tooltip';
+        return {ordered,retries,named};
+      } finally {
+        document.getElementById('zen-sidebar-foot-buttons').removeAttribute('zen-library-stack-open');
+        for(const d of downloads)await list.remove(d);
+        Services.prefs.setIntPref('zzlib.stack.count',4);
+        Services.prefs.clearUserPref('zen.downloads.download-animation');
+      }
+    })();""")
+    assert library == {"ordered": True, "retries": 1, "named": True}, library
+    result["libraryExtraRows"] = library
     m.script("""for(const k of ['__zzdlInstance','__zzglassInstance','__zzgroupInstance','__zzrouterInstance','__zzunloadInstance','__zzturboInstance']) window[k].retire();
       return true;""")
     result["pixelChecks"] = {"stripDifference": ImageStat.Stat(pixel_difference.crop(inside)).mean,
@@ -287,6 +384,12 @@ def main():
     root = Path(__file__).resolve().parent.parent
     with tempfile.TemporaryDirectory(prefix="zen-mod-smoke-") as directory:
         profile = Path(directory)
+        (profile / 'sine-mods').mkdir()
+        for theme in root.glob('*/theme.json'):
+            mod_id = json.loads(theme.read_text())['id']
+            target = profile / 'sine-mods' / mod_id
+            if not target.exists():
+                target.symlink_to(theme.parent, target_is_directory=True)
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0))
             port = sock.getsockname()[1]
@@ -307,6 +410,9 @@ def main():
                             raise RuntimeError("Zen exited: " + (profile / "browser.log").read_text()[-2000:])
                         time.sleep(0.2)
                 m = Marionette(port)
+                m.script("""window.zzsmokeChrome=Cc['@mozilla.org/addons/addon-manager-startup;1']
+                  .getService(Ci.amIAddonManagerStartup).registerChrome(Services.io.newURI(""" +
+                  json.dumps((profile / 'chrome.manifest').as_uri()) + """),[['content','sine','sine-mods/']]);return true;""")
                 print(json.dumps(check(m, root, args.arc, args.transparent), indent=2))
             finally:
                 process.terminate()

@@ -5,7 +5,8 @@
    the rules that swap them in per button, the Library button strips and
    the hover motions. This file holds what is written by hand.
    ============================================================ */
-@import url("icons.css");
+/* Sine imports userChrome.css by file URL. Keep SVG paint in chrome scope. */
+@import url("chrome://sine/content/zz-iconflow/icons.css");
 
 :root {
   /* Circuit icons draw as a background, so the normal icon image is emptied. */

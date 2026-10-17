@@ -71,3 +71,19 @@ test("Closing, cancelling and rewinding turn counterclockwise; opening and addin
   }
   assert.match(source, /"new-tab": \[spin\(90/, "and its plus clockwise");
 });
+
+
+test("Clean Circuit retains every icon's size and states without glass or halo", async () => {
+  const css = await readFile(new URL("../iconflow/icons.css", import.meta.url), "utf8");
+  const paths = [...new Set([...css.matchAll(/url\("(icons\/clean\/[^"]+)"\)/g)].map(m => m[1]))];
+  assert.equal(paths.length, 60);
+  for (const path of paths) {
+    const clean = await readFile(new URL(`../iconflow/${path}`, import.meta.url), "utf8");
+    const neon = await readFile(new URL(`../iconflow/${path.replace("/clean/", "/circuit/")}`, import.meta.url), "utf8");
+    assert.equal(clean.match(/width='\d+' height='\d+'/)[0], neon.match(/width='\d+' height='\d+'/)[0], path);
+    assert.doesNotMatch(clean, /url\(#sheen\)|context-stroke|stroke-dasharray/, path);
+  }
+  const bookmark = await readFile(new URL("../iconflow/icons/clean/bookmark.svg", import.meta.url), "utf8");
+  const saved = await readFile(new URL("../iconflow/icons/clean/bookmarked.svg", import.meta.url), "utf8");
+  assert.ok(+saved.match(/fill-opacity='([^']+)'/)[1] > +bookmark.match(/fill-opacity='([^']+)'/)[1]);
+});

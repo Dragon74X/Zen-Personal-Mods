@@ -486,7 +486,7 @@
         const a = field(p.x, p.y, tau, k, p.part), b = field(p.x, p.y, Math.max(0, tau - 0.045), k, p.part);
         return Math.hypot(a[0] - b[0], a[1] - b[1]);
       }));
-      const keep = [...svg.attributes].filter(at => !["width", "height", "viewBox", "x", "y", "xmlns"].includes(at.name))
+      const keep = [...svg.attributes].filter(at => !["width", "height", "viewBox", "preserveAspectRatio", "x", "y", "xmlns"].includes(at.name))
         .map(at => ` ${at.name}="${at.value.replace(/&/g, "&amp;").replace(/"/g, "&quot;")}"`).join("");
       // Added lines take the artwork's own paint and weight.
       const lined = items.find(it => it.line), add = ADD[key]?.(g);
@@ -499,7 +499,7 @@
         body += `<svg x="${f * W}" y="0" width="${W}" height="${H}" viewBox="${vb.join(" ")}" overflow="hidden">` +
           (ghost ? `<g opacity="${fmt(ghost)}">${frame(Math.max(0, tau - 0.045))}</g>` : "") + frame(tau) + extra(tau) + "</svg>";
       }
-      return `<svg xmlns="http://www.w3.org/2000/svg" width="${W * frames}" height="${H}" viewBox="0 0 ${W * frames} ${H}"${keep}>${defs}${body}</svg>`;
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="${W * frames}" height="${H}" viewBox="0 0 ${W * frames} ${H}" preserveAspectRatio="none"${keep}>${defs}${body}</svg>`;
     }
 
     return { FRAMES, settle, linger, parsePath, writePath, strip, MOTION };
@@ -590,6 +590,21 @@
     return (int(PREFIX + "set") === 0 && b === 0) || b === 6;
   };
   const strips = new Map();   // key + artwork -> strip URL (a promise)
+  // Gecko exposes theme paint to chrome/resource SVGs, not file/data SVGs.
+  // One temporary file per cached strip; no writes during hover or animation.
+  const resource = Services.io.getProtocolHandler("resource").QueryInterface(Ci.nsIResProtocolHandler);
+  const cacheHost = "zz-iconflow-" + Services.uuid.generateUUID().toString().slice(1, -1);
+  const cacheDir = PathUtils.join(PathUtils.tempDir, cacheHost);
+  let cacheReady = null, nextStrip = 0;
+  async function cacheStrip(svg) {
+    const file = `${nextStrip++}.svg`;
+    cacheReady ??= IOUtils.makeDirectory(cacheDir).then(() => {
+      resource.setSubstitution(cacheHost, Services.io.newURI(PathUtils.toFileURI(cacheDir) + "/"));
+    });
+    await cacheReady;
+    await IOUtils.writeUTF8(PathUtils.join(cacheDir, file), svg);
+    return `resource://${cacheHost}/${file}`;
+  }
   async function artwork(url) {
     if (url.startsWith("data:")) {
       const comma = url.indexOf(","), head = url.slice(0, comma), body = url.slice(comma + 1);
@@ -599,6 +614,7 @@
   }
   const imageOf = el => {
     const cs = window.getComputedStyle(el);
+    if (cs.maskImage !== "none") return null; // Preserve mask artwork; CSS still moves the whole icon.
     for (const v of [cs.listStyleImage, cs.backgroundImage]) {
       const m = /^url\("(.+)"\)$/.exec(v || "");
       if (m) return m[1];
@@ -624,7 +640,7 @@
     if (!url || !/\.svg([?#]|$)|^data:image\/svg\+xml/.test(url)) return;
     const id = key + "\n" + url;
     if (!strips.has(id)) strips.set(id, artwork(url)
-      .then(text => "data:image/svg+xml," + encodeURIComponent(IconParts.strip(text, key)))
+      .then(text => cacheStrip(IconParts.strip(text, key)))
       .catch(e => { console.warn("[Iconflow] could not animate", key, url.slice(0, 80), e); return null; }));
     const strip = await strips.get(id);
     // Only the latest request for this element, from a live copy, applies:
@@ -666,12 +682,17 @@
   window.addEventListener("load", () => soon(true), { once: true });
   soon(true);
   instance.retire = () => {
+    if (retired) return;
     retired = true;
     clearTimeout(timer);
     watch.disconnect();
     try { S.removeObserver(PREFIX, observer); } catch {}
     for (const [type, target] of events) try { target.removeEventListener(type, onEvent); } catch {}
     for (const el of document.querySelectorAll("[zzicon-own]")) undress(el);
+    return Promise.allSettled(strips.values()).then(() => {
+      resource.setSubstitution(cacheHost, null);
+      if (cacheReady) return IOUtils.remove(cacheDir, { recursive: true, ignoreAbsent: true });
+    }).catch(console.error);
   };
   window.addEventListener("unload", () => instance.retire(), { once: true });
   try { window.addUnloadListener?.(() => instance.retire()); } catch {}   // Sine disable or update

@@ -49,7 +49,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzicon.set",
-    "label": "Icon set *Zen's own keeps Zen's icons, or New Icons' if that mod is installed, and moves each to a pose of its own on hover: reload turns, back slides left, downloads drop. Circuit is high-tech glass: chamfered shapes with every corner rounded, a translucent body with a sheen and rim, and neon-tube lines, drawn and animated frame by frame. Either way, motion builds up, overshoots and settles, and plays back when the pointer leaves. Each button can differ from the set under Each button.*",
+    "label": "Icon set *Zen's own keeps Zen's icons, or New Icons' if that mod is installed, and moves each to a pose of its own on hover: reload turns, back slides left, downloads drop. Circuit is high-tech glass: chamfered shapes with every corner rounded, a translucent body with a sheen and rim, and neon-tube lines, drawn and animated frame by frame. Either way, motion builds up, overshoots and settles, and plays back when the pointer leaves. Circuit: clean uses the same shapes and motion with restrained fills, crisp lines, and no sheen or glow. Each button can differ from the set under Each button.*",
     "defaultValue": 0,
     "options": [
       {
@@ -59,6 +59,10 @@
       {
         "label": "Circuit: glass and neon",
         "value": 2
+      },
+      {
+        "label": "Circuit: clean",
+        "value": 3
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],

@@ -39,21 +39,24 @@ test("Library downloads batch once and select only the four older rows", async (
   let view, flushes = 0, copied = 0, count = 8;
   const rows = [], style = { setProperty() {}, removeProperty() {} };
   function row() {
-    const badge = { style, toggleAttribute() {}, firstElementChild: { style } }, title = {}, subtitle = {};
+    const badge = { style, toggleAttribute() {}, firstElementChild: { style } }, title = {}, subtitle = {}, action = { addEventListener() {} };
     return { style, addEventListener() {}, toggleAttribute() {},
       remove() { rows.splice(rows.indexOf(this), 1); },
-      querySelector(s) { return s.includes("badge") ? badge : s.endsWith("subtitle") ? subtitle : title; } };
+      querySelector(s) { return s.includes("action") ? action : s.includes("badge") ? badge : s.endsWith("subtitle") ? subtitle : title; } };
   }
   const list = { querySelectorAll: () => rows, prepend: r => rows.unshift(r), getBoundingClientRect: () => ({ height: 400 }) };
   const context = vm.createContext({ console,
     Services: { prefs: { PREF_INT: 64, getPrefType: () => 64, getIntPref: () => count } },
-    document: { documentElement: { style }, getElementById: id => id === "zen-library-download-list" ? list
+    document: { l10n: { setAttributes() {} }, documentElement: { style }, getElementById: id => id === "zen-library-download-list" ? list
       : id === "zen-sidebar-foot-buttons" ? { hasAttribute: () => true } : { style } },
     customElements: { whenDefined: () => new Promise(() => {}) },
     window: { addEventListener() {}, MozXULElement: { parseXULToFragment: () => ({ firstElementChild: row() }) },
       promiseDocumentFlushed: fn => { flushes++; return Promise.resolve(fn()); } },
     ChromeUtils: { defineESModuleGetters: lazy => Object.assign(lazy, {
-      DownloadsCommon: { strings: { stateFailed: "failed" }, getData: () => ({ addView: v => { view = v; } }) },
+      DownloadsCommon: { strings: { stateFailed: "failed" }, getData: (...args) => {
+        assert.equal(args.length, 1, "same session list as Zen; no history rows");
+        return { addView: v => { view = v; } };
+      } },
     }) }, countCopy: n => { copied += n; },
   });
   vm.runInContext(`const originalSlice = Array.prototype.slice;
@@ -82,11 +85,18 @@ test("Library downloads batch once and select only the four older rows", async (
 test("Library extra rows delegate blocked downloads to native confirmation without opening them", async () => {
   const source = await readFile(new URL("../glassflow-library/glassflow-library.uc.js", import.meta.url), "utf8");
   const calls = [], strings = { stateFailed: "failed", stateBlockedParentalControls: "parental" };
+  const action = { addEventListener(name, fn) { this[name] = fn; } };
   const window = { MozXULElement: { parseXULToFragment: () => ({ firstElementChild: {
+    querySelector: () => action,
     addEventListener(name, fn) { this[name] = fn; },
   } }) }, openTrustedLinkIn: url => calls.push(["navigate", url]) };
   const lazy = {
-    DownloadsCommon: { strings, openDownload: download => { calls.push(["open", download]); return Promise.resolve(); } },
+    DownloadsCommon: { strings, openDownload: download => { calls.push(["open", download]); return Promise.resolve(); },
+      showDownloadedFile: file => calls.push(["show", file.path]) },
+    FileUtils: { File: class { constructor(path) { this.path = path; } } },
+    canRetry: download => !!download.retry,
+    retryDownload: (download, owner) => calls.push(["retry", download, owner]),
+    transferText: (download, options) => { assert.equal(options.speed, true); return `speed:${download.speed}`; },
     blockedText: download => "blocked:" + download.error.reputationCheckVerdict,
     confirmUnblock: (download, owner, open) => calls.push(["confirm", download, owner, open]),
   };
@@ -121,6 +131,28 @@ test("Library extra rows delegate blocked downloads to native confirmation witho
   row.download = { stopped: true, source: { url: "https://example.com/failed" } };
   row.click({ button: 0 });
   assert.deepEqual(calls[1], ["navigate", row.download.source.url]);
+  row.download = { stopped: true, retry: true };
+  row.click({ button: 0 });
+  assert.deepEqual(calls[2], ["retry", row.download, window]);
+  assert.equal(context.status({ stopped: false, speed: 123 }), "speed:123");
+  calls.length = 0;
+  row.download = { stopped: false, cancel: async () => calls.push(["cancel"]),
+    removePartialData: async () => calls.push(["partial"]) };
+  action.command();
+  assert.deepEqual(calls, [["cancel"], ["partial"]]);
+  calls.length = 0;
+  row.download = { stopped: true, succeeded: true, target: { path: "/download", exists: true } };
+  action.command();
+  assert.deepEqual(calls, [["show", "/download"]]);
+  row.download.target.exists = false;
+  action.command();
+  row.download.target.exists = true;
+  row.download.deleted = true;
+  action.command();
+  assert.equal(calls.length, 1, "missing/deleted files cannot open a folder");
+  let stopped = false;
+  action.click({ stopPropagation() { stopped = true; } });
+  assert.ok(stopped, "folder/cancel action cannot trigger row open");
 });
 
 const mediaRoot = new URL("../mediaflow/", import.meta.url);

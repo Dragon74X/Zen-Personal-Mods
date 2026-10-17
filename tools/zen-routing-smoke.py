@@ -395,6 +395,9 @@ def check_sidebar_modes(m, atg):
         # Compact auto-hide and the narrower icon-only sidebar are independent
         # Zen modes. Drive both through Zen's own manager and pref observer.
         for compact, expanded in [(False, True), (True, True), (False, False), (True, False)]:
+            m.call('WebDriver:PerformActions', {'actions': [{'type': 'pointer', 'id': 'mouse',
+                'parameters': {'pointerType': 'mouse'}, 'actions': [
+                    {'type': 'pointerMove', 'duration': 0, 'x': 20, 'y': 200}]}]})
             layout = m.script("return (async()=>{" + HELPERS + """
               const compact=""" + json.dumps(compact) + ",expanded=" + json.dumps(expanded) + """;
               Services.prefs.setBoolPref('zen.view.sidebar-expanded',expanded);
@@ -446,6 +449,8 @@ def check_collapsed_loaded(m):
       const selected=gBrowser.selectedTab, root=group('Root'), child=group('Child'), deep=group('Grandchild');
       const compact=gZenCompactModeManager.preference;
       const expanded=Services.prefs.getBoolPref('zen.view.sidebar-expanded');
+      const keepLast=Services.prefs.getBoolPref('zzgroup.collapse-keep-last-used',false);
+      Services.prefs.setBoolPref('zzgroup.collapse-keep-last-used',true);
       const visible=e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);
         return r.width>0 && r.height>=28 && s.visibility==='visible' && Number(s.opacity)>0;};
       const hidden=e=>e.getBoundingClientRect().height===0;
@@ -551,6 +556,9 @@ def check_collapsed_loaded(m):
         checks.collapsedSplitLayout &&= splitTabs.every(visible) && splitTabs.every(t=>t.hasAttribute('pending'));
         await loaded(leafTabs[2]);gBrowser.selectedTab=outside;await pause(150);
         checks.collapsedSplitLayout &&= splitTabs.every(hidden);
+        for(const [path] of cases)for(const g of path.toReversed())g.collapsed=true;
+        Services.prefs.setBoolPref('zzgroup.collapse-keep-last-used',false);await pause(150);
+        checks.collapsedLastUsedOff=cases.every(([,tabs])=>hidden(tabs[1]) && !tabs[1].visible);
         if(failures.length)checks.failures=failures;
         return checks;
       } finally {
@@ -560,6 +568,7 @@ def check_collapsed_loaded(m):
         for(const tab of fixtures)if(tab.isConnected)gBrowser.removeTab(tab);
         for(const g of [folder,sub,leaf])if(g.isConnected)g.remove();
         Services.prefs.setBoolPref('zzgroup.enabled',true);
+        Services.prefs.setBoolPref('zzgroup.collapse-keep-last-used',keepLast);
         Services.prefs.setBoolPref('zen.view.sidebar-expanded',expanded);
         gZenCompactModeManager.preference=compact;
         document.getElementById('navigator-toolbox').removeAttribute('zen-user-show');
@@ -837,22 +846,28 @@ def check(m, root, atg, port, first):
         result.update(controls)
         # Drive real pointer movement: .click() cannot detect a hidden hover control.
         for left in (False, True):
-            xy = m.script("Services.prefs.setBoolPref('zzgroup.close-left'," + json.dumps(left) + ");" + HELPERS + """
+            # Enter the sidebar before measuring: native hover changes its layout.
+            m.call('WebDriver:PerformActions', {'actions': [{'type': 'pointer', 'id': 'mouse',
+                'parameters': {'pointerType': 'mouse'}, 'actions': [
+                    {'type': 'pointerMove', 'duration': 0, 'x': 20, 'y': 200}]}]})
+            xy = m.script("return (async()=>{Services.prefs.setBoolPref('zzgroup.close-left'," + json.dumps(left) + ");" + HELPERS + """
+              document.getElementById('navigator-toolbox').setAttribute('zen-user-show','true');
+              await pause(500);
               const r=group('Root').labelContainerElement.getBoundingClientRect();
               return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)};
-            """)
+            })();""")
             for x, y, visible in [(xy['x'], xy['y'], True), (800, 400, False)]:
                 m.call('WebDriver:PerformActions', {'actions': [{'type': 'pointer', 'id': 'mouse',
                     'parameters': {'pointerType': 'mouse'}, 'actions': [
                         {'type': 'pointerMove', 'duration': 0, 'x': x, 'y': y}]}]})
                 m.script("return (async()=>{" + HELPERS + """
                   const h=group('Root').labelContainerElement,b=h.querySelector('.zzgf-close'),icon=h.querySelector('.zzgf-icon');
-                  const visible=""" + json.dumps(visible) + """;
+                  const visible=""" + json.dumps(visible) + """,xy=""" + json.dumps(xy) + """;
                   await until(()=>{
                     const s=getComputedStyle(b);
                     return visible ? h.matches(':hover') && s.visibility==='visible' &&
                       +s.opacity>.99 && b.getBoundingClientRect().width>0 && +getComputedStyle(icon).opacity<.01 : +s.opacity<.01;
-                  }); return true;
+                  }).catch(e=>{const s=getComputedStyle(b);throw new Error(JSON.stringify({visible,xy,target:document.elementFromPoint(xy.x,xy.y)?.outerHTML.slice(0,500),hovers:[...document.querySelectorAll(':hover')].slice(-3).map(e=>e.id+'.'+e.className),hover:h.matches(':hover'),rect:h.getBoundingClientRect().toJSON(),button:{visibility:s.visibility,opacity:s.opacity},icon:getComputedStyle(icon).opacity}));}); return true;
                 })();""")
             assert m.script(HELPERS + """
               const h=group('Root').labelContainerElement;
@@ -868,14 +883,19 @@ def check(m, root, atg, port, first):
         result['nativeCloseImageSize'] = m.script(HELPERS + """
           const close=group('Root').labelContainerElement.querySelector('.zzgf-close');
           const image=getComputedStyle(close,'::before');
-          const native=getComputedStyle(group('Root').tabs[0].querySelector('.tab-close-button'));
+          // Native visibility:collapse has zero content width until hovered.
+          const nativeButton=group('Root').tabs[0].querySelector('.tab-close-button');
+          nativeButton.style.setProperty('visibility','visible','important');
+          const native=getComputedStyle(nativeButton);
           const width=parseFloat(native.width)-parseFloat(native.paddingLeft)-parseFloat(native.paddingRight);
           const height=parseFloat(native.height)-parseFloat(native.paddingTop)-parseFloat(native.paddingBottom);
-          return !close.textContent && image.backgroundImage.includes('zen-icons/close.svg') &&
+          const matches=!close.textContent && image.backgroundImage.includes('zen-icons/close.svg') &&
             native.listStyleImage.includes('zen-icons/close.svg') && width>0 && height>0 &&
-            image.getPropertyValue('-moz-context-properties').includes('fill') &&
             image.fill===getComputedStyle(close).color &&
             Math.abs(parseFloat(image.width)-width)<1 && Math.abs(parseFloat(image.height)-height)<1;
+          nativeButton.style.removeProperty('visibility');
+          if(!matches)throw new Error(JSON.stringify({content:close.textContent,image:image.backgroundImage,native:native.listStyleImage,width,height,imageWidth:image.width,imageHeight:image.height,fill:image.fill,color:getComputedStyle(close).color}));
+          return matches;
         """)
         assert result['nativeCloseImageSize'], 'Folder close image differs from native tab close image'
         result['iconMatchesFolderCorners'] = m.script("return (async()=>{" + HELPERS + """

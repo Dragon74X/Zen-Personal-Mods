@@ -19,6 +19,9 @@ Icon sets and hover motion for [Zen Browser](https://zen-browser.app/).
   settles (the Linger timing), holds while hovered, plays back when the
   pointer leaves, and picks up mid-way. Fast slides leave a faint trail.
   **Animate icons** off keeps them still.
+  SVGs load through chrome/resource URLs so theme colors work with Firefox's
+  default SVG policy. Generated strips use temporary files, removed on retirement;
+  hover animation performs no file writes. Non-square icon boxes retain every frame.
 - **Animate menu icons** (off by default): icons in context menus and other
   menus, Zen's or those Context Menu Icons adds, move when highlighted.
   Items that match a toolbar button (Back, Reload, Bookmark, Copy, Save and
@@ -33,6 +36,7 @@ Icon sets and hover motion for [Zen Browser](https://zen-browser.app/).
     like a spring, with a slower, longer settle (Linger). Parts that move fast leave smooth trails that stretch
     with their speed. Lines morph into one another rather than fading.
   - No full circles (arcs are always open), clock faces or five-point stars.
+- **Circuit: clean**: the same shapes, functions and spring motion, with Library-like restrained fills, crisp lines, no glass sheen, neon halo or hover glow. Saved bookmarks retain their stronger fill. Choose it under **Icon set**; switch back to **Circuit: glass and neon** at any time. Explicit per-button choices keep their own style.
 - **Glass behind buttons**: plates made like Glassflow's window buttons,
   while hovered or always.
 - **Hover motion** for whole buttons, with any icon set: close buttons,
@@ -59,13 +63,13 @@ Requires `sine.allow-unsafe-js` set to `true` in `about:config`.
 
 | Setting | Default | Notes |
 |---|---|---|
-| Icon set | Zen's own | Zen's icons, or New Icons' if that mod is installed; or Circuit |
+| Icon set | Zen's own | Zen's icons, or New Icons' if that mod is installed; or Circuit: glass and neon / clean |
 | Icon size | Large (20px) | Zen's 16px, 18, 20 or 22px. Toolbar and sidebar icons grow into the padding of their buttons, so the buttons keep their size; the Library button follows |
 | Animate menu icons | off | Context menus and other menus |
 | Animate icons | on | Off keeps every icon still: Zen's own, Circuit, menu icons, hover motion, the Library button and the new tab button's press. Iconflow also stays still when the system asks for reduced motion |
 | Animation speed | Smooth (0.45s) | Quick 0.3s, Slow 0.7s |
-| Glow on hover | on | A soft light in the icon's own colour while hovered, for Circuit and Zen's own; it rises with the motion |
-| Soft glow around lines | on | Circuit's faint neon halo; off draws crisp lines only |
+| Glow on hover | on | A soft light in the icon's own colour while hovered, for glass/neon Circuit and Zen's own; clean stays crisp |
+| Soft glow around lines | on | Glass/neon Circuit's faint halo; clean never draws it |
 | Glass plates | Off | While hovered, or Always. A light fill, a sheen across the top and a rim, over Zen's own blur behind the sidebar. With Glassflow installed, its own sheen and rim are used, so plates follow its Glass settings |
 | Plate shape | Squircle | Pill or Circle |
 

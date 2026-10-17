@@ -131,6 +131,13 @@
     backdrop-filter: var(--zzg-acrylic-flat) contrast(1.001) !important;
   }
 }
+/* Arc still reads the retired acrylic-elements preference. When Glassflow
+   owns the sidebar, honour the current native off/reduced-transparency choice. */
+@media (-moz-pref("zzglass.sidebar.enabled")) and (not (-moz-pref("zzglass.sidebar.blur"))) and ((not (-moz-pref("zen.theme.acrylic-sidebar"))) or (prefers-reduced-transparency: reduce)) {
+  :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background {
+    backdrop-filter: none !important;
+  }
+}
 /* Sidebar > Darken the sidebar's edges: a shade painted just inside the
    panel, above its blur and below everything on it. */
 @media (-moz-pref("zzglass.sidebar.edge-shade", 2)) { :root { --zzg-edge-shade: 32%; } }

@@ -175,8 +175,12 @@
       DownloadsViewUI: "moz-src:///browser/components/downloads/DownloadsViewUI.sys.mjs",
       DownloadUtils: "resource://gre/modules/DownloadUtils.sys.mjs",
       BrowserUtils: "resource://gre/modules/BrowserUtils.sys.mjs",
+      FileUtils: "resource://gre/modules/FileUtils.sys.mjs",
       blockedText: "moz-src:///zen/library/ZenLibraryUtils.sys.mjs",
+      canRetry: "moz-src:///zen/library/ZenLibraryUtils.sys.mjs",
       confirmUnblock: "moz-src:///zen/library/ZenLibraryUtils.sys.mjs",
+      retryDownload: "moz-src:///zen/library/ZenLibraryUtils.sys.mjs",
+      transferText: "moz-src:///zen/library/ZenLibraryUtils.sys.mjs",
     });
     view = {
       onDownloadBatchStarting() { inBatch = true; },
@@ -193,13 +197,13 @@
         if (stackOpen()) fillExtras();
       },
     };
-    data = lazy.DownloadsCommon.getData(window, true);
+    data = lazy.DownloadsCommon.getData(window);
     data.addView(view);
   }
   function status(download) {
     const strings = lazy.DownloadsCommon.strings, total = download.hasProgress ? download.totalBytes : -1;
     const join = (...parts) => parts.filter(Boolean).reduce((a, b) => strings.statusSeparator(a, b));
-    if (!download.stopped) return lazy.DownloadUtils.getDownloadStatus(download.currentBytes, total, download.speed)[0];
+    if (!download.stopped) return lazy.transferText(download, { speed: true });
     if (download.deleted) return strings.fileDeleted;
     if (download.succeeded) {
       if (!download.target.exists) return strings.fileMovedOrMissing;
@@ -220,6 +224,7 @@
           <span class="zen-library-download-list-title"></span>
           <span class="zen-library-download-list-subtitle"></span>
         </vbox>
+        <toolbarbutton class="toolbarbutton-1 zen-library-download-action no-squircles" />
       </div>`).firstElementChild;
     row.addEventListener("click", event => {
       const download = row.download;
@@ -229,7 +234,20 @@
         return;
       }
       if (download.succeeded) lazy.DownloadsCommon.openDownload(download).catch(console.error);
+      else if (lazy.canRetry(download)) lazy.retryDownload(download, window);
       else if (download.source?.url) window.openTrustedLinkIn(download.source.url, "tab");
+    });
+    const action = row.querySelector(".zen-library-download-action");
+    action.addEventListener("click", event => event.stopPropagation());
+    action.addEventListener("command", () => {
+      const download = row.download;
+      if (!download) return;
+      if (!download.stopped) {
+        download.cancel().catch(console.error);
+        download.removePartialData().catch(console.error);
+      } else if (download.succeeded && !download.deleted && download.target.exists) {
+        lazy.DownloadsCommon.showDownloadedFile(new lazy.FileUtils.File(download.target.path));
+      }
     });
     return row;
   }
@@ -247,6 +265,9 @@
       row.download = download;
       row.style.setProperty("--zen-library-entry-index", older.length - i + 3);   // rises after Zen's four
       row.toggleAttribute("downloading", !download.stopped);
+      row.toggleAttribute("show-in-folder", !!download.succeeded && !download.deleted && !!download.target.exists);
+      document.l10n.setAttributes(row.querySelector(".zen-library-download-action"),
+        download.stopped ? "library-downloads-show-tooltip" : "library-downloads-cancel-tooltip");
       badge.toggleAttribute("downloading", pending);
       const path = download.target.path;
       badge.style.setProperty("--download-image", path ? `url('moz-icon://${path}?size=32${download.succeeded ? "&state=normal" : ""}')` : "url('moz-icon://.unknown?size=32')");

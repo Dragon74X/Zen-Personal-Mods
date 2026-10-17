@@ -34,9 +34,9 @@ test("Glassflow upgrades legacy sidebar blur once and preserves explicit native 
   assert.equal(run([]).prefs.has(native), false, "fresh installs keep native defaults");
 });
 
-test("Library downloads batch once and select only the four older rows", async () => {
+test("Library batches bounded history and fills only slots not occupied by native session rows", async () => {
   const source = await readFile(new URL("../glassflow-library/glassflow-library.uc.js", import.meta.url), "utf8");
-  let view, flushes = 0, copied = 0, count = 8;
+  let view, flushes = 0, copied = 0, count = 8, nativeCount = 4;
   const rows = [], style = { setProperty() {}, removeProperty() {} };
   function row() {
     const badge = { style, toggleAttribute() {}, firstElementChild: { style } }, title = {}, subtitle = {}, action = { addEventListener() {} };
@@ -44,9 +44,10 @@ test("Library downloads batch once and select only the four older rows", async (
       remove() { rows.splice(rows.indexOf(this), 1); },
       querySelector(s) { return s.includes("action") ? action : s.includes("badge") ? badge : s.endsWith("subtitle") ? subtitle : title; } };
   }
-  const list = { querySelectorAll: () => rows, prepend: r => rows.unshift(r), getBoundingClientRect: () => ({ height: 400 }) };
+  const list = { querySelectorAll: s => s.includes(":not(.zzlib-extra)") ? Array(nativeCount) : rows,
+    prepend: r => rows.unshift(r), getBoundingClientRect: () => ({ height: 400 }) };
   const context = vm.createContext({ console,
-    Services: { prefs: { PREF_INT: 64, getPrefType: () => 64, getIntPref: () => count } },
+    Services: { prefs: { PREF_INT: 64, getPrefType: () => 64, getIntPref: key => key.endsWith(".count") ? count : 1 } },
     document: { l10n: { setAttributes() {} }, documentElement: { style }, getElementById: id => id === "zen-library-download-list" ? list
       : id === "zen-sidebar-foot-buttons" ? { hasAttribute: () => true } : { style } },
     customElements: { whenDefined: () => new Promise(() => {}) },
@@ -54,7 +55,7 @@ test("Library downloads batch once and select only the four older rows", async (
       promiseDocumentFlushed: fn => { flushes++; return Promise.resolve(fn()); } },
     ChromeUtils: { defineESModuleGetters: lazy => Object.assign(lazy, {
       DownloadsCommon: { strings: { stateFailed: "failed" }, getData: (...args) => {
-        assert.equal(args.length, 1, "same session list as Zen; no history rows");
+        assert.deepEqual(args.slice(1), [true, false, true], "bounded history; never combine public data into private windows");
         return { addView: v => { view = v; } };
       } },
     }) }, countCopy: n => { copied += n; },
@@ -63,6 +64,11 @@ test("Library downloads batch once and select only the four older rows", async (
     Array.prototype.slice = function(...args) { const result = originalSlice.apply(this, args); countCopy(result.length); return result; };`, context);
   vm.runInContext(source.slice(0, source.indexOf("  const footWatch =")) +
     "globalThis.harness = { watchDownloads, fillExtras }; })();", context);
+  const instance = context.window.__zzlibInstance;
+  delete context.window.__zzlibInstance;
+  context.harness.watchDownloads();
+  assert.equal(view, undefined, "retired script cannot subscribe after async defaults finish");
+  context.window.__zzlibInstance = instance;
   context.harness.watchDownloads();
   view.onDownloadBatchStarting();
   const downloads = Array.from({ length: 1000 }, (_, id) => ({ id, stopped: true, target: { path: "" }, source: { url: `https://example.com/${id}` } }));
@@ -80,6 +86,14 @@ test("Library downloads batch once and select only the four older rows", async (
   count = 4;
   context.harness.fillExtras();
   assert.equal(rows.length, 0);
+  for (nativeCount of [0, 1, 2, 3, 4]) {
+    for (count of [1, 2, 3, 4, 8]) {
+      context.harness.fillExtras();
+      const end = downloads.length - 1 - nativeCount;
+      const want = Math.max(0, count - nativeCount);
+      assert.deepEqual(rows.map(r => r.download.id), Array.from({ length: want }, (_, i) => end - want + i));
+    }
+  }
 });
 
 test("Library extra rows delegate blocked downloads to native confirmation without opening them", async () => {

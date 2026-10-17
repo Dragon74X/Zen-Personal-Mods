@@ -397,11 +397,12 @@ def check_library_hover(m, root, arc):
     m.script("""return (async()=>{
       gZenCompactModeManager.preference=true;
       const {Downloads}=ChromeUtils.importESModule('resource://gre/modules/Downloads.sys.mjs');
-      const list=await Downloads.getList(Downloads.PUBLIC);
-      for(let i=0;i<4;i++){
-        const d=await Downloads.createDownload({source:'https://example.invalid/hover-'+i,
-          target:PathUtils.join(PathUtils.tempDir,'zzsmoke-hover-'+i)});
-        d.canceled=true;d.startTime=new Date(Date.now()+i);await list.add(d);
+      const {DownloadHistory}=ChromeUtils.importESModule('resource://gre/modules/DownloadHistory.sys.mjs');
+      for(let i=0;i<8;i++){
+        const d=await Downloads.createDownload({source:'https://example.invalid/history-'+i,
+          target:PathUtils.join(PathUtils.tempDir,'zzsmoke-history-'+i)});
+        d.succeeded=true;d.startTime=new Date(Date.now()-100000+i*1000);d.endTime=d.startTime.getTime()+500;
+        d.target.size=12;await DownloadHistory.addDownloadToHistory(d);await DownloadHistory.updateMetaData(d);
       }
       return true;
     })();""")
@@ -425,6 +426,70 @@ def check_library_hover(m, root, arc):
           stack:document.getElementById('zen-sidebar-foot-buttons').hasAttribute('zen-library-stack-open')};""")
 
     width = m.script("return window.innerWidth;")
+    history_checks = 0
+    expected = ["history-" + str(i) for i in range(8)]
+    # Historical entries never enter Downloads.PUBLIC: this reproduces the
+    # history-only state that previously opened the full Library on first click.
+    for session_count in (0, 1, 4):
+        if session_count:
+            start = 0 if session_count == 1 else 1
+            for i in range(start, session_count):
+                m.script("""return (async()=>{
+                  const {Downloads}=ChromeUtils.importESModule('resource://gre/modules/Downloads.sys.mjs');
+                  const list=await Downloads.getList(Downloads.PUBLIC);
+                  const i=""" + str(i) + """,d=await Downloads.createDownload({source:'https://example.invalid/hover-'+i,
+                    target:PathUtils.join(PathUtils.tempDir,'zzsmoke-hover-'+i)});
+                  d.canceled=true;d.startTime=new Date(Date.now()+i);await list.add(d);return true;
+                })();""")
+                expected.append("hover-" + str(i))
+        for count in (1, 3, 4, 8):
+            m.script("Services.prefs.setIntPref('zzlib.stack.open',1);Services.prefs.setIntPref('zzlib.stack.count'," + str(count) + ");return true;")
+            move(width / 2, 200, 700)
+            move(1, 200, 350)
+            move(*center("zen-library-button"), pause=400, click=True)
+            shown = m.script("""return [...document.querySelectorAll('#zen-library-download-list > .zen-library-download-list-download')]
+              .filter(e=>!e.hidden && getComputedStyle(e).display!=='none')
+              .map(e=>e.download.source.url.split('/').pop());""")
+            assert state()["stack"] and shown == expected[-count:], (session_count, count, shown, state())
+            assert not m.script("return !!customElements.get('zen-library')?.isLibraryOpen;"), 'First click opened full Library'
+            history_checks += 1
+        if session_count == 0:
+            move(*center("zen-library-button"), pause=500, click=True)
+            assert m.script("return customElements.get('zen-library').isLibraryOpen;"), 'Second click did not open Library'
+            m.script("customElements.get('zen-library').close();return true;")
+            move(width / 2, 200, 800)
+            history_checks += 1
+            private = m.script("""return (async()=>{
+              const w=OpenBrowserWindow({private:true});
+              try {
+                await new Promise(resolve=>{
+                  const observer=(subject,topic)=>{if(subject===w){Services.obs.removeObserver(observer,topic);resolve();}};
+                  Services.obs.addObserver(observer,'browser-delayed-startup-finished');
+                });
+                await w.gZenStartup.promiseInitialized;
+                Services.scriptloader.loadSubScript('chrome://sine/content/zz-glassflow-library/glassflow-library.uc.js',w);
+                await new Promise(r=>setTimeout(r,250));
+                const visible=()=>[...w.document.querySelectorAll('#zen-library-download-list > .zen-library-download-list-download')].filter(e=>!e.hidden);
+                const empty=visible().length===0;
+                const {Downloads}=ChromeUtils.importESModule('resource://gre/modules/Downloads.sys.mjs');
+                const list=await Downloads.getList(Downloads.PRIVATE);
+                const d=await Downloads.createDownload({source:{url:'https://example.invalid/private',isPrivate:true},
+                  target:PathUtils.join(PathUtils.tempDir,'zzsmoke-private')});
+                d.canceled=true;await list.add(d);await new Promise(r=>setTimeout(r,250));
+                return {empty,privateOnly:visible().length===1 && visible()[0].download.source.isPrivate};
+              } finally {w.close();}
+            })();""")
+            assert private == {"empty": True, "privateOnly": True}, private
+            history_checks += 1
+    # Removing saved history must remove only its added rows, retaining the
+    # four native session entries and their native actions/context menus.
+    m.script("return ChromeUtils.importESModule('resource://gre/modules/PlacesUtils.sys.mjs').PlacesUtils.history.clear().then(()=>true);")
+    move(width / 2, 200, 700)
+    move(1, 200, 350)
+    move(*center("zen-library-button"), pause=400, click=True)
+    assert m.script("return document.querySelectorAll('#zen-library-download-list > .zzlib-extra').length;") == 0
+    history_checks += 1
+    m.script("Services.prefs.setIntPref('zzlib.stack.count',4);return true;")
     cases = []
     for right in (False, True):
         for expanded in (True, False):
@@ -451,7 +516,7 @@ def check_library_hover(m, root, arc):
                         move(side_x, 200, 800)
                         assert state() == {"hover": True, "shown": True, "stack": False}, (case, state())
                     cases.append(case)
-    return {"libraryHoverChecks": len(cases), "arc": bool(arc), "cases": cases}
+    return {"libraryHoverChecks": len(cases), "libraryHistoryChecks": history_checks, "arc": bool(arc), "cases": cases}
 
 
 def main():

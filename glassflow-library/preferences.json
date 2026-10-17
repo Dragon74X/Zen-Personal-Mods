@@ -369,7 +369,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzlib.stack.open",
-    "label": "Show recent downloads *The list that rises above the Library button. On click: the first click shows it, a click while it is showing opens the Library. With no downloads, a click opens the Library.*",
+    "label": "Show recent downloads *The list that rises above the Library button, including recent downloads from earlier sessions. Private windows show only their session downloads. On click: the first click shows it, a click while it is showing opens the Library. With no downloads, a click opens the Library.*",
     "defaultValue": 0,
     "options": [
       {

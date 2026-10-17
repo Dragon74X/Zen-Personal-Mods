@@ -71,7 +71,7 @@ entry says what is true today, what would change, and what to check first.
 
 - **Groupflow folder colour:** the default is the group's own colour; tab
   container colour is an explicit option. No change needed.
-- **Six identical update guards:** each mod installs on its own, so each ships
+- **Ten identical update guards:** each mod installs on its own, so each ships
   a copy. `tools/sine-update-guard.test.mjs` fails if the copies differ; a build
   step would add tooling without benefit.
 - **Groupflow refresh traversal:** full refreshes are debounced and tab events
@@ -83,5 +83,7 @@ entry says what is true today, what would change, and what to check first.
   its backup when a download fails. Report both upstream.
 - The guard wraps Sine internals by name and checks `syncModData` source text;
   an upstream refactor silently disables it (it logs that it was skipped).
-- A download that fails partway through extraction leaves a partial folder that
-  the guard does not repair; reinstall that mod.
+- Download/extraction failures already trigger backup restoration in
+  `restoreBackup()`. A partial backup copy retains the installed directory;
+  a failed replacement restores the previous copy. If filesystem restoration
+  itself fails, the guard logs the failure; manual repair remains necessary.

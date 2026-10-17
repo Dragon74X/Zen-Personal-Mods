@@ -1954,6 +1954,12 @@
   }
 }
 
+/* Icon-only headers have one icon-width column. Count and scroll chips
+   overlap its close/collapse targets or extend beyond the sidebar. */
+:root:not([zen-sidebar-expanded="true"]) #navigator-toolbox .tab-group-label-container > :is(.zzgf-more, .zzgf-count) {
+  display: none !important;
+}
+
 /* ---- the space under the tabs moves the window ------------------------
    Zen turns window dragging off for the tab toolbar and back on only for
    the empty space under the list, which has no height once the list fills

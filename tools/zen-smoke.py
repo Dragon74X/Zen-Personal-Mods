@@ -375,11 +375,91 @@ def check(m, root, arc, transparent):
     return result
 
 
+def check_library_hover(m, root, arc):
+    """Actual pointer handoff; never force zen-user-show or synthetic hover."""
+    m.script("return gZenStartup.promiseInitialized.then(()=>true);")
+    mods = ["glassflow", "glassflow-library"]
+    prefs = {}
+    for path in ([arc / "preferences.json"] if arc else []) + [root / mod / "preferences.json" for mod in mods]:
+        for pref in json.loads(path.read_text()):
+            if "property" in pref and "defaultValue" in pref:
+                prefs[pref["property"]] = pref["defaultValue"]
+    prefs.update({"zzlib.stack.box": True, "zen.view.compact.hide-tabbar": True,
+                  "zen.view.compact.hide-toolbar": False, "zen.downloads.download-animation": False,
+                  "zen.view.compact.sidebar-keep-hover.duration": 500})
+    m.script("for(const [k,v] of Object.entries(" + json.dumps(prefs) + "))"
+             "Services.prefs[typeof v==='boolean'?'setBoolPref':typeof v==='number'?'setIntPref':'setStringPref'](k,v);return true;")
+    for sheet in ([arc / "userChrome.css"] if arc else []) + [root / mod / "userChrome.css" for mod in mods]:
+        m.script("Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService)"
+                 ".loadAndRegisterSheet(Services.io.newURI(" + json.dumps(sheet.as_uri()) + "),1);return true;")
+    for mod in mods:
+        m.script((root / mod / (mod + ".uc.js")).read_text() + "\nreturn true;")
+    m.script("""return (async()=>{
+      gZenCompactModeManager.preference=true;
+      const {Downloads}=ChromeUtils.importESModule('resource://gre/modules/Downloads.sys.mjs');
+      const list=await Downloads.getList(Downloads.PUBLIC);
+      for(let i=0;i<4;i++){
+        const d=await Downloads.createDownload({source:'https://example.invalid/hover-'+i,
+          target:PathUtils.join(PathUtils.tempDir,'zzsmoke-hover-'+i)});
+        d.canceled=true;d.startTime=new Date(Date.now()+i);await list.add(d);
+      }
+      return true;
+    })();""")
+
+    def move(x, y, pause=0, click=False):
+        actions = [{"type": "pointerMove", "duration": 0, "x": round(x), "y": round(y)}]
+        if click:
+            actions += [{"type": "pointerDown", "button": 0}, {"type": "pointerUp", "button": 0}]
+        if pause:
+            actions.append({"type": "pause", "duration": pause})
+        m.call("WebDriver:PerformActions", {"actions": [{"type": "pointer", "id": "library-hover",
+               "parameters": {"pointerType": "mouse"}, "actions": actions}]})
+
+    def center(id):
+        return m.script("const r=document.getElementById(" + json.dumps(id) + ").getBoundingClientRect();"
+                        "return [r.x+r.width/2,r.y+r.height/2];")
+
+    def state():
+        return m.script("""const n=gZenCompactModeManager.sidebar;return {
+          hover:n.matches(':hover'),shown:n.hasAttribute('zen-has-hover'),
+          stack:document.getElementById('zen-sidebar-foot-buttons').hasAttribute('zen-library-stack-open')};""")
+
+    width = m.script("return window.innerWidth;")
+    cases = []
+    for right in (False, True):
+        for expanded in (True, False):
+            for mode in (0, 1):
+                m.script("Services.prefs.setBoolPref('zen.tabs.vertical.right-side'," + json.dumps(right) + ");"
+                         "Services.prefs.setBoolPref('zen.view.sidebar-expanded'," + json.dumps(expanded) + ");"
+                         "Services.prefs.setIntPref('zzlib.stack.open'," + str(mode) + ");return true;")
+                # Return directly, before/after the popup closes, or stay over
+                # the page. Both returning paths must cancel Zen's hide timer.
+                for gap in (0, 80, 260, None):
+                    case = {"right": right, "expanded": expanded, "mode": mode, "gap": gap}
+                    move(width / 2, 200, 700)
+                    move(width - 1 if right else 1, 200, 350)
+                    move(*center("zen-library-button"), pause=350, click=mode == 1)
+                    assert state()["stack"], ("Stack did not open", case, state())
+                    move(*center("zen-library-download-list"), pause=50)
+                    side_x = center("navigator-toolbox")[0]
+                    if gap:
+                        move(width / 2, 200, gap)
+                    if gap is None:
+                        move(width / 2, 200, 800)
+                        assert state() == {"hover": False, "shown": False, "stack": False}, (case, state())
+                    else:
+                        move(side_x, 200, 800)
+                        assert state() == {"hover": True, "shown": True, "stack": False}, (case, state())
+                    cases.append(case)
+    return {"libraryHoverChecks": len(cases), "arc": bool(arc), "cases": cases}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--zen", type=Path, required=True)
     parser.add_argument("--arc", type=Path)
     parser.add_argument("--transparent", type=Path, help="Optional sameerasw/zen-themes/TransparentZen directory (Normal sidebar mode)")
+    parser.add_argument("--library-hover", action="store_true", help="Check compact sidebar pointer handoff from recent downloads")
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
     with tempfile.TemporaryDirectory(prefix="zen-mod-smoke-") as directory:
@@ -413,7 +493,8 @@ def main():
                 m.script("""window.zzsmokeChrome=Cc['@mozilla.org/addons/addon-manager-startup;1']
                   .getService(Ci.amIAddonManagerStartup).registerChrome(Services.io.newURI(""" +
                   json.dumps((profile / 'chrome.manifest').as_uri()) + """),[['content','sine','sine-mods/']]);return true;""")
-                print(json.dumps(check(m, root, args.arc, args.transparent), indent=2))
+                result = check_library_hover(m, root, args.arc) if args.library_hover else check(m, root, args.arc, args.transparent)
+                print(json.dumps(result, indent=2))
             finally:
                 process.terminate()
                 try:

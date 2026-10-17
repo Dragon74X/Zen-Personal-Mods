@@ -128,6 +128,13 @@
   // except for the one the script sends on click, and while the list is up
   // (so moving back onto the button keeps it open).
   function onEnter(event) {
+    // Zen skips its enter handler while the sidebar is still shown, leaving
+    // a pending hide alive when returning from the download stack.
+    const compact = window.gZenCompactModeManager;
+    if (compact?.preference && event.target === compact.sidebar) {
+      compact.clearFlashTimeout("has-hover" + event.target.id);
+      window.cancelAnimationFrame(compact._removeHoverFrames?.[event.target.id]);
+    }
     if (letEnter || event.target?.id !== "zen-library-button") return;
     const mode = stackMode();
     if (mode == 0 || (mode == 1 && stackOpen())) return;

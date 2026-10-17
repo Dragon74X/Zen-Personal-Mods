@@ -390,8 +390,12 @@ def check_subfolder_styles(m):
 def check_sidebar_modes(m, atg):
     original = m.script("""return {compact:gZenCompactModeManager.preference,
       expanded:Services.prefs.getBoolPref('zen.view.sidebar-expanded'),
+      height:Services.prefs.getStringPref('zzgroup.folder-height'),
       selected:gBrowser.selectedTab.id};""")
     try:
+        # Force overflowing contents on every launch: hover chips formerly
+        # covered the collapse target only after restored groups filled the list.
+        m.script("Services.prefs.setStringPref('zzgroup.folder-height','120px');return true;")
         # Compact auto-hide and the narrower icon-only sidebar are independent
         # Zen modes. Drive both through Zen's own manager and pref observer.
         for compact, expanded in [(False, True), (True, True), (False, False), (True, False)]:
@@ -411,11 +415,15 @@ def check_sidebar_modes(m, atg):
                 const g=group(name),h=g.labelContainerElement,r=h.getBoundingClientRect();
                 const label=g.labelElement,ls=getComputedStyle(label),lr=label.getBoundingClientRect();
                 return {name,width:r.width,height:r.height,inside:r.left>=toolbox.left-1 && r.right<=toolbox.right+1,
+                  chipsFit:[...h.querySelectorAll('.zzgf-more,.zzgf-count')].every(e=>{
+                    const b=e.getBoundingClientRect();return expanded?b.width>0&&b.left>=r.left&&b.right<=r.right:getComputedStyle(e).display==='none';}),
+                  arrows:h.querySelectorAll('.zzgf-more').length,
                   labelFits:expanded?lr.width>30:ls.visibility==='hidden'||ls.display==='none'||parseFloat(ls.fontSize)===0,
                   x:Math.round(r.x+(expanded?r.width/2:3)),y:Math.round(r.y+r.height/2)};
               });
             })();""")
-            assert all(x['width'] > 20 and x['height'] >= 30 and x['inside'] and x['labelFits'] for x in layout), (compact, expanded, layout)
+            assert all(x['width'] > 20 and x['height'] >= 30 and x['inside'] and x['labelFits'] and x['chipsFit'] for x in layout), (compact, expanded, layout)
+            assert layout[0]['arrows'] == 2, ('Overflow fixture missing', compact, expanded, layout)
             # Real pointer hit testing catches clipped headers and controls that
             # synthetic .click() bypasses. A root press keeps the root visible.
             target = layout[0]
@@ -435,10 +443,11 @@ def check_sidebar_modes(m, atg):
                   return Math.abs(a.x-b.x)<1 && Math.abs(a.y-b.y)<1 &&
                     Math.abs(a.width-b.width)<1 && Math.abs(a.height-b.height)<1;
                 """), ('Close button left the icon slot', compact, expanded)
-        return {"compactSidebar": True, "expandedSidebar": True, "iconOnlySidebar": True}
+        return {"compactSidebar": True, "expandedSidebar": True, "iconOnlySidebar": True, "overflowHeaderControls": True}
     finally:
         m.script("""const old=""" + json.dumps(original) + """;
           Services.prefs.setBoolPref('zen.view.sidebar-expanded',old.expanded);
+          Services.prefs.setStringPref('zzgroup.folder-height',old.height);
           gZenCompactModeManager.preference=old.compact;
           document.getElementById('navigator-toolbox').removeAttribute('zen-user-show');
           gBrowser.selectedTab=document.getElementById(old.selected);return true;""")

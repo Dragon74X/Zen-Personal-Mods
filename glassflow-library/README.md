@@ -39,7 +39,9 @@ The list that rises above the Library button.
 | One box behind them | off | one panel instead of a pill per download. With Glassflow it is glass, Glassflow's overlay fill and blur, with nothing showing between the downloads (Glassflow > Overlays, dialogs and status). Without, it is solid, Zen's window colour, and the tabs fade out under it as in Zen |
 
 While the list is up it sits above the rest of the sidebar. Mediaflow's
-video preview steps aside for it.
+video preview steps aside for it. In compact mode, returning from the list
+to the sidebar cancels a pending auto-hide; leaving for the page still hides
+the sidebar normally.
 
 All rows use Zen's session download list. Rows past Zen's four also show
 download speed, retry stopped downloads, and offer Cancel or Show in Folder.

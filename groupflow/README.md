@@ -154,6 +154,10 @@ part with its own setting (all on by default):
 - **Tab count on hover:** hovering any folder or subfolder header shows how
   many tabs it holds, subfolders included.
 
+Icon-only sidebars hide the count and scroll chips so they cannot overlap the
+folder's collapse/close targets. Expand the sidebar to use those chips; wheel
+scrolling and selected-tab visibility retain their existing behavior.
+
 A folder that fits has nothing to scroll, so its connector scrolls the list.
 With Firefox's **switch tabs by scrolling** setting on
 (`toolkit.tabbox.switchByScrolling`), the wheel over a tab selects the next or

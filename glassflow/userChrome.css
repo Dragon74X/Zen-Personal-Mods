@@ -1407,6 +1407,14 @@
   @media (-moz-pref("zzglass.overlays.dialog", 0)) { :root { --zzg-ov-dialog: none; } }
 }
 @media (-moz-pref("zzglass.overlays.enabled")) and (not (-moz-pref("zzglass.overlays.downloads", 0))) {
+  /* Hidden-sidebar download pop-out: black glass, with a visible icon in
+     either theme. Reuse the download overlay's blur and fill strength. */
+  .zen-download-box-animation {
+    --toolbar-color: white;
+    color: var(--toolbar-color) !important;
+    background: rgb(0 0 0 / var(--zzglass-overlays-opacity, 55%)) !important;
+    backdrop-filter: var(--zzg-ov-downloads) !important;
+  }
   /* Library download stack. Zen fades the tab list out under it; keep
      the tabs so the glass has them to blur. */
   #TabsToolbar-customization-target:is([zen-library-stack-open], [zen-library-stack-closing]) {

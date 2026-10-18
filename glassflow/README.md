@@ -279,6 +279,7 @@ blur**.
 | Surface | What changes |
 |---|---|
 | Library download stack (hover the library button) | Each entry gets glass. Zen fades the tabs out under the stack; they stay and show through blurred |
+| Download icon pop-out (sidebar hidden) | Black translucent fill and white icon; follows the download stack's blur setting and Overlay fill opacity |
 | Toasts | The accent fill turns translucent over a blur |
 | Glance's side buttons | Translucent over a blur of the page |
 | Library media preview | The dimmed window behind it is blurred too |
@@ -288,7 +289,7 @@ blur**.
 | Setting | Default | Notes |
 |---|---|---|
 | Glass behind overlays | on | |
-| Library download stack / Toasts / Glance's side buttons / Behind the library media preview / Music player / Download question | Zen's blur | Each: Off, Zen's blur, or darkened like the sidebar |
+| Download stack and pop-out / Toasts / Glance's side buttons / Behind the library media preview / Music player / Download question | Zen's blur | Each: Off, Zen's blur, or darkened like the sidebar |
 | Overlay fill | `55%` | `0%` is clear glass |
 | Overlay blur | `8px` | How strongly every overlay above blurs |
 | Menu and panel fill (Windows 11) | `50%` | Zen's own value; lower shows more of the blur |

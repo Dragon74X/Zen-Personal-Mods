@@ -2030,7 +2030,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzglass.overlays.downloads",
-    "label": "Library download stack *Hover the library button.*",
+    "label": "Download stack and pop-out *The Library's recent downloads and the download icon that pops out with the sidebar hidden. The icon's background uses black tint at Overlay fill opacity.*",
     "defaultValue": 1,
     "options": [
       {

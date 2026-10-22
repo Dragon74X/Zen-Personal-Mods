@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.6.2
+// @version        2.6.3
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==
@@ -17,7 +17,7 @@
   const LOG_PREFIX = "[Mediaflow]";
   // Gecko caches actor modules across unregister/re-register. Bump with actor
   // changes so Sine updates load replacement code without a browser restart.
-  const ACTOR_VERSION = "2.6.2";
+  const ACTOR_VERSION = "2.6.3";
   const CAPTIONS_PREF = "zzmedia.preview.captions";
   const CAPTIONS_WHEN_PIP_HIDDEN_PREF =
     "zzmedia.preview.captions-when-hidden";
@@ -1452,8 +1452,10 @@
   const EXPANDED_PREF = "zzmedia.bar.always-expanded";
   const remeasure = () => {
     if (!mediaBar || mediaBar.hidden || mediaBar.matches(":hover")) return;
-    const front = mediaBar.querySelector(":scope > .zen-media-card:not([stacked-behind], [zen-removing], [zen-hiding])");
-    if (front) mediaBar.style.setProperty("--zen-media-collapsed-height", front.getBoundingClientRect().height + "px");
+    const front = window.gZenMediaController?.frontCard?.element;
+    if (front && !front.matches("[zen-removing], [zen-hiding]")) {
+      mediaBar.style.setProperty("--zen-media-collapsed-height", front.getBoundingClientRect().height + "px");
+    }
   };
   if (mediaBar) {
     const sizes = watching(new ResizeObserver(() => {

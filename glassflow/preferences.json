@@ -2144,6 +2144,29 @@
   {
     "type": "dropdown",
     "value": "number",
+    "property": "zzglass.overlays.boosts",
+    "label": "Boosts Zap toolbar *Glass behind Zen’s page-editing controls. Shares Overlay fill and blur.*",
+    "defaultValue": 1,
+    "options": [
+      {
+        "label": "Off: as Zen draws it",
+        "value": 0
+      },
+      {
+        "label": "Zen's blur",
+        "value": 1
+      },
+      {
+        "label": "Zen's blur, darkened like the sidebar",
+        "value": 2
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.overlays.enabled", "value": true}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
     "property": "zzglass.overlays.dialog",
     "label": "Download question *Download Prompt's \"open or save\" question. On its own, that mod uses Zen's blur.*",
     "defaultValue": 1,

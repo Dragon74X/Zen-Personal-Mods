@@ -56,7 +56,8 @@ defaults.
 - The mod finds its folder through Sine's registered chrome URL instead of a
   hardcoded profile path, so it works under Sine and Cosine alike.
 - With **Always show title and progress** on, the player is measured again
-  whenever its size changes, so the expanded rows push the tab list up
+  whenever its size changes, using Zen's own visible front card. Hidden cards
+  cannot reset its measured height to zero. The expanded rows push the tab list up
   instead of covering tabs.
 - The preview sits in front of the tabs. With **Make room above the preview**
   on, its room is made just above the music bar instead, as space the tab list

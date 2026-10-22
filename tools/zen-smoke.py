@@ -255,6 +255,7 @@ def check(m, root, arc, transparent):
         if not enabled:
             assert box["filter"] == "none" and box["fill"].startswith("rgb("), box
     result["downloadBoxChecks"] = ["on", "master-off", "downloads-off", "restored"]
+    result["boostsChecks"] = check_boosts(m)
     # Run the sprite engine with Firefox's XML DOM; Node has no DOMParser.
     engine = (root / "iconflow/iconflow-parts.uc.js").read_text().split("  // ---- in the browser")[0]
     engine = engine.replace('if (typeof Services === "undefined")', 'if (true)') + "\n})();"
@@ -375,6 +376,57 @@ def check(m, root, arc, transparent):
     return result
 
 
+def check_boosts(m):
+    """Theme Zen's real Zap bar without replacing its controls or layout."""
+    result = m.script("""return (async()=>{
+      const browser=gBrowser.selectedBrowser, container=browser.closest('.browserSidebarContainer');
+      const bar=document.createElement('zen-zap-bar'), messages=[];
+      bar.browser=browser;bar.actor={sendAsyncMessage:(name,data)=>messages.push({name,data})};
+      bar.entries=[{selector:'#fixture',count:1}];
+      const before=browser.getBoundingClientRect().height;
+      browser.parentNode.insertAdjacentElement('afterend',bar);
+      const settle=()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+      const state=()=>{const s=getComputedStyle(bar);return {fill:s.backgroundColor,filter:s.backdropFilter,color:s.color};};
+      const root=document.documentElement, scheme=root.style.getPropertyValue('color-scheme');
+      const cases=[];
+      try {
+        await customElements.whenDefined('zen-zap-bar');await bar.updateComplete;await settle();
+        const reservesSpace=browser.getBoundingClientRect().height<before && container.hasAttribute('zen-zapping');
+        for(const theme of ['light','dark'])for(const [master,mode] of [[true,0],[true,1],[true,2],[false,1]]){
+          root.style.setProperty('color-scheme',theme);
+          Services.prefs.setBoolPref('zzglass.overlays.enabled',master);
+          Services.prefs.setIntPref('zzglass.overlays.boosts',mode);await settle();
+          cases.push({theme,master,mode,...state()});
+        }
+        Services.prefs.setBoolPref('zzglass.overlays.enabled',true);
+        Services.prefs.setIntPref('zzglass.overlays.boosts',1);
+        Services.prefs.setIntPref('ui.prefersReducedTransparency',1);await settle();
+        const reduced={matches:matchMedia('(prefers-reduced-transparency: reduce)').matches,...state()};
+        bar.shadowRoot.querySelector('.zen-zap-bar-unzap').click();
+        bar.shadowRoot.querySelector('.zen-zap-bar-done').click();
+        return {reservesSpace,cases,reduced,messages};
+      } finally {
+        bar.remove();
+        root.style.setProperty('color-scheme',scheme);
+        Services.prefs.clearUserPref('ui.prefersReducedTransparency');
+        Services.prefs.setBoolPref('zzglass.overlays.enabled',true);
+        Services.prefs.setIntPref('zzglass.overlays.boosts',1);
+      }
+    })();""")
+    assert result["reservesSpace"], result
+    for case in result["cases"]:
+        enabled = case["master"] and case["mode"] != 0
+        assert ("blur(" in case["filter"]) == enabled, case
+        assert ("brightness(" in case["filter"]) == (enabled and case["mode"] == 2), case
+        if enabled:
+            assert case["fill"].startswith("rgba(") and case["fill"] != case["color"], case
+    assert result["reduced"]["matches"] and result["reduced"]["filter"] == "none", result
+    assert result["reduced"]["fill"].startswith("rgb("), result
+    assert result["messages"] == [{"name": "ZenBoost:ZapBarUnzap", "data": {"selector": "#fixture"}},
+                                  {"name": "ZenBoost:DisableZapMode", "data": None}], result
+    return {"appearanceCases": len(result["cases"]), "reducedTransparency": True, "nativeActions": 2, "reservesSpace": True}
+
+
 def check_library_hover(m, root, arc):
     """Actual pointer handoff; never force zen-user-show or synthetic hover."""
     m.script("return gZenStartup.promiseInitialized.then(()=>true);")
@@ -391,7 +443,7 @@ def check_library_hover(m, root, arc):
              "Services.prefs[typeof v==='boolean'?'setBoolPref':typeof v==='number'?'setIntPref':'setStringPref'](k,v);return true;")
     for sheet in ([arc / "userChrome.css"] if arc else []) + [root / mod / "userChrome.css" for mod in mods]:
         m.script("Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService)"
-                 ".loadAndRegisterSheet(Services.io.newURI(" + json.dumps(sheet.as_uri()) + "),1);return true;")
+                 ".loadAndRegisterSheet(Services.io.newURI(" + json.dumps(sheet.resolve().as_uri()) + "),1);return true;")
     for mod in mods:
         m.script((root / mod / (mod + ".uc.js")).read_text() + "\nreturn true;")
     m.script("""return (async()=>{

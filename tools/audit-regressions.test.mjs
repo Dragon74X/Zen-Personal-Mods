@@ -305,6 +305,28 @@ test("Mediaflow: inactive actor state, frames, and stops cannot change active co
   assert.equal(calls.at(-1), state);
 });
 
+test("Mediaflow measures Zen's visible front card rather than an earlier hidden card", () => {
+  const sizes = [], native = { frontCard: null };
+  const hidden = { getBoundingClientRect: () => ({ height: 0 }) };
+  const visible = { matches: () => false, getBoundingClientRect: () => ({ height: 80 }) };
+  const bar = { hidden: false, matches: () => false, querySelector: () => hidden,
+    style: { setProperty: (_name, value) => sizes.push(value) } };
+  const env = vm.createContext({ mediaBar: bar, window: { gZenMediaController: native } });
+  vm.runInContext(mediaSource.slice(mediaSource.indexOf('  const remeasure ='),
+    mediaSource.indexOf('\n  if (mediaBar)')) + '\nthis.measure = remeasure;', env);
+  native.frontCard = { element: visible };
+  env.measure();
+  assert.deepEqual(sizes, ['80px']);
+  for (const state of ['no-card', 'hiding', 'hovered', 'hidden']) {
+    native.frontCard = state === 'no-card' ? null : { element: visible };
+    visible.matches = () => state === 'hiding';
+    bar.matches = () => state === 'hovered';
+    bar.hidden = state === 'hidden';
+    env.measure();
+  }
+  assert.deepEqual(sizes, ['80px'], 'no layout writes while absent, hiding or hovered');
+});
+
 test("Mediaflow: native range seeks once on commit and cancels preview state without seeking", () => {
   const nodes = [], sent = [], attrs = new Map();
   const node = tag => {

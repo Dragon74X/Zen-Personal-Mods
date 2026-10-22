@@ -284,12 +284,13 @@ blur**.
 | Glance's side buttons | Translucent over a blur of the page |
 | Library media preview | The dimmed window behind it is blurred too |
 | Music player at the bottom of the sidebar | Glass; its title row floats over the tabs on hover |
+| Boosts Zap toolbar (Zen 1.23.4b+) | Shared fill and blur on the native bar; Zen reserves page space and owns its controls. Reduced transparency uses an opaque fill; forced colors keeps native styling |
 | Download Prompt's question | Its own glass; this row only picks the blur |
 
 | Setting | Default | Notes |
 |---|---|---|
 | Glass behind overlays | on | |
-| Download stack and pop-out / Toasts / Glance's side buttons / Behind the library media preview / Music player / Download question | Zen's blur | Each: Off, Zen's blur, or darkened like the sidebar |
+| Download stack and pop-out / Toasts / Glance's side buttons / Behind the library media preview / Music player / Boosts Zap toolbar / Download question | Zen's blur | Each: Off, Zen's blur, or darkened like the sidebar |
 | Overlay fill | `55%` | `0%` is clear glass |
 | Overlay blur | `8px` | How strongly every overlay above blurs |
 | Menu and panel fill (Windows 11) | `50%` | Zen's own value; lower shows more of the blur |

@@ -1467,6 +1467,26 @@
   }
 }
 
+/* Zen 1.23.4b owns Zap's controls and page-space reservation. Theme only
+   the native bar; its shadow buttons keep their actions and focus rings. */
+@media (-moz-pref("zzglass.overlays.enabled")) and (not (-moz-pref("zzglass.overlays.boosts", 0))) and (not (forced-colors: active)) {
+  zen-zap-bar {
+    background: var(--zzg-ov-fill) !important;
+    color: light-dark(rgb(24 24 24), rgb(231 231 231)) !important;
+    border-color: color-mix(in srgb, currentColor 20%, transparent) !important;
+    backdrop-filter: var(--zzg-ov-glass) !important;
+  }
+  @media (-moz-pref("zzglass.overlays.boosts", 2)) {
+    zen-zap-bar { backdrop-filter: var(--zzg-ov-glass-dim) !important; }
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    zen-zap-bar {
+      background: var(--zen-main-browser-background, Canvas) !important;
+      backdrop-filter: none !important;
+    }
+  }
+}
+
 /* ============================================================
    Small tweaks taken over from single-purpose mods. Each setting sits in
    the section it affects; the comment names that section and the mod it

@@ -344,6 +344,22 @@
   {
     "type": "dropdown",
     "value": "number",
+    "property": "zzgroup.tab-icon-shape",
+    "label": "Tab icon shape *Applies to tab favicons and Router pictures, including pinned tabs, Essentials and Library copies. Match folder corners follows the header's corner shape and scales its radius to the icon size.*",
+    "defaultValue": 0,
+    "options": [
+      { "label": "Match folder corners", "value": 0 },
+      { "label": "Rounded square", "value": 1 },
+      { "label": "Squircle", "value": 2 },
+      { "label": "Circle", "value": 3 },
+      { "label": "Square", "value": 4 }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "headers"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"if": {"property": "zzgroup.enabled", "value": true}}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
     "property": "zzgroup.align",
     "label": "Label alignment *Left puts text beside the favicon; center and right keep the favicon attached to the text as it moves.*",
     "defaultValue": 0,

@@ -750,7 +750,9 @@
     try {
       iconCache = new Map(Object.entries(JSON.parse(str("avatars", "{}")))
         .map(([k, v]) => [k, typeof v === "string" ? { d: v, s: "round" } : v])
-        .filter(([, v]) => v?.d)); // Old null entries must not suppress recovery forever.
+        // Label-only caches carry no verified subject or container. Refetch
+        // those pictures through member URLs; never guess ownership from a name.
+        .filter(([k, v]) => /^\d+:https:\/\//.test(k) && v?.d));
     } catch { iconCache = new Map(); }
     return iconCache;
   }
@@ -850,14 +852,52 @@
     return bool("section-icons", true) && !excluded;
   }
 
+  // Pre-1.35 groups have no subject stamp. Recover presentation from their
+  // members, never routing ownership from a label. Every live member must
+  // verify the same picture and container; manual names and mixed groups stay.
+  function legacyPicture(g) {
+    const label = (g.label || "").trim().toLowerCase();
+    let picture = null;
+    for (const tab of g.tabs ?? []) {
+      if (!tab.isConnected || tab.closing) continue;
+      const record = pictureSubject(tab, false), parts = pathParts(tab, false);
+      if (record) {
+        parts.push(partFor(record, tab));
+        const seg = record.key.split("/").at(-1);
+        for (const name of [record.label, segName(tab, seg, false), prettify(seg.replace(/^@/, ""))])
+          if (name) parts.push({ ...partFor(record, tab), label: name });
+      }
+      const part = parts.find(p => p.picture && p.label?.trim().toLowerCase() === label);
+      if (!part || !picturesEnabled(hostOf(tab)) ||
+          (picture && (picture.key !== part.picture || picture.ctx !== part.ctx))) return null;
+      picture = { key: part.picture, ctx: part.ctx };
+    }
+    return picture;
+  }
+
   function stampIcons(_recover = false, targets = groups()) {
-    const on = !retired;
+    const on = !retired && bool("section-icons", true);
     let changed = 0, removed = false;
     for (const g of targets) {
-      const key = g.getAttribute("data-zzrouter-picture");
-      const want = on && parentOf(g) && key && picturesEnabled(/^https:\/\/([^/]+)/.exec(key)?.[1]) ? iconMap().get(scoped(key, Number(g.getAttribute("data-zzrouter-context")))) : null;
+      let picture = null;
+      if (on && parentOf(g)) {
+        const key = g.getAttribute("data-zzrouter-picture"), ctx = g.getAttribute("data-zzrouter-context");
+        if (key && /^https:\/\//.test(key) && /^\d+$/.test(ctx || "")) picture = { key, ctx: Number(ctx) };
+        else if (!g.hasAttribute("data-zzrouter-subject")) {
+          picture = legacyPicture(g);
+          if (picture) {
+            g.setAttribute("data-zzrouter-picture", picture.key);
+            g.setAttribute("data-zzrouter-context", picture.ctx);
+            // Groupflow saves these two display fields independently of subject
+            // ownership, through its existing group-details/session lifecycle.
+            g.dispatchEvent(new CustomEvent("TabGroupUpdate", { bubbles: true }));
+          }
+        }
+      }
+      const want = picture?.key && picturesEnabled(/^https:\/\/([^/]+)/.exec(picture.key)?.[1])
+        ? iconMap().get(scoped(picture.key, picture.ctx)) : null;
       if (want?.d) {
-        if (g.getAttribute("data-zzrouter-icon") !== want.d) {
+        if (g.getAttribute("data-zzrouter-icon") !== want.d || g.getAttribute("data-zzrouter-icon-shape") !== want.s) {
           g.setAttribute("data-zzrouter-icon", want.d);
           g.setAttribute("data-zzrouter-icon-shape", want.s); changed++;
         }
@@ -1537,15 +1577,13 @@
     if (retired || !presentable(tab)) return;
     captureNexus(tab);
     updatePicture(tab);
+    stampIcons(false, ancestorsOf(tab));
     if (!bool("enabled", false)) return;
     if (routing.has(tab)) { reroute.set(tab, why); return; }
     const s = skip(tab);
     if (s) {
       if (s === "already in a group") {
         healWorkspace(tab);
-        // Cached paths bypass creator lookup; retry a missing picture on
-        // normal tab activity even when this tab already belongs here.
-        stampIcons(true, [tab.group]);
       }
       note(`skip ${tab.label}: ${s}`); return;
     }
@@ -1991,7 +2029,7 @@
         } catch {}
 
         const r = {
-          version: "1.35.0",
+          version: "1.35.1",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The

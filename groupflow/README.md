@@ -1,5 +1,10 @@
 # Groupflow
 
+Tab favicons and Router pictures default to **Match folder corners**, including
+pinned tabs, Essentials and Library copies. **Header → Tab icon shape** also
+offers Rounded square, Squircle, Circle and Square. The crop affects the image;
+loading, audio and picture-in-picture indicators retain their native geometry.
+
 Runtime compatibility requires testing against installed Zen, Firefox, and Sine versions.
 
 Nested-group persistence, native controls and startup folding, with glass theming

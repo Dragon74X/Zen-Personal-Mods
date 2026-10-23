@@ -430,6 +430,11 @@
       if (!data || closed) return;
       for (const group of plainGroups()) data[group.id] = {
         label: group.label, color: group.color, workspace: workspaceOf(group),
+        ...(group.hasAttribute("data-zzrouter-subject") ? { router: {
+          subject: group.getAttribute("data-zzrouter-subject"),
+          context: group.getAttribute("data-zzrouter-context"),
+          picture: group.getAttribute("data-zzrouter-picture"),
+        } } : {}),
       };
       writeGroupData("groupflowGroups", data);
     }
@@ -446,6 +451,14 @@
   }
 
   function restoreParents(parents, candidates = plainGroups(), details = null) {
+    const restoreRouter = group => {
+      if (!plainGroup(group)) return;
+      const saved = details?.[group.id]?.router;
+      if (!saved || typeof saved.subject !== "string" || !/^https:\/\//.test(saved.subject) ||
+          !/^\d+$/.test(saved.context) || typeof saved.picture !== "string") return;
+      for (const key of ["subject", "context", "picture"]) group.setAttribute(`data-zzrouter-${key}`, saved[key]);
+    };
+    for (const group of candidates) restoreRouter(group);
     if (!parents) return;
     for (const group of candidates) {
       if (!plainGroup(group)) continue;
@@ -463,6 +476,7 @@
           parent.id = parentId; parent.label = saved.label; parent.color = saved.color;
           child.before(parent);
         }
+        restoreRouter(parent);
         if (!plainGroup(parent) || child.contains(parent) || workspaceOf(child) !== workspaceOf(parent)) break;
         if (child.group !== parent) parent.groupContainer.appendChild(child);
         child = parent;

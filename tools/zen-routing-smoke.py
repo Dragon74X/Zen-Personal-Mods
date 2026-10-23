@@ -1014,22 +1014,134 @@ def check(m, root, atg, port, first):
         result.update(check_native_routes(m, root))
     else:
         m.script((root / "tab-router/tab-router.uc.js").read_text() + "\nreturn true;")
+    if not first:
+        result['routerIdentityRestored'] = m.script("""
+          const g=[...document.querySelectorAll('tab-group')].find(g=>g.label==='Grandchild');
+          return g.getAttribute('data-zzrouter-subject')==='https://www.youtube.com/@native-fixture' &&
+            g.getAttribute('data-zzrouter-context')==='0' &&
+            g.getAttribute('data-zzrouter-picture')==='https://www.youtube.com/@native-fixture';
+        """)
+        assert result['routerIdentityRestored'], result
     result['channelAvatarRendered'] = m.script("return (async()=>{" + HELPERS + """
       const canvas=new OffscreenCanvas(64,64),ctx=canvas.getContext('2d');
       ctx.fillStyle='#f80';ctx.fillRect(0,0,64,64);
       const bytes=new Uint8Array(await (await canvas.convertToBlob({type:'image/png'})).arrayBuffer());
       const avatar='data:image/png;base64,'+btoa(String.fromCharCode(...bytes));
       Services.prefs.setBoolPref('zzrouter.section-icons',true);
-      Services.prefs.setStringPref('zzrouter.avatars',JSON.stringify({grandchild:{d:avatar,s:'round'}}));
-      const g=group('Grandchild');await until(()=>g.style.getPropertyValue('--zzgf-icon').includes(avatar));
+      const g=group('Grandchild'),key='https://www.youtube.com/@native-fixture';
+      g.setAttribute('data-zzrouter-subject',key);g.setAttribute('data-zzrouter-picture',key);
+      g.setAttribute('data-zzrouter-context','0');
+      g.dispatchEvent(new CustomEvent('TabGroupUpdate',{bubbles:true}));
+      Services.prefs.setStringPref('zzrouter.avatars',JSON.stringify({['0:'+key]:{d:avatar,s:'round'}}));
+      await until(()=>g.style.getPropertyValue('--zzgf-icon').includes(avatar));
       const image=new Image();image.src=avatar;await image.decode();
       return g.getAttribute('zzgf-shape')==='circle' && image.naturalWidth===64;
     })();""")
     assert result['channelAvatarRendered'], result
+    if first: result.update(check_subject_pictures(m, root))
     # Leave the child open in the saved session: the next launch must fold it again.
     m.script("""Services.prefs.setBoolPref('zzrouter.enabled',false);
       const deep=[...document.querySelectorAll('tab-group')].find(g=>g.label==='Grandchild');
       gBrowser.selectedTab=deep.tabs[0]; return true;""")
+    return result
+
+
+def check_subject_pictures(m, root):
+    # Exercise production functions with native tabs and controlled URL getters;
+    # no live YouTube/Nexus requests or external account state enter the fixture.
+    source = (root / "tab-router/tab-router.uc.js").read_text()
+    source = source.replace("  // ---- declared defaults", """
+      window.subjectFixture={route,updatePicture,captureNexus,creatorMap,iconMap,stampIcons,saveNexus,fetchAnon};
+      // ---- declared defaults""")
+    m.script(source + "\nreturn true;")
+    result = m.script("return (async()=>{" + HELPERS + """
+      const h=subjectFixture, checks={}, tabs=[], copies=[];
+      const old={enabled:Services.prefs.getBoolPref('zzrouter.enabled'),
+        media:Services.prefs.getBoolPref('zzrouter.media-subgroups'),compact:gZenCompactModeManager.preference};
+      const channel='https://www.youtube.com/@native-fixture',game='https://www.nexusmods.com/games/baldursgate3';
+      const icon=JSON.parse(Services.prefs.getStringPref('zzrouter.avatars'))['0:'+channel].d;
+      Services.prefs.setBoolPref('zzrouter.enabled',false);
+      Services.prefs.setBoolPref('zzrouter.media-subgroups',false);
+      const make=async(url)=>{
+        const t=add(fixtureURL+'/subject-fixture');tabs.push(t);await loaded(t);
+        Object.defineProperty(t.linkedBrowser,'currentURI',{configurable:true,get:()=>Services.io.newURI(url)});
+        h.creatorMap().set(t.userContextId+':fixture-video',{key:channel,label:'Fixture Channel'});
+        h.iconMap().set(t.userContextId+':'+channel,{d:icon,s:'round'});
+        return t;
+      };
+      const painted=t=>getComputedStyle(t.querySelector('.tab-icon-image')).content.includes(icon);
+      try {
+        const requestSeen={};
+        const observer={observe(subject){
+          const channel=subject.QueryInterface(Ci.nsIHttpChannel);
+          if(channel.URI.spec!=='https://api.nexusmods.com/v2/graphql')return;
+          requestSeen.method=channel.requestMethod;
+          requestSeen.context=channel.loadInfo.originAttributes.userContextId;
+          requestSeen.anonymous=!!(channel.loadFlags & Ci.nsIRequest.LOAD_ANONYMOUS);
+          channel.cancel(Components.results.NS_BINDING_ABORTED);
+        }};
+        Services.obs.addObserver(observer,'http-on-modify-request');
+        try {
+          await new Promise(resolve=>h.fetchAnon('https://api.nexusmods.com/v2/graphql',7,resolve,512*1024,
+            {query:'{game(id:"3474"){id name domainName}}'}));
+          checks.nativeAnonymousGameRequest=requestSeen.method==='POST' && requestSeen.context===7 && requestSeen.anonymous;
+        } finally {Services.obs.removeObserver(observer,'http-on-modify-request');}
+        const normal=await make('https://www.youtube.com/watch?v=fixture-video');
+        const nativeImage=normal.getAttribute('image'),ctx=normal.userContextId,ws=normal.getAttribute('zen-workspace-id');
+        await h.route(normal,'native fixture');
+        checks.nativeTabSubjectPaint=painted(normal);
+        checks.pictureNoMovement=normal.userContextId===ctx && normal.getAttribute('zen-workspace-id')===ws && !normal.group;
+        checks.nativeFaviconPreserved=normal.getAttribute('image')===nativeImage;
+        for(const compact of [false,true]) {
+          gZenCompactModeManager.preference=compact;await pause(100);
+          checks[compact?'subjectCompact':'subjectExpanded']=painted(normal);
+        }
+        normal.zenStaticIcon=nativeImage;gZenPinnedTabManager.onTabIconChanged(normal);
+        checks.manualIconPrecedence=!normal.hasAttribute('data-zzrouter-tab-icon') && !painted(normal);
+        delete normal.zenStaticIcon;gZenPinnedTabManager.onTabIconChanged(normal);
+        checks.manualIconRemoval=painted(normal);
+        const pinned=await make('https://www.youtube.com/watch?v=fixture-video');
+        gBrowser.pinTab(pinned);await h.route(pinned,'pinned fixture');checks.subjectPinned=painted(pinned);
+        gZenPinnedTabManager.addToEssentials(pinned,{replicating:true});await h.route(pinned,'Essential fixture');
+        checks.subjectEssential=pinned.hasAttribute('zen-essential') && painted(pinned);
+        // Native visibility rules still own busy/audio/PiP; compare their result
+        // with and without our presentation token for the same attribute state.
+        const indicators=()=>['.tab-throbber','.tab-icon-overlay','.tab-audio-button'].map(selector=>{
+          const node=normal.querySelector(selector),style=getComputedStyle(node);
+          return [style.display,style.visibility,style.opacity,node.getAttribute('muted'),node.getAttribute('pictureinpicture')];
+        });
+        for(const state of ['busy','muted','soundplaying','pictureinpicture']) {
+          normal.setAttribute(state,'true');h.updatePicture(normal,false);
+          const withPicture=JSON.stringify(indicators());
+          normal.removeAttribute('data-zzrouter-tab-icon');
+          checks['subjectIndicator_'+state]=JSON.stringify(indicators())===withPicture;
+          normal.removeAttribute(state);h.updatePicture(normal,false);
+        }
+        // Zen's actual shallow-clone path initializes a new native tab element.
+        const copy=normal.cloneNode(false);copy.id=normal.id+'-subject-copy';copies.push(copy);
+        document.querySelector('zen-library').appendChild(copy);
+        checks.subjectLibraryCopy=painted(copy);
+        const before=tabs.length;await h.route(copy,'copy fixture');
+        checks.libraryCopyNotRouted=!copy.group && tabs.length===before;
+        Services.prefs.setBoolPref('zzrouter.section-icons',false);
+        checks.pictureDisable=!normal.hasAttribute('data-zzrouter-tab-icon');
+        Services.prefs.setBoolPref('zzrouter.section-icons',true);
+        checks.pictureReenable=painted(normal);
+        // Close/unload restoration is tested by retiring the actual instance.
+        window.__zzrouterInstance.retire();
+        checks.pictureUnload=!normal.hasAttribute('data-zzrouter-tab-icon') && normal.getAttribute('image')===nativeImage;
+      } finally {
+        for(const copy of copies)copy.remove();
+        for(const tab of tabs){delete tab.linkedBrowser.currentURI;gBrowser.removeTab(tab,{animate:false});}
+        gZenCompactModeManager.preference=old.compact;
+        Services.prefs.setBoolPref('zzrouter.enabled',old.enabled);
+        Services.prefs.setBoolPref('zzrouter.media-subgroups',old.media);
+        delete window.subjectFixture;
+      }
+      return checks;
+    })();""")
+    assert all(result.values()), result
+    m.script((root / "tab-router/tab-router.uc.js").read_text() + "\nreturn true;")
     return result
 
 

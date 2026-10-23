@@ -68,9 +68,10 @@
     if (writing) return;
     if (data === P + "learned-names") { learnedCache = null; targetGen++; return; }
     if (data === P + "creators") { creatorCache = null; targetGen++; return; }
-    if (data === P + "avatars") { iconCache = null; stampIcons(); return; }
-    if (data === P + "section-icons") { stampIcons(true); return; }
+    if (data === P + "avatars") { iconCache = null; stampIcons(); refreshPictures(); return; }
+    if (data === P + "section-icons") { cancelLookups(); stampIcons(); refreshPictures(); return; }
     for (const k of Object.keys(parsed)) delete parsed[k]; learnedCache = null; targetGen++;
+    stampIcons(); refreshPictures();
   } };
   function write(key, text) {
     writing = true;
@@ -227,9 +228,9 @@
     "share,embed,api,static,assets,cdn,images,img,media,files,download,downloads")
     .split(","));
 
-  function pathParts(tab, learn = true) {
+  function pathEnabled(tab) {
     const depth = num("auto-path-depth", 0);
-    if (depth < 1) return [];
+    if (depth < 1) return false;
     // The domain list is read either way round: only these sites, or
     // every site except these. Everywhere means shops, docs and forums
     // too, which put section names, ids and slugs in the first segment;
@@ -238,30 +239,56 @@
     const list = cached("pathdomains", () => str("auto-path-domains", "")
       .split(",").map(s => s.trim().toLowerCase()).filter(Boolean));
     const host = hostOf(tab);
-    if (!host) return [];
+    if (!host) return false;
     const listed = list.some(d => host === d || host.endsWith("." + d));
-    if (num("auto-path-mode", 0) === 1 ? listed : !listed) return [];
+    if (num("auto-path-mode", 0) === 1 ? listed : !listed) return false;
+    return true;
+  }
+
+  const partLabel = part => typeof part === "string" ? part : part.label;
+  const contextOf = tab => parseInt(tab.getAttribute("usercontextid") || "0", 10);
+  const scoped = (key, ctx) => `${ctx}:${key}`;
+  const partFor = (record, tab, picture = record.key) => ({
+    label: aliasMap().get(record.key) || aliasMap().get(record.label?.toLowerCase()) || record.label,
+    key: record.key, ctx: contextOf(tab), picture,
+  });
+
+  function pathParts(tab, learn = true) {
+    if (!pathEnabled(tab)) return [];
+    const host = hostOf(tab), nx = nexusURL(tab);
+    if (nx) {
+      const game = nexusGame(tab, learn);
+      if (!game) return [];
+      const parts = [partFor(game, tab)];
+      const author = nx.author && authorRecord(tab, nx, learn);
+      if (author) parts.push(partFor(author, tab, game.key));
+      return parts;
+    }
+    if (host === "music.youtube.com") {
+      const page = musicPage(tab, learn);
+      return page ? [partFor(page, tab, "")] : [];
+    }
+    const channel = channelRecord(tab);
+    if (channel) {
+      if (!channel.label && learn) fetchPageName(tab, channel.key, "channel");
+      return channel.label ? [partFor(channel, tab)] : [];
+    }
     let path = "";
     try { path = tab.linkedBrowser?.currentURI?.filePath ?? ""; } catch { return []; }
-    const skipWords = cached("skipwords", () => new Set(
-      str("auto-path-ignore", "")
-        .split(",").map(s => s.trim().toLowerCase()).filter(Boolean)));
-    // decodeURIComponent throws on a malformed escape, and this runs inside
-    // route(): one bad %-sequence in a URL must not abort the pass.
-    const decode = (s) => { try { return decodeURIComponent(s); } catch { return s; } };
-    const raw = path.split("/").filter(Boolean);
-    const keep = (s) => {
-      const d = decode(s).trim().toLowerCase();
-      // one- and two-letter segments (u, g, n, r, en) are route codes,
-      // pure ids and file names make useless group names
-      return d.length >= 3 && !BUILTIN_IGNORE.has(d) && !skipWords.has(d) &&
-        !/^\d+$/.test(d) && !/\.[a-z0-9]{2,4}$/i.test(d) && !/[=?&]/.test(d);
-    };
-    const segs = raw.filter(keep).map(s => decode(s).trim());
-    const parts = segs.slice(0, depth).map(s => segName(tab, s, learn));
-    // The page the first subgroup is named after: the URL up to that segment.
-    const at = raw.findIndex(keep);
-    if (learn && parts.length && at >= 0) wantSectionIcon(tab, host, "/" + raw.slice(0, at + 1).join("/"), segs[0], parts[0]);
+    const skipWords = cached("skipwords", () => new Set(str("auto-path-ignore", "")
+      .split(",").map(s => s.trim().toLowerCase()).filter(Boolean)));
+    const raw = path.split("/").filter(Boolean), parts = [];
+    for (let i = 0; i < raw.length && parts.length < num("auto-path-depth", 0); i++) {
+      let seg;
+      try { seg = decodeURIComponent(raw[i]).trim(); } catch { continue; }
+      const low = seg.toLowerCase();
+      if (low.length < 3 || BUILTIN_IGNORE.has(low) || skipWords.has(low) ||
+          /^\d+$/.test(seg) || /\.[a-z0-9]{2,4}$/i.test(seg) || /[=?&]/.test(seg)) continue;
+      const page = `https://${host}/${raw.slice(0, i + 1).join("/")}`;
+      const record = { key: page, label: segName(tab, seg, learn) };
+      parts.push(partFor(record, tab));
+      if (learn) fetchSectionIcon(record.key, page, contextOf(tab), ROUND_HOSTS.test(host) ? "round" : "square");
+    }
     return parts;
   }
 
@@ -277,14 +304,14 @@
     try { spec = tab.linkedBrowser?.currentURI?.spec ?? null; } catch {}
     if (spec) {
       const hit = targetCache.get(tab);
-      if (hit && hit.spec === spec && hit.label === tab.label && hit.gen === targetGen) return hit.parts;
+      if (hit && hit.spec === spec && hit.label === tab.label && hit.ctx === contextOf(tab) && hit.gen === targetGen) return hit.parts;
       const parts = withCreator(tab, computeTargetPath(tab));
       // A path still waiting on its creator must be recomputed next pass,
       // or the tab sits in the base group for as long as its URL is
       // unchanged -- on a watch page, the whole time it is open.
       const id = videoId(tab);
-      if (!id || !bool("media-subgroups", false) || creatorMap().has(id)) {
-        targetCache.set(tab, { spec, label: tab.label, gen: targetGen, parts });
+      if (!id || !bool("media-subgroups", false) || creatorMap().has(scoped(id, contextOf(tab)))) {
+        targetCache.set(tab, { spec, label: tab.label, ctx: contextOf(tab), gen: targetGen, parts });
       }
       return parts;
     }
@@ -311,8 +338,8 @@
   };
   const originOf = (ctx) => ({ userContextId: ctx, privateBrowsingId: isPrivate() ? 1 : 0 });
 
-  // Cache key: the video id, so &t= timestamps and tracking parameters do
-  // not fragment one video into many entries.
+  // Video IDs exclude timestamps/tracking; stored records additionally carry
+  // the container ID and a verified subject URL, separate from display text.
   function videoId(tab) {
     try {
       const uri = tab.linkedBrowser?.currentURI;
@@ -350,8 +377,8 @@
     inFlight.clear();
     failed.clear();
   }
-  const inFlight = new Map();            // videoId -> true while a request is out
-  const failed = new Map();              // videoId -> when it last failed (memory only)
+  const inFlight = new Map();            // container + resource -> pending request
+  const failed = new Map();              // request key -> failure time (memory only)
   const FAILED_MAX = 200;
   const noteFail = (k) => {
     failed.set(k, Date.now());
@@ -369,7 +396,7 @@
   const FETCH_TIMEOUT_MS = 15000;
   const NS_BINDING_ABORTED = 0x804b0002;
   const lookupURIAllowed = uri => uri.scheme === "https" && !uri.userPass && !INTERNAL_HOST.test(uri.host);
-  function fetchAnon(url, ctx, cb, maxBytes = MAX_FETCH_BYTES) {
+  function fetchAnon(url, ctx, cb, maxBytes = MAX_FETCH_BYTES, jsonBody = null) {
     const { NetUtil } = ChromeUtils.importESModule("resource://gre/modules/NetUtil.sys.mjs");
     const uri = Services.io.newURI(url);
     if (!lookupURIAllowed(uri)) throw new Error("Lookup requires a public HTTPS hostname");
@@ -382,6 +409,12 @@
       contentPolicyType: Ci.nsIContentPolicy.TYPE_OTHER,
     });
     channel.loadFlags |= Ci.nsIRequest.LOAD_ANONYMOUS;
+    if (jsonBody !== null) {
+      const stream = Cc["@mozilla.org/io/string-input-stream;1"].createInstance(Ci.nsIStringInputStream);
+      stream.data = JSON.stringify(jsonBody);
+      channel.QueryInterface(Ci.nsIUploadChannel).setUploadStream(stream, "application/json", -1);
+      channel.QueryInterface(Ci.nsIHttpChannel).requestMethod = "POST";
+    }
     channel.notificationCallbacks = {
       QueryInterface: ChromeUtils.generateQI(["nsIInterfaceRequestor", "nsIChannelEventSink"]),
       getInterface(iid) { return this.QueryInterface(iid); },
@@ -442,42 +475,251 @@
   // Byte string -> JS string, for text bodies.
   const utf8 = (bytes) => decodeURIComponent(escape(bytes));
 
-  function fetchCreator(tab, id) {
-    if (isPrivate()) return;
-    if (inFlight.has(id)) return;
-    const lastFail = failed.get(id);
-    if (lastFail && Date.now() - lastFail < RETRY_FAIL_MS) return;
-    inFlight.set(id, true);
-    const epoch = lookupEpoch;
+  // Each container has its own request and records. Waiters retain their own
+  // navigation/provenance; a shared response never supplies a shared destination.
+  function beginLookup(slot, tab) {
+    if (isPrivate() || retired) return null;
+    const pending = inFlight.get(slot);
+    const spec = tab?.linkedBrowser?.currentURI?.spec;
+    if (pending) { if (tab) pending.waiters?.set(tab, spec); return null; }
+    if (failed.has(slot) && Date.now() - failed.get(slot) < RETRY_FAIL_MS) return null;
+    const request = { epoch: lookupEpoch, waiters: new Map(tab ? [[tab, spec]] : []) };
+    inFlight.set(slot, request);
+    return request;
+  }
 
-    // The id is all oEmbed needs. The tab's full URL would also carry the
-    // timestamp, the playlist and YouTube's si= share-tracking token.
-    const watch = `https://www.youtube.com/watch?v=${id}`;
-    const ctx = parseInt(tab.getAttribute("usercontextid") || "0", 10);
-    const done = (name, channelUrl) => {
-      if (epoch !== lookupEpoch) return;
-      inFlight.delete(id);
-      if (!name) { noteFail(id); return; }
-      const changed = creatorMap().get(id) !== name;
-      if (changed) { creatorMap().set(id, name); saveCreators(); targetGen++; }
-      note(`creator ${id}: ${name}`);
-      if (changed && tab.isConnected && !tab.closing) queueRoute(tab, "creator");
-      if (channelUrl) fetchSectionIcon(name, channelUrl, ctx, "round");
-      else noteFail("icon:" + name.trim().toLowerCase());
+  function finishLookup(slot, request) {
+    if (request.epoch !== lookupEpoch) return;
+    inFlight.delete(slot);
+    for (const [tab, spec] of request.waiters) {
+      if (tab.isConnected && !tab.closing && tab.linkedBrowser?.currentURI?.spec === spec &&
+          slot.startsWith(`${contextOf(tab)}:`)) queueRoute(tab, "metadata");
+    }
+    request.waiters.clear();
+  }
+
+  function fetchCreator(tab, id) {
+    const ctx = contextOf(tab), slot = scoped(id, ctx), request = beginLookup(slot, tab);
+    if (!request) return;
+    const done = record => {
+      if (request.epoch !== lookupEpoch) return;
+      if (record) { creatorMap().set(slot, record); saveCreators(); targetGen++; }
+      else noteFail(slot);
+      finishLookup(slot, request);
     };
     try {
-      fetchAnon(OEMBED + encodeURIComponent(watch), ctx, (body) => {
-        let name = null, channelUrl = null;
+      fetchAnon(OEMBED + encodeURIComponent(`https://www.youtube.com/watch?v=${id}`), ctx, body => {
+        let record = null;
         try {
-          const j = JSON.parse(utf8(body));
-          const n = String(j?.author_name ?? "").trim();
-          if (n && n.length <= 80) name = n;
-          const u = String(j?.author_url ?? "");
-          if (/^https:\/\/www\.youtube\.com\/[@\w][\w.\-\/]{0,120}$/.test(u)) channelUrl = u;
+          const j = JSON.parse(utf8(body)), label = String(j.author_name || "").trim();
+          const key = channelKey(j.author_url);
+          if (key && label && label.length <= 80) record = { key, label };
         } catch {}
-        done(name, channelUrl);
+        done(record);
       });
     } catch (e) { note(`oembed setup failed for ${id}: ${e}`); done(null); }
+  }
+
+  function channelKey(url) {
+    // Keep IDs case-sensitive. Handles are case-insensitive; no title-derived IDs.
+    if (typeof url !== "string") return null;
+    const m = /^https:\/\/(?:www\.|music\.)?youtube\.com\/(channel\/[A-Za-z0-9_-]+|@[\w.%~-]+|(?:c|user)\/[\w.%~-]+)(?:[/?#]|$)/.exec(url);
+    if (!m) return null;
+    return "https://www.youtube.com/" + (m[1].startsWith("channel/") ? m[1] : m[1].toLowerCase());
+  }
+
+  function channelRecord(tab) {
+    const key = channelKey(tab.linkedBrowser?.currentURI?.spec);
+    if (!key) return null;
+    const known = creatorMap().get(scoped(key, contextOf(tab)));
+    return known || { key, label: null };
+  }
+
+  // Read only bounded, inert metadata; no page execution or content polling.
+  function metaValue(html, name) {
+    const tags = html?.match(/<meta\b[^>]{0,2048}>/gi) || [];
+    const tag = tags.find(t => new RegExp(`\\b(?:property|name)\\s*=\\s*(["'])${name}\\1`, "i").test(t));
+    const value = tag && /\bcontent\s*=\s*(["'])(.{1,1000}?)\1/i.exec(tag)?.[2];
+    return value?.replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#(?:39|x27);/gi, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+  }
+
+  function fetchPageName(tab, key, kind) {
+    const ctx = contextOf(tab), slot = scoped(key, ctx), request = beginLookup(slot, tab);
+    if (!request) return;
+    const done = record => {
+      if (request.epoch !== lookupEpoch) return;
+      if (record) {
+        creatorMap().set(slot, record);
+        if (record.key !== key) creatorMap().set(scoped(record.key, ctx), record);
+        saveCreators(); targetGen++;
+      }
+      else noteFail(slot);
+      finishLookup(slot, request);
+    };
+    try {
+      fetchAnon(key, ctx, body => {
+        let record = null;
+        try {
+          const html = utf8(body), canonical = metaValue(html, "og:url");
+          let label = metaValue(html, "og:title");
+          let canonicalKey = kind === "author" ? nexusURLFrom(canonical)?.author : channelKey(canonical);
+          if (kind === "music") {
+            // ponytail: canonical public metadata only; add a native page adapter
+            // when a reproducible collection lacks it. Never use active-track titles.
+            canonicalKey = musicKey(canonical);
+            if (!canonicalKey) return done(null);
+            label = label?.replace(/ - YouTube Music$/, "");
+            const opaque = key.includes("?list=") ? key.split("?list=")[1] : key.split("/").at(-1);
+            if (label === opaque || label === canonicalKey.split(/[/?=]/).at(-1)) return done(null);
+          } else if (kind === "author") {
+            if (!canonicalKey) return done(null);
+            label = label?.replace(/'s Profile(?: - Nexus Mods)?$/, "");
+          } else if (canonicalKey) label = label?.replace(/ - YouTube$/, "");
+          else return done(null);
+          if (label && label.length <= 160 && !/^(?:YouTube Music|YouTube|Nexus Mods)$/.test(label))
+            record = { key: canonicalKey || key, label };
+        } catch {}
+        done(record);
+      }, 1024 * 1024);
+    } catch { done(null); }
+  }
+
+  function musicKey(spec) {
+    const m = /^https:\/\/music\.youtube\.com\/browse\/([\w-]+)(?:[?#]|$)/.exec(spec || "");
+    if (m) return `https://music.youtube.com/browse/${m[1]}`;
+    const list = /^https:\/\/music\.youtube\.com\/playlist\?/.test(spec || "") &&
+      new URLSearchParams(spec.split("?")[1]).get("list");
+    return list && /^[\w-]+$/.test(list) ? `https://music.youtube.com/playlist?list=${list}` : null;
+  }
+  function musicPage(tab, learn) {
+    const key = musicKey(tab.linkedBrowser?.currentURI?.spec);
+    if (!key) return null;
+    const known = creatorMap().get(scoped(key, contextOf(tab)));
+    if (!known && learn) fetchPageName(tab, key, "music");
+    return known || null;
+  }
+
+  function nexusURLFrom(spec) {
+    const m = /^https?:\/\/(?:www\.|next\.)?nexusmods\.com(\/[^?#]*)?(?:\?([^#]*))?/.exec(spec || "");
+    if (!m || !/^https?:\/\/(?:www\.|next\.)?nexusmods\.com(?:[/?#]|$)/.test(spec)) return null;
+    const path = (m[1] || "/").split("/").filter(Boolean), query = new URLSearchParams(m[2] || "");
+    const author = path[0] === "profile" && /^[\w%-]+$/.test(path[1] || "")
+      ? `https://www.nexusmods.com/profile/${path[1].toLowerCase()}`
+      : path[0] === "users" && /^\d+$/.test(path[1] || "") ? `https://www.nexusmods.com/users/${path[1]}` : null;
+    const slug = path[0] === "games" ? path[1]
+      : path.length === 1 || ["mods", "files", "images", "videos", "articles"].includes(path[1]) ? path[0] : null;
+    const game = !author && slug && /^[a-z0-9][a-z0-9-]*$/.test(slug) &&
+      !BUILTIN_IGNORE.has(slug) && !["mods", "collections", "vortex", "premium", "site"].includes(slug)
+      ? `https://www.nexusmods.com/games/${slug}` : null;
+    const gameId = query.get("gameId") || query.get("game_id");
+    return { author, game, gameId: /^\d+$/.test(gameId || "") ? gameId : null };
+  }
+  const nexusURL = tab => nexusURLFrom(tab.linkedBrowser?.currentURI?.spec);
+  const nexusContext = new WeakMap();
+  const NEXUS_CONTEXT = "zzrouterNexus";
+
+  function savedNexus(tab) {
+    if (nexusContext.has(tab)) return nexusContext.get(tab);
+    let value = null;
+    try {
+      const saved = JSON.parse(window.SessionStore.getCustomTabValue(tab, NEXUS_CONTEXT) || "null");
+      if (saved && nexusURLFrom(saved.game)?.game === saved.game &&
+          saved.ctx === contextOf(tab) && saved.ws === wsOf(tab)) value = saved;
+    } catch {}
+    nexusContext.set(tab, value);
+    return value;
+  }
+  function saveNexus(tab, value) {
+    if (JSON.stringify(savedNexus(tab)) !== JSON.stringify(value)) {
+      nexusContext.set(tab, value); targetCache.delete(tab);
+    }
+    if (isPrivate()) return;
+    // Current game URLs and verified ancestry already restore themselves. Only
+    // loose/manually placed profiles need the optional per-tab session record.
+    const needsRecord = value && nexusURL(tab)?.author && !ancestorsOf(tab).some(g =>
+      g.getAttribute("data-zzrouter-subject") === value.game &&
+      Number(g.getAttribute("data-zzrouter-context")) === value.ctx);
+    try {
+      const text = needsRecord ? JSON.stringify(value) : "";
+      if (window.SessionStore.getCustomTabValue(tab, NEXUS_CONTEXT) === text) return;
+      if (text) window.SessionStore.setCustomTabValue(tab, NEXUS_CONTEXT, text);
+      else window.SessionStore.deleteCustomTabValue(tab, NEXUS_CONTEXT);
+    } catch {}
+  }
+  function captureNexus(tab, source = null) {
+    const nx = nexusURL(tab), prior = savedNexus(tab);
+    if (!nx) {
+      if (tab.linkedBrowser?.currentURI?.spec === "about:blank" && (source || prior?.initial)) {
+        const inherited = source ? savedNexus(source) : prior;
+        if (inherited) saveNexus(tab, { ...inherited, initial: true, ctx: contextOf(tab), ws: inherited.ws || wsOf(tab) });
+      } else saveNexus(tab, null);
+      return;
+    }
+    const currentGame = nx.game || (!nx.author && nx.gameId ? nexusGame(tab, false)?.key : null);
+    if (currentGame) {
+      const parent = ancestorsOf(tab).find(g => g.getAttribute("data-zzrouter-subject") === currentGame);
+      saveNexus(tab, { game: currentGame, parent: parent?.id || null, ws: wsOf(tab), ctx: contextOf(tab) });
+      return;
+    }
+    if (!nx.author) { saveNexus(tab, null); return; }
+    const inherited = prior || (source && savedNexus(source));
+    const explicit = nx.gameId ? nexusGame(tab, false)?.key : null;
+    if (nx.gameId && !explicit) { saveNexus(tab, null); return; }
+    const parent = ancestorsOf(tab).find(g => nexusURLFrom(g.getAttribute("data-zzrouter-subject"))?.game &&
+      (!explicit || g.getAttribute("data-zzrouter-subject") === explicit) &&
+      Number(g.getAttribute("data-zzrouter-context")) === contextOf(tab));
+    const game = explicit || parent?.getAttribute("data-zzrouter-subject") || inherited?.game;
+    if (game) saveNexus(tab, { game, parent: parent?.id || inherited?.parent || null,
+      ws: inherited?.ws || wsOf(tab), ctx: contextOf(tab) });
+  }
+  function nexusGame(tab, learn = true) {
+    const nx = nexusURL(tab);
+    if (!nx) return null;
+    let key = nx.game || (nx.author ? savedNexus(tab)?.game : null);
+    if (nx.gameId && (nx.author || !nx.game)) {
+      // Numeric query context is authoritative. Use verified cached game
+      // metadata or Nexus's public game lookup; never guess from selection.
+      const match = [...creatorMap()].find(([k, v]) => k.startsWith(`${contextOf(tab)}:https://www.nexusmods.com/games/`) && v.gameId === nx.gameId);
+      key = match ? match[0].slice(match[0].indexOf(":") + 1) : null;
+      if (!key && learn) fetchNexusGame(tab, nx.gameId);
+    }
+    if (!key) return null;
+    const slug = key.split("/").at(-1);
+    const label = aliasMap().get(slug) || creatorMap().get(scoped(key, contextOf(tab)))?.label || segName(tab, slug, learn);
+    return { key, label };
+  }
+  function fetchNexusGame(tab, id) {
+    const ctx = contextOf(tab), slot = scoped("nexus-game:" + id, ctx), request = beginLookup(slot, tab);
+    if (!request) return;
+    const done = body => {
+      if (request.epoch !== lookupEpoch) return;
+      let record = null;
+      try {
+        const game = JSON.parse(utf8(body))?.data?.game;
+        if (String(game?.id) === id && /^[a-z0-9][a-z0-9-]*$/.test(game.domainName) &&
+            typeof game.name === "string" && game.name.trim() && game.name.length <= 160) {
+          record = { key: `https://www.nexusmods.com/games/${game.domainName}`, label: game.name, gameId: id };
+          creatorMap().set(scoped(record.key, ctx), record); saveCreators(); targetGen++;
+        }
+      } catch {}
+      if (!record) noteFail(slot);
+      finishLookup(slot, request);
+    };
+    // Documented public query: graphql.nexusmods.com/#query-game (3 fields).
+    try { fetchAnon("https://api.nexusmods.com/v2/graphql", ctx, done, MAX_FETCH_BYTES,
+      { query: `{game(id:"${id}"){id name domainName}}` }); }
+    catch { done(null); }
+  }
+
+  function authorRecord(tab, nx, learn) {
+    const known = creatorMap().get(scoped(nx.author, contextOf(tab)));
+    if (!known && learn) fetchPageName(tab, nx.author, "author");
+    if (known) return known;
+    if (nx.author.includes("/profile/")) {
+      let label; try { label = decodeURIComponent(nx.author.split("/").at(-1)); } catch { return null; }
+      return { key: nx.author, label };
+    }
+    return null; // Numeric legacy IDs never become display names.
   }
 
   // ---- section icons -----------------------------------------------------
@@ -498,9 +740,6 @@
   // 64px and kept as a data: URI, so showing it later never touches the
   // network. https only, only bytes the image decoder accepts are kept, and
   // the store is bounded to 100 sections.
-  const ICON_PAGES = [
-    { host: /(^|\.)nexusmods\.com$/, page: (seg) => `https://www.nexusmods.com/games/${seg}` },
-  ];
   const ROUND_HOSTS = /(^|\.)(youtube\.com|github\.com|twitch\.tv|tiktok\.com|x\.com|twitter\.com|instagram\.com|threads\.net|bsky\.app|mastodon\.social|reddit\.com|patreon\.com|kick\.com)$/;
   const ICON_ASPECT = [0.6, 1.6];         // 1:1 avatars and 2:3 covers in, 1.9:1 banners out
   const ICON_MAX = 100;
@@ -544,10 +783,11 @@
     return `data:image/webp;base64,${btoa(bin)}`;
   }
 
-  // label: the group name this section files under (the store key).
+  // label is the canonical subject URL, never a folder display name.
   function fetchSectionIcon(label, pageUrl, ctx, shape) {
-    if (isPrivate() || !bool("section-icons", true) || !pageUrl) return;
-    const key = label.trim().toLowerCase(), slot = "icon:" + key;
+    if (retired || isPrivate() || !bool("section-icons", true) || !pageUrl) return;
+    try { if (!lookupURIAllowed(Services.io.newURI(pageUrl))) return; } catch { return; }
+    const key = scoped(label, ctx), slot = "icon:" + key;
     if (!key || iconMap().has(key) || inFlight.has(slot)) return;
     const lastFail = failed.get(slot);
     if (lastFail && Date.now() - lastFail < RETRY_FAIL_MS) return;
@@ -563,6 +803,7 @@
       saveIcons();
       note(`icon for "${label}"`);
       stampIcons();
+      refreshPictures(false);
     };
     try {
       fetchAnon(pageUrl, ctx, (html) => {
@@ -573,6 +814,18 @@
           .find(tag => /\bproperty\s*=\s*(["'])og:image\1/i.test(tag));
         const m = meta && /\bcontent\s*=\s*(["'])(.{1,400}?)\1/i.exec(meta);
         const img = m ? m[2].replace(/&amp;/g, "&").replace(/=s\d+/, "=s256") : null;
+        if (nexusURLFrom(pageUrl)?.game === pageUrl) {
+          const gameId = /https:\/\/images\.nexusmods\.com\/images\/games\/v2\/(\d+)\/tile\./.exec(img || "")?.[1];
+          let label;
+          try { label = metaValue(utf8(html), "og:title")?.replace(/ Mods(?: - Nexus Mods)?$/, ""); } catch {}
+          if (gameId && label && nexusURLFrom(metaValue(html, "og:url"))?.game === pageUrl) {
+            creatorMap().set(key, { key: pageUrl, label, gameId }); saveCreators(); targetGen++;
+            for (const tab of allTabs()) {
+              const nx = nexusURL(tab);
+              if (nx?.author && nx.gameId === gameId && contextOf(tab) === ctx) queueRoute(tab, "game metadata");
+            }
+          }
+        }
         if (!img || !/^https:\/\/[^\s"'<>\\]+$/.test(img)) return done(null);
         try {
           fetchAnon(img, ctx, (bytes) => {
@@ -586,83 +839,102 @@
     } catch (e) { note(`icon setup failed for "${label}": ${e}`); done(null); }
   }
 
-  // Called from pathParts() with the URL prefix that ends at the naming
-  // segment, that segment, and the label it became.
   // Reject literal addresses and local-only hostnames, including image URLs
   // and redirects. This does not classify the IPs returned by DNS.
   const INTERNAL_HOST = /^(?:localhost|[^.]+|\d{1,3}(?:\.\d{1,3}){3}|\[[^\]]*\]|.+\.(?:local|localhost|internal|lan|home|corp|intranet))$/i;
 
-  function wantSectionIcon(tab, host, prefix, seg, label) {
-    if (INTERNAL_HOST.test(host)) return;
-    const site = ICON_PAGES.find(x => x.host.test(host));
-    const page = site ? site.page(seg) : `https://${host}${prefix}`;
-    fetchSectionIcon(label, page, parseInt(tab.getAttribute("usercontextid") || "0", 10),
-                     ROUND_HOSTS.test(host) ? "round" : "square");
+  function picturesEnabled(host) {
+    const excluded = num("auto-path-mode", 0) === 1 && cached("pathdomains", () => str("auto-path-domains", "")
+      .split(",").map(s => s.trim().toLowerCase()).filter(Boolean))
+      .some(d => host === d || host?.endsWith("." + d));
+    return bool("section-icons", true) && !excluded;
   }
 
-  // Subgroups whose label is a known section carry its picture; Groupflow
-  // recomputes on request. Root groups are never stamped, so a section
-  // named like a top-level group cannot take it over. Switched off: the
-  // stamps come off and Groupflow falls back to favicons.
-  function stampIcons(recover = false, targets = groups()) {
-    const on = bool("section-icons", true);
+  function stampIcons(_recover = false, targets = groups()) {
+    const on = !retired;
     let changed = 0, removed = false;
     for (const g of targets) {
-      const want = on && parentOf(g) ? iconMap().get((g.label ?? "").trim().toLowerCase()) : null;
-      if (recover && on && bool("enabled", false) && parentOf(g) && !want?.d && !isPrivate()) {
-        const key = (g.label ?? "").trim().toLowerCase(), slot = "icon:" + key;
-        if (!inFlight.has(slot) && Date.now() - (failed.get(slot) || 0) >= RETRY_FAIL_MS) {
-          const tab = g.tabs?.find(t => {
-            const id = videoId(t), known = creatorMap().get(id);
-            return id && (!known || known.toLowerCase() === key);
-          });
-          if (tab) fetchCreator(tab, videoId(tab));
-        }
-      }
+      const key = g.getAttribute("data-zzrouter-picture");
+      const want = on && parentOf(g) && key && picturesEnabled(/^https:\/\/([^/]+)/.exec(key)?.[1]) ? iconMap().get(scoped(key, Number(g.getAttribute("data-zzrouter-context")))) : null;
       if (want?.d) {
         if (g.getAttribute("data-zzrouter-icon") !== want.d) {
           g.setAttribute("data-zzrouter-icon", want.d);
-          g.setAttribute("data-zzrouter-icon-shape", want.s);
-          changed++;
+          g.setAttribute("data-zzrouter-icon-shape", want.s); changed++;
         }
       } else if (g.hasAttribute("data-zzrouter-icon")) {
-        g.removeAttribute("data-zzrouter-icon");
-        g.removeAttribute("data-zzrouter-icon-shape");
-        removed = true;
-        changed++;
+        g.removeAttribute("data-zzrouter-icon"); g.removeAttribute("data-zzrouter-icon-shape");
+        removed = true; changed++;
       }
     }
     if (changed) try { window.Groupflow?.refresh?.(!removed); } catch {}
   }
 
-  // The creator for this tab if known; otherwise starts the lookup and
-  // returns null so the tab files under its base path for now.
-  function creatorOf(tab, learn = true) {
-    if (!bool("media-subgroups", false)) return null;
+  function pictureSubject(tab, learn = true) {
+    const nx = nexusURL(tab);
+    if (nx) return nexusGame(tab, learn);
+    const channel = channelRecord(tab);
+    if (channel) {
+      if (learn && !creatorMap().has(scoped(channel.key, contextOf(tab)))) fetchPageName(tab, channel.key, "channel");
+      return channel;
+    }
     const id = videoId(tab);
     if (!id) return null;
-    const known = creatorMap().get(id);
-    if (known) return known;
-    if (learn) fetchCreator(tab, id);
-    return null;
+    const known = creatorMap().get(scoped(id, contextOf(tab)));
+    if (!known?.key && learn) fetchCreator(tab, id);
+    return known?.key ? known : null;
   }
 
-  // Appends the creator to whatever path was computed, rule-made or
-  // automatic: youtube.com > Watch becomes Watch / Creator. Unknown yet:
-  // base path, and the route re-runs when the answer lands.
+  function presentable(tab) {
+    return tab?.isConnected && !tab.closing && !tab.closest?.("zen-library") && !heldElsewhere(tab);
+  }
+  function updatePicture(tab, learn = true) {
+    if (!presentable(tab)) return;
+    const enabled = !retired && picturesEnabled(hostOf(tab));
+    const record = enabled ? pictureSubject(tab, learn && !tab.zenStaticIcon) : null;
+    const key = record && scoped(record.key, contextOf(tab));
+    if (record && learn && !tab.zenStaticIcon) fetchSectionIcon(record.key, record.key, contextOf(tab),
+      nexusURL(tab) ? "square" : "round");
+    const icon = !tab.zenStaticIcon && key ? iconMap().get(key)?.d : null;
+    const old = tab.getAttribute("data-zzrouter-tab-icon");
+    if (icon && /^data:image\/(?:webp|png);base64,[A-Za-z0-9+/=]+$/.test(icon)) {
+      if (old === icon) return;
+      tab.setAttribute("data-zzrouter-tab-icon", icon);
+      tab.style?.setProperty("--zzrouter-tab-icon", `url("${icon}")`);
+    } else {
+      if (!old) return;
+      tab.removeAttribute("data-zzrouter-tab-icon");
+      tab.style?.removeProperty("--zzrouter-tab-icon");
+    }
+    // Zen Library rebuilds copies for image changes. The native image attribute
+    // stays untouched, so site-level folder icons keep their site attribution.
+    tab.dispatchEvent?.(new CustomEvent("TabAttrModified", { bubbles: true, detail: { changed: ["image"] } }));
+  }
+  function refreshPictures(learn = true) {
+    for (const tab of allTabs()) { captureNexus(tab); updatePicture(tab, learn); }
+  }
+
+  function creatorOf(tab, learn = true) {
+    if (!bool("media-subgroups", false)) return null;
+    // Collection/browse pages must never be named after the playing track.
+    if (hostOf(tab) === "music.youtube.com" && !videoId(tab)) return null;
+    return pictureSubject(tab, learn);
+  }
   function withCreator(tab, parts, learn = true) {
-    if (!parts?.length) return parts;
+    if (!parts?.length || nexusURL(tab)) return parts;
     const who = creatorOf(tab, learn);
-    if (!who || parts.some(p => p.toLowerCase() === who.toLowerCase())) return parts;
-    return [...parts, who];
+    if (!who?.label || parts.some(p => typeof p === "object" && p.key === who.key) ||
+        parts.some(p => typeof p === "string" && p.toLowerCase() === who.label.toLowerCase())) return parts;
+    return [...parts, partFor(who, tab)];
   }
 
   function computeTargetPath(tab, learn = true) {
     const host = hostOf(tab);
     if (!host) return null;
     for (const r of rules()) {
-      if (r.domains.some(d => host === d || host.endsWith("." + d)))
-        return r.group.split(SEP()).map(s => s.trim()).filter(Boolean);
+      if (r.domains.some(d => host === d || host.endsWith("." + d))) {
+        const parts = r.group.split(SEP()).map(s => s.trim()).filter(Boolean);
+        return nexusURL(tab) && parts.length === 1 ? [...parts, ...pathParts(tab, learn)] : parts;
+      }
     }
     // Fully automatic: derive the path from the host itself, so a site you
     // have never visited still lands somewhere sensible without a rule.
@@ -688,7 +960,7 @@
       // Brave > Search > Search. Any repeat of an earlier part is dropped.
       const out = [];
       for (const p of all) {
-        if (out.some(x => x.toLowerCase() === p.toLowerCase())) continue;
+        if (out.some(x => typeof x === "string" && typeof p === "string" && x.toLowerCase() === p.toLowerCase())) continue;
         out.push(p);
       }
       return out;
@@ -747,9 +1019,8 @@
   // must not be matched when filing within this one (that is decided
   // earlier, by moving the tab). Nested levels are scoped by parent already.
   function findChild(name, parent, ws) {
-    const want = name.trim().toLowerCase();
     return groups().find(g =>
-      (g.label ?? "").trim().toLowerCase() === want &&
+      matchesPart(g, name) &&
       parentOf(g) === parent &&
       (parent || !ws || wsOfEl(g) === ws)) ?? null;
   }
@@ -775,10 +1046,18 @@
   }
 
   // ["Work", "Email"] for a tab inside Email inside Work.
-  const chainOf = tab => ancestorsOf(tab).reverse().map(g => (g.label ?? "").trim());
+  function groupPart(g) {
+    const key = g.getAttribute("data-zzrouter-subject");
+    return key ? { label: (g.label ?? "").trim(), key, ctx: Number(g.getAttribute("data-zzrouter-context")),
+      picture: g.getAttribute("data-zzrouter-picture") || "" } : (g.label ?? "").trim();
+  }
+  const chainOf = tab => ancestorsOf(tab).reverse().map(groupPart);
+  const matchesPart = (g, part) => samePath([groupPart(g)], [part]);
 
   const samePath = (a, b) =>
-    a.length === b.length && a.every((s, i) => s.toLowerCase() === b[i].toLowerCase());
+    a.length === b.length && a.every((s, i) => typeof b[i] === "object"
+      ? typeof s === "object" && s.key === b[i].key && s.ctx === b[i].ctx
+      : partLabel(s).toLowerCase() === partLabel(b[i]).toLowerCase());
 
   // DOM tabs include all workspaces and Essentials; gBrowser.tabs is a subset.
   // The library's clones of each strip are not tabs.
@@ -810,16 +1089,39 @@
   // Filed in ["Youtube", "Creator"] when ["Youtube"] was wanted: a DEEPER
   // subgroup of the right path is better organisation, not drift. Leave it.
   const startsWithPath = (chain, want) =>
-    want.length && chain.length >= want.length && samePath(chain.slice(0, want.length), want);
+    want.length && chain.length >= want.length && samePath(chain.slice(0, want.length), want) &&
+    // Remove obsolete automatic Author layers; retain manually organized suffixes.
+    !(chain.slice(want.length).some(p => typeof p === "object" && nexusURLFrom(p.key)?.author) &&
+      chain.slice(want.length).every(p => typeof p === "object"));
+
+  function placedInPath(chain, want) {
+    if (startsWithPath(chain, want)) return true;
+    let at = 0;
+    while (at < chain.length && at < want.length && samePath([chain[at]], [want[at]])) at++;
+    // Unowned subfolders below a matching prefix remain manual. Their labels
+    // cannot establish semantic ownership, even when they resemble this route.
+    return at > 0 && typeof chain[at] === "string" && typeof want[at] === "object";
+  }
 
   const deferredContainers = new WeakSet();
   async function placeInPath(tab, parts) {
     if (!parts?.length) return false;
+    const nx = nexusURL(tab);
+    if (nx?.author && !nexusGame(tab, false) && tab.group) return false;
+    const provenance = nx?.author && savedNexus(tab);
+    const gameGroup = provenance?.parent && document.getElementById?.(provenance.parent);
+    if (gameGroup && live(gameGroup) && wsOfEl(gameGroup) === provenance.ws &&
+        gameGroup.getAttribute("data-zzrouter-subject") === nexusGame(tab, false)?.key &&
+        Number(gameGroup.getAttribute("data-zzrouter-context")) === contextOf(tab) &&
+        parts.some(p => typeof p === "object" && p.key === gameGroup.getAttribute("data-zzrouter-subject"))) {
+      parts = [...chainOf({ group: gameGroup }), ...parts.slice(parts.findIndex(p =>
+        typeof p === "object" && p.key === gameGroup.getAttribute("data-zzrouter-subject")) + 1)];
+    }
     const cap = num("max-depth", 0);
     if (cap > 0) parts = parts.slice(0, cap);
 
     const chain = chainOf(tab);
-    const filed = startsWithPath(chain, parts);
+    const filed = placedInPath(chain, parts);
 
     // ---- destination resolution, systemic and in strict order ----------
     // Workspace:  Zen space-routing rule  >  workspace already holding the
@@ -849,7 +1151,11 @@
         const fresh = await reopenInContainer(tab, dest.ctx, dest.ws);
         if (!fresh) return false;
         deferredContainers.delete(tab);
-        if (fresh !== tab) { bustGroups(); return file(fresh, filed ? chain : parts); }
+        if (fresh !== tab) {
+          bustGroups();
+          return file(fresh, (filed ? chain : parts).map(part => typeof part === "object"
+            ? { ...part, ctx: contextOf(fresh) } : part));
+        }
       }
     } else deferredContainers.delete(tab);
     if (filed) { healWorkspace(tab); return false; }
@@ -865,6 +1171,8 @@
   }
 
   function resolveDestination(tab, parts) {
+    const nx = nexusURL(tab), provenance = nx?.author && savedNexus(tab);
+    if (nx?.author) return { ws: provenance?.ws || wsOf(tab), ctx: contextOf(tab), why: "the originating game" };
     let ws = null, ctx = null, why = "", stay = false;
     // 1) Zen route for this URL (the "Add Route for Domain" rules).
     //    routeUri() returns "most-recent-space" both for an explicit
@@ -893,7 +1201,7 @@
     // 2) Existing root group decides the workspace when no route did, and
     //    its members' container is the next container fallback.
     const tabWs = wsOf(tab) || window.gZenWorkspaces?.activeWorkspace;
-    const roots = rootGroupsNamed(parts[0]);
+    const roots = rootGroupsNamed(partLabel(parts[0]));
     const root = ws ? roots.find(g => wsOfEl(g) === ws)
       : roots.find(g => wsOfEl(g) === tabWs) ?? (stay ? null : roots[0] ?? null);
     if (!ws && !stay && root && wsOfEl(root) !== tabWs) {
@@ -977,6 +1285,8 @@
       });
     } catch (e) { note(`container reopen failed: ${e}`); return tab; }
     if (!fresh) return tab;
+    const provenance = savedNexus(tab);
+    if (provenance) saveNexus(fresh, { ...provenance, ctx: wantCtx, ws: targetWs || wsOf(tab) });
     try {
       if (targetWs) window.gZenWorkspaces.moveTabToWorkspace(fresh, targetWs);
     } catch {}
@@ -1028,16 +1338,23 @@
       if (!bool("create-groups", true)) { note(`"${name}" does not exist and group creation is switched off`); return depth > 0; }
       if (typeof gBrowser.addTabGroup !== "function") { note("gBrowser.addTabGroup missing on this build"); return depth > 0; }
       let g;
-      try { g = gBrowser.addTabGroup([tab], { label: name, insertBefore: tab, isUserTriggered: true }); }
+      try { g = gBrowser.addTabGroup([tab], { label: partLabel(name), insertBefore: tab, isUserTriggered: true }); }
       catch (e) { note(`addTabGroup("${name}") threw: ${e}`); return depth > 0; }
       if (!g) { note(`addTabGroup("${name}") returned nothing`); return depth > 0; }
       g.setAttribute("data-zzrouter-created", Date.now());
+      if (typeof name === "object") {
+        g.setAttribute("data-zzrouter-subject", name.key);
+        g.setAttribute("data-zzrouter-context", name.ctx);
+        g.setAttribute("data-zzrouter-picture", name.picture || "");
+      }
       if (!parent && ws && !wsOf(g)) g.setAttribute("zen-workspace-id", ws);
       if (parent && parentOf(g) !== parent) note(`"${name}" did not nest under "${parent.label}" on this build`);
       bustGroups();
       note(`created group "${name}"${parent ? ` under "${parent.label}"` : ""}`);
       parent = g; depth++;
     }
+    captureNexus(tab);
+    stampIcons(false, ancestorsOf(tab));
     return true;
   }
 
@@ -1202,7 +1519,7 @@
         const want = precomputedParts !== undefined ? precomputedParts : targetPath(tab);
         const have = chainOf(tab);
         if (want?.length && have.length) {
-          if (!startsWithPath(have, want)) return null;
+          if (!placedInPath(have, want)) return null;
           // The previous version could file a tab before changing its
           // container. Also repair that case without flattening subgroups.
           const ctx = bool("follow-containers", true) ? resolveDestination(tab, want).ctx : null;
@@ -1217,9 +1534,12 @@
   const routing = new WeakSet();
   const reroute = new WeakMap();
   async function route(tab, why) {
-    if (retired || !bool("enabled", false)) return;
+    if (retired || !presentable(tab)) return;
+    captureNexus(tab);
+    updatePicture(tab);
+    if (!bool("enabled", false)) return;
     if (routing.has(tab)) { reroute.set(tab, why); return; }
-    const s = skip(tab);                    // excluded tabs must not trigger lookups
+    const s = skip(tab);
     if (s) {
       if (s === "already in a group") {
         healWorkspace(tab);
@@ -1235,7 +1555,7 @@
     routing.add(tab);
     try {
       if (await placeInPath(tab, parts)) {
-        note(`${why}: ${host} -> ${parts.join(SEP())}`);
+        note(`${why}: ${host} -> ${parts.map(partLabel).join(SEP())}`);
         scheduleOrder();
       }
     } catch (e) {
@@ -1296,7 +1616,7 @@
   // title/redirect bursts must not keep postponing a tab's move.
   const pendingRoute = new Map();
   function queueRoute(tab, why) {
-    if (retired || !bool("enabled", false) || pendingRoute.has(tab)) return;
+    if (retired || pendingRoute.has(tab)) return;
     const id = setTimeout(() => {
       pendingRoute.delete(tab);
       route(tab, why);
@@ -1323,6 +1643,9 @@
       const tab = gBrowser.getTabForBrowser(browser);
       if (tab) {
         if (browser.currentURI?.spec !== "about:blank") initialNavigations.delete(tab);
+        for (const request of inFlight.values()) request?.waiters?.delete(tab);
+        captureNexus(tab);
+        updatePicture(tab, false);
         queueRoute(tab, "navigate");
       }
     },
@@ -1333,6 +1656,24 @@
   // even when the same-document location change never reaches a tabs
   // progress listener. Converges on the same per-tab queue; a title
   // change with an unchanged target path no-ops in placeInPath.
+  function onTabEvent(event) {
+    const tab = event.detail?.tab || event.target;
+    if (!tab || tab.closest?.("zen-library")) return;
+    if (event.type === "TabClose") {
+      for (const request of inFlight.values()) request?.waiters?.delete(tab);
+      clearTimeout(pendingRoute.get(tab)); pendingRoute.delete(tab);
+      return;
+    }
+    if (!presentable(tab)) return;
+    if (event.type === "TabOpen") {
+      const source = tab.openerTab;
+      if (source && presentable(source)) captureNexus(source);
+      captureNexus(tab, source);
+    }
+    if (event.type === "TabGrouped" || event.type === "TabUngrouped") { captureNexus(tab); return; }
+    if (event.type === "ZenTabIconChanged") updatePicture(tab, false);
+    else queueRoute(tab, event.type);
+  }
   function onAttrModified(event) {
     if (!event.detail?.changed?.includes("label")) return;
     const tab = event.target;
@@ -1340,7 +1681,6 @@
   }
 
   async function sweepAll(why = "sweep") {
-    if (!bool("enabled", false)) return 0;
     let n = 0;
     for (const tab of allTabs()) {
       const before = tab.group;
@@ -1427,6 +1767,7 @@
     creatorCache = new Map(); iconCache = new Map(); learnedCache = new Map();
     saveCreators(); saveIcons(); saveLearned();
     stampIcons();
+    refreshPictures(false);
     targetGen++;
     log = [];
   }
@@ -1434,6 +1775,8 @@
   function start() {
     gBrowser.addTabsProgressListener(progress);
     gBrowser.tabContainer.addEventListener("TabAttrModified", onAttrModified);
+    const tabEvents = ["TabOpen", "TabClose", "SSTabRestored", "ZenTabIconChanged", "TabGrouped", "TabUngrouped"];
+    for (const event of tabEvents) window.addEventListener(event, onTabEvent, true);
     try { Services.prefs.addObserver(P, prefObserver); } catch {}
     try { Services.obs.addObserver(purgeObserver, "browser:purge-session-history"); } catch {}
     Services.obs.addObserver(initialRequest, "http-on-modify-request");
@@ -1451,8 +1794,8 @@
         return allTabs().map(t => {
           const parts = targetPath(t, false), why = skip(t, parts);
           return { title: t.label, host: hostOf(t) ?? "-",
-            currentGroup: chainOf(t).join(SEP()) || "-",
-            wouldGo: why ? `skipped (${why})` : (parts?.join(SEP()) ?? "no rule") };
+            currentGroup: chainOf(t).map(partLabel).join(SEP()) || "-",
+            wouldGo: why ? `skipped (${why})` : (parts?.map(partLabel).join(SEP()) ?? "no rule") };
         });
       },
       rules,
@@ -1460,7 +1803,7 @@
       // suggestRules({subdomains:true})       -> plus a nested rule per subdomain
       // suggestRules({minTabs:2})             -> ignore one-off domains
       suggestRules,
-      groups: () => groups().map(g => chainOf({ group: g }).join(SEP())),
+      groups: () => groups().map(g => chainOf({ group: g }).map(partLabel).join(SEP())),
 
       // Reads open tabs and proposes slug=Pretty Name lines from their
       // titles, which already contain the human name. Copies to clipboard.
@@ -1535,14 +1878,14 @@
           host: hostOf(t),
           base: hostOf(t) ? baseDomain(hostOf(t)) : null,
           pathDepthPref: num("auto-path-depth", 0),
-          pathSegments: pathParts(t, false),
-          currentGroup: chainOf(t).join(SEP()) || null,
+          pathSegments: pathParts(t, false).map(partLabel),
+          currentGroup: chainOf(t).map(partLabel).join(SEP()) || null,
           currentContainer: parseInt(t.getAttribute("usercontextid") || "0", 10),
           targetContainer: bool("follow-containers", true) ? dest?.ctx ?? null : null,
           currentWorkspace: wsOf(t),
           targetWorkspace: dest?.ws ?? null,
           pendingContainerCheck: deferredContainers.has(t),
-          wouldGo: why ? `skipped (${why})` : parts?.join(SEP()),
+          wouldGo: why ? `skipped (${why})` : parts?.map(partLabel).join(SEP()),
         };
       },
       // Runs the eject experiment on the SELECTED tab and reports every
@@ -1554,7 +1897,7 @@
         const r = {
           zen: Services.appinfo?.version,
           tab: tab.label,
-          chainBefore: before.join(" > ") || "(none)",
+          chainBefore: before.map(partLabel).join(" > ") || "(none)",
           groupTag: g?.tagName ?? null,
           api: {
             ungroupTab: typeof gBrowser.ungroupTab,
@@ -1568,7 +1911,7 @@
         };
         if (before.length) {
           ungroupFully(tab);
-          r.chainAfterEject = chainOf(tab).join(" > ") || "(none -- eject works)";
+          r.chainAfterEject = chainOf(tab).map(partLabel).join(" > ") || "(none -- eject works)";
         } else {
           r.chainAfterEject = "(tab was not in a group; put it in one and rerun)";
         }
@@ -1597,9 +1940,11 @@
       creators: () => Object.fromEntries(creatorMap()),
       forgetCreators(id) {
         cancelLookups();
-        if (id) creatorMap().delete(id); else { creatorCache = new Map(); iconCache = new Map(); saveIcons(); }
+        if (id) {
+          for (const key of creatorMap().keys()) if (key === id || key.slice(key.indexOf(":") + 1) === id) creatorMap().delete(key);
+        } else { creatorCache = new Map(); iconCache = new Map(); saveIcons(); }
         saveCreators();
-        stampIcons();
+        stampIcons(); refreshPictures(false);
         targetGen++;
         return id ? `forgot "${id}"` : "forgot every remembered creator and picture";
       },
@@ -1626,12 +1971,12 @@
           if (why) { reasons[why] = (reasons[why] ?? 0) + 1; continue; }
           if (!parts?.length) { reasons["no rule"] = (reasons["no rule"] ?? 0) + 1; continue; }
           const have = chainOf(t);
-          if (!startsWithPath(have, parts)) {
+          if (!placedInPath(have, parts)) {
             stalled.push({
               tab: t.label,
               host: hostOf(t),
-              is: have.join(SEP()) || "(ungrouped)",
-              wants: parts.join(SEP()),
+              is: have.map(partLabel).join(SEP()) || "(ungrouped)",
+              wants: parts.map(partLabel).join(SEP()),
             });
           }
         }
@@ -1646,7 +1991,7 @@
         } catch {}
 
         const r = {
-          version: "1.34.15",
+          version: "1.35.0",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The
@@ -1682,7 +2027,7 @@
     if (bool("sort-on-startup", false)) startupTimers.push(setTimeout(() => sweepAll("startup"), num("startup-delay-ms", 2500)));
     // Restored creator subgroups get their avatar back whether or not the
     // startup sort runs.
-    startupTimers.push(setTimeout(() => { try { stampIcons(true); } catch {} }, num("startup-delay-ms", 2500) + 500));
+    startupTimers.push(setTimeout(() => { try { stampIcons(); refreshPictures(); } catch {} }, num("startup-delay-ms", 2500) + 500));
     note("loaded");
 
     // This script is injected per window and lives as long as the window
@@ -1695,6 +2040,8 @@
       retired = true;
       window.removeEventListener("unload", cleanup);
       cancelLookups();
+      stampIcons(); refreshPictures(false);
+      for (const event of tabEvents) window.removeEventListener(event, onTabEvent, true);
       try { delete window.TabRouter; } catch {}
       clearTimeout(orderTimer); orderTimer = null;
       for (const id of pendingRoute.values()) clearTimeout(id);

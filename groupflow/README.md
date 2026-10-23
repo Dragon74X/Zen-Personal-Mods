@@ -311,6 +311,11 @@ Turn off **Favicon as group icon** to stop favicon assignment; startup folding r
 
 ### Pictures from Tab Router
 
+Tab Router 1.35.0 also supplies display-only pictures for matching tabs,
+pinned tabs, Essentials and Library copies. Native favicons and media indicators
+remain unchanged. Managed group identities survive restart through Groupflow's
+existing group metadata; renaming a group keeps its picture association.
+
 Tab Router can hand a subgroup its own picture: a YouTube channel avatar, a
 Nexus game cover, a GitHub avatar. **Pictures from Tab Router** draws them;
 off, those groups fall back to the favicon. **Icon shape** applies to every

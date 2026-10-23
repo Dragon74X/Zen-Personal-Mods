@@ -108,7 +108,7 @@ async function routerEnv(extra = {}) {
       asyncOpen(listener) { NetUtil.open(this, listener); } }),
     open: (channel, listener) => callbacks.push([channel, listener]),
     readInputStreamToString: (s, count) => s.body.slice(0, count) };
-  const h = await load("tab-router", "fetchAnon, fetchCreator, fetchSectionIcon, creatorMap, iconMap, stampIcons, live, majorityContext, learnedMap, saveLearned, saveCreators, saveIcons, forgetAll, cancelLookups, rules, suggestRules, route, queueRoute, onAttrModified, skip, targetPath, reopenInContainer, resolveDestination, prefObserver, progress, placeInPath, initialRequest, retire: () => retired = true", {
+  const h = await load("tab-router", "fetchAnon, fetchCreator, fetchSectionIcon, refreshPictures, creatorMap, iconMap, stampIcons, live, majorityContext, learnedMap, saveLearned, saveCreators, saveIcons, forgetAll, cancelLookups, rules, suggestRules, route, queueRoute, onAttrModified, skip, targetPath, reopenInContainer, resolveDestination, prefObserver, progress, placeInPath, initialRequest, retire: () => retired = true", {
     ...c, window: {}, gBrowser: { tabGroups: [], tabs: [] }, document: { querySelectorAll: () => [] },
     ChromeUtils: { generateQI: () => () => {}, importESModule: name => name.includes("NetUtil") ? { NetUtil }
       : { PrivateBrowsingUtils: { isWindowPrivate: () => false } } },
@@ -373,12 +373,12 @@ function tab(url = "https://example.com/crimsondesert") {
 test("Router recomputes a naming path when the title arrives at the same URL", async () => {
   const e = await routerEnv(), t = tab();
   for (const [k, v] of Object.entries({ "auto-unmatched": true, "auto-path-depth": 1, "auto-path-domains": "example.com", "section-icons": false })) e.prefs.set("zzrouter." + k, v);
-  assert.equal(e.h.targetPath(t).at(-1), "Crimsondesert");
+  assert.equal(e.h.targetPath(t).at(-1).label, "Crimsondesert");
   t.label = "Crimson Desert - Example";
-  assert.equal(e.h.targetPath(t).at(-1), "Crimson Desert");
+  assert.equal(e.h.targetPath(t).at(-1).label, "Crimson Desert");
 });
 
-test("Router skips split/pinned tabs before starting network lookups", async () => {
+test("Router skips split/pinned movement while sharing their permitted picture lookup", async () => {
   const e = await routerEnv(); e.prefs.set("zzrouter.enabled", true);
   e.prefs.set("zzrouter.media-subgroups", true); e.prefs.set("zzrouter.auto-unmatched", true);
   for (const type of ["split-view", "pinned"]) {
@@ -386,7 +386,7 @@ test("Router skips split/pinned tabs before starting network lookups", async () 
     if (type === "pinned") t.pinned = true; else t.setAttribute(type, "true");
     await e.h.route(t, "test");
   }
-  assert.equal(e.c.timers.size, 0);
+  assert.equal(e.c.timers.size, 1, "one shared metadata request, no movement");
 });
 
 test("Router keeps its live learned/creator caches within their persisted limits", async () => {
@@ -936,18 +936,21 @@ test("Router restores a missing avatar for a cached creator without rerouting or
   const open = e.NetUtil.open;
   e.NetUtil.open = (...args) => { opened++; open(...args); };
   e.prefs.set("zzrouter.enabled", true);
-  e.prefs.set("zzrouter.creators", JSON.stringify({ video: "Channel" }));
-  e.prefs.set("zzrouter.avatars", JSON.stringify({ channel: { d: null, s: "round" } }));
-  e.h.stampIcons(true); assert.equal(opened, 1);
-  e.answer(JSON.stringify({ author_name: "Channel", author_url: "https://www.youtube.com/@channel" }));
+  const key = "https://www.youtube.com/@channel";
+  child.setAttribute("data-zzrouter-subject", key);
+  child.setAttribute("data-zzrouter-picture", key);
+  child.setAttribute("data-zzrouter-context", "0");
+  e.prefs.set("zzrouter.creators", JSON.stringify({ "0:video": { key, label: "Channel" } }));
+  e.prefs.set("zzrouter.avatars", JSON.stringify({ ["0:" + key]: { d: null, s: "round" } }));
+  e.h.refreshPictures(); assert.equal(opened, 1);
   e.answer("<meta content='https://example.com/avatar.png?a=1&amp;b=2' property='og:image'>");
   e.answer("image bytes"); await new Promise(resolve => setImmediate(resolve));
-  assert.equal(opened, 3); assert.deepEqual(refreshes, [true]);
+  assert.equal(opened, 2); assert.deepEqual(refreshes, [true]);
   assert.equal(child.getAttribute("data-zzrouter-icon"), "data:image/webp;base64,AQ==");
-  assert.equal(e.h.creatorMap().get("video"), "Channel");
+  assert.equal(e.h.creatorMap().get("0:video").label, "Channel");
   assert.equal(e.c.timers.size, 0, "cached creator recovery must not queue routing");
-  e.h.stampIcons(true); assert.equal(opened, 3, "reuse successful avatar");
-  e.h.forgetAll(); assert.equal(opened, 3, "history purge must not start recovery");
+  e.h.refreshPictures(); assert.equal(opened, 2, "reuse successful avatar");
+  e.h.forgetAll(); assert.equal(opened, 2, "history purge must not start recovery");
   assert.deepEqual(refreshes, [true, false], "history purge must remove rendered icons immediately");
 });
 
@@ -1564,7 +1567,7 @@ test("Router diagnostic path calculation learns nothing and starts no lookups", 
   const e = await routerEnv();
   for (const [k, v] of Object.entries({ "auto-unmatched": true, "auto-path-depth": 1, "auto-path-domains": "example.com", "media-subgroups": true })) e.prefs.set("zzrouter." + k, v);
   const t = tab(); t.label = "Crimson Desert - Example";
-  assert.equal(e.h.targetPath(t, false).at(-1), "Crimson Desert");
+  assert.equal(e.h.targetPath(t, false).at(-1).label, "Crimson Desert");
   e.h.targetPath(tab("https://www.youtube.com/watch?v=video"), false);
   assert.equal(e.h.learnedMap().size, 0); assert.equal(e.h.creatorMap().size, 0);
   assert.equal(e.c.timers.size, 0);

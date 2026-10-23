@@ -156,8 +156,88 @@
   {
     "type": "checkbox",
     "property": "zzrouter.section-icons",
-    "label": "Pictures on tabs and subgroups *YouTube tabs use verified channel avatars; Nexus game/mod/profile tabs use the associated game cover. No Nexus author portraits. Tabs can show pictures with routing disabled, including pinned tabs and Essentials. Manual Zen icons win. Pictures require Groupflow. Anonymous requests use the tab container, stop after 15 seconds, and never run in private windows. Pictures reuse one bounded cache: 100 images at 64 pixels. Failed lookups retry on activity after 10 minutes.*",
+    "label": "Pictures on tabs and subgroups *YouTube tabs use verified channel avatars; Nexus game/mod/profile tabs use the associated square game thumbnail (cover optional). No Nexus author portraits. Tabs can show pictures with routing disabled, including pinned tabs and Essentials. Manual Zen icons win. Pictures require Groupflow. Anonymous requests use the tab container, stop after 15 seconds, and never run in private windows. Pictures reuse one bounded cache: 100 subjects, 64-pixel icons; optional banners share the cache. Failed lookups retry on activity after 10 minutes.*",
     "defaultValue": true
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzrouter.nexus-icon",
+    "label": "Nexus game icon *Square thumbnail uses Nexus’s 80-pixel game icon. Cover crops the portrait artwork. Missing thumbnails fall back to covers; unavailable artwork keeps the previous picture. Manual icons win. Refresh automatic picture retries the preferred source.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Square thumbnail",
+        "value": 0
+      },
+      {
+        "label": "Cover",
+        "value": 1
+      }
+    ],
+    "conditions": [
+      {
+        "if": {
+          "property": "zzrouter.section-icons",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzrouter.nexus-banners",
+    "label": "Nexus game banners *Optional game hero artwork behind existing folder/tab styling. Uses the same verified game association; no routing changes. Off starts no banner requests. V1 games without hero artwork retain the normal fill. Banners are cached at 384 pixels wide. Requires Groupflow; update Glassflow for layered tab styling.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Off",
+        "value": 0
+      },
+      {
+        "label": "Folders",
+        "value": 1
+      },
+      {
+        "label": "Tabs",
+        "value": 2
+      },
+      {
+        "label": "Folders and tabs",
+        "value": 3
+      }
+    ],
+    "conditions": [
+      {
+        "if": {
+          "property": "zzrouter.section-icons",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "zzrouter.nexus-banner-opacity",
+    "label": "Banner opacity (%) *0–100; default 25. Changes artwork opacity only, below existing tint, sheen and rim. Text, controls and selection states retain their styling. Changes reuse cached artwork without downloading again.*",
+    "defaultValue": "25",
+    "placeholder": "25",
+    "conditions": [
+      {
+        "if": {
+          "property": "zzrouter.section-icons",
+          "value": true
+        }
+      },
+      {
+        "not": {
+          "property": "zzrouter.nexus-banners",
+          "value": 0
+        }
+      }
+    ],
+    "operator": "AND"
   },
   {
     "type": "string",

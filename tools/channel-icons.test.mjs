@@ -7,6 +7,9 @@ const CHANNEL = "https://www.youtube.com/@channel";
 const GAME = "https://www.nexusmods.com/games/baldursgate3";
 const AUTHOR = "https://www.nexusmods.com/profile/wesslen";
 const ICON = "data:image/webp;base64,AQ==";
+const BANNER = "data:image/webp;base64,Ag==";
+const gameMetadata = (canonical = GAME, image = 'https://images.nexusmods.com/images/games/v2/3474/tile.jpg') =>
+  `<meta property="og:url" content="${canonical}"><meta property="og:title" content="Baldur's Gate 3 Mods - Nexus Mods"><meta property="og:image" content="${image}">`;
 function element(extra = {}) {
   const attrs = new Map(), style = new Map();
   return {
@@ -58,9 +61,9 @@ async function environment(options = {}) {
     readInputStreamToString: (stream, count) => stream.body.slice(0, count),
   };
   let source = await readFile(process.env.ROUTER_SOURCE || new URL("../tab-router/tab-router.uc.js", import.meta.url), "utf8");
-  const names = "fetchCreator,fetchSectionIcon,stampIcons,route,iconMap,creatorMap,updatePicture,pictureSubject,refreshPictures,chainOf,startsWithPath,findChild,targetPath,file,captureNexus,nexusGame,nexusURLFrom,musicPage,partLabel,onTabEvent,prefObserver,inFlight,saveNexus,savedNexus,cancelLookups,forgetAll,refreshSubject,fetchMetadata,saveIcons,flushWrites".split(",");
+  const names = "fetchCreator,fetchSectionIcon,stampIcons,route,iconMap,creatorMap,updatePicture,pictureSubject,refreshPictures,chainOf,startsWithPath,findChild,targetPath,file,captureNexus,nexusGame,nexusURLFrom,musicPage,partLabel,onTabEvent,prefObserver,inFlight,saveNexus,savedNexus,cancelLookups,forgetAll,refreshSubject,fetchMetadata,saveIcons,flushWrites,toIcon,paintBanner".split(",");
   source = source.replace("  // ---- declared defaults", `globalThis.harness = {${names.map(n=>`${n}:typeof ${n} === 'undefined' ? null : ${n}`).join(',')}, observeQueues: cb => queueRoute=cb}; return;\n  // ---- declared defaults`);
-  const window = { Groupflow: { refresh: defer => refreshes.push(defer) },
+  const window = { Groupflow: { refresh: defer => refreshes.push(defer), automaticPictureAllowed: g => !g.customIcon },
     SessionStore: { getCustomTabValue: (t,k) => values.get(t)?.[k] || "",
       setCustomTabValue(t,k,v) { values.set(t, {...values.get(t),[k]:v}); },
       deleteCustomTabValue(t,k) { if (values.has(t)) delete values.get(t)[k]; } },
@@ -87,8 +90,13 @@ async function environment(options = {}) {
     Components: { isSuccessCode:status=>status===0 },
     Date: { now:()=>now }, setTimeout:fn=>{timers.set(++serial,fn);return serial;}, clearTimeout:id=>timers.delete(id),
     URLSearchParams, Blob, Uint8Array, CustomEvent: class { constructor(type, options) { Object.assign(this, {type}, options); } },
-    createImageBitmap:async()=>({width:64,height:64,close(){}}),
-    OffscreenCanvas:class { getContext(){return{drawImage(){}};} async convertToBlob(){return{arrayBuffer:async()=>new Uint8Array([1]).buffer};} },
+    createImageBitmap:async blob=>{
+      const bytes=await blob.text();
+      if(bytes==='invalid')throw new Error('decode failed');
+      const [width,height]=bytes==='banner'?[1920,620]:bytes==='huge'?[5000,5000]:bytes==='portrait'?[400,600]:[64,64];
+      return {width,height,close(){}};
+    },
+    OffscreenCanvas:class { constructor(w,h){this.width=w;this.height=h;} getContext(){return{drawImage(){}};} async convertToBlob(){return{arrayBuffer:async()=>new Uint8Array([this.width===384?2:1]).buffer};} },
     btoa:value=>Buffer.from(value).toString("base64"),
   });
   vm.runInContext(source, context);
@@ -99,6 +107,147 @@ async function environment(options = {}) {
   };
 }
 const tick = () => new Promise(resolve=>setImmediate(resolve));
+
+test('Nexus defaults to verified square thumbnails, upgrades cached covers, and starts zero banner requests',async()=>{
+  const e=await environment({'zzrouter.enabled':false}), t=e.addTab(GAME,2);
+  e.h.iconMap().set('2:'+GAME,{d:BANNER,s:'square'});
+  e.h.updatePicture(t);assert.equal(t.getAttribute('data-zzrouter-tab-icon'),BANNER,'old cover remains during upgrade');
+  e.answer(gameMetadata());assert.equal(e.requests.at(-1).url,'https://images.nexusmods.com/images/games/v2/3474/thumbnail.jpg');
+  e.answer('image bytes');await tick();
+  assert.equal(t.getAttribute('data-zzrouter-tab-icon'),ICON);
+  assert.equal(e.h.iconMap().get('2:'+GAME).n,'thumbnail');
+  assert.equal(e.h.iconMap().get('2:'+GAME).g,'3474');
+  e.h.updatePicture(t);assert.equal(e.requests.length,2);
+  assert.ok(e.requests.every(r=>r.ctx===2));assert.equal(e.moves,0);
+});
+
+test('Nexus thumbnail decode failure falls back to cover; cover choice and failed refresh retain pictures',async()=>{
+  const e=await environment(),t=e.addTab(GAME);
+  e.h.updatePicture(t);e.answer(gameMetadata());e.answer('invalid');await tick();
+  assert.equal(e.requests.at(-1).url,'https://images.nexusmods.com/images/games/v2/3474/tile.jpg');
+  e.answer('portrait');await tick();assert.equal(t.getAttribute('data-zzrouter-tab-icon'),ICON);
+  const before=e.requests.length;e.h.updatePicture(t);assert.equal(e.requests.length,before,'successful fallback is cached');
+  e.prefs.set('zzrouter.nexus-icon',1);e.h.prefObserver.observe(null,null,'zzrouter.nexus-icon');
+  assert.equal(e.requests.at(-1).url,'https://images.nexusmods.com/images/games/v2/3474/tile.jpg');
+  e.answer('portrait');await tick();assert.equal(e.h.iconMap().get('0:'+GAME).n,'tile');
+  e.h.fetchSectionIcon(GAME,GAME,0,'square',true);e.answer(gameMetadata());e.answer('');await tick();
+  assert.equal(t.getAttribute('data-zzrouter-tab-icon'),ICON);
+});
+
+test('Nexus rejects mismatched canonical and unverified image origins; V1 retains cover without invented hero',async()=>{
+  for(const [canonical,img] of [[GAME+'/other','https://images.nexusmods.com/images/games/v2/3474/tile.jpg'],
+    [GAME,'https://images.nexusmods.com.evil.example/images/games/v2/3474/tile.jpg'],
+    [GAME,'https://images.nexusmods.com/images/games/v2/3474/tile.jpg/other'],
+    [GAME,'https://example.com/3474/tile.jpg']]) {
+    const e=await environment();e.h.updatePicture(e.addTab(GAME));e.answer(gameMetadata(canonical,img));
+    assert.equal(e.requests.length,1,img);assert.equal(e.h.iconMap().size,0);
+  }
+  const e=await environment({'zzrouter.nexus-banners':3});e.h.updatePicture(e.addTab(GAME));
+  const cover='https://images.nexusmods.com/images/games/4_3/tile_3474.jpg';
+  e.answer(gameMetadata(GAME,cover));assert.equal(e.requests.at(-1).url,cover);
+  e.answer('portrait');await tick();e.h.refreshPictures();assert.equal(e.requests.length,2);
+});
+
+test('four banner modes preserve folder identity, hierarchy, placement and manual icons',async()=>{
+  for(const mode of [0,1,2,3]) {
+    const e=await environment({'zzrouter.nexus-banners':mode,'zzrouter.enabled':false});
+    const t=e.addTab(GAME),root=e.addGroup('Nexus'),g=e.addGroup('Renamed',root);
+    g.addTabs([t]);g.setAttribute('data-zzrouter-picture',GAME);g.setAttribute('data-zzrouter-context','0');
+    e.h.iconMap().set('0:'+GAME,{d:ICON,s:'square',n:'thumbnail',g:'3474',b:BANNER});
+    e.h.updatePicture(t);e.h.stampIcons();
+    assert.equal(g.hasAttribute('data-zzrouter-banner'),!!(mode&1));
+    assert.equal(t.hasAttribute('data-zzrouter-banner'),!!(mode&2));
+    assert.equal(g.label,'Renamed');assert.equal(t.group,g);assert.equal(g.parentElement.closest(),root);
+    assert.equal(g.hasAttribute('data-zzrouter-subject'),false);assert.equal(e.moves,1);assert.equal(e.requests.length,0);
+    t.zenStaticIcon='manual';g.customIcon='manual';e.h.updatePicture(t);e.h.stampIcons();
+    assert.equal(t.hasAttribute('data-zzrouter-banner'),false);assert.equal(g.hasAttribute('data-zzrouter-banner'),false);
+    assert.equal(t.zenStaticIcon,'manual');assert.equal(g.customIcon,'manual');
+  }
+});
+
+test('banner lookup is opt-in, partitioned, deduplicated and inactive in private windows',async()=>{
+  for(const mode of [0,1,2,3]) {
+    const e=await environment({'zzrouter.nexus-banners':mode});
+    for(const ctx of [0,0,2]) {
+      e.h.iconMap().set(ctx+':'+GAME,{d:ICON,s:'square',n:'thumbnail',g:'3474'});
+      e.h.updatePicture(e.addTab(GAME,ctx));
+    }
+    assert.equal(e.requests.length,mode&2?2:0,'folder-only does not warm artwork for ungrouped tabs');
+    if(mode&2) {
+      assert.deepEqual(e.requests.map(r=>r.ctx),[0,2]);
+      assert.ok(e.requests.every(r=>r.url==='https://images.nexusmods.com/images/games/v2/3474/hero.jpg'));
+      e.answer('banner');e.answer('banner');await tick();
+      assert.ok(e.tabs.every(t=>t.hasAttribute('data-zzrouter-banner')));
+    }
+  }
+  const e=await environment({'zzrouter.nexus-banners':3});e.makePrivate();
+  e.h.iconMap().set('0:'+GAME,{d:ICON,s:'square',n:'thumbnail',g:'3474'});
+  e.h.updatePicture(e.addTab(GAME));assert.equal(e.requests.length,0);
+});
+
+test('folder-only banners load for verified display-only groups',async()=>{
+  const e=await environment({'zzrouter.nexus-banners':1}),root=e.addGroup('Nexus'),g=e.addGroup('Renamed',root);
+  g.setAttribute('data-zzrouter-picture',GAME);g.setAttribute('data-zzrouter-context','2');
+  g.addTabs([e.addTab(GAME,2)]);
+  e.h.iconMap().set('2:'+GAME,{d:ICON,s:'square',n:'thumbnail',g:'3474'});
+  e.h.stampIcons();assert.equal(e.requests.length,1);assert.equal(e.requests[0].ctx,2);
+  e.answer('banner');await tick();assert.ok(g.hasAttribute('data-zzrouter-banner'));
+  assert.equal(g.hasAttribute('data-zzrouter-subject'),false);assert.equal(e.moves,1);
+});
+
+test('banner opacity reuses raster cache, clamps 0–100, and never changes icon or fetch count',async()=>{
+  const e=await environment({'zzrouter.nexus-banners':2}),t=e.addTab(GAME);
+  e.h.iconMap().set('0:'+GAME,{d:ICON,s:'square',n:'thumbnail',g:'3474',b:BANNER});e.h.updatePicture(t);
+  for(const [value,expected] of [['50','0.5'],['500','1'],['bad','0.25']]) {
+    e.prefs.set('zzrouter.nexus-banner-opacity',value);e.h.prefObserver.observe(null,null,'zzrouter.nexus-banner-opacity');
+    assert.ok(decodeURIComponent(t.style.getPropertyValue('--zzrouter-banner-data')).includes(`opacity="${expected}"`));
+    assert.equal(e.h.iconMap().get('0:'+GAME).b,BANNER);assert.equal(t.getAttribute('data-zzrouter-tab-icon'),ICON);
+  }
+  for(const value of ['0','-10']) {
+    e.prefs.set('zzrouter.nexus-banner-opacity',value);e.h.prefObserver.observe(null,null,'zzrouter.nexus-banner-opacity');
+    assert.equal(t.hasAttribute('data-zzrouter-banner'),false);
+  }
+  assert.equal(e.requests.length,0);
+});
+
+test('banner decoding rejects portrait/oversize/invalid bytes and preserves an old banner on failed refresh',async()=>{
+  const e=await environment({'zzrouter.nexus-banners':2}),t=e.addTab(GAME);
+  for(const bytes of ['portrait','huge'])assert.equal(await e.h.toIcon(bytes,true),null);
+  await assert.rejects(e.h.toIcon('invalid',true));assert.equal(await e.h.toIcon('banner',true),BANNER);
+  e.h.iconMap().set('0:'+GAME,{d:ICON,s:'square',n:'thumbnail',g:'3474',b:BANNER});
+  e.h.fetchSectionIcon(GAME,GAME,0,'square',true);e.answer(gameMetadata());e.answer('image bytes');await tick();
+  assert.equal(e.requests.at(-1).url,'https://images.nexusmods.com/images/games/v2/3474/hero.jpg');
+  e.answer('invalid');await tick();assert.equal(e.h.iconMap().get('0:'+GAME).b,BANNER);
+  e.h.updatePicture(t);assert.ok(t.hasAttribute('data-zzrouter-banner'));
+});
+
+test('disabling artwork cancels pending work; stale metadata starts no image requests',async()=>{
+  const e=await environment({'zzrouter.nexus-banners':2}),t=e.addTab(GAME);
+  e.h.updatePicture(t);e.prefs.set('zzrouter.section-icons',false);e.h.prefObserver.observe(null,null,'zzrouter.section-icons');
+  e.answer(gameMetadata());await tick();assert.equal(e.requests.length,1);assert.equal(e.h.iconMap().size,0);
+  assert.equal(t.hasAttribute('data-zzrouter-banner'),false);
+});
+
+test('banner persistence survives fresh instance; cross-window writes repaint and purge removes all artwork',async()=>{
+  const e=await environment({'zzrouter.nexus-banners':2}),key='0:'+GAME;
+  e.h.iconMap().set(key,{d:ICON,s:'square',n:'thumbnail',g:'3474',b:BANNER});e.h.saveIcons();e.h.flushWrites();
+  const restored=await environment(Object.fromEntries(e.prefs)),t=restored.addTab(GAME);
+  restored.h.updatePicture(t);assert.ok(t.hasAttribute('data-zzrouter-banner'));assert.equal(restored.requests.length,0);
+  restored.prefs.set('zzrouter.avatars',JSON.stringify({[key]:{d:ICON,s:'square',n:'thumbnail',g:'3474',b:ICON}}));
+  restored.h.prefObserver.observe(null,null,'zzrouter.avatars');assert.ok(t.getAttribute('data-zzrouter-banner').endsWith(ICON));
+  restored.h.forgetAll();assert.equal(t.hasAttribute('data-zzrouter-banner'),false);
+  assert.equal(t.style.getPropertyValue('--zzrouter-banner-data'),'');assert.equal(restored.requests.length,0);
+});
+
+test('banner cache sheds optional artwork before icons and stays below 900000 bytes',async()=>{
+  const e=await environment();
+  for(let i=0;i<100;i++)e.h.iconMap().set('0:https://www.nexusmods.com/games/game'+i,
+    {d:ICON,s:'square',n:'thumbnail',g:String(i+1),b:'data:image/webp;base64,'+'A'.repeat(16000)});
+  e.h.saveIcons();e.h.flushWrites();
+  const stored=e.prefs.get('zzrouter.avatars'),entries=Object.values(JSON.parse(stored));
+  assert.ok(stored.length<=900000);assert.equal(entries.length,100);
+  assert.ok(entries.every(v=>v.d===ICON));assert.ok(entries.some(v=>!v.b));
+});
 
 test("every live waiter receives completed creator lookup", async()=>{
   const e=await environment(),a=e.addTab(),b=e.addTab(),notified=[];
@@ -339,7 +488,7 @@ test("pre-update label caches refetch verified YouTube and Nexus pictures withou
       e.answer(JSON.stringify({author_name:label,author_url:key}));await e.h.route(t,'verified channel');
     }
     assert.equal(e.requests.at(-1).url,key);
-    e.answer('<meta property="og:image" content="https://example.com/verified.png">');e.answer('image bytes');await tick();
+    e.answer(nexus?gameMetadata():'<meta property="og:image" content="https://example.com/verified.png">');e.answer('image bytes');await tick();
     assert.equal(g.getAttribute('data-zzrouter-icon'),ICON);
     assert.equal(t.getAttribute('data-zzrouter-tab-icon'),ICON);
     assert.equal(g.getAttribute('data-zzrouter-picture'),key);

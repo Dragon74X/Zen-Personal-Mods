@@ -82,7 +82,7 @@
         color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-end-tint, 0%), transparent)
           var(--zzgroup-spread, 50%)),
       linear-gradient(var(--zzg-edge-dir, var(--zzg-dir, 135deg)), var(--zzgf-rim-top) 0%, transparent var(--zzglass-edges-reach, 60%)),
-      linear-gradient(var(--zzg-edge-dir, var(--zzg-dir, 135deg)), var(--zzgf-rim-all) 0%, transparent var(--zzglass-edges-reach, 60%)) !important;
+      linear-gradient(var(--zzg-edge-dir, var(--zzg-dir, 135deg)), var(--zzgf-rim-all) 0%, transparent var(--zzglass-edges-reach, 60%)), var(--zzrouter-banner, none) !important;
     background-size: auto, 100% var(--zzgroup-rim-thickness, 1px), auto !important;
     background-position: center center, top, center center !important;
     background-repeat: repeat, no-repeat, repeat !important;
@@ -233,7 +233,7 @@
   background-image:
     linear-gradient(var(--zzgf-dir),
       color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-header-tint, 25%), transparent) 0%,
-      color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-end-tint, 0%), transparent) var(--zzgroup-spread, 50%)) !important;
+      color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-end-tint, 0%), transparent) var(--zzgroup-spread, 50%)), var(--zzrouter-banner, none) !important;
   border-radius: var(--zzgf-round) !important;
   corner-shape: var(--zzgf-corner) !important;
   margin: 2px 0 !important;
@@ -247,7 +247,7 @@
       var(--zzgf-sheen),
       linear-gradient(var(--zzgf-dir),
       color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-header-tint, 25%), transparent) 0%,
-      color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-end-tint, 0%), transparent) var(--zzgroup-spread, 50%)) !important;
+      color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-end-tint, 0%), transparent) var(--zzgroup-spread, 50%)), var(--zzrouter-banner, none) !important;
   }
 }
 
@@ -271,7 +271,7 @@
         color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-end-tint, 0%), transparent)
           var(--zzgroup-spread, 50%)),
       linear-gradient(var(--zzgf-dir), var(--zzgf-rim-top) 0%, transparent var(--zzgroup-rim-reach, var(--zzgroup-spread, 50%))),
-      linear-gradient(var(--zzgf-dir), var(--zzgf-rim-all) 0%, transparent var(--zzgroup-rim-reach, var(--zzgroup-spread, 50%))) !important;
+      linear-gradient(var(--zzgf-dir), var(--zzgf-rim-all) 0%, transparent var(--zzgroup-rim-reach, var(--zzgroup-spread, 50%))), var(--zzrouter-banner, none) !important;
     background-size: auto, 100% var(--zzgroup-rim-thickness, 1px), auto !important;
     background-position: center center, top, center center !important;
     background-repeat: repeat, no-repeat, repeat !important;
@@ -338,7 +338,7 @@
     background-image:
       linear-gradient(var(--zzgf-dir),
         color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-active-tint, 25%), transparent) 0%,
-        color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-end-tint, 0%), transparent) var(--zzgroup-spread, 50%)) !important;
+        color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-end-tint, 0%), transparent) var(--zzgroup-spread, 50%)), var(--zzrouter-banner, none) !important;
   }
 }
 
@@ -1109,7 +1109,7 @@
       linear-gradient(var(--zzgf-dir),
         color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-header-tint, 25%), transparent) 0%,
         color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-end-tint, 0%), transparent)
-          var(--zzgroup-spread, 50%)) !important;
+          var(--zzgroup-spread, 50%)), var(--zzrouter-banner, none) !important;
   }
 }
 
@@ -1131,10 +1131,10 @@
       linear-gradient(var(--zzgf-dir),
         color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-header-tint, 25%), transparent) 0%,
         color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-end-tint, 0%), transparent)
-          var(--zzgroup-spread, 50%)) !important;
-    background-size: var(--zzgroup-curve-amplitude, 16px) 100%, auto, auto !important;
-    background-repeat: no-repeat, repeat, repeat !important;
-    background-position: left top, left top, left top !important;
+          var(--zzgroup-spread, 50%)), var(--zzrouter-banner, none) !important;
+    background-size: var(--zzgroup-curve-amplitude, 16px) 100%, auto, auto, auto !important;
+    background-repeat: no-repeat, repeat, repeat, no-repeat !important;
+    background-position: left top, left top, left top, center !important;
   }
 }
 
@@ -1394,7 +1394,7 @@
 }
 @media (-moz-pref("zzgroup.color-source", 0)) {
   :root :is(#navigator-toolbox, .zen-library-space-tabs) tab-group[zzgf-saved-gradient] > .tab-group-label-container {
-    background-image: var(--zzgf-saved-tint-background, var(--zzgf-saved-background)) !important;
+    background-image: var(--zzgf-saved-tint-background, var(--zzgf-saved-background)), var(--zzrouter-banner, none) !important;
   }
 }
 /* Collapse keeps loaded and last-used rows, plus their folder paths.
@@ -1600,7 +1600,7 @@
       corner-shape: inherit !important;
       opacity: var(--zzgf-state-opacity);
       background-color: transparent !important;
-      background-image: var(--zzgf-state-sheen), var(--zzgf-state-background);
+      background-image: var(--zzgf-state-sheen), var(--zzgf-state-background), var(--zzrouter-banner, none);
       box-shadow: var(--zzgf-state-glow);
     }
 
@@ -1674,7 +1674,7 @@
         corner-shape: inherit !important;
         opacity: var(--zzgf-state-opacity);
         background-color: transparent !important;
-        background-image: var(--zzgf-state-sheen), var(--zzgf-state-background);
+        background-image: var(--zzgf-state-sheen), var(--zzgf-state-background), var(--zzrouter-banner, none);
         box-shadow: var(--zzgf-state-glow);
       }
 
@@ -2008,5 +2008,25 @@
   .tabbrowser-tab .tab-icon-image {
     border-radius: var(--zzgf-tab-icon-radius) !important;
     corner-shape: var(--zzgf-tab-icon-corner) !important;
+  }
+}
+
+/* Artwork is a bottom fill layer, never a new box, filter, or hit target.
+   Reset at each subject boundary so parent artwork cannot leak into children. */
+:is(tab-group, zen-folder, .tabbrowser-tab) {
+  --zzrouter-banner: none;
+  --zzrouter-banner-data: none;
+}
+.tabbrowser-tab[data-zzrouter-banner] {
+  --zzrouter-banner: var(--zzrouter-banner-data);
+}
+/* This fallback also serves native tab states when Glassflow is absent/off.
+   Glassflow's more specific state rules retain their tint, sheen and rim. */
+:where(.tabbrowser-tab[data-zzrouter-banner]) .tab-background {
+  background-image: var(--zzrouter-banner) !important;
+}
+@media (-moz-pref("zzgroup.enabled")) {
+  tab-group[zzgf-picture][data-zzrouter-banner] > .tab-group-label-container {
+    --zzrouter-banner: var(--zzrouter-banner-data);
   }
 }

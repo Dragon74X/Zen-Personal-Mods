@@ -284,7 +284,7 @@ def check_subfolder_styles(m):
     try:
         # Defaults retain each folder's own palette across all three states.
         # A saved multi-colour gradient is an image, not a tab accent colour.
-        normalize = lambda image: image.removeprefix('none, ')
+        normalize = lambda image: image.removeprefix('none, ').removesuffix(', none')
         default_inactive = point()
         default_hover = point('Child')
         default_plain_hover = point('Grandchild')
@@ -292,8 +292,8 @@ def check_subfolder_styles(m):
         default_active = point('Grandchild')
         for values in (default_inactive, default_hover, default_plain_hover, default_active):
             assert normalize(values['Child']['paint']) == normalize(baseline['savedImage']), values
-            assert normalize(values['Grandchild']['paint']) == baseline['plainImage'], values
-            assert normalize(values['Root']['background']) == baseline['rootImage'], values
+            assert normalize(values['Grandchild']['paint']) == normalize(baseline['plainImage']), values
+            assert normalize(values['Root']['background']) == normalize(baseline['rootImage']), values
             assert all(values[name]['opacity'] == '1' and values[name]['blur'] == 'none'
                        for name in ('Child', 'Grandchild')), values
         m.script("document.documentElement.style.setProperty('--zzg-tone','100%');return true;")
@@ -1176,12 +1176,16 @@ def check_subject_pictures(m, root, first):
     # no live YouTube/Nexus requests or external account state enter the fixture.
     source = (root / "tab-router/tab-router.uc.js").read_text()
     source = source.replace("  // ---- declared defaults", """
-      window.subjectFixture={route,updatePicture,captureNexus,creatorMap,iconMap,stampIcons,saveNexus,fetchAnon,saveIcons,saveCreators,refreshPictures};
+      window.subjectFixture={route,updatePicture,captureNexus,creatorMap,iconMap,stampIcons,saveNexus,fetchAnon,saveIcons,saveCreators,refreshPictures,toIcon};
       // ---- declared defaults""")
     m.script(source + "\nreturn true;")
+    m.script("""const ss=Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService);
+      window.nexusArtSheet=Services.io.newURI(""" + json.dumps((root / 'glassflow/userChrome.css').as_uri()) + """);
+      ss.loadAndRegisterSheet(nexusArtSheet,ss.USER_SHEET);return true;""")
     if not first:
         result = m.script("return (async()=>{" + HELPERS + """
           const h=subjectFixture,checks={},saved=JSON.parse(SessionStore.getCustomWindowValue(window,'routerLegacyPictureFixture'));
+          Services.prefs.setIntPref('zzrouter.nexus-banners',3);
           for(const item of saved) {
             const g=document.getElementById(item.group),t=g.tabs[0],before=t.group;
             checks[item.name+'AssociationRestored']=g.label===item.label && g.group?.id===item.parent &&
@@ -1192,6 +1196,11 @@ def check_subject_pictures(m, root, first):
             checks[item.name+'PictureRestored']=g.style.getPropertyValue('--zzgf-icon').includes(item.custom || t.getAttribute('data-zzrouter-tab-icon')) &&
               !!t.getAttribute('data-zzrouter-tab-icon') && t.group===before &&
               getComputedStyle(t.querySelector('.tab-icon-image')).content.includes(t.getAttribute('data-zzrouter-tab-icon'));
+            if(item.picture.includes('nexusmods.com')) {
+              checks[item.name+'BannerRestored']=!!t.getAttribute('data-zzrouter-banner') &&
+                getComputedStyle(t.querySelector('.tab-background')).backgroundImage.includes('data:image/svg+xml') &&
+                getComputedStyle(g.labelContainerElement).backgroundImage.includes('data:image/svg+xml')===!item.custom;
+            }
             delete t.linkedBrowser.currentURI;
           }
           return checks;
@@ -1250,7 +1259,7 @@ def check_subject_pictures(m, root, first):
           legacy.style.getPropertyValue('--zzgf-icon').includes(icon) &&
           !site.style.getPropertyValue('--zzgf-icon').includes(icon);
         const nx=await make(game+'/mods/1');
-        h.iconMap().set(nx.userContextId+':'+game,{d:icon,s:'square'});
+        h.iconMap().set(nx.userContextId+':'+game,{d:icon,s:'square',n:'thumbnail',g:'3474'});
         const nxSite=gBrowser.addTabGroup([nx],{label:'Nexus',insertBefore:nx});
         const nxLegacy=gBrowser.addTabGroup([nx],{label:"Baldur's Gate 3",insertBefore:nx});
         await h.route(nx,'legacy game fixture');Groupflow.refresh();await pause(100);
@@ -1258,6 +1267,53 @@ def check_subject_pictures(m, root, first):
           !nxLegacy.hasAttribute('data-zzrouter-subject') &&
           nxLegacy.style.getPropertyValue('--zzgf-icon').includes(icon) &&
           nxLegacy.getAttribute('data-zzrouter-icon-shape')==='square';
+        const canvas=new OffscreenCanvas(384,124),context=canvas.getContext('2d');
+        context.fillStyle='#ff0000';context.fillRect(0,0,384,124);
+        const bytes=new Uint8Array(await (await canvas.convertToBlob({type:'image/png'})).arrayBuffer());
+        const banner=await h.toIcon(String.fromCharCode(...bytes),true);
+        h.iconMap().set(nx.userContextId+':'+game,{d:icon,s:'square',n:'thumbnail',g:'3474',b:banner});
+        const bg=nx.querySelector('.tab-background'),header=nxLegacy.labelContainerElement;
+        const props=['color','borderTopLeftRadius','cornerShape','boxShadow','opacity','backdropFilter'];
+        const styling=node=>Object.fromEntries(props.map(p=>[p,getComputedStyle(node)[p]]));
+        const rect=node=>{const r=node.getBoundingClientRect();return [r.x,r.y,r.width,r.height];};
+        const shape=[rect(bg),rect(header)],bannerBefore=[styling(bg),styling(header)];
+        for(const mode of [0,1,2,3]) {
+          Services.prefs.setIntPref('zzrouter.nexus-banners',mode);await pause(50);
+          h.stampIcons();h.updatePicture(nx,false);Groupflow.refresh();await pause(50);
+          checks['nexusBannerMode_'+mode]=getComputedStyle(bg).backgroundImage.includes('data:image/svg+xml')===!!(mode&2) &&
+            getComputedStyle(header).backgroundImage.includes('data:image/svg+xml')===!!(mode&1);
+        }
+        checks.bannerGeometry=JSON.stringify(shape)===JSON.stringify([rect(bg),rect(header)]);
+        checks.bannerStyling=JSON.stringify(bannerBefore)===JSON.stringify([styling(bg),styling(header)]);
+        checks.noParentBanner=!getComputedStyle(nxSite.labelContainerElement).backgroundImage.includes('data:image/svg+xml');
+        for(const state of ['selected','unselected','hover','pending'])Services.prefs.setBoolPref('zzglass.'+state+'.enabled',true);
+        Services.prefs.setBoolPref('zzglass.selected.sheen',true);
+        Services.prefs.setBoolPref('zzgroup.subfolder.states',true);await pause(50);
+        gBrowser.selectedTab=nx;await pause(50);
+        const layers=getComputedStyle(bg).backgroundImage;
+        checks.bannerBelowTabTint=layers.includes('linear-gradient') && layers.lastIndexOf('data:image/svg+xml')>layers.lastIndexOf('linear-gradient');
+        checks.bannerBelowFolderTint=getComputedStyle(header,'::before').backgroundImage.includes('data:image/svg+xml') &&
+          getComputedStyle(header,'::before').backgroundImage.indexOf('linear-gradient')<getComputedStyle(header,'::before').backgroundImage.indexOf('data:image/svg+xml');
+        const raw=nx.style.getPropertyValue('--zzrouter-banner-data').slice(5,-2);
+        const raster=new Image();raster.src=raw;await raster.decode();
+        const alphaCanvas=new OffscreenCanvas(300,36),alphaCtx=alphaCanvas.getContext('2d');
+        alphaCtx.drawImage(raster,0,0,300,36);
+        const pixel=alphaCtx.getImageData(150,18,1,1).data;
+        checks.bannerRasterAlpha=pixel[0]>250 && pixel[1]<5 && pixel[2]<5 && Math.abs(pixel[3]-64)<=1;
+        const nxCopy=nx.cloneNode(false);nxCopy.id=nx.id+'-banner-copy';copies.push(nxCopy);document.querySelector('zen-library').appendChild(nxCopy);
+        checks.bannerLibraryCopy=getComputedStyle(nxCopy.querySelector('.tab-background')).backgroundImage.includes('data:image/svg+xml');
+        Services.prefs.setStringPref('zzrouter.nexus-banner-opacity','0');await pause(50);
+        checks.bannerZero=!getComputedStyle(bg).backgroundImage.includes('data:image/svg+xml');
+        Services.prefs.setStringPref('zzrouter.nexus-banner-opacity','25');await pause(50);
+        nx.zenStaticIcon=nx.getAttribute('image');gZenPinnedTabManager.onTabIconChanged(nx);
+        checks.bannerManualIcon=!nx.hasAttribute('data-zzrouter-banner');
+        delete nx.zenStaticIcon;gZenPinnedTabManager.onTabIconChanged(nx);
+        Services.prefs.setBoolPref('zzgroup.subfolder.states',false);
+        const nxOther=await make(game+'/mods/2');
+        nxSite.addTabs([nxOther]);
+        const nxOtherGroup=gBrowser.addTabGroup([nxOther],{label:"Baldur's Gate 3",insertBefore:nxOther});
+        await h.route(nxOther,'banner persistence');Groupflow.refresh();await pause(50);
+        checks.bannerDisplayOnly=!nxOtherGroup.hasAttribute('data-zzrouter-subject') && !!nxOtherGroup.getAttribute('data-zzrouter-banner');
         const image=normal.querySelector('.tab-icon-image');
         const radiusPx=style=>parseFloat(style.borderTopLeftRadius)*
           (style.borderTopLeftRadius.endsWith('%')?parseFloat(style.width)/100:1);
@@ -1324,8 +1380,9 @@ def check_subject_pictures(m, root, first):
         SessionStore.setCustomWindowValue(window,'routerLegacyPictureFixture',JSON.stringify([
           {name:'legacyChannel',group:legacy.id,parent:site.id,label:legacy.label,picture:channel,context:String(normal.userContextId),url:'https://www.youtube.com/watch?v=fixture-video'},
           {name:'legacyNexus',group:nxLegacy.id,parent:nxSite.id,label:nxLegacy.label,picture:game,context:String(nx.userContextId),url:game+'/mods/1',custom},
+          {name:'legacyNexusBanner',group:nxOtherGroup.id,parent:nxSite.id,label:nxOtherGroup.label,picture:game,context:String(nxOther.userContextId),url:game+'/mods/2'},
         ]));
-        keep.add(normal);keep.add(nx);
+        keep.add(normal);keep.add(nx);keep.add(nxOther);
         // Close/unload restoration is tested by retiring the actual instance.
         window.__zzrouterInstance.retire();
         checks.pictureUnload=!normal.hasAttribute('data-zzrouter-tab-icon') && normal.getAttribute('image')===nativeImage;

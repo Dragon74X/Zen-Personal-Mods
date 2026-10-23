@@ -271,6 +271,81 @@ test("manual or ambiguous legacy subfolders under matching root keep placement w
   assert.equal(t.getAttribute('data-zzrouter-tab-icon'),ICON);
 });
 
+test("pre-1.35 YouTube and Nexus folders recover pictures from verified members without gaining ownership",async()=>{
+  for(const [url,label,key,shape] of [
+    ['https://www.youtube.com/watch?v=video','Channel',CHANNEL,'round'],
+    [CHANNEL+'/videos','Channel',CHANNEL,'round'],
+    ['https://music.youtube.com/watch?v=video','Channel',CHANNEL,'round'],
+    ['https://www.nexusmods.com/baldursgate3/mods/1','Baldursgate 3',GAME,'square'],
+    [GAME+'/mods/1',"Baldur's Gate 3",GAME,'square'],
+  ]) {
+    const e=await environment({'zzrouter.enabled':false,'zzrouter.media-subgroups':false});
+    const t=e.addTab(url),root=e.addGroup(key===GAME?'Nexus':'Youtube'),g=e.addGroup(label,root);
+    g.addTabs([t]);g.setAttribute('data-zzrouter-icon','data:image/webp;base64,Ag==');
+    e.h.creatorMap().set('0:video',{key:CHANNEL,label:'Channel'});
+    e.h.creatorMap().set('0:'+CHANNEL,{key:CHANNEL,label:'Channel'});
+    e.h.creatorMap().set('0:'+GAME,{key:GAME,label:"Baldur's Gate 3"});
+    e.h.iconMap().set('0:'+key,{d:ICON,s:shape});
+    const before=e.moves;await e.h.route(t,'upgrade');
+    assert.equal(g.getAttribute('data-zzrouter-icon'),ICON,url);
+    assert.equal(g.getAttribute('data-zzrouter-icon-shape'),shape,url);
+    assert.equal(g.hasAttribute('data-zzrouter-subject'),false);
+    assert.equal(g.getAttribute('data-zzrouter-picture'),key);
+    assert.equal(g.getAttribute('data-zzrouter-context'),'0');
+    assert.equal(g.label,label);assert.equal(t.group,g);assert.equal(e.moves,before);
+    assert.equal(root.hasAttribute('data-zzrouter-icon'),false);
+    e.prefs.set('zzrouter.section-icons',false);e.h.stampIcons();
+    assert.equal(g.hasAttribute('data-zzrouter-icon'),false);
+    e.prefs.set('zzrouter.section-icons',true);e.h.stampIcons();
+    assert.equal(g.getAttribute('data-zzrouter-icon'),ICON);
+  }
+});
+
+test("legacy picture recovery refuses mixed subjects, unknown members, containers and manual names",async()=>{
+  for(const mode of ['subject','unknown','container','manual']) {
+    const e=await environment(),root=e.addGroup('Youtube'),g=e.addGroup(mode==='manual'?'Research':'Same',root);
+    const a=e.addTab(),b=e.addTab(mode==='unknown'?'https://example.com/':'https://www.youtube.com/watch?v=other',mode==='container'?2:0);
+    g.addTabs([a,b]);
+    e.h.creatorMap().set('0:video',{key:CHANNEL,label:'Same'});
+    e.h.creatorMap().set((mode==='container'?'2':'0')+':other',{key:mode==='subject'?'https://www.youtube.com/@other':CHANNEL,label:'Same'});
+    e.h.iconMap().set('0:'+CHANNEL,{d:ICON,s:'round'});g.setAttribute('data-zzrouter-icon',ICON);
+    e.h.stampIcons();assert.equal(g.hasAttribute('data-zzrouter-icon'),false,mode);
+    assert.equal(g.hasAttribute('data-zzrouter-subject'),false,mode);
+  }
+});
+
+test("metadata completion repairs a legacy folder even when its picture was already cached",async()=>{
+  const e=await environment({'zzrouter.enabled':false}),t=e.addTab(),root=e.addGroup('Youtube'),g=e.addGroup('Channel',root);
+  g.addTabs([t]);e.h.iconMap().set('0:'+CHANNEL,{d:ICON,s:'round'});
+  await e.h.route(t,'before metadata');assert.equal(g.hasAttribute('data-zzrouter-icon'),false);
+  e.answer(JSON.stringify({author_name:'Channel',author_url:CHANNEL}));
+  await e.h.route(t,'metadata');assert.equal(g.getAttribute('data-zzrouter-icon'),ICON);
+  assert.equal(e.requests.length,1);assert.equal(t.group,g);
+});
+
+test("pre-update label caches refetch verified YouTube and Nexus pictures without reusing ambiguous bytes",async()=>{
+  for(const nexus of [false,true]) {
+    const label=nexus?'Baldursgate 3':'Channel',key=nexus?GAME:CHANNEL;
+    const e=await environment({'zzrouter.enabled':false,
+      'zzrouter.creators':JSON.stringify({video:'Channel'}),
+      'zzrouter.avatars':JSON.stringify({[label.toLowerCase()]:{d:'data:image/webp;base64,Ag==',s:'round'}})});
+    const t=e.addTab(nexus?GAME:undefined),root=e.addGroup(nexus?'Nexus':'Youtube'),g=e.addGroup(label,root);
+    g.addTabs([t]);const before=e.moves;await e.h.route(t,'old caches');
+    assert.equal(e.h.iconMap().has(label.toLowerCase()),false);
+    assert.equal(g.hasAttribute('data-zzrouter-icon'),false);
+    if(!nexus) {
+      e.answer(JSON.stringify({author_name:label,author_url:key}));await e.h.route(t,'verified channel');
+    }
+    assert.equal(e.requests.at(-1).url,key);
+    e.answer('<meta property="og:image" content="https://example.com/verified.png">');e.answer('image bytes');await tick();
+    assert.equal(g.getAttribute('data-zzrouter-icon'),ICON);
+    assert.equal(t.getAttribute('data-zzrouter-tab-icon'),ICON);
+    assert.equal(g.getAttribute('data-zzrouter-picture'),key);
+    assert.equal(g.hasAttribute('data-zzrouter-subject'),false);
+    assert.equal(e.moves,before);assert.equal(t.group,g);assert.equal(g.label,label);
+  }
+});
+
 test("Music rejects opaque-ID metadata labels and profile filters retain newly resolved game",async()=>{
   const e=await environment(),key='https://music.youtube.com/browse/MPREopaque',t=e.addTab(key);
   e.h.musicPage(t,true);e.answer(`<meta property="og:url" content="${key}"><meta property="og:title" content="MPREopaque">`);

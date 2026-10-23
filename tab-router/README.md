@@ -111,7 +111,13 @@ Different channels named alike get separate automatic groups and pictures;
 renaming a managed group preserves its association. Groupflow saves semantic
 ownership in its existing `groupflowGroups` window record. Historical groups
 without identity remain unmanaged; their names and member tabs do not establish
-ownership. Manual subfolders below a matching root keep their placement.
+ownership. Their pictures recover when the folder name matches a verified
+member subject and every live member agrees on its picture and container.
+This changes presentation only; root site folders and mixed subjects retain
+favicons. Groupflow persists the recovered picture and container independently
+of routing ownership. Label-only picture caches are refetched from verified
+member URLs because the old format contains no subject or container identity.
+Manual subfolders below a matching root keep their placement.
 
 One pending metadata request retains all interested tabs in its container.
 Completion checks each tab's current navigation; closed or navigated-away tabs

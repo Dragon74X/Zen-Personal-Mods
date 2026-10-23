@@ -1563,6 +1563,34 @@ test("Groupflow imports emoji as escaped images and rejects executable or CSS-br
   assert.equal(h.customIcon({ id: "script" }), null);
 });
 
+test("Groupflow saves and restores display-only pictures without acquiring routing ownership", async () => {
+  const saved = new Map(), w = { ...element(), ...clock() };
+  const groups = ["https://www.youtube.com/@channel", "https://www.nexusmods.com/games/baldursgate3"].map((picture,i) => {
+    const g = { ...element(), id: "legacy-"+i, tagName: "tab-group", label: "Original "+i, color: "blue",
+      closest: selector => selector === "zen-library" ? null : {id:"workspace"} };
+    g.setAttribute("data-zzrouter-picture",picture);g.setAttribute("data-zzrouter-context","2");return g;
+  });
+  saved.set("tabGroupIcons",JSON.stringify({"legacy-0":"🦊"}));
+  const h = await load("groupflow", "trackGroupDetails, restoreParents, customIcon, loadIcons() { savedGroupIcons = readGroupData('tabGroupIcons'); }", {
+    window:w,document:{querySelectorAll:()=>groups},setTimeout:w.setTimeout,clearTimeout:w.clearTimeout,
+    SessionStore:{getCustomWindowValue:(_w,key)=>saved.get(key)||"",setCustomWindowValue:(_w,key,value)=>saved.set(key,value)},
+  });
+  const tracker=h.trackGroupDetails();tracker.save();
+  const details=JSON.parse(saved.get("groupflowGroups"));
+  for(const g of groups) {
+    assert.equal(details[g.id].router.subject,undefined);
+    g.removeAttribute("data-zzrouter-picture");g.removeAttribute("data-zzrouter-context");
+  }
+  h.restoreParents(null,groups,details);
+  for(const [i,g] of groups.entries()) {
+    assert.equal(g.getAttribute("data-zzrouter-picture"),details[g.id].router.picture);
+    assert.equal(g.getAttribute("data-zzrouter-context"),"2");
+    assert.equal(g.hasAttribute("data-zzrouter-subject"),false);assert.equal(g.label,"Original "+i);
+  }
+  h.loadIcons();assert.match(decodeURIComponent(h.customIcon(groups[0])),/🦊/);
+  assert.equal(saved.get("tabGroupIcons"),JSON.stringify({"legacy-0":"🦊"}));tracker.retire();
+});
+
 test("Router diagnostic path calculation learns nothing and starts no lookups", async () => {
   const e = await routerEnv();
   for (const [k, v] of Object.entries({ "auto-unmatched": true, "auto-path-depth": 1, "auto-path-domains": "example.com", "media-subgroups": true })) e.prefs.set("zzrouter." + k, v);

@@ -430,8 +430,8 @@
       if (!data || closed) return;
       for (const group of plainGroups()) data[group.id] = {
         label: group.label, color: group.color, workspace: workspaceOf(group),
-        ...(group.hasAttribute("data-zzrouter-subject") ? { router: {
-          subject: group.getAttribute("data-zzrouter-subject"),
+        ...(group.hasAttribute("data-zzrouter-subject") || group.hasAttribute("data-zzrouter-picture") ? { router: {
+          ...(group.hasAttribute("data-zzrouter-subject") ? { subject: group.getAttribute("data-zzrouter-subject") } : {}),
           context: group.getAttribute("data-zzrouter-context"),
           picture: group.getAttribute("data-zzrouter-picture"),
         } } : {}),
@@ -454,9 +454,12 @@
     const restoreRouter = group => {
       if (!plainGroup(group)) return;
       const saved = details?.[group.id]?.router;
-      if (!saved || typeof saved.subject !== "string" || !/^https:\/\//.test(saved.subject) ||
-          !/^\d+$/.test(saved.context) || typeof saved.picture !== "string") return;
-      for (const key of ["subject", "context", "picture"]) group.setAttribute(`data-zzrouter-${key}`, saved[key]);
+      if (!saved || !/^\d+$/.test(saved.context) || typeof saved.picture !== "string" ||
+          (saved.picture !== "" && !/^https:\/\//.test(saved.picture))) return;
+      // A picture association alone never makes a legacy/manual folder managed.
+      for (const key of ["context", "picture"]) group.setAttribute(`data-zzrouter-${key}`, saved[key]);
+      if (typeof saved.subject === "string" && /^https:\/\//.test(saved.subject))
+        group.setAttribute("data-zzrouter-subject", saved.subject);
     };
     for (const group of candidates) restoreRouter(group);
     if (!parents) return;

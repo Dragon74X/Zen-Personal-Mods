@@ -1989,3 +1989,28 @@
 .tabbrowser-tab[data-zzrouter-tab-icon] .tab-icon-image {
   content: var(--zzrouter-tab-icon);
 }
+
+/* Crop only the image; throbbers, media buttons and overlays keep their geometry.
+   A percentage scales the header's 36px-row radius to each actual icon size. */
+@media (-moz-pref("zzgroup.enabled")) {
+  :root {
+    --zzgf-tab-icon-radius: calc(100% * tan(atan2(var(--zzgf-round), 36px)));
+    --zzgf-tab-icon-corner: var(--zzgf-corner);
+  }
+  @media (-moz-pref("zzgroup.tab-icon-shape", 1)) {
+    :root { --zzgf-tab-icon-radius: 25%; --zzgf-tab-icon-corner: round; }
+  }
+  @media (-moz-pref("zzgroup.tab-icon-shape", 2)) {
+    :root { --zzgf-tab-icon-radius: 38%; --zzgf-tab-icon-corner: squircle; }
+  }
+  @media (-moz-pref("zzgroup.tab-icon-shape", 3)) {
+    :root { --zzgf-tab-icon-radius: 50%; --zzgf-tab-icon-corner: round; }
+  }
+  @media (-moz-pref("zzgroup.tab-icon-shape", 4)) {
+    :root { --zzgf-tab-icon-radius: 0; --zzgf-tab-icon-corner: round; }
+  }
+  .tabbrowser-tab .tab-icon-image {
+    border-radius: var(--zzgf-tab-icon-radius) !important;
+    corner-shape: var(--zzgf-tab-icon-corner) !important;
+  }
+}

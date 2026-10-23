@@ -152,7 +152,7 @@
   {
     "type": "string",
     "property": "zzglass.glass.intensity",
-    "label": "Glass intensity *Scales every sheen, rim and glow at once. 0 removes the glass look. The per-state switches decide where glass appears; this decides how strong.*",
+    "label": "Glass intensity (multiplier) *0 removes sheen, rims and glow; 1 keeps their base strengths; 2 doubles them. Each state still controls which effects appear. Enter a number without a unit.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "colour"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
@@ -161,7 +161,7 @@
   {
     "type": "string",
     "property": "zzglass.glass.sheen-strength",
-    "label": "Sheen strength *The white highlight band only. Lower this if glass looks washed out rather than tinted. 0 removes the sheen but keeps the rims.*",
+    "label": "Sheen strength (multiplier) *The white highlight band only: 0 hides it, 1 keeps its base strength, 2 doubles it. Rims are unchanged. Enter a number without a unit.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "colour"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
@@ -242,7 +242,7 @@
   {
     "type": "string",
     "property": "zzglass.selected.opacity",
-    "label": "Background opacity *Fades the tab background.*",
+    "label": "Background opacity (%) *0% is transparent; 100% keeps full opacity. Values from 0 to 1 also work. Fades the tab background.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}], "operator": "OR"}],
@@ -330,7 +330,7 @@
   {
     "type": "string",
     "property": "zzglass.selected.spread",
-    "label": "Gradient spread *Where the fade finishes, across the tab. 100% is edge to edge; lower ends early and leaves a flat run.*",
+    "label": "Gradient spread (px or %) *Distance along the gradient until the end colour is reached. Enter 80px for a fixed distance or 100% for the full gradient length. Smaller distances finish the fade sooner.*",
     "defaultValue": "100%",
     "placeholder": "100%",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}, {"not": {"property": "zzglass.selected.end-mode", "value": 3}}], "operator": "AND"}],
@@ -355,7 +355,7 @@
   {
     "type": "string",
     "property": "zzglass.edges.selected-top",
-    "label": "Rim top highlight *Multiplier on the bright line along the selected tab's top edge. 1 is the current strength, 0 removes just that line and keeps the ring.*",
+    "label": "Rim top highlight (multiplier) *Multiplier on the bright line along the selected tab's top edge. 1 is the current strength, 0 removes just that line and keeps the ring.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}, {"if": {"property": "zzglass.selected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
@@ -364,7 +364,7 @@
   {
     "type": "string",
     "property": "zzglass.edges.selected-ring",
-    "label": "Rim ring *Multiplier on the faint outline around the whole selected tab.*",
+    "label": "Rim ring (multiplier) *Multiplier on the faint outline around the whole selected tab.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}, {"if": {"property": "zzglass.selected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
@@ -414,7 +414,7 @@
   {
     "type": "string",
     "property": "zzglass.edges.selected-thickness",
-    "label": "Rim highlight thickness *How thick the selected tab's bright line is. Above about 3px it reads as a band rather than a highlight.*",
+    "label": "Rim highlight thickness (px) *How thick the selected tab's bright line is. Above about 3px it reads as a band rather than a highlight.*",
     "defaultValue": "1px",
     "placeholder": "1px",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}, {"if": {"property": "zzglass.selected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
@@ -423,7 +423,7 @@
   {
     "type": "string",
     "property": "zzglass.edges.selected-ring-width",
-    "label": "Rim ring thickness *How thick the outline around the selected tab is.*",
+    "label": "Rim ring thickness (px) *How thick the outline around the selected tab is.*",
     "defaultValue": "1px",
     "placeholder": "1px",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}, {"if": {"property": "zzglass.selected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
@@ -465,7 +465,7 @@
   {
     "type": "string",
     "property": "zzglass.unselected.opacity",
-    "label": "Background opacity *Fades the tab background.*",
+    "label": "Background opacity (%) *0% is transparent; 100% keeps full opacity. Values from 0 to 1 also work. Fades the tab background.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}], "operator": "OR"}],
@@ -553,7 +553,7 @@
   {
     "type": "string",
     "property": "zzglass.unselected.spread",
-    "label": "Gradient spread *Where the fade finishes, across the tab. 100% is edge to edge; lower ends early and leaves a flat run.*",
+    "label": "Gradient spread (px or %) *Distance along the gradient until the end colour is reached. Enter 80px for a fixed distance or 100% for the full gradient length. Smaller distances finish the fade sooner.*",
     "defaultValue": "100%",
     "placeholder": "100%",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}, {"not": {"property": "zzglass.unselected.end-mode", "value": 3}}], "operator": "AND"}],
@@ -578,7 +578,7 @@
   {
     "type": "string",
     "property": "zzglass.edges.unselected-top",
-    "label": "Rim top highlight *Multiplier on the bright line along the unselected tab's top edge. 1 is the current strength, 0 removes just that line and keeps the ring.*",
+    "label": "Rim top highlight (multiplier) *Multiplier on the bright line along the unselected tab's top edge. 1 is the current strength, 0 removes just that line and keeps the ring.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}, {"if": {"property": "zzglass.unselected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
@@ -587,7 +587,7 @@
   {
     "type": "string",
     "property": "zzglass.edges.unselected-ring",
-    "label": "Rim ring *Multiplier on the faint outline around the whole unselected tab.*",
+    "label": "Rim ring (multiplier) *Multiplier on the faint outline around the whole unselected tab.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}, {"if": {"property": "zzglass.unselected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
@@ -637,7 +637,7 @@
   {
     "type": "string",
     "property": "zzglass.edges.unselected-thickness",
-    "label": "Rim highlight thickness *How thick the unselected tab's bright line is. Above about 3px it reads as a band rather than a highlight.*",
+    "label": "Rim highlight thickness (px) *How thick the unselected tab's bright line is. Above about 3px it reads as a band rather than a highlight.*",
     "defaultValue": "1px",
     "placeholder": "1px",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}, {"if": {"property": "zzglass.unselected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
@@ -646,7 +646,7 @@
   {
     "type": "string",
     "property": "zzglass.edges.unselected-ring-width",
-    "label": "Rim ring thickness *How thick the outline around the unselected tab is.*",
+    "label": "Rim ring thickness (px) *How thick the outline around the unselected tab is.*",
     "defaultValue": "1px",
     "placeholder": "1px",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}, {"if": {"property": "zzglass.unselected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
@@ -688,7 +688,7 @@
   {
     "type": "string",
     "property": "zzglass.hover.opacity",
-    "label": "Background opacity *Fades the tab background.*",
+    "label": "Background opacity (%) *0% is transparent; 100% keeps full opacity. Values from 0 to 1 also work. Fades the tab background.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}], "operator": "OR"}],
@@ -776,7 +776,7 @@
   {
     "type": "string",
     "property": "zzglass.hover.spread",
-    "label": "Gradient spread *Where the fade finishes, across the tab. 100% is edge to edge; lower ends early and leaves a flat run.*",
+    "label": "Gradient spread (px or %) *Distance along the gradient until the end colour is reached. Enter 80px for a fixed distance or 100% for the full gradient length. Smaller distances finish the fade sooner.*",
     "defaultValue": "100%",
     "placeholder": "100%",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}, {"not": {"property": "zzglass.hover.end-mode", "value": 3}}], "operator": "AND"}],
@@ -801,7 +801,7 @@
   {
     "type": "string",
     "property": "zzglass.edges.hover-top",
-    "label": "Rim top highlight *Multiplier on the bright line along the hovered tab's top edge. 1 is the current strength, 0 removes just that line and keeps the ring.*",
+    "label": "Rim top highlight (multiplier) *Multiplier on the bright line along the hovered tab's top edge. 1 is the current strength, 0 removes just that line and keeps the ring.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}, {"if": {"property": "zzglass.hover.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
@@ -810,7 +810,7 @@
   {
     "type": "string",
     "property": "zzglass.edges.hover-ring",
-    "label": "Rim ring *Multiplier on the faint outline around the whole hovered tab.*",
+    "label": "Rim ring (multiplier) *Multiplier on the faint outline around the whole hovered tab.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}, {"if": {"property": "zzglass.hover.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
@@ -860,7 +860,7 @@
   {
     "type": "string",
     "property": "zzglass.edges.hover-thickness",
-    "label": "Rim highlight thickness *How thick the hovered tab's bright line is. Above about 3px it reads as a band rather than a highlight.*",
+    "label": "Rim highlight thickness (px) *How thick the hovered tab's bright line is. Above about 3px it reads as a band rather than a highlight.*",
     "defaultValue": "1px",
     "placeholder": "1px",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}, {"if": {"property": "zzglass.hover.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
@@ -869,7 +869,7 @@
   {
     "type": "string",
     "property": "zzglass.edges.hover-ring-width",
-    "label": "Rim ring thickness *How thick the outline around the hovered tab is.*",
+    "label": "Rim ring thickness (px) *How thick the outline around the hovered tab is.*",
     "defaultValue": "1px",
     "placeholder": "1px",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}, {"if": {"property": "zzglass.hover.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
@@ -911,7 +911,7 @@
   {
     "type": "string",
     "property": "zzglass.pending.opacity",
-    "label": "Opacity *Fades the unloaded tab's background, title and favicon. Its tint and rim colours are kept.*",
+    "label": "Opacity (%) *0% is transparent; 100% keeps full opacity. Values from 0 to 1 also work. Fades the unloaded tab's background, title and favicon. Its tint and rim colours are kept.*",
     "defaultValue": "0.62",
     "placeholder": "0.62",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}],
@@ -1085,7 +1085,7 @@
   {
     "type": "string",
     "property": "zzglass.pending.spread",
-    "label": "Gradient spread *Where the fade finishes, across the tab. 100% is edge to edge; lower ends early and leaves a flat run.*",
+    "label": "Gradient spread (px or %) *Distance along the gradient until the end colour is reached. Enter 80px for a fixed distance or 100% for the full gradient length. Smaller distances finish the fade sooner.*",
     "defaultValue": "100%",
     "placeholder": "100%",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}, {"not": {"property": "zzglass.pending.end-mode", "value": 3}}], "operator": "AND"}],
@@ -1110,7 +1110,7 @@
   {
     "type": "string",
     "property": "zzglass.edges.pending-top",
-    "label": "Rim top highlight *Multiplier on the bright line along the unloaded tab's top edge. 1 is the current strength, 0 removes just that line and keeps the ring.*",
+    "label": "Rim top highlight (multiplier) *Multiplier on the bright line along the unloaded tab's top edge. 1 is the current strength, 0 removes just that line and keeps the ring.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}, {"if": {"property": "zzglass.pending.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
@@ -1119,7 +1119,7 @@
   {
     "type": "string",
     "property": "zzglass.edges.pending-ring",
-    "label": "Rim ring *Multiplier on the faint outline around the whole unloaded tab.*",
+    "label": "Rim ring (multiplier) *Multiplier on the faint outline around the whole unloaded tab.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}, {"if": {"property": "zzglass.pending.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
@@ -1169,7 +1169,7 @@
   {
     "type": "string",
     "property": "zzglass.edges.pending-thickness",
-    "label": "Rim highlight thickness *How thick the unloaded tab's bright line is. Above about 3px it reads as a band rather than a highlight.*",
+    "label": "Rim highlight thickness (px) *How thick the unloaded tab's bright line is. Above about 3px it reads as a band rather than a highlight.*",
     "defaultValue": "1px",
     "placeholder": "1px",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}, {"if": {"property": "zzglass.pending.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
@@ -1178,7 +1178,7 @@
   {
     "type": "string",
     "property": "zzglass.edges.pending-ring-width",
-    "label": "Rim ring thickness *How thick the outline around the unloaded tab is.*",
+    "label": "Rim ring thickness (px) *How thick the outline around the unloaded tab is.*",
     "defaultValue": "1px",
     "placeholder": "1px",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}, {"if": {"property": "zzglass.pending.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
@@ -1211,7 +1211,7 @@
   {
     "type": "string",
     "property": "zzglass.tabs.roundness",
-    "label": "Tab roundness *Corner radius. Arc rebinds Zen's --border-radius-medium; this overrides it for tabs only.*",
+    "label": "Tab roundness (px) *Corner radius. Arc rebinds Zen's --border-radius-medium; this overrides it for tabs only.*",
     "defaultValue": "10px",
     "placeholder": "10px",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
@@ -1421,7 +1421,7 @@
     "property": "zzglass.sidebar.strength",
     "defaultValue": "1",
     "placeholder": "1",
-    "label": "Fill strength *Scales the tint's own transparency. This is NOT element opacity: fading the element would fade your tabs and text with it, which is what the old Opacity setting did. 1 is full strength, 0.5 is half.*",
+    "label": "Fill strength (multiplier) *Scales the sidebar tint alpha: 0 hides the tint, 0.5 halves it, 1 keeps its full strength. Text and tabs retain their opacity. Enter a number without a unit.*",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}], "operator": "OR"}],
     "operator": "AND"
   },
@@ -1562,7 +1562,7 @@
   {
     "type": "string",
     "property": "zzglass.sidebar.panel-border-width",
-    "label": "Border width *For the thin line.*",
+    "label": "Border width (px) *For the thin line.*",
     "defaultValue": "1px",
     "placeholder": "1px",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}, {"if": {"property": "zzglass.sidebar.panel-border", "value": 1}}], "operator": "AND"}],
@@ -1642,7 +1642,7 @@
   {
     "type": "string",
     "property": "zzglass.sidebar.panel-spread",
-    "label": "Panel gradient spread *Where the fade finishes across the panel. 100% is edge to edge; lower ends early and leaves a flat run.*",
+    "label": "Panel gradient spread (px or %) *Distance along the gradient until the end colour is reached. Enter 80px for a fixed distance or 100% for the full gradient length. Smaller distances finish the fade sooner.*",
     "defaultValue": "100%",
     "placeholder": "100%",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}], "operator": "OR"}],
@@ -1676,7 +1676,7 @@
   {
     "type": "string",
     "property": "zzglass.sidebar.blur-radius-corner",
-    "label": "Panel corner radius *Rounding of the floating panel.*",
+    "label": "Panel corner radius (px) *Rounding of the floating panel.*",
     "defaultValue": "12px",
     "placeholder": "12px",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}], "operator": "OR"}],
@@ -1796,7 +1796,7 @@
   {
     "type": "string",
     "property": "zzglass.sidebar.blur-radius",
-    "label": "Blur strength *Zen uses 42px. Higher smears more; lower keeps shapes legible.*",
+    "label": "Blur radius (px) *Enter a distance such as 12px or 42px. Zen uses 42px. Larger radii blur a wider area; 0px removes the blur.*",
     "defaultValue": "42px",
     "placeholder": "42px",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.blur", "value": true}}], "operator": "OR"}],
@@ -1805,7 +1805,7 @@
   {
     "type": "string",
     "property": "zzglass.sidebar.blur-brightness",
-    "label": "Brightness *Zen 1.23 uses 0.5. This custom preset keeps its existing 0.25 default; raise it to let more of the page through.*",
+    "label": "Brightness (multiplier) *0 is black; 1 keeps the original brightness; 2 doubles it. The custom default is 0.25; Zen uses 0.5. Enter a number without a unit.*",
     "defaultValue": "0.25",
     "placeholder": "0.25",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.blur", "value": true}}], "operator": "OR"}],
@@ -1814,7 +1814,7 @@
   {
     "type": "string",
     "property": "zzglass.sidebar.blur-saturate",
-    "label": "Saturation *Zen uses 1.1. Raise it for richer colour through the glass; lower drains it.*",
+    "label": "Saturation (multiplier) *0 removes colour; 1 keeps the original saturation; 2 doubles it. Zen uses 1.1. Enter a number without a unit.*",
     "defaultValue": "1.1",
     "placeholder": "1.1",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.blur", "value": true}}], "operator": "OR"}],
@@ -1823,7 +1823,7 @@
   {
     "type": "string",
     "property": "zzglass.sidebar.blur-contrast",
-    "label": "Contrast *Zen uses 1. Above 1 deepens what shows through, below 1 flattens it.*",
+    "label": "Contrast (multiplier) *0 flattens the colours to grey; 1 keeps the original contrast; 2 doubles it. Enter a number without a unit.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.blur", "value": true}}], "operator": "OR"}],
@@ -1934,7 +1934,7 @@
   {
     "type": "string",
     "property": "zzglass.sidebar.panel-opacity",
-    "label": "Panel opacity *How solid the floating panel's base is, as a percentage. 70% is the dark, defined look; 0% is see-through with only the tint.*",
+    "label": "Panel opacity (%) *How solid the floating panel's base is, as a percentage. 70% is the dark, defined look; 0% is see-through with only the tint.*",
     "defaultValue": "70%",
     "placeholder": "70%",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}], "operator": "OR"}],
@@ -1968,7 +1968,7 @@
   {
     "type": "string",
     "property": "zzglass.sidebar.page-follow-radius",
-    "label": "Page blur radius *Small values read as depth; large values make the page unreadable while the sidebar is open, which some people want and some hate.*",
+    "label": "Page blur radius (px) *Small values read as depth; large values make the page unreadable while the sidebar is open, which some people want and some hate.*",
     "defaultValue": "6px",
     "placeholder": "6px",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}, {"if": {"property": "zzglass.sidebar.page-follow", "value": true}}], "operator": "AND"}],
@@ -1977,7 +1977,7 @@
   {
     "type": "string",
     "property": "zzglass.sidebar.page-follow-saturate",
-    "label": "Page saturation while blurred *1 leaves colour alone; below 1 drains it as the page recedes.*",
+    "label": "Page saturation while blurred (multiplier) *0 removes colour; 1 keeps the original saturation; 2 doubles it. Enter a number without a unit.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}, {"if": {"property": "zzglass.sidebar.page-follow", "value": true}}], "operator": "AND"}],
@@ -1986,7 +1986,7 @@
   {
     "type": "string",
     "property": "zzglass.sidebar.page-follow-speed",
-    "label": "Blur fade speed *How quickly the page softens and clears as the sidebar comes and goes.*",
+    "label": "Blur fade duration (ms) *Enter a duration such as 160ms. Smaller values finish the page blur transition sooner; 0ms changes it immediately.*",
     "defaultValue": "160ms",
     "placeholder": "160ms",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}, {"if": {"property": "zzglass.sidebar.page-follow", "value": true}}], "operator": "AND"}],
@@ -2011,7 +2011,7 @@
   {
     "type": "string",
     "property": "zzglass.overlays.opacity",
-    "label": "Overlay fill *How much tint covers the blur. 0% is clear glass; 100% hides what is behind.*",
+    "label": "Overlay fill (%) *How much tint covers the blur. 0% is clear glass; 100% hides what is behind.*",
     "defaultValue": "55%",
     "placeholder": "55%",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.overlays.enabled", "value": true}}], "operator": "OR"}],
@@ -2020,7 +2020,7 @@
   {
     "type": "string",
     "property": "zzglass.overlays.blur",
-    "label": "Overlay blur *How strongly the overlays blur what is behind them. Zen's 42px suits its big panel; on something as small as a download row or a toast it smears everything flat. Saturation and contrast follow Customise Zen's blur.*",
+    "label": "Overlay blur (px) *How strongly the overlays blur what is behind them. Zen's 42px suits its big panel; on something as small as a download row or a toast it smears everything flat. Saturation and contrast follow Customise Zen's blur.*",
     "defaultValue": "8px",
     "placeholder": "8px",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.overlays.enabled", "value": true}}], "operator": "OR"}],
@@ -2190,7 +2190,7 @@
   {
     "type": "string",
     "property": "zzglass.popups.opacity",
-    "label": "Menu and panel fill (Windows 11) *Menus and panels are separate windows, so only Windows can blur behind them. On Windows 11 22H2 and later Firefox turns on Windows' acrylic for them and Zen tints it 50%; lower shows more of the blur. No effect on Windows 10, or when Windows shows an accent colour on title bars with a custom inactive colour, because Firefox turns the acrylic off there.*",
+    "label": "Menu and panel fill (Windows 11) (%) *Menus and panels are separate windows, so only Windows can blur behind them. On Windows 11 22H2 and later Firefox turns on Windows' acrylic for them and Zen tints it 50%; lower shows more of the blur. No effect on Windows 10, or when Windows shows an accent colour on title bars with a custom inactive colour, because Firefox turns the acrylic off there.*",
     "defaultValue": "50%",
     "placeholder": "50%",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.overlays.enabled", "value": true}}], "operator": "OR"}],
@@ -2299,7 +2299,7 @@
   {
     "type": "string",
     "property": "zzglass.buttons.oval-height",
-    "label": "Oval height on hover *A multiple of the diameter, applied on top of the Resting shape below. 1.3 with a resting height of 1.15 stretches further on hover; 1.0 cancels hover growth entirely.*",
+    "label": "Height on hover (× diameter) *Enter a multiplier, such as 1.3. With a 13px Diameter, 1.3 gives a 16.9px hover height. Matching Resting height removes height changes on hover.*",
     "defaultValue": "1.3",
     "placeholder": "1.3",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "buttons"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.buttons.enabled", "value": true}}, {"if": {"property": "zzglass.buttons.oval-hover", "value": true}}], "operator": "AND"}],
@@ -2308,7 +2308,7 @@
   {
     "type": "string",
     "property": "zzglass.buttons.rest-width",
-    "label": "Resting width *Width as a multiple of the button's diameter, independent of height. 1.0 is normal width, 1.4 is noticeably wider, below 1.0 narrows it. Combine with Resting shape (height) for a capsule in either orientation.*",
+    "label": "Resting width (× diameter) *Enter a multiplier, such as 1.4. With a 13px Diameter, 1 gives 13px width and 1.4 gives 18.2px. Height is controlled separately.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "buttons"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.buttons.enabled", "value": true}}], "operator": "OR"}],
@@ -2317,7 +2317,7 @@
   {
     "type": "string",
     "property": "zzglass.buttons.rest-height",
-    "label": "Resting shape *Height as a multiple of the width. 1.0 is a circle, 1.15 a subtle capsule, 1.4 clearly elongated. The corner curve stays fixed at half the button width, so taller values give flat sides with the same round caps rather than stretching into an ellipse.*",
+    "label": "Resting height (× diameter) *Enter a multiplier, such as 1.15. With a 13px Diameter, 1.15 gives 14.95px height. Equal width and height give a circle; unequal values give a capsule.*",
     "defaultValue": "1.15",
     "placeholder": "1.15",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "buttons"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.buttons.enabled", "value": true}}], "operator": "OR"}],
@@ -2326,7 +2326,7 @@
   {
     "type": "string",
     "property": "zzglass.buttons.hover-width",
-    "label": "Width on hover *A multiple of the diameter, applied via a compositor transform so it cannot push the other buttons sideways. 1 means hover does not change width, matching Resting width means no change either. Try 1.3 for a button that widens rather than lengthens on hover.*",
+    "label": "Width on hover (× diameter) *Enter a multiplier, such as 1.3. With a 13px Diameter, 1.3 gives 16.9px hover width. Matching Resting width removes width changes on hover; nearby buttons stay in place.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "buttons"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.buttons.enabled", "value": true}}], "operator": "OR"}],
@@ -2343,7 +2343,7 @@
   {
     "type": "string",
     "property": "zzglass.buttons.glyph-scale",
-    "label": "Glyph size *A fraction of the button's width. 0.62 is close to macOS. Renamed from the old percentage setting, because a stale percentage broke the sizing maths and made the marks vanish entirely.*",
+    "label": "Glyph size (× button width) *Enter a multiplier without a unit, such as 0.62. A 13px-wide button gives an 8.06px glyph at 0.62. Resting width also changes this size.*",
     "defaultValue": "0.62",
     "placeholder": "0.62",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "buttons"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.buttons.enabled", "value": true}}, {"if": {"property": "zzglass.buttons.glyph-on-hover", "value": true}}], "operator": "AND"}],
@@ -2352,7 +2352,7 @@
   {
     "type": "string",
     "property": "zzglass.buttons.opacity",
-    "label": "Button opacity *Fades buttons at rest. Hover restores full opacity.*",
+    "label": "Button opacity (%) *0% is transparent; 100% keeps full opacity. Values from 0 to 1 also work. Fades buttons at rest. Hover restores full opacity.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "buttons"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.buttons.enabled", "value": true}}], "operator": "OR"}],
@@ -2453,7 +2453,7 @@
   {
     "type": "string",
     "property": "zzglass.buttons.hover-intensity",
-    "label": "Hover intensity *1 means the colour does not change on hover at all, which is the default. Above 1 saturates further. This is separate from the hover fill below.*",
+    "label": "Hover intensity (multiplier) *1 keeps the resting saturation and brightness; 2 doubles saturation and adds 9% brightness in Deepen my colour mode. Enter a number without a unit.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "buttons"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.buttons.enabled", "value": true}}, {"if": {"property": "zzglass.buttons.hover-effect", "value": 1}}], "operator": "AND"}],
@@ -2489,7 +2489,7 @@
   {
     "type": "string",
     "property": "zzglass.buttons.size",
-    "label": "Diameter *macOS uses 12px, Arc uses 14px.*",
+    "label": "Diameter (px) *macOS uses 12px, Arc uses 14px.*",
     "defaultValue": "13px",
     "placeholder": "13px",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "buttons"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.buttons.enabled", "value": true}}], "operator": "OR"}],
@@ -2498,7 +2498,7 @@
   {
     "type": "string",
     "property": "zzglass.buttons.gap",
-    "label": "Gap between buttons *macOS uses roughly 8px.*",
+    "label": "Gap between buttons (px) *macOS uses roughly 8px.*",
     "defaultValue": "8px",
     "placeholder": "8px",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "buttons"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.buttons.enabled", "value": true}}], "operator": "OR"}],
@@ -2937,7 +2937,7 @@
   {
     "type": "string",
     "property": "zzglass.font.size.tabs",
-    "label": "Tab bar text size *Same element Customize Font Size calls 'Tabbar tabs'. Accepts em or px, for example 1.3em or 20px.*",
+    "label": "Tab bar text size (px or em) *Same element Customize Font Size calls 'Tabbar tabs'. Accepts em or px, for example 1.3em or 20px.*",
     "defaultValue": "1.3em",
     "placeholder": "1.3em",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "type"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.font.size.enabled", "value": true}}], "operator": "OR"}],
@@ -2946,7 +2946,7 @@
   {
     "type": "string",
     "property": "zzglass.font.size.workspace-title",
-    "label": "Workspace title size *The current workspace's name, shown above the sidebar.*",
+    "label": "Workspace title size (px or em) *The current workspace's name, shown above the sidebar.*",
     "defaultValue": "1.5em",
     "placeholder": "1.5em",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "type"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.font.size.enabled", "value": true}}], "operator": "OR"}],
@@ -2955,7 +2955,7 @@
   {
     "type": "string",
     "property": "zzglass.font.size.searchbar",
-    "label": "Find bar text size *The in-page search bar, Ctrl+F.*",
+    "label": "Find bar text size (px or em) *The in-page search bar, Ctrl+F.*",
     "defaultValue": "1.4em",
     "placeholder": "1.4em",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "type"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.font.size.enabled", "value": true}}], "operator": "OR"}],
@@ -2964,7 +2964,7 @@
   {
     "type": "string",
     "property": "zzglass.font.size.footer",
-    "label": "Workspace icon size *The workspace switcher icons at the bottom of the sidebar. CFS calls this an icon size but implements it as font-size, since the icons are glyphs; kept identical here for a clean replacement.*",
+    "label": "Workspace icon size (px or em) *The workspace switcher icons at the bottom of the sidebar. CFS calls this an icon size but implements it as font-size, since the icons are glyphs; kept identical here for a clean replacement.*",
     "defaultValue": "1.5em",
     "placeholder": "1.5em",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "type"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.font.size.enabled", "value": true}}], "operator": "OR"}],
@@ -2973,7 +2973,7 @@
   {
     "type": "string",
     "property": "zzglass.font.size.folders",
-    "label": "Folder label size *Tab group names. Not covered by Customize Font Size.*",
+    "label": "Folder label size (px or em) *Tab group names. Not covered by Customize Font Size.*",
     "defaultValue": "1.1em",
     "placeholder": "1.1em",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "type"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.font.size.enabled", "value": true}}], "operator": "OR"}],
@@ -2982,7 +2982,7 @@
   {
     "type": "string",
     "property": "zzglass.font.size.urlbar",
-    "label": "URL bar text size *Not covered by Customize Font Size.*",
+    "label": "URL bar text size (px or em) *Not covered by Customize Font Size.*",
     "defaultValue": "1em",
     "placeholder": "1em",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "type"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.font.size.enabled", "value": true}}], "operator": "OR"}],
@@ -2991,7 +2991,7 @@
   {
     "type": "string",
     "property": "zzglass.font.size.menus",
-    "label": "Menu text size *Right-click menus and dropdown panels. Not covered by Customize Font Size.*",
+    "label": "Menu text size (px or em) *Right-click menus and dropdown panels. Not covered by Customize Font Size.*",
     "defaultValue": "1em",
     "placeholder": "1em",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "type"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.font.size.enabled", "value": true}}], "operator": "OR"}],

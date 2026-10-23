@@ -130,19 +130,19 @@
   {
     "type": "dropdown",
     "property": "zzicon.speed",
-    "label": "Animation speed",
+    "label": "Animation duration (ms)",
     "defaultValue": "0.45s",
     "options": [
       {
-        "label": "Quick",
+        "label": "Quick — 300ms",
         "value": "0.3s"
       },
       {
-        "label": "Smooth",
+        "label": "Smooth — 450ms",
         "value": "0.45s"
       },
       {
-        "label": "Slow",
+        "label": "Slow — 700ms",
         "value": "0.7s"
       }
     ],
@@ -2361,19 +2361,19 @@
   {
     "type": "dropdown",
     "property": "zzicon.motion.speed",
-    "label": "Motion speed *Arc's spin of the + takes 0.25 seconds.*",
+    "label": "Motion duration (ms) *Arc's spin of the + takes 250ms. Smaller values finish sooner.*",
     "defaultValue": "0.25s",
     "options": [
       {
-        "label": "Quick (Arc's)",
+        "label": "Quick (Arc's) — 250ms",
         "value": "0.25s"
       },
       {
-        "label": "Smooth",
+        "label": "Smooth — 400ms",
         "value": "0.4s"
       },
       {
-        "label": "Slow",
+        "label": "Slow — 600ms",
         "value": "0.6s"
       }
     ],
@@ -2518,7 +2518,7 @@
   {
     "type": "string",
     "property": "zzicon.newtab.radius",
-    "label": "Corner radius",
+    "label": "Corner radius (px)",
     "defaultValue": "8px",
     "placeholder": "8px",
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "newtab"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.newtab.round", "value": true}}], "operator": "OR"}],

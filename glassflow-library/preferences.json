@@ -205,7 +205,7 @@
   {
     "type": "string",
     "property": "zzlib.float.gap",
-    "label": "Space from the window's edges",
+    "label": "Space from the window's edges (px)",
     "defaultValue": "10px",
     "placeholder": "10px",
     "conditions": [
@@ -249,7 +249,7 @@
   {
     "type": "string",
     "property": "zzlib.float.radius",
-    "label": "Corner radius",
+    "label": "Corner radius (px)",
     "defaultValue": "14px",
     "placeholder": "14px",
     "conditions": [
@@ -849,7 +849,7 @@
   {
     "type": "string",
     "property": "zzlib.card.radius",
-    "label": "Corner radius *Each space card's corners.*",
+    "label": "Corner radius (px) *Each space card's corners.*",
     "defaultValue": "14px",
     "placeholder": "14px",
     "conditions": [
@@ -882,7 +882,7 @@
   {
     "type": "string",
     "property": "zzlib.card.width",
-    "label": "Card width *Zen uses 242px. Wider cards show longer tab titles.*",
+    "label": "Card width (px) *Zen uses 242px. Wider cards show longer tab titles.*",
     "defaultValue": "242px",
     "placeholder": "242px",
     "conditions": [
@@ -915,7 +915,7 @@
   {
     "type": "string",
     "property": "zzlib.card.gap",
-    "label": "Space between cards *Between neighbouring space cards.*",
+    "label": "Space between cards (px) *Between neighbouring space cards.*",
     "defaultValue": "24px",
     "placeholder": "24px",
     "conditions": [
@@ -948,7 +948,7 @@
   {
     "type": "string",
     "property": "zzlib.card.title-size",
-    "label": "Space name size *The space name at the top of each card.*",
+    "label": "Space name size (px) *The space name at the top of each card.*",
     "defaultValue": "13px",
     "placeholder": "13px",
     "conditions": [

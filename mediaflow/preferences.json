@@ -3,13 +3,15 @@
     "type": "separator",
     "size": "20px",
     "margin": "2px 0 12px 0",
-    "label": "Mediaflow"
+    "label": "Mediaflow",
+    "id": "zzmedia.ui.section.mediaflow"
   },
   {
     "type": "separator",
     "label": "Video preview",
     "size": "17px",
-    "margin": "22px 0 10px 0"
+    "margin": "22px 0 10px 0",
+    "id": "zzmedia.ui.section.video-preview"
   },
   {
     "type": "dropdown",
@@ -33,7 +35,8 @@
         "label": "High (640p)",
         "value": "640"
       }
-    ]
+    ],
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -49,7 +52,8 @@
         "label": "Smooth (30 fps)",
         "value": "30"
       }
-    ]
+    ],
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -69,21 +73,15 @@
         "label": "Follow YouTube",
         "value": "youtube"
       }
-    ]
+    ],
+    "placeholder": false
   },
   {
     "type": "checkbox",
     "property": "zzmedia.preview.captions-when-hidden",
     "label": "Captions while the preview is hidden *Keeps captions on screen after the preview's hide button is pressed.*",
     "defaultValue": false,
-    "conditions": [
-      {
-        "not": {
-          "property": "zzmedia.preview.captions",
-          "value": "off"
-        }
-      }
-    ]
+    "conditions": [{"not": {"property": "zzmedia.preview.captions", "value": "off"}}]
   },
   {
     "type": "dropdown",
@@ -111,7 +109,8 @@
         "label": "Half the window",
         "value": "half"
       }
-    ]
+    ],
+    "placeholder": false
   },
   {
     "type": "checkbox",
@@ -148,14 +147,8 @@
         "value": "30"
       }
     ],
-    "conditions": [
-      {
-        "if": {
-          "property": "zzmedia.preview.controls",
-          "value": true
-        }
-      }
-    ]
+    "conditions": [{"if": {"property": "zzmedia.preview.controls", "value": true}}],
+    "placeholder": false
   },
   {
     "type": "checkbox",
@@ -167,7 +160,8 @@
     "type": "separator",
     "label": "Music bar",
     "size": "17px",
-    "margin": "22px 0 10px 0"
+    "margin": "22px 0 10px 0",
+    "id": "zzmedia.ui.section.music-bar"
   },
   {
     "type": "checkbox",
@@ -185,26 +179,27 @@
   {
     "type": "dropdown",
     "property": "zzmedia.bar.hover-delay",
-    "label": "Wait before expanding *Pointing at the music bar raises its title and progress rows, and pointing at the preview grows it. Both wait this long, so passing over them on the way somewhere else leaves them as they are.*",
+    "label": "Wait before expanding (ms) *Pointing at the music bar raises its title and progress rows, and pointing at the preview grows it. Both wait this long, so passing over them on the way somewhere else leaves them as they are.*",
     "defaultValue": "0.3",
     "options": [
       {
-        "label": "No wait",
+        "label": "0 ms",
         "value": "0"
       },
       {
-        "label": "Short (0.15 s)",
+        "label": "150 ms",
         "value": "0.15"
       },
       {
-        "label": "Medium (0.3 s)",
+        "label": "300 ms",
         "value": "0.3"
       },
       {
-        "label": "Long (0.5 s)",
+        "label": "500 ms",
         "value": "0.5"
       }
-    ]
+    ],
+    "placeholder": false
   },
   {
     "type": "checkbox",
@@ -234,6 +229,7 @@
     "type": "separator",
     "label": "*Colour and glass behind the player are in Glassflow, under Overlays or Blur and transparency.*",
     "size": "13px",
-    "margin": "14px 0 4px 0"
+    "margin": "14px 0 4px 0",
+    "id": "zzmedia.ui.section.colour-and-glass-behind-the-player-are-in-glassflow-under-overlays-or-"
   }
 ]

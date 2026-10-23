@@ -3,7 +3,8 @@
     "type": "separator",
     "label": "Iconflow",
     "size": "20px",
-    "margin": "2px 0 12px 0"
+    "margin": "2px 0 12px 0",
+    "id": "zzicon.ui.section.iconflow"
   },
   {
     "type": "dropdown",
@@ -35,7 +36,8 @@
         "label": "Everything",
         "value": "all"
       }
-    ]
+    ],
+    "placeholder": false
   },
   {
     "type": "separator",
@@ -66,7 +68,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -93,31 +96,8 @@
       }
     ],
     "operator": "AND",
-    "conditions": [
-      {
-        "conditions": [
-          {
-            "if": {
-              "property": "zzicon.ui.page",
-              "value": "icons"
-            }
-          },
-          {
-            "if": {
-              "property": "zzicon.ui.page",
-              "value": "all"
-            }
-          },
-          {
-            "if": {
-              "property": "zzicon.ui.page",
-              "value": ""
-            }
-          }
-        ],
-        "operator": "OR"
-      }
-    ]
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "placeholder": false
   },
   {
     "type": "checkbox",
@@ -147,7 +127,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.animate", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "checkbox",
@@ -226,7 +207,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -249,7 +231,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"not": {"property": "zzicon.plate", "value": 0}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "separator",
@@ -274,8 +257,22 @@
     "label": "Style *Also switchable in the picker.*",
     "defaultValue": 0,
     "operator": "AND",
-    "options": [{"label": "Glass: gradient line and body, with a sheen", "value": 0}, {"label": "Tile: white symbol on a coloured plate", "value": 1}, {"label": "Solid: filled, in a gradient", "value": 2}],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.picker.enabled", "value": true}}], "operator": "OR"}]
+    "options": [
+      {
+        "label": "Glass: gradient line and body, with a sheen",
+        "value": 0
+      },
+      {
+        "label": "Tile: white symbol on a coloured plate",
+        "value": 1
+      },
+      {
+        "label": "Solid: filled, in a gradient",
+        "value": 2
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.picker.enabled", "value": true}}], "operator": "OR"}],
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -283,8 +280,50 @@
     "label": "Colour *Also switchable in the picker.*",
     "defaultValue": "aurora",
     "operator": "AND",
-    "options": [{"label": "Aurora", "value": "aurora"}, {"label": "Frost", "value": "frost"}, {"label": "Silver", "value": "silver"}, {"label": "Graphite", "value": "graphite"}, {"label": "Sapphire", "value": "sapphire"}, {"label": "Aquamarine", "value": "aquamarine"}, {"label": "Emerald", "value": "emerald"}, {"label": "Amethyst", "value": "amethyst"}, {"label": "Ruby", "value": "ruby"}, {"label": "Topaz", "value": "topaz"}],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.picker.enabled", "value": true}}], "operator": "OR"}]
+    "options": [
+      {
+        "label": "Aurora",
+        "value": "aurora"
+      },
+      {
+        "label": "Frost",
+        "value": "frost"
+      },
+      {
+        "label": "Silver",
+        "value": "silver"
+      },
+      {
+        "label": "Graphite",
+        "value": "graphite"
+      },
+      {
+        "label": "Sapphire",
+        "value": "sapphire"
+      },
+      {
+        "label": "Aquamarine",
+        "value": "aquamarine"
+      },
+      {
+        "label": "Emerald",
+        "value": "emerald"
+      },
+      {
+        "label": "Amethyst",
+        "value": "amethyst"
+      },
+      {
+        "label": "Ruby",
+        "value": "ruby"
+      },
+      {
+        "label": "Topaz",
+        "value": "topaz"
+      }
+    ],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.picker.enabled", "value": true}}], "operator": "OR"}],
+    "placeholder": false
   },
   {
     "type": "checkbox",
@@ -301,6 +340,37 @@
     "margin": "22px 0 10px 0",
     "id": "zzicon.ui.section.each-button",
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}]
+  },
+  {
+    "type": "dropdown",
+    "property": "zzicon.ui.button-category",
+    "label": "Show button category",
+    "defaultValue": "navigation",
+    "options": [
+      {
+        "label": "Navigation and sidebar",
+        "value": "navigation"
+      },
+      {
+        "label": "Page and library",
+        "value": "page"
+      },
+      {
+        "label": "Media",
+        "value": "media"
+      },
+      {
+        "label": "Tools and account",
+        "value": "tools"
+      },
+      {
+        "label": "Everything",
+        "value": "all"
+      }
+    ],
+    "placeholder": false,
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
   },
   {
     "type": "separator",
@@ -338,8 +408,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "navigation"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -369,8 +440,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "navigation"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -400,8 +472,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "navigation"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -419,8 +492,9 @@
         "value": 1
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "navigation"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -450,8 +524,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "navigation"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -481,8 +556,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "navigation"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -512,8 +588,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "navigation"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -543,8 +620,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "navigation"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -574,8 +652,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "navigation"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -605,8 +684,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "navigation"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -636,8 +716,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "navigation"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -667,8 +748,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "navigation"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -698,8 +780,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "page"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -733,8 +816,9 @@
         "value": 7
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "page"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -764,8 +848,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "page"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -799,8 +884,9 @@
         "value": 7
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "page"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -830,8 +916,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "page"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -861,8 +948,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "page"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -892,8 +980,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "page"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -923,8 +1012,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "page"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -954,8 +1044,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "page"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -985,8 +1076,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "page"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1016,8 +1108,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "page"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1047,8 +1140,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "navigation"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1078,8 +1172,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "navigation"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1109,8 +1204,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "media"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1140,8 +1236,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "media"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1171,8 +1268,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "media"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1202,8 +1300,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "media"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1233,8 +1332,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "media"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1264,8 +1364,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "media"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "separator",
@@ -1273,7 +1374,8 @@
     "size": "13px",
     "margin": "12px 0 6px 0",
     "id": "zzicon.ui.section.palette-note",
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}]
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "page"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "tools"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}], "operator": "OR"}],
+    "operator": "AND"
   },
   {
     "type": "dropdown",
@@ -1303,8 +1405,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "page"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1334,8 +1437,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "page"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1365,8 +1469,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "page"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1396,8 +1501,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "page"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1427,8 +1533,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "page"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1458,8 +1565,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "tools"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1489,8 +1597,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "tools"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1520,8 +1629,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "tools"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1551,8 +1661,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "tools"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1582,8 +1693,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "tools"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1613,8 +1725,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "tools"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1644,8 +1757,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "tools"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1675,8 +1789,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "tools"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1706,8 +1821,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "tools"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1737,8 +1853,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "tools"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1768,8 +1885,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "page"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1799,8 +1917,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "tools"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1830,8 +1949,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "navigation"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1861,8 +1981,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "navigation"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1892,8 +2013,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "page"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1923,8 +2045,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "tools"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1954,8 +2077,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "tools"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1985,8 +2109,9 @@
         "value": 5
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "buttons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzicon.ui.button-category", "value": "tools"}}, {"if": {"property": "zzicon.ui.button-category", "value": "all"}}, {"if": {"property": "zzicon.ui.button-category", "value": ""}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "separator",
@@ -2061,7 +2186,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "motion"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -2120,7 +2246,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "motion"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -2179,7 +2306,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "motion"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -2238,7 +2366,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "motion"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -2297,7 +2426,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "motion"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -2356,7 +2486,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "motion"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -2378,7 +2509,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "motion"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "separator",
@@ -2449,7 +2581,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "library"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "checkbox",

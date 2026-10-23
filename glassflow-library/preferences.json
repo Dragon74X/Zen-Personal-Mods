@@ -3,7 +3,8 @@
     "type": "separator",
     "label": "Glassflow Library",
     "size": "20px",
-    "margin": "2px 0 12px 0"
+    "margin": "2px 0 12px 0",
+    "id": "zzlib.ui.section.glassflow-library"
   },
   {
     "type": "dropdown",
@@ -27,7 +28,8 @@
         "label": "Everything",
         "value": "all"
       }
-    ]
+    ],
+    "placeholder": false
   },
   {
     "type": "separator",
@@ -106,7 +108,8 @@
         "operator": "OR"
       }
     ],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "checkbox",
@@ -200,7 +203,8 @@
         "operator": "OR"
       }
     ],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
@@ -410,7 +414,8 @@
         "operator": "OR"
       }
     ],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -488,7 +493,8 @@
         "operator": "OR"
       }
     ],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -542,7 +548,8 @@
         "operator": "OR"
       }
     ],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -551,23 +558,23 @@
     "defaultValue": "1",
     "options": [
       {
-        "label": "Small",
+        "label": "0.8×",
         "value": "0.8"
       },
       {
-        "label": "Smaller",
+        "label": "0.9×",
         "value": "0.9"
       },
       {
-        "label": "Zen's",
+        "label": "1×",
         "value": "1"
       },
       {
-        "label": "Larger",
+        "label": "1.15×",
         "value": "1.15"
       },
       {
-        "label": "Large",
+        "label": "1.3×",
         "value": "1.3"
       }
     ],
@@ -607,7 +614,8 @@
         "operator": "OR"
       }
     ],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "checkbox",
@@ -720,7 +728,7 @@
   {
     "type": "string",
     "property": "zzlib.card.gradient",
-    "label": "Space gradient strength *The space's own colour gradient on its card. 1 is Zen's; 0 hides it.*",
+    "label": "Space gradient opacity (%) *0% hides the workspace gradient on its card; 100% keeps Zen's gradient. Existing stored fractions remain supported.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [

@@ -49,28 +49,14 @@
   },
   {
     "type": "separator",
-    "label": "Connection warmup",
+    "label": "Connection warmup *Favorites (Essentials/pinned tabs) use native Firefox tab hover warmup. No duplicate bookmark or tab requests are added.*",
     "size": "17px",
     "margin": "22px 0 10px 0"
   },
   {
     "type": "checkbox",
-    "property": "zzturbo.hover-warmup",
-    "label": "Request connections on hover *Requests a speculative connection after dwelling on an unloaded tab or bookmark. Unloaded tabs use their container; bookmarks use container 0. Request throttle is half network.http.keep-alive.timeout; no connection reuse is measured.*",
-    "defaultValue": true
-  },
-  {
-    "type": "string",
-    "property": "zzturbo.hover-dwell-ms",
-    "label": "Hover dwell (milliseconds) *Delay before requesting a speculative connection. Default 200; 0 requests immediately. Leaving before the delay expires cancels the pending request.*",
-    "defaultValue": "200",
-    "placeholder": "200",
-    "conditions": [{"if": {"property": "zzturbo.hover-warmup", "value": true}}]
-  },
-  {
-    "type": "checkbox",
     "property": "zzturbo.startup-warmup",
-    "label": "Request frequent origins at window startup *Queries local history and schedules speculative requests 250 ms apart. Disabled in private windows. Requests can consume network resources without a later navigation.*",
+    "label": "Request frequent origins once per browser session *Queries local history after restoration and selected-tab loading, at idle. Requests are 250 ms apart. Private windows never query history; additional windows and live updates do not repeat the budget.*",
     "defaultValue": true
   },
   {
@@ -79,15 +65,29 @@
     "label": "Startup origin count *Selects up to this many origins by history frecency. Default 6; maximum 20.*",
     "defaultValue": "6",
     "placeholder": "6",
-    "conditions": [{"if": {"property": "zzturbo.startup-warmup", "value": true}}]
+    "conditions": [
+      {
+        "if": {
+          "property": "zzturbo.startup-warmup",
+          "value": true
+        }
+      }
+    ]
   },
   {
     "type": "string",
     "property": "zzturbo.startup-warm-delay-ms",
-    "label": "Startup delay (milliseconds) *Delay after window initialization before querying history. Default 4000. Does not guarantee session restore has finished.*",
+    "label": "Startup delay (milliseconds) *Minimum delay after workspace/session initialization. Foreground loading and idle scheduling can defer it further. Default 4000.*",
     "defaultValue": "4000",
     "placeholder": "4000",
-    "conditions": [{"if": {"property": "zzturbo.startup-warmup", "value": true}}]
+    "conditions": [
+      {
+        "if": {
+          "property": "zzturbo.startup-warmup",
+          "value": true
+        }
+      }
+    ]
   },
   {
     "type": "separator",
@@ -99,7 +99,7 @@
     "type": "checkbox",
     "property": "zzturbo.measure",
     "label": "Count navigation matches *Correlates navigation origins and containers with recent warmup requests. ZenTurbo.stats().hitRate is a navigation-match percentage, not socket reuse or time saved.*",
-    "defaultValue": true
+    "defaultValue": false
   },
   {
     "type": "checkbox",

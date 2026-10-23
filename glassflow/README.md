@@ -520,3 +520,7 @@ Runtime checked in Zen 1.22.2b (Firefox 156). See the
 ## License
 
 MIT
+
+## October 2026 update
+
+Tools now offers Save appearance, Restore appearance, Copy appearance, and Copy Zen Mods Report. One validated appearance snapshot covers only suite-owned appearance settings and preserves absent user overrides. The immediate report contains bounded settings/version/count information and excludes browsing and file identifiers; timed media diagnostics remain separate.

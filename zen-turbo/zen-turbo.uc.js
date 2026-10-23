@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Zen Turbo
-// @description    Preference packs and speculative connection requests on hover or startup.
+// @description    Preference packs and session-scoped startup connection warmup.
 // @include        chrome://browser/content/browser.xhtml
 // ==/UserScript==
 
@@ -45,6 +45,7 @@
 
   let log = [];
   const note = (m) => {
+    if (!bool("debug", false)) return;
     log.push([Date.now(), m]);
     if (log.length > 200) log.shift();
     if (bool("debug", false)) console.log("[ZenTurbo]", m);
@@ -250,7 +251,7 @@
   }
 
   function recordHit(uri, userContextId) {
-    if (!bool("measure", true)) return;
+    if (!bool("measure", false)) return;
     try {
       if (!uri || !/^https?$/.test(uri.scheme)) return;
       const key = uri.prePath + "|" + userContextId;
@@ -287,44 +288,34 @@
       Services.io.speculativeConnect(uri, principal, null, false);
       recentWarm.set(key, now);
       if (recentWarm.size > 200) recentWarm.delete(recentWarm.keys().next().value);
-      stats.warmed++;
-      bumpOrigin(uri.prePath, "warmed");
+      if (bool("measure", false)) { stats.warmed++; bumpOrigin(uri.prePath, "warmed"); }
       note(`requested ${uri.prePath}${userContextId ? ` [container ${userContextId}]` : ""}`);
     } catch (e) { note(`warm failed: ${e}`); }
   }
 
-  let hovering = [];                     // the surfaces this copy is listening on
-  let warmupTimer = null;
+  let warmupTimer = null, warmIdle = null, startupDue = false;
   const startupWarmTimers = new Set();
   let warmupEpoch = 0;
   function cancelStartupWarmup() {
     warmupEpoch++;
     clearTimeout(warmupTimer); warmupTimer = null;
+    if (warmIdle !== null) window.cancelIdleCallback(warmIdle);
+    warmIdle = null; startupDue = false;
     for (const id of startupWarmTimers) clearTimeout(id);
     startupWarmTimers.clear();
   }
   let retired = false;
-  const hoverSurfaces = () =>
-    [gBrowser?.tabContainer, document.getElementById("PersonalToolbar")].filter(Boolean);
-
-  // Schedule requests for unloaded tabs and bookmarks; loaded tabs are skipped.
-  function onHover(event) {
-    cancelDwell();
-    if (!bool("hover-warmup", true)) return;
-    const t = event.target;
-    const tab = t?.closest?.(".tabbrowser-tab");
-    if (tab && tab.hasAttribute("pending")) {
-      let uri = null;
-      try { uri = tab.linkedBrowser?.currentURI; } catch {}
-      if (uri) {
-        const ctx = parseInt(tab.getAttribute("usercontextid") || "0", 10);
-        warmAfterDwell(uri, ctx);
-      }
-      return;
-    }
-    const bm = t?.closest?.(".bookmark-item");
-    const url = bm?._placesNode?.uri;
-    if (url) warmAfterDwell(url, 0);
+  // Favorites (Essentials/pinned tabs) use Firefox's existing tab hover
+  // warmup and SessionStore.speculativeConnectOnTabHover, including containers.
+  // A second request here bypassed native connectionPrepared deduplication.
+  function warmWhenReady() {
+    if (!startupDue || retired || gBrowser.selectedTab?.hasAttribute("busy") || warmIdle !== null) return;
+    warmIdle = window.requestIdleCallback(() => {
+      warmIdle = null;
+      if (gBrowser.selectedTab?.hasAttribute("busy")) return;
+      startupDue = false;
+      startupWarmup();
+    });
   }
 
   // ---- startup warmup -----------------------------------------------------
@@ -332,6 +323,10 @@
   // Successful handshakes and later connection reuse are not observed.
   async function startupWarmup() {
     if (retired || isPrivate() || !bool("startup-warmup", true)) return;
+    const { NetUtil } = ChromeUtils.importESModule("resource://gre/modules/NetUtil.sys.mjs");
+    // Process owner survives window close/reinjection; browser restart resets it.
+    if (NetUtil.__zzturboStartupV1) return;
+    NetUtil.__zzturboStartupV1 = true;
     const epoch = warmupEpoch;
     const n = Math.max(0, Math.min(20, num("startup-warm-count", 6)));
     if (!n) return;
@@ -361,31 +356,12 @@
     } catch (e) { note(`startup warmup failed: ${e}`); }
   }
 
-  // ---- tab/bookmark hover warmup ------------------------------------------
-  let dwellTimer = null;
-  function cancelDwell() {
-    clearTimeout(dwellTimer);
-    dwellTimer = null;
-  }
   function forgetWarmups() {
     cancelStartupWarmup();
-    cancelDwell();
     recentWarm.clear();
     stats.warmed = stats.hits = stats.cold = 0;
     stats.byOrigin.clear();
     log = [];
-  }
-
-  // Cancel a scheduled request when hover ends. Issued connections remain
-  // under Firefox's control; their lifetime is not measured here.
-  function warmAfterDwell(url, ctx) {
-    cancelDwell();
-    if (!url) return;                    // pointer left the link
-    const delay = Math.max(0, num("hover-dwell-ms", 200));
-    dwellTimer = setTimeout(() => {
-      dwellTimer = null;
-      if (!retired && bool("hover-warmup", true)) warm(url, ctx);
-    }, delay);
   }
 
   // Match top-level navigations to recent origin/container request records.
@@ -400,6 +376,22 @@
       recordHit(uri, ctx);
     },
   };
+
+  let measuring = false;
+  function syncMeasurement() {
+    const enabled = !retired && bool("measure", false);
+    if (enabled === measuring) return;
+    measuring = enabled;
+    if (enabled) gBrowser.addTabsProgressListener(navListener);
+    else {
+      gBrowser.removeTabsProgressListener(navListener);
+      stats.warmed = stats.hits = stats.cold = 0;
+      stats.byOrigin.clear();
+    }
+  }
+  function onReadyEvent(event) {
+    if (event.type === "TabSelect" || event.target === gBrowser.selectedTab && event.detail?.changed?.includes("busy")) warmWhenReady();
+  }
 
   // ---- wiring -------------------------------------------------------------
   let smoothingObserver = null, smoothingTimer = null, smoothingMarked = false;
@@ -427,9 +419,10 @@
   }
   const prefObserver = {
     observe(_s, _t, data) {
+      if (data === P + "measure") syncMeasurement();
+      if (data === P + "debug" && !bool("debug", false)) log = [];
       if (data.startsWith(P + "pack-")) syncPacks();
       if (data === P + "smooth-workspace-switch") syncSmoothing();
-      if ([P + "hover-warmup", P + "hover-dwell-ms"].includes(data)) cancelDwell();
       if (data === P + "startup-warmup" && !bool("startup-warmup", true)) cancelStartupWarmup();
     },
   };
@@ -447,22 +440,14 @@
     syncPacks();
     Services.obs.addObserver(forgetWarmups, "browser:purge-session-history");
 
-    // onHover only ever acts on a tab or a bookmark, so it listens on the two
-    // surfaces that hold them rather than on document. On document it ran on
-    // every element boundary the pointer crossed anywhere in the chrome --
-    // a pref read and two closest() walks per crossing -- which is the only
-    // thing in these mods that runs on mouse movement at all.
-    // Held, rather than looked up again at cleanup: a toolbar rebuilt in
-    // between would leave the old element listening for good.
-    hovering = hoverSurfaces();
-    for (const el of hovering) {
-      el.addEventListener("mouseover", onHover, { passive: true });
-      el.addEventListener("mouseleave", cancelDwell, { passive: true });
-    }
-    try { gBrowser.addTabsProgressListener(navListener); } catch {}
+    syncMeasurement();
+    gBrowser.tabContainer.addEventListener("TabAttrModified", onReadyEvent);
+    gBrowser.tabContainer.addEventListener("TabSelect", onReadyEvent);
 
     if (bool("startup-warmup", true) && !isPrivate() && isMainAppWindow()) {
-      warmupTimer = setTimeout(startupWarmup, Math.max(0, num("startup-warm-delay-ms", 4000)));
+      window.gZenStartup.promiseInitialized.then(() => {
+        if (!retired) warmupTimer = setTimeout(() => { startupDue = true; warmWhenReady(); }, Math.max(0, num("startup-warm-delay-ms", 4000)));
+      });
     }
 
     window.ZenTurbo = {
@@ -475,7 +460,7 @@
           // Prefs this build does not have. Anything listed here is dead
           // weight in a pack and should be removed from the mod.
           unknownPrefs: [...unknown],
-          hoverWarmup: bool("hover-warmup", true),
+          hoverWarmup: "native tab hover (including Favorites/Essentials)",
           startupWarmup: bool("startup-warmup", true),
           warmupRequests: stats.warmed,
           recentOriginContexts: recentWarm.size,
@@ -509,13 +494,11 @@
       try { Services.prefs.removeObserver(P, prefObserver); } catch {}
       try { delete window.ZenTurbo; } catch {}
       try { Services.obs.removeObserver(forgetWarmups, "browser:purge-session-history"); } catch {}
-      for (const el of hovering) {
-        try { el.removeEventListener("mouseover", onHover); el.removeEventListener("mouseleave", cancelDwell); } catch {}
-      }
-      hovering = [];
       cancelStartupWarmup();
-      try { cancelDwell(); } catch {}
-      try { gBrowser.removeTabsProgressListener(navListener); } catch {}
+      syncMeasurement();
+      log = []; recentWarm.clear();
+      gBrowser.tabContainer.removeEventListener("TabAttrModified", onReadyEvent);
+      gBrowser.tabContainer.removeEventListener("TabSelect", onReadyEvent);
     };
     window.addEventListener("unload", cleanup, { once: true });
     // Registered with Sine, so an update re-injects this script live, no
@@ -530,21 +513,8 @@
 
 
   // ---- declared defaults --------------------------------------------------
-  // Sine does not write the defaults declared in preferences.json into the
-  // profile. manager.sys.mjs says so outright: "TODO: Apply default
-  // preferences." So an unset pref reads as whatever the READER falls back
-  // to, and the readers disagree with each other.
-  //
-  // A mod's own reader falls back one way (this script's bool(name, true)),
-  // Sine's settings panel another (getBoolPref(name, false) when deciding
-  // whether a conditioned row shows), and a -moz-pref() media query in the
-  // stylesheet a third. Each is reasonable alone; together they produce a mod
-  // behaving as if a setting is on while every row it governs is hidden as if
-  // it were off.
-  //
-  // Writing each declared default once, and only when the pref has never
-  // been set, removes the disagreement for all three at once. Nothing that
-  // was already chosen is touched.
+  // Native defaults serve CSS, Sine and runtime readers alike. Existing user
+  // values always win, including values previously seeded into the user branch.
   const MOD_ID = "zz-zen-turbo";
   async function seedDefaults() {
     let declared;
@@ -554,13 +524,12 @@
       declared = Array.isArray(json) ? json : (json.preferences ?? []);
     } catch { return false; }
 
-    const S = Services.prefs;
+    const S = Services.prefs.getDefaultBranch("");
     for (const pref of declared) {
       const name = pref?.property;
       const value = pref?.defaultValue;
       if (!name || !name.startsWith(P) || value === undefined || value === null) continue;
       try {
-        if (S.getPrefType(name) !== S.PREF_INVALID) continue;   // already chosen
         if (typeof value === "boolean") S.setBoolPref(name, value);
         else if (typeof value === "number") S.setIntPref(name, value);
         else if (typeof value === "string") S.setStringPref(name, value);
@@ -589,14 +558,16 @@
 
   // Seed before starting where possible. start() reads prefs immediately, so
   // a mod that starts first would run one session on the wrong fallbacks.
-  seedDefaults().catch(() => {});
+  const defaultsReady = seedDefaults();
 
-  const startOnce = () => {
+  const startOnce = async () => {
     // A newer copy of this script may have claimed the window while this one
     // was waiting; that copy owns the registrations, so this one stays quiet.
     if (started || window[INSTANCE_KEY] !== instance) return;
     started = true;
     stopWaiting();
+    await defaultsReady;
+    if (retired || window[INSTANCE_KEY] !== instance) return;
     try { start(); } catch (e) {
       console.error("[ZenTurbo] failed to start:", e);
     }
@@ -614,7 +585,7 @@
 
   // Until start() swaps in the real cleanup, releasing this copy means
   // dropping whatever it is waiting on.
-  instance.retire = stopWaiting;
+  instance.retire = () => { retired = true; stopWaiting(); };
 
   if (windowReady()) {
     startOnce();

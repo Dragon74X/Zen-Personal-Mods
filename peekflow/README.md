@@ -46,3 +46,7 @@ Loading an unloaded tab when you point at it, to show a live picture. Firefox
 already warms up loaded tabs on hover and prepares the connection for unloaded
 ones; fully loading them would undo what unloading saves and fetch pages you
 only pointed at. The last view covers the same need without that cost.
+
+## October 2026 update
+
+Concurrent thumbnail requests for the same document revision share one capture. Navigation, closure, and retirement invalidate stale results; available native thumbnails are reused. Optional capture work yields to foreground activity.

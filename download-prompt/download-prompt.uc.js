@@ -83,14 +83,14 @@
       "background:Field;color:FieldText;box-shadow:0 18px 56px rgba(0,0,0,0.5)";
   }
 
-  function ask(win, target, folderPath) {
+  function ask(win, target, folderPath, expectedBytes = -1) {
     return new Promise((resolve) => {
       win[QUESTION]?.(KEEP);
       const doc = win.document;
       const host = doc.createElementNS(XH, "dialog");
       host.id = "zzdl-ask";
       host.setAttribute("aria-labelledby", "zzdl-title");
-      host.setAttribute("aria-describedby", "zzdl-name zzdl-where");
+      host.setAttribute("aria-describedby", "zzdl-name zzdl-where zzdl-details");
       const add = (parent, cls, text) => {
         const e = parent.appendChild(doc.createElementNS(XH, "div"));
         e.className = cls;
@@ -101,6 +101,13 @@
       add(panel, "zzdl-title", "That name is already taken").id = "zzdl-title";
       add(panel, "zzdl-name", target.leafName).id = "zzdl-name";
       add(panel, "zzdl-where", folderPath).id = "zzdl-where";
+      const details = [];
+      try {
+        if (Number.isFinite(target.fileSize)) details.push(`Existing: ${target.fileSize.toLocaleString()} bytes`);
+        if (target.lastModifiedTime > 0) details.push(`Modified: ${new Date(target.lastModifiedTime).toLocaleString()}`);
+      } catch {} // File can disappear between the collision check and this prompt.
+      if (Number.isFinite(expectedBytes) && expectedBytes >= 0) details.push(`Incoming: ${expectedBytes.toLocaleString()} bytes`);
+      add(panel, "zzdl-details", details.join(" · ")).id = "zzdl-details";
       const row = add(panel, "zzdl-buttons");
 
       let done = false, bail = null;
@@ -180,7 +187,7 @@
       // A second download colliding while a question is up IN THAT WINDOW
       // answers itself: keeping both is what the browser does anyway. A
       // download in another window gets its own question.
-      m = win[QUESTION] ? KEEP : await ask(win, target, dir.path);
+      m = win[QUESTION] ? KEEP : await ask(win, target, dir.path, launcher.contentLength);
     }
     note(`${target.leafName} is taken -> ${NAMES[m]}`);
     if (m === KEEP) return false;

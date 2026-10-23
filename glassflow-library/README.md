@@ -48,9 +48,11 @@ four session rows; older entries fill the remaining slots up to the chosen
 count (1–8). History lookup uses Firefox's 42-entry limit. Private windows
 show private-session downloads only.
 
-Added rows show download speed, retry stopped downloads, and offer Cancel or
-Show in Folder. They have no right-click menu and can't be dragged out.
-Zen's four native rows retain their context menus and drag behavior. Requires Zen 1.23.3b.
+Added rows show download speed, retry stopped downloads, and offer eligible Cancel or
+Show in Folder actions. They delegate context menus and file drag behavior to Zen's
+native handlers using the actual download. Commands recheck current download/file
+state before execution. Missing files omit file-dependent actions while preserving
+other applicable commands. Requires Zen 1.23.3b.
 Blocked downloads use Zen's native confirmation and verdict text, including
 the extra rows. Nothing is unblocked or opened before the native prompt allows it.
 
@@ -87,3 +89,7 @@ is installed.
 Clicking a folder header in a card opens or closes that copy only, as in
 stock Zen. Groupflow's close and icon controls are not added to the copies:
 they would act on the copy, not the real folder.
+
+## October 2026 update
+
+Recent history rows use native download commands and drag behavior, with current-state and file checks before execution. In single-box mode the backing follows the actual open state, covers row gaps, and avoids per-row double filtering. Footer elevation and Mediaflow yielding follow Zen’s wrapper closing state. Actual compositor blur still requires a graphical device check.

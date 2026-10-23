@@ -2,7 +2,7 @@
 // @name           Peekflow
 // @description    Places Zen's tab hover preview and remembers how unloaded tabs looked.
 // @include        chrome://browser/content/browser.xhtml
-// @version        1.2.1
+// @version        1.3.0
 // ==/UserScript==
 
 (() => {
@@ -69,18 +69,44 @@
   // are small JPEG blobs held in memory against the tab: closing the tab or
   // the window drops them, and nothing is written to disk.
   const shots = new WeakMap();
-  // A picture of a loaded tab at the preview's size, or null.
-  async function capture(tab) {
+  const captures = new WeakMap(), revisions = new WeakMap();
+  const idleWork = new Set();
+  const revision = tab => revisions.get(tab) || 0;
+  const stateOf = tab => [tab.linkedBrowser, tab.linkedBrowser?.currentURI?.spec,
+    tab.linkedBrowser?.browsingContext?.currentWindowGlobal?.innerWindowId, revision(tab)];
+  const sameState = (tab, state) => !retired && !tab.closing && !tab.hasAttribute("pending") &&
+    stateOf(tab).every((value, i) => value === state[i]);
+  function invalidate(tab) {
+    if (!tab) return;
+    revisions.set(tab, revision(tab) + 1); captures.delete(tab);
+    if (live?.tab === tab) { live.canvas.remove(); live = null; }
+  }
+  function idle(fn) {
+    const id = window.requestIdleCallback(() => { idleWork.delete(id); if (!retired) fn(); });
+    idleWork.add(id);
+  }
+  // One capture per document/revision and hover. Closing the hover or visiting
+  // the page invalidates it so scroll/video/DOM changes get a fresh next view.
+  function capture(tab) {
+    const state = stateOf(tab), old = captures.get(tab);
+    if (old && sameState(tab, old.state)) return old.promise;
     const canvas = document.createElementNS(HTML, "canvas"), dpr = window.devicePixelRatio || 1;
     canvas.width = Math.round(280 * dpr); canvas.height = Math.round(140 * dpr);
-    try { return (await window.PageThumbs.captureTabPreviewThumbnail(tab.linkedBrowser, canvas)) ? canvas : null; }
-    catch { return null; }
+    const promise = window.PageThumbs.captureTabPreviewThumbnail(tab.linkedBrowser, canvas)
+      .then(ok => ok && sameState(tab, state) ? canvas : null, () => null);
+    captures.set(tab, { state, promise });
+    return promise;
+  }
+  function remember(tab, canvas, state = stateOf(tab)) {
+    canvas?.toBlob(blob => {
+      if (blob && sameState(tab, state) && bool("pictures", true) && bool("last-view", true))
+        shots.set(tab, { blob, at: Date.now() });
+    }, "image/jpeg", 0.82);
   }
   async function photograph(tab) {
     if (retired || !tab?.linkedBrowser || tab.closing || tab.hasAttribute("pending") || !bool("pictures", true) || !bool("last-view", true)) return;
-    (await capture(tab))?.toBlob(blob => {
-      if (blob && !retired && bool("pictures", true) && bool("last-view", true)) shots.set(tab, { blob, at: Date.now() });
-    }, "image/jpeg", 0.82);
+    const state = stateOf(tab);
+    remember(tab, await capture(tab), state);
   }
   // Only a tab you actually looked at (selected for a second or more) is
   // photographed, at an idle moment: scrolling through tabs takes none.
@@ -89,14 +115,17 @@
   const onSelect = event => {
     const prev = event.detail?.previousTab, looked = Date.now() - selectedAt >= LOOKED_MS;
     selectedAt = Date.now();
-    if (prev && looked) window.requestIdleCallback(() => photograph(prev), { timeout: 1500 });
+    invalidate(prev); invalidate(event.target);
+    if (prev && looked) idle(() => photograph(prev));
   };
   // A tab's first finished load is photographed too, so one opened in the
   // background and unloaded before you looked at it still has a picture.
   const onLoaded = event => {
     const tab = event.target;
-    if (!event.detail?.changed?.includes("busy") || tab.hasAttribute?.("busy") || shots.has(tab)) return;
-    window.requestIdleCallback(() => { if (!shots.has(tab)) photograph(tab); }, { timeout: 3000 });
+    if (!event.detail?.changed?.includes("busy")) return;
+    invalidate(tab);
+    if (tab.hasAttribute?.("busy")) { shots.delete(tab); return; }
+    if (!shots.has(tab)) idle(() => { if (!shots.has(tab)) photograph(tab); });
   };
 
   // ---- the preview panel ------------------------------------------------------
@@ -120,6 +149,7 @@
     const tab = current, pictures = bool("pictures", true);
     if (!pictures) {
       captureId++;
+      if (current) invalidate(current);
       live?.canvas.remove();
       live = null;
       shotImg?.remove();
@@ -158,6 +188,11 @@
         ? `Unloaded · ${shot ? "seen" : "last used"} ${since(used)}` : "Unloaded";
     }
   }
+  const hoverEnded = event => invalidate(event.target);
+  const nativeThumbnail = event => {
+    const canvas = event.detail?.thumbnail;
+    if (current && canvas?.toBlob && !current.hasAttribute("pending")) remember(current, canvas);
+  };
   function adopt() {
     if (tabPanel || !bool("show", true)) return;
     const strip = gBrowser.tabContainer;
@@ -191,6 +226,7 @@
       return activate.call(this, tab);
     };
     panel.addEventListener("TabPreviewUpdated", dress);
+    panel.addEventListener("TabPreviewThumbnailUpdated", nativeThumbnail);
   }
   function release() {
     captureId++;
@@ -199,6 +235,7 @@
       delete tabPanel.activate;
     }
     panel?.removeEventListener("TabPreviewUpdated", dress);
+    panel?.removeEventListener("TabPreviewThumbnailUpdated", nativeThumbnail);
     panel?.querySelectorAll(".zzpeek-seen").forEach(n => n.remove());
     shotImg?.remove();
     live?.canvas.remove();
@@ -213,6 +250,8 @@
     adopt();
     S.addObserver(P, observer);
     window.addEventListener("TabSelect", onSelect, true);
+    window.addEventListener("TabHoverEnd", hoverEnded, true);
+    window.addEventListener("TabClose", hoverEnded, true);
     window.addEventListener("TabAttrModified", onLoaded, true);
   }
   function cleanup() {
@@ -221,6 +260,10 @@
     instance.active = false;
     try { S.removeObserver(P, observer); } catch {}
     window.removeEventListener("TabSelect", onSelect, true);
+    window.removeEventListener("TabHoverEnd", hoverEnded, true);
+    window.removeEventListener("TabClose", hoverEnded, true);
+    for (const id of idleWork) window.cancelIdleCallback?.(id);
+    idleWork.clear();
     window.removeEventListener("TabAttrModified", onLoaded, true);
     release();
   }

@@ -102,3 +102,7 @@ Zen's `zen.tab-unloader.excluded-urls` does not apply here. Use this mod's own U
 ## License
 
 MIT
+
+## October 2026 update
+
+Eligible folder menus offer scoped manual unloading even when automatic unloading is off. The shared execution path retains the loaded-tab floor, session flush, selected/media/PiP/WebRTC/split-view protections, and final eligibility recheck. Age-ineligible candidates are filtered before sorting; collapsing a folder never unloads it.

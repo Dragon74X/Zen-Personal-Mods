@@ -29,6 +29,7 @@ export class ZzMediaflowParent extends JSWindowActorParent {
       return;
     }
 
+    if (this.manager && this.browsingContext.currentWindowGlobal && this.manager !== this.browsingContext.currentWindowGlobal) return;
     const win = this.browsingContext.topChromeWindow;
     if (!win) {
       console.error("[Mediaflow/parent] No chrome window available");
@@ -41,6 +42,7 @@ export class ZzMediaflowParent extends JSWindowActorParent {
         const controller = win.ZzMediaflowController;
         if (controller) {
           controller.registerSource(this.browsingContext.id, {
+            owner: this,
             startTick: (w) => { this._startTicking(w); },
             stopTick: () => { this._stopTicking(); },
             setProcessingActive: (active, captionMode, captionsActive) => {
@@ -61,7 +63,7 @@ export class ZzMediaflowParent extends JSWindowActorParent {
 
       case "ZenPiP:Frame": {
         const controller = win.ZzMediaflowController;
-        if (!controller) return;
+        if (!controller?.isSource(this.browsingContext.id, this)) return;
 
         const activeBC = typeof controller.getActiveBC === "function" ? controller.getActiveBC() : null;
         if (!activeBC || activeBC.id !== this.browsingContext.id) {
@@ -85,9 +87,9 @@ export class ZzMediaflowParent extends JSWindowActorParent {
 
       case "ZenPiP:SourceVisibility": {
         const controller = win.ZzMediaflowController;
-        if (!controller) break;
+        if (!controller?.isSource(this.browsingContext.id, this)) break;
         const activeBC = typeof controller.getActiveBC === "function" ? controller.getActiveBC() : null;
-        if (activeBC && activeBC.id === this.browsingContext.id) {
+        if (controller?.isSource(this.browsingContext.id, this) && activeBC && activeBC.id === this.browsingContext.id) {
           controller.setSourceTabActive(!msg.data.hidden);
         }
         break;
@@ -95,7 +97,7 @@ export class ZzMediaflowParent extends JSWindowActorParent {
 
       case "ZenPiP:PlaybackState": {
         const controller = win.ZzMediaflowController;
-        if (controller?.getActiveBC()?.id === this.browsingContext.id) {
+        if (controller?.isSource(this.browsingContext.id, this) && controller.getActiveBC()?.id === this.browsingContext.id) {
           controller.updateControls(msg.data);
         }
         break;
@@ -105,7 +107,7 @@ export class ZzMediaflowParent extends JSWindowActorParent {
         if (this._captionMode === "off") break;
         const controller = win.ZzMediaflowController;
         const activeBC = controller?.getActiveBC?.();
-        if (activeBC && activeBC.id === this.browsingContext.id) {
+        if (controller?.isSource(this.browsingContext.id, this) && activeBC && activeBC.id === this.browsingContext.id) {
           controller.setCaption(msg.data?.text || "");
         }
         break;
@@ -115,7 +117,7 @@ export class ZzMediaflowParent extends JSWindowActorParent {
         const reason = msg.data?.reason || "";
         console.log("[Mediaflow/parent] VideoStopped reason:", reason);
         const controller = win.ZzMediaflowController;
-        if (controller?.getActiveBC()?.id === this.browsingContext.id) {
+        if (controller?.isSource(this.browsingContext.id, this) && controller.getActiveBC()?.id === this.browsingContext.id) {
           if (reason.includes("pause")) {
             controller.hideCaption?.();
           } else {
@@ -129,8 +131,7 @@ export class ZzMediaflowParent extends JSWindowActorParent {
         this._captionsActive = false;
         this._stopTicking();
         if (controller) {
-          controller.unregisterSource(this.browsingContext.id);
-          controller.notifySourceStopped(this.browsingContext);
+          if (controller.unregisterSource(this.browsingContext.id, this)) controller.notifySourceStopped(this.browsingContext);
         }
         break;
       }
@@ -338,8 +339,8 @@ export class ZzMediaflowParent extends JSWindowActorParent {
     } catch (_) {}
     const win = this.browsingContext?.topChromeWindow;
     if (win && win.ZzMediaflowController) {
-      win.ZzMediaflowController.unregisterSource(this.browsingContext.id);
-      win.ZzMediaflowController.notifySourceStopped(this.browsingContext);
+      if (win.ZzMediaflowController.unregisterSource(this.browsingContext.id, this))
+        win.ZzMediaflowController.notifySourceStopped(this.browsingContext);
     }
   }
 }

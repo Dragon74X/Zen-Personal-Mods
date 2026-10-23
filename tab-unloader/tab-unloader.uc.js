@@ -262,11 +262,12 @@
   const sliding = () => document.documentElement.hasAttribute("animating-background") ||
     !!document.getElementById?.("navigator-toolbox")?.hasAttribute("animating-background") || swiping();
 
-  async function sweep() {
-    if (sweeping || retired || !bool("enabled", false)) return;
+  async function sweep(scope = null) {
+    const manual = !!scope;
+    if (sweeping || retired || (!manual && !bool("enabled", false))) return;
     // discardBrowser mid workspace-slide contributes to animation stutter;
     // Zen marks the slide on :root. Skip this tick, the interval retries.
-    if (sliding()) {
+    if (!manual && sliding()) {
       if (!deferredSince) deferredSince = Date.now();
       const waited = Date.now() - deferredSince;
       if (waited < MAX_DEFER_MS) {
@@ -279,7 +280,7 @@
     const now = Date.now();
     const tabs = allTabs();
 
-    const cap = num("max-per-sweep", 5);
+    const cap = manual ? 0 : num("max-per-sweep", 5);
     let budget = cap > 0 ? cap : tabs.length;
 
     const floor = num("keep-loaded", 0);
@@ -299,8 +300,10 @@
     // set whether you filter then sort, or sort then take the first N that
     // pass. It just stops doing the work once it has them.
     const cfg = sweepConfig();
+    if (manual) cfg.idleSec = 0;
     const byAge = tabs
-      .filter(t => t && !t.selected && !t.closing && !t.hasAttribute("pending"))
+      .filter(t => t && (!scope || scope.contains(t)) && !t.selected && !t.closing && !t.hasAttribute("pending") &&
+        (now - (t.lastAccessed || now)) / 1000 >= cfg.idleSec)
       .sort((a, b) => (a.lastAccessed || 0) - (b.lastAccessed || 0));
 
     let done = 0, examined = 0;
@@ -313,8 +316,10 @@
         try {
           // Firefox's native unloader flushes current form/session state first.
           await gBrowser.prepareDiscardBrowser(tab);
-          if (retired || !bool("enabled", false)) break;
-          if (whyKeep(tab, Date.now(), sweepConfig()) !== null) continue;
+          if (retired || (!manual && !bool("enabled", false))) break;
+          const latest = sweepConfig();
+          if (manual) latest.idleSec = 0;
+          if ((scope && (!scope.isConnected || !scope.contains(tab))) || whyKeep(tab, Date.now(), latest) !== null) continue;
           const currentFloor = num("keep-loaded", 0);
           if (currentFloor > 0 && allTabs().filter(t => !t.hasAttribute("pending") && !t.closing).length <= currentFloor) break;
           if (gBrowser.discardBrowser(tab)) { done++; note(`unloaded: ${tab.label}`); }
@@ -329,6 +334,7 @@
       note(`sweep: unloaded ${done}, examined ${examined} of ${byAge.length} candidates, ` +
         `${tabs.length} tabs total`);
     } finally { sweeping = false; }
+    return done;
   }
 
   function reschedule(firstDelay = 500) {
@@ -389,10 +395,61 @@
       delete lists[data.slice(P.length)];
       if (data === P + "enabled" || data === P + "check-seconds") reschedule();
       if (data === P + "enabled" || data === P + "other.arc") syncArc();
+      updateFolderMenu();
     },
   };
 
+  const loadedTabs = new Set();
+  const liveFolder = group => !retired && !!group?.isConnected && group.matches?.("tab-group:not([split-view-group]), zen-folder") && !group.closest("zen-library");
+  function loadedChanged(event) {
+    const tab = event.detail?.tab || (event.target?.linkedBrowser ? event.target : gBrowser.getTabForBrowser(event.target));
+    if (!tab || tab.closest?.("zen-library")) return;
+    if (event.type === "TabClose" || !tab.isConnected || tab.closing || tab.hasAttribute("pending")) loadedTabs.delete(tab);
+    else loadedTabs.add(tab);
+    updateFolderMenu();
+  }
+  function canUnloadFolder(group) {
+    if (!liveFolder(group) || sweeping || loadedTabs.size <= num("keep-loaded", 0)) return false;
+    const cfg = sweepConfig(); cfg.idleSec = 0;
+    return [...group.tabs].some(tab => whyKeep(tab, Date.now(), cfg) === null);
+  }
+  const folderItems = new Set();
+  function updateFolderMenu() {
+    for (const item of folderItems) {
+      if (!item.isConnected || item.zzunloadEligible()) continue;
+      const popup = item.closest("menupopup, panel"), focused = document.activeElement === item;
+      item.remove(); folderItems.delete(item);
+      if (focused) ([...popup.querySelectorAll("menuitem, toolbarbutton")].find(n => !n.hidden && !n.disabled) || popup.anchorNode)?.focus();
+    }
+  }
+  function folderMenu(event) {
+    const popup = event.target, panel = popup.matches?.(".tab-group-editor-panel");
+    if (!panel && popup.id !== "zenFolderActions") return;
+    for (const node of folderItems) node.remove(); folderItems.clear();
+    const group = panel ? gBrowser.tabGroupMenu.activeGroup : popup.triggerNode?.closest?.("zen-folder, tab-group");
+    if (!liveFolder(group)) return;
+    const parent = panel ? popup.querySelector(".tab-group-edit-actions") : popup;
+    if (!parent) return;
+    const add = (label, eligible, action) => {
+      if (!eligible()) return;
+      const item = document.createXULElement(panel ? "toolbarbutton" : "menuitem");
+      item.zzunloadEligible = eligible;
+      item.setAttribute("label", label); item.setAttribute("class", "subviewbutton");
+      item.addEventListener("command", () => { if (eligible()) action(); }); parent.appendChild(item); folderItems.add(item);
+    };
+    const n = window.Groupflow?.folderStatus?.(group);
+    if (n) add(`${n.loaded}/${n.total} loaded · ${n.playing} playing`, () => liveFolder(group), () => {
+      const current = window.Groupflow?.folderStatus?.(group);
+      if (current) Services.prompt.alert(window, "Folder status", `${current.loaded}/${current.total} loaded · ${current.playing} playing`);
+    });
+    add("Unload eligible tabs in folder", () => canUnloadFolder(group), () => sweep(group));
+  }
+  const LOADED_EVENTS = ["TabOpen", "TabClose", "TabSelect", "TabAttrModified", "SSTabRestored", "TabBrowserDiscarded"];
+
   function start() {
+    for (const tab of allTabs()) if (!tab.closing && !tab.hasAttribute("pending")) loadedTabs.add(tab);
+    for (const event of LOADED_EVENTS) window.addEventListener(event, loadedChanged, true);
+    window.addEventListener("popupshowing", folderMenu);
     Services.prefs.addObserver(P, observer);
     try { syncArc(); } catch (e) { note(`arc sync failed: ${e}`); }
     // Seed from the tab that is already selected, so the current
@@ -404,7 +461,8 @@
     reschedule(Math.max(0, num("first-sweep-ms", 15000)));
 
     window.TabUnloader = {
-      sweepNow: sweep,
+      sweepNow: () => sweep(),
+      unloadFolder: group => canUnloadFolder(group) ? sweep(group) : Promise.resolve(0),
       status() {
         const now = Date.now();
         const cfg = sweepConfig();
@@ -434,6 +492,10 @@
     const cleanup = () => {
       if (retired) return;
       retired = true;
+      window.removeEventListener("popupshowing", folderMenu);
+      for (const event of LOADED_EVENTS) window.removeEventListener(event, loadedChanged, true);
+      loadedTabs.clear();
+      for (const item of folderItems) item.remove(); folderItems.clear();
       window.removeEventListener("unload", cleanup);
       try { delete window.TabUnloader; } catch {}
       try { Services.prefs.removeObserver(P, observer); } catch {}

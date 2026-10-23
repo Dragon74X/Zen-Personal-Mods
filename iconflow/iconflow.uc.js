@@ -17,6 +17,7 @@
   const PREFIX = "zzicon.";
   const MOD_ID = "zz-iconflow";
   const root = document.documentElement;
+  let retired = false;
 
   // Strings and ints become --zzicon-foo-bar on the root, as Sine names them,
   // written now rather than after Sine's async read. Booleans are read with
@@ -41,7 +42,9 @@
   async function seedDefaults() {
     const res = await fetch(`chrome://sine/content/${MOD_ID}/preferences.json`);
     const S = Services.prefs;
-    for (const { property: name, defaultValue: value } of await res.json()) {
+    const defaults = await res.json();
+    if (retired) return;
+    for (const { property: name, defaultValue: value } of defaults) {
       if (!name?.startsWith(PREFIX) || value == null || S.getPrefType(name) !== S.PREF_INVALID) continue;
       if (typeof value === "boolean") S.setBoolPref(name, value);
       else if (typeof value === "number") S.setIntPref(name, value);
@@ -103,6 +106,7 @@
     b.className = "toolbarbutton-1 zen-emojis-picker-emoji zzicon-ws";
     b.setAttribute("label", url);
     b.setAttribute("tooltiptext", tip);
+    b.setAttribute("aria-label", tip);
     b.style.listStyleImage = `url("${url}")`;
     return b;
   }
@@ -113,18 +117,22 @@
     // Pinned tabs wrap whatever is picked as emoji text; leave them Zen's icons.
     if (document.querySelector("[zen-emoji-open]")?.closest(".tabbrowser-tab")) return;
     const icons = await loadIcons();
-    if (panel.state === "closed" || panel.state === "hiding") return;
+    if (retired || panel.state === "closed" || panel.state === "hiding") return;
+    list.querySelector(".zzicon-ws-block")?.remove();
     const S = Services.prefs, block = document.createElementNS(HTML, "div");
     block.className = "zzicon-ws-block";
     const bar = document.createElementNS(HTML, "div"), grid = document.createElementNS(HTML, "div"), search = document.createElementNS(HTML, "input");
     bar.className = "zzicon-ws-bar"; grid.className = "zzicon-ws-grid";
+    search.setAttribute("aria-label", "Search icons");
     search.type = "search"; search.placeholder = "Search icons"; search.className = "zzicon-ws-search";
     const style = () => S.getIntPref(PREFIX + "picker.style", 0), colour = () => COLOURS[S.getStringPref(PREFIX + "picker.colour", "aurora")] || COLOURS.aurora;
     const draw = () => {
       const q = search.value.trim().toLowerCase(), s = style(), c = colour();
+      const hadGridFocus = grid.contains(document.activeElement);
       grid.replaceChildren(...icons.filter(i => !q || i[0].includes(q) || i[1].includes(q)).map(i => item(art(i, s, c), i[0].replace(/-/g, " "))));
-      for (const b of bar.querySelectorAll("[data-style]")) b.toggleAttribute("selected", +b.dataset.style === s);
-      for (const b of bar.querySelectorAll("[data-colour]")) b.toggleAttribute("selected", b.dataset.colour === S.getStringPref(PREFIX + "picker.colour", "aurora"));
+      if (hadGridFocus) (grid.firstElementChild || search).focus();
+      for (const b of bar.querySelectorAll("[data-style]")) { const selected = +b.dataset.style === s; b.toggleAttribute("selected", selected); b.setAttribute("aria-pressed", String(selected)); }
+      for (const b of bar.querySelectorAll("[data-colour]")) { const selected = b.dataset.colour === S.getStringPref(PREFIX + "picker.colour", "aurora"); b.toggleAttribute("selected", selected); b.setAttribute("aria-pressed", String(selected)); }
     };
     ["Glass", "Tile", "Solid"].forEach((label, i) => {
       const b = Object.assign(document.createElementNS(HTML, "button"), { textContent: label, className: "zzicon-ws-style" });
@@ -134,6 +142,7 @@
     });
     for (const [name, [a, b2]] of Object.entries(COLOURS)) {
       const b = Object.assign(document.createElementNS(HTML, "button"), { className: "zzicon-ws-swatch", title: name[0].toUpperCase() + name.slice(1) });
+      b.setAttribute("aria-label", b.title);
       b.dataset.colour = name;
       b.style.background = `linear-gradient(135deg, ${a}, ${b2})`;
       b.addEventListener("click", () => { S.setStringPref(PREFIX + "picker.colour", name); draw(); });
@@ -144,7 +153,7 @@
     if (S.getBoolPref(PREFIX + "picker.sites", true)) {
       const sites = document.createElementNS(HTML, "div");
       sites.className = "zzicon-ws-grid";
-      for (const { src, host } of siteSources()) siteIcon(src).then(url => sites.append(item(url, host || "Site"))).catch(() => {});
+      for (const { src, host } of siteSources()) siteIcon(src).then(url => { if (!retired && block.isConnected && !["closed", "hiding"].includes(panel.state)) sites.append(item(url, host || "Site")); }).catch(() => {});
       block.append(heading("Sites open in this space"), sites);
     }
     block.append(heading("Zen"));
@@ -155,6 +164,7 @@
   // the switcher button's; take it off, keeping the picture.
   const PLATED = "data:image/svg+xml,";
   window.gZenWorkspaces?.promiseInitialized?.then(() => {
+    if (retired) return;
     for (const ws of gZenWorkspaces.getWorkspaces()) {
       const icon = ws.icon;
       if (!icon?.startsWith(PLATED) || !icon.endsWith("#.svg")) continue;
@@ -168,12 +178,66 @@
   const onPicker = e => { fillPicker(e).catch(err => console.error("[Iconflow] icon picker:", err)); };
   document.getElementById("PanelUI-zen-emojis-picker")?.addEventListener("popupshowing", onPicker);
 
+  // Confirmed native successes only. Individual scale composes with hover
+  // transforms; only transparent glyph elements move, never button backgrounds.
+  const completions = new Map(), completionUndo = [];
+  function completion(setting, selector) {
+    const S = Services.prefs, choice = S.getIntPref(PREFIX + (setting === "library" ? "library.style" : "button." + setting), 0);
+    if (retired || !S.getBoolPref(PREFIX + "animate", true) || (setting === "library" ? choice === 2 : [1, 5].includes(choice)) ||
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    for (const glyph of document.querySelectorAll(selector)) {
+      if (!glyph.isConnected || !glyph.getClientRects().length || completions.has(glyph)) continue;
+      const motion = glyph.animate([{ scale: "1" }, { scale: "1.22", offset: .35 }, { scale: "1" }], { duration: 360, easing: "ease-out" });
+      completions.set(glyph, motion);
+      motion.finished.catch(() => {}).finally(() => { if (completions.get(glyph) === motion) completions.delete(glyph); });
+    }
+  }
+  function listenForCompletions() {
+    if (retired) return;
+    const manager = window.gZenUIManager, nativeToast = manager?.showToast;
+    if (nativeToast) {
+      const toast = function(id, ...args) {
+        const result = nativeToast.call(this, id, ...args);
+        if (["zen-copy-current-url-confirmation", "zen-copy-current-url-as-markdown-confirmation"].includes(id)) completion("share", "#zen-copy-current-url-button .toolbarbutton-icon");
+        return result;
+      };
+      manager.showToast = toast;
+      completionUndo.push(() => { if (manager.showToast === toast) manager.showToast = nativeToast; });
+    }
+    const { PlacesUtils } = ChromeUtils.importESModule("resource://gre/modules/PlacesUtils.sys.mjs");
+    const bookmarks = events => {
+      if (events.some(e => !e.isTagging && e.url && e.url === gBrowser.selectedBrowser?.currentURI?.spec)) completion("bookmark", "#star-button");
+    };
+    PlacesUtils.observers.addListener(["bookmark-added"], bookmarks);
+    completionUndo.push(() => PlacesUtils.observers.removeListener(["bookmark-added"], bookmarks));
+    const { DownloadsCommon } = ChromeUtils.importESModule("moz-src:///browser/components/downloads/DownloadsCommon.sys.mjs");
+    const data = DownloadsCommon.getData(window), succeeded = new WeakMap();
+    const view = {
+      onDownloadAdded(d) { succeeded.set(d, !!d.succeeded); },
+      onDownloadChanged(d) {
+        const prior = succeeded.get(d); succeeded.set(d, !!d.succeeded);
+        if (prior === false && d.succeeded) {
+          completion("downloads", "#downloads-button .toolbarbutton-icon");
+          completion("library", "#zen-library-button .zen-library-sprite");
+        }
+      },
+      onDownloadRemoved(d) { succeeded.delete(d); },
+    };
+    data.addView(view); completionUndo.push(() => data.removeView(view));
+  }
+  window.gZenStartup?.promiseInitialized?.then(() => { try { listenForCompletions(); } catch (error) { console.error("[Iconflow] completion hooks", error); } });
+
   const observer = { observe(_s, _t, data) { if (data?.startsWith(PREFIX)) write(data); } };
   writeAll();
   seedDefaults().catch(() => {});
   Services.prefs.addObserver(PREFIX, observer);
   const cleanup = () => {
+    if (retired) return; retired = true;
+    for (const undo of completionUndo.splice(0).reverse()) { try { undo(); } catch {} }
+    for (const motion of completions.values()) motion.cancel(); completions.clear();
+    document.querySelectorAll(".zzicon-ws-block").forEach(block => block.remove());
     try { Services.prefs.removeObserver(PREFIX, observer); } catch {}
+    window.removeEventListener("unload", cleanup);
     document.getElementById("PanelUI-zen-emojis-picker")?.removeEventListener("popupshowing", onPicker);
     // The variables written above go with the mod (an update writes them again).
     for (const name of [...root.style]) if (name.startsWith("--zzicon-")) root.style.removeProperty(name);

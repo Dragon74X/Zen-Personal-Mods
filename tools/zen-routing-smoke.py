@@ -149,6 +149,44 @@ def check_native_routes(m, root):
     return results
 
 
+def check_rim_geometry(m):
+    result=m.script("return (async()=>{" + HELPERS + """
+      const prefs=['zzgroup.corner.mode','zzgroup.subfolder.states','zzgroup.subfolder.include-folders'];
+      const before=[Services.prefs.getIntPref(prefs[0],0),...prefs.slice(1).map(k=>Services.prefs.getBoolPref(k,false))];
+      const selected=gBrowser.selectedTab, outside=add('about:blank'), compact=gZenCompactModeManager.preference;
+      const nodes=['Root','Child','Grandchild'].map(group);
+      nodes.push(...[...document.querySelectorAll('zen-folder')].filter(g=>['Folder','Subfolder'].includes(g.label)));
+      const geometry=node=>{const s=getComputedStyle(node);return [s.borderTopLeftRadius,s.borderTopRightRadius,s.borderBottomRightRadius,s.borderBottomLeftRadius,s.cornerShape];};
+      let checks=0;const failures=[];
+      try {
+        Services.prefs.setBoolPref(prefs[1],true);Services.prefs.setBoolPref(prefs[2],true);Groupflow.refresh();
+        for(const compactMode of [false,true])for(const mode of [0,1,2,3,4,5,6,7]) {
+          gZenCompactModeManager.preference=compactMode;Services.prefs.setIntPref(prefs[0],mode);
+          for(const state of ['ordinary','hover','active']) {
+            gBrowser.selectedTab=state==='active'?group('Grandchild').tabs[0]:outside;
+            for(const node of nodes){const h=node.labelContainerElement;if(state==='hover')InspectorUtils.addPseudoClassLock(h,':hover');else InspectorUtils.removePseudoClassLock(h,':hover');}
+            await pause(10);
+            for(const node of nodes){
+              const h=node.labelContainerElement,rim=h.querySelector('.zzgf-rim');
+              if(!rim)throw Error('Missing rim: '+node.label);
+              const head=geometry(h),r=geometry(rim),s=getComputedStyle(h,'::before');
+              const fill=[s.borderTopLeftRadius,s.borderTopRightRadius,s.borderBottomRightRadius,s.borderBottomLeftRadius,s.cornerShape];
+              checks++;if(JSON.stringify(head)!==JSON.stringify(r)||JSON.stringify(head)!==JSON.stringify(fill))failures.push({name:node.label,compactMode,mode,state,head,r,fill});
+            }
+          }
+        }
+      } finally {
+        for(const node of nodes)InspectorUtils.removePseudoClassLock(node.labelContainerElement,':hover');
+        Services.prefs.setIntPref(prefs[0],before[0]);prefs.slice(1).forEach((k,i)=>Services.prefs.setBoolPref(k,before[i+1]));
+        gZenCompactModeManager.preference=compact;gBrowser.selectedTab=selected;gBrowser.removeTab(outside);
+      }
+      return {rimGeometryChecks:checks,deviceScale:devicePixelRatio,failures};
+    })();""")
+    assert not result['failures'], result
+    result.pop('failures')
+    return result
+
+
 def check_subfolder_styles(m):
     profiles = {
         "inactive": {"tint": "31%", "opacity": "0.32", "direction": 1, "end-mode": 0,
@@ -165,6 +203,8 @@ def check_subfolder_styles(m):
                    "rim-direction": 4, "rim-reach": "83%"},
     }
     baseline = m.script("return (async()=>{" + HELPERS + """
+      const compact=gZenCompactModeManager.preference;
+      gZenCompactModeManager.preference=false;
       const outside=add('about:blank'),selected=gBrowser.selectedTab;
       gBrowser.selectedTab=outside;await pause(250);
       const read=g=>{
@@ -196,7 +236,7 @@ def check_subfolder_styles(m):
           prefs.push([key,type,Services.prefs.prefHasUserValue(key),Services.prefs['get'+type+'Pref'](key,value),value]);
         }
       }
-      window.subfolderStyleFixture={outside,selected,read,baseline,prefs,nativeFolder,ownGradient,
+      window.subfolderStyleFixture={outside,selected,compact,read,baseline,prefs,nativeFolder,ownGradient,
         source:Services.prefs.getIntPref('zzgroup.color-source'),
         scope:Services.prefs.getBoolPref('zzgroup.subfolder.include-folders',false),
         tone:document.documentElement.style.getPropertyValue('--zzg-tone'),
@@ -385,6 +425,7 @@ def check_subfolder_styles(m):
             if(had) Services.prefs['set'+type+'Pref'](key,value);else Services.prefs.clearUserPref(key);
           }
           gBrowser.selectedTab=f.selected;gBrowser.removeTab(f.outside);
+          gZenCompactModeManager.preference=f.compact;
           delete window.subfolderStyleFixture;return true;
         """)
 
@@ -425,7 +466,7 @@ def check_sidebar_modes(m, atg):
               });
             })();""")
             assert all(x['width'] > 20 and x['height'] >= 30 and x['inside'] and x['labelFits'] and x['chipsFit'] for x in layout), (compact, expanded, layout)
-            assert layout[0]['arrows'] == 2, ('Overflow fixture missing', compact, expanded, layout)
+            assert layout[0]['arrows'] == 1, ('Overflow fixture missing', compact, expanded, layout)
             # Real pointer hit testing catches clipped headers and controls that
             # synthetic .click() bypasses. A root press keeps the root visible.
             target = layout[0]
@@ -463,12 +504,17 @@ def check_close_glyph_motion(m, root):
       ss.loadAndRegisterSheet(uri,ss.USER_SHEET);
       const prefs=[['zzicon.motion.close','Int',2],['zzicon.animate','Bool',true],['ui.prefersReducedMotion','Int',0]];
       window.closeMotionFixture={prefs:prefs.map(([k,t,d])=>[k,t,Services.prefs.prefHasUserValue(k),Services.prefs['get'+t+'Pref'](k,d)]),
-        duration:document.documentElement.style.getPropertyValue('--zzicon-motion-duration')};
+        duration:document.documentElement.style.getPropertyValue('--zzicon-motion-duration'),
+        compact:gZenCompactModeManager.preference,expanded:Services.prefs.getBoolPref('zen.view.sidebar-expanded')};
+      gZenCompactModeManager.preference=false;Services.prefs.setBoolPref('zen.view.sidebar-expanded',true);
       document.documentElement.style.setProperty('--zzicon-motion-duration','10s');return true;
     """)
     checks = {}
     try:
         for name in ["Root", "Child"]:
+            m.call('WebDriver:PerformActions', {'actions': [{'type': 'pointer', 'id': 'mouse',
+                'parameters': {'pointerType': 'mouse'}, 'actions': [
+                    {'type': 'pointerMove', 'duration': 0, 'x': 800, 'y': 400}, {'type': 'pause', 'duration': 150}]}]})
             xy = m.script("return (async()=>{" + HELPERS + """
               const button=group(""" + json.dumps(name) + """).labelContainerElement.querySelector('.zzgf-close');
               Services.prefs.setIntPref('ui.prefersReducedMotion',0);
@@ -481,8 +527,13 @@ def check_close_glyph_motion(m, root):
             })();""")
             m.call('WebDriver:PerformActions', {'actions': [{'type': 'pointer', 'id': 'mouse',
                 'parameters': {'pointerType': 'mouse'}, 'actions': [
-                    {'type': 'pointerMove', 'duration': 0, **xy['header']}, {'type': 'pause', 'duration': 100},
-                    {'type': 'pointerMove', 'duration': 0, **xy['button']}]}]})
+                    {'type': 'pointerMove', 'duration': 0, **xy['header']}, {'type': 'pause', 'duration': 250}]}]})
+            # Hover changes header controls and may move the close button. Use
+            # its settled bounds rather than the pre-hover position.
+            xy = m.script("""const r=[...document.querySelectorAll('tab-group')].find(g=>g.label===""" + json.dumps(name) + """)
+              .labelContainerElement.querySelector('.zzgf-close').getBoundingClientRect();return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)};""")
+            m.call('WebDriver:PerformActions', {'actions': [{'type': 'pointer', 'id': 'mouse',
+                'parameters': {'pointerType': 'mouse'}, 'actions': [{'type': 'pointerMove', 'duration': 0, **xy}]}]})
             result = m.script("return (async()=>{" + HELPERS + """
               const button=group(""" + json.dumps(name) + """).labelContainerElement.querySelector('.zzgf-close'),checks={};
               await pause(50);
@@ -517,6 +568,7 @@ def check_close_glyph_motion(m, root):
           for(const [k,t,had,v] of f.prefs) {if(had)Services.prefs['set'+t+'Pref'](k,v);else Services.prefs.clearUserPref(k);}
           if(f.duration)document.documentElement.style.setProperty('--zzicon-motion-duration',f.duration);
           else document.documentElement.style.removeProperty('--zzicon-motion-duration');
+          gZenCompactModeManager.preference=f.compact;Services.prefs.setBoolPref('zen.view.sidebar-expanded',f.expanded);
           delete window.closeMotionFixture;return true;
         """)
 
@@ -636,6 +688,7 @@ def check_collapsed_loaded(m):
         for(const [path] of cases)for(const g of path.toReversed())g.collapsed=true;
         Services.prefs.setBoolPref('zzgroup.collapse-keep-last-used',false);await pause(150);
         checks.collapsedLastUsedOff=cases.every(([,tabs])=>hidden(tabs[1]) && !tabs[1].visible);
+        if(!checks.collapsedLastUsedOff) failures.push(cases.map(([,tabs])=>({pending:tabs[1].hasAttribute('pending'),selected:tabs[1].selected,marker:tabs[1].hasAttribute('zzgf-visible'),visible:tabs[1].visible,height:tabs[1].getBoundingClientRect().height,attrs:tabs[1].getAttributeNames()})));
         if(failures.length)checks.failures=failures;
         return checks;
       } finally {
@@ -835,6 +888,7 @@ def check(m, root, atg, port, first):
     })();""")
     assert result['labelForeground'], 'Group label colour changed with selection, collapse or accent source'
     result.update(check_subfolder_styles(m))
+    result.update(check_rim_geometry(m))
     result.update(check_sidebar_modes(m, atg))
     result.update(check_collapsed_loaded(m))
     if not atg:

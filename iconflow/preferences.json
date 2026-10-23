@@ -2488,7 +2488,7 @@
     "property": "zzicon.newtab.press",
     "label": "Press effect *The button shrinks slightly while pressed.*",
     "defaultValue": true,
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "newtab"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "newtab"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"if": {"property": "zzicon.animate", "value": true}}],
     "operator": "AND"
   },
   {
@@ -2496,7 +2496,7 @@
     "property": "zzicon.newtab.press-spin",
     "label": "Turn the + when pressed",
     "defaultValue": true,
-    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "newtab"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "newtab"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}, {"if": {"property": "zzicon.animate", "value": true}}],
     "operator": "AND"
   },
   {

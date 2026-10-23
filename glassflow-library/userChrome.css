@@ -128,7 +128,8 @@ zen-library[zzlib-float="centre"] {
 }
 
 /* While the list is up it sits above everything else in the sidebar. */
-#zen-sidebar-foot-buttons:is([zen-library-stack-open], [zen-library-stack-closing]) {
+#zen-sidebar-foot-buttons[zen-library-stack-open],
+:root:has(#TabsToolbar-customization-target[zen-library-stack-closing]) #zen-sidebar-foot-buttons {
   z-index: 100 !important;
 }
 
@@ -149,14 +150,18 @@ zen-library[zzlib-float="centre"] {
       background: var(--zzg-ov-downloads-fill, var(--zen-main-browser-background, light-dark(rgb(235 235 235), rgb(27 27 27))));
       backdrop-filter: var(--zzg-ov-downloads, none);
       box-shadow: inset 0 0 0 1px var(--zzg-rim-all, rgb(255 255 255 / 0.1)), 0 8px 24px rgb(0 0 0 / 0.22);
-      opacity: var(--zen-library-progress);
-      pointer-events: none;
+      /* Badge progress lives on a sibling; it never reaches this backing. */
+      opacity: 0;
+      transition: opacity var(--zen-library-open-duration) var(--zen-library-open-easing);
+      pointer-events: auto;
     }
 
     & .zen-library-download-list-download {
+      z-index: 1;
       background: transparent !important;
       backdrop-filter: none !important;
       &:hover { background: color-mix(in srgb, currentColor 10%, transparent) !important; }
     }
   }
+  #zen-sidebar-foot-buttons[zen-library-stack-open] #zen-library-download-list::before { opacity: 1; }
 }

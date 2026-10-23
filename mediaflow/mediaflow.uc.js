@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.6.3
+// @version        2.7.0
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==
@@ -11,13 +11,14 @@
   // Everything this copy adds to the window is undone from here when Sine
   // disables or updates the mod, as well as when the window closes.
   const undo = [];
+  let retired = false;
   const on = (target, type, fn, opts) => { target.addEventListener(type, fn, opts); undo.push(() => target.removeEventListener(type, fn, opts)); };
   const watching = observer => { undo.push(() => observer.disconnect()); return observer; };
 
   const LOG_PREFIX = "[Mediaflow]";
   // Gecko caches actor modules across unregister/re-register. Bump with actor
   // changes so Sine updates load replacement code without a browser restart.
-  const ACTOR_VERSION = "2.6.3";
+  const ACTOR_VERSION = "2.7.0";
   const CAPTIONS_PREF = "zzmedia.preview.captions";
   const CAPTIONS_WHEN_PIP_HIDDEN_PREF =
     "zzmedia.preview.captions-when-hidden";
@@ -409,7 +410,7 @@
     const { visible, opacity, onScreen } = getMediaPlayerVisibility();
     // No frames are copied, and no captions read, while the music bar cannot
     // be seen (compact mode's hidden sidebar, a collapsed or hidden bar).
-    const seen = visible && opacity > 0.01 && onScreen && !sidebarAway();
+    const seen = visible && opacity > 0.01 && onScreen && !sidebarAway() && !downloadsCovering();
     if (seen !== playerSeen) {
       playerSeen = seen;
       _notifyTickState();
@@ -429,6 +430,7 @@
       browserWindowActive;
     const visibilityState = `${pipVisible}:${captionVisible}`;
     if (visibilityState !== lastVisible) {
+      if (!pipVisible) restorePreviewFocus();
       pipContainer.style.visibility = pipVisible ? "visible" : "hidden";
       captionContainer.style.visibility = captionVisible
         ? "visible"
@@ -811,9 +813,9 @@
   control("zzmf-pip-popout", "Open in Picture-in-Picture", () => tell("popout"));
   control("zzmf-pip-close", "Hide the preview", () => setUserHidden(true));
   const back = control("zzmf-pip-back", "Back", () => tell("seekBy", -seekStep()));
-  control("zzmf-pip-play", "Play or pause", () => tell("toggle"));
+  const play = control("zzmf-pip-play", "Play", () => tell("toggle"));
   const forward = control("zzmf-pip-forward", "Forward", () => tell("seekBy", seekStep()));
-  control("zzmf-pip-mute", "Mute or unmute the tab", () => { sourceTab()?.toggleMuteAudio(); syncMuted(); });
+  const mute = control("zzmf-pip-mute", "Mute tab", () => { sourceTab()?.toggleMuteAudio(); syncMuted(); });
   const time = document.createElement("span");
   time.className = "zzmf-pip-time";
   const track = document.createElement("input");
@@ -827,10 +829,15 @@
   track.className = "zzmf-pip-track";
   controls.append(time, track);
   pipContainer.appendChild(controls);
-  const syncMuted = () => pipContainer.toggleAttribute("zzmf-muted", !!sourceTab()?.linkedBrowser?.audioMuted);
+  const nameControl = (button, label) => { button.title = label; button.setAttribute("aria-label", label); };
+  const syncMuted = () => {
+    const muted = !!sourceTab()?.linkedBrowser?.audioMuted;
+    pipContainer.toggleAttribute("zzmf-muted", muted); nameControl(mute, muted ? "Unmute tab" : "Mute tab");
+  };
   const syncControls = () => {
     pipContainer.toggleAttribute("zzmf-controls", safe(() => Services.prefs.getBoolPref(CONTROLS_PREF, true)) ?? true);
     for (const b of [back, forward]) b.dataset.step = String(seekStep());
+    nameControl(back, `Back ${seekStep()} seconds`); nameControl(forward, `Forward ${seekStep()} seconds`);
   };
   syncControls();
   for (const p of [CONTROLS_PREF, STEP_PREF]) {
@@ -862,6 +869,7 @@
     lastPlaybackState = state;
     const { time: t, duration: d, paused } = state;
     pipContainer.toggleAttribute("zzmf-paused", !!paused);
+    nameControl(play, paused ? "Play" : "Pause");
     const live = !(Number.isFinite(d) && d > 0);
     pipContainer.toggleAttribute("zzmf-live", live);
     syncMuted();
@@ -974,15 +982,53 @@
     "aria-hidden",
   ];
 
-  const togglesByNativeButton = new Map();
+  let sourceBC = null;
+  let sourceTabActive = false;
+  // Keep the active entry too, so a pre-empted (including held-paused) source
+  // remains eligible until its actor reports VideoStopped.
+  const availableSources = new Map();
+  let chosenSource = null;
+  const downloadsCovering = () => !!document.querySelector("#zen-sidebar-foot-buttons[zen-library-stack-open], #TabsToolbar-customization-target[zen-library-stack-closing]");
+  const actorRegistry = new Map();
 
+  const togglesByNativeButton = new Map();
+  const sourceItems = new Set();
+  function updateSourceMenu() {
+    for (const item of sourceItems) {
+      if (!item.isConnected || item.zzmfEligible()) continue;
+      const popup = item.closest("menupopup"), focused = document.activeElement === item;
+      item.remove(); sourceItems.delete(item);
+      if (focused) ([...popup.querySelectorAll("menuitem")].find(n => !n.hidden && !n.disabled) || popup.anchorNode)?.focus();
+    }
+  }
+
+  function usableSource(source, tab = null) {
+    if (retired || !source || availableSources.get(source.bc.id) !== source || !actorRegistry.has(source.bc.id) || source.bc.isDiscarded) return false;
+    const browser = source.bc.top?.embedderElement, actual = browser && gBrowser.getTabForBrowser(browser);
+    return !!actual?.isConnected && !actual.closing && (!tab || tab === actual) && source.width > 0 && source.height > 0;
+  }
+  function sourceForToggle(native) {
+    const front = window.gZenMediaController?.frontCard;
+    if (!front || front.element !== native.closest(".zen-media-card")) return null;
+    const tab = gBrowser.getTabForBrowser(front.browser);
+    return [...availableSources.values()].find(source => usableSource(source, tab)) || null;
+  }
+  function restorePreviewFocus() {
+    if (!pipContainer.contains(document.activeElement)) return;
+    const owner = [...togglesByNativeButton.values()].find(toggle => toggle.isConnected && toggle.getClientRects().length);
+    (owner || window.gZenMediaController?.frontCard?.element.querySelector("button:not([hidden]), toolbarbutton:not([hidden])"))?.focus();
+  }
   function syncToggleIcons() {
     for (const [nativeButton, toggle] of togglesByNativeButton) {
       if (!nativeButton.isConnected || !toggle.isConnected) {
         togglesByNativeButton.delete(nativeButton);
         continue;
       }
-      const icon = userHidden ? EYE_OFF_URL : EYE_URL;
+      const source = sourceForToggle(nativeButton);
+      const showing = source?.bc.id === sourceBC?.id && !userHidden;
+      const label = showing ? "Hide sidebar video" : "Show this video in sidebar";
+      toggle.setAttribute("aria-label", label); toggle.setAttribute("tooltiptext", label);
+      const icon = showing ? EYE_URL : EYE_OFF_URL;
       if (toggle.style.listStyleImage !== icon) {
         toggle.style.listStyleImage = icon;
       }
@@ -1015,12 +1061,17 @@
     btn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      setUserHidden(!userHidden);
+      const source = sourceForToggle(template);
+      if (!source) return;
+      const showing = sourceBC?.id === source.bc.id && !userHidden;
+      if (!showing) window.ZzMediaflowController?.chooseSource(source.bc.id);
+      setUserHidden(showing);
     });
     return btn;
   }
 
   function setUserHidden(hidden) {
+    if (hidden) restorePreviewFocus();
     userHidden = hidden;
     syncToggleIcons();
     if (userHidden) clearReserve();
@@ -1030,14 +1081,16 @@
 
   function placeToggles() {
     for (const [nativeButton, toggle] of togglesByNativeButton) {
-      if (!nativeButton.isConnected || !toggle.isConnected) {
+      if (!nativeButton.isConnected || !toggle.isConnected || !sourceForToggle(nativeButton)) {
+        if (document.activeElement === toggle) window.gZenMediaController?.frontCard?.element.querySelector("button, toolbarbutton")?.focus();
+        toggle.remove(); nativeButton.removeAttribute("zzmf-parked"); nativeButton.removeAttribute("aria-hidden"); nativeButton.style.removeProperty("display");
         togglesByNativeButton.delete(nativeButton);
       }
     }
 
     const nativeButtons = musicPlayerUI.querySelectorAll(PIP_BUTTON_SELECTORS);
     for (const nativeButton of nativeButtons) {
-      if (nativeButton.hasAttribute("zzmf-toggle")) continue;
+      if (nativeButton.hasAttribute("zzmf-toggle") || !sourceForToggle(nativeButton)) continue;
       const existingToggle = togglesByNativeButton.get(nativeButton);
       if (existingToggle?.isConnected) {
         parkNativePipButton(nativeButton);
@@ -1050,6 +1103,7 @@
       parkNativePipButton(nativeButton);
     }
     syncToggleIcons();
+    updateSourceMenu();
   }
 
   placeToggles();
@@ -1062,12 +1116,6 @@
     subtree: true,
   });
 
-  let sourceBC = null;
-  let sourceTabActive = false;
-  // Keep the active entry too, so a pre-empted (including held-paused) source
-  // remains eligible until its actor reports VideoStopped.
-  const availableSources = new Map();
-  const actorRegistry = new Map();
 
   const captionsPrefObserver = {
     observe() {
@@ -1111,7 +1159,7 @@
 
   function _notifyTickState() {
     const frameProcessingActive =
-      isStreaming && playerSeen && !userHidden && !sourceTabActive && browserWindowActive;
+      isStreaming && playerSeen && !userHidden && !sourceTabActive && browserWindowActive && !downloadsCovering();
     const info = sourceBC ? actorRegistry.get(sourceBC.id) : null;
     if (!info) return;
 
@@ -1121,7 +1169,7 @@
       captionMode !== "off" &&
       !sourceTabActive &&
       browserWindowActive &&
-      (!userHidden || captionsWhenPipHidden);
+      (!userHidden || captionsWhenPipHidden) && !downloadsCovering();
     info.setProcessingActive?.(
       frameProcessingActive || captionProcessingActive,
       captionMode,
@@ -1134,6 +1182,23 @@
     }
   }
 
+  const sourceFrames = new Set(), sourceTimers = new Set();
+  let sourceEpoch = 0;
+  function cancelSourceMotion() {
+    sourceEpoch++;
+    for (const id of sourceFrames) cancelAnimationFrame(id);
+    for (const id of sourceTimers) clearTimeout(id);
+    sourceFrames.clear(); sourceTimers.clear(); animateOutTimer = null; animating = false;
+  }
+  function sourceFrame(fn) {
+    const epoch = sourceEpoch, id = requestAnimationFrame(() => { sourceFrames.delete(id); if (!retired && epoch === sourceEpoch) fn(); });
+    sourceFrames.add(id); return id;
+  }
+  function sourceDelay(fn, ms) {
+    const epoch = sourceEpoch, id = setTimeout(() => { sourceTimers.delete(id); if (!retired && epoch === sourceEpoch) fn(); }, ms);
+    sourceTimers.add(id); return id;
+  }
+  undo.push(cancelSourceMotion);
   window.ZzMediaflowController = {
     getActiveBC() {
       return sourceBC;
@@ -1177,24 +1242,38 @@
       if (isStreaming) bump();
       _notifyTickState();
     },
+    isSource(id, owner) { return actorRegistry.get(id)?.owner === owner; },
     registerSource(id, callbacks) {
-      if (!actorRegistry.has(id)) {
-        actorRegistry.set(id, callbacks);
-      }
+      const old = actorRegistry.get(id);
+      if (old && old.owner !== callbacks.owner) { old.stopTick(); old.setProcessingActive?.(false, "off", false); }
+      actorRegistry.set(id, callbacks);
+      placeToggles();
     },
-    unregisterSource(id) {
+    unregisterSource(id, owner) {
+      if (actorRegistry.get(id)?.owner !== owner) return false;
       actorRegistry.delete(id);
+      placeToggles();
+      return true;
+    },
+    chooseSource(id = null) {
+      if (retired || (id !== null && !usableSource(availableSources.get(id))) || id === null && chosenSource === null) return false;
+      chosenSource = id;
+      if (id !== null) setUserHidden(false);
+      const next = id === null ? [...availableSources.values()].find(s => isTabPlaying(s.bc)) || availableSources.values().next().value : availableSources.get(id);
+      if (next) { this._activateSource(next.width, next.height, next.bc); _notifyTickState(); }
+      return true;
     },
     offerVideo(width, height, browsingContext) {
       const id = browsingContext.id;
-      if (availableSources.has(id)) return;
       availableSources.set(id, { bc: browsingContext, width, height });
+      placeToggles();
+      if (chosenSource !== null && chosenSource !== id && availableSources.has(chosenSource)) return;
 
       // Only defer when a *different* tab is already mirroring. A re-offer from
       // the same tab (e.g. YouTube swapping an ad for the real video on the same
       // <video>, which fires emptied -> playing) must re-activate immediately
       // instead of queuing behind its own in-flight hide animation.
-      if (sourceBC && sourceBC.id !== id && isTabPlaying(sourceBC)) {
+      if (chosenSource === null && sourceBC && sourceBC.id !== id && isTabPlaying(sourceBC)) {
         log("source queued (existing still playing):", id, "active:", sourceBC.id);
         return;
       }
@@ -1202,7 +1281,10 @@
       this._activateSource(width, height, browsingContext);
     },
     notifySourceStopped(bc) {
+      const old = actorRegistry.get(bc.id); old?.stopTick(); old?.setProcessingActive?.(false, "off", false);
       availableSources.delete(bc.id);
+      placeToggles();
+      if (chosenSource === bc.id) chosenSource = null;
 
       if (sourceBC && sourceBC.id === bc.id) {
         if (availableSources.size > 0) {
@@ -1213,6 +1295,7 @@
       }
     },
     _activateSourceAfterHide() {
+      cancelSourceMotion();
       if (animateOutTimer) return;
       const s = pipContainer.style;
       animating = true;
@@ -1221,15 +1304,15 @@
       s.transform = "scale(1) translateY(0)";
       void pipContainer.getBoundingClientRect();
 
-      requestAnimationFrame(() => {
+      sourceFrame(() => {
         s.transition = ANIM_TRANSITION;
-        requestAnimationFrame(() => {
+        sourceFrame(() => {
           s.opacity = "0";
           s.transform = "scale(0.9) translateY(8px)";
         });
       });
 
-      animateOutTimer = setTimeout(() => {
+      animateOutTimer = sourceDelay(() => {
         animateOutTimer = null;
         animating = false;
         sourceBC = null;
@@ -1237,12 +1320,13 @@
         stopTracking();
 
         if (availableSources.size > 0) {
-          const next = availableSources.values().next().value;
+          const next = availableSources.get(chosenSource) || availableSources.values().next().value;
           this._activateSource(next.width, next.height, next.bc);
         }
       }, CONFIG.ANIM_MS + 60);
     },
     _activateSource(width, height, browsingContext) {
+      cancelSourceMotion();
       log("showVideo", width, "x", height, "tab", browsingContext?.id);
       setSourceDimensions(width, height);
       const previousSourceBC = sourceBC;
@@ -1256,6 +1340,7 @@
         clearCaptionImmediately();
       }
       sourceBC = nextSourceBC;
+      syncToggleIcons();
       dragging = false;
       updateControls({ time: 0, duration: 0, paused: false });
 
@@ -1302,14 +1387,14 @@
         s.transform = "scale(0.9) translateY(8px)";
         void pipContainer.getBoundingClientRect();
 
-        requestAnimationFrame(() => {
+        sourceFrame(() => {
           s.transition = ANIM_TRANSITION;
-          requestAnimationFrame(() => {
+          sourceFrame(() => {
             s.opacity = userHidden ? "0" : "1";
             s.transform = "scale(1) translateY(0)";
           });
         });
-        setTimeout(() => {
+        sourceDelay(() => {
           animating = false;
           lastOpacity = NaN;
           lastCaptionOpacity = NaN;
@@ -1319,6 +1404,7 @@
     },
 
     hideVideo() {
+      cancelSourceMotion();
       log("hideVideo");
       if (!isStreaming && !animating) return;
       if (animateOutTimer) {
@@ -1333,15 +1419,15 @@
       s.transform = "scale(1) translateY(0)";
       void pipContainer.getBoundingClientRect();
 
-      requestAnimationFrame(() => {
+      sourceFrame(() => {
         s.transition = ANIM_TRANSITION;
-        requestAnimationFrame(() => {
+        sourceFrame(() => {
           s.opacity = "0";
           s.transform = "scale(0.9) translateY(8px)";
         });
       });
 
-      animateOutTimer = setTimeout(() => {
+      animateOutTimer = sourceDelay(() => {
         animateOutTimer = null;
         animating = false;
         safe(() => canvasCtx.clearRect(0, 0, canvasEl.width, canvasEl.height));
@@ -1359,12 +1445,48 @@
         // A different source may have been queued while this hide was running;
         // drain it so it isn't stranded until the next pause/play.
         if (availableSources.size > 0) {
-          const next = availableSources.values().next().value;
+          const next = availableSources.get(chosenSource) || availableSources.values().next().value;
           this._activateSource(next.width, next.height, next.bc);
         }
       }, CONFIG.ANIM_MS + 60);
     },
   };
+
+  on(window, "popupshowing", event => {
+    if (event.target.id !== "tabContextMenu") return;
+    for (const item of sourceItems) item.remove(); sourceItems.clear();
+    const tab = event.target.triggerNode?.closest?.(".tabbrowser-tab") || event.target.anchorNode?.closest?.(".tabbrowser-tab") || window.TabContextMenu?.contextTab;
+    if (!tab?.isConnected || tab.closing || tab.closest?.("zen-library")) return;
+    const sources = [...availableSources.values()].filter(source => usableSource(source, tab));
+    for (const [i, source] of sources.entries()) {
+      const owner = actorRegistry.get(source.bc.id)?.owner;
+      const item = document.createXULElement("menuitem");
+      item.zzmfEligible = () => usableSource(source, tab) && actorRegistry.get(source.bc.id)?.owner === owner;
+      item.setAttribute("label", "Show this video in sidebar" + (sources.length > 1 ? ` (${i + 1})` : ""));
+      item.addEventListener("command", () => {
+        if (item.zzmfEligible()) window.ZzMediaflowController?.chooseSource(source.bc.id);
+      });
+      event.target.appendChild(item); sourceItems.add(item);
+    }
+    const manual = availableSources.get(chosenSource);
+    if (usableSource(manual, tab)) {
+      const automatic = document.createXULElement("menuitem");
+      automatic.zzmfEligible = () => chosenSource === manual.bc.id && usableSource(manual, tab);
+      automatic.setAttribute("label", "Sidebar video: Automatic");
+      automatic.addEventListener("command", () => { if (automatic.zzmfEligible()) window.ZzMediaflowController?.chooseSource(); });
+      event.target.appendChild(automatic); sourceItems.add(automatic);
+    }
+  });
+  undo.push(() => { for (const item of sourceItems) item.remove(); sourceItems.clear(); });
+  const downloadState = watching(new MutationObserver(() => { _notifyTickState(); bump(); }));
+  for (const id of ["zen-sidebar-foot-buttons", "TabsToolbar-customization-target"]) {
+    const host = document.getElementById(id);
+    if (host) downloadState.observe(host, { attributes: true, attributeFilter: ["zen-library-stack-open", "zen-library-stack-closing"] });
+  }
+  on(window, "TabClose", event => {
+    for (const { bc } of [...availableSources.values()]) if (bc.top.id === event.target.linkedBrowser?.browsingContext?.id)
+      window.ZzMediaflowController.notifySourceStopped(bc);
+  }, true);
 
   function instantiateActorForOpenTabs() {
     try {
@@ -1451,26 +1573,41 @@
   const mediaBar = document.getElementById("zen-media-controls-toolbar");
   const EXPANDED_PREF = "zzmedia.bar.always-expanded";
   const remeasure = () => {
-    if (!mediaBar || mediaBar.hidden || mediaBar.matches(":hover")) return;
+    if (retired || !mediaBar || mediaBar.hidden || mediaBar.matches(":hover")) return;
     const front = window.gZenMediaController?.frontCard?.element;
     if (front && !front.matches("[zen-removing], [zen-hiding]")) {
       mediaBar.style.setProperty("--zen-media-collapsed-height", front.getBoundingClientRect().height + "px");
     }
   };
   if (mediaBar) {
-    const sizes = watching(new ResizeObserver(() => {
-      if (Services.prefs.getBoolPref(EXPANDED_PREF, false)) remeasure();
-    }));
+    let remeasureTimer = null;
+    const sizes = new ResizeObserver(remeasure);
     const watchCards = () => {
       sizes.disconnect();
-      for (const card of mediaBar.querySelectorAll(":scope > .zen-media-card")) sizes.observe(card);
+      if (retired || !Services.prefs.getBoolPref(EXPANDED_PREF, false)) return;
+      const front = window.gZenMediaController?.frontCard?.element;
+      if (front && front.isConnected && !front.matches("[zen-removing], [zen-hiding]")) sizes.observe(front);
+      remeasure();
     };
-    watching(new MutationObserver(watchCards)).observe(mediaBar, { childList: true });
-    watchCards();
-    // Turning it off shrinks the card back; measure once the rows have folded.
-    const onPref = () => setTimeout(remeasure, 350);
+    const cards = new MutationObserver(watchCards);
+    const onPref = () => {
+      clearTimeout(remeasureTimer); remeasureTimer = null;
+      sizes.disconnect(); cards.disconnect();
+      if (retired) return;
+      if (Services.prefs.getBoolPref(EXPANDED_PREF, false)) {
+        cards.observe(mediaBar, { childList: true, subtree: true, attributes: true,
+          attributeFilter: ["zen-removing", "zen-hiding"] });
+        watchCards();
+      }
+      // Folding still needs one settled native height, with no ongoing subscriptions.
+      remeasureTimer = setTimeout(() => { remeasureTimer = null; remeasure(); }, 350);
+    };
     Services.prefs.addObserver(EXPANDED_PREF, onPref);
-    undo.push(() => Services.prefs.removeObserver(EXPANDED_PREF, onPref));
+    onPref();
+    undo.push(() => {
+      Services.prefs.removeObserver(EXPANDED_PREF, onPref);
+      sizes.disconnect(); cards.disconnect(); clearTimeout(remeasureTimer);
+    });
 
     // Zen makes a card only as a tab starts making sound, and only if the
     // tab's media controller is active at that moment. A video whose
@@ -1481,6 +1618,7 @@
     let tries = 0, retry = null;
     const askZen = () => {
       retry = null;
+      if (retired) return;
       const playing = document.querySelectorAll(".tabbrowser-tab[soundplaying]:not(zen-library *)");
       if (playing.length <= mediaBar.querySelectorAll(":scope > .zen-media-card.playing").length) return;
       for (const tab of playing) {
@@ -1503,13 +1641,12 @@
   // back, remove what was added, and release the actor once no window
   // still uses it. Sine calls this on disable and before an update loads
   // the new copy; the window's unload calls it too.
-  let retired = false;
   const retire = () => {
     if (retired) return;
     retired = true;
     for (const info of actorRegistry.values()) safe(() => { info.stopTick(); info.setProcessingActive?.(false, "off", false); });
     actorRegistry.clear();
-    availableSources.clear();
+    availableSources.clear(); chosenSource = null;
     for (const fn of undo.splice(0).reverse()) safe(fn);
     for (const t of [animateOutTimer, captionHideTimer, captionExitTimer]) clearTimeout(t);
     isStreaming = false;

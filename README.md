@@ -19,7 +19,7 @@ Source-targeted Zen Browser modifications.
 
 Each mod contains a `.uc.js` script and requires Sine user-script loading. Compatibility depends on current Zen, Firefox, and Sine internals; test after updates.
 
-Run `tools/check.js` in the Browser Console (`Ctrl+Shift+J`), then click on the Zen window; it waits for that. It copies a report of settings, versions, styles and counts to the clipboard, with no page names, addresses or file paths. It requires Firefox chrome globals and does not run under Node.
+Use **Tools → Copy Zen Mods Report** for an immediate report of settings, versions, styles and counts, without page names, addresses or file paths. The same collector remains available through `tools/check.js` in the Browser Console (`Ctrl+Shift+J`); it requires Firefox chrome globals and does not run under Node. Tools also provides the single appearance snapshot and routing-rule commands.
 
 Individual READMEs define settings, exclusions, and known limits.
 
@@ -42,7 +42,9 @@ For an isolated runtime check with a disposable profile and Pillow installed:
 python tools/zen-smoke.py --zen /path/to/zen --arc /path/to/Arc-2.0 --transparent /path/to/zen-themes/TransparentZen
 ```
 
-This starts every mod's script, checks the native transparent-page blur and modal dialog, and verifies cleanup. It does not benchmark the GPU or contact an existing browser profile. Arc and Transparent Zen are optional.
+This starts every mod's script, checks SVG content filtering, the modal dialog and native download actions, and verifies cleanup. It does not prove compositor backdrop blur, benchmark the GPU or contact an existing browser profile. Arc and Transparent Zen are optional. Add `--actions` for native menus, search, settings and multiwindow startup checks, or `--library-hover` for download history, backing and trusted pointer handoff checks.
+
+[October 23 implementation checklist](docs/IMPLEMENTATION-2026-10-23.md): requirements 1–25, measured operation counts, releases and remaining device checks.
 
 For standalone group restoration and container routing:
 

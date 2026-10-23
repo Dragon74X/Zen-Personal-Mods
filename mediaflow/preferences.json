@@ -38,7 +38,7 @@
   {
     "type": "dropdown",
     "property": "zzmedia.preview.framerate",
-    "label": "Frame rate *15 fps uses about half the CPU of 30.*",
+    "label": "Frame rate *Choose 15 or 30 frames per second.*",
     "defaultValue": "15",
     "options": [
       {
@@ -179,7 +179,8 @@
     "type": "checkbox",
     "property": "zzmedia.bar.still-on-hover",
     "label": "Keep the player's size when pointed at *Zen adds space around the title and progress rows while you point at the player, which grows it and moves what sits above it. On, the rows keep their resting spacing. Where those rows show only on hover (Zen's own layout, without Arc 2.0 or the setting above) they still appear, just without the extra space.*",
-    "defaultValue": true
+    "defaultValue": true,
+    "conditions": [{"if": {"property": "zzmedia.bar.always-expanded", "value": false}}]
   },
   {
     "type": "dropdown",

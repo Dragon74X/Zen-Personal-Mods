@@ -41,7 +41,9 @@
   async function seedDefaults() {
     const res = await fetch(`chrome://sine/content/${MOD_ID}/preferences.json`);
     const S = Services.prefs;
-    for (const { property: name, defaultValue: value } of await res.json()) {
+    const defaults = await res.json();
+    if (window[INSTANCE_KEY] !== instance) return;
+    for (const { property: name, defaultValue: value } of defaults) {
       if (!name?.startsWith(PREFIX) || value == null || S.getPrefType(name) !== S.PREF_INVALID) continue;
       if (typeof value === "boolean") S.setBoolPref(name, value);
       else if (typeof value === "number") S.setIntPref(name, value);
@@ -187,7 +189,7 @@
   window.addEventListener("mousedown", onDown, true);
 
   // Keep Zen's four session rows and fill remaining slots from recent history.
-  // ponytail: these extra rows open on click but have no context menu or drag; add both if they are missed.
+  // Native row handlers own commands, safety confirmations and drag payloads.
   const EXTRA = "zzlib-extra";
   let downloads = [], data = null, view = null, inBatch = false;
   let downloadsReady = Promise.resolve();
@@ -209,8 +211,9 @@
     let ready;
     downloadsReady = new Promise(resolve => { ready = resolve; });
     view = {
-      onDownloadBatchStarting() { inBatch = true; },
+      onDownloadBatchStarting() { if (window[INSTANCE_KEY] === instance) inBatch = true; },
       onDownloadBatchEnded() {
+        if (window[INSTANCE_KEY] !== instance) return;
         inBatch = false;
         fillExtras();
         ready();
@@ -218,12 +221,14 @@
         if (stackMode() == 0 && button?.matches(":hover")) button.dispatchEvent(new MouseEvent("mouseenter"));
       },
       onDownloadAdded(download, { insertBefore } = {}) {
+        if (window[INSTANCE_KEY] !== instance) return;
         const at = insertBefore ? downloads.indexOf(insertBefore) : -1;
         if (at < 0) downloads.push(download); else downloads.splice(at, 0, download);
         if (stackOpen()) fillExtras();
       },
       onDownloadChanged() { if (stackOpen()) fillExtras(); },
       onDownloadRemoved(download) {
+        if (window[INSTANCE_KEY] !== instance) return;
         const at = downloads.indexOf(download);
         if (at >= 0) downloads.splice(at, 1);
         if (stackOpen()) fillExtras();
@@ -260,33 +265,64 @@
         </vbox>
         <toolbarbutton class="toolbarbutton-1 zen-library-download-action no-squircles" />
       </div>`).firstElementChild;
-    row.addEventListener("click", event => {
+    // Zen's stack methods are private. Borrow one existing row's synchronous
+    // event handlers with the real Download, then restore it before returning.
+    // Native menus capture that Download in their command closures.
+    const forward = (event, action = false) => {
+      const native = document.querySelector(`#zen-library-download-list > .zen-library-download-list-download:not(.${EXTRA})`);
+      if (window[INSTANCE_KEY] !== instance || !native || !row.download || !row.isConnected) return;
       const download = row.download;
-      if (event.button !== 0 || !download?.stopped) return;
-      if (download.error?.becauseBlockedByReputationCheck) {
-        lazy.confirmUnblock(download, window, d => lazy.DownloadsCommon.openDownload(d));
-        return;
+      const hasFile = () => !!download.succeeded && !download.deleted && !!download.target?.exists;
+      if (action && download.stopped && !hasFile()) return;
+      if (event.type === "dragstart" && !hasFile()) { event.preventDefault(); return; }
+      const popups = event.type === "contextmenu" ? new Set(document.getElementById("mainPopupSet").children) : null;
+      const before = native.download;
+      native.download = row.download;
+      try {
+        const target = action ? native.querySelector(".zen-library-download-action") : native;
+        const options = { bubbles: true, cancelable: true, button: event.button || 0,
+          screenX: event.screenX, screenY: event.screenY, dataTransfer: event.dataTransfer };
+        const cloned = event.type === "dragstart" ? new DragEvent(event.type, options)
+          : event.type === "command" ? new Event("command", options) : new MouseEvent(event.type, options);
+        target.dispatchEvent(cloned);
+        if (popups) {
+          // Native handlers retain the actual Download. Recheck command state
+          // at execution when a file disappears or a transfer changes meanwhile.
+          const popup = [...document.getElementById("mainPopupSet").children].find(p => !popups.has(p));
+          popup?.addEventListener("command", e => {
+            const id = e.target.getAttribute("data-l10n-id"), C = lazy.DownloadsCommon;
+            const state = C.stateOfDownload(download), active = state === C.DOWNLOAD_DOWNLOADING || state === C.DOWNLOAD_PAUSED;
+            let allowed = window[INSTANCE_KEY] === instance && downloads.includes(download);
+            if (["downloads-cmd-show-menuitem-2", "downloads-cmd-delete-file"].includes(id)) {
+              allowed &&= hasFile() && new lazy.FileUtils.File(download.target.path).exists();
+            } else if (id === "downloads-cmd-pause") allowed &&= state === C.DOWNLOAD_DOWNLOADING;
+            else if (id === "downloads-cmd-resume") allowed &&= state === C.DOWNLOAD_PAUSED;
+            else if (id === "library-downloads-menu-retry") allowed &&= lazy.canRetry(download);
+            else if (id === "downloads-cmd-remove-from-history") allowed &&= !active;
+            if (!allowed) { e.preventDefault(); e.stopImmediatePropagation(); }
+          }, true);
+        }
+        if (cloned.defaultPrevented || event.type === "contextmenu") event.preventDefault();
+        if (event.type === "dragstart" && !cloned.defaultPrevented) event.dataTransfer.addElement(row);
+      } finally { native.download = before; }
+      event.stopPropagation();
+    };
+    row.setAttribute("draggable", "true");
+    row.setAttribute("tabindex", "0");
+    row.setAttribute("role", "button");
+    for (const type of ["click", "contextmenu", "dragstart"]) row.addEventListener(type, event => forward(event));
+    row.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault(); row.dispatchEvent(new MouseEvent("click", { button: 0, bubbles: true }));
       }
-      if (download.succeeded) lazy.DownloadsCommon.openDownload(download).catch(console.error);
-      else if (lazy.canRetry(download)) lazy.retryDownload(download, window);
-      else if (download.source?.url) window.openTrustedLinkIn(download.source.url, "tab");
     });
     const action = row.querySelector(".zen-library-download-action");
     action.addEventListener("click", event => event.stopPropagation());
-    action.addEventListener("command", () => {
-      const download = row.download;
-      if (!download) return;
-      if (!download.stopped) {
-        download.cancel().catch(console.error);
-        download.removePartialData().catch(console.error);
-      } else if (download.succeeded && !download.deleted && download.target.exists) {
-        lazy.DownloadsCommon.showDownloadedFile(new lazy.FileUtils.File(download.target.path));
-      }
-    });
+    action.addEventListener("command", event => forward(event, true));
     return row;
   }
   function fillExtras() {
-    if (inBatch) return;
+    if (window[INSTANCE_KEY] !== instance || inBatch) return;
     const list = document.getElementById("zen-library-download-list");
     if (!list) return;
     const nativeCount = list.querySelectorAll(`:scope > .zen-library-download-list-download:not(.${EXTRA}):not([hidden])`).length;
@@ -302,7 +338,11 @@
       row.style.setProperty("--zen-library-entry-index", older.length - i + nativeCount - 1);
       row.toggleAttribute("downloading", !download.stopped);
       row.toggleAttribute("show-in-folder", !!download.succeeded && !download.deleted && !!download.target.exists);
-      document.l10n.setAttributes(row.querySelector(".zen-library-download-action"),
+      const action = row.querySelector(".zen-library-download-action");
+      const actionEligible = !download.stopped || !!download.succeeded && !download.deleted && !!download.target.exists;
+      if (!actionEligible && document.activeElement === action) row.focus();
+      action.hidden = !actionEligible;
+      document.l10n.setAttributes(action,
         download.stopped ? "library-downloads-show-tooltip" : "library-downloads-cancel-tooltip");
       badge.toggleAttribute("downloading", pending);
       const path = download.target.path;
@@ -310,6 +350,7 @@
       badge.firstElementChild.style.setProperty("--value", download.hasProgress ? download.progress : 0);
       row.querySelector(".zen-library-download-list-title").textContent = path ? PathUtils.filename(path) : download.source.url;
       row.querySelector(".zen-library-download-list-subtitle").textContent = status(download);
+      row.setAttribute("aria-label", row.querySelector(".zen-library-download-list-title").textContent + ". " + status(download));
     });
     measure(list);
   }
@@ -333,9 +374,11 @@
   // keeps it for 30 seconds after any close); 1 only loads the code and
   // stylesheet; 0 leaves it to Zen.
   const SECTIONS = ["History", "Downloads", "Boosts", "Media", "Spaces"];
-  let warmTimer = null, warmIdle = null, preload = null;
+  let warmTimer = null, warmIdle = null, preload = null, warmDue = false;
   function warmLibrary() {
     warmIdle = null;
+    if (gBrowser.selectedTab?.hasAttribute("busy")) { warmDue = true; return; }
+    warmDue = false;
     const how = pref("zzlib.warm", 2);
     if (window[INSTANCE_KEY] !== instance || !how || !pref("zen.library.enabled", true) || libraryNode()) return;
     const load = url => ChromeUtils.importESModule(url, { global: "current" });
@@ -350,7 +393,14 @@
       document.documentElement.appendChild(preload);
     } catch (e) { console.error(e); }
   }
-  warmTimer = setTimeout(() => { warmIdle = window.requestIdleCallback(warmLibrary, { timeout: 5000 }); }, 4000);
+  const warmReady = event => {
+    if (warmDue && warmIdle === null && (!event || event.target === gBrowser.selectedTab) && !gBrowser.selectedTab?.hasAttribute("busy"))
+      warmIdle = window.requestIdleCallback(warmLibrary);
+  };
+  window.addEventListener("TabAttrModified", warmReady, true);
+  window.gZenStartup.promiseInitialized.then(() => {
+    if (window[INSTANCE_KEY] === instance) warmTimer = setTimeout(() => { warmDue = true; warmReady(); }, 4000);
+  });
 
   const onSetting = name => {
     if (name.startsWith("zzlib.float.")) replace();
@@ -372,6 +422,7 @@
     window.removeEventListener("mousedown", onDown, true);
     footWatch.disconnect();
     clearTimeout(warmTimer);
+    window.removeEventListener("TabAttrModified", warmReady, true);
     if (warmIdle) window.cancelIdleCallback(warmIdle);
     preload?.remove();
     try { data?.removeView(view); } catch {}

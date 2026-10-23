@@ -147,18 +147,18 @@ test("queued capture cannot return after pictures off, including off then on", a
   }
 });
 
-test("same-tab captures resolving out of order cannot replace latest picture", async () => {
+test("same document shares one capture; navigation rejects the old result", async () => {
   const e = environment(), w = e.add(), current = tab();
+  w.tabPanel.activate(current); w.tabPanel.activate(current);
+  assert.equal(w.pending.length, 1);
+  const [first] = w.pending;
+  current.linkedBrowser = {};
   w.tabPanel.activate(current);
-  w.tabPanel.activate(current);
-  const [first, second] = w.pending;
-  second.resolve(true);
-  await flush();
-  first.resolve(true);
-  await flush();
+  assert.equal(w.pending.length, 2);
+  const second = w.pending[1]; second.resolve(true); await flush();
+  first.resolve(true); await flush();
   assert.equal(w.box.firstChild, second.canvas);
-  w.unload();
-  assert.equal(w.box.firstChild, null);
+  w.unload(); assert.equal(w.box.firstChild, null);
 });
 
 test("idle last-view capture does no work after pictures disabled or window retired", () => {

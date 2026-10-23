@@ -29,12 +29,12 @@ function element() {
     remove() { this.isConnected = false; }, focus() {},
     showModal() { this.open = true; }, close() { this.open = false; },
     getBoundingClientRect: () => ({ left: 0, top: 0, right: 100, bottom: 100 }),
-    fire: (k, event = {}) => events.get(k)?.(event),
+    fire: (k, event = {}) => { event.type ??= k; return events.get(k)?.(event); },
   };
 }
 function browser() {
   const root = element(), body = element();
-  const w = { ...element(), ...clock(), getComputedStyle: () => ({ position: "fixed" }) };
+  const w = { ...element(), ...clock(), matchMedia: () => ({matches: false}), dispatchEvent() {}, gZenStartup: {promiseInitialized: new Promise(() => {})}, getComputedStyle: () => ({ position: "fixed" }) };
   w.document = { body, documentElement: root, createElementNS: element };
   return w;
 }
@@ -43,7 +43,7 @@ async function load(mod, names, context) {
   const marker = "  // ---- declared defaults";
   assert.ok(source.includes(marker));
   source = source.replace(marker, `  globalThis.harness = {${names}}; return;\n${marker}`);
-  const sandbox = vm.createContext({ console, ...context });
+  const sandbox = vm.createContext({ console, CustomEvent: class { constructor(type, options) { this.type = type; Object.assign(this, options); } }, ...context });
   vm.runInContext(source, sandbox);
   return sandbox.harness;
 }
@@ -110,7 +110,7 @@ async function routerEnv(extra = {}) {
     readInputStreamToString: (s, count) => s.body.slice(0, count) };
   const h = await load("tab-router", "fetchAnon, fetchCreator, fetchSectionIcon, refreshPictures, creatorMap, iconMap, stampIcons, live, majorityContext, learnedMap, saveLearned, saveCreators, saveIcons, forgetAll, cancelLookups, rules, suggestRules, route, queueRoute, onAttrModified, skip, targetPath, reopenInContainer, resolveDestination, prefObserver, progress, placeInPath, initialRequest, retire: () => retired = true", {
     ...c, window: {}, gBrowser: { tabGroups: [], tabs: [] }, document: { querySelectorAll: () => [] },
-    ChromeUtils: { generateQI: () => () => {}, importESModule: name => name.includes("NetUtil") ? { NetUtil }
+    ChromeUtils: { generateQI: () => () => {}, importESModule: name => name.includes("NetUtil") ? { NetUtil } : name.includes("Timer") ? c
       : { PrivateBrowsingUtils: { isWindowPrivate: () => false } } },
     Services: { prefs: { PREF_INT: 64, PREF_STRING: 32, getPrefType: k => typeof prefs.get(k) === "number" ? 64 : 32,
       getIntPref: k => prefs.get(k), getBoolPref: (k, d) => prefs.get(k) ?? d, getStringPref: (k, d) => prefs.get(k) ?? d,
@@ -133,9 +133,9 @@ async function routerEnv(extra = {}) {
 test("synchronous fetch failure leaves no timeout or second completion", async () => {
   const e = await routerEnv(); let completions = 0;
   e.NetUtil.open = () => { throw new Error("setup failed"); };
-  assert.throws(() => e.h.fetchAnon("https://example.com", 0, () => completions++), /setup failed/);
+  e.h.fetchAnon("https://example.com", 0, body => { assert.equal(body, null); completions++; });
   assert.equal(e.c.timers.size, 0);
-  assert.equal(completions, 0); // The caller's catch owns failure completion.
+  assert.equal(completions, 1); // Shared transport owns one failure completion.
 });
 
 test("timeout and later network completion invoke callback once", async () => {
@@ -175,7 +175,7 @@ test("purge ignores an icon whose image decode completes afterward", async () =>
   decode.resolve({ width: 64, height: 64, close() {} });
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(e.h.iconMap().size, 0);
-  assert.equal(e.prefs.get("zzrouter.avatars"), "{}");
+  assert.equal(e.prefs.get("zzrouter.avatars") ?? "{}", "{}");
 });
 
 test("question ownership remains visible after shared hook handoff", async () => {
@@ -201,9 +201,9 @@ async function turboEnv({ privateWindow = false, rows = Promise.resolve([]), fai
     setBoolPref: (k, v) => values.set(k, v), clearUserPref: k => values.delete(k),
     prefHasUserValue: k => values.has(k), addObserver() {}, removeObserver() {},
   };
-  const tabContainer = element(), root = element(), scroller = element(), toolbox = element();
+  const tabContainer = element(), root = element(), scroller = element(), toolbox = element(), NetUtil = {};
   w.XULBrowserWindow = { setOverLink: (...args) => args };
-  const h = await load("zen-turbo", "start, syncPacks, startupWarmup, forgetWarmups, warmAfterDwell, cancelDwell, onHover, syncSmoothing", {
+  const h = await load("zen-turbo", "start, syncPacks, startupWarmup, forgetWarmups, syncSmoothing, syncMeasurement, navListener, note, warm, prefObserver, stats", {
     ...c, window: w, gBrowser: { tabContainer, addTabsProgressListener() {}, removeTabsProgressListener() {} },
     document: { documentElement: root, getElementById: id => ({ "tabbrowser-arrowscrollbox": scroller, "navigator-toolbox": toolbox })[id] ?? null },
     MutationObserver: class { observe() {} disconnect() {} },
@@ -218,7 +218,7 @@ async function turboEnv({ privateWindow = false, rows = Promise.resolve([]), fai
     },
     ChromeUtils: { importESModule: uri => uri.includes("PrivateBrowsing")
       ? { PrivateBrowsingUtils: { isWindowPrivate: () => privateWindow } }
-      : { PlacesUtils: { promiseDBConnection: async () => ({ executeCached() { queries++; return rows; } }) } } },
+      : uri.includes("NetUtil") ? { NetUtil } : { PlacesUtils: { promiseDBConnection: async () => ({ executeCached() { queries++; return rows; } }) } } },
   });
   return { h, w, c, root, scroller, toolbox, values, connects, tabContainer, get queries() { return queries; }, get savedWrites() { return savedWrites; } };
 }
@@ -263,15 +263,13 @@ test("Turbo purge invalidates a pending history query", async () => {
   assert.equal(e.connects.length, 0);
 });
 
-test("Turbo cancels hover requests after leaving the surface or entering a loaded tab", async () => {
+test("Turbo installs no duplicate tab or bookmark hover listeners", async () => {
   const e = await turboEnv(); e.h.start();
-  e.h.forgetWarmups(); // Remove the independent startup timer.
-  e.h.warmAfterDwell("https://example.com", 0);
+  e.tabContainer.fire("mouseover", {target: {closest: () => ({hasAttribute: () => true})}});
   e.tabContainer.fire("mouseleave");
-  assert.equal(e.c.timers.size, 0);
-  e.h.warmAfterDwell("https://example.com", 0);
-  e.h.onHover({ target: { closest: () => null } });
-  assert.equal(e.c.timers.size, 0);
+  assert.equal(e.connects.length, 0);
+  assert.equal(e.w.ZenTurbo.status().hoverWarmup, "native tab hover (including Favorites/Essentials)");
+  e.w.__zzturboInstance.retire();
 });
 
 test("Turbo leaves Firefox's native page-link hover handler unchanged", async () => {
@@ -306,7 +304,7 @@ test("download question uses a labelled native modal", async () => {
   const host = a.w.document.body.children[0];
   assert.equal(host.open, true);
   assert.equal(host.getAttribute("aria-labelledby"), "zzdl-title");
-  assert.equal(host.getAttribute("aria-describedby"), "zzdl-name zzdl-where");
+  assert.equal(host.getAttribute("aria-describedby"), "zzdl-name zzdl-where zzdl-details");
   a.w.__zzdlQuestion(2);
   assert.equal(await question, "keep both");
   assert.equal(host.open, false);
@@ -402,7 +400,7 @@ async function unloaderEnv() {
   const states = new Map(), calls = [];
   const gBrowser = { tabs, async prepareDiscardBrowser(t) { calls.push(["prepare", t]); },
     discardBrowser(t) { calls.push(["discard", t]); t.setAttribute("pending", ""); return true; } };
-  const h = await load("tab-unloader", "sweep, hasFields, whyKeep, onTabSelect, retire: () => retired = true", {
+  const h = await load("tab-unloader", "sweep, hasFields, whyKeep, onTabSelect, retire: () => retired = true, canUnloadFolder, loadedChanged", {
     window: {}, document: { documentElement: element(), querySelectorAll: () => tabs }, gBrowser,
     SessionStore: { getTabState: t => JSON.stringify(states.get(t) ?? {}) },
     Services: { prefs: { PREF_INT: 64, getPrefType: () => 64, getIntPref: k => values.get(k),
@@ -948,7 +946,9 @@ test("Router restores a missing avatar for a cached creator without rerouting or
   assert.equal(opened, 2); assert.deepEqual(refreshes, [true]);
   assert.equal(child.getAttribute("data-zzrouter-icon"), "data:image/webp;base64,AQ==");
   assert.equal(e.h.creatorMap().get("0:video").label, "Channel");
-  assert.equal(e.c.timers.size, 0, "cached creator recovery must not queue routing");
+  assert.equal(e.c.timers.size, 1, "one coalesced picture persistence; no route timer");
+  for (const [id, fn] of [...e.c.timers]) { e.c.clearTimeout(id); fn(); }
+  assert.equal(e.c.timers.size, 0);
   e.h.refreshPictures(); assert.equal(opened, 2, "reuse successful avatar");
   e.h.forgetAll(); assert.equal(opened, 2, "history purge must not start recovery");
   assert.deepEqual(refreshes, [true, false], "history purge must remove rendered icons immediately");
@@ -1119,7 +1119,7 @@ test("Groupflow collapsed folders retain loaded tabs and one last-used tab per s
   loaded.removeAttribute("discarded"); e.changed(loaded); e.flush();
   older.setAttribute("selected", "true"); older.lastSeenActive = last.lastSeenActive = 60;
   e.w.fire("TabSelect", { type: "TabSelect", target: older }); older.removeAttribute("selected");
-  e.w.fire("TabSelect", { type: "TabSelect", target: { group: null } }); e.flush();
+  e.w.fire("TabSelect", { type: "TabSelect", target: new e.Tab(null) }); e.flush();
   assert.equal(older.visible, true); assert.equal(last.visible, false, "same-tick select-away retains the selected winner despite equal timestamps");
   older.group = sibling; e.w.fire("TabGrouped"); e.flush();
   assert.equal(last.visible, true, "moving the last-used tab recomputes its former group");
@@ -1129,15 +1129,15 @@ test("Groupflow collapsed folders retain loaded tabs and one last-used tab per s
   cleanup();
 });
 
-test("Groupflow collapsed folders hide an unloaded last-used tab by default", async () => {
+test("Groupflow keeps last-used tabs by default and preserves explicit false", async () => {
   const e = await collapsedVisibilityEnv(), root = new e.Group(), child = new e.Group(root);
   e.prefs.delete("zzgroup.collapse-keep-last-used");
   root.collapsed = child.collapsed = true;
   const loaded = new e.Tab(child, 10), last = new e.Tab(child, 30, true);
   const cleanup = e.h.startCollapsedVisibility();
-  assert.deepEqual([loaded.visible, last.visible], [true, false]);
-  e.prefs.set("zzgroup.collapse-keep-last-used", true); e.changed(last); e.flush();
-  assert.equal(last.visible, true, "the setting keeps it");
+  assert.deepEqual([loaded.visible, last.visible], [true, true]);
+  e.prefs.set("zzgroup.collapse-keep-last-used", false); e.changed(last); e.flush();
+  assert.equal(last.visible, false, "explicit false stays off");
   cleanup();
 });
 
@@ -1390,7 +1390,7 @@ test("Groupflow skips metadata work on collapse and reuses one scan for existing
   const h = await load("groupflow", "startStandaloneGroups", { ...c, window: w,
     document: { documentElement: element(), querySelectorAll() { scans++; return []; } },
     gBrowser: { createTabsForSessionRestore() {} },
-    Services: { prefs: { prefHasUserValue: () => true } },
+    Services: { prefs: { prefHasUserValue: () => true }, obs: {addObserver() {}, removeObserver() {}} },
     JSON: { parse: JSON.parse, stringify(value) { serializations++; return JSON.stringify(value); } },
     SessionStore: {
       getCustomWindowValue: (_w, k) => stored.get(k) || "{}",
@@ -1406,11 +1406,11 @@ test("Groupflow skips metadata work on collapse and reuses one scan for existing
   assert.deepEqual([scans, serializations, reads], [0, 0, 0]);
   w.fire("TabGroupUpdate");
   for (const [id, fn] of [...c.timers]) { c.clearTimeout(id); fn(); }
-  assert.deepEqual([scans, serializations, reads], [1, 4, 3]);
+  assert.deepEqual([scans, serializations, reads], [1, 0, 0]);
   unavailable = true; stored.set("tabGroupParents", "previous");
   w.fire("FolderGrouped");
   for (const [id, fn] of [...c.timers]) { c.clearTimeout(id); fn(); }
-  assert.equal(stored.get("tabGroupParents"), "{}", "persist parent updates if pruning cannot read closed state");
+  assert.equal(stored.get("tabGroupParents"), "previous", "unchanged metadata is not serialized, and ordinary membership events do not prune history");
   cleanup();
 });
 
@@ -1676,7 +1676,7 @@ test("Glassflow Library seeds unset defaults and writes its string prefs as vari
     getBranch: prefix => ({ getChildList: () => [...prefs.keys()].filter(k => k.startsWith(prefix)).map(k => k.slice(prefix.length)) }),
     addObserver: (_p, o) => observers.push(o), removeObserver() {} } };
   const declared = JSON.parse(await readFile(new URL("../glassflow-library/preferences.json", import.meta.url), "utf8"));
-  const window = { addEventListener() {} };
+  const window = { addEventListener() {}, gZenStartup: {promiseInitialized: new Promise(() => {})} };
   const document = { documentElement: { style: { setProperty: (k, v) => style.set(k, v), removeProperty: k => style.delete(k) } },
     getElementById: () => null, querySelector: () => null };
   const customElements = { get() {}, whenDefined: () => new Promise(() => {}) };
@@ -1841,4 +1841,63 @@ test("Mediaflow: the preview's controls act on the video, and pausing from them 
   video.pause();   // paused anywhere else: the preview goes, as before
   assert.equal(actor._video, null);
   assert.ok(sent.some(([name]) => name === "ZenPiP:VideoStopped"));
+});
+
+test('Router cross-window subscribers share transport; retiring one keeps the other request alive', async()=>{
+  const a=await routerEnv(),b=await routerEnv({ChromeUtils:{generateQI:()=>()=>{},importESModule:name=>name.includes('NetUtil')?{NetUtil:a.NetUtil}:name.includes('Timer')?a.c:{PrivateBrowsingUtils:{isWindowPrivate:()=>false}}}});
+  const received=[];a.h.fetchAnon('https://example.com/shared',2,body=>received.push(['a',body]));
+  b.h.fetchAnon('https://example.com/shared',2,body=>received.push(['b',body]));
+  assert.equal(a.c.timers.size,1);assert.equal(b.c.timers.size,0);
+  a.h.cancelLookups();assert.equal(a.cancelled,0);a.answer('shared');assert.deepEqual(received,[['b','shared']]);assert.equal(a.c.timers.size,0);
+});
+
+test('Router coalesced cache writes merge concurrent window records',async()=>{
+  const prefs=new Map(), values={getStringPref:(k,d)=>prefs.get(k)??d,setStringPref:(k,v)=>prefs.set(k,v)};
+  const a=await routerEnv(),b=await routerEnv();
+  // Fixtures use separate pref maps; simulate the shared pref becoming visible before flush.
+  a.h.creatorMap();b.h.creatorMap();
+  a.h.creatorMap().set('0:first',{key:'first'});a.h.saveCreators();
+  b.h.creatorMap().set('0:second',{key:'second'});b.h.saveCreators();
+  for(const [id,fn] of [...a.c.timers]){a.c.clearTimeout(id);fn();}
+  b.prefs.set('zzrouter.creators',a.prefs.get('zzrouter.creators'));
+  for(const [id,fn] of [...b.c.timers]){b.c.clearTimeout(id);fn();}
+  assert.deepEqual(Object.keys(JSON.parse(b.prefs.get('zzrouter.creators'))),['0:first','0:second']);
+});
+
+test('Turbo diagnostics off retains no logs or aggregates; explicit measurement removes its listener on disable',async()=>{
+  const e=await turboEnv();e.h.start();e.h.warm('https://example.com');
+  assert.equal(e.w.ZenTurbo.log().length,0);assert.equal(e.h.stats.warmed,0);assert.equal(e.h.stats.byOrigin.size,0);
+  assert.equal(e.w.ZenTurbo.status().recentOriginContexts,1,'functional dedup independent of measurement');
+  e.values.set('zzturbo.measure',true);e.h.syncMeasurement();e.h.warm('https://other.example.com');assert.equal(e.h.stats.warmed,1);
+  e.values.set('zzturbo.measure',false);e.h.syncMeasurement();assert.equal(e.h.stats.byOrigin.size,0);
+  assert.equal(e.w.ZenTurbo.status().recentOriginContexts,2);
+  e.values.set('zzturbo.debug',true);e.h.note('explicit');assert.equal(e.w.ZenTurbo.log().length,1);
+  e.values.set('zzturbo.debug',false);e.h.prefObserver.observe(null,null,'zzturbo.debug');assert.equal(e.w.ZenTurbo.log().length,0);
+  e.w.__zzturboInstance.retire();
+});
+
+test('Turbo startup budget claims once per session despite repeated starts',async()=>{
+  const rows=[{getResultByName:k=>k==='prefix'?'https://':'example.com'}],e=await turboEnv({rows:Promise.resolve(rows)});
+  await e.h.startupWarmup();await e.h.startupWarmup();assert.equal(e.queries,1);
+  for(const [id,fn] of [...e.c.timers]){e.c.clearTimeout(id);fn();}assert.equal(e.connects.length,1);
+  e.h.forgetWarmups();await e.h.startupWarmup();assert.equal(e.queries,1,'purge does not grant a second startup budget');
+});
+
+test('Manual folder unloading works with automation off, protects forms and respects global floor',async()=>{
+  const e=await unloaderEnv();e.values.set('zzunload.enabled',false);e.values.set('zzunload.keep-loaded',1);
+  const group={isConnected:true,tabs:e.tabs,matches:()=>true,closest:()=>null,contains:t=>e.tabs.includes(t)};
+  for(const tab of e.tabs)e.h.loadedChanged({target:tab,type:'TabOpen'});
+  assert.equal(e.h.canUnloadFolder(group),true);assert.equal(await e.h.sweep(group),1);
+  assert.equal(e.calls.filter(c=>c[0]==='prepare').length,1);assert.equal(e.calls.filter(c=>c[0]==='discard').length,1);
+  for(const tab of e.tabs)e.h.loadedChanged({target:tab,type:'TabAttrModified'});
+  assert.equal(e.h.canUnloadFolder(group),false);group.isConnected=false;assert.equal(e.h.canUnloadFolder(group),false);
+});
+
+test('Groupflow selection-only visibility updates read 0 membership arrays',async()=>{
+  const e=await collapsedVisibilityEnv(),root=new e.Group(),child=new e.Group(root);root.collapsed=child.collapsed=true;
+  const a=new e.Tab(child,1,true),b=new e.Tab(child,2,true),cleanup=e.h.startCollapsedVisibility();
+  let reads=0;const descriptor=Object.getOwnPropertyDescriptor(e.Group.prototype,'tabs');
+  Object.defineProperty(e.Group.prototype,'tabs',{...descriptor,get(){reads++;return descriptor.get.call(this);}});
+  a.setAttribute('selected','true');e.w.fire('TabSelect',{target:a,detail:{previousTab:b}});e.flush();
+  assert.equal(reads,0);assert.equal(a.visible,true);assert.equal(b.visible,false);cleanup();
 });

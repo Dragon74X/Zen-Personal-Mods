@@ -173,7 +173,7 @@ def check(m, root, arc, transparent):
     result = m.script("""return {zen:Services.appinfo.version,firefox:Services.appinfo.platformVersion,
       apis:['DownloadPrompt','Groupflow','TabRouter','TabUnloader','ZenTurbo'].map(k=>[k,!!window[k]]),
       download:DownloadPrompt.status()};""")
-    assert all(present for _, present in result["apis"]), result
+    assert all(present for _, present in result["apis"]), (result, m.script("return (Services.console.getMessageArray()||[]).map(m=>m.message).filter(m=>/TabRouter|tab-router/.test(m));"))
     result['iconPaintChecks'] = icon_paint_checks
     def settle():
         m.script("return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))));")
@@ -359,7 +359,18 @@ def check(m, root, arc, transparent):
         rows[0].dispatchEvent(new MouseEvent('click',{button:0}));
         const action=rows[0].querySelector('.zen-library-download-action');
         const named=action.getAttribute('data-l10n-id')==='library-downloads-show-tooltip';
-        return {ordered,retries,named};
+        const before=new Set(document.getElementById('mainPopupSet').children);
+        rows[0].dispatchEvent(new MouseEvent('contextmenu',{button:2,bubbles:true,cancelable:true}));
+        const menu=[...document.getElementById('mainPopupSet').children].find(p=>!before.has(p));
+        const command=id=>menu?.querySelector('[data-l10n-id="'+id+'"]');
+        const nativeContext=!!command('library-downloads-menu-retry')&&!!command('downloads-cmd-copy-download-link')&&
+          !command('downloads-cmd-show-menuitem-2')&&!command('downloads-cmd-delete-file');
+        downloads[0].succeeded=true;downloads[0].canceled=false;
+        command('library-downloads-menu-retry')?.dispatchEvent(new Event('command',{bubbles:true,cancelable:true}));
+        const changedDownloadRejected=retries===1;menu?.hidePopup();
+        const drag=new DragEvent('dragstart',{bubbles:true,cancelable:true,dataTransfer:new DataTransfer()});
+        rows[0].dispatchEvent(drag);
+        return {ordered,retries,named,nativeContext,changedDownloadRejected,missingFileDragRejected:drag.defaultPrevented};
       } finally {
         document.getElementById('zen-sidebar-foot-buttons').removeAttribute('zen-library-stack-open');
         for(const d of downloads)await list.remove(d);
@@ -367,7 +378,8 @@ def check(m, root, arc, transparent):
         Services.prefs.clearUserPref('zen.downloads.download-animation');
       }
     })();""")
-    assert library == {"ordered": True, "retries": 1, "named": True}, library
+    assert library == {"ordered": True, "retries": 1, "named": True, "nativeContext": True,
+                       "changedDownloadRejected": True, "missingFileDragRejected": True}, library
     result["libraryExtraRows"] = library
     m.script("""for(const k of ['__zzdlInstance','__zzglassInstance','__zzgroupInstance','__zzrouterInstance','__zzunloadInstance','__zzturboInstance']) window[k].retire();
       return true;""")
@@ -479,6 +491,7 @@ def check_library_hover(m, root, arc):
 
     width = m.script("return window.innerWidth;")
     history_checks = 0
+    backing_checks = 0
     expected = ["history-" + str(i) for i in range(8)]
     # Historical entries never enter Downloads.PUBLIC: this reproduces the
     # history-only state that previously opened the full Library on first click.
@@ -505,6 +518,25 @@ def check_library_hover(m, root, arc):
             assert state()["stack"] and shown == expected[-count:], (session_count, count, shown, state())
             assert not m.script("return !!customElements.get('zen-library')?.isLibraryOpen;"), 'First click opened full Library'
             history_checks += 1
+            if count in (1, 8):
+                for box in (False, True):
+                    m.script('Services.prefs.setBoolPref("zzlib.stack.box",'+json.dumps(box)+');return true;')
+                    backing = m.script('''return (async()=>{
+                      await new Promise(r=>setTimeout(r,200));
+                      const list=document.getElementById('zen-library-download-list'),back=getComputedStyle(list,'::before');
+                      const rows=[...list.children].filter(n=>!n.hidden&&getComputedStyle(n).display!=='none');
+                      return {opacity:back.opacity,backdrop:back.backdropFilter,pointer:back.pointerEvents,
+                        rows:rows.map(n=>getComputedStyle(n).backdropFilter),
+                        zIndex:getComputedStyle(document.getElementById('zen-sidebar-foot-buttons')).zIndex};
+                    })();''')
+                    assert backing['zIndex'] == '100', backing
+                    if box:
+                        assert backing['opacity'] == '1' and backing['pointer'] == 'auto', backing
+                        assert all(v == 'none' for v in backing['rows']), backing
+                    else:
+                        assert all('blur(' in v for v in backing['rows']), backing
+                    backing_checks += 1
+                m.script('Services.prefs.setBoolPref("zzlib.stack.box",true);return true;')
         if session_count == 0:
             move(*center("zen-library-button"), pause=500, click=True)
             assert m.script("return customElements.get('zen-library').isLibraryOpen;"), 'Second click did not open Library'
@@ -568,7 +600,180 @@ def check_library_hover(m, root, arc):
                         move(side_x, 200, 800)
                         assert state() == {"hover": True, "shown": True, "stack": False}, (case, state())
                     cases.append(case)
-    return {"libraryHoverChecks": len(cases), "libraryHistoryChecks": history_checks, "arc": bool(arc), "cases": cases}
+    return {"libraryHoverChecks": len(cases), "libraryHistoryChecks": history_checks,
+            "libraryBackingChecks": backing_checks, "compositorVerified": False, "arc": bool(arc), "cases": cases}
+
+
+def check_actions(m, root):
+    mods = ['glassflow', 'glassflow-library', 'groupflow', 'iconflow', 'tab-router', 'tab-unloader', 'zen-turbo', 'mediaflow']
+    prefs = {}
+    for mod in mods:
+        for pref in json.loads((root / mod / 'preferences.json').read_text()):
+            if 'property' in pref and 'defaultValue' in pref:
+                prefs[pref['property']] = pref['defaultValue']
+    prefs.update({'zzrouter.enabled': False, 'zzrouter.section-icons': False, 'zzrouter.sort-on-startup': False,
+                  'zzunload.enabled': False, 'zzturbo.startup-warmup': False, 'zzunload.exclude-workspace-anchor': False,
+                  'zen.view.sidebar-expanded': True})
+    m.script('return gZenStartup.promiseInitialized.then(()=>true);')
+    m.script('for(const [k,v] of Object.entries('+json.dumps(prefs)+'))Services.prefs[typeof v==="boolean"?"setBoolPref":typeof v==="number"?"setIntPref":"setStringPref"](k,v); return true;')
+    for mod in mods:
+        m.script((root / mod / (mod + '.uc.js')).read_text() + '\nreturn true;')
+    result = m.script('''return (async()=>{
+      const pause=ms=>new Promise(r=>setTimeout(r,ms)), wait=async fn=>{for(let n=0;n<100;n++){if(fn())return;await pause(25);}throw Error('Action fixture timed out');};
+      await wait(()=>window.TabRouter && window.Groupflow && window.TabUnloader && window.ZenTurbo);
+      const result={};
+      const {collectReport}=ChromeUtils.importESModule('chrome://sine/content/zz-glassflow/zen-mods-report.sys.mjs');
+      const start=performance.now(), report=await collectReport(window);
+      result.reportMs=performance.now()-start; result.reportCollected=typeof report.mods==='object';
+      const tools=document.getElementById('menu_ToolsPopup');
+      const showTools=()=>tools.dispatchEvent(new Event('popupshowing',{bubbles:true}));
+      const command=(surface,label)=>{const item=[...surface.querySelectorAll('menuitem,toolbarbutton')].find(n=>n.getAttribute('label')===label);if(!item)throw Error('Missing '+label);item.dispatchEvent(new Event('command',{bubbles:true}));return item;};
+      Services.prefs.clearUserPref('zzglass.selected.opacity');showTools();command(tools,'Save appearance');
+      await wait(()=>Services.prefs.prefHasUserValue('zzglass-saved.appearance'));
+      const saved=JSON.parse(Services.prefs.getStringPref('zzglass-saved.appearance'));
+      result.snapshotWhitelist=Object.keys(saved.values).every(k=>/^(zzglass|zzgroup|zzicon)[.]/.test(k)) && !saved.values['zzglass.selected.opacity'].had;
+      Services.prefs.setStringPref('zzglass.selected.opacity','0.41');showTools();command(tools,'Restore appearance');
+      await wait(()=>!Services.prefs.prefHasUserValue('zzglass.selected.opacity'));result.snapshotClearsAbsent=true;
+      Services.prefs.setStringPref('zzglass-saved.appearance','malformed');showTools();
+      result.invalidRestoreHidden=![...tools.children].some(n=>n.getAttribute('label')==='Restore appearance');
+      result.ruleCommands=['Generate routing rules from open tabs…','Validate routing rules','Edit routing rules…'].every(label=>[...tools.children].some(n=>n.getAttribute('label')===label));
+      const add=label=>{const t=gBrowser.addTab('about:blank',{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});t.label=label;return t;};
+      const selected=gBrowser.selectedTab,a=add('Background target'),b=add('Selected other');gBrowser.selectedTab=b;
+      const popup=document.getElementById('tabContextMenu');popup.openPopup(a,'after_start');await pause(100);
+      const keep=command(popup,'Keep here');
+      result.backgroundLock=SessionStore.getCustomTabValue(a,'zzrouterLocked')==='true' && SessionStore.getCustomTabValue(b,'zzrouterLocked')!== 'true';
+      popup.hidePopup();popup.openPopup(a,'after_start');await pause(100);command(popup,'Resume routing');
+      result.resumeLock=!SessionStore.getCustomTabValue(a,'zzrouterLocked');popup.hidePopup();
+      popup.openPopup(a,'after_start');await pause(100);const stale=[...popup.children].find(n=>n.getAttribute('label')==='Keep here');popup.hidePopup();
+      gBrowser.removeTab(a,{animate:false});stale.dispatchEvent(new Event('command'));
+      result.staleTargetNoFallback=SessionStore.getCustomTabValue(b,'zzrouterLocked')!== 'true';
+      const c=add('Folder child'),d=add('Folder child two'),group=gBrowser.addTabGroup([c,d],{label:'Action folder',insertBefore:c});
+      gBrowser.selectedTab=b;await pause(100);TabRouter.setPlacementLock(group,true);await pause(50);
+      result.folderLockSaved=JSON.parse(SessionStore.getCustomWindowValue(window,'groupflowGroups'))[group.id]?.routerLocked===true;
+      const count=await TabUnloader.unloadFolder(group);result.manualUnload=count>0 && group.tabs.some(t=>t.hasAttribute('pending'));
+      const {UrlbarShared}=ChromeUtils.importESModule('chrome://browser/content/urlbar/UrlbarShared.mjs');
+      result.nativeTabSwitchType=UrlbarShared.RESULT_TYPE.TAB_SWITCH;
+      gBrowser.selectedTab=selected;for(const t of [b,c,d])if(t.isConnected)gBrowser.removeTab(t,{animate:false});
+      return result;
+    })();''')
+    result.update(m.script('''return (async()=>{
+      const pause=ms=>new Promise(r=>setTimeout(r,ms)),wait=async (fn,label)=>{for(let n=0;n<120;n++){if(fn())return;await pause(25);}throw Error('Advanced action fixture timed out: '+(typeof label==='function'?label():label));};
+      const result={},selected=gBrowser.selectedTab,system=Services.scriptSecurityManager.getSystemPrincipal();
+      const tab=gBrowser.addTab('about:blank?zzpicture',{triggeringPrincipal:system,skipAnimation:true});
+      await wait(()=>tab.linkedBrowser.currentURI.spec==='about:blank?zzpicture','tab ready');
+      const other=gBrowser.addTab('about:blank',{triggeringPrincipal:system,skipAnimation:true});gBrowser.selectedTab=other;
+      const popup=document.getElementById('tabContextMenu');
+      const open=async target=>{popup.hidePopup();await pause(50);popup.openPopup(target,'after_start');await pause(75);};
+      const item=label=>[...popup.children].find(n=>n.getAttribute('label')===label);
+      await wait(()=>window.ZzMediaflowController,'media ready');
+      const controller=ZzMediaflowController,bc=tab.linkedBrowser.browsingContext,owner={};let playbackCommands=0;
+      controller.registerSource(bc.id,{owner,startTick(){},stopTick(){},setProcessingActive(){},control(){playbackCommands++;}});
+      controller.offerVideo(640,360,bc);
+      await open(other);result.unrelatedMediaHidden=!item('Show this video in sidebar');
+      await open(tab);const show=item('Show this video in sidebar');result.backgroundVideoEligible=!!show;
+      show.dispatchEvent(new Event('command'));await open(tab);
+      const automatic=item('Sidebar video: Automatic');result.manualVideoAutomatic=!!automatic;
+      automatic.dispatchEvent(new Event('command'));await open(tab);result.automaticClearsChoice=!item('Sidebar video: Automatic');
+      const stale=item('Show this video in sidebar');controller.notifySourceStopped(bc);await pause(25);
+      result.stoppedSourceHidden=!item('Show this video in sidebar');
+      stale.dispatchEvent(new Event('command'));result.staleMediaSafe=!controller.chooseSource(bc.id);
+      result.playbackCommands=playbackCommands;controller.unregisterSource(bc.id,owner);popup.hidePopup();
+
+      const icon='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jWZkAAAAASUVORK5CYII=';
+      const group=gBrowser.addTabGroup([tab],{label:'PRIVATE_TITLE_SENTINEL',insertBefore:tab});
+      group.setAttribute('data-zzrouter-icon',icon);tab.setAttribute('data-zzrouter-tab-icon',icon);
+      const rules=Services.prefs.getStringPref('zzrouter.rules','');Services.prefs.setStringPref('zzrouter.rules','privacy-sentinel.invalid > PRIVATE_PATH_SENTINEL');
+      const {collectReport}=ChromeUtils.importESModule('chrome://sine/content/zz-glassflow/zen-mods-report.sys.mjs');
+      const before={selected:gBrowser.selectedTab,group:tab.group,label:group.label,rules:Services.prefs.getStringPref('zzrouter.rules')};
+      const report=JSON.stringify(await collectReport(window));
+      result.reportPrivacy=!/PRIVATE_TITLE_SENTINEL|PRIVATE_PATH_SENTINEL|privacy-sentinel[.]invalid/.test(report);
+      result.reportReadOnly=before.selected===gBrowser.selectedTab&&before.group===tab.group&&before.label===group.label&&before.rules===Services.prefs.getStringPref('zzrouter.rules');
+      Services.prefs.setStringPref('zzrouter.rules',rules);
+
+      const {ProvidersManager}=ChromeUtils.importESModule('moz-src:///browser/components/urlbar/UrlbarProvidersManager.sys.mjs');
+      const {UrlbarResult}=ChromeUtils.importESModule('chrome://browser/content/urlbar/UrlbarResult.mjs');
+      const {UrlbarShared}=ChromeUtils.importESModule('chrome://browser/content/urlbar/UrlbarShared.mjs');
+      const manager=ProvidersManager.getInstanceForSap('urlbar');let manual=false,requests=0;const providerErrors=[];
+      const nativeIcon='chrome://global/skin/icons/defaultFavicon.svg';
+      const nativeSidebar=manager.providers.find(p=>p.name==='ZenUrlbarProviderSidebar');
+      const provider=new class extends nativeSidebar.constructor {
+        get name(){return 'ZenModsSmoke';}get type(){return UrlbarShared.PROVIDER_TYPE.PROFILE;}
+        getPriority(){return 1000;}async isActive(ctx){return ctx.searchString.startsWith('zzpicture');}
+        async startQuery(ctx,add){
+          try {
+          add(this,new UrlbarResult({type:UrlbarShared.RESULT_TYPE.TAB_SWITCH,source:UrlbarShared.RESULT_SOURCE.TABS,
+            payload:{url:tab.linkedBrowser.currentURI.spec,title:'zzpicture tab',icon:nativeIcon,userContext:{id:0}}}));
+          add(this,new UrlbarResult({type:UrlbarShared.RESULT_TYPE.DYNAMIC,source:UrlbarShared.RESULT_SOURCE.TABS,
+            payload:{dynamicType:'zen-folders',titleL10n:'zen-action-open',path:'zzpicture folder',icon:nativeIcon,zenFolderId:group.id,userIcon:manual?nativeIcon:''}}));
+          } catch(error){providerErrors.push(String(error));}
+        }
+      };
+      const observer={observe(subject){if(/youtube|ytimg|ggpht|nexusmods/.test(subject.QueryInterface(Ci.nsIChannel).URI.host))requests++;}};
+      manager.registerProvider(provider);Services.obs.addObserver(observer,'http-on-modify-request');
+      try {
+        // Rule-change notifications above clear unsupported fixture identities.
+        // Seed display values after those notifications have finished; lookup
+        // and recovery validation is covered by the routing/restart fixture.
+        await pause(100);group.setAttribute('data-zzrouter-icon',icon);tab.setAttribute('data-zzrouter-tab-icon',icon);
+        gURLBar.focus();gURLBar.value='zzpicture';gURLBar.startQuery({searchString:'zzpicture'});await gURLBar.lastQueryContextPromise;
+        const rows=()=>[...gURLBar.view.panel.querySelectorAll('.urlbarView-row')].filter(r=>r.result?.providerName==='ZenModsSmoke');
+        await wait(()=>rows().length===2,()=> 'search rows: '+JSON.stringify({providerErrors,rows:[...gURLBar.view.panel.querySelectorAll('.urlbarView-row')].map(r=>({provider:r.result?.providerName,payload:r.result?.payload}))}));await pause(50);
+        const image=row=>row.querySelector('.urlbarView-favicon')?.getAttribute('src');
+        result.nativeSearchPictures=rows().every(row=>image(row)===icon);
+        manual=true;gURLBar.value='zzpicture manual';gURLBar.startQuery({searchString:'zzpicture manual'});await gURLBar.lastQueryContextPromise;await pause(100);
+        const folderRows=rows().filter(r=>r.result.payload.zenFolderId);
+        result.nativeSearchManualIcon=folderRows.length===1&&folderRows.every(row=>image(row)===nativeIcon);
+        result.searchRequests=requests;
+      } finally {gURLBar.view.close();manager.unregisterProvider(provider);Services.obs.removeObserver(observer,'http-on-modify-request');}
+
+      const settings=gBrowser.addTab('about:preferences',{triggeringPrincipal:system,skipAnimation:true});
+      await wait(()=>settings.linkedBrowser.contentDocument?.readyState==='complete'&&settings.linkedBrowser.currentURI.spec==='about:preferences','settings ready');
+      const doc=settings.linkedBrowser.contentDocument,box=doc.createElement('div'),input=doc.createElement('input');
+      box.id='zzrouter-rules';box.append(input);doc.documentElement.append(box);let writes=0;
+      input.addEventListener('change',()=>{writes++;Services.prefs.setStringPref('zzrouter.rules',input.value);});
+      input.value='malformed rule';input.dispatchEvent(new doc.defaultView.Event('change',{bubbles:true,cancelable:true}));
+      result.nativeInvalidRulesRejected=writes===0&&Services.prefs.getStringPref('zzrouter.rules')===rules;
+      input.value='github.com > Dev / Tools';input.dispatchEvent(new doc.defaultView.Event('change',{bubbles:true,cancelable:true}));
+      result.nativeValidRulesAccepted=writes===1&&Services.prefs.getStringPref('zzrouter.rules')===input.value;
+      Services.prefs.setStringPref('zzrouter.rules',rules);gBrowser.selectedTab=selected;
+      for(const t of [tab,other,settings])if(t.isConnected)gBrowser.removeTab(t,{animate:false});
+      return result;
+    })();'''))
+    result.update(m.script('''return (async()=>{
+      const pause=ms=>new Promise(r=>setTimeout(r,ms)),wait=async fn=>{for(let n=0;n<120;n++){if(fn())return;await pause(25);}throw Error('Turbo fixture timed out');};
+      const {NetUtil}=ChromeUtils.importESModule('resource://gre/modules/NetUtil.sys.mjs');
+      const old=Object.getOwnPropertyDescriptor(NetUtil,'__zzturboStartupV1');let claims=0,claimed=false;
+      Object.defineProperty(NetUtil,'__zzturboStartupV1',{configurable:true,get:()=>claimed,set:value=>{claimed=value;if(value)claims++;}});
+      const windows=[],open=async options=>{const w=OpenBrowserWindow(options);windows.push(w);await wait(()=>w.gBrowserInit?.delayedStartupFinished);await w.gZenStartup.promiseInitialized;return w;};
+      const inject=w=>Services.scriptloader.loadSubScript('chrome://sine/content/zz-zen-turbo/zen-turbo.uc.js',w);
+      const result={};
+      try {
+        Services.prefs.setBoolPref('zzturbo.startup-warmup',true);Services.prefs.setStringPref('zzturbo.startup-warm-delay-ms','0');
+        Services.prefs.setStringPref('zzturbo.startup-warm-count','0');
+        const privateWindow=await open({private:true});inject(privateWindow);await pause(300);
+        result.privateStartupNoBudget=claims===0;
+        privateWindow.close();await wait(()=>Services.wm.getMostRecentWindow('navigator:browser')===window);
+        inject(window);await wait(()=>claims===1);
+        const second=await open({});inject(second);inject(window);await pause(500);
+        result.sessionBudgetClaims=claims;
+        Services.prefs.clearUserPref('zzturbo.measure');Services.prefs.clearUserPref('zzturbo.startup-warm-count');
+        result.nativeDefaults=Services.prefs.getBoolPref('zzturbo.measure')===false&&Services.prefs.getStringPref('zzturbo.startup-warm-count')==='6';
+        Services.prefs.setStringPref('zzturbo.startup-warm-count','3');inject(second);await pause(150);
+        result.nativeOverridePreserved=Services.prefs.getStringPref('zzturbo.startup-warm-count')==='3';
+        Services.prefs.clearUserPref('zzturbo.startup-warm-count');result.nativeResetDefault=Services.prefs.getStringPref('zzturbo.startup-warm-count')==='6';
+      } finally {
+        Services.prefs.setBoolPref('zzturbo.startup-warmup',false);
+        for(const w of windows)if(!w.closed)w.close();
+        if(old)Object.defineProperty(NetUtil,'__zzturboStartupV1',old);else delete NetUtil.__zzturboStartupV1;
+      }
+      return result;
+    })();'''))
+    assert result['playbackCommands'] == 0, result
+    assert result['searchRequests'] == 0, result
+    assert result['sessionBudgetClaims'] == 1, result
+    for key,value in result.items():
+        if isinstance(value,bool): assert value, (key,result)
+    return result
 
 
 def main():
@@ -577,6 +782,7 @@ def main():
     parser.add_argument("--arc", type=Path)
     parser.add_argument("--transparent", type=Path, help="Optional sameerasw/zen-themes/TransparentZen directory (Normal sidebar mode)")
     parser.add_argument("--library-hover", action="store_true", help="Check compact sidebar pointer handoff from recent downloads")
+    parser.add_argument("--actions", action="store_true", help="Check native menus, snapshots, diagnostics and scoped actions")
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
     with tempfile.TemporaryDirectory(prefix="zen-mod-smoke-") as directory:
@@ -610,7 +816,7 @@ def main():
                 m.script("""window.zzsmokeChrome=Cc['@mozilla.org/addons/addon-manager-startup;1']
                   .getService(Ci.amIAddonManagerStartup).registerChrome(Services.io.newURI(""" +
                   json.dumps((profile / 'chrome.manifest').as_uri()) + """),[['content','sine','sine-mods/']]);return true;""")
-                result = check_library_hover(m, root, args.arc) if args.library_hover else check(m, root, args.arc, args.transparent)
+                result = check_actions(m, root) if args.actions else check_library_hover(m, root, args.arc) if args.library_hover else check(m, root, args.arc, args.transparent)
                 print(json.dumps(result, indent=2))
             finally:
                 process.terminate()

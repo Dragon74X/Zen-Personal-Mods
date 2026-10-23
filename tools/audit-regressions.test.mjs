@@ -40,7 +40,7 @@ test("Library batches bounded history and fills only slots not occupied by nativ
   const rows = [], style = { setProperty() {}, removeProperty() {} };
   function row() {
     const badge = { style, toggleAttribute() {}, firstElementChild: { style } }, title = {}, subtitle = {}, action = { addEventListener() {} };
-    return { style, addEventListener() {}, toggleAttribute() {},
+    return { style, setAttribute() {}, addEventListener() {}, toggleAttribute() {},
       remove() { rows.splice(rows.indexOf(this), 1); },
       querySelector(s) { return s.includes("action") ? action : s.includes("badge") ? badge : s.endsWith("subtitle") ? subtitle : title; } };
   }
@@ -101,7 +101,7 @@ test("Library extra rows delegate blocked downloads to native confirmation witho
   const calls = [], strings = { stateFailed: "failed", stateBlockedParentalControls: "parental" };
   const action = { addEventListener(name, fn) { this[name] = fn; } };
   const window = { MozXULElement: { parseXULToFragment: () => ({ firstElementChild: {
-    querySelector: () => action,
+    isConnected: true, setAttribute() {}, querySelector: () => action,
     addEventListener(name, fn) { this[name] = fn; },
   } }) }, openTrustedLinkIn: url => calls.push(["navigate", url]) };
   const lazy = {
@@ -114,7 +114,18 @@ test("Library extra rows delegate blocked downloads to native confirmation witho
     blockedText: download => "blocked:" + download.error.reputationCheckVerdict,
     confirmUnblock: (download, owner, open) => calls.push(["confirm", download, owner, open]),
   };
-  const context = vm.createContext({ window, lazy, EXTRA: "zzlib-extra", console });
+  const native = { download: null, querySelector: () => ({ dispatchEvent() {} }), dispatchEvent(event) {
+    const d = this.download;
+    if (event.button !== 0 || !d.stopped) return;
+    if (d.error?.becauseBlockedByReputationCheck) lazy.confirmUnblock(d, window, dd => lazy.DownloadsCommon.openDownload(dd));
+    else if (d.succeeded) lazy.DownloadsCommon.openDownload(d);
+    else if (d.retry) lazy.retryDownload(d, window);
+    else if (d.source?.url) window.openTrustedLinkIn(d.source.url);
+  } };
+  const instance = {}; window.owner = instance;
+  const context = vm.createContext({ window, instance, INSTANCE_KEY: "owner", lazy, EXTRA: "zzlib-extra", console,
+    document: { querySelector: () => native }, MouseEvent: class { constructor(type, options) { this.type = type; Object.assign(this, options); } },
+  });
   vm.runInContext(source.slice(source.indexOf("  function status(download)"), source.indexOf("  function fillExtras()")), context);
   const row = context.makeRow();
   for (const verdict of ["uncommon", "insecure", "potentially_unwanted", "malware"]) {
@@ -123,9 +134,9 @@ test("Library extra rows delegate blocked downloads to native confirmation witho
       error: { becauseBlockedByReputationCheck: true, reputationCheckVerdict: verdict } };
     row.download = download;
     assert.equal(context.status(download), "blocked:" + verdict);
-    row.click({ button: 2 });
+    row.click({ type: "click", button: 2, stopPropagation() {} });
     assert.equal(calls.length, 0);
-    row.click({ button: 0 });
+    row.click({ type: "click", button: 0, stopPropagation() {} });
     assert.equal(calls.length, 1, "only native confirmation, no open or navigation");
     const [action, target, owner, open] = calls[0];
     assert.equal(action, "confirm");
@@ -137,36 +148,27 @@ test("Library extra rows delegate blocked downloads to native confirmation witho
   assert.equal(context.status({ stopped: true, error: { becauseBlockedByParentalControls: true } }), "parental");
   calls.length = 0;
   row.download = { stopped: false };
-  row.click({ button: 0 });
+  row.click({ type: "click", button: 0, stopPropagation() {} });
   assert.equal(calls.length, 0);
   row.download = { stopped: true, succeeded: true };
-  row.click({ button: 0 });
+  row.click({ type: "click", button: 0, stopPropagation() {} });
   assert.deepEqual(calls[0], ["open", row.download]);
   row.download = { stopped: true, source: { url: "https://example.com/failed" } };
-  row.click({ button: 0 });
+  row.click({ type: "click", button: 0, stopPropagation() {} });
   assert.deepEqual(calls[1], ["navigate", row.download.source.url]);
   row.download = { stopped: true, retry: true };
-  row.click({ button: 0 });
+  row.click({ type: "click", button: 0, stopPropagation() {} });
   assert.deepEqual(calls[2], ["retry", row.download, window]);
   assert.equal(context.status({ stopped: false, speed: 123 }), "speed:123");
   calls.length = 0;
   row.download = { stopped: false, cancel: async () => calls.push(["cancel"]),
     removePartialData: async () => calls.push(["partial"]) };
-  action.command();
-  assert.deepEqual(calls, [["cancel"], ["partial"]]);
-  calls.length = 0;
-  row.download = { stopped: true, succeeded: true, target: { path: "/download", exists: true } };
-  action.command();
-  assert.deepEqual(calls, [["show", "/download"]]);
-  row.download.target.exists = false;
-  action.command();
-  row.download.target.exists = true;
-  row.download.deleted = true;
-  action.command();
-  assert.equal(calls.length, 1, "missing/deleted files cannot open a folder");
-  let stopped = false;
-  action.click({ stopPropagation() { stopped = true; } });
-  assert.ok(stopped, "folder/cancel action cannot trigger row open");
+  let delegated;
+  native.querySelector = () => ({dispatchEvent(event) { delegated = native.download; }});
+  context.Event = class { constructor(type, options) {this.type = type; Object.assign(this,options);} };
+  action.command({type: "command", stopPropagation() {}});
+  assert.equal(delegated, row.download);
+  assert.equal(native.download, null, "native row identity restored synchronously");
 });
 
 const mediaRoot = new URL("../mediaflow/", import.meta.url);
@@ -231,19 +233,19 @@ function mediaController() {
     setProcessingActive(active, mode, captions) { calls.push(`${id}.processing=${active}:${captions}`); },
   }]));
   const env = vm.createContext({
-    window: {}, actorRegistry: registry, sourceBC: null, availableSources: new Map(),
+    window: {}, undo: [], retired: false, chosenSource: null, downloadsCovering: () => false, placeToggles() {}, syncToggleIcons() {}, actorRegistry: registry, sourceBC: null, availableSources: new Map(),
     isStreaming: false, playerSeen: true, userHidden: false, sourceTabActive: false,
     browserWindowActive: true, captionMode: "youtube", captionsWhenPipHidden: false,
     animateOutTimer: null, animating: false, dragging: false,
     gBrowser: { selectedBrowser: { browsingContext: { id: 99 } }, tabs: [] },
     pipContainer: { style: {}, getBoundingClientRect() {} },
     setSourceDimensions() {}, clearCaptionImmediately() {}, log() {}, updateControls() {},
-    requestAnimationFrame() {}, setTimeout(fn) { timers.set(++timerId, fn); return timerId; },
+    requestAnimationFrame() {}, cancelAnimationFrame() {}, setTimeout(fn) { timers.set(++timerId, fn); return timerId; },
     clearTimeout(id) { timers.delete(id); }, CONFIG: { ANIM_MS: 220 },
     lastOpacity: 0, lastCaptionOpacity: 0,
     startTracking() { vm.runInContext("_notifyTickState()", env); }, stopTracking() {},
   });
-  vm.runInContext(mediaSource.slice(mediaSource.indexOf("  function isTabPlaying(bc)"), mediaSource.indexOf("\n  function instantiateActorForOpenTabs()")), env);
+  vm.runInContext(mediaSource.slice(mediaSource.indexOf("  function isTabPlaying(bc)"), mediaSource.indexOf('  on(window, "popupshowing", event => {')), env);
   return { env, calls, controller: env.window.ZzMediaflowController, runTimer(id) { const fn = timers.get(id); timers.delete(id); fn(); } };
 }
 
@@ -287,9 +289,9 @@ test("Mediaflow: inactive actor state, frames, and stops cannot change active co
   const { actor } = mediaActor("parent-actor.sys.mjs", "ZzMediaflowParent", "JSWindowActorParent");
   const calls = [];
   const controller = {
-    getActiveBC: () => ({ id: 11 }), updateControls: state => calls.push(state),
+    isSource: () => true, getActiveBC: () => ({ id: 11 }), updateControls: state => calls.push(state),
     drawFrame: () => calls.push("frame"), hideCaption: () => calls.push("hide"),
-    setCaption: () => calls.push("caption"), unregisterSource: id => calls.push(`unregister:${id}`),
+    setCaption: () => calls.push("caption"), unregisterSource: id => {calls.push(`unregister:${id}`); return true;},
     notifySourceStopped: bc => calls.push(`stopped:${bc.id}`),
   };
   actor.browsingContext = { id: 22, topChromeWindow: { ZzMediaflowController: controller } };
@@ -311,7 +313,7 @@ test("Mediaflow measures Zen's visible front card rather than an earlier hidden 
   const visible = { matches: () => false, getBoundingClientRect: () => ({ height: 80 }) };
   const bar = { hidden: false, matches: () => false, querySelector: () => hidden,
     style: { setProperty: (_name, value) => sizes.push(value) } };
-  const env = vm.createContext({ mediaBar: bar, window: { gZenMediaController: native } });
+  const env = vm.createContext({ retired: false, mediaBar: bar, window: { gZenMediaController: native } });
   vm.runInContext(mediaSource.slice(mediaSource.indexOf('  const remeasure ='),
     mediaSource.indexOf('\n  if (mediaBar)')) + '\nthis.measure = remeasure;', env);
   native.frontCard = { element: visible };

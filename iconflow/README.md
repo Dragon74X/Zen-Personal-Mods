@@ -213,3 +213,7 @@ shapes are drawn for this mod. No New Icons artwork is used.
 The icon picker's symbols are [Phosphor Icons](https://phosphoricons.com)
 2.1.1 (duotone and fill), MIT License, Copyright (c) 2023 Phosphor Icons; see
 `icons/phosphor-LICENSE.txt`. The colours and plates are Iconflow's.
+
+## October 2026 update
+
+Confirmed native copy, bookmark, and download success can trigger one finite glyph-only completion pulse. Per-button still choices, Library’s independent still choice, reduced motion, and animation-off are respected. Picker controls have accessible names and synchronized selection state. Folder close motion continues to rotate only the X glyph.

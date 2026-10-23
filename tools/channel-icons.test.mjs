@@ -58,7 +58,7 @@ async function environment(options = {}) {
     readInputStreamToString: (stream, count) => stream.body.slice(0, count),
   };
   let source = await readFile(process.env.ROUTER_SOURCE || new URL("../tab-router/tab-router.uc.js", import.meta.url), "utf8");
-  const names = "fetchCreator,fetchSectionIcon,stampIcons,route,iconMap,creatorMap,updatePicture,pictureSubject,refreshPictures,chainOf,startsWithPath,findChild,targetPath,file,captureNexus,nexusGame,nexusURLFrom,musicPage,partLabel,onTabEvent,prefObserver,inFlight,saveNexus,savedNexus,cancelLookups,forgetAll".split(",");
+  const names = "fetchCreator,fetchSectionIcon,stampIcons,route,iconMap,creatorMap,updatePicture,pictureSubject,refreshPictures,chainOf,startsWithPath,findChild,targetPath,file,captureNexus,nexusGame,nexusURLFrom,musicPage,partLabel,onTabEvent,prefObserver,inFlight,saveNexus,savedNexus,cancelLookups,forgetAll,refreshSubject,fetchMetadata,saveIcons,flushWrites".split(",");
   source = source.replace("  // ---- declared defaults", `globalThis.harness = {${names.map(n=>`${n}:typeof ${n} === 'undefined' ? null : ${n}`).join(',')}, observeQueues: cb => queueRoute=cb}; return;\n  // ---- declared defaults`);
   const window = { Groupflow: { refresh: defer => refreshes.push(defer) },
     SessionStore: { getCustomTabValue: (t,k) => values.get(t)?.[k] || "",
@@ -81,7 +81,7 @@ async function environment(options = {}) {
       }; } }, scriptSecurityManager: { createContentPrincipal:(_uri,attrs)=>attrs },
     },
     ChromeUtils: { generateQI:()=>()=>{}, importESModule:name=>name.includes("NetUtil")
-      ? { NetUtil } : { PrivateBrowsingUtils: { isWindowPrivate:()=>privateWindow } } },
+      ? { NetUtil } : name.includes("Timer") ? {setTimeout:fn=>{timers.set(++serial,fn);return serial;},clearTimeout:id=>timers.delete(id)} : { PrivateBrowsingUtils: { isWindowPrivate:()=>privateWindow } } },
     Ci: { nsILoadInfo:{}, nsIContentPolicy:{}, nsIRequest:{} },
     Cc: { "@mozilla.org/io/string-input-stream;1": { createInstance:()=>({}) } },
     Components: { isSuccessCode:status=>status===0 },
@@ -130,6 +130,8 @@ test("channel metadata after 512 KiB reaches renamed semantic group and matching
   assert.equal(e.requests[1].url,"https://yt3.googleusercontent.com/avatar=s256");e.answer("image bytes");await tick();
   assert.equal(g.getAttribute("data-zzrouter-icon"),ICON);assert.equal(t.getAttribute("data-zzrouter-tab-icon"),ICON);
   assert.equal(root.getAttribute("data-zzrouter-icon"),undefined);assert.equal(g.label,"Renamed");
+  assert.equal(e.timers.size,1, "coalesced persistence");
+  for (const [id,fn] of [...e.timers]) { e.timers.delete(id); fn(); }
   assert.equal(e.timers.size,0);
 });
 test("section-page metadata stops at 1 MiB and failed pictures retry after 10 minutes",async()=>{
@@ -366,4 +368,16 @@ test("Music browse pages accept their verified canonical playlist identity",asyn
   assert.equal(e.h.musicPage(t,false).key,playlist);
   assert.equal(e.h.musicPage(t,false).label,'Ciao ciao Lulù (Compilation estate 1999)');
   e.navigate(t,playlist);assert.equal(e.h.musicPage(t,true).key,playlist);assert.equal(e.requests.length,1);
+});
+
+test('Targeted refresh retains a verified picture on failure and leaves unrelated subjects intact',async()=>{
+  const e=await environment(),tab=e.addTab(CHANNEL);e.h.iconMap().set('0:'+CHANNEL,{d:ICON,s:'round'});e.h.iconMap().set('0:'+GAME,{d:ICON,s:'square'});
+  e.h.updatePicture(tab,false);e.h.fetchSectionIcon(CHANNEL,CHANNEL,0,'round',true);
+  assert.equal(e.requests.length,1);assert.equal(e.h.refreshSubject(tab),null,'in-flight target absent');
+  e.answer('no image');assert.equal(e.h.iconMap().get('0:'+CHANNEL).d,ICON);assert.equal(tab.getAttribute('data-zzrouter-tab-icon'),ICON);
+  assert.equal(e.h.iconMap().get('0:'+GAME).d,ICON);assert.equal(e.h.refreshSubject(tab),null,'backoff respected');
+  e.advance(11*60*1000);assert.equal(e.h.refreshSubject(tab).key,CHANNEL);
+  tab.zenStaticIcon='manual';assert.equal(e.h.refreshSubject(tab),null);delete tab.zenStaticIcon;
+  e.prefs.set('zzrouter.section-icons',false);assert.equal(e.h.refreshSubject(tab),null);e.prefs.set('zzrouter.section-icons',true);
+  e.makePrivate();assert.equal(e.h.refreshSubject(tab),null);
 });

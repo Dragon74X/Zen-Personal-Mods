@@ -51,7 +51,7 @@ Zen does not recreate plain groups containing only subgroups on its own.
 Clicking a top-level group/folder header keeps the parent open and alternates
 between collapsing and expanding all nested subgroups/subfolders. Collapsing hides
 unloaded tabs and keeps the selected tab and all loaded tabs visible. **Keep each folder's last-used tab when collapsed**
-(off by default) also keeps the tab last used in each folder/subfolder, even when unloaded.
+(on for new/unset configurations) also keeps the tab last used in each folder/subfolder, even when unloaded. Existing false values remain unchanged.
 The next click shows all tabs in all subfolders.
 Nested headers and groups without subfolders still toggle individually.
 Last-selected order uses Zen's native timestamps, including restored session history.
@@ -153,11 +153,13 @@ part with its own setting (all on by default):
   edges while it scrolls, so folders, subfolders and tabs fade as they leave
   the list even when no folder scrolls inside itself, and with **Scroll
   inside folders** off.
-- **Arrows on hover:** hovering the folder's header, like the tab count,
-  shows an up and a down chip there beside the count; clicking one scrolls a
-  page that way. The arrow at an end stays faint.
+- **Arrows on hover:** hovering the folder's header shows only directions
+  that can scroll; clicking one scrolls a page that way. The same eligible
+  actions are available through the folder menu for keyboard access. Reduced
+  motion reaches the same final position without a custom glide.
 - **Tab count on hover:** hovering any folder or subfolder header shows how
-  many tabs it holds, subfolders included.
+  many tabs it holds, subfolders included. Its tooltip/menu reports loaded,
+  total and playing counts. Selection-only changes reuse membership counts.
 
 Icon-only sidebars hide the count and scroll chips so they cannot overlap the
 folder's collapse/close targets. Expand the sidebar to use those chips; wheel
@@ -307,8 +309,8 @@ If unavailable, `page-icon:` reads Firefox's local favicon store for the dominan
 host. Groups with no eligible web tabs show a native folder icon instead of an
 empty backing plate. Icon rules and Tab Router's section pictures still take priority.
 
-Favicon changes and new Tab Router pictures share a 500 ms debounce, with a
-2-second startup pass. Standalone group lifecycle changes refresh during their
+Favicon changes and new Tab Router pictures coalesce on the next task without
+resetting a trailing timer. Startup readiness paints cached pictures. Standalone group lifecycle changes refresh during their
 metadata update. Collapse/expand does not scan or serialize Groupflow metadata.
 Icon removal and history clearing refresh immediately and cancel queued refreshes.
 
@@ -424,3 +426,7 @@ extra compositor pass however many there are.
 ## License
 
 MIT
+
+## October 2026 update
+
+Unchanged group metadata no longer serializes or writes session maps; renames coalesce, and closed-history pruning runs only for relevant transitions. Display-only pictures and routing locks persist independently of Router ownership. Selection changes reuse membership counts. Folder menus expose only eligible scroll actions, with reduced-motion support. New/unset configurations keep the last-used unloaded tab visible; existing false values remain unchanged because historical seeding did not record provenance.

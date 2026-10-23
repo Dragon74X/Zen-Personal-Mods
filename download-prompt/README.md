@@ -56,3 +56,7 @@ Run `node --test tools/lifecycle.test.mjs` from the repository root for mocked l
 ## License
 
 MIT
+
+## October 2026 update
+
+Existing-file collisions show known file size and modified time, plus expected incoming size when available. Keep both retains initial focus; native replacement, cancellation, and concurrent download handling remain unchanged. No hashing, directory scan, or speculative second download is added.

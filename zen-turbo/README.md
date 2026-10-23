@@ -10,6 +10,8 @@ https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/zen-turbo
 
 Restart Zen after updating the bundled Sine update guard. Its replacement takes effect in the next browser session.
 
+Shipped Turbo defaults are initialized on Firefox’s typed default preference branch before runtime startup. Explicit user values retain precedence; resetting an override reveals the shipped default. Existing user values are not cleared.
+
 ## Preference packs
 
 | Pack | Default | Values requested |
@@ -28,13 +30,13 @@ These values are configuration choices, not measured speed improvements. Increas
 
 ## Connection requests
 
-Hovering an unloaded tab or bookmark schedules a speculative connection request after `200` ms by default. Leaving that surface, moving to a non-target, disabling hover settings, or unloading the script cancels a pending request. Unloaded tabs use their own container; bookmarks use container `0`.
+Favorites, Essentials, pinned tabs, and ordinary tabs use Zen/Firefox’s native hover warming and speculative connection path, including container handling. Turbo no longer installs duplicate tab-hover or bookmark-hover handlers or its own dwell timer. Existing retired hover preferences are left untouched but no longer add custom work.
 
 Page-link hover uses Firefox's existing implementation. The native link-hover pack enables it on HTTPS pages; Turbo no longer wraps `XULBrowserWindow.setOverLink`. The retired `network.predictor.enable-prefetch` override is restored from its saved value when still owned by Turbo.
 
 Requests use Firefox's principal-taking API, which derives the destination network partition, including HSTS upgrades. Supplying incomplete origin attributes to the alternative API would bypass that derivation.
 
-Requests carry private-browsing origin attributes when triggered in a private window. Startup warmup does not query history in private windows. In other windows it can request the top `6` history origins after `4000` ms, spaced `250` ms apart; the configurable count is capped at `20`. This runs on eligible window startup, not necessarily once per browser session.
+Requests carry private-browsing origin attributes when triggered in a private window. Startup warmup does not query history in private windows. In other windows it can request the top `6` history origins after `4000` ms, spaced `250` ms apart; the configurable count is capped at `20`. The budget is claimed once per browser process/session. Additional windows and reinjection do not repeat it. A browser restart resets it. Idle scheduling defers optional startup work while the selected tab is busy.
 
 The per-origin/container request throttle is half `network.http.keep-alive.timeout`, with a fallback of `115` seconds for that preference. It does not inspect socket state. A failed API call is not recorded as a completed request.
 
@@ -55,9 +57,9 @@ ZenTurbo.warm("https://example.com")
 
 `stats().warmed` counts speculative API calls that returned without throwing. `hits` and `cold` count navigation matches and non-matches against recent origin/container requests. `hitRate` is the percentage of observed navigations matching those records within `windowMs`.
 
-**These counters do not measure socket reuse, successful handshakes, bytes saved, or load-time savings.** Repeated navigations can match one request. Disabling `zzturbo.measure` stops navigation counting. Counters belong to the current window/script instance.
+**These counters do not measure socket reuse, successful handshakes, bytes saved, or load-time savings.** Repeated navigations can match one request. Measurement defaults to off. Only explicit measurement installs the diagnostic navigation listener and collects counters; disabling it removes that listener and releases measurement data. Debug logs require their separate explicit setting. The functional recent-warm cache remains independent. Counters belong to the current window/script instance.
 
-Turbo adds timed requests for unloaded tabs/bookmarks and configurable preference overrides. Firefox already provides page-link preconnection. The broad preference packs have no measured speed advantage in this repository; they are optional configuration choices. Disable a pack before removing the mod if you want its captured values restored.
+Turbo adds one bounded history warmup per session and configurable preference overrides. Zen/Firefox already provides tab and page-link warming. The broad preference packs have no measured speed advantage in this repository; they are optional configuration choices. Disable a pack before removing the mod if you want its captured values restored.
 
 `status().managedPrefs` lists captured preference names. `unknownPrefs` lists missing preference names; neither field proves a performance benefit. `warmupRequests` counts accepted API calls, and `recentOriginContexts` counts retained origin/container records, capped at `200`.
 

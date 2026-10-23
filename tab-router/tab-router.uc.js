@@ -66,13 +66,54 @@
   let writing = false;
   const prefObserver = { observe(_s, _t, data) {
     if (writing) return;
+    updateOpenMenu();
     if (data === P + "learned-names") { learnedCache = null; targetGen++; return; }
     if (data === P + "creators") { creatorCache = null; targetGen++; return; }
-    if (data === P + "avatars") { iconCache = null; stampIcons(); refreshPictures(); return; }
+    if (data === P + "avatars") {
+      const before = iconCache || new Map(); iconCache = null;
+      const after = iconMap(), keys = new Set([...before.keys(), ...after.keys()]);
+      for (const key of keys) if (before.get(key)?.d === after.get(key)?.d && before.get(key)?.s === after.get(key)?.s) keys.delete(key);
+      repaintSubjects(keys); return;
+    }
     if (data === P + "section-icons") { cancelLookups(); stampIcons(); refreshPictures(); return; }
     for (const k of Object.keys(parsed)) delete parsed[k]; learnedCache = null; targetGen++;
     stampIcons(); refreshPictures();
   } };
+  const pendingWrites = new Map(), cacheSnapshots = new Map();
+  let writeTimer = null;
+  function readCache(key) {
+    let data;
+    try { data = JSON.parse(str(key, "{}")); } catch { data = {}; }
+    if (!data || typeof data !== "object" || Array.isArray(data)) data = {};
+    for (const [id, value] of pendingWrites.get(key) || []) {
+      if (value === undefined) delete data[id]; else data[id] = value;
+    }
+    cacheSnapshots.set(key, data);
+    return data;
+  }
+  function flushWrites() {
+    clearTimeout(writeTimer); writeTimer = null;
+    for (const [key, changes] of pendingWrites) {
+      const data = readCache(key); // Merge other windows' records before writing our delta.
+      let entries = Object.entries(data).slice(-(key === "avatars" ? 100 : 300));
+      let text = JSON.stringify(Object.fromEntries(entries));
+      if (key === "avatars") while (text.length > 900000 && entries.length) { entries.shift(); text = JSON.stringify(Object.fromEntries(entries)); }
+      write(key, text);
+      if (key === "avatars") iconCache = null; else creatorCache = null;
+    }
+    pendingWrites.clear();
+  }
+  function persist(key, text) {
+    const before = cacheSnapshots.get(key) || readCache(key), after = JSON.parse(text);
+    const changes = pendingWrites.get(key) || new Map();
+    for (const id of new Set([...Object.keys(before), ...Object.keys(after)])) {
+      if (JSON.stringify(before[id]) !== JSON.stringify(after[id])) changes.set(id, after[id]);
+    }
+    cacheSnapshots.set(key, after);
+    if (!changes.size) return;
+    pendingWrites.set(key, changes);
+    if (writeTimer === null) writeTimer = setTimeout(flushWrites, 0);
+  }
   function write(key, text) {
     writing = true;
     try { Services.prefs.setStringPref(P + key, text); } catch {} finally { writing = false; }
@@ -186,17 +227,48 @@
   // Left side is a comma-separated list of domain fragments, right side is
   // the group name. A name containing the separator nests: "Work / Email"
   // is a subgroup Email inside a group Work. First matching rule wins.
-  function rules() {
-    return cached("rules", () => str("rules", "")
-      .split(/[\n;]+/)
-      .map(line => {
-        const i = line.indexOf(">");
-        if (i < 0) return null;
-        const domains = line.slice(0, i).split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
-        const group = line.slice(i + 1).trim();
-        return domains.length && group ? { domains, group } : null;
-      })
-      .filter(Boolean));
+  function validateRules(text) {
+    const rules = [], errors = [];
+    String(text).split("\n").forEach((line, row) => line.split(";").forEach((entry, column) => {
+      entry = entry.trim(); if (!entry) return;
+      const fail = message => errors.push({ line: row + 1, entry: column + 1, message });
+      const i = entry.indexOf(">");
+      if (i < 0) { fail("Missing > between domains and destination"); return; }
+      const domains = entry.slice(0, i).split(",").map(s => s.trim().toLowerCase());
+      const group = entry.slice(i + 1).trim();
+      if (domains.some(d => !d || /[\s/]/.test(d))) { fail("Enter comma-separated domain names before >"); return; }
+      if (!group || group.split(SEP()).some(part => !part.trim())) { fail("Enter a destination; each folder level needs a name"); return; }
+      rules.push({domains, group});
+    }));
+    return { valid: !errors.length, rules, errors };
+  }
+  function rules() { return cached("rules", () => validateRules(str("rules", "")).rules); }
+  function editRules(initial) {
+    const input = { value: initial };
+    if (!Services.prompt.prompt(window, "Routing rules — inspect or edit", "Domains > Parent / Child. OK validates; nothing is applied until confirmation.", input, null, {})) return;
+    const result = validateRules(input.value);
+    if (!result.valid) { Services.prompt.alert(window, "Rules unchanged", result.errors.map(e => `Line ${e.line}, entry ${e.entry}: ${e.message}`).join("\n")); return; }
+    // A native confirmation keeps generation/validation separate from an explicit write.
+    const choice = Services.prompt.confirmEx(window, "Validated routing rules", input.value || "Empty rules", Services.prompt.BUTTON_POS_0 * Services.prompt.BUTTON_TITLE_IS_STRING |
+      Services.prompt.BUTTON_POS_1 * Services.prompt.BUTTON_TITLE_CANCEL | Services.prompt.BUTTON_POS_2 * Services.prompt.BUTTON_TITLE_IS_STRING,
+      "Apply rules", null, "Copy rules", null, {});
+    if (retired) return;
+    if (choice === 0) Services.prefs.setStringPref(P + "rules", input.value);
+    if (choice === 2) Cc["@mozilla.org/widget/clipboardhelper;1"].getService(Ci.nsIClipboardHelper).copyString(input.value);
+  }
+  const settingsDocs = new Set();
+  function validateRuleEdit(event) {
+    const input = event.target;
+    if (!input.closest?.("#zzrouter-rules")) return;
+    const result = validateRules(input.value);
+    input.setCustomValidity?.(result.errors.map(e => `Line ${e.line}, entry ${e.entry}: ${e.message}`).join("\n"));
+    if (event.type === "change" && !result.valid) { event.preventDefault(); event.stopImmediatePropagation(); input.reportValidity?.(); }
+  }
+  function watchRuleSettings(event) {
+    const doc = event.target;
+    if (!doc?.documentURI?.startsWith("about:preferences") || settingsDocs.has(doc)) return;
+    settingsDocs.add(doc); doc.addEventListener("change", validateRuleEdit, true); doc.addEventListener("input", validateRuleEdit, true);
+    doc.defaultView.addEventListener("unload", () => settingsDocs.delete(doc), {once: true});
   }
 
   function hostOf(tab) {
@@ -357,7 +429,7 @@
   let creatorCache = null;
   function creatorMap() {
     if (creatorCache) return creatorCache;
-    try { creatorCache = new Map(Object.entries(JSON.parse(str("creators", "{}")))); }
+    try { creatorCache = new Map(Object.entries(readCache("creators"))); }
     catch { creatorCache = new Map(); }
     return creatorCache;
   }
@@ -366,14 +438,17 @@
     if (isPrivate()) return;            // a private window learns for its session only
     // Bounded, oldest out. This is a record of which videos were opened, so
     // it is kept small and forgetCreators() empties it.
-    write("creators", JSON.stringify(Object.fromEntries(creatorCache)));
+    persist("creators", JSON.stringify(Object.fromEntries(creatorCache)));
   }
 
   let lookupEpoch = 0;
   const requests = new Set();
+  const refreshCancels = new Set();
+  let refreshOperations = 0;
   function cancelLookups() {
     lookupEpoch++;
     for (const cancel of [...requests]) cancel();
+    for (const release of [...refreshCancels]) release();
     inFlight.clear();
     failed.clear();
   }
@@ -396,10 +471,27 @@
   const FETCH_TIMEOUT_MS = 15000;
   const NS_BINDING_ABORTED = 0x804b0002;
   const lookupURIAllowed = uri => uri.scheme === "https" && !uri.userPass && !INTERNAL_HOST.test(uri.host);
-  function fetchAnon(url, ctx, cb, maxBytes = MAX_FETCH_BYTES, jsonBody = null) {
+  // NetUtil already has process lifetime. Only bounded anonymous public lookups
+  // live here; each window owns its subscription and can cancel independently.
+  function lookupOwner() {
     const { NetUtil } = ChromeUtils.importESModule("resource://gre/modules/NetUtil.sys.mjs");
+    return NetUtil.__zzrouterLookupsV1 ??= { requests: new Map(), metadata: new Map() };
+  }
+  function fetchAnon(url, ctx, cb, maxBytes = MAX_FETCH_BYTES, jsonBody = null) {
     const uri = Services.io.newURI(url);
     if (!lookupURIAllowed(uri)) throw new Error("Lookup requires a public HTTPS hostname");
+    const { NetUtil } = ChromeUtils.importESModule("resource://gre/modules/NetUtil.sys.mjs");
+    const shared = lookupOwner().requests;
+    const key = JSON.stringify([originOf(ctx), url, maxBytes, jsonBody]);
+    let entry = shared.get(key);
+    const deliver = body => { requests.delete(unsubscribe); cb(body); };
+    const unsubscribe = () => {
+      requests.delete(unsubscribe);
+      entry.consumers.delete(deliver);
+      if (!entry.consumers.size) entry.cancel?.();
+    };
+    if (entry) { requests.add(unsubscribe); entry.consumers.add(deliver); return; }
+    entry = { consumers: new Set([deliver]), cancel: null };
     const principal = Services.scriptSecurityManager
       .createContentPrincipal(uri, originOf(ctx));
     const channel = NetUtil.newChannel({
@@ -426,21 +518,24 @@
     };
     let done = false;
     let timer = null;
+    const clock = ChromeUtils.importESModule("resource://gre/modules/Timer.sys.mjs");
     const finish = (body) => {
       if (done) return;
       done = true;
-      clearTimeout(timer);
-      requests.delete(cancel);
-      cb(body);
+      clock.clearTimeout(timer);
+      shared.delete(key);
+      for (const consumer of entry.consumers) { try { consumer(body); } catch {} }
+      entry.consumers.clear();
     };
     const cancel = () => {
       done = true;
-      clearTimeout(timer);
-      requests.delete(cancel);
+      clock.clearTimeout(timer);
+      shared.delete(key);
       try { channel.cancel(NS_BINDING_ABORTED); } catch {}
     };
-    requests.add(cancel);
-    timer = setTimeout(() => {
+    entry.cancel = cancel;
+    requests.add(unsubscribe); shared.set(key, entry);
+    timer = clock.setTimeout(() => {
       try { channel.cancel(NS_BINDING_ABORTED); } catch {}
       note(`gave up on ${url.slice(0, 60)} after ${FETCH_TIMEOUT_MS / 1000}s`);
       finish(null);
@@ -468,8 +563,8 @@
         finish(Components.isSuccessCode(status) ? body : null);
       },
     }); } catch (error) {
-      cancel();
-      throw error; // Caller's catch completes once; no timeout remains.
+      finish(null);
+      try { channel.cancel(NS_BINDING_ABORTED); } catch {}
     }
   }
   // Byte string -> JS string, for text bodies.
@@ -543,6 +638,28 @@
     return value?.replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#(?:39|x27);/gi, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
   }
 
+  function fetchMetadata(url, ctx, cb, fresh = false) {
+    const cache = lookupOwner().metadata, key = scoped(url, ctx);
+    const hit = cache.get(key);
+    if (!fresh && hit && Date.now() - hit.at < RETRY_FAIL_MS) { cb(hit); return; }
+    fetchAnon(url, ctx, body => {
+      if (!body) { cb(null); return; }
+      let value;
+      try {
+        const html = utf8(body);
+        value = { title: metaValue(html, "og:title"), canonical: metaValue(html, "og:url"),
+          image: metaValue(html, "og:image"), at: Date.now() };
+      } catch { cb(null); return; }
+      cache.set(key, value);
+      // Only a verified channel/game canonical can merge aliases.
+      const canonical = channelKey(url) && channelKey(value.canonical) ||
+        (nexusURLFrom(url)?.game && nexusURLFrom(value.canonical)?.game);
+      if (canonical) cache.set(scoped(canonical, ctx), value);
+      while (cache.size > ICON_MAX) cache.delete(cache.keys().next().value);
+      cb(value);
+    }, 1024 * 1024);
+  }
+
   function fetchPageName(tab, key, kind) {
     const ctx = contextOf(tab), slot = scoped(key, ctx), request = beginLookup(slot, tab);
     if (!request) return;
@@ -557,11 +674,11 @@
       finishLookup(slot, request);
     };
     try {
-      fetchAnon(key, ctx, body => {
+      fetchMetadata(key, ctx, metadata => {
         let record = null;
         try {
-          const html = utf8(body), canonical = metaValue(html, "og:url");
-          let label = metaValue(html, "og:title");
+          const canonical = metadata?.canonical;
+          let label = metadata?.title;
           let canonicalKey = kind === "author" ? nexusURLFrom(canonical)?.author : channelKey(canonical);
           if (kind === "music") {
             // ponytail: canonical public metadata only; add a native page adapter
@@ -580,7 +697,7 @@
             record = { key: canonicalKey || key, label };
         } catch {}
         done(record);
-      }, 1024 * 1024);
+      });
     } catch { done(null); }
   }
 
@@ -748,7 +865,7 @@
   function iconMap() {
     if (iconCache) return iconCache;
     try {
-      iconCache = new Map(Object.entries(JSON.parse(str("avatars", "{}")))
+      iconCache = new Map(Object.entries(readCache("avatars"))
         .map(([k, v]) => [k, typeof v === "string" ? { d: v, s: "round" } : v])
         // Label-only caches carry no verified subject or container. Refetch
         // those pictures through member URLs; never guess ownership from a name.
@@ -764,7 +881,7 @@
     while (text.length > 900000 && entries.length) { entries.shift(); text = JSON.stringify(Object.fromEntries(entries)); }
     iconCache = new Map(entries);
     if (isPrivate()) return;
-    write("avatars", text);
+    persist("avatars", text);
   }
 
   // Any size, any aspect -> a 64px square WebP data: URI. The decoder is
@@ -786,42 +903,42 @@
   }
 
   // label is the canonical subject URL, never a folder display name.
-  function fetchSectionIcon(label, pageUrl, ctx, shape) {
+  function fetchSectionIcon(label, pageUrl, ctx, shape, refresh = false) {
     if (retired || isPrivate() || !bool("section-icons", true) || !pageUrl) return;
     try { if (!lookupURIAllowed(Services.io.newURI(pageUrl))) return; } catch { return; }
     const key = scoped(label, ctx), slot = "icon:" + key;
-    if (!key || iconMap().has(key) || inFlight.has(slot)) return;
+    if (!key || (!refresh && iconMap().has(key)) || inFlight.has(slot)) return;
     const lastFail = failed.get(slot);
     if (lastFail && Date.now() - lastFail < RETRY_FAIL_MS) return;
     inFlight.set(slot, true);
     const epoch = lookupEpoch;
+    const refreshes = lookupOwner().refreshes ??= new Map();
+    if (refresh && refreshes.has(key)) { inFlight.delete(slot); return; }
+    const operation = {};
+    if (refresh) { refreshes.set(key, operation); refreshOperations++; }
+    const release = () => { if (refreshes.get(key) === operation) refreshes.delete(key); refreshCancels.delete(release); };
+    if (refresh) refreshCancels.add(release);
     // Consent pages, missing metadata and decode failures use the same bounded
     // retry delay as network errors; only successful pictures persist.
     const done = (icon) => {
+      release();
       if (epoch !== lookupEpoch) return;
       inFlight.delete(slot);
       if (!icon) { noteFail(slot); note(`no usable picture for "${label}"; favicon stays`); return; }
       iconMap().set(key, { d: icon, s: shape });
       saveIcons();
       note(`icon for "${label}"`);
-      stampIcons();
-      refreshPictures(false);
+      repaintSubjects(new Set([key]));
     };
     try {
-      fetchAnon(pageUrl, ctx, (html) => {
-        // og:image read with a string search, never parsed as a document.
-        // A consent interstitial has none; the lookup is retried later.
-        if (!html) return done(null);
-        const meta = (html.match(/<meta\b[^>]{0,2048}>/gi) || [])
-          .find(tag => /\bproperty\s*=\s*(["'])og:image\1/i.test(tag));
-        const m = meta && /\bcontent\s*=\s*(["'])(.{1,400}?)\1/i.exec(meta);
-        const img = m ? m[2].replace(/&amp;/g, "&").replace(/=s\d+/, "=s256") : null;
-        if (nexusURLFrom(pageUrl)?.game === pageUrl) {
+      fetchMetadata(pageUrl, ctx, metadata => {
+        if (!metadata) return done(null);
+        const img = metadata.image?.replace(/=s\d+/, "=s256");
+        if (!refresh && nexusURLFrom(pageUrl)?.game === pageUrl) {
           const gameId = /https:\/\/images\.nexusmods\.com\/images\/games\/v2\/(\d+)\/tile\./.exec(img || "")?.[1];
-          let label;
-          try { label = metaValue(utf8(html), "og:title")?.replace(/ Mods(?: - Nexus Mods)?$/, ""); } catch {}
-          if (gameId && label && nexusURLFrom(metaValue(html, "og:url"))?.game === pageUrl) {
-            creatorMap().set(key, { key: pageUrl, label, gameId }); saveCreators(); targetGen++;
+          const name = metadata.title?.replace(/ Mods(?: - Nexus Mods)?$/, "");
+          if (gameId && name && nexusURLFrom(metadata.canonical)?.game === pageUrl) {
+            creatorMap().set(key, { key: pageUrl, label: name, gameId }); saveCreators(); targetGen++;
             for (const tab of allTabs()) {
               const nx = nexusURL(tab);
               if (nx?.author && nx.gameId === gameId && contextOf(tab) === ctx) queueRoute(tab, "game metadata");
@@ -837,7 +954,7 @@
                                (e) => { note(`icon convert failed for "${label}": ${e}`); done(null); });
           });
         } catch { done(null); }
-      }, 1024 * 1024); // YouTube channel metadata follows roughly 750 KiB of inline CSS.
+      }, refresh);
     } catch (e) { note(`icon setup failed for "${label}": ${e}`); done(null); }
   }
 
@@ -877,7 +994,8 @@
 
   function stampIcons(_recover = false, targets = groups()) {
     const on = !retired && bool("section-icons", true);
-    let changed = 0, removed = false;
+    const changed = [];
+    let removed = false;
     for (const g of targets) {
       let picture = null;
       if (on && parentOf(g)) {
@@ -899,14 +1017,14 @@
       if (want?.d) {
         if (g.getAttribute("data-zzrouter-icon") !== want.d || g.getAttribute("data-zzrouter-icon-shape") !== want.s) {
           g.setAttribute("data-zzrouter-icon", want.d);
-          g.setAttribute("data-zzrouter-icon-shape", want.s); changed++;
+          g.setAttribute("data-zzrouter-icon-shape", want.s); changed.push(g);
         }
       } else if (g.hasAttribute("data-zzrouter-icon")) {
         g.removeAttribute("data-zzrouter-icon"); g.removeAttribute("data-zzrouter-icon-shape");
-        removed = true; changed++;
+        removed = true; changed.push(g);
       }
     }
-    if (changed) try { window.Groupflow?.refresh?.(!removed); } catch {}
+    if (changed.length) try { window.Groupflow?.refresh?.(!removed, changed); } catch {}
   }
 
   function pictureSubject(tab, learn = true) {
@@ -935,6 +1053,7 @@
     if (record && learn && !tab.zenStaticIcon) fetchSectionIcon(record.key, record.key, contextOf(tab),
       nexusURL(tab) ? "square" : "round");
     const icon = !tab.zenStaticIcon && key ? iconMap().get(key)?.d : null;
+    updateOpenMenu();
     const old = tab.getAttribute("data-zzrouter-tab-icon");
     if (icon && /^data:image\/(?:webp|png);base64,[A-Za-z0-9+/=]+$/.test(icon)) {
       if (old === icon) return;
@@ -1051,7 +1170,6 @@
     const a = wsOf(el);
     if (a) return a;
     const sec = el?.closest?.("zen-workspace")?.id || null;
-    if (sec && el?.setAttribute) el.setAttribute("zen-workspace-id", sec);
     return sec;
   }
 
@@ -1430,11 +1548,16 @@
   const sameOrder = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
 
   function reorderBlock(parentNode, els, sorted) {
-    if (els.length < 2) return;
+    if (els.length < 2 || els.some(g => g.hasAttribute("data-zzrouter-locked") || g.tabs?.some(placementLocked))) return;
     const current = domOrder(els);
     if (sameOrder(current, sorted)) return;
-    const next = current.at(-1).nextSibling;
-    for (const el of sorted) mvEl(el, () => parentNode.insertBefore(el, next));
+    const members = new Set(els);
+    let cursor = current[0];
+    for (const el of sorted) {
+      while (cursor && !members.has(cursor)) cursor = cursor.nextSibling;
+      if (el === cursor) cursor = cursor.nextSibling;
+      else mvEl(el, () => parentNode.insertBefore(el, cursor));
+    }
   }
 
   function applyOrder() {
@@ -1459,6 +1582,7 @@
 
     // Inside each group.
     for (const g of all) {
+      if (g.hasAttribute("data-zzrouter-locked") || g.tabs?.some(placementLocked)) continue;
       const c = g.groupContainer ?? g.querySelector(".tab-group-container");
       if (!c) continue;
       // A subgroup Zen is animating out still sits in the DOM with no
@@ -1471,7 +1595,13 @@
         // tabs above them, in their existing order -- including tabs that
         // were just filed below a subgroup. Skipped when nothing would move.
         const tail = [...c.children].slice(-subs.length);
-        if (!sameOrder(tail, sorted)) for (const sg of sorted) mvEl(sg, () => c.appendChild(sg));
+        if (!sameOrder(tail, sorted) && !subs.some(g => g.hasAttribute("data-zzrouter-locked") || g.tabs?.some(placementLocked))) {
+          let next = null;
+          for (const sg of sorted.slice().reverse()) {
+            if (sg.nextSibling !== next) mvEl(sg, () => c.insertBefore(sg, next));
+            next = sg;
+          }
+        }
       } else {
         reorderBlock(c, subs, sorted);
       }
@@ -1537,8 +1667,28 @@
     return false;
   }
 
+  const LOCK = "zzrouterLocked";
+  function placementLocked(tab) {
+    try { if (window.SessionStore.getCustomTabValue(tab, LOCK) === "true") return true; } catch {}
+    for (let g = tab?.group; g; g = g.parentElement?.closest("tab-group, zen-folder"))
+      if (g.hasAttribute("data-zzrouter-locked")) return true;
+    return false;
+  }
+  function setPlacementLock(scope, locked) {
+    if (retired || !scope?.isConnected || scope.closest?.("zen-library")) return;
+    if (scope.matches?.("tab-group, zen-folder")) {
+      scope.toggleAttribute("data-zzrouter-locked", locked);
+      scope.dispatchEvent(new CustomEvent("TabGroupUpdate", { bubbles: true }));
+    } else {
+      if (locked) window.SessionStore.setCustomTabValue(scope, LOCK, "true");
+      else window.SessionStore.deleteCustomTabValue(scope, LOCK);
+    }
+    if (!locked) for (const tab of scope.matches?.("tab-group, zen-folder") ? scope.tabs : [scope]) queueRoute(tab, "resume routing");
+  }
+
   function skip(tab, precomputedParts) {
     if (!tab || !tab.isConnected || tab.closing) return "gone";
+    if (placementLocked(tab)) return "placement locked";
     if (heldElsewhere(tab)) return "held by another window";
     if (tab.hasAttribute("zen-glance-tab")) return "glance";
     // Zen's blank placeholder tabs cannot be grouped; addTabGroup returns
@@ -1697,6 +1847,7 @@
   function onTabEvent(event) {
     const tab = event.detail?.tab || event.target;
     if (!tab || tab.closest?.("zen-library")) return;
+    updateOpenMenu();
     if (event.type === "TabClose") {
       for (const request of inFlight.values()) request?.waiters?.delete(tab);
       clearTimeout(pendingRoute.get(tab)); pendingRoute.delete(tab);
@@ -1736,13 +1887,13 @@
   // a starting point to edit, not something applied behind your back.
 
   function suggestRules(opts = {}) {
-    const { minTabs = 1, subdomains = false } = opts;
+    const { minTabs = 1, subdomains = false, copy = true } = opts;
     const separator = opts.separator ?? SEP();
 
     // base domain -> Map(host -> count)
     const tree = new Map();
     for (const tab of allTabs()) {
-      if (skip(tab)) continue;
+      if (!presentable(tab)) continue;
       const host = hostOf(tab);
       if (!host) continue;
       const base = baseDomain(host);
@@ -1774,7 +1925,7 @@
       // catch-all for its base domain, because the first match wins.
       const subs = [...hosts.entries()]
         .filter(([h]) => h !== base && h !== "www." + base)
-        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+        .sort((a, b) => b[0].split(".").length - a[0].split(".").length || b[1] - a[1] || a[0].localeCompare(b[0]));
 
       for (const [host] of subs) {
         const leaf = host.slice(0, host.length - base.length - 1)
@@ -1785,15 +1936,10 @@
     }
 
     const text = lines.join("\n");
-    console.log("--- suggested rules ---\n" + text +
-      (skipped.length ? `\n\nbelow the minimum, not included: ${skipped.join(", ")}` : "") +
-      "\n\nPaste into the Rules box, edit the names, then enable routing." +
-      (subdomains ? "\nSubdomain rules are listed before their parent on purpose: first match wins." : ""));
-    try {
-      Cc["@mozilla.org/widget/clipboardhelper;1"]
-        .getService(Ci.nsIClipboardHelper).copyString(text);
-      console.log("(copied to clipboard)");
-    } catch {}
+    if (copy) {
+      console.log("--- suggested rules ---\n" + text);
+      try { Cc["@mozilla.org/widget/clipboardhelper;1"].getService(Ci.nsIClipboardHelper).copyString(text); } catch {}
+    }
     return text;
   }
 
@@ -1802,6 +1948,7 @@
   const purgeObserver = () => { try { forgetAll(); } catch {} };
   function forgetAll() {
     cancelLookups();
+    lookupOwner().metadata.clear();
     creatorCache = new Map(); iconCache = new Map(); learnedCache = new Map();
     saveCreators(); saveIcons(); saveLearned();
     stampIcons();
@@ -1810,7 +1957,113 @@
     log = [];
   }
 
+  const liveScope = scope => !retired && !!scope?.isConnected && !scope.closing && !scope.closest?.("zen-library") &&
+    (scope.matches?.("tab-group:not([split-view-group]), zen-folder") || !!scope.linkedBrowser && gBrowser.getTabForBrowser(scope.linkedBrowser) === scope);
+  function refreshSubject(scope) {
+    if (!liveScope(scope) || isPrivate()) return null;
+    const group = scope.matches?.("tab-group, zen-folder");
+    if (group ? !window.Groupflow?.automaticPictureAllowed?.(scope) : scope.zenStaticIcon) return null;
+    const key = group ? scope.getAttribute("data-zzrouter-picture") : pictureSubject(scope, false)?.key;
+    if (!key || !(channelKey(key) || nexusURLFrom(key)?.game === key)) return null;
+    const host = /^https:\/\/([^/]+)/.exec(key)?.[1];
+    if (!picturesEnabled(host)) return null;
+    const ctx = group ? Number(scope.getAttribute("data-zzrouter-context")) : contextOf(scope);
+    if (!Number.isInteger(ctx) || ctx < 0) return null;
+    const slot = "icon:" + scoped(key, ctx);
+    if (inFlight.has(slot) || lookupOwner().refreshes?.has(scoped(key, ctx)) || Date.now() - (failed.get(slot) || 0) < RETRY_FAIL_MS) return null;
+    try { if (!lookupURIAllowed(Services.io.newURI(key))) return null; } catch { return null; }
+    return { key, ctx };
+  }
+  function repaintSubjects(keys) {
+    const affected = allTabs().filter(tab => keys.has(scoped(pictureSubject(tab, false)?.key, contextOf(tab))));
+    for (const tab of affected) updatePicture(tab, false);
+    const ancestors = new Set(affected.flatMap(ancestorsOf));
+    stampIcons(false, groups().filter(g => keys.has(scoped(g.getAttribute("data-zzrouter-picture"), Number(g.getAttribute("data-zzrouter-context")))) || ancestors.has(g)));
+  }
+  const menuNodes = new Set();
+  function updateOpenMenu() {
+    for (const node of menuNodes) {
+      if (!node.isConnected || node.zzrouterEligible?.()) continue;
+      const popup = node.closest("menupopup, panel");
+      const focused = document.activeElement === node;
+      node.remove(); menuNodes.delete(node);
+      if (focused) ([...popup.querySelectorAll("menuitem, toolbarbutton")].find(n => !n.hidden && !n.disabled && n.getClientRects().length) || popup.anchorNode)?.focus();
+    }
+  }
+  function routingMenu(event) {
+    const popup = event.target;
+    const panel = popup.matches?.(".tab-group-editor-panel");
+    if (!panel && !["tabContextMenu", "zenFolderActions", "menu_ToolsPopup"].includes(popup.id)) return;
+    for (const node of menuNodes) node.remove(); menuNodes.clear();
+    const container = panel ? popup.querySelector(".tab-group-edit-actions") : popup;
+    if (!container) return;
+    const item = (label, eligible, action) => {
+      if (!eligible()) return;
+      const node = document.createXULElement(panel ? "toolbarbutton" : "menuitem");
+      node.zzrouterEligible = eligible;
+      node.setAttribute("label", label); node.setAttribute("class", "subviewbutton");
+      node.addEventListener("command", () => { if (!retired && eligible()) action(); });
+      container.appendChild(node); menuNodes.add(node); return node;
+    };
+    const show = (title, value) => Services.prompt.alert(window, title, JSON.stringify(value, null, 2));
+    if (popup.id === "menu_ToolsPopup") {
+      item("Generate routing rules from open tabs…", () => true, () => editRules(suggestRules({subdomains: true, copy: false})));
+      item("Validate routing rules", () => true, () => show("Routing rules", validateRules(str("rules", ""))));
+      item("Edit routing rules…", () => true, () => editRules(str("rules", "")));
+      return;
+    }
+    const scope = panel ? gBrowser.tabGroupMenu.activeGroup : popup.id === "tabContextMenu"
+      ? (popup.triggerNode?.closest?.(".tabbrowser-tab") || popup.anchorNode?.closest?.(".tabbrowser-tab") || window.TabContextMenu?.contextTab) : popup.triggerNode?.closest?.("zen-folder, tab-group");
+    const eligible = () => liveScope(scope);
+    if (!eligible()) return;
+    const group = scope.matches?.("tab-group, zen-folder");
+    const tabs = () => group ? [...scope.tabs].filter(liveScope) : [scope];
+    item("Why here?", eligible, () => show("Why here?", tabs().map(tab => window.TabRouter.explain(tab))));
+    item("Preview sorting", eligible, () => show("Preview sorting — no tabs moved", window.TabRouter.preview(tabs())));
+    const ownLock = () => group ? scope.hasAttribute("data-zzrouter-locked") : window.SessionStore.getCustomTabValue(scope, LOCK) === "true";
+    const locked = ownLock();
+    item(locked ? "Resume routing" : "Keep here", () => eligible() && ownLock() === locked, () => setPlacementLock(scope, !locked));
+    const subject = refreshSubject(scope);
+    if (subject) item("Refresh automatic picture", () => {
+      const next = refreshSubject(scope); return next?.key === subject.key && next.ctx === subject.ctx;
+    }, () => fetchSectionIcon(subject.key, subject.key, subject.ctx, channelKey(subject.key) ? "round" : "square", true));
+  }
+
+  // Native result identity/ranking stays untouched. Read only current pictures;
+  // no metadata discovery, tab restoration or requests during a query.
+  const searchPictures = { onQueryResults() {
+    queueMicrotask(() => {
+      if (retired) return;
+      for (const row of window.gURLBar?.view.panel.querySelectorAll(".urlbarView-row") || []) {
+        const result = row.result, payload = result?.payload;
+        if (!payload) continue;
+        let icon = null;
+        if (payload.zenFolderId && !payload.userIcon) {
+          const group = document.getElementById(payload.zenFolderId);
+          icon = window.Groupflow?.pictureForSearch?.(group);
+        } else if (row.getAttribute("type") === "switchtab") { // Native TAB_SWITCH rendering
+          const ctx = payload.userContext?.id ?? payload.userContextId ?? 0;
+          const matches = allTabs().filter(tab => contextOf(tab) === ctx && tab.linkedBrowser?.currentURI?.spec === payload.url);
+          if (matches.length && matches.every(tab => !tab.zenStaticIcon)) {
+            const pictures = new Set(matches.map(tab => tab.getAttribute("data-zzrouter-tab-icon")));
+            if (pictures.size === 1) icon = [...pictures][0];
+          }
+        }
+        if (!icon) continue;
+        const image = row._elements?.get("icon") || row._elements?.get("favicon") || row.querySelector(".urlbarView-favicon");
+        if (image) image.setAttribute("src", icon);
+      }
+    });
+  } };
+
+  function pictureReady() { if (!retired) { stampIcons(); refreshPictures(); } }
+
   function start() {
+    window.addEventListener("GroupflowReady", pictureReady);
+    window.addEventListener("popupshowing", routingMenu);
+    window.addEventListener("DOMContentLoaded", watchRuleSettings, true);
+    for (const browser of gBrowser.browsers) { try { watchRuleSettings({target: browser.contentDocument}); } catch {} }
+    window.gURLBar?.controller.addListener(searchPictures);
     gBrowser.addTabsProgressListener(progress);
     gBrowser.tabContainer.addEventListener("TabAttrModified", onAttrModified);
     const tabEvents = ["TabOpen", "TabClose", "SSTabRestored", "ZenTabIconChanged", "TabGrouped", "TabUngrouped"];
@@ -1828,10 +2081,14 @@
 
     window.TabRouter = {
       sortAll: () => sweepAll("manual"),
-      preview() {
-        return allTabs().map(t => {
+      setPlacementLock,
+      pictureCounts: () => ({ creators: creatorMap().size, icons: iconMap().size, inFlight: inFlight.size, refreshOperations }),
+      preview(tabs = allTabs()) {
+        return tabs.map(t => {
           const parts = targetPath(t, false), why = skip(t, parts);
+          const dest = parts?.length ? resolveDestination(t, parts) : null;
           return { title: t.label, host: hostOf(t) ?? "-",
+            workspace: dest?.ws, container: dest?.ctx, locked: placementLocked(t),
             currentGroup: chainOf(t).map(partLabel).join(SEP()) || "-",
             wouldGo: why ? `skipped (${why})` : (parts?.map(partLabel).join(SEP()) ?? "no rule") };
         });
@@ -1840,7 +2097,7 @@
       // suggestRules()                        -> one rule per domain
       // suggestRules({subdomains:true})       -> plus a nested rule per subdomain
       // suggestRules({minTabs:2})             -> ignore one-off domains
-      suggestRules,
+      suggestRules, validateRules,
       groups: () => groups().map(g => chainOf({ group: g }).map(partLabel).join(SEP())),
 
       // Reads open tabs and proposes slug=Pretty Name lines from their
@@ -1915,6 +2172,11 @@
           url: uri.slice(0, 90),
           host: hostOf(t),
           base: hostOf(t) ? baseDomain(hostOf(t)) : null,
+          matchedRule: rules().find(rule => rule.domains.some(domain => hostOf(t) === domain || hostOf(t)?.endsWith("." + domain))) || "automatic / no matching rule",
+          placementLocked: placementLocked(t),
+          nativePolicy: "Keep here suppresses Router relocation only; native Zen routes still apply to navigation/new tabs.",
+          destinationReason: dest?.why || "current workspace and destination container policy",
+          routingEnabled: bool("enabled", false),
           pathDepthPref: num("auto-path-depth", 0),
           pathSegments: pathParts(t, false).map(partLabel),
           currentGroup: chainOf(t).map(partLabel).join(SEP()) || null,
@@ -2029,7 +2291,7 @@
         } catch {}
 
         const r = {
-          version: "1.35.1",
+          version: "1.36.0",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The
@@ -2065,7 +2327,8 @@
     if (bool("sort-on-startup", false)) startupTimers.push(setTimeout(() => sweepAll("startup"), num("startup-delay-ms", 2500)));
     // Restored creator subgroups get their avatar back whether or not the
     // startup sort runs.
-    startupTimers.push(setTimeout(() => { try { stampIcons(); refreshPictures(); } catch {} }, num("startup-delay-ms", 2500) + 500));
+    pictureReady();
+    window.gZenStartup?.promiseInitialized.then(pictureReady).catch(() => {});
     note("loaded");
 
     // This script is injected per window and lives as long as the window
@@ -2075,9 +2338,17 @@
     // Sine cleanup and window unload can both run; retire this copy once.
     const cleanup = () => {
       if (retired) return;
+      flushWrites();
       retired = true;
       window.removeEventListener("unload", cleanup);
       cancelLookups();
+      window.removeEventListener("GroupflowReady", pictureReady);
+      window.removeEventListener("popupshowing", routingMenu);
+      window.removeEventListener("DOMContentLoaded", watchRuleSettings, true);
+      for (const doc of settingsDocs) { doc.removeEventListener("change", validateRuleEdit, true); doc.removeEventListener("input", validateRuleEdit, true); }
+      settingsDocs.clear();
+      window.gURLBar?.controller.removeListener(searchPictures);
+      for (const node of menuNodes) node.remove(); menuNodes.clear();
       stampIcons(); refreshPictures(false);
       for (const event of tabEvents) window.removeEventListener(event, onTabEvent, true);
       try { delete window.TabRouter; } catch {}

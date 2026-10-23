@@ -265,3 +265,7 @@ for the one-time bootstrap and existing missing folders.
 ## License
 
 MIT
+
+## October 2026 update
+
+Existing tab/folder menus offer Why here?, Preview sorting, Keep here / Resume routing, and eligible Refresh automatic picture. Locks persist through native tab values or Groupflow session metadata without suppressing picture/title updates. Verified local pictures decorate native search results without requests per keystroke. Tools exposes rule generation, validation, and editing; invalid edits preserve stored rules. Requests share bounded process ownership while revalidating each consumer; affected picture writes/repaints coalesce. Sorting skips already-correct nodes.

@@ -226,7 +226,94 @@
     };
   }
 
+  const APPEARANCE = "zzglass-saved.appearance";
+  async function appearancePrefs() {
+    // Only declared appearance settings, never an entire profile branch.
+    const names = new Set();
+    for (const mod of ["glassflow", "groupflow", "iconflow"]) {
+      const rows = await (await fetch(`chrome://sine/content/zz-${mod}/preferences.json`)).json();
+      for (const row of rows) {
+        const name = row.property;
+        if (!/^zz(?:glass|group|icon)\./.test(name || "") ||
+            /\.ui\.|\.other\.|icon-rules|collapse-keep-last-used|neutralize-others/.test(name)) continue;
+        if (["checkbox", "dropdown", "string", "text"].includes(row.type)) names.add(name);
+      }
+    }
+    return names;
+  }
+  async function appearanceSnapshot() {
+    const S = Services.prefs, values = {};
+    for (const name of await appearancePrefs()) {
+      const type = S.getPrefType(name), had = S.prefHasUserValue(name);
+      const value = !had ? null : type === S.PREF_BOOL ? S.getBoolPref(name)
+        : type === S.PREF_INT ? S.getIntPref(name) : S.getStringPref(name);
+      // No embedded image/file URLs in an export, even in a CSS text setting.
+      if (typeof value === "string" && /(?:url\s*\(|[\\/]|(?:https?|file|data|resource|chrome):)/i.test(value)) continue;
+      values[name] = { had, type, value };
+    }
+    return { version: 1, values };
+  }
+  let appearanceNames = null;
+  function savedAppearance() {
+    try {
+      const saved = JSON.parse(Services.prefs.getStringPref(APPEARANCE, "null"));
+      if (saved?.version !== 1 || !saved.values || Array.isArray(saved.values) || !appearanceNames) return null;
+      const S = Services.prefs;
+      for (const [name, entry] of Object.entries(saved.values)) {
+        if (!appearanceNames.has(name) || typeof entry?.had !== "boolean") return null;
+        if (!entry.had) { if (entry.value !== null) return null; continue; }
+        const v = entry.value;
+        if (!(entry.type === S.PREF_BOOL && typeof v === "boolean" || entry.type === S.PREF_INT && Number.isInteger(v) ||
+          entry.type === S.PREF_STRING && typeof v === "string" && !/(?:url\s*\(|[\\/]|(?:https?|file|data|resource|chrome):)/i.test(v))) return null;
+      }
+      return saved;
+    } catch { return null; }
+  }
+  async function restoreAppearance() {
+    const saved = savedAppearance(), S = Services.prefs;
+    if (!saved || window[INSTANCE_KEY] !== instance) return false;
+    for (const [name, entry] of Object.entries(saved.values)) {
+      if (!entry.had) S.clearUserPref(name);
+      else if (entry.type === S.PREF_BOOL) S.setBoolPref(name, entry.value);
+      else if (entry.type === S.PREF_INT) S.setIntPref(name, entry.value);
+      else S.setStringPref(name, entry.value);
+    }
+    return true;
+  }
+  appearancePrefs().then(names => { if (window[INSTANCE_KEY] === instance) appearanceNames = names; }).catch(() => {});
+  const toolItems = new Set();
+  function toolsMenu(event) {
+    if (event.target.id !== "menu_ToolsPopup") return;
+    for (const node of toolItems) node.remove(); toolItems.clear();
+    const actions = [
+      ["Save appearance", async () => {
+        const saved = await appearanceSnapshot();
+        if (window[INSTANCE_KEY] === instance) Services.prefs.setStringPref(APPEARANCE, JSON.stringify(saved));
+      }],
+      ["Restore appearance", restoreAppearance],
+      ["Copy appearance", appearanceSnapshot],
+      ["Copy Zen Mods Report", async () => {
+        const { collectReport } = ChromeUtils.importESModule("chrome://sine/content/zz-glassflow/zen-mods-report.sys.mjs");
+        return collectReport(window);
+      }],
+    ];
+    for (const [label, action] of actions) {
+      if (label === "Restore appearance" && !savedAppearance()) continue;
+      const item = document.createXULElement("menuitem"); item.setAttribute("label", label);
+      item.addEventListener("command", async () => {
+        try {
+          if (window[INSTANCE_KEY] !== instance) return;
+          const value = await action();
+          if (window[INSTANCE_KEY] !== instance) return;
+          if (label.startsWith("Copy ")) Cc["@mozilla.org/widget/clipboardhelper;1"].getService(Ci.nsIClipboardHelper).copyString(JSON.stringify(value));
+        } catch (error) { console.error("[Glassflow] Tools action failed", error); }
+      });
+      event.target.appendChild(item); toolItems.add(item);
+    }
+  }
+
   function start() {
+    window.addEventListener("popupshowing", toolsMenu);
     syncInstantUI();
     Services.prefs.addObserver(PREFIX, prefVarObserver);
     try { syncOtherMods(); } catch (e) { console.error("[Glassflow] other mods failed:", e); }
@@ -252,6 +339,8 @@
     const cleanup = () => {
       if (retired) return;
       retired = true;
+      window.removeEventListener("popupshowing", toolsMenu);
+      for (const item of toolItems) item.remove(); toolItems.clear();
       window.removeEventListener("unload", cleanup);
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}
       for (const branch of OTHER_WATCH) try { Services.prefs.removeObserver(branch, otherModsObserver); } catch {}

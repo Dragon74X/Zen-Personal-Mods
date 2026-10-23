@@ -15,7 +15,7 @@ test("health report follows Sine OR, nested AND, negation and unset defaults", a
     { property: "nested-hidden", conditions: [{ conditions: [leaf("on", true), leaf("missing", true)] }] },
     { property: "nested-or-visible", conditions: [{ operator: "OR", conditions: [leaf("on", true), leaf("missing", true)] }] },
   ].map(row => ({ type: "checkbox", ...row }));
-  const source = await readFile(new URL("check.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../glassflow/zen-mods-report.sys.mjs", import.meta.url), "utf8");
   const sandbox = {
     console: { log() {} },
     Services: { wm: { getMostRecentWindow: () => ({}) }, prefs: {
@@ -27,7 +27,7 @@ test("health report follows Sine OR, nested AND, negation and unset defaults", a
     PathUtils: { profileDir: "/test", join: (...parts) => parts.join("/") },
     IOUtils: { getChildren: async () => [] },
   };
-  const report = await vm.runInNewContext(source, sandbox);
+  const report = await vm.runInNewContext(source.replace("export async", "async") + "\ncollectReport({})", sandbox);
   for (const mod of Object.values(report.mods)) {
     assert.deepEqual(Array.from(mod.hiddenRows, row => row.split(" ")[0]),
       ["and-hidden", "not-hidden", "string-hidden", "nested-hidden"]);
@@ -35,7 +35,7 @@ test("health report follows Sine OR, nested AND, negation and unset defaults", a
 });
 
 test("health report reads no page titles, addresses or file paths", async () => {
-  const source = await readFile(new URL("check.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../glassflow/zen-mods-report.sys.mjs", import.meta.url), "utf8");
   assert.doesNotMatch(source, /(?<!pref)\.label\b|\.title\b|currentURI|\.spec\b|documentURI|location/);
   // Every caught error passes through strip(), which cuts paths to file names.
   assert.doesNotMatch(source, /\$\{e\}|\+ e[;) ]/);

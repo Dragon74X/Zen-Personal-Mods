@@ -1232,7 +1232,7 @@ MOTIONS = {
 }
 # group -> (label, hovered elements that move)
 MOTION_GROUPS = {
-    "close": ("Close buttons", ".tab-close-button:hover, .zen-glance-sidebar-close:hover, .zen-media-close-button:hover > .toolbarbutton-icon, #stop-button:hover > .toolbarbutton-icon"),
+    "close": ("Close buttons", ".tab-close-button:not(.zzgf-close):hover, .zzgf-close:hover::before, .zen-glance-sidebar-close:hover, .zen-media-close-button:hover > .toolbarbutton-icon, #stop-button:hover > .toolbarbutton-icon"),
     "plus": ("Plus buttons", ":is(#zen-create-new-button, #tabs-newtab-button, #new-tab-button):hover > .toolbarbutton-icon"),
     "minus": ("Minus (reset) buttons", ".tab-reset-button:hover, .tab-reset-pin-button:hover image"),
     "library": ("Library button", "#zen-library-button:hover > .zen-library-sprite"),
@@ -1398,7 +1398,7 @@ def parents(hovers):
     button itself as well; where Iconflow owns the motion, only its own plays."""
     out = []
     for h in hovers:
-        m = re.match(r"^(.*:hover)(?: | > )", h)
+        m = re.match(r"^(.*:hover)(?:::| | > )", h)
         if m and m.group(1) not in out:
             out.append(m.group(1))
     return ", ".join(out)

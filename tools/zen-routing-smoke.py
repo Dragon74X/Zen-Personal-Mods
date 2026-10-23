@@ -455,6 +455,72 @@ def check_sidebar_modes(m, atg):
           gBrowser.selectedTab=document.getElementById(old.selected);return true;""")
 
 
+def check_close_glyph_motion(m, root):
+    sheet = (root / "iconflow/icons.css").resolve().as_uri()
+    m.script("""
+      const ss=Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService);
+      const uri=Services.io.newURI(""" + json.dumps(sheet) + """);
+      ss.loadAndRegisterSheet(uri,ss.USER_SHEET);
+      const prefs=[['zzicon.motion.close','Int',2],['zzicon.animate','Bool',true],['ui.prefersReducedMotion','Int',0]];
+      window.closeMotionFixture={prefs:prefs.map(([k,t,d])=>[k,t,Services.prefs.prefHasUserValue(k),Services.prefs['get'+t+'Pref'](k,d)]),
+        duration:document.documentElement.style.getPropertyValue('--zzicon-motion-duration')};
+      document.documentElement.style.setProperty('--zzicon-motion-duration','10s');return true;
+    """)
+    checks = {}
+    try:
+        for name in ["Root", "Child"]:
+            xy = m.script("return (async()=>{" + HELPERS + """
+              const button=group(""" + json.dumps(name) + """).labelContainerElement.querySelector('.zzgf-close');
+              Services.prefs.setIntPref('ui.prefersReducedMotion',0);
+              for(let parent=button.closest('tab-group').group;parent;parent=parent.group)parent.collapsed=false;
+              Groupflow.refresh();await pause(100);
+              button.scrollIntoView({block:'nearest'});await pause(100);
+              const r=button.getBoundingClientRect(),header=button.parentElement.getBoundingClientRect();
+              return {button:{x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)},
+                header:{x:Math.round(header.right-8),y:Math.round(header.y+header.height/2)}};
+            })();""")
+            m.call('WebDriver:PerformActions', {'actions': [{'type': 'pointer', 'id': 'mouse',
+                'parameters': {'pointerType': 'mouse'}, 'actions': [
+                    {'type': 'pointerMove', 'duration': 0, **xy['header']}, {'type': 'pause', 'duration': 100},
+                    {'type': 'pointerMove', 'duration': 0, **xy['button']}]}]})
+            result = m.script("return (async()=>{" + HELPERS + """
+              const button=group(""" + json.dumps(name) + """).labelContainerElement.querySelector('.zzgf-close'),checks={};
+              await pause(50);
+              const background=getComputedStyle(button).backgroundColor,rect=button.getBoundingClientRect();
+              for(const [name,mode,on,reduced,expected] of [
+                ['spin',2,true,0,'zzicon-spin-back'],['turn',3,true,0,'zzicon-turn-back'],
+                ['none',1,true,0,'none'],['disabled',2,false,0,'none'],['reduced',2,true,1,'none']]) {
+                Services.prefs.setIntPref('zzicon.motion.close',mode);
+                Services.prefs.setBoolPref('zzicon.animate',on);
+                Services.prefs.setIntPref('ui.prefersReducedMotion',reduced);await pause(50);
+                const animation=button.getAnimations({subtree:true}).find(a=>a.animationName===expected);
+                if(animation){animation.pause();animation.currentTime=5000;await pause(20);}
+                const host=getComputedStyle(button),glyph=getComputedStyle(button,'::before'),after=button.getBoundingClientRect();
+                checks[name]=button.matches(':hover') && host.animationName==='none' && host.rotate==='none' &&
+                  host.transform==='none' && host.backgroundColor===background && after.width===rect.width && after.height===rect.height &&
+                  glyph.animationName===expected && (expected==='none' || parseFloat(glyph.rotate)<-1) &&
+                  matchMedia('(prefers-reduced-motion: reduce)').matches===!!reduced;
+                if(!checks[name])throw new Error(JSON.stringify({group:button.closest('tab-group').label,name,
+                  hover:button.matches(':hover'),animation:host.animationName,rotate:host.rotate,transform:host.transform,
+                  background,actualBackground:host.backgroundColor,before:rect.toJSON(),after:after.toJSON(),
+                  glyphAnimation:glyph.animationName,glyphRotate:glyph.rotate,expected,reduced:matchMedia('(prefers-reduced-motion: reduce)').matches}));
+              }
+              return checks;
+            })();""")
+            checks.update({f'closeGlyph{name}_{mode}': value for mode, value in result.items()})
+        assert all(checks.values()), checks
+        return checks
+    finally:
+        m.script("""
+          const f=closeMotionFixture,ss=Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService);
+          ss.unregisterSheet(Services.io.newURI(""" + json.dumps(sheet) + """),ss.USER_SHEET);
+          for(const [k,t,had,v] of f.prefs) {if(had)Services.prefs['set'+t+'Pref'](k,v);else Services.prefs.clearUserPref(k);}
+          if(f.duration)document.documentElement.style.setProperty('--zzicon-motion-duration',f.duration);
+          else document.documentElement.style.removeProperty('--zzicon-motion-duration');
+          delete window.closeMotionFixture;return true;
+        """)
+
+
 def check_collapsed_loaded(m):
     result = m.script("return (async()=>{" + HELPERS + """
       const selected=gBrowser.selectedTab, root=group('Root'), child=group('Child'), deep=group('Grandchild');
@@ -909,6 +975,7 @@ def check(m, root, atg, port, first):
           return matches;
         """)
         assert result['nativeCloseImageSize'], 'Folder close image differs from native tab close image'
+        result.update(check_close_glyph_motion(m, root))
         result['iconMatchesFolderCorners'] = m.script("return (async()=>{" + HELPERS + """
           const g=group('Child'),h=g.labelContainerElement,icon=h.querySelector('.zzgf-icon');
           const prefs=[['icon-shape','Int'],['corner.mode','Int'],['header-roundness','String'],['icon-size','String']]

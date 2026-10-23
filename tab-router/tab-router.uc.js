@@ -72,10 +72,13 @@
     if (data === P + "avatars") {
       const before = iconCache || new Map(); iconCache = null;
       const after = iconMap(), keys = new Set([...before.keys(), ...after.keys()]);
-      for (const key of keys) if (before.get(key)?.d === after.get(key)?.d && before.get(key)?.s === after.get(key)?.s) keys.delete(key);
+      for (const key of keys) if (before.get(key)?.d === after.get(key)?.d && before.get(key)?.s === after.get(key)?.s && before.get(key)?.b === after.get(key)?.b) keys.delete(key);
       repaintSubjects(keys); return;
     }
-    if (data === P + "section-icons") { cancelLookups(); stampIcons(); refreshPictures(); return; }
+    if (["section-icons", "nexus-icon", "nexus-banners"].some(k => data === P + k)) {
+      cancelLookups(); stampIcons(true); refreshPictures(); return;
+    }
+    if (data === P + "nexus-banner-opacity") { stampIcons(); refreshPictures(false); return; }
     for (const k of Object.keys(parsed)) delete parsed[k]; learnedCache = null; targetGen++;
     stampIcons(); refreshPictures();
   } };
@@ -95,9 +98,8 @@
     clearTimeout(writeTimer); writeTimer = null;
     for (const [key, changes] of pendingWrites) {
       const data = readCache(key); // Merge other windows' records before writing our delta.
-      let entries = Object.entries(data).slice(-(key === "avatars" ? 100 : 300));
-      let text = JSON.stringify(Object.fromEntries(entries));
-      if (key === "avatars") while (text.length > 900000 && entries.length) { entries.shift(); text = JSON.stringify(Object.fromEntries(entries)); }
+      const entries = Object.entries(data).slice(-(key === "avatars" ? 100 : 300));
+      const text = key === "avatars" ? boundedIcons(entries) : JSON.stringify(Object.fromEntries(entries));
       write(key, text);
       if (key === "avatars") iconCache = null; else creatorCache = null;
     }
@@ -848,7 +850,7 @@
   // its og:image. Sites where that page is elsewhere get one line in the
   // table (Nexus keeps a game at /games/<slug>, not at /<slug>). Probed on
   // the live profile: a YouTube channel page's og:image is the 900px
-  // avatar, a Nexus game page's the 400x600 cover tile, a GitHub owner
+  // avatar, a Nexus game page identifies its square thumbnail, a GitHub owner
   // page's the 420px avatar. A wide share banner, which is what most other
   // pages offer, is refused by aspect and the favicon stays.
   //
@@ -861,6 +863,9 @@
   const ICON_ASPECT = [0.6, 1.6];         // 1:1 avatars and 2:3 covers in, 1.9:1 banners out
   const ICON_MAX = 100;
   const ICON_PX = 64;
+  const bannerMode = () => [1, 2, 3].includes(num("nexus-banners", 0)) ? num("nexus-banners", 0) : 0;
+  const nexusRendition = () => num("nexus-icon", 0) === 1 ? "tile" : "thumbnail";
+  const imageData = value => typeof value === "string" && /^data:image\/(?:webp|png);base64,[A-Za-z0-9+/=]+$/.test(value);
   let iconCache = null;
   function iconMap() {
     if (iconCache) return iconCache;
@@ -877,29 +882,87 @@
     // A pref string is capped at 1 MB by Firefox; 100 icons at 64px are a
     // few hundred KB. Oldest out first if it ever gets close.
     const entries = [...iconMap()].slice(-ICON_MAX);
-    let text = JSON.stringify(Object.fromEntries(entries));
-    while (text.length > 900000 && entries.length) { entries.shift(); text = JSON.stringify(Object.fromEntries(entries)); }
+    const text = boundedIcons(entries);
     iconCache = new Map(entries);
     if (isPrivate()) return;
     persist("avatars", text);
   }
 
-  // Any size, any aspect -> a 64px square WebP data: URI. The decoder is
-  // the validation: bytes that are not an image never get this far.
-  async function toIcon(bytes) {
+  function boundedIcons(entries) {
+    let text = JSON.stringify(Object.fromEntries(entries));
+    // Drop optional banners before icons when approaching Firefox's pref cap.
+    for (const entry of entries) {
+      if (text.length <= 900000) break;
+      if (!entry[1]?.b) continue;
+      entry[1] = { ...entry[1] }; delete entry[1].b;
+      noteFail("banner:" + entry[0]);
+      text = JSON.stringify(Object.fromEntries(entries));
+    }
+    while (text.length > 900000 && entries.length) { entries.shift(); text = JSON.stringify(Object.fromEntries(entries)); }
+    return text;
+  }
+
+  // Decode to raster WebP: 64px square icons or 384px-wide game banners.
+  // Reject unsupported aspects and oversized sources before drawing.
+  async function toIcon(bytes, banner = false) {
     const bmp = await createImageBitmap(new Blob([Uint8Array.from(bytes, c => c.charCodeAt(0))]));
     // A small file can still decode to an enormous surface, and this one
     // is about to become 64 square anyway.
     if (bmp.width > 4096 || bmp.height > 4096) { bmp.close(); return null; }
     const aspect = bmp.width / bmp.height;
-    if (aspect < ICON_ASPECT[0] || aspect > ICON_ASPECT[1]) { bmp.close(); return null; }
+    const bounds = banner ? [2, 8] : ICON_ASPECT;
+    if (aspect < bounds[0] || aspect > bounds[1]) { bmp.close(); return null; }
     const side = Math.min(bmp.width, bmp.height);
-    const c = new OffscreenCanvas(ICON_PX, ICON_PX);
-    c.getContext("2d").drawImage(bmp, (bmp.width - side) / 2, (bmp.height - side) / 2, side, side, 0, 0, ICON_PX, ICON_PX);
+    const width = banner ? 384 : ICON_PX, height = banner ? Math.round(width / aspect) : ICON_PX;
+    const c = new OffscreenCanvas(width, height);
+    if (banner) c.getContext("2d").drawImage(bmp, 0, 0, width, height);
+    else c.getContext("2d").drawImage(bmp, (bmp.width - side) / 2, (bmp.height - side) / 2, side, side, 0, 0, width, height);
     bmp.close();
     const buf = new Uint8Array(await (await c.convertToBlob({ type: "image/webp", quality: 0.85 })).arrayBuffer());
     let bin = ""; for (const b of buf) bin += String.fromCharCode(b);
     return `data:image/webp;base64,${btoa(bin)}`;
+  }
+
+  function fetchPicture(url, ctx, banner, done) {
+    try { fetchAnon(url, ctx, bytes => {
+      if (!bytes || bytes.length > (banner ? MAX_FETCH_BYTES - 1 : 400000)) return done(null);
+      toIcon(bytes, banner).then(done, () => done(null));
+    }); } catch { done(null); }
+  }
+
+  function fetchSectionBanner(label, ctx, gameId, refresh = false) {
+    if (retired || isPrivate() || !bool("section-icons", true) || !bannerMode() || !/^[1-9]\d*$/.test(gameId || "")) return;
+    if (nexusURLFrom(label)?.game !== label) return;
+    const key = scoped(label, ctx), slot = "banner:" + key;
+    if ((!refresh && iconMap().get(key)?.b) || inFlight.has(slot) || Date.now() - (failed.get(slot) || 0) < RETRY_FAIL_MS) return;
+    if (!(bannerMode() & 2) && !groups().some(g => g.getAttribute("data-zzrouter-picture") === label &&
+        Number(g.getAttribute("data-zzrouter-context")) === ctx && window.Groupflow?.automaticPictureAllowed?.(g))) return;
+    inFlight.set(slot, true);
+    const epoch = lookupEpoch;
+    fetchPicture(`https://images.nexusmods.com/images/games/v2/${gameId}/hero.jpg`, ctx, true, banner => {
+      if (epoch !== lookupEpoch) return;
+      inFlight.delete(slot);
+      if (!banner) { noteFail(slot); return; }
+      const current = iconMap().get(key);
+      if (current?.g !== gameId) return;
+      iconMap().set(key, { ...current, b: banner }); saveIcons(); repaintSubjects(new Set([key]));
+    });
+  }
+
+  // SVG supplies alpha to this raster layer only. No remote references or
+  // executable page content; the browser sizes/crops it inside the existing fill.
+  function paintBanner(node, data) {
+    const opacity = Math.max(0, Math.min(100, num("nexus-banner-opacity", 25))) / 100;
+    const value = imageData(data) && opacity ? `${opacity}:${data}` : null;
+    if ((node.getAttribute("data-zzrouter-banner") || null) === value) return false;
+    if (value) {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><image width="100%" height="100%" preserveAspectRatio="xMidYMid slice" opacity="${opacity}" href="${data}"/></svg>`;
+      node.setAttribute("data-zzrouter-banner", value);
+      node.style?.setProperty("--zzrouter-banner-data", `url("data:image/svg+xml,${encodeURIComponent(svg)}")`);
+    } else {
+      node.removeAttribute("data-zzrouter-banner"); node.style?.removeProperty("--zzrouter-banner-data");
+    }
+    return true;
   }
 
   // label is the canonical subject URL, never a folder display name.
@@ -907,7 +970,13 @@
     if (retired || isPrivate() || !bool("section-icons", true) || !pageUrl) return;
     try { if (!lookupURIAllowed(Services.io.newURI(pageUrl))) return; } catch { return; }
     const key = scoped(label, ctx), slot = "icon:" + key;
-    if (!key || (!refresh && iconMap().has(key)) || inFlight.has(slot)) return;
+    const nexus = nexusURLFrom(pageUrl)?.game === pageUrl, rendition = nexus ? nexusRendition() : null;
+    const cachedIcon = iconMap().get(key);
+    if (!refresh && cachedIcon?.d && (!nexus || cachedIcon.n === rendition)) {
+      if (nexus) fetchSectionBanner(label, ctx, cachedIcon.g);
+      return;
+    }
+    if (!key || inFlight.has(slot)) return;
     const lastFail = failed.get(slot);
     if (lastFail && Date.now() - lastFail < RETRY_FAIL_MS) return;
     inFlight.set(slot, true);
@@ -920,40 +989,47 @@
     if (refresh) refreshCancels.add(release);
     // Consent pages, missing metadata and decode failures use the same bounded
     // retry delay as network errors; only successful pictures persist.
-    const done = (icon) => {
+    const done = (icon, gameId = null) => {
       release();
       if (epoch !== lookupEpoch) return;
       inFlight.delete(slot);
       if (!icon) { noteFail(slot); note(`no usable picture for "${label}"; favicon stays`); return; }
-      iconMap().set(key, { d: icon, s: shape });
+      const old = iconMap().get(key);
+      iconMap().set(key, { d: icon, s: shape, ...(nexus ? { n: rendition, g: gameId } : {}),
+        ...(gameId && old?.g === gameId && old.b ? { b: old.b } : {}) });
       saveIcons();
       note(`icon for "${label}"`);
       repaintSubjects(new Set([key]));
+      if (nexus) fetchSectionBanner(label, ctx, gameId, refresh);
     };
     try {
       fetchMetadata(pageUrl, ctx, metadata => {
+        if (epoch !== lookupEpoch) return;
         if (!metadata) return done(null);
         const img = metadata.image?.replace(/=s\d+/, "=s256");
-        if (!refresh && nexusURLFrom(pageUrl)?.game === pageUrl) {
-          const gameId = /https:\/\/images\.nexusmods\.com\/images\/games\/v2\/(\d+)\/tile\./.exec(img || "")?.[1];
+        if (nexus) {
+          // Nexus's documented V2 thumbnail/hero templates are keyed by the
+          // numeric ID in a canonically verified game page, never a folder name.
+          const art = /^https:\/\/images\.nexusmods\.com\/images\/games\/(?:v2\/([1-9]\d*)\/tile|4_3\/tile_([1-9]\d*))\.(?:jpg|png|webp)(?:\?[^\s"'<>\\]*)?$/.exec(img || "");
+          if (!art || metadata.canonical?.replace(/\/$/, "") !== pageUrl) return done(null);
+          const gameId = art[1] || art[2];
           const name = metadata.title?.replace(/ Mods(?: - Nexus Mods)?$/, "");
-          if (gameId && name && nexusURLFrom(metadata.canonical)?.game === pageUrl) {
+          if (!refresh && name && name.length <= 160) {
             creatorMap().set(key, { key: pageUrl, label: name, gameId }); saveCreators(); targetGen++;
             for (const tab of allTabs()) {
               const nx = nexusURL(tab);
               if (nx?.author && nx.gameId === gameId && contextOf(tab) === ctx) queueRoute(tab, "game metadata");
             }
           }
+          const finish = icon => done(icon, art[1] || null);
+          const cover = () => fetchPicture(img, ctx, false, finish);
+          // V1 games have no thumbnail/hero contract; retain their cover.
+          if (!art[1] || rendition === "tile") return cover();
+          return fetchPicture(`https://images.nexusmods.com/images/games/v2/${gameId}/thumbnail.jpg`, ctx, false,
+            icon => { if (epoch !== lookupEpoch) return; if (icon) finish(icon); else cover(); });
         }
         if (!img || !/^https:\/\/[^\s"'<>\\]+$/.test(img)) return done(null);
-        try {
-          fetchAnon(img, ctx, (bytes) => {
-            if (!bytes) return done(null);
-            if (bytes.length > 400000) return done(null);
-            toIcon(bytes).then((icon) => { if (!icon) note(`picture for "${label}" is a banner, not a portrait`); done(icon); },
-                               (e) => { note(`icon convert failed for "${label}": ${e}`); done(null); });
-          });
-        } catch { done(null); }
+        fetchPicture(img, ctx, false, done);
       }, refresh);
     } catch (e) { note(`icon setup failed for "${label}": ${e}`); done(null); }
   }
@@ -992,7 +1068,7 @@
     return picture;
   }
 
-  function stampIcons(_recover = false, targets = groups()) {
+  function stampIcons(learn = false, targets = groups()) {
     const on = !retired && bool("section-icons", true);
     const changed = [];
     let removed = false;
@@ -1014,6 +1090,13 @@
       }
       const want = picture?.key && picturesEnabled(/^https:\/\/([^/]+)/.exec(picture.key)?.[1])
         ? iconMap().get(scoped(picture.key, picture.ctx)) : null;
+      const automatic = window.Groupflow?.automaticPictureAllowed?.(g);
+      const nexus = picture && nexusURLFrom(picture.key)?.game === picture.key;
+      paintBanner(g, automatic && nexus && (bannerMode() & 1) ? want?.b : null);
+      if (on && automatic && picture) {
+        if (learn) fetchSectionIcon(picture.key, picture.key, picture.ctx, nexus ? "square" : "round");
+        if (want?.g && (bannerMode() & 1)) fetchSectionBanner(picture.key, picture.ctx, want.g);
+      }
       if (want?.d) {
         if (g.getAttribute("data-zzrouter-icon") !== want.d || g.getAttribute("data-zzrouter-icon-shape") !== want.s) {
           g.setAttribute("data-zzrouter-icon", want.d);
@@ -1053,14 +1136,16 @@
     if (record && learn && !tab.zenStaticIcon) fetchSectionIcon(record.key, record.key, contextOf(tab),
       nexusURL(tab) ? "square" : "round");
     const icon = !tab.zenStaticIcon && key ? iconMap().get(key)?.d : null;
+    const bannerChanged = paintBanner(tab, !tab.zenStaticIcon && key && nexusURLFrom(record.key)?.game === record.key &&
+      (bannerMode() & 2) ? iconMap().get(key)?.b : null);
     updateOpenMenu();
     const old = tab.getAttribute("data-zzrouter-tab-icon");
     if (icon && /^data:image\/(?:webp|png);base64,[A-Za-z0-9+/=]+$/.test(icon)) {
-      if (old === icon) return;
+      if (old === icon && !bannerChanged) return;
       tab.setAttribute("data-zzrouter-tab-icon", icon);
       tab.style?.setProperty("--zzrouter-tab-icon", `url("${icon}")`);
     } else {
-      if (!old) return;
+      if (!old && !bannerChanged) return;
       tab.removeAttribute("data-zzrouter-tab-icon");
       tab.style?.removeProperty("--zzrouter-tab-icon");
     }
@@ -2291,7 +2376,7 @@
         } catch {}
 
         const r = {
-          version: "1.36.0",
+          version: "1.37.0",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The

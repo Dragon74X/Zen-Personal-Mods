@@ -132,7 +132,8 @@ TabRouter.forgetCreators(id)  // remove this video/resource in each container
 ```
 
 `zzrouter.creators` retains at most 300 metadata records; `zzrouter.avatars`
-retains at most 100 images, each 64px. Anonymous requests use the tab's container.
+retains at most 100 subjects with 64px icons and optional 384px-wide banners.
+Anonymous requests use the tab's container.
 Private windows start **0** metadata/image requests and persist **0** new records.
 Literal IPs, local hostnames, URL credentials and non-HTTPS lookup/redirect
 targets are rejected; the hostname check does not classify DNS results.
@@ -269,3 +270,32 @@ MIT
 ## October 2026 update
 
 Existing tab/folder menus offer Why here?, Preview sorting, Keep here / Resume routing, and eligible Refresh automatic picture. Locks persist through native tab values or Groupflow session metadata without suppressing picture/title updates. Verified local pictures decorate native search results without requests per keystroke. Tools exposes rule generation, validation, and editing; invalid edits preserve stored rules. Requests share bounded process ownership while revalidating each consumer; affected picture writes/repaints coalesce. Sorting skips already-correct nodes.
+
+## Nexus artwork (1.37.0)
+
+**Nexus game icon** defaults to the site's square `thumbnail.jpg`, with **Cover**
+as an option. A canonical game page and its numeric artwork ID must agree before
+any rendition is used. Existing cached covers remain visible while thumbnails
+load; unavailable thumbnails fall back to covers. V1 artwork retains its cover.
+Manual icons retain priority. “Refresh automatic picture” retries the preferred
+source and refreshes an enabled banner while retaining usable cached artwork.
+
+**Nexus game banners** offers **Off** (default), **Folders**, **Tabs**, or
+**Folders and tabs**. **Banner opacity (%)** accepts 0–100, default 25. Artwork
+sits beneath existing tint, sheen and rim layers; text, controls, loading/media
+indicators, corner geometry, hover and selection styling remain unchanged.
+Update Groupflow and Glassflow alongside Router for these layers.
+
+Only the game's `hero.jpg` is used—not promotional strips or mod-author images.
+Nexus documents [V2 artwork](https://graphql.nexusmods.com/#definition-ArtworkSchemaV2)
+and [thumbnail/cover URLs](https://github.com/Nexus-Mods/Vortex/blob/master/docs/game-art-assets.md).
+The downloaded banner is decoded, limited to 4096 pixels per source dimension,
+and scaled to 384 pixels wide. Icons and optional banners share the existing
+100-subject, 900000-character cache; banners are discarded before icons at the
+size limit. A failed request retries on activity after 10 minutes. Off starts
+no banner requests; private windows start no artwork requests. Container
+partitioning, anonymous requests and the 15-second timeout remain in force.
+
+Recovered display associations continue through Groupflow's session mechanism.
+Artwork changes never claim routing ownership, rename/reparent folders, or move
+tabs. Opacity changes reuse cached raster bytes without fetching another image.

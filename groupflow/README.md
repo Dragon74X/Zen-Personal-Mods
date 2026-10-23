@@ -324,7 +324,7 @@ remain unchanged. Managed group identities survive restart through Groupflow's
 existing group metadata; renaming a group keeps its picture association.
 
 Tab Router can hand a subgroup its own picture: a YouTube channel avatar, a
-Nexus game cover, a GitHub avatar. **Pictures from Tab Router** draws them;
+Nexus game thumbnail (or optional cover), a GitHub avatar. **Pictures from Tab Router** draws them;
 off, those groups fall back to the favicon. **Icon shape** applies to every
 icon: auto draws avatars round and everything else as a rounded square, or
 pick circle, rounded square, squircle or square for all of them. **Icon
@@ -430,3 +430,11 @@ MIT
 ## October 2026 update
 
 Unchanged group metadata no longer serializes or writes session maps; renames coalesce, and closed-history pruning runs only for relevant transitions. Display-only pictures and routing locks persist independently of Router ownership. Selection changes reuse membership counts. Folder menus expose only eligible scroll actions, with reduced-motion support. New/unset configurations keep the last-used unloaded tab visible; existing false values remain unchanged because historical seeding did not record provenance.
+
+### Nexus banners (1.73.0)
+
+Tab Router 1.37.0 supplies optional Nexus hero backgrounds. Its settings select
+Off / folders / tabs / both and 0–100% artwork opacity. Groupflow draws folder
+artwork beneath the existing fill; Glassflow 3.72.0 does the same for tab states.
+Manual folder icons suppress automatic folder artwork. Each group/tab resets
+its artwork boundary so parent banners cannot propagate into unrelated children.

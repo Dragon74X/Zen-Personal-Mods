@@ -1983,3 +1983,9 @@
     -moz-window-dragging: drag;
   }
 }
+
+/* Display-only subject pictures: preserve native favicon storage and every
+   loading/media overlay. Inline token survives Zen Library's shallow clones. */
+.tabbrowser-tab[data-zzrouter-tab-icon] .tab-icon-image {
+  content: var(--zzrouter-tab-icon);
+}

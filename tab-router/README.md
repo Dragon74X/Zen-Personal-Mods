@@ -99,24 +99,67 @@ What the request is, exactly, because it is a network request:
   entries. Missing avatars can repeat the oEmbed lookup for the channel URL.
   Failed requests or unusable metadata have a 10-minute retry cooldown.
 
-With routing and **Section icons** enabled, restored YouTube subgroups recover
-missing avatars even when the creator name was already cached. Old empty avatar
-entries no longer block recovery. Successful images remain cached; startup,
-group-order refreshes and activity in already-filed tabs retry missing ones after
-the cooldown. Clearing history
-cancels lookups and does not immediately start another recovery pass.
+**Pictures on tabs and subgroups** operates independently of movement and
+**Subgroup by creator**. It includes pinned tabs, Essentials and already-grouped
+tabs. Enable Groupflow to render the pictures. Zen's manual tab icons take
+precedence; loading/audio/PiP controls and native favicons remain native.
+Navigation, picture disable and Router unload remove owned overrides. Library
+copies display the same token but never route.
+
+Cache keys use container IDs and verified subject URLs, not folder names.
+Different channels named alike get separate automatic groups and pictures;
+renaming a managed group preserves its association. Groupflow saves semantic
+ownership in its existing `groupflowGroups` window record. Historical groups
+without identity remain unmanaged; their names and member tabs do not establish
+ownership. Manual subfolders below a matching root keep their placement.
+
+One pending metadata request retains all interested tabs in its container.
+Completion checks each tab's current navigation; closed or navigated-away tabs
+are not routed. Failed requests retry on activity after 10 minutes. There is no
+periodic retry. Clearing history cancels requests and removes learned pictures
+without starting another lookup.
 
 ```js
-TabRouter.creators()          // videoId -> creator, everything remembered
-TabRouter.forgetCreators()    // empty it
-TabRouter.forgetCreators(id)  // drop one
+TabRouter.creators()          // container:resource -> verified subject record
+TabRouter.forgetCreators()    // clear metadata and pictures
+TabRouter.forgetCreators(id)  // remove this video/resource in each container
 ```
 
-Literal IPs, local-only hostnames, credentials in URLs and non-HTTPS targets are rejected for lookups and redirects. This hostname check does not classify DNS results.
+`zzrouter.creators` retains at most 300 metadata records; `zzrouter.avatars`
+retains at most 100 images, each 64px. Anonymous requests use the tab's container.
+Private windows start **0** metadata/image requests and persist **0** new records.
+Literal IPs, local hostnames, URL credentials and non-HTTPS lookup/redirect
+targets are rejected; the hostname check does not classify DNS results.
 
-That store is a record of which videos you opened. It lives in
-`zzrouter.creators`, is capped at 300 oldest-out, and `status()` reports only
-its size.
+### Nexus game and author hierarchy
+
+Enable URL path subgroups and include `nexusmods.com` in the allowed domain list.
+Game/mod/file pages use **Nexus / Game**; profiles with verified source context
+use **Nexus / Game / Author**. Both author folders and profile tabs use the game
+cover, with **0** author-avatar requests. A one-level explicit root rule such as
+`nexusmods.com > Mods` retains that root; explicit multi-level destinations remain
+fixed. The nesting limit still applies.
+
+Context comes from the preceding game URL, actual opener, restored semantic
+ancestry, or one optional `zzrouterNexus` tab record for profiles whose placement
+cannot reconstruct their game. No selected-tab inference or global author/game
+mapping. Explicit numeric `gameId` filters use cached game metadata or Nexus's
+anonymous public GraphQL `game(id:)` query. Native container replacement transfers
+context, while author nesting itself keeps the tab's container.
+
+Navigating from an automatic author group to a same-game mod exits the Author
+level. Manual deeper folders remain intact. Direct profiles without a game keep
+existing placement; newly opened unresolved profiles stay directly in the Nexus
+root. Navigation away from Nexus clears inherited context.
+
+### YouTube Music names
+
+Music `/browse/` and `/playlist` collections use names from canonical page
+metadata. Opaque IDs stay internal; missing or inaccessible metadata leaves the
+tab at its configured destination. Explicit hierarchy, aliases, punctuation and
+non-Latin names remain intact. Playback/tab-title changes cannot rename a
+collection. Verified track channels can supply pictures; album artwork is never
+used as an artist portrait. No artist/album/playlist hierarchy is imposed.
 
 ## Inspecting it
 

@@ -31,6 +31,16 @@ time (*Headers and labels*; *States and profiles*; *Layout and scrolling*;
 *Connector lines and marks*; *Corners and other mods*) or *Everything*.
 Hidden settings keep their values.
 
+Sizes, corner radii and spacing show pixels (`px`). Enter the unit with the
+number, for example `14px`. Gradient spread and rim fade reach also accept
+pixels: `80px` ends the fade after a fixed distance along the chosen direction;
+`50%` follows half the gradient length. Junction blend accepts a distance up
+from the header bottom, such as `12px`. Rail fade length accepts `24px` or
+`12%` of the rail height, capped at 45% so the two ends cannot cross.
+Opacity and tint keep percentages; opacity also accepts 0–1 (`0.5` equals
+`50%`). Multipliers take a number without a unit. Defaults and saved values
+stay unchanged.
+
 ## Startup folding
 
 After each window restores its session, top-level groups/folders open and all

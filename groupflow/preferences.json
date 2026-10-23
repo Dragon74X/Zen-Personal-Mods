@@ -138,7 +138,7 @@
   {
     "type": "string",
     "property": "zzgroup.spread",
-    "label": "Gradient spread *Where the folder colour fades to transparent, as a percentage of the header.*",
+    "label": "Gradient spread (px or %) *Distance along the gradient until the end tint is reached. Enter 80px for a fixed distance or 50% for half the gradient length. Existing percentage values still work.*",
     "defaultValue": "50%",
     "placeholder": "50%",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "headers"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
@@ -156,7 +156,7 @@
   {
     "type": "string",
     "property": "zzgroup.header-roundness",
-    "label": "Header roundness *Corner radius of the header pill. Set it to the same value as Glassflow's tab roundness to match; an empty value is not supported because Sine injects it as an empty variable, which invalidates the rule.*",
+    "label": "Header roundness (px) *Corner radius of the header pill. Set it to the same value as Glassflow's tab roundness to match; an empty value is not supported because Sine injects it as an empty variable, which invalidates the rule.*",
     "defaultValue": "12px",
     "placeholder": "12px",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "headers"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
@@ -173,7 +173,7 @@
   {
     "type": "checkbox",
     "property": "zzgroup.header.rim",
-    "label": "Rim light on headers *A hairline top highlight and faint edge ring, from Glassflow's rim tokens, so its glass intensity slider scales this too.*",
+    "label": "Rim light on headers *A hairline top highlight and faint edge ring, from Glassflow's rim tokens, so its Glass intensity multiplier scales this too.*",
     "defaultValue": false,
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "headers"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
     "operator": "AND"
@@ -181,7 +181,7 @@
   {
     "type": "string",
     "property": "zzgroup.rim-reach",
-    "label": "Rim fade reach *How far the rim light travels before fading out, as a percentage. Follows the header's gradient direction, so the lit edge is bright where the accent is and gone where it has faded. Leave it matching Gradient spread for the two to fade together.*",
+    "label": "Rim fade reach (px or %) *Distance along the gradient until the rim disappears. Enter 80px for a fixed distance or 50% for half the gradient length. Match Gradient spread to fade both together.*",
     "defaultValue": "50%",
     "placeholder": "50%",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "headers"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.header.rim", "value": true}}], "operator": "AND"}],
@@ -190,7 +190,7 @@
   {
     "type": "string",
     "property": "zzgroup.rim-thickness",
-    "label": "Rim highlight thickness *How thick the bright line along the header's top edge is.*",
+    "label": "Rim highlight thickness (px) *How thick the bright line along the header's top edge is.*",
     "defaultValue": "1px",
     "placeholder": "1px",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "headers"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.header.rim", "value": true}}], "operator": "AND"}],
@@ -199,7 +199,7 @@
   {
     "type": "string",
     "property": "zzgroup.rim-ring-width",
-    "label": "Rim ring thickness *How thick the faint outline around the whole header is. This is the header's border area, so a large value insets the tint by the same amount.*",
+    "label": "Rim ring thickness (px) *How thick the faint outline around the whole header is. This is the header's border area, so a large value insets the tint by the same amount.*",
     "defaultValue": "1px",
     "placeholder": "1px",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "headers"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.header.rim", "value": true}}], "operator": "AND"}],
@@ -265,7 +265,7 @@
   {
     "type": "string",
     "property": "zzgroup.icon-size",
-    "label": "Icon size *The folder icon in the header.*",
+    "label": "Icon size (px) *The folder icon in the header.*",
     "defaultValue": "14px",
     "placeholder": "14px",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "headers"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.favicons", "value": true}}], "operator": "AND"}],
@@ -406,7 +406,7 @@
   {
     "type": "string",
     "property": "zzgroup.label-size",
-    "label": "Label size *Any CSS size. 1em follows the sidebar font, including Glassflow's font-size control when enabled there.*",
+    "label": "Label size (px or em) *Any CSS size. 1em follows the sidebar font, including Glassflow's font-size control when enabled there.*",
     "defaultValue": "1em",
     "placeholder": "1em",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "headers"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
@@ -490,7 +490,7 @@
   {
     "type": "string",
     "property": "zzgroup.collapsed-opacity",
-    "label": "Collapsed opacity *How faded closed folders are, while Dim collapsed groups is on.*",
+    "label": "Collapsed opacity (%) *0% is transparent; 100% keeps full opacity. Values from 0 to 1 also work. How faded closed folders are, while Dim collapsed groups is on.*",
     "defaultValue": "0.75",
     "placeholder": "0.75",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.collapsed.dim", "value": true}}], "operator": "AND"}],
@@ -540,7 +540,7 @@
   {
     "type": "string",
     "property": "zzgroup.subfolder.active.opacity",
-    "label": "Background opacity *0–1. Applies to the background, sheen, rim and glow; text and icons keep their opacity.*",
+    "label": "Background opacity (%) *0% is transparent; 100% keeps full opacity. Values from 0 to 1 also work. Applies to the background, sheen, rim and glow; text and icons keep their opacity.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
@@ -632,7 +632,7 @@
   {
     "type": "string",
     "property": "zzgroup.subfolder.active.spread",
-    "label": "Gradient spread *Percentage of the header at which the end colour is reached. Saved folder gradients retain their original shape.*",
+    "label": "Gradient spread (px or %) *Distance along the gradient until the end colour is reached. Enter 80px for a fixed distance or 50% for half the gradient length. Saved folder gradients keep their original shape.*",
     "defaultValue": "50%",
     "placeholder": "50%",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"not": {"property": "zzgroup.subfolder.active.end-mode", "value": 3}}], "operator": "AND"}],
@@ -704,7 +704,7 @@
   {
     "type": "string",
     "property": "zzgroup.subfolder.active.rim-reach",
-    "label": "Rim fade reach *Percentage of the header at which the rim disappears. Higher values carry the rim farther around the folder.*",
+    "label": "Rim fade reach (px or %) *Distance along the rim fade direction until the rim disappears. Enter 80px for a fixed distance or 60% of the gradient length. Larger distances carry the rim farther.*",
     "defaultValue": "60%",
     "placeholder": "60%",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"if": {"property": "zzgroup.subfolder.active.rim", "value": true}}], "operator": "AND"}],
@@ -748,7 +748,7 @@
   {
     "type": "string",
     "property": "zzgroup.subfolder.inactive.opacity",
-    "label": "Background opacity *0–1. Applies to the background, sheen, rim and glow; text and icons keep their opacity.*",
+    "label": "Background opacity (%) *0% is transparent; 100% keeps full opacity. Values from 0 to 1 also work. Applies to the background, sheen, rim and glow; text and icons keep their opacity.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
@@ -840,7 +840,7 @@
   {
     "type": "string",
     "property": "zzgroup.subfolder.inactive.spread",
-    "label": "Gradient spread *Percentage of the header at which the end colour is reached. Saved folder gradients retain their original shape.*",
+    "label": "Gradient spread (px or %) *Distance along the gradient until the end colour is reached. Enter 80px for a fixed distance or 50% for half the gradient length. Saved folder gradients keep their original shape.*",
     "defaultValue": "50%",
     "placeholder": "50%",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"not": {"property": "zzgroup.subfolder.inactive.end-mode", "value": 3}}], "operator": "AND"}],
@@ -912,7 +912,7 @@
   {
     "type": "string",
     "property": "zzgroup.subfolder.inactive.rim-reach",
-    "label": "Rim fade reach *Percentage of the header at which the rim disappears. Higher values carry the rim farther around the folder.*",
+    "label": "Rim fade reach (px or %) *Distance along the rim fade direction until the rim disappears. Enter 80px for a fixed distance or 60% of the gradient length. Larger distances carry the rim farther.*",
     "defaultValue": "60%",
     "placeholder": "60%",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"if": {"property": "zzgroup.subfolder.inactive.rim", "value": true}}], "operator": "AND"}],
@@ -956,7 +956,7 @@
   {
     "type": "string",
     "property": "zzgroup.subfolder.hover.opacity",
-    "label": "Background opacity *0–1. Applies to the background, sheen, rim and glow; text and icons keep their opacity.*",
+    "label": "Background opacity (%) *0% is transparent; 100% keeps full opacity. Values from 0 to 1 also work. Applies to the background, sheen, rim and glow; text and icons keep their opacity.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
@@ -1048,7 +1048,7 @@
   {
     "type": "string",
     "property": "zzgroup.subfolder.hover.spread",
-    "label": "Gradient spread *Percentage of the header at which the end colour is reached. Saved folder gradients retain their original shape.*",
+    "label": "Gradient spread (px or %) *Distance along the gradient until the end colour is reached. Enter 80px for a fixed distance or 50% for half the gradient length. Saved folder gradients keep their original shape.*",
     "defaultValue": "50%",
     "placeholder": "50%",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"not": {"property": "zzgroup.subfolder.hover.end-mode", "value": 3}}], "operator": "AND"}],
@@ -1120,7 +1120,7 @@
   {
     "type": "string",
     "property": "zzgroup.subfolder.hover.rim-reach",
-    "label": "Rim fade reach *Percentage of the header at which the rim disappears. Higher values carry the rim farther around the folder.*",
+    "label": "Rim fade reach (px or %) *Distance along the rim fade direction until the rim disappears. Enter 80px for a fixed distance or 60% of the gradient length. Larger distances carry the rim farther.*",
     "defaultValue": "60%",
     "placeholder": "60%",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"if": {"property": "zzgroup.subfolder.hover.rim", "value": true}}], "operator": "AND"}],
@@ -1155,7 +1155,7 @@
   {
     "type": "string",
     "property": "zzgroup.indent",
-    "label": "Subgroup indent *How far a subgroup sits in from its parent, applied to the subgroup's header and body. This does not control the gap between the rail and the rows -- that is Row inset below.*",
+    "label": "Subgroup indent (px) *How far a subgroup sits in from its parent, applied to the subgroup's header and body. This does not control the gap between the rail and the rows -- that is Row inset below.*",
     "defaultValue": "10px",
     "placeholder": "10px",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "layout"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
@@ -1172,7 +1172,7 @@
   {
     "type": "string",
     "property": "zzgroup.row-inset",
-    "label": "Row inset *Distance from the rail to each row, used only when automatic row inset is off. Too small and large marks will be overlapped by the tabs.*",
+    "label": "Row inset (px) *Distance from the rail to each row, used only when automatic row inset is off. Too small and large marks will be overlapped by the tabs.*",
     "defaultValue": "14px",
     "placeholder": "14px",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "layout"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"not": {"property": "zzgroup.row-inset-auto", "value": true}}], "operator": "AND"}],
@@ -1181,7 +1181,7 @@
   {
     "type": "string",
     "property": "zzgroup.row-gap",
-    "label": "Row gap *Breathing room between the rail and each row, on top of whatever the line and any marks need. This is what to nudge for spacing; the mod works out the rest from what you actually have switched on.*",
+    "label": "Row gap (px) *Breathing room between the rail and each row, on top of whatever the line and any marks need. This is what to nudge for spacing; the mod works out the rest from what you actually have switched on.*",
     "defaultValue": "6px",
     "placeholder": "6px",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "layout"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
@@ -1198,7 +1198,7 @@
   {
     "type": "string",
     "property": "zzgroup.depth-step",
-    "label": "Depth step *How much smaller each nesting level's label gets, as a multiplier. 0.92 is a gentle step; 0.8 is pronounced; 1 is no change. Applied once more per level, so a third-level label is the step cubed.*",
+    "label": "Label size per depth (multiplier) *Applied once per nesting level. With a 14px starting label, 0.9 gives 12.6px at the first level and 11.34px at the second. 1 keeps every level the same size. Enter a number without a unit.*",
     "defaultValue": "0.92",
     "placeholder": "0.92",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "layout"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.depth-scale", "value": true}}], "operator": "AND"}],
@@ -1421,7 +1421,7 @@
   {
     "type": "string",
     "property": "zzgroup.junction-blend",
-    "label": "Junction blend *How much of the header's height eases into the junction colour. Small values keep your header gradient almost untouched; large values let it drift toward the junction earlier.*",
+    "label": "Junction blend distance (px or %) *Distance up from the header bottom over which the colour changes to the rail colour. Enter 12px for a fixed distance or 45% of the header height. A longer distance starts the blend earlier.*",
     "defaultValue": "45%",
     "placeholder": "45%",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
@@ -1439,7 +1439,7 @@
   {
     "type": "string",
     "property": "zzgroup.flow-tail",
-    "label": "Flow tail *How far short of the last row the rail stops, so it settles softly instead of running to a hard end.*",
+    "label": "Flow tail (px) *How far short of the last row the rail stops, so it settles softly instead of running to a hard end.*",
     "defaultValue": "6px",
     "placeholder": "6px",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
@@ -1448,7 +1448,7 @@
   {
     "type": "string",
     "property": "zzgroup.guide-width",
-    "label": "Line thickness *Also sets the weight of the per-item marks and, for the curve mark, its radius. 1 to 2px reads cleanest.*",
+    "label": "Line thickness (px) *Also sets the weight of the per-item marks and, for the curve mark, its radius. 1 to 2px reads cleanest.*",
     "defaultValue": "2px",
     "placeholder": "2px",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
@@ -1458,7 +1458,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.line-gradient",
-    "label": "Line gradient *How the rail's colour is distributed. Soft ends fades in and out at the ends, from the centre outward. Rounded shades across the rail's width, densest along its middle, so it reads as a tube. Fades along the rail's length are applied as a mask, which means the sheen, rim and glow below fade with the line rather than hanging past it. All stops are percentages, so groups of any length fade identically.*",
+    "label": "Line gradient *How the rail's colour is distributed. Soft ends fades in and out at the ends, from the centre outward. Rounded shades across the rail's width, densest along its middle, so it reads as a tube. Fades along the rail's length are applied as a mask, which means the sheen, rim and glow below fade with the line rather than hanging past it. Fade length accepts pixels for a fixed distance or percentages to follow the rail height.*",
     "defaultValue": 1,
     "options": [
       {
@@ -1509,7 +1509,7 @@
   {
     "type": "string",
     "property": "zzgroup.line-fade",
-    "label": "Fade length *How much of each end fades out, as a percentage of the rail's height. Used only by the fade options in Line gradient -- with Solid or the across-width options it has no effect.*",
+    "label": "Fade length (px or %) *Distance over which each fading end of the rail disappears. Enter 24px for a fixed distance or 12% of the rail height. Capped at 45% of its height to keep the fades from crossing. Used only by the lengthwise fade options.*",
     "defaultValue": "12%",
     "placeholder": "12%",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
@@ -1592,7 +1592,7 @@
   {
     "type": "string",
     "property": "zzgroup.curve-amplitude",
-    "label": "Curve amplitude *How far the curve swings sideways. Also the width of the band the rail occupies, so raise Row gap alongside it if rows start to crowd the curve.*",
+    "label": "Curve amplitude (px) *How far the curve swings sideways. Also the width of the band the rail occupies, so raise Row gap alongside it if rows start to crowd the curve.*",
     "defaultValue": "16px",
     "placeholder": "16px",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.line-shape", "value": 1}}], "operator": "AND"}],
@@ -1656,7 +1656,7 @@
   {
     "type": "string",
     "property": "zzgroup.line-glow-radius",
-    "label": "Glow radius *How far the line's glow spreads.*",
+    "label": "Glow radius (px) *How far the line's glow spreads.*",
     "defaultValue": "4px",
     "placeholder": "4px",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.line.glow", "value": true}}], "operator": "AND"}],
@@ -1673,7 +1673,7 @@
   {
     "type": "string",
     "property": "zzgroup.line-opacity",
-    "label": "Line opacity *Applies to the whole rail including its sheen, rim and glow.*",
+    "label": "Line opacity (%) *0% is transparent; 100% keeps full opacity. Values from 0 to 1 also work. Applies to the whole rail including its sheen, rim and glow.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
@@ -1947,7 +1947,7 @@
   {
     "type": "string",
     "property": "zzgroup.marker-glow-radius",
-    "label": "Mark glow radius *How far each mark's glow spreads.*",
+    "label": "Mark glow radius (px) *How far each mark's glow spreads.*",
     "defaultValue": "3px",
     "placeholder": "3px",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.marker.glow", "value": true}}], "operator": "AND"}],
@@ -1964,7 +1964,7 @@
   {
     "type": "string",
     "property": "zzgroup.marker-opacity",
-    "label": "Mark opacity *Applies to the whole mark including its sheen and glow.*",
+    "label": "Mark opacity (%) *0% is transparent; 100% keeps full opacity. Values from 0 to 1 also work. Applies to the whole mark including its sheen and glow.*",
     "defaultValue": "0.85",
     "placeholder": "0.85",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
@@ -1973,7 +1973,7 @@
   {
     "type": "string",
     "property": "zzgroup.marker-size",
-    "label": "Mark size *Base size of the mark in pixels. Marks are vector shapes, so they stay smooth at any size.*",
+    "label": "Mark size (px) *Base size of the mark in pixels. Marks are vector shapes, so they stay smooth at any size.*",
     "defaultValue": "7px",
     "placeholder": "7px",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
@@ -1982,7 +1982,7 @@
   {
     "type": "string",
     "property": "zzgroup.marker-scale",
-    "label": "Mark scale *Multiplies the mark size, stroke included -- 1.5 gives a half-again bigger mark with proportionally heavier lines. Use size for the base and scale to fine-tune without re-tuning anything else.*",
+    "label": "Mark scale (multiplier) *Multiplies Mark size and its stroke. With a 7px Mark size, 1.5 gives 10.5px. Enter a number without a unit; use Mark size for a distance in pixels.*",
     "defaultValue": "1",
     "placeholder": "1",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],

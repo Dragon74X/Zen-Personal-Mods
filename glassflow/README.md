@@ -51,6 +51,15 @@ and each overlay's glass; they also stay on their own pages. Hidden settings
 keep their values. Each row's tooltip shows the preference it
 sets.
 
+Size, radius, thickness and blur controls show pixels (`px`); durations show
+milliseconds (`ms`). Include the unit when typing, for example `12px` or
+`160ms`. Text sizes also accept `em` to follow the inherited font size.
+Gradient spread accepts a fixed distance such as `80px`, or a percentage of
+the gradient length such as `100%`. Existing defaults and saved values stay
+unchanged. Opacity and colour mixes keep percentages; CSS opacity fields also
+accept their existing 0–1 values (`0.5` equals `50%`). Multipliers identify
+what they scale and take a number without a unit.
+
 ## Replaces these mods
 
 Small single-purpose mods, folded in so they update with Glassflow. Each is
@@ -323,10 +332,10 @@ on `zen.view.experimental-force-window-controls-left`.
 | Close / minimise / maximise colour | purple / blue / green | Any CSS colour; alpha below 1 is what makes them glassy |
 | Diameter | `13px` | macOS uses 12px |
 | Gap between buttons | `8px` | |
-| Resting shape (height) | `1.15` | Multiple of the diameter; `1` is a circle |
+| Resting height (× diameter) | `1.15` | Multiple of the diameter; equal width and height give a circle |
 | Resting width | `1` | Independent of height — combine both for a capsule either way up |
 | Vertical oval on hover | on | |
-| Oval height on hover | `1.3` | |
+| Height on hover (× diameter) | `1.3` | At a `13px` diameter, gives `16.9px` height |
 | Width on hover | `1` | Applied as a compositor transform, so it can never push neighbours |
 | Show glyphs on hover | on | |
 | Glyph size | `0.62` | |

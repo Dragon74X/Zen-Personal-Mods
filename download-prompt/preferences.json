@@ -3,7 +3,8 @@
     "type": "separator",
     "label": "Download Prompt",
     "size": "20px",
-    "margin": "2px 0 12px 0"
+    "margin": "2px 0 12px 0",
+    "id": "zzdl.ui.section.download-prompt"
   },
   {
     "type": "dropdown",
@@ -24,12 +25,14 @@
         "label": "Always keep both",
         "value": 2
       }
-    ]
+    ],
+    "placeholder": false
   },
   {
     "type": "separator",
     "label": "Only when downloads go straight to a folder *With 'Always ask you where to save files' turned on in Zen's own settings, every download opens the system save dialog, that dialog asks about replacing on its own, and this mod stays out of the way.*",
     "size": "13px",
-    "margin": "18px 0 4px 0"
+    "margin": "18px 0 4px 0",
+    "id": "zzdl.ui.section.only-when-downloads-go-straight-to-a-folder-with-always-ask-you-where-"
   }
 ]

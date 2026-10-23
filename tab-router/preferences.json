@@ -3,12 +3,13 @@
     "type": "separator",
     "label": "Tab Router",
     "size": "20px",
-    "margin": "2px 0 12px 0"
+    "margin": "2px 0 12px 0",
+    "id": "zzrouter.ui.section.tab-router"
   },
   {
     "type": "checkbox",
     "property": "zzrouter.enabled",
-    "label": "Turn on routing *Moves tabs into tab groups automatically as you browse, using the rules below. Nothing moves until you write at least one rule.*",
+    "label": "Turn on routing *Applies the saved rules and automatic unmatched sorting. Defaults already include GitHub/GitLab → Dev and YouTube → Watch; enabling routing can move tabs immediately. Pictures can remain enabled independently.*",
     "defaultValue": false
   },
   {
@@ -43,7 +44,8 @@
         "value": 3
       }
     ],
-    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}]
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}],
+    "placeholder": false
   },
   {
     "type": "string",
@@ -88,8 +90,9 @@
         "value": 3
       }
     ],
-    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}, {"if": {"property": "zzrouter.auto-subdomains", "value": true}}],
-    "operator": "AND"
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}, {"if": {"property": "zzrouter.auto-subdomains", "value": true}}, {"if": {"property": "zzrouter.auto-unmatched", "value": true}}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -115,14 +118,15 @@
         "value": 3
       }
     ],
-    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}, {"if": {"property": "zzrouter.auto-unmatched", "value": true}}],
-    "operator": "AND"
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
     "value": "number",
     "property": "zzrouter.auto-path-mode",
-    "label": "Which sites get path subgroups *Splitting by URL path is right where the first segment names a creator, a game or an account, and noise where it names a section or a slug. Only listed: the sites you name. Every site except listed: everything, with a built-in list of generic route words, one- and two-letter codes, ids and file names filtered out, plus your ignore words.*",
+    "label": "Site list mode *Controls URL path subgroups. In Every site except these mode, listed sites also skip automatic pictures even with routing off. Only these sites limits path subgroups; it does not limit pictures.*",
     "defaultValue": 0,
     "options": [
       {
@@ -134,16 +138,17 @@
         "value": 1
       }
     ],
-    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}, {"if": {"property": "zzrouter.auto-unmatched", "value": true}}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}, {"if": {"property": "zzrouter.section-icons", "value": true}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
     "property": "zzrouter.auto-path-domains",
-    "label": "Path subgroup domain list *Comma separated. Read as the setting above says: only these sites, or every site except these.*",
+    "label": "Site list for paths and picture exclusions *Comma-separated domains; includes their subdomains. Used by Site list mode above. Every site except these also excludes listed sites from automatic pictures.*",
     "defaultValue": "youtube.com",
     "placeholder": "youtube.com, nexusmods.com",
-    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}, {"if": {"property": "zzrouter.auto-unmatched", "value": true}}],
+    "conditions": [{"conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}, {"if": {"property": "zzrouter.section-icons", "value": true}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -175,14 +180,8 @@
         "value": 1
       }
     ],
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.section-icons",
-          "value": true
-        }
-      }
-    ]
+    "conditions": [{"if": {"property": "zzrouter.section-icons", "value": true}}],
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -208,14 +207,8 @@
         "value": 3
       }
     ],
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.section-icons",
-          "value": true
-        }
-      }
-    ]
+    "conditions": [{"if": {"property": "zzrouter.section-icons", "value": true}}],
+    "placeholder": false
   },
   {
     "type": "string",
@@ -223,20 +216,7 @@
     "label": "Banner opacity (%) *0–100; default 25. Changes artwork opacity only, below existing tint, sheen and rim. Text, controls and selection states retain their styling. Changes reuse cached artwork without downloading again.*",
     "defaultValue": "25",
     "placeholder": "25",
-    "conditions": [
-      {
-        "if": {
-          "property": "zzrouter.section-icons",
-          "value": true
-        }
-      },
-      {
-        "not": {
-          "property": "zzrouter.nexus-banners",
-          "value": 0
-        }
-      }
-    ],
+    "conditions": [{"if": {"property": "zzrouter.section-icons", "value": true}}, {"not": {"property": "zzrouter.nexus-banners", "value": 0}}],
     "operator": "AND"
   },
   {
@@ -245,16 +225,16 @@
     "label": "Extra path words to ignore *Comma separated, ADDED to a built-in list of generic route words (search, watch, videos, results, games, category and similar). Numeric segments and file names are always dropped.*",
     "defaultValue": "",
     "placeholder": "mods,collections",
-    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}, {"if": {"property": "zzrouter.auto-unmatched", "value": true}}],
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}],
     "operator": "AND"
   },
   {
     "type": "string",
     "property": "zzrouter.auto-path-aliases",
-    "label": "Path name aliases *slug = Pretty Name, one per line or comma separated, and these always win. Mostly optional now: names are LEARNED automatically from tab titles when the title plausibly matches the slug, so nexusmods.com/games/dragonage files as Dragon Age: Origins once any page under it has loaded. TabRouter.learned() shows what has been picked up; TabRouter.forget('slug') or TabRouter.forget() drops bad ones. Slugs with separators, like crimson-desert, are cleaned up automatically either way.*",
+    "label": "Domain, subdomain and path name aliases *key = Pretty Name, one per line or comma separated. Applies to generated domain/subdomain names, path segments and verified subjects; explicit aliases win over learned names. TabRouter.learned() lists learned names; TabRouter.forget('slug') or TabRouter.forget() removes them.*",
     "defaultValue": "baldursgate3 = Baldur's Gate 3",
     "placeholder": "baldursgate3 = Baldur's Gate 3",
-    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}, {"if": {"property": "zzrouter.auto-unmatched", "value": true}}],
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}],
     "operator": "AND"
   },
   {
@@ -268,7 +248,10 @@
     "type": "separator",
     "label": "Sorting",
     "size": "17px",
-    "margin": "22px 0 10px 0"
+    "margin": "22px 0 10px 0",
+    "id": "zzrouter.ui.section.sorting",
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}],
+    "operator": "AND"
   },
   {
     "type": "dropdown",
@@ -290,7 +273,8 @@
         "value": 2
       }
     ],
-    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}]
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}],
+    "placeholder": false
   },
   {
     "type": "checkbox",
@@ -310,7 +294,10 @@
     "type": "separator",
     "label": "Leave alone",
     "size": "17px",
-    "margin": "22px 0 10px 0"
+    "margin": "22px 0 10px 0",
+    "id": "zzrouter.ui.section.leave-alone",
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}],
+    "operator": "AND"
   },
   {
     "type": "checkbox",
@@ -344,7 +331,10 @@
     "type": "separator",
     "label": "Timing",
     "size": "17px",
-    "margin": "22px 0 10px 0"
+    "margin": "22px 0 10px 0",
+    "id": "zzrouter.ui.section.timing",
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}],
+    "operator": "AND"
   },
   {
     "type": "checkbox",
@@ -374,7 +364,10 @@
     "type": "separator",
     "label": "Troubleshooting",
     "size": "17px",
-    "margin": "22px 0 10px 0"
+    "margin": "22px 0 10px 0",
+    "id": "zzrouter.ui.section.troubleshooting",
+    "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}],
+    "operator": "AND"
   },
   {
     "type": "checkbox",

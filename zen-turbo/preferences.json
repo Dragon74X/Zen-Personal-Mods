@@ -3,7 +3,8 @@
     "type": "separator",
     "label": "Zen Turbo",
     "size": "20px",
-    "margin": "2px 0 12px 0"
+    "margin": "2px 0 12px 0",
+    "id": "zzturbo.ui.section.zen-turbo"
   },
   {
     "type": "checkbox",
@@ -33,7 +34,8 @@
     "type": "separator",
     "label": "Rendering and scrolling",
     "size": "17px",
-    "margin": "22px 0 10px 0"
+    "margin": "22px 0 10px 0",
+    "id": "zzturbo.ui.section.rendering-and-scrolling"
   },
   {
     "type": "checkbox",
@@ -51,7 +53,8 @@
     "type": "separator",
     "label": "Connection warmup *Favorites (Essentials/pinned tabs) use native Firefox tab hover warmup. No duplicate bookmark or tab requests are added.*",
     "size": "17px",
-    "margin": "22px 0 10px 0"
+    "margin": "22px 0 10px 0",
+    "id": "zzturbo.ui.section.connection-warmup-favorites-essentials-pinned-tabs-use-native-firefox-"
   },
   {
     "type": "checkbox",
@@ -65,14 +68,7 @@
     "label": "Startup origin count *Selects up to this many origins by history frecency. Default 6; maximum 20.*",
     "defaultValue": "6",
     "placeholder": "6",
-    "conditions": [
-      {
-        "if": {
-          "property": "zzturbo.startup-warmup",
-          "value": true
-        }
-      }
-    ]
+    "conditions": [{"if": {"property": "zzturbo.startup-warmup", "value": true}}]
   },
   {
     "type": "string",
@@ -80,20 +76,14 @@
     "label": "Startup delay (milliseconds) *Minimum delay after workspace/session initialization. Foreground loading and idle scheduling can defer it further. Default 4000.*",
     "defaultValue": "4000",
     "placeholder": "4000",
-    "conditions": [
-      {
-        "if": {
-          "property": "zzturbo.startup-warmup",
-          "value": true
-        }
-      }
-    ]
+    "conditions": [{"if": {"property": "zzturbo.startup-warmup", "value": true}}]
   },
   {
     "type": "separator",
     "label": "Troubleshooting",
     "size": "17px",
-    "margin": "22px 0 10px 0"
+    "margin": "22px 0 10px 0",
+    "id": "zzturbo.ui.section.troubleshooting"
   },
   {
     "type": "checkbox",

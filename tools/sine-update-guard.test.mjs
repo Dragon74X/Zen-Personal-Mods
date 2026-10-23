@@ -155,7 +155,7 @@ test("preference reads resume after a failed replacement", async () => {
   await assert.rejects(reading, /Failed to read mod preferences/);
 });
 
-test("all 6 copies install one session guard without wrapping repeatedly", async () => {
+test("all 10 copies install one session guard without wrapping repeatedly", async () => {
   const f = fixture();
   installSineUpdateGuard(f.manager, f.utils);
   const wrapped = f.manager.syncModData;

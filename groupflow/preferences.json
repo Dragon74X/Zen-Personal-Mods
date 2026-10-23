@@ -3,7 +3,8 @@
     "type": "separator",
     "label": "Groupflow",
     "size": "20px",
-    "margin": "2px 0 12px 0"
+    "margin": "2px 0 12px 0",
+    "id": "zzgroup.ui.section.groupflow"
   },
   {
     "type": "checkbox",
@@ -35,7 +36,8 @@
         "value": 3
       }
     ],
-    "conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}]
+    "conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}],
+    "placeholder": false
   },
   {
     "type": "string",
@@ -77,7 +79,8 @@
         "label": "Everything",
         "value": "all"
       }
-    ]
+    ],
+    "placeholder": false
   },
   {
     "type": "separator",
@@ -133,7 +136,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "headers"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
@@ -184,7 +188,7 @@
     "label": "Rim fade reach (px or %) *Distance along the gradient until the rim disappears. Enter 80px for a fixed distance or 50% for half the gradient length. Match Gradient spread to fade both together.*",
     "defaultValue": "50%",
     "placeholder": "50%",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "headers"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.header.rim", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "headers"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.header.rim", "value": true}}], "operator": "AND"}, {"not": {"property": "zzgroup.match-glassflow-edges", "value": true}}],
     "operator": "AND"
   },
   {
@@ -296,7 +300,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "headers"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.favicons", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "checkbox",
@@ -339,7 +344,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "headers"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.favicons", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -348,14 +354,30 @@
     "label": "Tab icon shape *Applies to tab favicons and Router pictures, including pinned tabs, Essentials and Library copies. Match folder corners follows the header's corner shape and scales its radius to the icon size.*",
     "defaultValue": 0,
     "options": [
-      { "label": "Match folder corners", "value": 0 },
-      { "label": "Rounded square", "value": 1 },
-      { "label": "Squircle", "value": 2 },
-      { "label": "Circle", "value": 3 },
-      { "label": "Square", "value": 4 }
+      {
+        "label": "Match folder corners",
+        "value": 0
+      },
+      {
+        "label": "Rounded square",
+        "value": 1
+      },
+      {
+        "label": "Squircle",
+        "value": 2
+      },
+      {
+        "label": "Circle",
+        "value": 3
+      },
+      {
+        "label": "Square",
+        "value": 4
+      }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "headers"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"if": {"property": "zzgroup.enabled", "value": true}}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -378,7 +400,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "headers"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -401,7 +424,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "headers"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
@@ -521,12 +545,40 @@
     "operator": "AND"
   },
   {
+    "type": "dropdown",
+    "property": "zzgroup.ui.folder-state",
+    "label": "Show folder state",
+    "defaultValue": "active",
+    "options": [
+      {
+        "label": "Active",
+        "value": "active"
+      },
+      {
+        "label": "Inactive",
+        "value": "inactive"
+      },
+      {
+        "label": "Hovered",
+        "value": "hover"
+      },
+      {
+        "label": "Everything",
+        "value": "all"
+      }
+    ],
+    "placeholder": false,
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"if": {"property": "zzgroup.enabled", "value": true}}],
+    "operator": "AND"
+  },
+  {
     "type": "separator",
     "label": "Active profile",
     "size": "17px",
     "margin": "22px 0 10px 0",
     "id": "zzgroup.ui.section.active-profile",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}]
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "active"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
   },
   {
     "type": "string",
@@ -534,7 +586,7 @@
     "label": "Tint strength *Accent percentage at the start of the gradient. For a saved palette, 25% keeps its original strength; lower or higher values scale every colour together.*",
     "defaultValue": "25%",
     "placeholder": "25%",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "active"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -543,7 +595,7 @@
     "label": "Background opacity (%) *0% is transparent; 100% keeps full opacity. Values from 0 to 1 also work. Applies to the background, sheen, rim and glow; text and icons keep their opacity.*",
     "defaultValue": "1",
     "placeholder": "1",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "active"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -586,8 +638,9 @@
         "value": 7
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "active"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -617,8 +670,9 @@
         "value": 4
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "active"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
@@ -626,7 +680,7 @@
     "label": "End tint *Accent or secondary-colour percentage at the end of the gradient.*",
     "defaultValue": "0%",
     "placeholder": "0%",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"conditions": [{"if": {"property": "zzgroup.subfolder.active.end-mode", "value": 1}}, {"if": {"property": "zzgroup.subfolder.active.end-mode", "value": 2}}], "operator": "OR"}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"conditions": [{"if": {"property": "zzgroup.subfolder.active.end-mode", "value": 1}}, {"if": {"property": "zzgroup.subfolder.active.end-mode", "value": 2}}], "operator": "OR"}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "active"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -635,7 +689,7 @@
     "label": "Gradient spread (px or %) *Distance along the gradient until the end colour is reached. Enter 80px for a fixed distance or 50% for half the gradient length. Saved folder gradients keep their original shape.*",
     "defaultValue": "50%",
     "placeholder": "50%",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"not": {"property": "zzgroup.subfolder.active.end-mode", "value": 3}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"not": {"property": "zzgroup.subfolder.active.end-mode", "value": 3}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "active"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -643,7 +697,7 @@
     "property": "zzgroup.subfolder.active.sheen",
     "label": "Glass sheen *Uses Glassflow's shared sheen recipe, with a built-in fallback.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "active"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -651,7 +705,7 @@
     "property": "zzgroup.subfolder.active.rim",
     "label": "Glass rim *Uses the shared rim colour and thickness. Its fade direction and reach are independent of the fill.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "active"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -698,8 +752,9 @@
         "value": 8
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"if": {"property": "zzgroup.subfolder.active.rim", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"if": {"property": "zzgroup.subfolder.active.rim", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "active"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
@@ -707,7 +762,7 @@
     "label": "Rim fade reach (px or %) *Distance along the rim fade direction until the rim disappears. Enter 80px for a fixed distance or 60% of the gradient length. Larger distances carry the rim farther.*",
     "defaultValue": "60%",
     "placeholder": "60%",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"if": {"property": "zzgroup.subfolder.active.rim", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"if": {"property": "zzgroup.subfolder.active.rim", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "active"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -715,7 +770,7 @@
     "property": "zzgroup.subfolder.active.glow",
     "label": "Outer glow *A soft halo around folder headers in this state.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "active"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -724,7 +779,7 @@
     "label": "Label colour *Any CSS colour. Default follows the shared Label colour setting and theme foreground.*",
     "defaultValue": "var(--zzgroup-label-color, inherit)",
     "placeholder": "var(--zzgroup-label-color, inherit)",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "active"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND",
     "border": "value"
   },
@@ -734,7 +789,8 @@
     "size": "17px",
     "margin": "22px 0 10px 0",
     "id": "zzgroup.ui.section.inactive-profile",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}]
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "inactive"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
   },
   {
     "type": "string",
@@ -742,7 +798,7 @@
     "label": "Tint strength *Accent percentage at the start of the gradient. For a saved palette, 25% keeps its original strength; lower or higher values scale every colour together.*",
     "defaultValue": "25%",
     "placeholder": "25%",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "inactive"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -751,7 +807,7 @@
     "label": "Background opacity (%) *0% is transparent; 100% keeps full opacity. Values from 0 to 1 also work. Applies to the background, sheen, rim and glow; text and icons keep their opacity.*",
     "defaultValue": "1",
     "placeholder": "1",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "inactive"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -794,8 +850,9 @@
         "value": 7
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "inactive"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -825,8 +882,9 @@
         "value": 4
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "inactive"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
@@ -834,7 +892,7 @@
     "label": "End tint *Accent or secondary-colour percentage at the end of the gradient.*",
     "defaultValue": "0%",
     "placeholder": "0%",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"conditions": [{"if": {"property": "zzgroup.subfolder.inactive.end-mode", "value": 1}}, {"if": {"property": "zzgroup.subfolder.inactive.end-mode", "value": 2}}], "operator": "OR"}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"conditions": [{"if": {"property": "zzgroup.subfolder.inactive.end-mode", "value": 1}}, {"if": {"property": "zzgroup.subfolder.inactive.end-mode", "value": 2}}], "operator": "OR"}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "inactive"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -843,7 +901,7 @@
     "label": "Gradient spread (px or %) *Distance along the gradient until the end colour is reached. Enter 80px for a fixed distance or 50% for half the gradient length. Saved folder gradients keep their original shape.*",
     "defaultValue": "50%",
     "placeholder": "50%",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"not": {"property": "zzgroup.subfolder.inactive.end-mode", "value": 3}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"not": {"property": "zzgroup.subfolder.inactive.end-mode", "value": 3}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "inactive"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -851,7 +909,7 @@
     "property": "zzgroup.subfolder.inactive.sheen",
     "label": "Glass sheen *Uses Glassflow's shared sheen recipe, with a built-in fallback.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "inactive"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -859,7 +917,7 @@
     "property": "zzgroup.subfolder.inactive.rim",
     "label": "Glass rim *Uses the shared rim colour and thickness. Its fade direction and reach are independent of the fill.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "inactive"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -906,8 +964,9 @@
         "value": 8
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"if": {"property": "zzgroup.subfolder.inactive.rim", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"if": {"property": "zzgroup.subfolder.inactive.rim", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "inactive"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
@@ -915,7 +974,7 @@
     "label": "Rim fade reach (px or %) *Distance along the rim fade direction until the rim disappears. Enter 80px for a fixed distance or 60% of the gradient length. Larger distances carry the rim farther.*",
     "defaultValue": "60%",
     "placeholder": "60%",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"if": {"property": "zzgroup.subfolder.inactive.rim", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"if": {"property": "zzgroup.subfolder.inactive.rim", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "inactive"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -923,7 +982,7 @@
     "property": "zzgroup.subfolder.inactive.glow",
     "label": "Outer glow *A soft halo around folder headers in this state.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "inactive"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -932,7 +991,7 @@
     "label": "Label colour *Any CSS colour. Default follows the shared Label colour setting and theme foreground.*",
     "defaultValue": "var(--zzgroup-label-color, inherit)",
     "placeholder": "var(--zzgroup-label-color, inherit)",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "inactive"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND",
     "border": "value"
   },
@@ -942,7 +1001,8 @@
     "size": "17px",
     "margin": "22px 0 10px 0",
     "id": "zzgroup.ui.section.hovered-profile",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}]
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "hover"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
   },
   {
     "type": "string",
@@ -950,7 +1010,7 @@
     "label": "Tint strength *Accent percentage at the start of the gradient. For a saved palette, 25% keeps its original strength; lower or higher values scale every colour together.*",
     "defaultValue": "25%",
     "placeholder": "25%",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "hover"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -959,7 +1019,7 @@
     "label": "Background opacity (%) *0% is transparent; 100% keeps full opacity. Values from 0 to 1 also work. Applies to the background, sheen, rim and glow; text and icons keep their opacity.*",
     "defaultValue": "1",
     "placeholder": "1",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "hover"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1002,8 +1062,9 @@
         "value": 7
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "hover"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1033,8 +1094,9 @@
         "value": 4
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "hover"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
@@ -1042,7 +1104,7 @@
     "label": "End tint *Accent or secondary-colour percentage at the end of the gradient.*",
     "defaultValue": "0%",
     "placeholder": "0%",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"conditions": [{"if": {"property": "zzgroup.subfolder.hover.end-mode", "value": 1}}, {"if": {"property": "zzgroup.subfolder.hover.end-mode", "value": 2}}], "operator": "OR"}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"conditions": [{"if": {"property": "zzgroup.subfolder.hover.end-mode", "value": 1}}, {"if": {"property": "zzgroup.subfolder.hover.end-mode", "value": 2}}], "operator": "OR"}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "hover"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1051,7 +1113,7 @@
     "label": "Gradient spread (px or %) *Distance along the gradient until the end colour is reached. Enter 80px for a fixed distance or 50% for half the gradient length. Saved folder gradients keep their original shape.*",
     "defaultValue": "50%",
     "placeholder": "50%",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"not": {"property": "zzgroup.subfolder.hover.end-mode", "value": 3}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"not": {"property": "zzgroup.subfolder.hover.end-mode", "value": 3}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "hover"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1059,7 +1121,7 @@
     "property": "zzgroup.subfolder.hover.sheen",
     "label": "Glass sheen *Uses Glassflow's shared sheen recipe, with a built-in fallback.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "hover"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1067,7 +1129,7 @@
     "property": "zzgroup.subfolder.hover.rim",
     "label": "Glass rim *Uses the shared rim colour and thickness. Its fade direction and reach are independent of the fill.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "hover"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1114,8 +1176,9 @@
         "value": 8
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"if": {"property": "zzgroup.subfolder.hover.rim", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"if": {"property": "zzgroup.subfolder.hover.rim", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "hover"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
@@ -1123,7 +1186,7 @@
     "label": "Rim fade reach (px or %) *Distance along the rim fade direction until the rim disappears. Enter 80px for a fixed distance or 60% of the gradient length. Larger distances carry the rim farther.*",
     "defaultValue": "60%",
     "placeholder": "60%",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"if": {"property": "zzgroup.subfolder.hover.rim", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}, {"if": {"property": "zzgroup.subfolder.hover.rim", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "hover"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1131,7 +1194,7 @@
     "property": "zzgroup.subfolder.hover.glow",
     "label": "Outer glow *A soft halo around folder headers in this state.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "hover"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1140,7 +1203,7 @@
     "label": "Label colour *Any CSS colour. Default follows the shared Label colour setting and theme foreground.*",
     "defaultValue": "var(--zzgroup-label-color, inherit)",
     "placeholder": "var(--zzgroup-label-color, inherit)",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.subfolder.states", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzgroup.ui.folder-state", "value": "hover"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": "all"}}, {"if": {"property": "zzgroup.ui.folder-state", "value": ""}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND",
     "border": "value"
   },
@@ -1262,7 +1325,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "layout"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.scroll-glow", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1288,43 +1352,9 @@
         "value": 3
       }
     ],
-    "conditions": [
-      {
-        "conditions": [
-          {
-            "if": {
-              "property": "zzgroup.ui.page",
-              "value": "layout"
-            }
-          },
-          {
-            "if": {
-              "property": "zzgroup.ui.page",
-              "value": "all"
-            }
-          },
-          {
-            "if": {
-              "property": "zzgroup.ui.page",
-              "value": ""
-            }
-          }
-        ],
-        "operator": "OR"
-      },
-      {
-        "conditions": [
-          {
-            "if": {
-              "property": "zzgroup.scroll-glow",
-              "value": true
-            }
-          }
-        ],
-        "operator": "OR"
-      }
-    ],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "layout"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.scroll-glow", "value": true}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "checkbox",
@@ -1391,14 +1421,15 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "checkbox",
     "property": "zzgroup.line.match-tab",
     "label": "Match the tab gradient *The rail carries the same recipe as the group header and Glassflow's tabs -- same direction, tint, spread and end tint -- so it reads as an extension of the pill rather than a separate stripe. Works with any membership style, and pairs naturally with Flowing.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}, {"not": {"property": "zzgroup.connector", "value": 0}}],
     "operator": "AND"
   },
   {
@@ -1406,7 +1437,7 @@
     "property": "zzgroup.flow-seamless",
     "label": "Seamless junction *Blends the header's last stretch to a known colour and starts the rail on that same colour, so there is no visible seam where the line leaves the pill. It steers only the final few percent of the header, so gradient direction, spread and end tint all still do what you set them to. Turn off to drive the rail entirely from the Line gradient options instead.*",
     "defaultValue": true,
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}, {"if": {"property": "zzgroup.connector", "value": 5}}],
     "operator": "AND"
   },
   {
@@ -1415,7 +1446,7 @@
     "label": "Junction tint *Accent strength where the header meets the rail, as a percentage. This is the colour both sides share, so it is what makes the line visible -- raise it for a stronger connection.*",
     "defaultValue": "25%",
     "placeholder": "25%",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}, {"if": {"property": "zzgroup.connector", "value": 5}}],
     "operator": "AND"
   },
   {
@@ -1424,7 +1455,7 @@
     "label": "Junction blend distance (px or %) *Distance up from the header bottom over which the colour changes to the rail colour. Enter 12px for a fixed distance or 45% of the header height. A longer distance starts the blend earlier.*",
     "defaultValue": "45%",
     "placeholder": "45%",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}, {"if": {"property": "zzgroup.connector", "value": 5}}],
     "operator": "AND"
   },
   {
@@ -1433,7 +1464,7 @@
     "label": "Flow end tint *Accent strength at the far end of the rail. Above zero the line stays visible all the way down; zero fades it out entirely.*",
     "defaultValue": "8%",
     "placeholder": "8%",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}, {"if": {"property": "zzgroup.connector", "value": 5}}],
     "operator": "AND"
   },
   {
@@ -1442,7 +1473,7 @@
     "label": "Flow tail (px) *How far short of the last row the rail stops, so it settles softly instead of running to a hard end.*",
     "defaultValue": "6px",
     "placeholder": "6px",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}, {"if": {"property": "zzgroup.connector", "value": 5}}],
     "operator": "AND"
   },
   {
@@ -1451,7 +1482,7 @@
     "label": "Line thickness (px) *Also sets the weight of the per-item marks and, for the curve mark, its radius. 1 to 2px reads cleanest.*",
     "defaultValue": "2px",
     "placeholder": "2px",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}, {"not": {"property": "zzgroup.connector", "value": 0}}],
     "operator": "AND"
   },
   {
@@ -1494,8 +1525,9 @@
         "value": 7
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}, {"not": {"property": "zzgroup.connector", "value": 0}}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
@@ -1503,7 +1535,7 @@
     "label": "Line strength *How much accent colour the rail carries, as a percentage. Lower is subtler.*",
     "defaultValue": "40%",
     "placeholder": "40%",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}, {"not": {"property": "zzgroup.connector", "value": 0}}],
     "operator": "AND"
   },
   {
@@ -1512,7 +1544,7 @@
     "label": "Fade length (px or %) *Distance over which each fading end of the rail disappears. Enter 24px for a fixed distance or 12% of the rail height. Capped at 45% of its height to keep the fades from crossing. Used only by the lengthwise fade options.*",
     "defaultValue": "12%",
     "placeholder": "12%",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}, {"not": {"property": "zzgroup.connector", "value": 0}}],
     "operator": "AND"
   },
   {
@@ -1555,8 +1587,9 @@
         "value": 7
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}, {"not": {"property": "zzgroup.connector", "value": 0}}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1586,8 +1619,9 @@
         "value": 4
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.line-shape", "value": 1}}], "operator": "AND"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"if": {"property": "zzgroup.enabled", "value": true}}, {"not": {"property": "zzgroup.connector", "value": 0}}, {"conditions": [{"not": {"property": "zzgroup.line-shape", "value": 0}}, {"if": {"property": "zzgroup.connector", "value": 5}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
@@ -1595,7 +1629,7 @@
     "label": "Curve amplitude (px) *How far the curve swings sideways. Also the width of the band the rail occupies, so raise Row gap alongside it if rows start to crowd the curve.*",
     "defaultValue": "16px",
     "placeholder": "16px",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.line-shape", "value": 1}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"if": {"property": "zzgroup.enabled", "value": true}}, {"not": {"property": "zzgroup.connector", "value": 0}}, {"conditions": [{"not": {"property": "zzgroup.line-shape", "value": 0}}, {"if": {"property": "zzgroup.connector", "value": 5}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1603,7 +1637,7 @@
     "property": "zzgroup.line-continuous",
     "label": "Continuous through subgroups *Only the outermost group draws a rail, so a single unbroken curve runs the full height of the group and past every subgroup inside it, instead of each level restarting its own.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}, {"not": {"property": "zzgroup.connector", "value": 0}}],
     "operator": "AND"
   },
   {
@@ -1626,15 +1660,16 @@
         "value": 2
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}, {"not": {"property": "zzgroup.connector", "value": 0}}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "checkbox",
     "property": "zzgroup.line.sheen",
     "label": "Sheen on the line *A specular highlight across the rail's width, the same treatment Glassflow puts on the window buttons. Scales with Glassflow's glass intensity.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}, {"not": {"property": "zzgroup.connector", "value": 0}}],
     "operator": "AND"
   },
   {
@@ -1642,7 +1677,7 @@
     "property": "zzgroup.line.rim",
     "label": "Rim light on the line *A bright inner edge on one side and a soft dark edge on the other, so the rail reads as a raised glass bar rather than a painted stripe.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}, {"not": {"property": "zzgroup.connector", "value": 0}}],
     "operator": "AND"
   },
   {
@@ -1650,7 +1685,7 @@
     "property": "zzgroup.line.glow",
     "label": "Glow around the line *An accent-coloured halo. Follows the rail's shape exactly, including its fade, since it is drawn as a drop shadow of the rendered line.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}, {"not": {"property": "zzgroup.connector", "value": 0}}],
     "operator": "AND"
   },
   {
@@ -1659,7 +1694,7 @@
     "label": "Glow radius (px) *How far the line's glow spreads.*",
     "defaultValue": "4px",
     "placeholder": "4px",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.line.glow", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.line.glow", "value": true}}], "operator": "AND"}, {"not": {"property": "zzgroup.connector", "value": 0}}],
     "operator": "AND"
   },
   {
@@ -1667,7 +1702,7 @@
     "property": "zzgroup.line.shadow",
     "label": "Drop shadow under the line *Lifts the rail off the sidebar, matching Glassflow's buttons.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}, {"not": {"property": "zzgroup.connector", "value": 0}}],
     "operator": "AND"
   },
   {
@@ -1676,7 +1711,7 @@
     "label": "Line opacity (%) *0% is transparent; 100% keeps full opacity. Values from 0 to 1 also work. Applies to the whole rail including its sheen, rim and glow.*",
     "defaultValue": "1",
     "placeholder": "1",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}, {"not": {"property": "zzgroup.connector", "value": 0}}],
     "operator": "AND"
   },
   {
@@ -1788,7 +1823,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1895,7 +1931,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1925,15 +1962,16 @@
         "value": 4
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"not": {"property": "zzgroup.marker", "value": 0}}, {"conditions": [{"not": {"property": "zzgroup.marker-sub", "value": 0}}, {"not": {"property": "zzgroup.marker-sub", "value": 1}}], "operator": "AND"}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "checkbox",
     "property": "zzgroup.marker.sheen",
     "label": "Sheen on marks *A diagonal highlight inside the mark, clipped to its silhouette, matching the treatment on the bar and on Glassflow's buttons.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"not": {"property": "zzgroup.marker", "value": 0}}, {"conditions": [{"not": {"property": "zzgroup.marker-sub", "value": 0}}, {"not": {"property": "zzgroup.marker-sub", "value": 1}}], "operator": "AND"}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1941,7 +1979,7 @@
     "property": "zzgroup.marker.glow",
     "label": "Glow around marks *An accent halo tracing the mark's exact outline -- crescents and chevrons glow along their curve rather than in a box, since it is a shadow of the rendered shape.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"not": {"property": "zzgroup.marker", "value": 0}}, {"conditions": [{"not": {"property": "zzgroup.marker-sub", "value": 0}}, {"not": {"property": "zzgroup.marker-sub", "value": 1}}], "operator": "AND"}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1950,7 +1988,7 @@
     "label": "Mark glow radius (px) *How far each mark's glow spreads.*",
     "defaultValue": "3px",
     "placeholder": "3px",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.marker.glow", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}, {"if": {"property": "zzgroup.marker.glow", "value": true}}], "operator": "AND"}, {"conditions": [{"not": {"property": "zzgroup.marker", "value": 0}}, {"conditions": [{"not": {"property": "zzgroup.marker-sub", "value": 0}}, {"not": {"property": "zzgroup.marker-sub", "value": 1}}], "operator": "AND"}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1958,7 +1996,7 @@
     "property": "zzgroup.marker.shadow",
     "label": "Drop shadow under marks *Follows the mark's outline, so it lifts the shape rather than a rectangle.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"not": {"property": "zzgroup.marker", "value": 0}}, {"conditions": [{"not": {"property": "zzgroup.marker-sub", "value": 0}}, {"not": {"property": "zzgroup.marker-sub", "value": 1}}], "operator": "AND"}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1967,7 +2005,7 @@
     "label": "Mark opacity (%) *0% is transparent; 100% keeps full opacity. Values from 0 to 1 also work. Applies to the whole mark including its sheen and glow.*",
     "defaultValue": "0.85",
     "placeholder": "0.85",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"not": {"property": "zzgroup.marker", "value": 0}}, {"conditions": [{"not": {"property": "zzgroup.marker-sub", "value": 0}}, {"not": {"property": "zzgroup.marker-sub", "value": 1}}], "operator": "AND"}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1976,7 +2014,7 @@
     "label": "Mark size (px) *Base size of the mark in pixels. Marks are vector shapes, so they stay smooth at any size.*",
     "defaultValue": "7px",
     "placeholder": "7px",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"not": {"property": "zzgroup.marker", "value": 0}}, {"conditions": [{"not": {"property": "zzgroup.marker-sub", "value": 0}}, {"not": {"property": "zzgroup.marker-sub", "value": 1}}], "operator": "AND"}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1985,7 +2023,7 @@
     "label": "Mark scale (multiplier) *Multiplies Mark size and its stroke. With a 7px Mark size, 1.5 gives 10.5px. Enter a number without a unit; use Mark size for a distance in pixels.*",
     "defaultValue": "1",
     "placeholder": "1",
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "lines"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"not": {"property": "zzgroup.marker", "value": 0}}, {"conditions": [{"not": {"property": "zzgroup.marker-sub", "value": 0}}, {"not": {"property": "zzgroup.marker-sub", "value": 1}}], "operator": "AND"}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -2037,7 +2075,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "other"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
@@ -2052,11 +2091,11 @@
     "type": "dropdown",
     "property": "zzgroup.corner.radius-source",
     "value": "number",
-    "label": "Radius source *Where the corner radius comes from. The number is Header roundness under *Header*. **Follow Zen's own corner radius** reads Zen's `--border-radius-medium` instead, which since 1.22b is already scaled for the squircle corner -- so these surfaces track Zen's design language through future restyles rather than drifting away from it the way a pinned number did when 1.22b landed. Leave Radius compensation Off when following Zen; Zen's token already carries that scaling, and applying it twice over-rounds.*",
+    "label": "Radius source *My value uses Header roundness under Headers and labels. Follow Zen uses Zen's own corner radius, including its squircle compensation. Leave Radius compensation Off when following Zen to avoid applying compensation twice.*",
     "defaultValue": 0,
     "options": [
       {
-        "label": "My value (the number below)",
+        "label": "My value — Header roundness",
         "value": 0
       },
       {
@@ -2065,7 +2104,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "other"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -2088,7 +2128,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "other"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",

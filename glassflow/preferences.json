@@ -3,7 +3,8 @@
     "type": "separator",
     "label": "Glassflow",
     "size": "20px",
-    "margin": "2px 0 12px 0"
+    "margin": "2px 0 12px 0",
+    "id": "zzglass.ui.section.glassflow"
   },
   {
     "type": "dropdown",
@@ -51,7 +52,8 @@
         "label": "Everything",
         "value": "all"
       }
-    ]
+    ],
+    "placeholder": false
   },
   {
     "type": "separator",
@@ -86,7 +88,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "colour"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -109,7 +112,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "colour"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
@@ -134,10 +138,10 @@
   {
     "type": "string",
     "property": "zzglass.color.secondary",
-    "label": "Second gradient colour *Used by gradients whose end is set to 'Fade to a second colour'.*",
+    "label": "Second gradient colour *Shared by tab states, the sidebar panel, and Groupflow folder profiles when their gradient end is Fade to the second colour.*",
     "defaultValue": "#1b1b2b",
     "placeholder": "#1b1b2b",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "colour"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.end-mode", "value": 2}}, {"if": {"property": "zzglass.unselected.end-mode", "value": 2}}, {"if": {"property": "zzglass.hover.end-mode", "value": 2}}, {"if": {"property": "zzglass.pending.end-mode", "value": 2}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "colour"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND",
     "border": "value"
   },
@@ -196,7 +200,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "colour"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "checkbox",
@@ -215,19 +220,59 @@
     "operator": "AND"
   },
   {
+    "type": "checkbox",
+    "property": "zzglass.edges.enabled",
+    "label": "Detailed rim control *Adds strength, fade and axis rows to each tab state's Rim light above. Every value is a multiplier or an option on the rim you already have, so nothing changes until you move one.*",
+    "defaultValue": false,
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "property": "zzglass.ui.tab-state",
+    "label": "Show tab state",
+    "defaultValue": "selected",
+    "options": [
+      {
+        "label": "Selected",
+        "value": "selected"
+      },
+      {
+        "label": "Unselected",
+        "value": "unselected"
+      },
+      {
+        "label": "Hovered",
+        "value": "hover"
+      },
+      {
+        "label": "Unloaded",
+        "value": "pending"
+      },
+      {
+        "label": "Everything",
+        "value": "all"
+      }
+    ],
+    "placeholder": false,
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
     "type": "separator",
     "label": "Selected tab",
     "size": "17px",
     "margin": "22px 0 10px 0",
     "id": "zzglass.ui.section.selected-tab",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}]
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "selected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
   },
   {
     "type": "checkbox",
     "property": "zzglass.selected.enabled",
     "label": "Style selected tabs *Independent switch. Everything below applies only to this state.*",
     "defaultValue": true,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "selected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -236,7 +281,7 @@
     "label": "Tint strength *How much source colour this state starts with.*",
     "defaultValue": "42%",
     "placeholder": "42%",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "selected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -245,7 +290,7 @@
     "label": "Background opacity (%) *0% is transparent; 100% keeps full opacity. Values from 0 to 1 also work. Fades the tab background.*",
     "defaultValue": "1",
     "placeholder": "1",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "selected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -288,8 +333,9 @@
         "value": 7
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "selected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -315,8 +361,9 @@
         "value": 3
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "selected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
@@ -324,7 +371,7 @@
     "label": "End tint *Absolute strength at the far end. Only used by the weaker-tint and second-colour modes.*",
     "defaultValue": "17%",
     "placeholder": "17%",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}, {"if": {"property": "zzglass.selected.end-mode", "value": 1}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"if": {"property": "zzglass.selected.enabled", "value": true}}, {"conditions": [{"if": {"property": "zzglass.selected.end-mode", "value": 1}}, {"if": {"property": "zzglass.selected.end-mode", "value": 2}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "selected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -333,7 +380,7 @@
     "label": "Gradient spread (px or %) *Distance along the gradient until the end colour is reached. Enter 80px for a fixed distance or 100% for the full gradient length. Smaller distances finish the fade sooner.*",
     "defaultValue": "100%",
     "placeholder": "100%",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}, {"not": {"property": "zzglass.selected.end-mode", "value": 3}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}, {"not": {"property": "zzglass.selected.end-mode", "value": 3}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "selected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -341,7 +388,7 @@
     "property": "zzglass.selected.sheen",
     "label": "Glass sheen *The white highlight band.*",
     "defaultValue": true,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "selected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -349,7 +396,7 @@
     "property": "zzglass.selected.rim",
     "label": "Glass rim *A 1px inner highlight along the top edge.*",
     "defaultValue": true,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "selected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -358,7 +405,7 @@
     "label": "Rim top highlight (multiplier) *Multiplier on the bright line along the selected tab's top edge. 1 is the current strength, 0 removes just that line and keeps the ring.*",
     "defaultValue": "1",
     "placeholder": "1",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}, {"if": {"property": "zzglass.selected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}, {"if": {"property": "zzglass.selected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}, {"not": {"property": "zzglass.edges.selected-edge", "value": 4}}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "selected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -367,7 +414,7 @@
     "label": "Rim ring (multiplier) *Multiplier on the faint outline around the whole selected tab.*",
     "defaultValue": "1",
     "placeholder": "1",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}, {"if": {"property": "zzglass.selected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}, {"if": {"property": "zzglass.selected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "selected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -376,7 +423,7 @@
     "label": "Rim colour *The colour of the selected tab's rim itself. White is the glass default; any CSS colour works, and the strength rows above scale its alpha rather than replacing it. Try the accent colour for a tinted rim.*",
     "defaultValue": "white",
     "placeholder": "white",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}, {"if": {"property": "zzglass.selected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}, {"if": {"property": "zzglass.selected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "selected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND",
     "border": "value"
   },
@@ -408,8 +455,9 @@
         "value": 4
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}, {"if": {"property": "zzglass.selected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}, {"if": {"property": "zzglass.selected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "selected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
@@ -417,7 +465,7 @@
     "label": "Rim highlight thickness (px) *How thick the selected tab's bright line is. Above about 3px it reads as a band rather than a highlight.*",
     "defaultValue": "1px",
     "placeholder": "1px",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}, {"if": {"property": "zzglass.selected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}, {"if": {"property": "zzglass.selected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}, {"not": {"property": "zzglass.edges.selected-edge", "value": 4}}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "selected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -426,7 +474,7 @@
     "label": "Rim ring thickness (px) *How thick the outline around the selected tab is.*",
     "defaultValue": "1px",
     "placeholder": "1px",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}, {"if": {"property": "zzglass.selected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}, {"if": {"property": "zzglass.selected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "selected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -434,7 +482,7 @@
     "property": "zzglass.selected.glow",
     "label": "Outer glow *A soft tinted halo. Replaces the rim shadow, so it includes the rim when both are on.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.selected.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "selected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -443,14 +491,15 @@
     "size": "17px",
     "margin": "22px 0 10px 0",
     "id": "zzglass.ui.section.unselected-tab",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}]
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "unselected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
   },
   {
     "type": "checkbox",
     "property": "zzglass.unselected.enabled",
     "label": "Style unselected tabs *Independent switch. Everything below applies only to this state.*",
     "defaultValue": true,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "unselected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -459,7 +508,7 @@
     "label": "Tint strength *How much source colour this state starts with.*",
     "defaultValue": "12%",
     "placeholder": "12%",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "unselected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -468,7 +517,7 @@
     "label": "Background opacity (%) *0% is transparent; 100% keeps full opacity. Values from 0 to 1 also work. Fades the tab background.*",
     "defaultValue": "1",
     "placeholder": "1",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "unselected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -511,8 +560,9 @@
         "value": 7
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "unselected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -538,8 +588,9 @@
         "value": 3
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "unselected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
@@ -547,7 +598,7 @@
     "label": "End tint *Absolute strength at the far end. Only used by the weaker-tint and second-colour modes.*",
     "defaultValue": "4%",
     "placeholder": "4%",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}, {"if": {"property": "zzglass.unselected.end-mode", "value": 1}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"if": {"property": "zzglass.unselected.enabled", "value": true}}, {"conditions": [{"if": {"property": "zzglass.unselected.end-mode", "value": 1}}, {"if": {"property": "zzglass.unselected.end-mode", "value": 2}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "unselected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -556,7 +607,7 @@
     "label": "Gradient spread (px or %) *Distance along the gradient until the end colour is reached. Enter 80px for a fixed distance or 100% for the full gradient length. Smaller distances finish the fade sooner.*",
     "defaultValue": "100%",
     "placeholder": "100%",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}, {"not": {"property": "zzglass.unselected.end-mode", "value": 3}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}, {"not": {"property": "zzglass.unselected.end-mode", "value": 3}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "unselected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -564,7 +615,7 @@
     "property": "zzglass.unselected.sheen",
     "label": "Glass sheen *The white highlight band.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "unselected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -572,7 +623,7 @@
     "property": "zzglass.unselected.rim",
     "label": "Glass rim *A 1px inner highlight along the top edge.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "unselected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -581,7 +632,7 @@
     "label": "Rim top highlight (multiplier) *Multiplier on the bright line along the unselected tab's top edge. 1 is the current strength, 0 removes just that line and keeps the ring.*",
     "defaultValue": "1",
     "placeholder": "1",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}, {"if": {"property": "zzglass.unselected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}, {"if": {"property": "zzglass.unselected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}, {"not": {"property": "zzglass.edges.unselected-edge", "value": 4}}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "unselected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -590,7 +641,7 @@
     "label": "Rim ring (multiplier) *Multiplier on the faint outline around the whole unselected tab.*",
     "defaultValue": "1",
     "placeholder": "1",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}, {"if": {"property": "zzglass.unselected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}, {"if": {"property": "zzglass.unselected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "unselected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -599,7 +650,7 @@
     "label": "Rim colour *The colour of the unselected tab's rim itself. White is the glass default; any CSS colour works, and the strength rows above scale its alpha rather than replacing it. Try the accent colour for a tinted rim.*",
     "defaultValue": "white",
     "placeholder": "white",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}, {"if": {"property": "zzglass.unselected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}, {"if": {"property": "zzglass.unselected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "unselected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND",
     "border": "value"
   },
@@ -631,8 +682,9 @@
         "value": 4
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}, {"if": {"property": "zzglass.unselected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}, {"if": {"property": "zzglass.unselected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "unselected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
@@ -640,7 +692,7 @@
     "label": "Rim highlight thickness (px) *How thick the unselected tab's bright line is. Above about 3px it reads as a band rather than a highlight.*",
     "defaultValue": "1px",
     "placeholder": "1px",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}, {"if": {"property": "zzglass.unselected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}, {"if": {"property": "zzglass.unselected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}, {"not": {"property": "zzglass.edges.unselected-edge", "value": 4}}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "unselected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -649,7 +701,7 @@
     "label": "Rim ring thickness (px) *How thick the outline around the unselected tab is.*",
     "defaultValue": "1px",
     "placeholder": "1px",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}, {"if": {"property": "zzglass.unselected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}, {"if": {"property": "zzglass.unselected.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "unselected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -657,7 +709,7 @@
     "property": "zzglass.unselected.glow",
     "label": "Outer glow *A soft tinted halo. Replaces the rim shadow, so it includes the rim when both are on.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.unselected.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "unselected"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -666,14 +718,15 @@
     "size": "17px",
     "margin": "22px 0 10px 0",
     "id": "zzglass.ui.section.hovered-tab",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}]
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "hover"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
   },
   {
     "type": "checkbox",
     "property": "zzglass.hover.enabled",
     "label": "Style hovered tabs *Independent switch. Everything below applies only to this state.*",
     "defaultValue": true,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "hover"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -682,7 +735,7 @@
     "label": "Tint strength *How much source colour this state starts with.*",
     "defaultValue": "24%",
     "placeholder": "24%",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "hover"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -691,7 +744,7 @@
     "label": "Background opacity (%) *0% is transparent; 100% keeps full opacity. Values from 0 to 1 also work. Fades the tab background.*",
     "defaultValue": "1",
     "placeholder": "1",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "hover"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -734,8 +787,9 @@
         "value": 7
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "hover"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -761,8 +815,9 @@
         "value": 3
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "hover"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
@@ -770,7 +825,7 @@
     "label": "End tint *Absolute strength at the far end. Only used by the weaker-tint and second-colour modes.*",
     "defaultValue": "9%",
     "placeholder": "9%",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}, {"if": {"property": "zzglass.hover.end-mode", "value": 1}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"if": {"property": "zzglass.hover.enabled", "value": true}}, {"conditions": [{"if": {"property": "zzglass.hover.end-mode", "value": 1}}, {"if": {"property": "zzglass.hover.end-mode", "value": 2}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "hover"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -779,7 +834,7 @@
     "label": "Gradient spread (px or %) *Distance along the gradient until the end colour is reached. Enter 80px for a fixed distance or 100% for the full gradient length. Smaller distances finish the fade sooner.*",
     "defaultValue": "100%",
     "placeholder": "100%",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}, {"not": {"property": "zzglass.hover.end-mode", "value": 3}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}, {"not": {"property": "zzglass.hover.end-mode", "value": 3}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "hover"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -787,7 +842,7 @@
     "property": "zzglass.hover.sheen",
     "label": "Glass sheen *The white highlight band.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "hover"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -795,7 +850,7 @@
     "property": "zzglass.hover.rim",
     "label": "Glass rim *A 1px inner highlight along the top edge.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "hover"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -804,7 +859,7 @@
     "label": "Rim top highlight (multiplier) *Multiplier on the bright line along the hovered tab's top edge. 1 is the current strength, 0 removes just that line and keeps the ring.*",
     "defaultValue": "1",
     "placeholder": "1",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}, {"if": {"property": "zzglass.hover.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}, {"if": {"property": "zzglass.hover.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}, {"not": {"property": "zzglass.edges.hover-edge", "value": 4}}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "hover"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -813,7 +868,7 @@
     "label": "Rim ring (multiplier) *Multiplier on the faint outline around the whole hovered tab.*",
     "defaultValue": "1",
     "placeholder": "1",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}, {"if": {"property": "zzglass.hover.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}, {"if": {"property": "zzglass.hover.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "hover"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -822,7 +877,7 @@
     "label": "Rim colour *The colour of the hovered tab's rim itself. White is the glass default; any CSS colour works, and the strength rows above scale its alpha rather than replacing it. Try the accent colour for a tinted rim.*",
     "defaultValue": "white",
     "placeholder": "white",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}, {"if": {"property": "zzglass.hover.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}, {"if": {"property": "zzglass.hover.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "hover"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND",
     "border": "value"
   },
@@ -854,8 +909,9 @@
         "value": 4
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}, {"if": {"property": "zzglass.hover.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}, {"if": {"property": "zzglass.hover.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "hover"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
@@ -863,7 +919,7 @@
     "label": "Rim highlight thickness (px) *How thick the hovered tab's bright line is. Above about 3px it reads as a band rather than a highlight.*",
     "defaultValue": "1px",
     "placeholder": "1px",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}, {"if": {"property": "zzglass.hover.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}, {"if": {"property": "zzglass.hover.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}, {"not": {"property": "zzglass.edges.hover-edge", "value": 4}}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "hover"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -872,7 +928,7 @@
     "label": "Rim ring thickness (px) *How thick the outline around the hovered tab is.*",
     "defaultValue": "1px",
     "placeholder": "1px",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}, {"if": {"property": "zzglass.hover.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}, {"if": {"property": "zzglass.hover.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "hover"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -880,7 +936,7 @@
     "property": "zzglass.hover.glow",
     "label": "Outer glow *A soft tinted halo. Replaces the rim shadow, so it includes the rim when both are on.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.hover.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "hover"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -889,14 +945,15 @@
     "size": "17px",
     "margin": "22px 0 10px 0",
     "id": "zzglass.ui.section.unloaded-tab",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}]
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "pending"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
   },
   {
     "type": "checkbox",
     "property": "zzglass.pending.enabled",
     "label": "Style unloaded tabs *Independent switch. Everything below applies only to this state.*",
     "defaultValue": true,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "pending"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -905,7 +962,7 @@
     "label": "Tint strength *How much source colour this state starts with.*",
     "defaultValue": "7%",
     "placeholder": "7%",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "pending"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -914,7 +971,7 @@
     "label": "Opacity (%) *0% is transparent; 100% keeps full opacity. Values from 0 to 1 also work. Fades the unloaded tab's background, title and favicon. Its tint and rim colours are kept.*",
     "defaultValue": "0.62",
     "placeholder": "0.62",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "pending"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -922,7 +979,7 @@
     "property": "zzglass.pending.greyscale",
     "label": "Greyscale favicon *Off keeps the favicon's own colours, just dimmed. On drains them, like Arc's greyscale unloaded tabs. The tab's own colours are kept either way.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "pending"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -930,7 +987,7 @@
     "property": "zzglass.pending.essentials",
     "label": "Dim unloaded Essentials *Off keeps unloaded Essentials at full strength: no fade, no greyscale. They keep the Unloaded tint, so you can still tell.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "pending"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -961,15 +1018,16 @@
         "value": 4
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.essentials", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.essentials", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "pending"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "checkbox",
     "property": "zzglass.pending.pinned",
     "label": "Dim unloaded pinned tabs *The same for pinned tabs outside Essentials.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "pending"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1000,8 +1058,9 @@
         "value": 4
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.pinned", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.pinned", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "pending"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1043,8 +1102,9 @@
         "value": 7
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "pending"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1070,8 +1130,9 @@
         "value": 3
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "pending"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
@@ -1079,7 +1140,7 @@
     "label": "End tint *Absolute strength at the far end. Only used by the weaker-tint and second-colour modes.*",
     "defaultValue": "2%",
     "placeholder": "2%",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}, {"if": {"property": "zzglass.pending.end-mode", "value": 1}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"if": {"property": "zzglass.pending.enabled", "value": true}}, {"conditions": [{"if": {"property": "zzglass.pending.end-mode", "value": 1}}, {"if": {"property": "zzglass.pending.end-mode", "value": 2}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "pending"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1088,7 +1149,7 @@
     "label": "Gradient spread (px or %) *Distance along the gradient until the end colour is reached. Enter 80px for a fixed distance or 100% for the full gradient length. Smaller distances finish the fade sooner.*",
     "defaultValue": "100%",
     "placeholder": "100%",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}, {"not": {"property": "zzglass.pending.end-mode", "value": 3}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}, {"not": {"property": "zzglass.pending.end-mode", "value": 3}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "pending"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1096,7 +1157,7 @@
     "property": "zzglass.pending.sheen",
     "label": "Glass sheen *The white highlight band.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "pending"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1104,7 +1165,7 @@
     "property": "zzglass.pending.rim",
     "label": "Glass rim *A 1px inner highlight along the top edge.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "pending"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1113,7 +1174,7 @@
     "label": "Rim top highlight (multiplier) *Multiplier on the bright line along the unloaded tab's top edge. 1 is the current strength, 0 removes just that line and keeps the ring.*",
     "defaultValue": "1",
     "placeholder": "1",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}, {"if": {"property": "zzglass.pending.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}, {"if": {"property": "zzglass.pending.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}, {"not": {"property": "zzglass.edges.pending-edge", "value": 4}}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "pending"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1122,7 +1183,7 @@
     "label": "Rim ring (multiplier) *Multiplier on the faint outline around the whole unloaded tab.*",
     "defaultValue": "1",
     "placeholder": "1",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}, {"if": {"property": "zzglass.pending.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}, {"if": {"property": "zzglass.pending.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "pending"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1131,7 +1192,7 @@
     "label": "Rim colour *The colour of the unloaded tab's rim itself. White is the glass default; any CSS colour works, and the strength rows above scale its alpha rather than replacing it. Try the accent colour for a tinted rim.*",
     "defaultValue": "white",
     "placeholder": "white",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}, {"if": {"property": "zzglass.pending.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}, {"if": {"property": "zzglass.pending.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "pending"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND",
     "border": "value"
   },
@@ -1163,8 +1224,9 @@
         "value": 4
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}, {"if": {"property": "zzglass.pending.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}, {"if": {"property": "zzglass.pending.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "pending"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
@@ -1172,7 +1234,7 @@
     "label": "Rim highlight thickness (px) *How thick the unloaded tab's bright line is. Above about 3px it reads as a band rather than a highlight.*",
     "defaultValue": "1px",
     "placeholder": "1px",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}, {"if": {"property": "zzglass.pending.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}, {"if": {"property": "zzglass.pending.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}, {"not": {"property": "zzglass.edges.pending-edge", "value": 4}}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "pending"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1181,7 +1243,7 @@
     "label": "Rim ring thickness (px) *How thick the outline around the unloaded tab is.*",
     "defaultValue": "1px",
     "placeholder": "1px",
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}, {"if": {"property": "zzglass.pending.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}, {"if": {"property": "zzglass.pending.rim", "value": true}}, {"if": {"property": "zzglass.edges.enabled", "value": true}}], "operator": "AND"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "pending"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1189,7 +1251,7 @@
     "property": "zzglass.pending.glow",
     "label": "Outer glow *A soft tinted halo. Replaces the rim shadow, so it includes the rim when both are on.*",
     "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.pending.enabled", "value": true}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.ui.tab-state", "value": "pending"}}, {"if": {"property": "zzglass.ui.tab-state", "value": "all"}}, {"if": {"property": "zzglass.ui.tab-state", "value": ""}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -1199,14 +1261,6 @@
     "margin": "22px 0 10px 0",
     "id": "zzglass.ui.section.tabs-shared",
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}]
-  },
-  {
-    "type": "checkbox",
-    "property": "zzglass.edges.enabled",
-    "label": "Detailed rim control *Adds strength, fade and axis rows to each tab state's Rim light above. Every value is a multiplier or an option on the rim you already have, so nothing changes until you move one.*",
-    "defaultValue": false,
-    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
   },
   {
     "type": "string",
@@ -1246,7 +1300,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "checkbox",
@@ -1313,7 +1368,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "separator",
@@ -1381,7 +1437,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "tabs"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.strip.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "separator",
@@ -1466,7 +1523,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "checkbox",
@@ -1514,7 +1572,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
@@ -1547,7 +1606,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
@@ -1601,7 +1661,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1628,7 +1689,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.sidebar.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
@@ -1706,11 +1768,18 @@
     "label": "Background",
     "defaultValue": 1,
     "options": [
-      {"label": "None", "value": 0},
-      {"label": "Glass capsule", "value": 1}
+      {
+        "label": "None",
+        "value": 0
+      },
+      {
+        "label": "Glass capsule",
+        "value": 1
+      }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.workspaces.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1719,12 +1788,22 @@
     "label": "Pointed at *The icon grows with a small spring and settles; Dock also lifts its neighbours a little. Only icons move, never the buttons.*",
     "defaultValue": 1,
     "options": [
-      {"label": "Stays still", "value": 0},
-      {"label": "Grows", "value": 1},
-      {"label": "Dock", "value": 2}
+      {
+        "label": "Stays still",
+        "value": 0
+      },
+      {
+        "label": "Grows",
+        "value": 1
+      },
+      {
+        "label": "Dock",
+        "value": 2
+      }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.workspaces.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1733,12 +1812,22 @@
     "label": "Other workspaces",
     "defaultValue": 0,
     "options": [
-      {"label": "Grey and faded (Zen's)", "value": 0},
-      {"label": "Faded colour", "value": 1},
-      {"label": "Full colour", "value": 2}
+      {
+        "label": "Grey and faded (Zen's)",
+        "value": 0
+      },
+      {
+        "label": "Faded colour",
+        "value": 1
+      },
+      {
+        "label": "Full colour",
+        "value": 2
+      }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.workspaces.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -1747,13 +1836,26 @@
     "label": "Current workspace",
     "defaultValue": 1,
     "options": [
-      {"label": "As Zen marks it", "value": 0},
-      {"label": "Glass plate", "value": 1},
-      {"label": "Dot beneath", "value": 2},
-      {"label": "Glow", "value": 3}
+      {
+        "label": "As Zen marks it",
+        "value": 0
+      },
+      {
+        "label": "Glass plate",
+        "value": 1
+      },
+      {
+        "label": "Dot beneath",
+        "value": 2
+      },
+      {
+        "label": "Glow",
+        "value": 3
+      }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.workspaces.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "checkbox",
@@ -1853,38 +1955,9 @@
         "value": 3
       }
     ],
-    "conditions": [
-      {
-        "conditions": [
-          {
-            "if": {
-              "property": "zzglass.ui.page",
-              "value": "glass"
-            }
-          },
-          {
-            "if": {
-              "property": "zzglass.ui.page",
-              "value": "sidebar"
-            }
-          },
-          {
-            "if": {
-              "property": "zzglass.ui.page",
-              "value": "all"
-            }
-          },
-          {
-            "if": {
-              "property": "zzglass.ui.page",
-              "value": ""
-            }
-          }
-        ],
-        "operator": "OR"
-      }
-    ],
-    "operator": "AND"
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "checkbox",
@@ -1892,37 +1965,7 @@
     "label": "Blur see-through pages too *A page made see-through (Transparent Zen's transparent tint, Zen Internet) leaves the sidebar's blur nothing to blur, so its text shows through sharp. This blurs the page itself under the compact sidebar while it shows, only on see-through pages; on others Zen's blur works alone.*",
     "defaultValue": true,
     "operator": "AND",
-    "conditions": [
-      {
-        "conditions": [
-          {
-            "if": {
-              "property": "zzglass.ui.page",
-              "value": "glass"
-            }
-          },
-          {
-            "if": {
-              "property": "zzglass.ui.page",
-              "value": "sidebar"
-            }
-          },
-          {
-            "if": {
-              "property": "zzglass.ui.page",
-              "value": "all"
-            }
-          },
-          {
-            "if": {
-              "property": "zzglass.ui.page",
-              "value": ""
-            }
-          }
-        ],
-        "operator": "OR"
-      }
-    ]
+    "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "sidebar"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}]
   },
   {
     "type": "separator",
@@ -2047,7 +2090,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.overlays.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -2070,7 +2114,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.overlays.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -2093,7 +2138,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.overlays.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -2116,7 +2162,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.overlays.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -2139,7 +2186,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.overlays.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -2162,7 +2210,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.overlays.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -2185,7 +2234,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.overlays.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
@@ -2235,7 +2285,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "overlays"}}, {"if": {"property": "zzglass.ui.page", "value": "glass"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.overlays.status-pill", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "checkbox",
@@ -2278,7 +2329,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "buttons"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.buttons.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "checkbox",
@@ -2425,7 +2477,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "buttons"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.buttons.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -2448,7 +2501,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "buttons"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.buttons.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
@@ -2569,7 +2623,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "type"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
@@ -2584,11 +2639,11 @@
     "type": "dropdown",
     "property": "zzglass.corner.radius-source",
     "value": "number",
-    "label": "Radius source *Where the corner radius comes from. The number is Tab roundness under *Tabs, shared*. **Follow Zen's own corner radius** reads Zen's `--border-radius-medium` instead, which since 1.22b is already scaled for the squircle corner -- so these surfaces track Zen's design language through future restyles rather than drifting away from it the way a pinned number did when 1.22b landed. Leave Radius compensation Off when following Zen; Zen's token already carries that scaling, and applying it twice over-rounds.*",
+    "label": "Radius source *My value uses Tab roundness under Tabs → Tabs, shared. Follow Zen uses Zen's own corner radius, including its squircle compensation. Leave Radius compensation Off when following Zen to avoid applying compensation twice.*",
     "defaultValue": 0,
     "options": [
       {
-        "label": "My value (the number below)",
+        "label": "My value — Tab roundness",
         "value": 0
       },
       {
@@ -2597,7 +2652,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "type"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -2620,7 +2676,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "type"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",
@@ -2660,7 +2717,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "type"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -2691,7 +2749,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "type"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -2722,7 +2781,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "type"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -2753,7 +2813,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "type"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "separator",
@@ -2880,7 +2941,8 @@
       }
     ],
     "conditions": [{"conditions": [{"if": {"property": "zzglass.ui.page", "value": "type"}}, {"if": {"property": "zzglass.ui.page", "value": "all"}}, {"if": {"property": "zzglass.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzglass.font.enabled", "value": true}}], "operator": "OR"}],
-    "operator": "AND"
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "string",

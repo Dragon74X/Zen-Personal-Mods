@@ -3,13 +3,15 @@
     "type": "separator",
     "label": "Tab Unloader",
     "size": "20px",
-    "margin": "2px 0 12px 0"
+    "margin": "2px 0 12px 0",
+    "id": "zzunload.ui.section.tab-unloader"
   },
   {
     "type": "separator",
     "label": "Timing",
     "size": "17px",
-    "margin": "22px 0 10px 0"
+    "margin": "22px 0 10px 0",
+    "id": "zzunload.ui.section.timing"
   },
   {
     "type": "checkbox",
@@ -61,7 +63,8 @@
         "value": 10
       }
     ],
-    "conditions": [{"if": {"property": "zzunload.enabled", "value": true}}]
+    "conditions": [{"if": {"property": "zzunload.enabled", "value": true}}],
+    "placeholder": false
   },
   {
     "type": "dropdown",
@@ -91,13 +94,17 @@
         "value": 20
       }
     ],
-    "conditions": [{"if": {"property": "zzunload.enabled", "value": true}}]
+    "conditions": [{"if": {"property": "zzunload.enabled", "value": true}}],
+    "placeholder": false
   },
   {
     "type": "separator",
     "label": "Never unload",
     "size": "17px",
-    "margin": "22px 0 10px 0"
+    "margin": "22px 0 10px 0",
+    "id": "zzunload.ui.section.never-unload",
+    "conditions": [{"if": {"property": "zzunload.enabled", "value": true}}],
+    "operator": "AND"
   },
   {
     "type": "checkbox",
@@ -190,19 +197,27 @@
     "type": "separator",
     "label": "Other mods",
     "size": "17px",
-    "margin": "22px 0 10px 0"
+    "margin": "22px 0 10px 0",
+    "id": "zzunload.ui.section.other-mods",
+    "conditions": [{"if": {"property": "zzunload.enabled", "value": true}}],
+    "operator": "AND"
   },
   {
     "type": "checkbox",
     "property": "zzunload.other.arc",
-    "label": "Turn off Arc's own unloading *While automatic unloading is on, Arc 2.0's Auto-Unload and Auto-Clean (which closes unloaded tabs), and their pinned and Essentials versions, are set to off. Arc's ignore every exclusion above. Turning this or automatic unloading off puts back what was there.*",
-    "defaultValue": true
+    "label": "Turn off Arc's own unloading *Only while automatic unloading is enabled here. Temporarily disables Arc's unload/auto-clean preferences that already exist; disabling this option or automatic unloading restores their saved values.*",
+    "defaultValue": true,
+    "conditions": [{"if": {"property": "zzunload.enabled", "value": true}}],
+    "operator": "AND"
   },
   {
     "type": "separator",
     "label": "Troubleshooting",
     "size": "17px",
-    "margin": "22px 0 10px 0"
+    "margin": "22px 0 10px 0",
+    "id": "zzunload.ui.section.troubleshooting",
+    "conditions": [{"if": {"property": "zzunload.enabled", "value": true}}],
+    "operator": "AND"
   },
   {
     "type": "checkbox",

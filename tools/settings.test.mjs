@@ -39,3 +39,129 @@ for (const [mod, nav] of Object.entries(paged)) {
     assert.deepEqual([...seen].sort(), [...pages].filter(v => v !== "all").sort(), "every page has rows");
   });
 }
+
+// Storage contract captured from 7a1d2c8, before presentation changes. Navigation
+// choices are the only new preferences; option labels/order of rows may change.
+test('all 524 functional keys, types, defaults and option values are unchanged', async () => {
+  const { createHash } = await import('node:crypto');
+  const navigation = new Set(['zzglass.ui.tab-state', 'zzgroup.ui.folder-state', 'zzicon.ui.button-category']);
+  const rows = (await Promise.all(mods.map(async mod => (await read(mod)).filter(p => p.property && !navigation.has(p.property))
+    .map(p => [mod, p.property, p.type, p.value ?? null, p.defaultValue ?? null, p.options?.map(o => o.value) ?? null]))))
+    .flat().sort((a,b) => a[1].localeCompare(b[1], 'en'));
+  assert.equal(rows.length, 524);
+  assert.equal(createHash('sha256').update(JSON.stringify(rows)).digest('hex'), '0316bd0c2a6cd4f0a3cc1f7873bfef32fa762ccb8058e7aaff2cf1b2c6c5a038');
+});
+
+test('opacity presentation preserves fraction, percentage and numeric-percent contracts', async () => {
+  const { displaySettingValue: show, storedSettingValue: store } = await import('../download-prompt/sine-update-guard.sys.mjs');
+  for (const [key, value, shown] of [
+    ['zzglass.selected.opacity', '1', '100%'], ['zzglass.pending.opacity', '0.62', '62%'],
+    ['zzgroup.collapsed-opacity', '0.75', '75%'], ['zzgroup.marker-opacity', '0.85', '85%'],
+    ['zzlib.card.gradient', '1', '100%'], ['zzrouter.nexus-banner-opacity', '25', '25%'],
+    ['zzglass.buttons.opacity', '75%', '75%'], ['zzlib.card.fill', '70%', '70%'],
+  ]) {
+    assert.equal(show(key,value), shown);
+    assert.equal(store(key,shown,value), value);
+  }
+  for (const value of ['', 'calc(1 - var(--dim))', 'var(--alpha)', 'unknown', '9'.repeat(400)]) {
+    assert.equal(show('zzglass.pending.opacity',value),value);
+    assert.equal(store('zzglass.pending.opacity',value,'0.62'),null);
+  }
+  for (const value of ['-1%', '101%', 'Infinity', 'NaN']) assert.equal(store('zzgroup.marker-opacity',value,'0.85'),null);
+  assert.equal(store('zzgroup.marker-opacity','42','0.85'),'0.42');
+  assert.equal(store('zzgroup.marker-opacity','42%','85%'),'42%');
+  assert.equal(store('zzrouter.nexus-banner-opacity','42%','25'),'42');
+});
+
+function matches(conditions, values, operator='OR') {
+  const list = Array.isArray(conditions) ? conditions : [conditions];
+  const result = list.map(c => c.conditions ? matches(c.conditions, values, c.operator || 'AND')
+    : c.if ? values[c.if.property] === c.if.value : values[c.not.property] !== c.not.value);
+  return operator === 'AND' ? result.every(Boolean) : result.some(Boolean);
+}
+async function menu(mod) {
+  const rows=await read(mod), values=Object.fromEntries(rows.filter(p=>p.property).map(p=>[p.property,p.defaultValue]));
+  return {rows,values,visible(key,overrides={}) {const row=rows.find(p=>(p.property||p.id)===key);assert.ok(row,key);
+    return !row.conditions || matches(row.conditions,{...values,...overrides},row.operator||'OR');}};
+}
+
+test('Glassflow conditions match custom, secondary, end-tint and rim consumers', async () => {
+  const m=await menu('glassflow');
+  for (const source of [0,1,2,3]) for (const fallback of [0,1,2])
+    assert.equal(m.visible('zzglass.color.custom',{'zzglass.color.source':source,'zzglass.color.fallback':fallback}),source===2||fallback===1);
+  assert.equal(m.visible('zzglass.color.secondary'),true);
+  for (const state of ['selected','unselected','hover','pending']) {
+    const values={'zzglass.ui.page':'tabs','zzglass.ui.tab-state':state,[`zzglass.${state}.enabled`]:true};
+    for (const mode of [0,1,2,3]) assert.equal(m.visible(`zzglass.${state}.end-tint`,{...values,[`zzglass.${state}.end-mode`]:mode}),mode===1||mode===2);
+    assert.equal(m.visible(`zzglass.${state}.end-tint`,{...values,[`zzglass.${state}.enabled`]:false}),false);
+    assert.equal(m.visible(`zzglass.edges.${state}-thickness`,{...values,'zzglass.edges.enabled':false}),false);
+    assert.equal(m.visible(`zzglass.edges.${state}-thickness`,{...values,'zzglass.edges.enabled':true,[`zzglass.${state}.rim`]:true,[`zzglass.edges.${state}-edge`]:4}),false);
+  }
+  assert.ok(m.rows.findIndex(p=>p.property==='zzglass.edges.enabled')<m.rows.findIndex(p=>p.property==='zzglass.selected.enabled'));
+});
+
+test('Groupflow curve, connector, marker and rim conditions replace CSS backstops',async()=>{
+  const m=await menu('groupflow'),page={'zzgroup.ui.page':'lines','zzgroup.enabled':true};
+  for(const connector of [0,1,2,3,4,5]) for(const shape of [0,1,2,3,4,5,6,7]) {
+    const values={...page,'zzgroup.connector':connector,'zzgroup.line-shape':shape};
+    for(const key of ['zzgroup.curve-weight','zzgroup.curve-amplitude']) assert.equal(m.visible(key,values),connector!==0&&(shape!==0||connector===5),key);
+    assert.equal(m.visible('zzgroup.line.match-tab',values),connector!==0);
+  }
+  for(const marker of [0,1,2]) for(const sub of [0,1,2]) assert.equal(m.visible('zzgroup.marker-opacity',{...page,'zzgroup.marker':marker,'zzgroup.marker-sub':sub}),marker!==0||sub===2);
+  assert.equal(m.visible('zzgroup.rim-thickness',{'zzgroup.ui.page':'headers','zzgroup.header.rim':false}),false);
+});
+
+test('Router pictures, path parsing, empty sections, Unloader and Peekflow applicability',async()=>{
+  const router=await menu('tab-router');
+  for(const enabled of [false,true]) for(const pictures of [false,true]) {
+    const values={'zzrouter.enabled':enabled,'zzrouter.section-icons':pictures};
+    for(const key of ['zzrouter.auto-path-mode','zzrouter.auto-path-domains']) assert.equal(router.visible(key,values),enabled||pictures);
+  }
+  for(const key of ['zzrouter.auto-path-depth','zzrouter.auto-path-ignore','zzrouter.auto-path-aliases']) assert.equal(router.visible(key,{'zzrouter.enabled':true,'zzrouter.auto-unmatched':false}),true);
+  for(const row of router.rows.filter(p=>p.type==='separator'&&/^(Sorting|Leave alone|Timing|Troubleshooting)$/.test(p.label))) assert.equal(router.visible(row.id,{'zzrouter.enabled':false}),false);
+  const unload=await menu('tab-unloader');assert.equal(unload.visible('zzunload.other.arc',{'zzunload.enabled':false}),false);
+  const peek=await menu('peekflow');
+  for(const show of [false,true]) for(const place of [0,1,2]) assert.equal(peek.visible('zzpeek.gap',{'zzpeek.show':show,'zzpeek.place':place}),show&&place!==0);
+  for(const show of [false,true]) for(const pictures of [false,true]) assert.equal(peek.visible('zzpeek.last-view',{'zzpeek.show':show,'zzpeek.pictures':pictures}),show&&pictures);
+});
+
+test('navigation filters preserve Everything and legacy empty-page fallback',async()=>{
+  for(const [mod,nav,page,selector,cases] of [
+    ['glassflow','zzglass.ui.page','tabs','zzglass.ui.tab-state',[['selected','zzglass.selected.enabled'],['unselected','zzglass.unselected.enabled'],['hover','zzglass.hover.enabled'],['pending','zzglass.pending.enabled']]],
+    ['groupflow','zzgroup.ui.page','states','zzgroup.ui.folder-state',[['active','zzgroup.subfolder.active.tint'],['inactive','zzgroup.subfolder.inactive.tint'],['hover','zzgroup.subfolder.hover.tint']]],
+    ['iconflow','zzicon.ui.page','buttons','zzicon.ui.button-category',[['navigation','zzicon.button.back'],['page','zzicon.button.bookmark']]],
+  ]) {
+    const m=await menu(mod);
+    const base={'zzgroup.subfolder.states':true,'zzgroup.enabled':true};
+    for(const [state,key] of cases) {
+      assert.equal(m.visible(key,{...base,[nav]:page,[selector]:state}),true,key);
+      for(const value of ['all','']) assert.equal(m.visible(key,{...base,[nav]:page,[selector]:value}),true,key);
+      for(const value of ['all','']) assert.equal(m.visible(key,{...base,[nav]:value,[selector]:'other'}),true,key);
+    }
+  }
+});
+
+test('covered enumerations suppress injected None; stable headings and declared defaults remain',async()=>{
+  for(const mod of mods)for(const p of await read(mod)) {
+    if(p.type==='separator')assert.ok(p.id,p.label);
+    if(p.type==='dropdown'&&p.options.some(o=>o.value===p.defaultValue))assert.equal(p.placeholder,false,p.property);
+  }
+});
+
+test('shared renderer requires both exact mod identity and its preference namespace',async()=>{
+  const {fixSettingsConditions}=await import('../download-prompt/sine-update-guard.sys.mjs');
+  const conditions=[{if:{property:'zzgroup.enabled',value:true}}],seen=[];
+  const utils={async getModPreferences(mod){return [{type:'checkbox',property:mod.key,label:'Setting',defaultValue:true,conditions}];}};
+  const manager={preferences:{parsePref(pref){seen.push(pref);return null;},setupPrefObserver(){throw Error('unexpected observer');}}};
+  assert.equal(fixSettingsConditions(manager,utils),true);
+  for(const [id,key,owned] of [
+    ['zz-groupflow','zzgroup.enabled',true],['other-mod','zzgroup.enabled',false],
+    ['zz-groupflow','other.enabled',false],['zz-glassflow','zen.theme.acrylic-sidebar',true],
+    ['zz-groupflow','zen.theme.acrylic-sidebar',false],['zz-groupflow-copy','zzgroup.enabled',false],
+  ]) {
+    const [pref]=await utils.getModPreferences({id,key});manager.preferences.parsePref(pref,manager,{});
+    assert.equal(seen.at(-1).conditions===undefined,owned,`${id}: ${key}`);
+    assert.equal(pref.conditions,conditions,'source metadata stays intact');
+  }
+  assert.equal(fixSettingsConditions(manager,utils),false);
+});

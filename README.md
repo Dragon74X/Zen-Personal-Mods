@@ -79,9 +79,13 @@ check every 3 hours, for every installed mod, when Sine's automatic updates are 
 Several store entries have no `updatedAt`, or change version without a new date,
 so Sine never offers them; the guard treats a different store version as an update.
 
-Sine checks a settings row's show/hide conditions before the row is on the
-page, so every conditional row shows when a mod's settings open. The guard
-checks them again once the rows are added. Glassflow's and Groupflow's
-**Show settings for** pickers rely on this.
+The shared guard also presents this repository's settings with native Firefox
+switches and selects, inline help, and persistent defaults. Conditions are
+applied after mounting and stay synchronized with preference changes. Glassflow
+and Groupflow offer individual state pages; Iconflow groups buttons by function.
+Opacity fields display percentages while retaining their existing storage format.
+Restart Zen once after this update: cached background modules cannot be replaced
+by reopening settings. See [settings verification](docs/settings-verification.md)
+for scope, native checks, and limits.
 
 The guard prevents overlapping install/update operations while loaded. When a download fails after Sine has removed the installed folder, it moves Sine's `tmp-<id>` backup back into place, so the mod keeps working and the next update retries. It cannot reconstruct a folder whose extraction failed partway, or files already missing from an earlier interrupted install. Restart after obtaining the updated guard. If a mod still has missing files, reinstall affected mods one at a time from their folder URLs, waiting for each install to finish. Install a working guard copy and restart before attempting another batch update. Do not move Sine's `temp` or extracted subfolders during a running install; those paths can be legitimate staging files.

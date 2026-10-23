@@ -216,6 +216,10 @@ const settingCSS = `
 .zzsettings-dialog .zzsettings-copy { flex: 1 1 22rem; min-width: 0; }
 .zzsettings-dialog .zzsettings-name { display: block; font-weight: 600; margin: 0 0 4px; overflow-wrap: anywhere; }
 .zzsettings-dialog .zzsettings-help, .zzsettings-dialog .zzsettings-default { display: block; color: CanvasText; white-space: normal; overflow-wrap: anywhere; user-select: text; line-height: 1.5; }
+.zzsettings-dialog .zzsettings-help { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); }
+.zzsettings-dialog .zzsettings-described .zzsettings-name::after,
+.zzsettings-dialog .zzsettings-described moz-toggle::part(label)::after { content: "i" / ""; display: inline-flex; align-items: center; justify-content: center; width: 13px; height: 13px; margin-inline-start: 6px; border: 1px solid currentColor; border-radius: 50%; font: italic bold 9px Georgia, serif; vertical-align: middle; cursor: help; }
+.zzsettings-dialog .zzsettings-tooltip { position: fixed; inset: auto; margin: 0; box-sizing: border-box; width: max-content; max-width: min(340px, calc(100vw - 24px)); max-height: calc(100vh - 24px); overflow: auto; padding: 8px 11px; border: 1px solid ButtonBorder; border-radius: 9px; background: Canvas; color: CanvasText; font: inherit; font-size: .9em; line-height: 1.5; white-space: normal; overflow-wrap: anywhere; user-select: text; box-shadow: 0 4px 16px #0003; }
 .zzsettings-dialog .zzsettings-default { margin-top: 6px; font-size: .9em; }
 .zzsettings-dialog .zzsettings-row > :is(input, select, textarea) { flex: 0 1 17rem; width: 17rem; min-width: 0; max-width: 100%; box-sizing: border-box; margin: 0; }
 .zzsettings-dialog .zzsettings-row > :is(input, textarea) { color: FieldText; background: Field; border: 1px solid ButtonBorder !important; border-radius: 4px; padding: 10px; font: inherit; }
@@ -267,8 +271,39 @@ const settingCSS = `
 // watched preference, shared by value bindings and conditional rows.
 function settingsDocument(window, retire) {
   const { document } = window, entries = new Set(), watched = new Map();
-  const observer = { observe(_s, _t, name) { for (const entry of watched.get(name) || []) entry.sync(name); } };
+  // One native top-layer tooltip avoids clipping inside Sine's scrolling dialog.
+  // Original help stays visually hidden in each control's accessible description.
+  const tooltip = document.createElementNS("http://www.w3.org/1999/xhtml", "div");
+  tooltip.className = "zzsettings-tooltip"; tooltip.popover = "auto"; tooltip.setAttribute("aria-hidden", "true");
+  const hideHelp = () => { if (tooltip.matches(":popover-open")) tooltip.hidePopover(); tooltip.remove(); };
+  const helpRow = node => node?.closest?.(".zzsettings-dialog .zzsettings-described");
+  const showHelp = row => {
+    if (!row || tooltip.parentElement === row) return;
+    hideHelp();
+    tooltip.textContent = row.querySelector(".zzsettings-help").textContent;
+    row.append(tooltip); tooltip.showPopover();
+    const label = row.querySelector(".zzsettings-name") || row.querySelector("moz-toggle").labelEl;
+    const anchor = label.getBoundingClientRect(), box = tooltip.getBoundingClientRect();
+    tooltip.style.left = `${Math.max(12, Math.min(anchor.left, window.innerWidth - box.width - 12))}px`;
+    const top = anchor.bottom + box.height <= window.innerHeight - 12 ? anchor.bottom : anchor.top - box.height;
+    tooltip.style.top = `${Math.max(12, Math.min(top, window.innerHeight - box.height - 12))}px`;
+  };
+  const helpEvents = [
+    ["pointerover", event => { const row = helpRow(event.target); if (row && !row.contains(event.relatedTarget)) showHelp(row); }],
+    ["pointerout", event => { const row = helpRow(event.target); if (row && !row.contains(event.relatedTarget) && !row.matches(":focus-within")) hideHelp(); }],
+    ["focusin", event => showHelp(helpRow(event.target))],
+    ["focusout", event => { const row = helpRow(event.target); if (row && !row.contains(event.relatedTarget) && !row.matches(":hover")) hideHelp(); }],
+    ["scroll", event => { if (event.target !== tooltip) hideHelp(); }],
+    ["close", hideHelp],
+  ];
+  for (const [type, listener] of helpEvents) document.addEventListener(type, listener, true);
+  window.addEventListener("resize", hideHelp);
+  const observer = { observe(_s, _t, name) { for (const entry of watched.get(name) || []) {
+    entry.sync(name);
+    if (tooltip.parentElement === entry.row && entry.row.style.display === "none") hideHelp();
+  } } };
   const remove = entry => {
+    if (tooltip.parentElement === entry.row) hideHelp();
     entries.delete(entry);
     entry.dispose();
     for (const name of entry.names) {
@@ -283,7 +318,11 @@ function settingsDocument(window, retire) {
     }
   });
   mutations.observe(document.getElementById("sineModsList") || document.documentElement, { childList: true, subtree: true });
-  window.addEventListener("unload", () => { for (const entry of entries) remove(entry); mutations.disconnect(); retire(); }, { once: true });
+  window.addEventListener("unload", () => {
+    hideHelp(); for (const [type, listener] of helpEvents) document.removeEventListener(type, listener, true);
+    window.removeEventListener("resize", hideHelp);
+    for (const entry of entries) remove(entry); mutations.disconnect(); retire();
+  }, { once: true });
   const style = document.createElementNS("http://www.w3.org/1999/xhtml", "style");
   style.textContent = settingCSS; document.documentElement.append(style);
   return entry => {
@@ -422,6 +461,7 @@ function presentSetting(pref, row, window, manager, mod, mount) {
     };
     syncValue();
   }
+  if (help && pref.type !== "separator") row.classList.add("zzsettings-described");
   const names = new Set(pref.property ? [pref.property] : []);
   const collect = conditions => { for (const c of Array.isArray(conditions) ? conditions : conditions ? [conditions] : []) {
     if (c.if || c.not) names.add((c.if || c.not).property); else collect(c.conditions);

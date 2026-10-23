@@ -56,6 +56,10 @@ def check(m, root, sine, profile, output, restarted=False):
           restartedHiddenValue:Services.prefs.getStringPref('zzglass.unselected.tint')==='37%'&&d.getElementById('zzglass-unselected-tint-control').value==='37%'&&d.getElementById('zzglass-unselected-tint').style.display==='none',
           restartedPage:Services.prefs.getStringPref('zzglass.ui.page')==='tabs'&&Services.prefs.getStringPref('zzglass.ui.tab-state')==='hover'
         };""")
+        result['restartedHoverHelp']=m.script("""return (async()=>{const d=settingsWin.document,dialog=d.querySelector('[mod-id="zz-groupflow"] dialog');
+          dialog.showModal();await new Promise(r=>setTimeout(r,400));d.querySelector('#zzgroup-enabled moz-toggle').focus();
+          const tip=d.querySelector('#zzgroup-enabled .zzsettings-tooltip:popover-open'),shown=!!tip&&tip.textContent===d.getElementById('zzgroup-enabled-help').textContent;
+          dialog.close();return shown;})();""")
         print('restart',result,flush=True);assert all(result.values()),result
         return result
     result = m.script('''return (async()=>{
@@ -146,7 +150,7 @@ def extended(m, root, output):
         result[name]=state['writes']==(1 if name=='space' else 2) and state['pressed']==state['stored'] and state['focus']
         assert result[name], (name,state)
     for target in ['button', 'label', 'hitArea', 'description']:
-        point=m.script("""const t=settingsToggle,e="""+json.dumps(target)+"""==='label'?t.labelEl:"""+json.dumps(target)+"""==='description'?t.querySelector('.zzsettings-help'):t.buttonEl;
+        point=m.script("""const t=settingsToggle,e="""+json.dumps(target)+"""==='label'?t.labelEl:"""+json.dumps(target)+"""==='description'?t.querySelector('.zzsettings-default'):t.buttonEl;
           const r=e.getBoundingClientRect();return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2+("""+json.dumps(target)+"""==='hitArea'?20:0)),before:settingsWrites};""")
         m.call('Marionette:SetContext', {'value':'content'})
         m.call('WebDriver:PerformActions', {'actions':[{'type':'pointer','id':'settings-mouse','parameters':{'pointerType':'mouse'},'actions':[
@@ -193,7 +197,7 @@ def extended(m, root, output):
       const select=d.getElementById('zzpeek-place-control');let selectWrites=0;const selectObserver={observe(){selectWrites++;}};Services.prefs.addObserver('zzpeek.place',selectObserver);
       select.value='4';select.dispatchEvent(new settingsWin.Event('change'));Services.prefs.removeObserver('zzpeek.place',selectObserver);
       result.dropdownTypeAndBinding=selectWrites===1&&Services.prefs.getPrefType('zzpeek.place')===Services.prefs.PREF_INT&&Services.prefs.getIntPref('zzpeek.place')===4;
-      Services.prefs.setIntPref('zzpeek.place',2);result.dropdownExternalSync=select.value==='2';
+      Services.prefs.setIntPref('zzpeek.place',2);await pause();result.dropdownExternalSync=select.value==='2';
       await settingsManager.toggleTheme(await settingsUtils.getMods(),'zz-groupflow');await settingsManager.loadMods(settingsWin);await pause();
       result.disableRetires=!d.querySelector('#zzgroup-enabled');
       await settingsManager.toggleTheme(await settingsUtils.getMods(),'zz-groupflow');await settingsManager.loadMods(settingsWin);await pause();
@@ -218,6 +222,7 @@ def extended(m, root, output):
     })();"""))
     print('extended',json.dumps(result,indent=2),flush=True)
     assert all(result.values()),result
+    result.update(hover_checks(m, output))
     result.update(layout_checks(m, output))
     result.update(window_checks(m))
     return result
@@ -231,6 +236,49 @@ def collected(m, name):
         time.sleep(.15)
         if m.script('return !'+name+'.deref();'):return True
     return False
+
+
+def hover_checks(m, output):
+    result={}
+    def pointer(x,y,click=False):
+        m.call('Marionette:SetContext',{'value':'content'})
+        actions=[{'type':'pointerMove','duration':0,'x':round(x),'y':round(y)}]
+        if click:actions += [{'type':'pointerDown','button':0},{'type':'pointerUp','button':0}]
+        m.call('WebDriver:PerformActions',{'actions':[{'type':'pointer','id':'hover-help','parameters':{'pointerType':'mouse'},'actions':actions}]})
+        m.call('WebDriver:ReleaseActions');time.sleep(.1)
+    m.script("""Services.prefs.setBoolPref('zzgroup.enabled',true);Services.prefs.setStringPref('zzgroup.ui.page','headers');
+      settingsWin.document.querySelector('[mod-id="zz-groupflow"] dialog').showModal();
+      const active=settingsWin.document.activeElement;(active?.shadowRoot?.activeElement||active)?.blur();return true;""")
+    pointer(1,1)
+    resting=m.script("""const d=settingsWin.document,h=d.querySelector('#zzgroup-enabled .zzsettings-help');
+      return {open:!!d.querySelector('.zzsettings-tooltip:popover-open'),height:h.getBoundingClientRect().height,clip:settingsWin.getComputedStyle(h).clipPath};""")
+    result['helpHiddenAtRest']=not resting['open'] and 0<resting['height']<=1.1 and resting['clip']=='inset(50%)'
+    print('resting help',resting,flush=True)
+    for key in ['zzgroup-enabled','zzgroup-ui-page','zzgroup-header-tint']:
+        point=m.script("""const row=settingsWin.document.getElementById("""+json.dumps(key)+""");row.scrollIntoView({block:'center'});
+          const label=row.querySelector('.zzsettings-name')||row.querySelector('moz-toggle').labelEl,b=label.getBoundingClientRect();return {x:b.x+8,y:b.y+b.height/2};""")
+        pointer(point['x'],point['y'])
+        state=m.script("""const d=settingsWin.document,row=d.getElementById("""+json.dumps(key)+"""),tip=row.querySelector('.zzsettings-tooltip:popover-open'),c=row.querySelector('moz-toggle,input,select');
+          const a=settingsA11y.getAccessibleFor(c.buttonEl||c);return {shown:!!tip&&tip.textContent===row.querySelector('.zzsettings-help').textContent,accessible:a.description.includes(row.querySelector('.zzsettings-help').textContent),count:d.querySelectorAll('.zzsettings-tooltip').length};""")
+        result['hover-'+key]=state['shown'] and state['accessible'] and state['count']==1
+        assert result['hover-'+key],state
+        if key=='zzgroup-enabled':
+            point=m.script("""const b=settingsWin.document.querySelector('.zzsettings-tooltip:popover-open').getBoundingClientRect();return {x:b.x+b.width/2,y:b.y+b.height/2,value:Services.prefs.getBoolPref('zzgroup.enabled')};""")
+            pointer(point['x'],point['y'],True)
+            result['hoverableHelpNoToggle']=m.script("return !!settingsWin.document.querySelector('.zzsettings-tooltip:popover-open')&&Services.prefs.getBoolPref('zzgroup.enabled')===true;")
+            if output:m.shot().save(output/'native-settings-hover.png')
+        pointer(1,1)
+    m.script("settingsWin.document.getElementById('zzgroup-header-tint-control').focus();return true;")
+    result['focusHelp']=m.script("return !!settingsWin.document.querySelector('#zzgroup-header-tint .zzsettings-tooltip:popover-open');")
+    m.call('Marionette:SetContext',{'value':'content'})
+    m.call('WebDriver:PerformActions',{'actions':[{'type':'key','id':'help-escape','actions':[{'type':'keyDown','value':'\ue00c'},{'type':'keyUp','value':'\ue00c'}]}]})
+    m.call('WebDriver:ReleaseActions');time.sleep(.1)
+    result['escapeHelpKeepsDialog']=m.script("return !settingsWin.document.querySelector('.zzsettings-tooltip:popover-open')&&!!settingsWin.document.querySelector('dialog[open]');")
+    result['dismissedHelpAccessible']=m.script("""const d=settingsWin.document,c=d.getElementById('zzgroup-header-tint-control');return settingsA11y.getAccessibleFor(c).description.includes(d.getElementById('zzgroup-header-tint-help').textContent);""")
+    m.script("settingsWin.document.querySelector('dialog[open]').close();return true;")
+    result['closedHelpRetired']=m.script("return !settingsWin.document.querySelector('.zzsettings-tooltip');")
+    print('hover',result,flush=True);assert all(result.values()),result
+    return result
 
 
 def layout_checks(m, output):
@@ -263,6 +311,13 @@ def layout_checks(m, output):
         if mode=='forced':result[mode]=result[mode] and data['forced']
         if mode=='dark':result[mode]=result[mode] and data['dark']
         if mode=='reduced':result[mode]=result[mode] and data['reduced'] and data['animation']=='none' and all(t['transition']=='0s' for t in data['switches'])
+        m.script("""const d=settingsWin.document,rows=[...d.querySelectorAll('dialog[open] .zzsettings-described')].filter(r=>r.getClientRects().length);
+          window.edgeHelpRow=rows.at(-1);edgeHelpRow.scrollIntoView({block:'end'});d.activeElement?.blur();return true;""")
+        time.sleep(.1)
+        m.script("edgeHelpRow.querySelector('moz-toggle,input,select,textarea').focus({preventScroll:true});return true;")
+        time.sleep(.1)
+        result[mode+'HelpBounds']=m.script("""const w=settingsWin,t=w.document.querySelector('.zzsettings-tooltip:popover-open');if(!t)return false;
+          const b=t.getBoundingClientRect();return b.left>=0&&b.top>=0&&b.right<=w.innerWidth&&b.bottom<=w.innerHeight&&t.scrollWidth<=t.clientWidth+2;""")
         if output:m.shot().save(output/f'native-settings-{mode}.png')
     assert all(result.values()),result
     m.call('WebDriver:SetWindowRect',{'width':1366,'height':768})

@@ -11,8 +11,9 @@ const reduced=matchMedia('(prefers-reduced-motion: reduce)'),forced=matchMedia('
 const downloadTargets=new WeakMap();
 let data,index,bindings=[],selector='',queued=false,retired=false,contextDownload;
 const int=(key,fallback=0)=>S.getIntPref('zzicon.'+key,fallback);
-const enabled=b=>!forced.matches&&int('set',4)===4&&(b.setting==='library'?int('library.style',11)===11:!b.setting||int('button.'+b.setting)===0);
-const still=r=>reduced.matches||forced.matches||!S.getBoolPref('zzicon.animate',true)||(r.host.closest('menupopup')&&!S.getBoolPref('zzicon.menu.animate',false));
+const enabled=(b,host)=>!forced.matches&&int('set',4)===4&&(b.setting==='library'?int('library.style',11)===11:!b.setting||int('button.'+b.setting)===0)&&
+ (!host||!host.closest('menupopup,panelview,menu,menuitem')||S.getBoolPref('zzicon.menu.animate',false));
+const still=()=>reduced.matches||forced.matches||!S.getBoolPref('zzicon.animate',true);
 const listen=(el,type,fn,opts={})=>el.addEventListener(type,fn,{...opts,signal:abort.signal});
 const namespace='http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul';
 const ownerSelector='toolbarbutton, button, menuitem, menu, .tab-close-button, .tab-reset-button, .urlbar-icon';
@@ -45,7 +46,6 @@ function snapshot(binding,host,definition) {
   const download=downloadTargets.get(popup)||popup?.zziconDownload||row?.download||row?._shell?.download||row?._download;
   state=download?(!download.stopped?'downloading':'paused'):host.getAttribute('data-l10n-id')==='downloads-cmd-resume'?'paused':'downloading';break;
  }
- case 'window-size':state=window.windowState===window.STATE_MAXIMIZED?'maximized':'normal';break;
  case 'video-visibility':state=host.getAttribute('data-zz-video-visible')==='true'?'visible':'hidden';break;
  case 'menu-state':state=host.getAttribute('open')==='true'||document.getElementById('appMenu-popup')?.state==='open'?'open':'closed';break;
  case 'compact-mode':state=document.documentElement.getAttribute('zen-compact-mode')==='true'?'compact':'expanded';break;
@@ -117,18 +117,17 @@ function remove(r){
 }
 async function attach(binding,el){
  const host=el.matches(ownerSelector)?el:el.closest(ownerSelector)||el;
- if(records.has(host)||pendingHosts.has(host))return;
+ if(!enabled(binding,host)||records.has(host)||pendingHosts.has(host))return;
  const token={};pendingHosts.set(host,token);
  const glyph=data.actions[binding.action].glyph,url='chrome://sine/content/zz-iconflow/icons/morph/'+glyph+'.svg';
  try{
   if(!images.has(url)){const image=new Image();image.src=url;images.set(url,image.decode());}
   await images.get(url);
-  if(retired||pendingHosts.get(host)!==token||!host.isConnected||!enabled(binding)||!el.matches(binding.selector))return;
-  let slot=el===host?host.querySelector('.toolbarbutton-icon,.menu-iconic-icon,.titlebar-icon,image')||host:el,addedClass=false;
+  if(retired||pendingHosts.get(host)!==token||!host.isConnected||!enabled(binding,host)||!el.matches(binding.selector))return;
+  let slot=el===host?host.querySelector('.toolbarbutton-icon,.menu-iconic-icon,image')||host:el,addedClass=false;
   if(host.localName==='menuitem'&&slot===host){addedClass=!host.classList.contains('menuitem-iconic');host.classList.add('menuitem-iconic');slot=host.querySelector('.menu-iconic-icon')||host;}
   let mode='image',paint=slot;
-  if(host.classList.contains('titlebar-button')&&S.getBoolPref('zzglass.buttons.enabled',false)){mode='after';paint=host;}
-  else if(host.matches('.zzmf-pip-controls button')){mode='background';paint=host;}
+  if(host.matches('.zzmf-pip-controls button')){mode='background';paint=host;}
   else if(slot.matches('.zen-library-sprite')||host.matches('.zzgf-close')||slot===host&&!['image','img'].includes(slot.localName)){mode='before';paint=slot===host?host:slot;}
   if(slot.localName==='svg'||slot.localName==='img')return;
   const definition=data.glyphs[glyph],model=snapshot(binding,host,definition),r={host,el,paint,mode,binding,definition,model,rows:index.glyphs[glyph].rows,row:0,state:stateKey(model),phase:'rest',hover:false,focus:false,consumed:false,animation:null,addedClass,
@@ -147,7 +146,7 @@ function discover(root){
 function flush(){
  queued=false;if(retired||!data)return;
  for(const r of [...records.values()]){
-  if(!r.host.isConnected||!enabled(r.binding)){remove(r);continue;}
+  if(!r.host.isConnected||!enabled(r.binding,r.host)){remove(r);continue;}
   const b=r.el.matches(r.binding.selector)?r.binding:bindings.find(b=>r.el.matches(b.selector));
   if(b?.action===r.binding.action)r.binding=b;else{remove(r);roots.add(r.el);continue;}
   updateState(r);
@@ -157,7 +156,7 @@ function flush(){
 }
 function queue(){if(!queued&&!retired){queued=true;queueMicrotask(flush);}}
 function sync(){
- if(!data)return;bindings=data.bindings.filter(enabled);selector=bindings.map(b=>b.selector).join(',');
+ if(!data)return;bindings=data.bindings.filter(b=>enabled(b));selector=bindings.map(b=>b.selector).join(',');
  for(const r of [...records.values()])remove(r);pendingHosts.clear();roots.add(document.documentElement);queue();
 }
 function recordFor(event){let el=event.target;while(el?.nodeType===1){if(records.has(el))return records.get(el);el=el.parentElement;}return event.sourceEvent&&event.sourceEvent!==event?recordFor(event.sourceEvent):null;}
@@ -173,7 +172,7 @@ function activated(e){
  }
 }
 listen(window,'command',activated,{capture:true});listen(window,'click',activated,{capture:true});
-for(const type of ['popupshown','popuphidden','sizemodechange','fullscreen','TabSelect','TabAttrModified','ZenWorkspaceChanged'])listen(window,type,queue);
+for(const type of ['popupshown','popuphidden','fullscreen','TabSelect','TabAttrModified','ZenWorkspaceChanged'])listen(window,type,queue);
 listen(window,'aftercustomization',sync);listen(reduced,'change',sync);listen(forced,'change',sync);
 listen(document,'visibilitychange',()=>{if(document.hidden)for(const r of records.values())finish(r);});
 const watch=new MutationObserver(changes=>{
@@ -216,16 +215,16 @@ window.gZenStartup?.promiseInitialized?.then(()=>{
  const downloads=DownloadsCommon.getData(window),view={onDownloadAdded:queue,onDownloadChanged:queue,onDownloadRemoved:queue};
  downloads.addView(view);teardown.push(()=>downloads.removeView(view));
 }).catch(error=>console.warn('[Iconflow] download state',error));
-const prefs={observe:sync};S.addObserver('zzicon.',prefs);S.addObserver('zzglass.buttons.',prefs);
+const prefs={observe:sync};S.addObserver('zzicon.',prefs);
 const instance={retire(){
  if(retired)return;retired=true;abort.abort();watch.disconnect();for(const undo of teardown)undo();
  for(const host of document.querySelectorAll('#context_bookmarkTab,#context-bookmarklink,#context-bookmarkpage')){delete host.zziconBookmarked;delete host.zziconBookmarkRequest;}
- S.removeObserver('zzicon.',prefs);S.removeObserver('zzglass.buttons.',prefs);for(const r of [...records.values()])remove(r);pendingHosts.clear();roots.clear();images.clear();
+ S.removeObserver('zzicon.',prefs);for(const r of [...records.values()])remove(r);pendingHosts.clear();roots.clear();images.clear();
  if(window[KEY]===instance)delete window[KEY];
 },get records(){return records;},refresh:sync};window[KEY]=instance;
 listen(window,'unload',()=>instance.retire());window.addUnloadListener?.(()=>instance.retire());
 Promise.all(['morph.json','morph-frames.json'].map(name=>fetch('chrome://sine/content/zz-iconflow/'+name).then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}))).then(values=>{
  if(retired)return;[data,index]=values;
- watch.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['class','id','data-zz-action','data-l10n-id','zzmf-toggle','starred','muted','open','hidden','collapsed','checked','disabled','sizemode','zen-sidebar-expanded','zen-compact-mode','zzmf-paused','zzmf-muted','data-zz-volume','data-zz-video-visible','downloading','show-in-folder']});sync();
+ watch.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['class','id','data-zz-action','data-l10n-id','zzmf-toggle','starred','muted','open','hidden','collapsed','checked','disabled','zen-sidebar-expanded','zen-compact-mode','zzmf-paused','zzmf-muted','data-zz-volume','data-zz-video-visible','downloading','show-in-folder']});sync();
 }).catch(error=>{console.error('[Iconflow] native frames',error);instance.retire();});
 })();

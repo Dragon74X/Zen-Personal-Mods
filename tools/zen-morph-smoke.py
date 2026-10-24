@@ -80,14 +80,28 @@ with tempfile.TemporaryDirectory(prefix='zen-morph-') as d:
   # Linux's hidden titlebar ancestor only for this disposable rendering fixture.
   m.script("Services.prefs.setBoolPref('zzglass.buttons.enabled',true);Services.prefs.setBoolPref('zzglass.buttons.glyph-on-hover',true);window.nativeBox=document.querySelector('.titlebar-buttonbox');window.nativePlaceholder=document.createComment('window test');nativeBox.replaceWith(nativePlaceholder);document.documentElement.append(nativeBox);nativeBox.style.cssText='position:fixed!important;left:500px!important;top:80px!important;z-index:2147483647!important';InspectorUtils.addPseudoClassLock(nativeBox,':hover');return true;");time.sleep(.5)
   window_paints=[]
-  for cls in ['titlebar-min','titlebar-max','titlebar-close']:
-   info=m.script("window.nativeButton=nativeBox.querySelector('."+cls+"');if(!nativeButton.getBoundingClientRect().width&&nativeButton.classList.contains('titlebar-max'))nativeButton=nativeBox.querySelector('.titlebar-restore');const s=getComputedStyle(nativeButton,'::after');return {box:nativeButton.getBoundingClientRect().toJSON(),position:s.position,mode:nativeButton.getAttribute('zzicon-motion'),image:s.backgroundImage};")
-   assert info['position']=='static' and info['mode']=='after' and '/morph/' in info['image'],info
+  for state,cls in [('normal','titlebar-min'),('normal','titlebar-max'),('normal','titlebar-close'),('maximized','titlebar-restore')]:
+   m.script('document.documentElement.setAttribute("sizemode",'+json.dumps(state)+');return true;');time.sleep(.2)
+   info=m.script("window.nativeButton=nativeBox.querySelector('."+cls+"');const s=getComputedStyle(nativeButton,'::after');return {box:nativeButton.getBoundingClientRect().toJSON(),position:s.position,owned:nativeButton.hasAttribute('zzicon-motion-host')||!!nativeButton.querySelector('[zzicon-motion]'),image:s.backgroundImage};")
+   assert info['position']=='static' and not info['owned'] and 'data:image/svg+xml' in info['image'],info
    settle();shown=m.shot();m.script("nativeButton.style.setProperty('--zzg-glyph','0');return true;");settle();hidden=m.shot()
-   shown.save(OUT/(cls+'-shown.png'));hidden.save(OUT/(cls+'-hidden.png'))
-   assert diff(info['box'],shown,hidden)>0,(cls,'window glyph does not paint',info,m.script("const s=getComputedStyle(nativeButton,'::after');return {width:s.width,height:s.height,frame:s.getPropertyValue('--zzicon-frame'),y:s.getPropertyValue('--zzicon-row-position'),visibility:s.visibility,opacity:s.opacity,background:s.backgroundPosition,host:nativeButton.outerHTML};"))
-   window_paints.append(cls);m.script("nativeButton.style.removeProperty('--zzg-glyph');return true;")
-  m.script("InspectorUtils.removePseudoClassLock(nativeBox,':hover');nativePlaceholder.replaceWith(nativeBox);nativeBox.removeAttribute('style');return true;")
+   assert diff(info['box'],shown,hidden)>0,(cls,'original window glyph does not paint')
+   m.script("nativeButton.style.removeProperty('--zzg-glyph');return true;");settle();enabled=m.shot()
+   m.script("Services.prefs.setIntPref('zzicon.set',0);return true;");time.sleep(.25);settle();disabled=m.shot()
+   assert diff(info['box'],enabled,disabled)==0,(cls,'Morph changes window glyph pixels')
+   assert m.script("return getComputedStyle(nativeButton,'::after').backgroundImage;")==info['image']
+   window_paints.append({'glyph':cls,'samePixelsWithMorphOff':True});m.script("Services.prefs.setIntPref('zzicon.set',4);return true;");time.sleep(.25)
+  m.script("document.documentElement.setAttribute('sizemode','normal');InspectorUtils.removePseudoClassLock(nativeBox,':hover');nativePlaceholder.replaceWith(nativeBox);nativeBox.removeAttribute('style');return true;")
+  owner_checks=m.script("""return (async()=>{
+   const cases=[];
+   for(const glass of [false,true])for(const glyph of [false,true]){
+    Services.prefs.setBoolPref('zzglass.buttons.enabled',glass);Services.prefs.setBoolPref('zzglass.buttons.glyph-on-hover',glyph);await nativeWait(40);
+    const buttons=[...document.querySelectorAll('.titlebar-button')];
+    nativeCheck('window owner unchanged '+glass+'/'+glyph,buttons.every(e=>!__zziconMorphInstance.records.has(e)&&!e.hasAttribute('zzicon-motion-host')&&!e.querySelector('[zzicon-motion]')));cases.push({glass,glyph});
+   }
+   return cases;
+  })();""")
+  result['windowOwnership']=owner_checks
   # Every generated drawing paints at captured 20px size, at rest/wind/action.
   cells=m.script("""return (async()=>{
    const data=await (await fetch('chrome://sine/content/zz-iconflow/morph-frames.json')).json();
@@ -109,7 +123,7 @@ with tempfile.TemporaryDirectory(prefix='zen-morph-') as d:
   result['cleanup']=m.script('''return (async()=>{
    const instance=__zziconMorphInstance;Services.prefs.setIntPref('zzicon.set',0);await nativeWait(150);
    nativeCheck('other sets release native paint',instance.records.size===0&&!document.querySelector('[zzicon-motion]'));
-   Services.prefs.setIntPref('zzicon.set',4);await nativeWait(300);nativeCheck('reenable native frames',instance.records.size>40);
+   Services.prefs.setIntPref('zzicon.set',4);await nativeWait(300);nativeCheck('reenable native frames',instance.records.size>20);
    Services.scriptloader.loadSubScript('chrome://sine/content/zz-iconflow/iconflow-morph.uc.js',window);await nativeWait(400);
    nativeCheck('reinjection releases old records',instance.records.size===0);
    nativeCheck('one painter per host',document.querySelectorAll('[zzicon-motion-host]').length===__zziconMorphInstance.records.size);

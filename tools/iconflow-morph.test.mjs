@@ -7,8 +7,10 @@ import vm from 'node:vm';
 const root=new URL('../',import.meta.url),read=p=>readFile(new URL(p,root),'utf8');
 const data=JSON.parse(await read('iconflow/morph.json')),source=await read('iconflow/iconflow-morph.uc.js');
 const glyph=id=>data.glyphs[data.actions[id].glyph];
-test('Morph preserves all 125 action IDs, 75 drawings and 10 compatible semantic path controls',()=>{
- assert.equal(Object.keys(data.actions).length,125);assert.equal(Object.keys(data.glyphs).length,75);assert.equal(data.controls.length,10);
+test('Morph preserves 122 action IDs, 74 drawings and 9 semantic controls; window controls excluded',()=>{
+ assert.equal(Object.keys(data.actions).length,122);assert.equal(Object.keys(data.glyphs).length,74);assert.equal(data.controls.length,9);
+ for(const b of data.bindings)assert.doesNotMatch(b.selector,/titlebar/);
+ assert.doesNotMatch(source,/titlebar|window-size|zzglass\.buttons/);
  const signatures=d=>d.replace(/[-+]?(?:\d*\.)?\d+(?:e[-+]?\d+)?/gi,'#').replace(/[\s,]/g,'');
  for(const c of data.controls)for(const s of c.states)for(const [i,v] of s.values.entries()){
   assert.equal(signatures(v.d),signatures(c.states[0].values[i].d));assert.equal(signatures(s.wind[i].d),signatures(v.d));
@@ -24,7 +26,7 @@ test('approved Library, Reload, Extensions and History geometry and paint remain
   assert.equal(createHash('sha256').update(svg).digest('hex'),hash,id);
  }
 });
-test('all ten adapters read their own authorities, including background targets and unknown native volume',()=>{
+test('all nine adapters read their own authorities, including background targets and unknown native volume',()=>{
  const node=(attrs={})=>({attrs,id:'',getAttribute(k){return this.attrs[k]??null;},hasAttribute(k){return k in this.attrs;},closest(){return null;}});
  const root=node({'zen-compact-mode':'false','zen-sidebar-expanded':'false'}),pip=node({'data-zz-volume':'37'}),star=node({starred:''});star.id='star-button';
  const ids={'zen-sidebar-pip-container':pip,'appMenu-popup':{state:'closed'}},win={windowState:1,STATE_MAXIMIZED:2,fullScreen:false,SidebarController:{isOpen:false}};
@@ -40,7 +42,6 @@ test('all ten adapters read their own authorities, including background targets 
  assert.equal(read('volume-control',native).level,null);assert.equal(read('volume-control',native).unknown,true);
  const popup=node(),download={stopped:false},pause=node();targets.set(popup,download);pause.closest=()=>popup;
  assert.equal(read('download-playback',pause).state,'downloading');download.stopped=true;assert.equal(read('download-playback',pause).state,'paused');
- assert.equal(read('window-size').state,'normal');win.windowState=2;assert.equal(read('window-size').state,'maximized');
  const toggle=node({'data-zz-video-visible':'false'});assert.equal(read('video-visibility',toggle).state,'hidden');toggle.attrs['data-zz-video-visible']='true';assert.equal(read('video-visibility',toggle).state,'visible');
  assert.equal(read('menu-state').state,'closed');ids['appMenu-popup'].state='open';assert.equal(read('menu-state').state,'open');
  assert.equal(read('compact-mode').state,'expanded');root.attrs['zen-compact-mode']='true';assert.equal(read('compact-mode').state,'compact');
@@ -49,6 +50,15 @@ test('all ten adapters read their own authorities, including background targets 
  assert.equal(read('fullscreen-state').state,'windowed');win.fullScreen=true;assert.equal(read('fullscreen-state').state,'fullscreen');
 });
 
+
+test('menu opt-out applies before native paint in menu and panel owners',()=>{
+ const prefs=new Map(),scope=vm.createContext({forced:{matches:false},S:{getBoolPref:(k,f)=>prefs.get(k)??f},int:(k,f=0)=>k==='set'?4:f});
+ vm.runInContext(source.slice(source.indexOf('const enabled='),source.indexOf('const still='))+';globalThis.enabled=enabled;',scope);
+ const binding={setting:null},menu={closest:s=>{assert.equal(s,'menupopup,panelview,menu,menuitem');return {};}},toolbar={closest:()=>null};
+ assert.equal(scope.enabled(binding),true);assert.equal(scope.enabled(binding,toolbar),true);
+ assert.equal(scope.enabled(binding,menu),false);prefs.set('zzicon.menu.animate',true);assert.equal(scope.enabled(binding,menu),true);
+ prefs.set('zzicon.menu.animate',false);assert.equal(scope.enabled(binding,menu),false);
+});
 
 test('native frame sheets reproduce the approved motion definitions',()=>{
  const out=execFileSync('python3',[new URL('tools/iconflow-morph-frames.py',root).pathname,'--check'],{encoding:'utf8'});console.log(out.trim());

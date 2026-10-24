@@ -194,8 +194,7 @@
    Only their paint changes. JavaScript starts/stops browser-owned frame runs. */
 :root [zzicon-motion="image"],
 :root [zzicon-motion="background"],
-:root [zzicon-motion="before"]::before,
-:root [zzicon-motion="after"]::after {
+:root [zzicon-motion="before"]::before {
   list-style-image: var(--zzicon-blank) !important;
   -moz-context-properties: fill, fill-opacity, stroke, stroke-opacity !important;
   fill: currentColor !important;
@@ -215,8 +214,7 @@
   translate: none !important;
   transform: none !important;
 }
-:root [zzicon-motion="before"]::before,
-:root [zzicon-motion="after"]::after { --zzicon-frame: inherit; }
+:root [zzicon-motion="before"]::before { --zzicon-frame: inherit; }
 /* A generated property is non-inheriting; the image's animation is explicit.
    Leave native opacity transitions (tab close) and button backgrounds intact. */
 :root [zzicon-motion="image"] { transition-property: opacity, filter !important; }
@@ -229,10 +227,6 @@
 }
 :root .zen-library-sprite[zzicon-motion="before"]::before {
   width: 100% !important; height: 100% !important;
-}
-:root .titlebar-button[zzicon-motion="after"]::after {
-  fill: rgb(0 0 0 / .62) !important;
-  stroke: rgb(0 0 0 / .62) !important;
 }
 
 /* Mediaflow already paints its glyph as the button background. Replace that

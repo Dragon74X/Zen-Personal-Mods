@@ -117,7 +117,7 @@ def check(m, root, sine, profile, output, restarted=False):
     if output:
         output.mkdir(parents=True, exist_ok=True)
         m.shot().save(output / 'native-settings-initial.png')
-    assert result['booleans'] == 180, result
+    assert result['booleans'] == sum(sum(r.get('type') == 'checkbox' for r in json.loads((root / mod / 'preferences.json').read_text())) for mod in MODS), result
     assert all(v for v in result.values()), result
     result.update(extended(m, root, output))
     return result
@@ -125,6 +125,7 @@ def check(m, root, sine, profile, output, restarted=False):
 
 def extended(m, root, output):
     result = {}
+    m.script("window.settingsExpectedRows=settingsWin.document.querySelectorAll('.zzsettings-row').length;window.settingsExpectedBooleans=settingsWin.document.querySelectorAll('.zzsettings-boolean').length;return true;")
     handles=m.call('WebDriver:GetWindowHandles')
     m.call('WebDriver:SwitchToWindow',{'handle':handles[-1]})
     m.script("""return (async()=>{
@@ -190,7 +191,7 @@ def extended(m, root, output):
       result.rebuiltSync=d.querySelector('#zzgroup-enabled moz-toggle').pressed===false;
       let writes=0;const obs={observe(){writes++;}};Services.prefs.addObserver('zzgroup.enabled',obs);
       d.querySelector('#zzgroup-enabled moz-toggle').click();await pause();result.rebuiltOneWrite=writes===1;Services.prefs.removeObserver('zzgroup.enabled',obs);
-      result.singleCopies=d.querySelectorAll('.zzsettings-row').length===527&&d.querySelectorAll('.zzsettings-boolean').length===180;
+      result.singleCopies=d.querySelectorAll('.zzsettings-row').length===settingsExpectedRows&&d.querySelectorAll('.zzsettings-boolean').length===settingsExpectedBooleans;
       const writesObserver={observe(){writes++;}};writes=0;Services.prefs.addObserver('zz',writesObserver);
       await settingsManager.loadMods(settingsWin);await pause();Services.prefs.removeObserver('zz',writesObserver);
       result.noPresentationWrites=writes===0;
@@ -201,7 +202,7 @@ def extended(m, root, output):
       await settingsManager.toggleTheme(await settingsUtils.getMods(),'zz-groupflow');await settingsManager.loadMods(settingsWin);await pause();
       result.disableRetires=!d.querySelector('#zzgroup-enabled');
       await settingsManager.toggleTheme(await settingsUtils.getMods(),'zz-groupflow');await settingsManager.loadMods(settingsWin);await pause();
-      result.enableRestores=!!d.querySelector('#zzgroup-enabled moz-toggle')&&d.querySelectorAll('.zzsettings-row').length===527;
+      result.enableRestores=!!d.querySelector('#zzgroup-enabled moz-toggle')&&d.querySelectorAll('.zzsettings-row').length===settingsExpectedRows;
       window.settingsDialog=null;window.settingsToggle=null;return result;
     })();""")
     result.update(checks)

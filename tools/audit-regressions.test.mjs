@@ -233,7 +233,7 @@ function mediaController() {
     setProcessingActive(active, mode, captions) { calls.push(`${id}.processing=${active}:${captions}`); },
   }]));
   const env = vm.createContext({
-    window: {}, undo: [], retired: false, chosenSource: null, downloadsCovering: () => false, placeToggles() {}, syncToggleIcons() {}, actorRegistry: registry, sourceBC: null, availableSources: new Map(),
+    window: {}, on() {}, reducedMotion: { matches: false }, undo: [], retired: false, chosenSource: null, downloadsCovering: () => false, placeToggles() {}, syncToggleIcons() {}, actorRegistry: registry, sourceBC: null, availableSources: new Map(),
     isStreaming: false, playerSeen: true, userHidden: false, sourceTabActive: false,
     browserWindowActive: true, captionMode: "youtube", captionsWhenPipHidden: false,
     animateOutTimer: null, animating: false, dragging: false,
@@ -342,7 +342,7 @@ test("Mediaflow: native range seeks once on commit and cancels preview state wit
   };
   const env = vm.createContext({
     document: { createElement: node }, pipContainer: { appendChild() {}, toggleAttribute(k, v) { attrs.set(k, v); } },
-    safe: fn => fn(), on: (n, event, fn) => n.addEventListener(event, fn), undo: [],
+    holdPreview() {}, releasePreview() {}, safe: fn => fn(), on: (n, event, fn) => n.addEventListener(event, fn), undo: [],
     Services: { prefs: { getBoolPref: () => true, getStringPref: () => "10", addObserver() {} } },
     sourceBC: { id: 11, top: { embedderElement: {} } },
     gBrowser: { getTabForBrowser: () => ({ linkedBrowser: { audioMuted: false } }) },

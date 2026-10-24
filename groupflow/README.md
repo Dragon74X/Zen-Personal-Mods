@@ -149,8 +149,7 @@ part with its own setting (all on by default):
   loaded tab, else its own top. So does a folder that fits without
   scrolling: each line answers to its own tabs, never to where it sits in
   the list, so one folder moving or resizing leaves the others' lights
-  alone. Point at or scroll a scrolling folder's own connector (or the strip left of it) or
-  its header arrows, and its line shows where you are in it instead: how far
+  alone. Point at or scroll a scrolling folder's own connector (or the strip left of it), and its line shows where you are in it instead: how far
   it has scrolled. Point at its tabs or subfolders, or select a tab, and it
   goes back to the selected tab. Whatever you did or pointed at last wins,
   and leaving the sidebar keeps it. Rows scrolling under a still pointer do
@@ -245,10 +244,16 @@ Groupflow supplies group persistence and controls when ATG is absent:
   closed-tab/group history. Restoring a closed parent retains its subgroups.
   Split groups and native pinned folders keep their native controls.
 
-ATG's gradient editor, favicon-colour resampling, group/folder conversion and Zen
-Library integration are not included. Existing gradients remain visible by default; new
-colour selections use Firefox's palette. Groupflow icon rules override saved icons,
-followed by Tab Router section icons and tab favicons.
+Right-click a live header to edit its saved CSS gradient or resample colours from
+its current favicons. The gradient editor preserves existing multi-stop gradients;
+its two-colour builder changes them only when explicitly applied. Native palette
+choices remain available. Library copy menus resolve to the live original.
+
+Conversion between groups and pinned folders is available for root containers
+containing ordinary tabs. It preserves tabs, selection, label, colour, icon and
+collapsed state. Nested, split and live-folder containers are excluded rather
+than flattened. Groupflow icon rules override saved icons, followed by Tab Router
+section icons and tab favicons.
 
 **Label weight** now applies consistently with or without ATG. Choose **Regular**
 for ATG's usual 400 weight; Semibold is 600 and Bold is 700. Existing settings are
@@ -448,3 +453,15 @@ Off / folders / tabs / both and 0–100% artwork opacity. Groupflow draws folder
 artwork beneath the existing fill; Glassflow 3.72.0 does the same for tab states.
 Manual folder icons suppress automatic folder artwork. Each group/tab resets
 its artwork boundary so parent banners cannot propagate into unrelated children.
+
+## Shared motion and corners
+
+Glassflow supplies the motion profile and light transitions for existing header
+paint, labels and close glyphs. New Groupflow installations use Shared Glassflow
+shape; explicit saved choices retain their meaning. Header radius remains
+independent. Follow Zen with Auto compensation uses Zen’s radius once.
+
+Tab-icon shape clips the image itself, including native, Router, manual and Library
+copy icons. It overrides Arc’s `overflow: visible !important` inside the existing
+enabled geometry rule. Default / Match folder corners remains the default; icon
+size, transparent pixels and sibling loading/media overlays remain independent.

@@ -115,9 +115,13 @@
     const panel = event.target, list = document.getElementById("PanelUI-zen-emojis-picker-svgs");
     if (panel.id !== "PanelUI-zen-emojis-picker" || !list || !Services.prefs.getBoolPref(PREFIX + "picker.enabled", true)) return;
     // Pinned tabs wrap whatever is picked as emoji text; leave them Zen's icons.
-    if (document.querySelector("[zen-emoji-open]")?.closest(".tabbrowser-tab")) return;
+    const target = document.querySelector("[zen-emoji-open]");
+    if (target?.closest(".tabbrowser-tab")) return;
+    const eligible = () => !retired && !["closed", "hiding"].includes(panel.state) &&
+      Services.prefs.getBoolPref(PREFIX + "picker.enabled", true) &&
+      document.querySelector("[zen-emoji-open]") === target;
     const icons = await loadIcons();
-    if (retired || panel.state === "closed" || panel.state === "hiding") return;
+    if (!eligible()) return;
     list.querySelector(".zzicon-ws-block")?.remove();
     const S = Services.prefs, block = document.createElementNS(HTML, "div");
     block.className = "zzicon-ws-block";
@@ -153,7 +157,7 @@
     if (S.getBoolPref(PREFIX + "picker.sites", true)) {
       const sites = document.createElementNS(HTML, "div");
       sites.className = "zzicon-ws-grid";
-      for (const { src, host } of siteSources()) siteIcon(src).then(url => { if (!retired && block.isConnected && !["closed", "hiding"].includes(panel.state)) sites.append(item(url, host || "Site")); }).catch(() => {});
+      for (const { src, host } of siteSources()) siteIcon(src).then(url => { if (eligible() && block.isConnected) sites.append(item(url, host || "Site")); }).catch(() => {});
       block.append(heading("Sites open in this space"), sites);
     }
     block.append(heading("Zen"));

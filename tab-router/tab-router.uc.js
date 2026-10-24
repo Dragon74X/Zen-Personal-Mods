@@ -63,6 +63,7 @@
   // already holds (writing is up while it lands); a write from another
   // window is news, and just that copy is dropped so the next read is the
   // shared one -- never the parsed rules, which that write did not touch.
+  let fileCache = null;
   let writing = false;
   const prefObserver = { observe(_s, _t, data) {
     if (writing) return;
@@ -86,7 +87,7 @@
   let writeTimer = null;
   function readCache(key) {
     let data;
-    try { data = JSON.parse(str(key, "{}")); } catch { data = {}; }
+    try { data = fileCache ? fileCache.read(key) : JSON.parse(str(key, "{}")); } catch { data = {}; }
     if (!data || typeof data !== "object" || Array.isArray(data)) data = {};
     for (const [id, value] of pendingWrites.get(key) || []) {
       if (value === undefined) delete data[id]; else data[id] = value;
@@ -98,10 +99,10 @@
     clearTimeout(writeTimer); writeTimer = null;
     for (const [key, changes] of pendingWrites) {
       const data = readCache(key); // Merge other windows' records before writing our delta.
-      const entries = Object.entries(data).slice(-(key === "avatars" ? 100 : 300));
+      const entries = Object.entries(data).slice(-(key === "avatars" ? 100 : key === "learned-names" ? 200 : 300));
       const text = key === "avatars" ? boundedIcons(entries) : JSON.stringify(Object.fromEntries(entries));
       write(key, text);
-      if (key === "avatars") iconCache = null; else creatorCache = null;
+      if (key === "avatars") iconCache = null; else if (key === "creators") creatorCache = null; else learnedCache = null;
     }
     pendingWrites.clear();
   }
@@ -118,7 +119,10 @@
   }
   function write(key, text) {
     writing = true;
-    try { Services.prefs.setStringPref(P + key, text); } catch {} finally { writing = false; }
+    try {
+      if (fileCache && ["creators", "avatars", "learned-names"].includes(key)) fileCache.write(key, JSON.parse(text));
+      else Services.prefs.setStringPref(P + key, text);
+    } catch (error) { console.error("[TabRouter] Cache write failed:", error); } finally { writing = false; }
   }
   function cached(key, make) {
     if (!(key in parsed)) parsed[key] = make();
@@ -178,14 +182,14 @@
   let learnedCache = null;
   function learnedMap() {
     if (learnedCache) return learnedCache;
-    try { learnedCache = new Map(Object.entries(JSON.parse(str("learned-names", "{}")))); }
+    try { learnedCache = new Map(Object.entries(readCache("learned-names"))); }
     catch { learnedCache = new Map(); }
     return learnedCache;
   }
   function saveLearned() {
     learnedCache = new Map([...learnedMap()].slice(-200));
     if (isPrivate()) return;            // a private window learns for its session only
-    write("learned-names", JSON.stringify(Object.fromEntries(learnedCache)));
+    persist("learned-names", JSON.stringify(Object.fromEntries(learnedCache)));
   }
 
   function titleNameFor(tab, slug) {
@@ -2144,6 +2148,7 @@
   function pictureReady() { if (!retired) { stampIcons(); refreshPictures(); } }
 
   function start() {
+    Services.obs.addObserver(prefObserver, "zzrouter-cache-changed");
     window.addEventListener("GroupflowReady", pictureReady);
     window.addEventListener("popupshowing", routingMenu);
     window.addEventListener("DOMContentLoaded", watchRuleSettings, true);
@@ -2425,6 +2430,7 @@
       if (retired) return;
       flushWrites();
       retired = true;
+      Services.obs.removeObserver(prefObserver, "zzrouter-cache-changed");
       window.removeEventListener("unload", cleanup);
       cancelLookups();
       window.removeEventListener("GroupflowReady", pictureReady);
@@ -2526,12 +2532,18 @@
   // a mod that starts first would run one session on the wrong fallbacks.
   seedDefaults().catch(() => {});
 
-  const startOnce = () => {
+  const startOnce = async () => {
     // A newer copy of this script may have claimed the window while this one
     // was waiting; that copy owns the registrations, so this one stays quiet.
     if (started || window[INSTANCE_KEY] !== instance) return;
     started = true;
     stopWaiting();
+    try {
+      const { openRouterCache } = ChromeUtils.importESModule("chrome://sine/content/zz-tab-router/router-cache.sys.mjs");
+      const { JSONFile } = ChromeUtils.importESModule("resource://gre/modules/JSONFile.sys.mjs");
+      fileCache = await openRouterCache({ Services, IOUtils, PathUtils, JSONFile });
+    } catch (error) { console.error("[TabRouter] Retaining legacy caches; disk store unavailable:", error); }
+    if (window.closed || retired || window[INSTANCE_KEY] !== instance) return;
     try { start(); } catch (e) {
       console.error("[TabRouter] failed to start:", e);
     }
@@ -2549,7 +2561,8 @@
 
   // Until start() swaps in the real cleanup, releasing this copy means
   // dropping whatever it is waiting on.
-  instance.retire = stopWaiting;
+  instance.retire = () => { retired = true; stopWaiting(); };
+  try { window.addUnloadListener?.(() => instance.retire()); } catch {}
 
   if (windowReady()) {
     startOnce();

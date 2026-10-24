@@ -63,6 +63,7 @@ async function environment({ realMetadata = false, failArchive = new Set() } = {
       copy(from, to);
       erase(from);
     },
+    async readJSON(p) { return JSON.parse(fs.get(p)); },
     async writeJSON(p, json) {
       await tick();
       assert.equal(p, utils.modsDataFile);
@@ -107,7 +108,7 @@ async function environment({ realMetadata = false, failArchive = new Set() } = {
     lastLoad = Promise.all(Object.values(registry).map(mod => utils.getModPreferences(mod)));
     return lastLoad;
   };
-  return { manager, utils, IOUtils, fs, manifests, marketplace, metadataRequests, updatedMods, sharedRepoDate,
+  return { manager, utils, IOUtils, ucAPI, fs, manifests, marketplace, metadataRequests, updatedMods, sharedRepoDate,
     get lastLoad() { return lastLoad; },
     get registry() { return registry; } };
 }
@@ -134,7 +135,7 @@ test("native Sine: authored release dates update Groupflow alone without GitHub 
   }
   env.registry["zz-groupflow"].version = "0.0.0";
   env.registry["zz-groupflow"].updatedAt = env.sharedRepoDate;
-  installSineUpdateGuard(env.manager, env.utils);
+  installSineUpdateGuard(env.manager, env.utils, { IOUtils: env.IOUtils, PathUtils: path.posix });
   assert.equal(await env.manager.updateMods("auto"), true);
   await env.lastLoad;
   assert.deepEqual(env.updatedMods, ["zz-groupflow"]);
@@ -156,7 +157,7 @@ test("native Sine: unguarded parallel update reproduces folder loss", { skip: !u
 
 test("native Sine: guarded update keeps every preference file and metadata entry", { skip: !upstream }, async () => {
   const env = await environment();
-  assert.equal(installSineUpdateGuard(env.manager, env.utils), true);
+  assert.equal(installSineUpdateGuard(env.manager, env.utils, { IOUtils: env.IOUtils, PathUtils: path.posix }), true);
   assert.equal(await env.manager.updateMods("auto"), true);
   assert.equal((await env.lastLoad).length, mods.length);
   assert.equal(Object.keys(env.registry).length, mods.length);
@@ -170,7 +171,7 @@ test("native Sine: guarded update keeps every preference file and metadata entry
 
 test("native Sine: update and reinstall queued together retain every mod", { skip: !upstream }, async () => {
   const env = await environment();
-  installSineUpdateGuard(env.manager, env.utils);
+  installSineUpdateGuard(env.manager, env.utils, { IOUtils: env.IOUtils, PathUtils: path.posix });
   await Promise.all([env.manager.updateMods(), env.manager.installMod(env.manifests["zz-glassflow"].homepage, null)]);
   assert.equal((await env.lastLoad).length, mods.length);
   assert.equal(Object.keys(env.registry).length, mods.length);
@@ -183,7 +184,7 @@ test("native Sine: sibling and nested dependencies retain every mod", { skip: !u
   parent.modules = [child.homepage, env.manifests["zz-tab-router"].homepage];
   child.modules = [env.manifests["zz-tab-unloader"].homepage];
   for (const id of ["zz-groupflow", "zz-tab-router", "zz-tab-unloader"]) delete env.registry[id];
-  installSineUpdateGuard(env.manager, env.utils);
+  installSineUpdateGuard(env.manager, env.utils, { IOUtils: env.IOUtils, PathUtils: path.posix });
   await env.manager.updateMods();
   assert.equal((await env.lastLoad).length, mods.length);
   assert.equal(Object.keys(env.registry).length, mods.length);
@@ -217,7 +218,7 @@ test("native Sine: the launch check is guarded when the guard loads with the mod
   const env = await environment();
   const rebuild = (async () => {
     await env.utils.getMods();
-    installSineUpdateGuard(env.manager, env.utils);
+    installSineUpdateGuard(env.manager, env.utils, { IOUtils: env.IOUtils, PathUtils: path.posix });
   })();
   const update = env.manager.updateMods("auto");
   await rebuild;
@@ -235,7 +236,7 @@ test("native Sine: a store mod whose store entry changes version without a newer
   const unguarded = await env.utils.getMods();
   assert.equal((await env.manager.processModUpdate(unguarded[id], unguarded, env.marketplace)).changed, false,
     "baseline: Sine never updates it");
-  installSineUpdateGuard(env.manager, env.utils);
+  installSineUpdateGuard(env.manager, env.utils, { IOUtils: env.IOUtils, PathUtils: path.posix });
   assert.equal(await env.manager.updateMods("auto"), true);
   assert.deepEqual(env.updatedMods, [id]);
   assert.equal(env.registry[id].version, entry.version);
@@ -260,7 +261,7 @@ test("native Sine: an installed Zenslop fork updates into Mediaflow and keeps it
   env.registry["zz-zenslop"] = { id: "zz-zenslop", name: "Zenslop", version: "1.3.1", enabled: true,
     updatedAt: "2026-10-04T06:15:59Z", homepage: "https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/zenslop",
     preferences: "preferences.json", scripts: { "zenslop.uc.js": {} } };
-  installSineUpdateGuard(env.manager, env.utils);
+  installSineUpdateGuard(env.manager, env.utils, { IOUtils: env.IOUtils, PathUtils: path.posix });
   assert.equal(await env.manager.updateMods("auto"), true);
   const mod = env.registry["zz-zenslop"];
   assert.equal(mod.name, "Mediaflow");
@@ -269,4 +270,66 @@ test("native Sine: an installed Zenslop fork updates into Mediaflow and keeps it
   assert.ok(env.fs.has("/sine-mods/zz-zenslop/mediaflow.uc.js") && env.fs.has("/sine-mods/zz-zenslop/userChrome.css"));
   assert.deepEqual(Object.keys(mod.scripts).sort(), ["mediaflow.uc.js", "sine-update-guard.sys.mjs"]);
   await env.utils.getModPreferences(mod);
+});
+
+test("native Sine: relocation, dependencies, validation and registry failures restore prior bytes", { skip: !upstream }, async () => {
+  for (const phase of ["relocation", "dependency", "preferences", "registry"]) {
+    const env = await environment(), id = "zz-groupflow", folder = "/sine-mods/" + id;
+    env.fs.set(folder + "/theme.json", "prior metadata");
+    const before = [...env.fs].filter(([p]) => p.startsWith(folder + "/"));
+    const oldVersion = env.registry[id].updatedAt;
+    if (phase === "relocation") {
+      const move = env.IOUtils.move; let fail = true;
+      env.IOUtils.move = async (...args) => { if (fail) { fail = false; throw new Error("relocation"); } return move(...args); };
+    } else if (phase === "dependency") {
+      env.manifests[id].modules = [env.manifests["zz-tab-router"].homepage];
+      delete env.registry["zz-tab-router"];
+      const unpack = env.ucAPI.unpackRemoteArchive;
+      env.ucAPI.unpackRemoteArchive = args => { if (args.id === "zz-tab-router") throw new Error("dependency"); return unpack(args); };
+    } else if (phase === "preferences") {
+      const unpack = env.ucAPI.unpackRemoteArchive;
+      env.ucAPI.unpackRemoteArchive = async args => { const result = await unpack(args); env.fs.set(folder + "/groupflow/preferences.json", "invalid JSON"); return result; };
+    } else {
+      const write = env.IOUtils.writeJSON; let fail = true;
+      env.IOUtils.writeJSON = async (...args) => { if (fail) { fail = false; throw new Error("registry"); } return write(...args); };
+    }
+    installSineUpdateGuard(env.manager, env.utils, { IOUtils: env.IOUtils, PathUtils: path.posix });
+    const list = await env.utils.getMods();
+    await assert.rejects(env.manager.processModUpdate(list[id], list, null), undefined, phase);
+    assert.deepEqual([...env.fs].filter(([p]) => p.startsWith(folder + "/")), before, phase);
+    assert.equal(env.registry[id].updatedAt, oldVersion, phase);
+  }
+});
+
+test("native Sine: overlapping registry writers retain code updates and user controls", { skip: !upstream }, async () => {
+  const env = await environment(), id = "zz-groupflow";
+  installSineUpdateGuard(env.manager, env.utils, { IOUtils: env.IOUtils, PathUtils: path.posix });
+  const update = await env.utils.getMods(), ui = await env.utils.getMods();
+  ui[id]["no-updates"] = true;
+  await Promise.all([
+    env.manager.processModUpdate(update[id], update, null),
+    env.IOUtils.writeJSON(env.utils.modsDataFile, ui),
+  ]);
+  assert.equal(env.registry[id]["no-updates"], true);
+  assert.equal(env.registry[id].updatedAt, env.manifests[id].updatedAt);
+  assert.equal(Object.keys(env.registry).length, mods.length);
+});
+
+test("native Sine: failed restoration retains a complete recovery copy and blocks destructive retry", { skip: !upstream }, async () => {
+  const id = "zz-groupflow", env = await environment({ failArchive: new Set([id]) });
+  const folder = "/sine-mods/" + id, backup = "/sine-mods/tmp-" + id;
+  const before = [...env.fs].filter(([p]) => p.startsWith(folder + "/"));
+  const copy = env.IOUtils.copy;
+  env.IOUtils.copy = async (from, ...args) => {
+    if (from === backup) throw new Error("restore disk failure");
+    return copy(from, ...args);
+  };
+  installSineUpdateGuard(env.manager, env.utils, { IOUtils: env.IOUtils, PathUtils: path.posix });
+  let mods = await env.utils.getMods();
+  await assert.rejects(env.manager.processModUpdate(mods[id], mods, null), /download failed/);
+  const kept = [...env.fs].filter(([p]) => p.startsWith(backup + "/"));
+  assert.deepEqual(kept.map(([p,v]) => [folder + p.slice(backup.length),v]), before);
+  mods = await env.utils.getMods();
+  await assert.rejects(env.manager.processModUpdate(mods[id], mods, null), /Recovery copy retained/);
+  assert.deepEqual([...env.fs].filter(([p]) => p.startsWith(backup + "/")), kept);
 });

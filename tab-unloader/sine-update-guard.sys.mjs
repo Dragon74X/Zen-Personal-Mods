@@ -84,43 +84,79 @@ export function installSineUpdateGuard(manager, utils, { IOUtils, PathUtils } = 
       });
     };
   }
-  // An update copies the installed folder to tmp-<id>, deletes the folder,
-  // then extracts the replacement. When that fails, Sine skips its restore
-  // and every later update fails copying a missing or partial folder: the
-  // mod stays broken until reinstalled. The update failed, so mods.json
-  // still names the old version; put the old copy back before reads resume.
-  // Which copy is whole depends on where it failed:
-  // - the backup copy itself failed: the folder was never deleted and is
-  //   intact, and the backup is a partial subset of it. Keep the folder.
-  // - the download or extraction failed: the folder is missing or partial,
-  //   and the backup is the complete old version. Restore it.
-  const listing = async (root, dir = root, out = new Map()) => {
-    for (const path of await IOUtils.getChildren(dir)) {
-      const info = await IOUtils.stat(path);
-      if (info.type === "directory") await listing(root, path, out);
-      else out.set(path.slice(root.length), info.size);
-    }
-    return out;
-  };
-  async function restoreBackup([, , theme, installed]) {
-    if (!installed?.id || !theme?.id) return;
-    try {
-      const folder = utils.getModFolder(theme.id);
-      const backup = PathUtils.join(utils.modsDir, `tmp-${installed.id}`);
-      if (!await IOUtils.exists(backup)) return;
-      if (await IOUtils.exists(folder)) {
-        const [kept, saved] = await Promise.all([listing(folder), listing(backup)]);
-        if ([...saved].every(([file, size]) => kept.get(file) === size)) {
-          await IOUtils.remove(backup, { recursive: true });   // the copy failed; the folder is whole
-          return;
-        }
-        await IOUtils.remove(folder, { recursive: true });
+  // Native extraction owns the shared staging path; this transaction owns
+  // backup lifetime. A completed copy is the only evidence of a valid backup.
+  // Keep it through relocation, dependency installation and registry commit.
+  const transactions = new Map();
+  const snapshots = new WeakMap();
+  const registryWrites = serial();
+  const getMods = utils.getMods;
+  const clone = value => JSON.parse(JSON.stringify(value));
+  const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const object = value => value && typeof value === "object" && !Array.isArray(value);
+  const reconcile = (before, next, current) => {
+    if (equal(before, next)) return current;
+    if (object(before) && object(next) && object(current)) {
+      const result = { ...current };
+      for (const key of new Set([...Object.keys(before), ...Object.keys(next)])) {
+        const value = reconcile(before[key], next[key], current[key]);
+        if (value === undefined) delete result[key]; else result[key] = value;
       }
-      await IOUtils.move(backup, folder);
-      console.warn(`[Zen Personal Mods] Update of ${theme.id} failed; restored the installed copy.`);
-    } catch (error) {
-      console.warn(`[Zen Personal Mods] Could not restore ${theme.id} after a failed update:`, error);
+      return result;
     }
+    return equal(before, current) ? next : current;
+  };
+  utils.getMods = async function (...args) {
+    await registryWrites.drain();
+    const value = await getMods.apply(this, args);
+    snapshots.set(value, clone(value));
+    return value;
+  };
+  const nativeIO = IOUtils && Object.fromEntries(
+    ["copy", "remove", "writeJSON"].map(name => [name, IOUtils[name].bind(IOUtils)]));
+  if (nativeIO) {
+    IOUtils.copy = async function (from, to, ...args) {
+      const result = await nativeIO.copy(from, to, ...args);
+      const transaction = transactions.get(to);
+      if (transaction?.folder === from) transaction.phase = "backed-up";
+      return result;
+    };
+    IOUtils.remove = function (file, ...args) {
+      if (transactions.get(file)?.phase === "backed-up") return Promise.resolve();
+      return nativeIO.remove(file, ...args);
+    };
+    IOUtils.writeJSON = function (file, value, ...args) {
+      if (file !== utils.modsDataFile) return nativeIO.writeJSON(file, value, ...args);
+      // Includes Sine's Disable updates button, which bypasses manager methods.
+      const before = snapshots.get(value);
+      const intended = clone(value);
+      return registryWrites(async () => {
+        const current = await getMods.call(utils);
+        const merged = before ? reconcile(before, intended, current) : intended;
+        for (const transaction of transactions.values()) {
+          const mod = intended[transaction.id];
+          if (mod !== transaction.theme && !equal(mod, transaction.theme)) continue;
+          const folder = transaction.folder;
+          const required = [mod.preferences, ...Object.values(mod.style || {}), ...Object.keys(mod.scripts || {})].filter(Boolean);
+          for (const name of required) {
+            if (typeof name !== "string" || name.startsWith("/") || name.split(/[\\/]/).includes("..") ||
+                !await IOUtils.exists(PathUtils.join(folder, name))) throw new Error(`Missing installed file: ${transaction.id}/${name}`);
+          }
+          if (transaction.hadPreferences && !mod.preferences) throw new Error(`Missing preferences: ${transaction.id}`);
+          if (mod.preferences && IOUtils.readJSON) {
+            const preferences = await IOUtils.readJSON(PathUtils.join(folder, mod.preferences));
+            if (!Array.isArray(preferences)) throw new Error(`Invalid preferences: ${transaction.id}`);
+          }
+          // Updating code must not reset the user's install controls.
+          for (const key of ["enabled", "no-updates"]) if (Object.hasOwn(current[transaction.id] || {}, key)) merged[transaction.id][key] = current[transaction.id][key];
+        }
+        await nativeIO.writeJSON(file, merged, ...args);
+        for (const transaction of transactions.values()) {
+          if (equal(intended[transaction.id], transaction.theme)) transaction.phase = "committed";
+        }
+        snapshots.set(value, clone(merged));
+      });
+    };
   }
   manager.syncModData = function (...args) {
     // Native sync starts sibling dependencies with Promise.all. Serialize
@@ -131,9 +167,43 @@ export function installSineUpdateGuard(manager, utils, { IOUtils, PathUtils } = 
     receiver.installMod = (...childArgs) =>
       dependencies(() => original.installMod.apply(this, childArgs));
     const result = (async () => {
-      try { return await original.syncModData.apply(receiver, args); }
-      catch (error) { await restoreBackup(args); throw error; }
-      finally { await dependencies.drain(); }
+      const [, , theme, installed] = args;
+      const backup = nativeIO && PathUtils.join(utils.modsDir, `tmp-${installed?.id || theme.id}`);
+      const transaction = backup && { id: theme.id, theme, folder: utils.getModFolder(theme.id),
+        phase: "preparing", hadPreferences: !!installed?.preferences };
+      if (transaction) {
+        if (await IOUtils.exists(backup)) throw new Error(`Recovery copy retained: ${backup}; resolve before updating`);
+        transactions.set(backup, transaction);
+      }
+      try {
+        const result = await original.syncModData.apply(receiver, args);
+        await dependencies.drain();
+        if (transaction && transaction.phase !== "committed") throw new Error(`Update did not commit: ${theme.id}`);
+        return result;
+      } catch (error) {
+        await dependencies.drain();
+        if (transaction?.phase === "backed-up") {
+          try {
+            await nativeIO.remove(transaction.folder, { recursive: true, ignoreAbsent: true });
+            await IOUtils.copy(backup, transaction.folder, { recursive: true });
+            transaction.phase = "restored";
+          } catch (restoreError) {
+            transaction.phase = "recovery-required";
+            console.error(`[Zen Personal Mods] Retained recovery copy at ${backup}:`, restoreError);
+          }
+        }
+        throw error;
+      } finally {
+        if (transaction) {
+          transactions.delete(backup);
+          // Failed backup creation never touched the installed folder. Failed
+          // restoration retains the complete backup for recovery, even on retry.
+          if (transaction.phase !== "recovery-required") {
+            try { await nativeIO.remove(backup, { recursive: true, ignoreAbsent: true }); }
+            catch (error) { console.warn(`[Zen Personal Mods] Retained backup at ${backup}:`, error); }
+          }
+        }
+      }
     })();
     writes.add(result);
     const done = () => writes.delete(result);
@@ -146,6 +216,32 @@ export function installSineUpdateGuard(manager, utils, { IOUtils, PathUtils } = 
     while (writes.size) await Promise.allSettled([...writes]);
     return getPrefs.apply(this, args);
   };
+  // Sine invokes identical callbacks for window close, rebuild and removal.
+  // Carry the actual lifetime through those entrypoints; a browser preference
+  // belongs to the installed feature, not to the window receiving cleanup.
+  if (manager.removeListenersForDOM && manager.removeUnloadListeners && manager.triggerUnloadListener) {
+    const close = manager.removeListenersForDOM, unload = manager.removeUnloadListeners;
+    const replace = manager.triggerUnloadListener;
+    const reasons = window => window.__zzSineUnloadReasons ||= new Map();
+    manager.removeListenersForDOM = function (window) {
+      window.__zzSineWindowClosing = true;
+      try { return close.call(this, window); }
+      finally { delete window.__zzSineWindowClosing; }
+    };
+    manager.removeUnloadListeners = async function (id) {
+      const windows = [...Services.wm.getEnumerator("navigator:browser")];
+      windows.forEach(window => reasons(window).set(id, "release"));
+      try { return await unload.call(this, id); }
+      finally { windows.forEach(window => reasons(window).delete(id)); }
+    };
+    manager.triggerUnloadListener = async function (script, window) {
+      const id = /^chrome:\/\/sine\/content\/([^/]+)\//.exec(script)?.[1];
+      const mods = await utils.getMods();
+      reasons(window).set(id, mods[id]?.enabled && !Services.prefs.getBoolPref("sine.mods.disable-all", false) ? "update" : "release");
+      try { return await replace.call(this, script, window); }
+      finally { reasons(window).delete(id); }
+    };
+  }
   // The shared manager makes 6 copies and multiple windows install just once.
   // Deliberately session-scoped: no window unload may abandon pending updates.
   Object.defineProperty(manager, marker, { value: true });
@@ -176,7 +272,7 @@ const settingScopes = new Map([
   ["zz-glassflow-library", "zzlib."], ["zz-groupflow", "zzgroup."],
   ["zz-iconflow", "zzicon."], ["zz-tab-router", "zzrouter."],
   ["zz-tab-unloader", "zzunload."], ["zz-zen-turbo", "zzturbo."],
-  ["zz-mediaflow", "zzmedia."], ["zz-peekflow", "zzpeek."],
+  ["zz-mediaflow", "zzmedia."], ["zz-zenslop", "zzmedia."], ["zz-peekflow", "zzpeek."],
 ]);
 const nativeSettings = new Set(["zen.theme.hide-tab-throbber", "zen.theme.acrylic-sidebar", "zen.theme.acrylic-urlbar"]);
 const fractionSettings = new Set([

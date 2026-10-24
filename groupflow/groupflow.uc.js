@@ -198,7 +198,7 @@
     // The browser serializes colour stops, including names and nested colour
     // functions, to flat computed colours. Keep every stop and gradient intact.
     return background.replace(/\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([^()]*\)/gi,
-      color => `rgb(from ${color} r g b / calc(alpha * var(--zzgf-saved-tint-factor, 100%)))`);
+      color => `rgb(from ${color} r g b / calc(alpha * var(--zzgf-saved-tint-factor, 100%) * var(--zzgf-saved-weight, 1)))`);
   }
 
   function setSavedBackground(g, background) {
@@ -209,6 +209,7 @@
     else g.style.removeProperty("--zzgf-saved-background");
     g.toggleAttribute("zzgf-saved-gradient", !!background);
     header?.style.removeProperty("--zzgf-saved-tint-background");
+    if (header) header.style.setProperty("--zzgf-saved-available", background ? "1" : "0");
     if (!background || !header) return;
     const probe = document.createElementNS("http://www.w3.org/1999/xhtml", "span");
     probe.style.display = "none";
@@ -238,7 +239,7 @@
     }
     const real = document.getElementById(copy.id.replace(/-copy$/, ""));
     const tint = real?.labelContainerElement?.style.getPropertyValue("--zzgf-saved-tint-background");
-    if (tint) header.style.setProperty("--zzgf-saved-tint-background", tint);
+    if (tint) { header.style.setProperty("--zzgf-saved-tint-background", tint); header.style.setProperty("--zzgf-saved-available", "1"); }
   }
   const dressCopies = event => { if (isCopy(event.target)) dressCopy(event.target); };
 
@@ -578,6 +579,159 @@
       appliedColors.set(group, group.color);
     }
 
+    const editors = new Set();
+    const live = group => !retired && group?.isConnected && !isCopy(group) && !group.closing &&
+      !group.hasAttribute("split-view-group") && (plainGroup(group) || group.isZenFolder);
+    const leafTabs = group => live(group) && !group.isLiveFolder && !group.group && !group.groupContainer?.querySelector("tab-group, zen-folder, tab-split-view-wrapper") &&
+      [...group.tabs].filter(tab => !tab.hasAttribute("zen-empty-tab") && !tab.closing);
+    function saveColor(group, value) {
+      if (!live(group) || !colors) return false;
+      colors[group.id] = value;
+      writeGroupData("tabGroupColors", colors);
+      colorCache.delete(group.id); appliedColors.delete(group);
+      group.color = group.id;
+      applyColor(group); refreshGroup(group);
+      document.querySelector("zen-library")?.update?.(true);
+      return true;
+    }
+    function editGradient(group) {
+      if (!live(group) || !colors) return;
+      const html = (tag, parent, attrs = {}) => {
+        const node = document.createElementNS("http://www.w3.org/1999/xhtml", tag);
+        for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+        parent?.appendChild(node); return node;
+      };
+      const dialog = html("dialog", document.documentElement, { class: "zzgf-gradient-editor", "aria-label": "Group gradient" });
+      editors.add(dialog);
+      const title = html("h3", dialog); title.textContent = "Gradient · " + group.label;
+      const preview = html("div", dialog, { class: "zzgf-gradient-preview", "aria-hidden": "true" });
+      const form = html("form", dialog), label = html("label", form);
+      label.textContent = "Gradient";
+      const input = html("textarea", label, { rows: 4, required: "", "aria-label": "Gradient" });
+      input.value = group.style.getPropertyValue("--zzgf-saved-background") || "linear-gradient(90deg, #7c8cf8, transparent)";
+      const controls = html("div", form), a = html("input", controls, { type: "color", value: "#7c8cf8", "aria-label": "Start colour" });
+      const b = html("input", controls, { type: "color", value: "#1b1b2b", "aria-label": "End colour" });
+      const angle = html("input", controls, { type: "number", value: "90", min: "0", max: "360", "aria-label": "Direction in degrees" });
+      const build = html("button", controls, { type: "button" }); build.textContent = "Use these two colours";
+      const valid = () => /^(?:repeating-)?(?:linear|radial|conic)-gradient\(/i.test(input.value.trim()) &&
+        !/url\s*\(/i.test(input.value) && CSS.supports("background-image", input.value);
+      const update = () => {
+        input.setCustomValidity(valid() ? "" : "Enter a valid CSS gradient.");
+        if (valid()) preview.style.backgroundImage = input.value;
+      };
+      build.addEventListener("click", () => { input.value = `linear-gradient(${Number(angle.value) || 0}deg, ${a.value}, ${b.value})`; update(); });
+      input.addEventListener("input", update); update();
+      const save = html("button", form, { type: "submit" }); save.textContent = "Save gradient";
+      const cancel = html("button", form, { type: "button" }); cancel.textContent = "Cancel";
+      cancel.addEventListener("click", () => dialog.close());
+      form.addEventListener("submit", event => {
+        event.preventDefault(); update();
+        if (input.reportValidity() && saveColor(group, input.value.trim())) dialog.close();
+      });
+      dialog.addEventListener("close", () => { editors.delete(dialog); dialog.remove(); }, { once: true });
+      dialog.showModal(); input.focus();
+    }
+    async function resampleColor(group) {
+      if (!live(group) || !colors) return false;
+      const before = group.color, saved = JSON.stringify(colors[group.id]);
+      const sources = [...new Set(group.tabs.map(tab => tab.getAttribute("image")).filter(Boolean))];
+      const canvas = document.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
+      canvas.width = canvas.height = 16;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      const sum = [0, 0, 0]; let weight = 0;
+      for (const src of sources) {
+        if (!live(group)) return false;
+        try {
+          const image = new Image(); image.src = src; await image.decode();
+          if (!live(group)) return false;
+          ctx.clearRect(0, 0, 16, 16); ctx.drawImage(image, 0, 0, 16, 16);
+          const pixels = ctx.getImageData(0, 0, 16, 16).data;
+          for (let i = 0; i < pixels.length; i += 4) {
+            const alpha = pixels[i + 3] / 255; weight += alpha;
+            for (let c = 0; c < 3; c++) sum[c] += pixels[i + c] * alpha;
+          }
+        } catch {} // A missing favicon never replaces the saved colour.
+      }
+      return weight > 0 && live(group) && group.color === before && JSON.stringify(colors[group.id]) === saved &&
+        saveColor(group, { favicon: `rgb(${sum.map(value => Math.round(value / weight)).join(" ")})` });
+    }
+    function convert(group) {
+      const tabs = leafTabs(group);
+      if (!tabs?.length) return null;
+      const fromFolder = group.isZenFolder, label = group.label, workspaceId = workspaceOf(group);
+      const color = colors?.[group.id], icon = icons?.[group.id], collapsed = group.collapsed;
+      const selected = gBrowser.selectedTab;
+      // Native pin/unpin owns workspace placement and session events. Restrict
+      // conversion to leaf containers: never flatten a nested group or split.
+      let target;
+      if (fromFolder) {
+        for (const tab of tabs) gBrowser.unpinTab(tab);
+        target = gBrowser.addTabGroup(tabs, { label, insertBefore: tabs[0] });
+      } else target = gZenFolders.createFolder(tabs, { label, workspaceId, renameFolder: false });
+      if (!target) return null;
+      target.setAttribute("zen-workspace-id", workspaceId);
+      for (const tab of tabs) {
+        for (const animation of tab.getAnimations()) animation.cancel();
+        for (const prop of ["opacity", "height", "min-height", "margin-top", "--zen-folder-indent"]) tab.style.removeProperty(prop);
+        tab.removeAttribute("folder-active");
+      }
+      if (color) saveColor(target, color);
+      if (icon && icons) { icons[target.id] = icon; writeGroupData("tabGroupIcons", icons); }
+      target.collapsed = collapsed;
+      if (selected?.isConnected && !selected.closing) gBrowser.selectedTab = selected;
+      // Only an empty native placeholder may remain. Never close a real tab.
+      if (group.isConnected && !group.tabs.some(tab => !tab.hasAttribute("zen-empty-tab"))) {
+        if (fromFolder) group.delete(); else gBrowser.removeTabGroup(group);
+      }
+      changed(); document.querySelector("zen-library")?.update?.(true);
+      return target;
+    }
+    const actionItems = new Set();
+    function addActions(parent, group, panel = false) {
+      const actions = [
+        ["Edit gradient…", () => !!colors, () => editGradient(group)],
+        ["Resample favicon colour", () => !!colors && group.tabs.some(tab => tab.hasAttribute("image")), () => resampleColor(group)],
+        [group.isZenFolder ? "Convert to tab group" : "Convert to folder", () => !!leafTabs(group)?.length, () => convert(group)],
+      ];
+      for (const [label, eligible, action] of actions) {
+        if (!live(group) || !eligible()) continue;
+        const item = document.createXULElement(panel ? "toolbarbutton" : "menuitem");
+        item.setAttribute("label", label); item.setAttribute("class", "subviewbutton");
+        item.addEventListener("command", () => {
+          if (live(group) && eligible()) Promise.resolve(action()).catch(error => console.error("[Groupflow] Action failed:", error));
+        });
+        parent.appendChild(item); actionItems.add(item);
+      }
+    }
+    function actionsMenu(event) {
+      const popup = event.target, panel = popup.matches?.(".tab-group-editor-panel");
+      if (!panel && popup.id !== "zenFolderActions") return;
+      for (const item of actionItems) item.remove(); actionItems.clear();
+      const group = panel ? gBrowser.tabGroupMenu.activeGroup : popup.triggerNode?.closest?.("tab-group, zen-folder");
+      const parent = panel ? popup.querySelector(".tab-group-edit-actions") : popup;
+      if (parent && live(group)) addActions(parent, group, panel);
+    }
+    let libraryMenu = null;
+    function libraryContext(event) {
+      const copy = event.target.closest?.("tab-group, zen-folder");
+      if (!isCopy(copy)) return;
+      const group = document.getElementById(copy.id.replace(/-copy$/, ""));
+      if (!live(group)) return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      if (!libraryMenu) {
+        libraryMenu = document.createXULElement("menupopup");
+        libraryMenu.id = "zzgf-library-actions";
+        document.getElementById("mainPopupSet").appendChild(libraryMenu);
+      }
+      for (const item of actionItems) item.remove(); actionItems.clear();
+      libraryMenu.replaceChildren();
+      addActions(libraryMenu, group);
+      libraryMenu.openPopupAtScreen(event.screenX, event.screenY, true);
+    }
+    window.addEventListener("popupshowing", actionsMenu);
+    window.addEventListener("contextmenu", libraryContext, true);
+    if (window.Groupflow) Object.assign(window.Groupflow, { editGradient, resampleColor, convert });
+
     function decorate(group) {
       const header = group.labelContainerElement;
       if (!header) return;
@@ -738,9 +892,15 @@
     window.addEventListener("dragend", resetDrag, true);
     window.addEventListener("drop", resetDrag, true);
     window.addEventListener("SSWindowClosing", beforeClose, true);
+    for (const folder of document.querySelectorAll("zen-folder")) if (!isCopy(folder)) applyColor(folder);
     sync();
     return () => {
       retired = true;
+      for (const dialog of editors) { dialog.close(); dialog.remove(); }
+      for (const item of actionItems) item.remove();
+      libraryMenu?.remove();
+      window.removeEventListener("popupshowing", actionsMenu);
+      window.removeEventListener("contextmenu", libraryContext, true);
       if (gBrowser.createTabsForSessionRestore === restoreTabs) gBrowser.createTabsForSessionRestore = nativeRestore;
       if (!closing) saveParents();
       clearTimeout(pending);
@@ -1025,8 +1185,7 @@
     glides.set(box, { to, raf: requestAnimationFrame(step) });
   }
   // What is out of view. A body that scrolls is marked on the sides where
-  // rows are hidden (edge fade), its header gets an up and a down arrow
-  // (shown on hover, clicking pages that way), and its connector lines are
+  // rows are hidden (edge fade), its connector lines are
   // lit at one height that follows the scroll: at the top when the body is
   // at its top, sliding to the bottom as it reaches its end. Subfolder
   // lines get the same light, measured from their own tops.
@@ -1043,25 +1202,9 @@
     box.toggleAttribute("zzgf-more-above", scrolls && y > 0.5);
     box.toggleAttribute("zzgf-more-below", scrolls && y < max - 0.5);
     box.toggleAttribute("zzgf-glow", scrolls);
-    const header = box.parentElement?.labelContainerElement;
-    if (!scrolls) { header?.querySelectorAll(":scope > .zzgf-more").forEach(a => a.remove()); lightSoon(); return; }
-    lightSoon();                              // its line and its subfolders' follow
-    if (!header) return;
-    for (const dir of ["up", "down"]) {
-      let arrow = header.querySelector(":scope > .zzgf-more." + dir);
-      const eligible = canScroll(box, dir);
-      if (!eligible) {
-        if (arrow === document.activeElement) header.focus();
-        arrow?.remove(); continue;
-      }
-      if (arrow) continue;
-      arrow = document.createElementNS(HTML, "button");
-      arrow.type = "button"; arrow.tabIndex = -1;
-      arrow.className = "zzgf-more " + dir;
-      arrow.setAttribute("aria-label", "Scroll folder " + dir);
-      header.appendChild(arrow);
-    }
+    lightSoon();
   }
+
   function canScroll(box, dir) {
     return !!box?.isConnected && !isCopy(box) && bool("connector-scroll", true) &&
       !box.parentElement.collapsed && (dir === "up" ? box.scrollTop > 0.5 : box.scrollTop < box.scrollHeight - box.clientHeight - 0.5);
@@ -1154,8 +1297,7 @@
       pointFrame = 0;
       const ev = pointEvent, hit = ev.target;
       if (!hit?.closest || !gBrowser.tabContainer.contains(hit)) return;
-      const chip = hit.closest(".zzgf-more"), body = hit.closest(bodySelector);
-      if (chip) { showWhere(chip.parentElement.parentElement?.querySelector(":scope > .tab-group-container"), true); return; }
+      const body = hit.closest(bodySelector);
       if (body && asTab(hit)) showWhere(folderBox(body), false);
       else if (!hit.closest(".tab-group-label-container, toolbarbutton, button")) showWhere(boxAt(ev, hit), true);
     });
@@ -1245,14 +1387,6 @@
       listPorts.add(port);
     }
     lightSoon();
-  }
-  function pageFolder(event) {
-    const arrow = event.target.closest?.(".zzgf-more");
-    if (!arrow) return;
-    event.preventDefault();
-    event.stopPropagation();                // never collapses the folder
-    const box = arrow.parentElement.parentElement?.querySelector(":scope > .tab-group-container");
-    pageFolder(box, arrow.classList.contains("down") ? "down" : "up");
   }
   // Visit each real tab once, accumulating into its ancestors. Selection does
   // not invalidate these facts; loading/playback and membership do.
@@ -1513,7 +1647,6 @@
     const iconEvents = atg ? EVENTS : ["SSTabRestored", "ZenTabIconChanged"];
     for (const ev of iconEvents) window.addEventListener(ev, schedule, true);
     window.addEventListener("click", toggleSubgroups, true);
-    window.addEventListener("click", pageFolder, true);
     window.addEventListener("TabGroupCreate", dressCopies, true);
     // Capture on the strip runs before tabbox.js's bubble listener there.
     const strip = gBrowser.tabContainer;
@@ -1582,9 +1715,8 @@
       try { delete window.Groupflow; } catch {}
       for (const ev of iconEvents) window.removeEventListener(ev, schedule, true);
       window.removeEventListener("click", toggleSubgroups, true);
-      window.removeEventListener("click", pageFolder, true);
       stopScrolling();
-      for (const mark of document.querySelectorAll(".tab-group-label-container > :is(.zzgf-more, .zzgf-count)")) mark.remove();
+      for (const mark of document.querySelectorAll(".tab-group-label-container > .zzgf-count")) mark.remove();
       for (const box of document.querySelectorAll(".tab-group-container[zzgf-glow]")) markEdges(box, false);
       for (const port of listPorts) port.removeEventListener("scroll", onListScroll);
       cancelAnimationFrame(listFrame);

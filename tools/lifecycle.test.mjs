@@ -401,7 +401,7 @@ async function unloaderEnv() {
   const gBrowser = { tabs, async prepareDiscardBrowser(t) { calls.push(["prepare", t]); },
     discardBrowser(t) { calls.push(["discard", t]); t.setAttribute("pending", ""); return true; } };
   const h = await load("tab-unloader", "sweep, hasFields, whyKeep, onTabSelect, retire: () => retired = true, canUnloadFolder, loadedChanged", {
-    window: {}, document: { documentElement: element(), querySelectorAll: () => tabs }, gBrowser,
+    window: {}, ...clock(), document: { documentElement: element(), querySelectorAll: () => tabs }, gBrowser,
     SessionStore: { getTabState: t => JSON.stringify(states.get(t) ?? {}) },
     Services: { prefs: { PREF_INT: 64, getPrefType: () => 64, getIntPref: k => values.get(k),
       getBoolPref: (k, d) => values.get(k) ?? d, getStringPref: (_k, d) => d } },
@@ -1643,7 +1643,7 @@ test("Every pref a mod's CSS queries is declared in its preferences.json", async
 test("Library clones stay out of saved state and filing, and get only visual headers", async () => {
   const library = { localName: "zen-library" };
   const span = () => ({ setAttribute() {} });
-  const header = (tint = "") => ({ children: [], style: { v: tint, getPropertyValue() { return this.v; }, setProperty(_k, v) { this.v = v; } },
+  const header = (tint = "") => ({ children: [], style: { v: tint, getPropertyValue() { return this.v; }, setProperty(k, v) { if (k === "--zzgf-saved-tint-background") this.v = v; } },
     appendChild(c) { this.children.push(c); }, querySelector(sel) { return this.children.find(c => sel === "." + c.className) || null; } });
   const group = (id, inLibrary, label = header()) => ({ id, tagName: "tab-group", labelContainerElement: label,
     hasAttribute: () => false, closest: sel => sel === "zen-library" && inLibrary ? library : null });
@@ -1770,7 +1770,7 @@ test("Disabling Glassflow or Tab Unloader in Sine hands other mods their setting
   assert.equal(prefs.user.get("arc-tab-auto-unload"), "30m");
   for (const mod of ["glassflow", "tab-unloader"]) {
     const src = await readFile(new URL(`../${mod}/${mod}.uc.js`, import.meta.url), "utf8");
-    assert.match(src, /addUnloadListener\?\.\(\(\) => \{ cleanup\(\); try \{ sync(OtherMods|Arc)\(true\)/, mod + " releases only on Sine's unload");
+    assert.match(src, /__zzSineUnloadReasons\?\.get\("zz-(glassflow|tab-unloader)"\) === "release"/, mod + " releases only on feature removal, not window close or update");
   }
 });
 

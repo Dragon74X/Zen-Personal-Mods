@@ -2,7 +2,7 @@
 // @name           Peekflow
 // @description    Places Zen's tab hover preview and remembers how unloaded tabs looked.
 // @include        chrome://browser/content/browser.xhtml
-// @version        1.3.0
+// @version        1.3.3
 // ==/UserScript==
 
 (() => {
@@ -71,6 +71,9 @@
   const shots = new WeakMap();
   const captures = new WeakMap(), revisions = new WeakMap();
   const idleWork = new Set();
+  const picturesEnabled = () => !retired && bool("show", true) && bool("pictures", true);
+  const canCapture = tab => picturesEnabled() && !!tab?.linkedBrowser &&
+    !tab.closing && !tab.hasAttribute("pending") && !tab.hasAttribute("discarded");
   const revision = tab => revisions.get(tab) || 0;
   const stateOf = tab => [tab.linkedBrowser, tab.linkedBrowser?.currentURI?.spec,
     tab.linkedBrowser?.browsingContext?.currentWindowGlobal?.innerWindowId, revision(tab)];
@@ -82,29 +85,32 @@
     if (live?.tab === tab) { live.canvas.remove(); live = null; }
   }
   function idle(fn) {
+    if (!picturesEnabled()) return;
     const id = window.requestIdleCallback(() => { idleWork.delete(id); if (!retired) fn(); });
     idleWork.add(id);
   }
   // One capture per document/revision and hover. Closing the hover or visiting
   // the page invalidates it so scroll/video/DOM changes get a fresh next view.
   function capture(tab) {
+    if (!canCapture(tab)) return Promise.resolve(null);
     const state = stateOf(tab), old = captures.get(tab);
     if (old && sameState(tab, old.state)) return old.promise;
     const canvas = document.createElementNS(HTML, "canvas"), dpr = window.devicePixelRatio || 1;
     canvas.width = Math.round(280 * dpr); canvas.height = Math.round(140 * dpr);
     const promise = window.PageThumbs.captureTabPreviewThumbnail(tab.linkedBrowser, canvas)
-      .then(ok => ok && sameState(tab, state) ? canvas : null, () => null);
+      .then(ok => ok && canCapture(tab) && sameState(tab, state) ? canvas : null, () => null);
     captures.set(tab, { state, promise });
     return promise;
   }
   function remember(tab, canvas, state = stateOf(tab)) {
+    if (!canCapture(tab) || !bool("last-view", true)) return;
     canvas?.toBlob(blob => {
-      if (blob && sameState(tab, state) && bool("pictures", true) && bool("last-view", true))
+      if (blob && canCapture(tab) && sameState(tab, state) && bool("last-view", true))
         shots.set(tab, { blob, at: Date.now() });
     }, "image/jpeg", 0.82);
   }
   async function photograph(tab) {
-    if (retired || !tab?.linkedBrowser || tab.closing || tab.hasAttribute("pending") || !bool("pictures", true) || !bool("last-view", true)) return;
+    if (!canCapture(tab) || !bool("last-view", true)) return;
     const state = stateOf(tab);
     remember(tab, await capture(tab), state);
   }
@@ -146,7 +152,7 @@
   // After Firefox fills the preview: an unloaded tab gets its last view and a
   // line saying it is unloaded and when it was last used.
   function dress() {
-    const tab = current, pictures = bool("pictures", true);
+    const tab = current, pictures = picturesEnabled();
     if (!pictures) {
       captureId++;
       if (current) invalidate(current);
@@ -215,9 +221,9 @@
       const request = ++captureId;
       current = tab;
       if (live?.tab !== tab) { live?.canvas.remove(); live = null; }
-      if (tab?.selected && !tab.hasAttribute("pending") && bool("pictures", true)) {
+      if (tab?.selected && canCapture(tab)) {
         capture(tab).then(canvas => {
-          if (!canvas || retired || current !== tab || request !== captureId || !bool("pictures", true)) return;
+          if (!canvas || !canCapture(tab) || current !== tab || request !== captureId) return;
           canvas.className = "zzpeek-shot";
           live = { tab, canvas };
           dress();
@@ -243,7 +249,16 @@
     tabPanel = panel = current = shotImg = shotTab = shotURL = live = null;
   }
 
-  const observer = { observe(_, __, name) { if (!name.startsWith(P + "saved.")) { syncFirefox(false); adopt(); dress(); } } };
+  const observer = { observe(_, __, name) {
+    if (name.startsWith(P + "saved.")) return;
+    syncFirefox(false);
+    if (!picturesEnabled()) {
+      for (const id of idleWork) window.cancelIdleCallback?.(id);
+      idleWork.clear();
+      for (const tab of gBrowser.tabs) invalidate(tab);
+    }
+    if (!bool("show", true)) release(); else { adopt(); dress(); }
+  } };
   function start() {
     instance.active = true;
     syncFirefox(false);

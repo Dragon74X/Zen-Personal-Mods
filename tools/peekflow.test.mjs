@@ -43,7 +43,7 @@ function environment(initial = {}, defaults = { [SHOW]: false, [PICTURES]: true 
       remove() { this.isConnected = false; if (this.parent?.firstChild === this) this.parent.firstChild = null; },
       toBlob: fn => fn({}),
     }) };
-    const gBrowser = { tabContainer: { previewPanel: { tabPanel } } };
+    const gBrowser = { tabs: [], tabContainer: { previewPanel: { tabPanel } } };
     const context = { window, document, gBrowser, Services, Intl, URL };
     windows.push(window);
     const inject = () => vm.runInNewContext(source, context);
@@ -170,5 +170,29 @@ test("idle last-view capture does no work after pictures disabled or window reti
     else e.set("zzpeek.pictures", false);
     w.idle.shift()();
     assert.equal(w.pending.length, 0);
+  }
+});
+
+test("show off cancels queued/idle captures even when pictures remains on", async () => {
+  for (const enableAgain of [false, true]) {
+    const e = environment(), w = e.add();
+    w.tabPanel.activate(tab());
+    const capture = w.pending.shift();
+    w.window.fire("TabAttrModified", { target: tab(false), detail: { changed: ["busy"] } });
+    e.set("zzpeek.show", false);
+    w.idle.shift()();
+    assert.equal(w.pending.length, 0);
+    if (enableAgain) e.set("zzpeek.show", true);
+    capture.resolve(true); await flush();
+    assert.equal(w.box.firstChild, null);
+  }
+});
+
+test("pending and discarded tabs never start thumbnail capture", () => {
+  const e = environment(), w = e.add();
+  for (const name of ["pending", "discarded"]) {
+    const t = tab(); t.hasAttribute = key => key === name;
+    w.tabPanel.activate(t);
+    assert.equal(w.pending.length, 0, name);
   }
 });

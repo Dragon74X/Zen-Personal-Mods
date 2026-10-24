@@ -117,3 +117,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 ## October 2026 update
 
 Supported background-video tabs expose Show this video in sidebar and Sidebar video: Automatic through their existing context menu. Source selection changes only the single preview pipeline, not playback. Stale sources and retired actor owners are rejected. Card-sizing observers exist only while always-expanded sizing needs them. Controls reflect current playback/mute/seek state and restore focus only from a hidden preview.
+
+## Stable controls
+
+Entering the preview controls or focusing one captures the current preview
+geometry until pointer and keyboard focus both leave. Play/pause and seeking
+therefore retain the same target while the native music bar changes size. The
+canvas can still animate while its controls are not being targeted. Reduced
+motion changes apply live, and disabling the mod restores parked native PiP
+buttons only while Mediaflow still owns their hidden state.
+
+The diagnostic in `tools/mediaflow-controls-probe.js` records attempted presses as well as
+commands, so missed clicks are visible; it automatically copies its report.

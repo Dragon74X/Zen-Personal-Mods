@@ -197,7 +197,7 @@ def check(m, root, arc, transparent):
     settle()
     unfiltered = m.shot()
     pixel_difference = ImageChops.difference(first, unfiltered)
-    assert max(ImageStat.Stat(pixel_difference.crop(inside)).mean) > 1, "SVG fallback did not alter the page strip"
+    assert max(ImageStat.Stat(pixel_difference.crop(inside)).mean) > 1, ("SVG fallback did not alter the page strip", m.script("return (Services.console.getMessageArray()||[]).map(m=>m.message).filter(m=>/zzg|data:image|Content Security|SVG/.test(m)).slice(-12);"))
     assert max(ImageStat.Stat(pixel_difference.crop(outside)).mean) == 0, "strip fallback altered outside pixels"
     assert state()["page"] == "none"
     m.script("Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',true);Services.prefs.setStringPref('zzglass.sidebar.blur-radius','0px');return true;")
@@ -243,6 +243,23 @@ def check(m, root, arc, transparent):
     m.script("return Promise.all(document.getElementById('navigator-toolbox').getAnimations().map(a=>a.finished.catch(()=>{})));")
     settle()
     result["blurChecks"] = ["transparent", "fallback-off", "zero", "css-length", "custom-off", "native-off-on", "opaque", "docked", "slide-hide", "rename"]
+    ownership=m.script("""return (async()=>{
+      const box=document.getElementById('tabbrowser-tabbox'),pause=()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+      Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',false);await pause();
+      box.style.setProperty('filter','brightness(0.9)');
+      Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',true);await pause();
+      const composed=box.style.filter.includes('brightness(0.9)')&&box.style.filter.includes('zzg-strip');
+      Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',false);await pause();
+      const restored=box.style.filter==='brightness(0.9)'&&box.style.getPropertyPriority('filter')==='';
+      Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',true);await pause();
+      box.style.setProperty('filter','contrast(1.2)','important');
+      Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',false);await pause();
+      const manual=box.style.filter==='contrast(1.2)'&&box.style.getPropertyPriority('filter')==='important';
+      box.style.removeProperty('filter');Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',true);await pause();
+      return {composed,restored,manual};
+    })();""")
+    assert all(ownership.values()),ownership
+    result['blurFilterOwnership']=ownership
     m.script("Services.prefs.setBoolPref('zzlib.stack.box',true);return true;")
     for master, downloads in [(True, 1), (False, 1), (True, 0), (True, 1)]:
         m.script("Services.prefs.setBoolPref('zzglass.overlays.enabled'," + json.dumps(master) +

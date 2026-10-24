@@ -41,14 +41,22 @@ for (const [mod, nav] of Object.entries(paged)) {
 }
 
 // Storage contract captured from 7a1d2c8, before presentation changes. Navigation
-// choices are the only new preferences; option labels/order of rows may change.
-test('all 524 functional keys, types, defaults and option values are unchanged', async () => {
+// choices are excluded. This release explicitly removes header arrows, adds
+// motion/relief controls, and defaults only NEW profiles to the shared shape.
+test('existing storage contracts remain unchanged except approved shape/arrow choices', async () => {
   const { createHash } = await import('node:crypto');
-  const navigation = new Set(['zzglass.ui.tab-state', 'zzgroup.ui.folder-state', 'zzicon.ui.button-category']);
+  const navigation = new Set(['zzglass.ui.tab-state', 'zzgroup.ui.folder-state', 'zzicon.ui.button-category',
+    'zzglass.motion.enabled', 'zzglass.motion.profile', 'zzglass.motion.light', 'zzglass.edges.calculated', 'zzglass.edges.surface', 'zzglass.edges.depth']);
   const rows = (await Promise.all(mods.map(async mod => (await read(mod)).filter(p => p.property && !navigation.has(p.property))
     .map(p => [mod, p.property, p.type, p.value ?? null, p.defaultValue ?? null, p.options?.map(o => o.value) ?? null]))))
     .flat().sort((a,b) => a[1].localeCompare(b[1], 'en'));
-  assert.equal(rows.length, 524);
+  assert.equal(rows.length, 523);
+  assert.ok(!rows.some(r => r[1] === 'zzgroup.scroll-arrows'));
+  const shape = rows.find(r => r[1] === 'zzgroup.corner.mode');
+  assert.equal(shape[4], 8); assert.deepEqual(shape[5], [0,1,2,3,4,5,6,7,8]);
+  shape[4] = 0; shape[5].pop();
+  rows.push(['groupflow','zzgroup.scroll-arrows','checkbox',null,true,null]);
+  rows.sort((a,b) => a[1].localeCompare(b[1], 'en'));
   assert.equal(createHash('sha256').update(JSON.stringify(rows)).digest('hex'), '0316bd0c2a6cd4f0a3cc1f7873bfef32fa762ccb8058e7aaff2cf1b2c6c5a038');
 });
 

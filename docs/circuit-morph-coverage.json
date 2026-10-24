@@ -1,2352 +1,260 @@
 {
-  "baseline": {
-    "repository": "Dragon74X/Zen-Personal-Mods",
-    "commit": "0291897db4038e61bfb9650a08ecb0644f4e3608",
-    "zipSHA256": "c97556d3a9b5b77d4d295811c63f8827614869a3108c18baae5ea30c0b114fdb",
-    "obsoleteSelectors": [
-      "#context-sharepage",
-      "#context_shareTabURL",
-      "#zen-toolbar-context-compact-mode-enable"
+  "runtime": {
+    "zen": "1.23.4b",
+    "gecko": "158.0.1",
+    "environment": "Linux headless, temporary profiles"
+  },
+  "engine": "native image/pseudo/background vector frames",
+  "base": "6e22e6ef2c29ee7a13fc92aa32f74d7bf3971d01",
+  "node": {
+    "passed": 232,
+    "skipped": 1,
+    "skippedCheck": "Native smoke opt-in: run separately and passed",
+    "sineManager": "Upstream Sine/src/core/manager.sys.mjs supplied"
+  },
+  "nativeMorph": {
+    "checks": [
+      "native renderer attached",
+      "no replacement SVG or transparent mask",
+      "SVG context policy unchanged",
+      "native image owns icon",
+      "hover windup advances integer frames",
+      "host stays anchored during windup",
+      "windup not driven by per-frame DOM writes",
+      "hover reversal starts from current frame",
+      "pointer exit settles at rest",
+      "native commands execute exactly once per activation",
+      "action uses browser animation",
+      "repeated action settles",
+      "one motion owner with custom toolbar animation",
+      "one motion owner with custom plus animation",
+      "one motion owner with custom close animation",
+      "per-button choice restores image paint",
+      "per-button choice keeps native node",
+      "compact reads native owner",
+      "menu reads native open state",
+      "menu returns to closed state",
+      "Firefox sidebar reads own owner",
+      "bookmark reads external insert",
+      "bookmark reads external removal",
+      "window glyph reads actual maximize",
+      "media replaces existing background once",
+      "media keeps numeric authority",
+      "media follows external mute/play",
+      "animation off stays at rest",
+      "reduced motion stays at rest"
+    ],
+    "records": 114,
+    "windupWrites": 1,
+    "paintTypes": [
+      "menuitem:before",
+      "menu:before",
+      "toolbarbutton:before",
+      "image:image",
+      "box:before",
+      "button:background"
+    ],
+    "windupFrames": [
+      6,
+      14,
+      31
+    ],
+    "actions": [
+      "app-menu",
+      "back",
+      "bookmark-toggle",
+      "chevron",
+      "close-unpinned",
+      "compact",
+      "context--back",
+      "context--bookmark",
+      "context--compact",
+      "context--copy",
+      "context--cut",
+      "context--developer",
+      "context--find",
+      "context--forward",
+      "context--new-tab",
+      "context--new-window",
+      "context--paste",
+      "context--print",
+      "context--private",
+      "context--reload",
+      "context--reopen",
+      "context--save-page",
+      "context--screenshot",
+      "context--send-tab",
+      "context--share",
+      "context--stop",
+      "downloads",
+      "extensions",
+      "find",
+      "firefox-library",
+      "forward",
+      "fullscreen",
+      "glassflow--close-tab",
+      "glassflow--window-close",
+      "glassflow--window-max",
+      "glassflow--window-min",
+      "glassflow-library--delete-file",
+      "glassflow-library--pause-download",
+      "glassflow-library--remove-download-history",
+      "glassflow-library--show-file",
+      "groupflow--native-ungroup",
+      "help",
+      "history",
+      "logins",
+      "mediaflow--pip-back",
+      "mediaflow--pip-close",
+      "mediaflow--pip-forward",
+      "mediaflow--pip-mute",
+      "mediaflow--pip-play",
+      "mediaflow--pip-popout",
+      "menu",
+      "minus",
+      "new-tab",
+      "new-window",
+      "overflow",
+      "print",
+      "private",
+      "quit",
+      "reader",
+      "reload",
+      "save-page",
+      "settings",
+      "sidebar",
+      "site-data",
+      "stop",
+      "zoom-in",
+      "zoom-out"
+    ],
+    "windowPaint": [
+      "titlebar-min",
+      "titlebar-max",
+      "titlebar-close"
+    ],
+    "spritePaintCases": 225,
+    "closePaint": [
+      {
+        "dpi": "1.0",
+        "motion": false,
+        "left": false,
+        "pixelDifference": 9.510416666666666
+      },
+      {
+        "dpi": "1.0",
+        "motion": false,
+        "left": true,
+        "pixelDifference": 8.946180555555555
+      },
+      {
+        "dpi": "1.0",
+        "motion": true,
+        "left": false,
+        "pixelDifference": 9.543402777777779
+      },
+      {
+        "dpi": "1.0",
+        "motion": true,
+        "left": true,
+        "pixelDifference": 8.946180555555555
+      },
+      {
+        "dpi": "1.25",
+        "motion": false,
+        "left": false,
+        "pixelDifference": 11.872222222222222
+      },
+      {
+        "dpi": "1.25",
+        "motion": false,
+        "left": true,
+        "pixelDifference": 11.155555555555555
+      },
+      {
+        "dpi": "1.25",
+        "motion": true,
+        "left": false,
+        "pixelDifference": 11.906666666666666
+      },
+      {
+        "dpi": "1.25",
+        "motion": true,
+        "left": true,
+        "pixelDifference": 11.155555555555555
+      }
+    ],
+    "distinctReloadFrames": 3,
+    "cleanup": [
+      "native renderer attached",
+      "no replacement SVG or transparent mask",
+      "SVG context policy unchanged",
+      "native image owns icon",
+      "hover windup advances integer frames",
+      "host stays anchored during windup",
+      "windup not driven by per-frame DOM writes",
+      "hover reversal starts from current frame",
+      "pointer exit settles at rest",
+      "native commands execute exactly once per activation",
+      "action uses browser animation",
+      "repeated action settles",
+      "one motion owner with custom toolbar animation",
+      "one motion owner with custom plus animation",
+      "one motion owner with custom close animation",
+      "per-button choice restores image paint",
+      "per-button choice keeps native node",
+      "compact reads native owner",
+      "menu reads native open state",
+      "menu returns to closed state",
+      "Firefox sidebar reads own owner",
+      "bookmark reads external insert",
+      "bookmark reads external removal",
+      "window glyph reads actual maximize",
+      "media replaces existing background once",
+      "media keeps numeric authority",
+      "media follows external mute/play",
+      "animation off stays at rest",
+      "reduced motion stays at rest",
+      "native close owns paint",
+      "native close visible",
+      "native close owns paint",
+      "native close visible",
+      "native close owns paint",
+      "native close visible",
+      "native close owns paint",
+      "native close visible",
+      "native close owns paint",
+      "native close visible",
+      "native close owns paint",
+      "native close visible",
+      "native close owns paint",
+      "native close visible",
+      "native close owns paint",
+      "native close visible",
+      "other sets release native paint",
+      "reenable native frames",
+      "reinjection releases old records",
+      "one painter per host",
+      "retirement restores paint"
+    ],
+    "limitations": [
+      "Linux headless; Windows compositor smoothness/antialiasing not measured",
+      "Native file media may not play; numeric media states exercised through the existing Mediaflow adapter"
     ]
   },
-  "counts": {
-    "reviewedActions": 125,
-    "approvedGlyphs": 75,
-    "semanticControls": 10,
-    "targetBindings": 193,
-    "nativeObservedActions": 73
-  },
-  "actions": [
-    {
-      "id": "back",
-      "glyph": "back",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "back",
-          "selector": "#back-button .toolbarbutton-icon",
-          "setting": "back",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "forward",
-      "glyph": "forward",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "forward",
-          "selector": "#forward-button .toolbarbutton-icon",
-          "setting": "forward",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "reload",
-      "glyph": "reload",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "reload",
-          "selector": "#reload-button .toolbarbutton-icon",
-          "setting": "reload",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "stop",
-      "glyph": "stop",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "stop",
-          "selector": "#stop-button .toolbarbutton-icon",
-          "setting": "stop",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "new-tab",
-      "glyph": "new-tab",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "new-tab",
-          "selector": "#tabs-newtab-button .toolbarbutton-icon",
-          "setting": "new-tab",
-          "module": "iconflow"
-        },
-        {
-          "action": "new-tab",
-          "selector": "#new-tab-button .toolbarbutton-icon",
-          "setting": "new-tab",
-          "module": "iconflow"
-        },
-        {
-          "action": "new-tab",
-          "selector": "#appMenu-new-tab-button2 .toolbarbutton-icon",
-          "setting": "new-tab",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "app-menu",
-      "glyph": "app-menu",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "app-menu",
-          "selector": "#PanelUI-menu-button .toolbarbutton-icon",
-          "setting": "app-menu",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "compact",
-      "glyph": "compact",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "compact",
-          "selector": "#zen-toggle-compact-mode .toolbarbutton-icon",
-          "setting": "compact",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "sidebar",
-      "glyph": "sidebar",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "sidebar",
-          "selector": "#sidebar-button .toolbarbutton-icon",
-          "setting": "sidebar",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "site-data",
-      "glyph": "site-data",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "site-data",
-          "selector": "#zen-site-data-icon-button image",
-          "setting": "site-data",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "downloads",
-      "glyph": "downloads",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "downloads",
-          "selector": "#downloads-button .toolbarbutton-icon",
-          "setting": "downloads",
-          "module": "iconflow"
-        },
-        {
-          "action": "downloads",
-          "selector": "#appMenu-downloads-button .toolbarbutton-icon",
-          "setting": "downloads",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "extensions",
-      "glyph": "extensions",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "extensions",
-          "selector": "#unified-extensions-button .toolbarbutton-icon",
-          "setting": "extensions",
-          "module": "iconflow"
-        },
-        {
-          "action": "extensions",
-          "selector": "#add-ons-button .toolbarbutton-icon",
-          "setting": "extensions",
-          "module": "iconflow"
-        },
-        {
-          "action": "extensions",
-          "selector": "#appMenu-extensions-themes-button .toolbarbutton-icon",
-          "setting": "extensions",
-          "module": "iconflow"
-        },
-        {
-          "action": "extensions",
-          "selector": "#appMenu-unified-extensions-button .toolbarbutton-icon",
-          "setting": "extensions",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "bookmark-toggle",
-      "glyph": "bookmark-toggle",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "bookmark-toggle",
-          "selector": "#star-button",
-          "setting": "bookmark",
-          "module": "iconflow"
-        },
-        {
-          "action": "bookmark-toggle",
-          "selector": "#bookmarks-menu-button .toolbarbutton-icon",
-          "setting": "bookmark",
-          "module": "iconflow",
-          "state": "bookmark-launcher"
-        },
-        {
-          "action": "bookmark-toggle",
-          "selector": "#appMenu-bookmarks-button .toolbarbutton-icon",
-          "setting": "bookmark",
-          "module": "iconflow",
-          "state": "bookmark-launcher"
-        }
-      ]
-    },
-    {
-      "id": "history",
-      "glyph": "history",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "history",
-          "selector": "#history-panelmenu .toolbarbutton-icon",
-          "setting": "history",
-          "module": "iconflow"
-        },
-        {
-          "action": "history",
-          "selector": "#appMenu-history-button .toolbarbutton-icon",
-          "setting": "history",
-          "module": "iconflow"
-        },
-        {
-          "action": "history",
-          "selector": "#PanelUI-historyMore .toolbarbutton-icon",
-          "setting": "history",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "screenshot",
-      "glyph": "screenshot",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "screenshot",
-          "selector": "#screenshot-button .toolbarbutton-icon",
-          "setting": "screenshot",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "open-file",
-      "glyph": "open-file",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "open-file",
-          "selector": "#open-file-button .toolbarbutton-icon",
-          "setting": "open-file",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "playback",
-      "glyph": "playback",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "playback",
-          "selector": ".zen-media-card .zen-media-playpause-button .toolbarbutton-icon",
-          "setting": "play",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "previous",
-      "glyph": "previous",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "previous",
-          "selector": ".zen-media-previoustrack-button .toolbarbutton-icon",
-          "setting": "previous",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "next",
-      "glyph": "next",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "next",
-          "selector": ".zen-media-nexttrack-button .toolbarbutton-icon",
-          "setting": "next",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "volume-control",
-      "glyph": "volume-control",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "volume-control",
-          "selector": ".zen-media-card .zen-media-mute-button .toolbarbutton-icon",
-          "setting": "volume",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "settings",
-      "glyph": "settings",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "settings",
-          "selector": "#preferences-button .toolbarbutton-icon",
-          "setting": "settings",
-          "module": "iconflow"
-        },
-        {
-          "action": "settings",
-          "selector": "#appMenu-settings-button .toolbarbutton-icon",
-          "setting": "settings",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "firefox-library",
-      "glyph": "firefox-library",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "firefox-library",
-          "selector": "#library-button .toolbarbutton-icon",
-          "setting": "firefox-library",
-          "module": "iconflow"
-        },
-        {
-          "action": "firefox-library",
-          "selector": "#zen-library-button .zen-library-sprite",
-          "setting": "library",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "home",
-      "glyph": "home",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "home",
-          "selector": "#home-button .toolbarbutton-icon",
-          "setting": "home",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "menu",
-      "glyph": "menu",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "menu",
-          "selector": "#zen-create-new-button .toolbarbutton-icon",
-          "setting": "menu",
-          "module": "iconflow"
-        },
-        {
-          "action": "menu",
-          "selector": ".zen-workspaces-actions .toolbarbutton-icon",
-          "setting": "menu",
-          "module": "iconflow"
-        },
-        {
-          "action": "menu",
-          "selector": "#appMenu-more-button2 .toolbarbutton-icon",
-          "setting": "menu",
-          "module": "iconflow"
-        },
-        {
-          "action": "menu",
-          "selector": "[data-l10n-id=\"library-downloads-more-button\"]",
-          "setting": null,
-          "module": "glassflow-library"
-        }
-      ]
-    },
-    {
-      "id": "expand-sidebar",
-      "glyph": "sidebar",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "expand-sidebar",
-          "selector": "#zen-expand-sidebar-button .toolbarbutton-icon",
-          "setting": "expand-sidebar",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "reader",
-      "glyph": "reader",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "reader",
-          "selector": "#reader-mode-button > .urlbar-icon",
-          "setting": "reader",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "share",
-      "glyph": "share",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "share",
-          "selector": "#zen-copy-current-url-button .toolbarbutton-icon",
-          "setting": "share",
-          "module": "iconflow"
-        },
-        {
-          "action": "share",
-          "selector": "#share-tab-button .toolbarbutton-icon",
-          "setting": "share",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "overflow",
-      "glyph": "overflow",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "overflow",
-          "selector": "#nav-bar-overflow-button .toolbarbutton-icon",
-          "setting": "overflow",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "chevron",
-      "glyph": "chevron",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "chevron",
-          "selector": "#PlacesChevron .toolbarbutton-icon",
-          "setting": "chevron",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "close-unpinned",
-      "glyph": "close-unpinned",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "close-unpinned",
-          "selector": ".zen-workspace-close-unpinned-tabs-button .toolbarbutton-icon",
-          "setting": "close-unpinned",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "media-close",
-      "glyph": "media-close",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "media-close",
-          "selector": ".zen-media-close-button .toolbarbutton-icon",
-          "setting": "media-close",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "pip",
-      "glyph": "pip",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "pip",
-          "selector": ".zen-media-pip-button .toolbarbutton-icon",
-          "setting": "pip",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "save-page",
-      "glyph": "save-page",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "save-page",
-          "selector": "#save-page-button .toolbarbutton-icon",
-          "setting": "save-page",
-          "module": "iconflow"
-        },
-        {
-          "action": "save-page",
-          "selector": "#appMenu-save-file-button2 .toolbarbutton-icon",
-          "setting": "save-page",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "print",
-      "glyph": "print",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "print",
-          "selector": "#print-button .toolbarbutton-icon",
-          "setting": "print",
-          "module": "iconflow"
-        },
-        {
-          "action": "print",
-          "selector": "#appMenu-print-button2 .toolbarbutton-icon",
-          "setting": "print",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "find",
-      "glyph": "find",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "find",
-          "selector": "#find-button .toolbarbutton-icon",
-          "setting": "find",
-          "module": "iconflow"
-        },
-        {
-          "action": "find",
-          "selector": "#appMenu-find-button2 .toolbarbutton-icon",
-          "setting": "find",
-          "module": "iconflow"
-        },
-        {
-          "action": "find",
-          "selector": "#appMenuSearchHistory .toolbarbutton-icon",
-          "setting": "find",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "zoom-in",
-      "glyph": "zoom-in",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "zoom-in",
-          "selector": "#zoom-in-button .toolbarbutton-icon",
-          "setting": "zoom",
-          "module": "iconflow"
-        },
-        {
-          "action": "zoom-in",
-          "selector": "#appMenu-zoomEnlarge-button2 .toolbarbutton-icon",
-          "setting": "zoom",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "zoom-out",
-      "glyph": "zoom-out",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "zoom-out",
-          "selector": "#zoom-out-button .toolbarbutton-icon",
-          "setting": "zoom",
-          "module": "iconflow"
-        },
-        {
-          "action": "zoom-out",
-          "selector": "#appMenu-zoomReduce-button2 .toolbarbutton-icon",
-          "setting": "zoom",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "cut",
-      "glyph": "cut",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "cut",
-          "selector": "#cut-button .toolbarbutton-icon",
-          "setting": "edit",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "copy",
-      "glyph": "copy",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "copy",
-          "selector": "#copy-button .toolbarbutton-icon",
-          "setting": "edit",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "paste",
-      "glyph": "paste",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "paste",
-          "selector": "#paste-button .toolbarbutton-icon",
-          "setting": "edit",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "encoding",
-      "glyph": "encoding",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "encoding",
-          "selector": "#characterencoding-button .toolbarbutton-icon",
-          "setting": "encoding",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "email",
-      "glyph": "email",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "email",
-          "selector": "#email-link-button .toolbarbutton-icon",
-          "setting": "email",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "logins",
-      "glyph": "logins",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "logins",
-          "selector": "#logins-button .toolbarbutton-icon",
-          "setting": "logins",
-          "module": "iconflow"
-        },
-        {
-          "action": "logins",
-          "selector": "#appMenu-passwords-button .toolbarbutton-icon",
-          "setting": "logins",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "sync",
-      "glyph": "sync",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "sync",
-          "selector": "#sync-button .toolbarbutton-icon",
-          "setting": "sync",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "send-tab",
-      "glyph": "send-tab",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "send-tab",
-          "selector": "#send-tab-button .toolbarbutton-icon",
-          "setting": "send-tab",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "import",
-      "glyph": "import",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "import",
-          "selector": "#import-button .toolbarbutton-icon",
-          "setting": "import",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "forget",
-      "glyph": "forget",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "forget",
-          "selector": "#panic-button .toolbarbutton-icon",
-          "setting": "forget",
-          "module": "iconflow"
-        },
-        {
-          "action": "forget",
-          "selector": "#appMenuClearRecentHistory .toolbarbutton-icon",
-          "setting": "forget",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "private",
-      "glyph": "private",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "private",
-          "selector": "#privatebrowsing-button .toolbarbutton-icon",
-          "setting": "private",
-          "module": "iconflow"
-        },
-        {
-          "action": "private",
-          "selector": "#appMenu-new-private-window-button2 .toolbarbutton-icon",
-          "setting": "private",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "firefox-view",
-      "glyph": "firefox-view",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "firefox-view",
-          "selector": "#firefox-view-button .toolbarbutton-icon",
-          "setting": "firefox-view",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "developer",
-      "glyph": "developer",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "developer",
-          "selector": "#developer-button .toolbarbutton-icon",
-          "setting": "developer",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "new-window",
-      "glyph": "new-window",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "new-window",
-          "selector": "#new-window-button .toolbarbutton-icon",
-          "setting": "new-window",
-          "module": "iconflow"
-        },
-        {
-          "action": "new-window",
-          "selector": "#appMenu-new-window-button2 .toolbarbutton-icon",
-          "setting": "new-window",
-          "module": "iconflow"
-        },
-        {
-          "action": "new-window",
-          "selector": "#appMenu-new-zen-unsynced-window-button .toolbarbutton-icon",
-          "setting": "new-window",
-          "module": "iconflow"
-        },
-        {
-          "action": "new-window",
-          "selector": "#appMenuRecentlyClosedWindows .toolbarbutton-icon",
-          "setting": "new-window",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "fullscreen",
-      "glyph": "fullscreen",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "fullscreen",
-          "selector": "#fullscreen-button .toolbarbutton-icon",
-          "setting": "fullscreen",
-          "module": "iconflow"
-        },
-        {
-          "action": "fullscreen",
-          "selector": "#appMenu-fullscreen-button2 .toolbarbutton-icon",
-          "setting": "fullscreen",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "account",
-      "glyph": "account",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "account",
-          "selector": "#fxa-toolbar-menu-button .toolbarbutton-icon",
-          "setting": "account",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "reopen",
-      "glyph": "reopen",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "reopen",
-          "selector": "#appMenuRecentlyClosedTabs .toolbarbutton-icon",
-          "setting": "reopen",
-          "module": "iconflow"
-        },
-        {
-          "action": "reopen",
-          "selector": "#appMenu-library-recentlyClosedTabs .toolbarbutton-icon",
-          "setting": "reopen",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "help",
-      "glyph": "help",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "help",
-          "selector": "#appMenu-help-button2 .toolbarbutton-icon",
-          "setting": "help",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "quit",
-      "glyph": "quit",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "quit",
-          "selector": "#appMenu-quit-button2 .toolbarbutton-icon",
-          "setting": "quit",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "minus",
-      "glyph": "minus",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "minus",
-          "selector": ".tab-reset-button",
-          "setting": "minus",
-          "module": "iconflow"
-        },
-        {
-          "action": "minus",
-          "selector": ".tab-reset-pin-button image",
-          "setting": "minus",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "groupflow--edit-gradient",
-      "glyph": "groupflow--edit-gradient",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "groupflow--edit-gradient",
-          "selector": "[data-zz-action=\"groupflow--edit-gradient\"]",
-          "setting": null,
-          "module": "groupflow"
-        }
-      ]
-    },
-    {
-      "id": "groupflow--resample-favicon-colour",
-      "glyph": "groupflow--resample-favicon-colour",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "groupflow--resample-favicon-colour",
-          "selector": "[data-zz-action=\"groupflow--resample-favicon-colour\"]",
-          "setting": null,
-          "module": "groupflow"
-        }
-      ]
-    },
-    {
-      "id": "groupflow--convert-to-folder",
-      "glyph": "open-file",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "groupflow--convert-to-folder",
-          "selector": "[data-zz-action=\"groupflow--convert-to-folder\"]",
-          "setting": null,
-          "module": "groupflow"
-        }
-      ]
-    },
-    {
-      "id": "groupflow--convert-to-tab-group",
-      "glyph": "groupflow--convert-to-tab-group",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "groupflow--convert-to-tab-group",
-          "selector": "[data-zz-action=\"groupflow--convert-to-tab-group\"]",
-          "setting": null,
-          "module": "groupflow"
-        }
-      ]
-    },
-    {
-      "id": "groupflow--scroll-folder-up",
-      "glyph": "groupflow--scroll-folder-up",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "groupflow--scroll-folder-up",
-          "selector": "[data-zz-action=\"groupflow--scroll-folder-up\"]",
-          "setting": null,
-          "module": "groupflow"
-        }
-      ]
-    },
-    {
-      "id": "groupflow--scroll-folder-down",
-      "glyph": "groupflow--scroll-folder-down",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "groupflow--scroll-folder-down",
-          "selector": "[data-zz-action=\"groupflow--scroll-folder-down\"]",
-          "setting": null,
-          "module": "groupflow"
-        }
-      ]
-    },
-    {
-      "id": "tab-router--generate-routing-rules",
-      "glyph": "tab-router--generate-routing-rules",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "tab-router--generate-routing-rules",
-          "selector": "[data-zz-action=\"tab-router--generate-routing-rules\"]",
-          "setting": null,
-          "module": "tab-router"
-        }
-      ]
-    },
-    {
-      "id": "tab-router--validate-routing-rules",
-      "glyph": "tab-router--validate-routing-rules",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "tab-router--validate-routing-rules",
-          "selector": "[data-zz-action=\"tab-router--validate-routing-rules\"]",
-          "setting": null,
-          "module": "tab-router"
-        }
-      ]
-    },
-    {
-      "id": "tab-router--edit-routing-rules",
-      "glyph": "tab-router--edit-routing-rules",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "tab-router--edit-routing-rules",
-          "selector": "[data-zz-action=\"tab-router--edit-routing-rules\"]",
-          "setting": null,
-          "module": "tab-router"
-        }
-      ]
-    },
-    {
-      "id": "tab-router--why-here",
-      "glyph": "help",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "tab-router--why-here",
-          "selector": "[data-zz-action=\"tab-router--why-here\"]",
-          "setting": null,
-          "module": "tab-router"
-        }
-      ]
-    },
-    {
-      "id": "tab-router--preview-sorting",
-      "glyph": "tab-router--preview-sorting",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "tab-router--preview-sorting",
-          "selector": "[data-zz-action=\"tab-router--preview-sorting\"]",
-          "setting": null,
-          "module": "tab-router"
-        }
-      ]
-    },
-    {
-      "id": "tab-router--keep-here",
-      "glyph": "tab-router--keep-here",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "tab-router--keep-here",
-          "selector": "[data-zz-action=\"tab-router--keep-here\"]",
-          "setting": null,
-          "module": "tab-router"
-        }
-      ]
-    },
-    {
-      "id": "tab-router--resume-routing",
-      "glyph": "tab-router--generate-routing-rules",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "tab-router--resume-routing",
-          "selector": "[data-zz-action=\"tab-router--resume-routing\"]",
-          "setting": null,
-          "module": "tab-router"
-        }
-      ]
-    },
-    {
-      "id": "tab-router--refresh-automatic-picture",
-      "glyph": "reload",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "tab-router--refresh-automatic-picture",
-          "selector": "[data-zz-action=\"tab-router--refresh-automatic-picture\"]",
-          "setting": null,
-          "module": "tab-router"
-        }
-      ]
-    },
-    {
-      "id": "glassflow--appearance-save",
-      "glyph": "save-page",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "glassflow--appearance-save",
-          "selector": "[data-zz-action=\"glassflow--appearance-save\"]",
-          "setting": null,
-          "module": "glassflow"
-        }
-      ]
-    },
-    {
-      "id": "glassflow--appearance-restore",
-      "glyph": "reopen",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "glassflow--appearance-restore",
-          "selector": "[data-zz-action=\"glassflow--appearance-restore\"]",
-          "setting": null,
-          "module": "glassflow"
-        }
-      ]
-    },
-    {
-      "id": "glassflow--appearance-copy",
-      "glyph": "copy",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "glassflow--appearance-copy",
-          "selector": "[data-zz-action=\"glassflow--appearance-copy\"]",
-          "setting": null,
-          "module": "glassflow"
-        }
-      ]
-    },
-    {
-      "id": "glassflow--mods-report-copy",
-      "glyph": "copy",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "glassflow--mods-report-copy",
-          "selector": "[data-zz-action=\"glassflow--mods-report-copy\"]",
-          "setting": null,
-          "module": "glassflow"
-        }
-      ]
-    },
-    {
-      "id": "tab-unloader--folder-status",
-      "glyph": "tab-unloader--folder-status",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "tab-unloader--folder-status",
-          "selector": "[data-zz-action=\"tab-unloader--folder-status\"]",
-          "setting": null,
-          "module": "tab-unloader"
-        }
-      ]
-    },
-    {
-      "id": "tab-unloader--unload-folder",
-      "glyph": "tab-unloader--unload-folder",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "tab-unloader--unload-folder",
-          "selector": "[data-zz-action=\"tab-unloader--unload-folder\"]",
-          "setting": null,
-          "module": "tab-unloader"
-        }
-      ]
-    },
-    {
-      "id": "mediaflow--sidebar-source",
-      "glyph": "mediaflow--sidebar-source",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "mediaflow--sidebar-source",
-          "selector": "[data-zz-action=\"mediaflow--sidebar-source\"]",
-          "setting": null,
-          "module": "mediaflow"
-        }
-      ]
-    },
-    {
-      "id": "mediaflow--sidebar-automatic",
-      "glyph": "sync",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "mediaflow--sidebar-automatic",
-          "selector": "[data-zz-action=\"mediaflow--sidebar-automatic\"]",
-          "setting": null,
-          "module": "mediaflow"
-        }
-      ]
-    },
-    {
-      "id": "groupflow--close-group",
-      "glyph": "stop",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "groupflow--close-group",
-          "selector": ".zzgf-close",
-          "setting": null,
-          "module": "groupflow"
-        }
-      ]
-    },
-    {
-      "id": "download-prompt--replace",
-      "glyph": "import",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "download-prompt--replace",
-          "selector": "#zzdl-ask .zzdl-replace",
-          "setting": null,
-          "module": "download-prompt"
-        }
-      ]
-    },
-    {
-      "id": "download-prompt--keep",
-      "glyph": "copy",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "download-prompt--keep",
-          "selector": "#zzdl-ask .zzdl-keep",
-          "setting": null,
-          "module": "download-prompt"
-        }
-      ]
-    },
-    {
-      "id": "download-prompt--cancel",
-      "glyph": "stop",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "download-prompt--cancel",
-          "selector": "#zzdl-ask .zzdl-cancel",
-          "setting": null,
-          "module": "download-prompt"
-        }
-      ]
-    },
-    {
-      "id": "groupflow--use-colours",
-      "glyph": "groupflow--edit-gradient",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "groupflow--use-colours",
-          "selector": "[data-zz-action=\"groupflow--use-colours\"]",
-          "setting": null,
-          "module": "groupflow"
-        }
-      ]
-    },
-    {
-      "id": "groupflow--save-gradient",
-      "glyph": "save-page",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "groupflow--save-gradient",
-          "selector": "[data-zz-action=\"groupflow--save-gradient\"]",
-          "setting": null,
-          "module": "groupflow"
-        }
-      ]
-    },
-    {
-      "id": "groupflow--cancel-gradient",
-      "glyph": "stop",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "groupflow--cancel-gradient",
-          "selector": "[data-zz-action=\"groupflow--cancel-gradient\"]",
-          "setting": null,
-          "module": "groupflow"
-        }
-      ]
-    },
-    {
-      "id": "mediaflow--pip-popout",
-      "glyph": "pip",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "mediaflow--pip-popout",
-          "selector": "#zen-sidebar-pip-container .zzmf-pip-popout",
-          "setting": null,
-          "module": "mediaflow"
-        }
-      ]
-    },
-    {
-      "id": "mediaflow--pip-close",
-      "glyph": "stop",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "mediaflow--pip-close",
-          "selector": "#zen-sidebar-pip-container .zzmf-pip-close",
-          "setting": null,
-          "module": "mediaflow"
-        }
-      ]
-    },
-    {
-      "id": "mediaflow--pip-back",
-      "glyph": "mediaflow--pip-back",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "mediaflow--pip-back",
-          "selector": "#zen-sidebar-pip-container .zzmf-pip-back",
-          "setting": null,
-          "module": "mediaflow"
-        }
-      ]
-    },
-    {
-      "id": "mediaflow--pip-play",
-      "glyph": "playback",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "mediaflow--pip-play",
-          "selector": "#zen-sidebar-pip-container .zzmf-pip-play",
-          "setting": null,
-          "module": "mediaflow"
-        }
-      ]
-    },
-    {
-      "id": "mediaflow--pip-forward",
-      "glyph": "mediaflow--pip-forward",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "mediaflow--pip-forward",
-          "selector": "#zen-sidebar-pip-container .zzmf-pip-forward",
-          "setting": null,
-          "module": "mediaflow"
-        }
-      ]
-    },
-    {
-      "id": "mediaflow--pip-mute",
-      "glyph": "volume-control",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "mediaflow--pip-mute",
-          "selector": "#zen-sidebar-pip-container .zzmf-pip-mute",
-          "setting": null,
-          "module": "mediaflow"
-        }
-      ]
-    },
-    {
-      "id": "mediaflow--sidebar-toggle",
-      "glyph": "mediaflow--sidebar-toggle",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "mediaflow--sidebar-toggle",
-          "selector": ".zen-sidebar-pip-toggle[zzmf-toggle=\"true\"]",
-          "setting": null,
-          "module": "mediaflow"
-        }
-      ]
-    },
-    {
-      "id": "glassflow--window-close",
-      "glyph": "stop",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "glassflow--window-close",
-          "selector": ".titlebar-close",
-          "setting": null,
-          "module": "glassflow"
-        }
-      ]
-    },
-    {
-      "id": "glassflow--window-min",
-      "glyph": "minus",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "glassflow--window-min",
-          "selector": ".titlebar-min",
-          "setting": null,
-          "module": "glassflow"
-        }
-      ]
-    },
-    {
-      "id": "glassflow--window-max",
-      "glyph": "glassflow--window-max",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "glassflow--window-max",
-          "selector": ".titlebar-max",
-          "setting": null,
-          "module": "glassflow"
-        },
-        {
-          "action": "glassflow--window-max",
-          "selector": ".titlebar-restore",
-          "setting": null,
-          "module": "glassflow"
-        }
-      ]
-    },
-    {
-      "id": "glassflow-library--cancel-download",
-      "glyph": "stop",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "glassflow-library--cancel-download",
-          "selector": "#zen-library-download-list .zen-library-download-list-download[downloading] .zen-library-download-action",
-          "setting": null,
-          "module": "glassflow-library"
-        },
-        {
-          "action": "glassflow-library--cancel-download",
-          "selector": "[data-l10n-id=\"library-downloads-cancel-button\"]",
-          "setting": null,
-          "module": "glassflow-library"
-        }
-      ]
-    },
-    {
-      "id": "glassflow-library--show-download",
-      "glyph": "open-file",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "glassflow-library--show-download",
-          "selector": "#zen-library-download-list .zen-library-download-list-download[show-in-folder] .zen-library-download-action",
-          "setting": null,
-          "module": "glassflow-library"
-        },
-        {
-          "action": "glassflow-library--show-download",
-          "selector": "[data-l10n-id=\"library-downloads-show-button\"]",
-          "setting": null,
-          "module": "glassflow-library"
-        }
-      ]
-    },
-    {
-      "id": "groupflow--native-ungroup",
-      "glyph": "groupflow--native-ungroup",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "groupflow--native-ungroup",
-          "selector": "#tabGroupEditor_ungroupTabs",
-          "setting": null,
-          "module": "groupflow"
-        }
-      ]
-    },
-    {
-      "id": "glassflow-library--show-file",
-      "glyph": "open-file",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "glassflow-library--show-file",
-          "selector": "[data-l10n-id=\"downloads-cmd-show-menuitem-2\"]",
-          "setting": null,
-          "module": "glassflow-library"
-        }
-      ]
-    },
-    {
-      "id": "glassflow-library--delete-file",
-      "glyph": "glassflow-library--delete-file",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "glassflow-library--delete-file",
-          "selector": "[data-l10n-id=\"downloads-cmd-delete-file\"]",
-          "setting": null,
-          "module": "glassflow-library"
-        },
-        {
-          "action": "glassflow-library--delete-file",
-          "selector": "[data-l10n-id=\"library-downloads-menu-delete\"]",
-          "setting": null,
-          "module": "glassflow-library"
-        }
-      ]
-    },
-    {
-      "id": "glassflow-library--pause-download",
-      "glyph": "glassflow-library--pause-download",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "glassflow-library--pause-download",
-          "selector": "[data-l10n-id=\"downloads-cmd-pause\"]",
-          "setting": null,
-          "module": "glassflow-library"
-        },
-        {
-          "action": "glassflow-library--pause-download",
-          "selector": "[data-l10n-id=\"downloads-cmd-resume\"]",
-          "setting": null,
-          "module": "glassflow-library"
-        }
-      ]
-    },
-    {
-      "id": "glassflow-library--retry-download",
-      "glyph": "reload",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "glassflow-library--retry-download",
-          "selector": "[data-l10n-id=\"library-downloads-menu-retry\"]",
-          "setting": null,
-          "module": "glassflow-library"
-        },
-        {
-          "action": "glassflow-library--retry-download",
-          "selector": "[data-l10n-id=\"library-downloads-retry-button\"]",
-          "setting": null,
-          "module": "glassflow-library"
-        }
-      ]
-    },
-    {
-      "id": "glassflow-library--remove-download-history",
-      "glyph": "forget",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "glassflow-library--remove-download-history",
-          "selector": "[data-l10n-id=\"downloads-cmd-remove-from-history\"]",
-          "setting": null,
-          "module": "glassflow-library"
-        },
-        {
-          "action": "glassflow-library--remove-download-history",
-          "selector": "[data-l10n-id=\"library-downloads-menu-hide\"]",
-          "setting": null,
-          "module": "glassflow-library"
-        }
-      ]
-    },
-    {
-      "id": "glassflow--close-tab",
-      "glyph": "stop",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "glassflow--close-tab",
-          "selector": ".tab-close-button:not(.zzgf-close)",
-          "setting": null,
-          "module": "glassflow"
-        },
-        {
-          "action": "glassflow--close-tab",
-          "selector": "#context_closeTab",
-          "setting": null,
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "context--back",
-      "glyph": "back",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "context--back",
-          "selector": "#context-back",
-          "setting": null,
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "context--forward",
-      "glyph": "forward",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "context--forward",
-          "selector": "#context-forward",
-          "setting": null,
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "context--reload",
-      "glyph": "reload",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "context--reload",
-          "selector": "#context-reload",
-          "setting": null,
-          "module": "iconflow"
-        },
-        {
-          "action": "context--reload",
-          "selector": "#context_reloadTab",
-          "setting": null,
-          "module": "iconflow"
-        },
-        {
-          "action": "context--reload",
-          "selector": "#context_reloadSelectedTabs",
-          "setting": null,
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "context--stop",
-      "glyph": "stop",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "context--stop",
-          "selector": "#context-stop",
-          "setting": null,
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "context--bookmark",
-      "glyph": "bookmark-toggle",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "context--bookmark",
-          "selector": "#context-bookmarkpage",
-          "setting": null,
-          "module": "iconflow"
-        },
-        {
-          "action": "context--bookmark",
-          "selector": "#context-bookmarklink",
-          "setting": null,
-          "module": "iconflow"
-        },
-        {
-          "action": "context--bookmark",
-          "selector": "#context_bookmarkTab",
-          "setting": null,
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "context--save-page",
-      "glyph": "save-page",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "context--save-page",
-          "selector": "#context-savepage",
-          "setting": null,
-          "module": "iconflow"
-        },
-        {
-          "action": "context--save-page",
-          "selector": "#context-savelink",
-          "setting": null,
-          "module": "iconflow"
-        },
-        {
-          "action": "context--save-page",
-          "selector": "#context-saveimage",
-          "setting": null,
-          "module": "iconflow"
-        },
-        {
-          "action": "context--save-page",
-          "selector": "#context-savevideo",
-          "setting": null,
-          "module": "iconflow"
-        },
-        {
-          "action": "context--save-page",
-          "selector": "#context-saveaudio",
-          "setting": null,
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "context--copy",
-      "glyph": "copy",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "context--copy",
-          "selector": "#context-copy",
-          "setting": null,
-          "module": "iconflow"
-        },
-        {
-          "action": "context--copy",
-          "selector": "#context-copylink",
-          "setting": null,
-          "module": "iconflow"
-        },
-        {
-          "action": "context--copy",
-          "selector": "#context-copyimage",
-          "setting": null,
-          "module": "iconflow"
-        },
-        {
-          "action": "context--copy",
-          "selector": "#context-copyimage-contents",
-          "setting": null,
-          "module": "iconflow"
-        },
-        {
-          "action": "context--copy",
-          "selector": "#context-copyemail",
-          "setting": null,
-          "module": "iconflow"
-        },
-        {
-          "action": "context--copy",
-          "selector": "#context-copyvideourl",
-          "setting": null,
-          "module": "iconflow"
-        },
-        {
-          "action": "context--copy",
-          "selector": "#context-copyaudiourl",
-          "setting": null,
-          "module": "iconflow"
-        },
-        {
-          "action": "context--copy",
-          "selector": "[data-l10n-id=\"library-downloads-menu-copy\"]",
-          "setting": null,
-          "module": "glassflow-library"
-        },
-        {
-          "action": "context--copy",
-          "selector": "[data-l10n-id=\"downloads-cmd-copy-download-link\"]",
-          "setting": null,
-          "module": "glassflow-library"
-        }
-      ]
-    },
-    {
-      "id": "context--cut",
-      "glyph": "cut",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "context--cut",
-          "selector": "#context-cut",
-          "setting": null,
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "context--paste",
-      "glyph": "paste",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "context--paste",
-          "selector": "#context-paste",
-          "setting": null,
-          "module": "iconflow"
-        },
-        {
-          "action": "context--paste",
-          "selector": "#context-paste-no-formatting",
-          "setting": null,
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "context--new-tab",
-      "glyph": "new-tab",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "context--new-tab",
-          "selector": "#context-openlinkintab",
-          "setting": null,
-          "module": "iconflow"
-        },
-        {
-          "action": "context--new-tab",
-          "selector": "#context-openlinkincontainertab",
-          "setting": null,
-          "module": "iconflow"
-        },
-        {
-          "action": "context--new-tab",
-          "selector": "#context_openANewTab",
-          "setting": null,
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "context--new-window",
-      "glyph": "new-window",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "context--new-window",
-          "selector": "#context-openlink",
-          "setting": null,
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "context--private",
-      "glyph": "private",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "context--private",
-          "selector": "#context-openlinkprivate",
-          "setting": null,
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "context--screenshot",
-      "glyph": "screenshot",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "context--screenshot",
-          "selector": "#context-take-screenshot",
-          "setting": null,
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "context--send-tab",
-      "glyph": "send-tab",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "context--send-tab",
-          "selector": "#context-sendpagetodevice",
-          "setting": null,
-          "module": "iconflow"
-        },
-        {
-          "action": "context--send-tab",
-          "selector": "#context-sendlinktodevice",
-          "setting": null,
-          "module": "iconflow"
-        },
-        {
-          "action": "context--send-tab",
-          "selector": "#context_sendTabToDevice",
-          "setting": null,
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "context--developer",
-      "glyph": "developer",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "context--developer",
-          "selector": "#context-inspect",
-          "setting": null,
-          "module": "iconflow"
-        },
-        {
-          "action": "context--developer",
-          "selector": "#context-inspect-a11y",
-          "setting": null,
-          "module": "iconflow"
-        },
-        {
-          "action": "context--developer",
-          "selector": "#context-viewsource",
-          "setting": null,
-          "module": "iconflow"
-        },
-        {
-          "action": "context--developer",
-          "selector": "#context-viewpartialsource-selection",
-          "setting": null,
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "context--find",
-      "glyph": "find",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "context--find",
-          "selector": "#context-searchselect",
-          "setting": null,
-          "module": "iconflow"
-        },
-        {
-          "action": "context--find",
-          "selector": "#context-searchselect-private",
-          "setting": null,
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "context--print",
-      "glyph": "print",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "context--print",
-          "selector": "#context-print-selection",
-          "setting": null,
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "context--share",
-      "glyph": "share",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "context--share",
-          "selector": "#context_shareSelectedTabs",
-          "setting": null,
-          "module": "iconflow"
-        },
-        {
-          "action": "context--share",
-          "selector": "#context_zenShareSplitView",
-          "setting": null,
-          "module": "iconflow"
-        },
-        {
-          "action": "context--share",
-          "selector": "#context_zenShareWorkspace",
-          "setting": null,
-          "module": "iconflow"
-        },
-        {
-          "action": "context--share",
-          "selector": "#context_zenShareFolder",
-          "setting": null,
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "context--reader",
-      "glyph": "reader",
-      "implementation": "bound",
-      "nativeObserved": false,
-      "targets": [
-        {
-          "action": "context--reader",
-          "selector": "#zen-site-data-header-reader-mode .toolbarbutton-icon",
-          "setting": "reader",
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "context--reopen",
-      "glyph": "reopen",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "context--reopen",
-          "selector": "#context_undoCloseTab",
-          "setting": null,
-          "module": "iconflow"
-        },
-        {
-          "action": "context--reopen",
-          "selector": "#toolbar-context-undoCloseTab",
-          "setting": null,
-          "module": "iconflow"
-        }
-      ]
-    },
-    {
-      "id": "context--compact",
-      "glyph": "compact",
-      "implementation": "bound",
-      "nativeObserved": true,
-      "targets": [
-        {
-          "action": "context--compact",
-          "selector": "#zen-context-menu-compact-mode-toggle",
-          "setting": null,
-          "module": "iconflow"
-        }
-      ]
-    }
-  ],
-  "obsoleteTargets": [
-    "#context-sharepage",
-    "#context_shareTabURL",
-    "#zen-toolbar-context-compact-mode-enable"
-  ],
-  "blockedNumericSource": {
-    "target": ".zen-media-card .zen-media-mute-button",
-    "reason": "Native Zen card exposes tab mute/activity, not source volume. Numeric level remains null."
-  },
-  "verificationGaps": [
-    "Zen expansion widget unavailable in this runtime toolbar configuration",
-    "Native media actor/commands: headless container did not start audible file playback",
-    "Successful resumable transfer pause/resume and completion still require a network-enabled Zen run",
-    "Headless native menubar popup unavailable; source-owned popupshowing lifecycle exercised",
-    "Host did not expose forced-colors media query; native presentation fallback covered by source gate"
-  ],
-  "nativeEvidence": {
-    "runtime": {
-      "zen": "1.23.4b",
-      "build": "20261020090730",
-      "gecko": "158.0.1"
-    },
-    "loading": "Production manifest scripts via Sine chrome mapping; Sine update engine covered separately",
-    "native": {
-      "before": "color(srgb 1 1 1 / 0.3) -4.37114e-8px 1px 0px 0px inset, color(srgb 0 0 0 / 0) 4.37114e-8px -1px 0px 0px inset, color(srgb 1 1 1 / 0) 8.74228e-8px -2px 0px 0px inset, color(srgb 1 1 1 / 0.086) 0px 0px 0px 1px inset, rgba(0, 0, 0, 0) 0px 2px 12px 0px",
-      "during": "132.2249903388283deg",
-      "checks": [
-        "Morph loads through chrome manifest",
-        "SVG security pref unchanged",
-        "10 state definitions loaded",
-        "native reload slot painted",
-        "reload per-part anticipation [-13,-18,22]",
-        "reload preserves availability and counter-orbit",
-        "reload retains SVG",
-        "native new tab command executes exactly once",
-        "new tab repeats +90 without reset",
-        "stop -90",
-        "explicit native still restores original slot",
-        "icon substitution retains button size",
-        "compact native control found",
-        "compact observes native manager",
-        "Firefox sidebar observes separate owner",
-        "application menu observes popup",
-        "menu exit observes closed state",
-        "bookmark observes external insert",
-        "bookmark retains path identity",
-        "bookmark observes external removal",
-        "Mediaflow adapter receives numeric actor-shaped state",
-        "Mediaflow adapter observes external pause and volume",
-        "Mediaflow adapter observes mute",
-        "Mediaflow adapter retains actual unmuted volume",
-        "fullscreen observes native window",
-        "maximize observes native window",
-        "download adapter reads actual Download initial state",
-        "download adapter reads actual start",
-        "failed download follows actual stopped state",
-        "reopen closed tab has native menu glyph",
-        "dynamic command uses stable action ID",
-        "edge input reaches tab",
-        "edge exit removes override",
-        "edge scheduler idle",
-        "shape preserved",
-        "animation off stops scheduler",
-        "reduced motion stops scheduler",
-        "native set disables every Morph presentation",
-        "reenable restores current native targets",
-        "reinjection one SVG per host",
-        "reinjection retains coverage",
-        "new window has independent motion records",
-        "window close releases its records",
-        "settled icons schedule zero frames",
-        "teardown removes presentation",
-        "restart preserves explicit choices"
-      ],
-      "blocked": [
-        "Zen expansion widget unavailable in this runtime toolbar configuration",
-        "Native media actor/commands: headless container did not start audible file playback",
-        "Successful resumable transfer pause/resume and completion still require a network-enabled Zen run",
-        "Headless native menubar popup unavailable; source-owned popupshowing lifecycle exercised",
-        "Host did not expose forced-colors media query; native presentation fallback covered by source gate"
-      ],
-      "records": 120,
-      "actions": [
-        "app-menu",
-        "back",
-        "bookmark-toggle",
-        "chevron",
-        "close-unpinned",
-        "compact",
-        "context--back",
-        "context--bookmark",
-        "context--compact",
-        "context--copy",
-        "context--cut",
-        "context--developer",
-        "context--find",
-        "context--forward",
-        "context--new-tab",
-        "context--new-window",
-        "context--paste",
-        "context--print",
-        "context--private",
-        "context--reload",
-        "context--reopen",
-        "context--save-page",
-        "context--screenshot",
-        "context--send-tab",
-        "context--share",
-        "context--stop",
-        "downloads",
-        "extensions",
-        "find",
-        "firefox-library",
-        "forward",
-        "fullscreen",
-        "glassflow--appearance-copy",
-        "glassflow--appearance-save",
-        "glassflow--close-tab",
-        "glassflow--mods-report-copy",
-        "glassflow--window-close",
-        "glassflow--window-max",
-        "glassflow--window-min",
-        "glassflow-library--delete-file",
-        "glassflow-library--pause-download",
-        "glassflow-library--remove-download-history",
-        "glassflow-library--show-file",
-        "groupflow--native-ungroup",
-        "help",
-        "history",
-        "logins",
-        "mediaflow--pip-back",
-        "mediaflow--pip-close",
-        "mediaflow--pip-forward",
-        "mediaflow--pip-mute",
-        "mediaflow--pip-play",
-        "mediaflow--pip-popout",
-        "menu",
-        "minus",
-        "new-tab",
-        "new-window",
-        "overflow",
-        "print",
-        "private",
-        "quit",
-        "reader",
-        "reload",
-        "save-page",
-        "settings",
-        "sidebar",
-        "site-data",
-        "stop",
-        "tab-router--edit-routing-rules",
-        "tab-router--generate-routing-rules",
-        "tab-router--validate-routing-rules",
-        "zoom-in",
-        "zoom-out"
-      ]
-    },
-    "media": {
-      "nativePlayback": false,
-      "adapterFixture": true
-    }
-  },
-  "checks": {
-    "regressionEntry": "node --test tools/*.test.mjs",
-    "passed": 235,
-    "failed": 0,
-    "skipped": 0,
-    "previewGroups": 29,
-    "nativeAssertions": 46
+  "glassflow": {
+    "basicRimPixelStates": [
+      "selected",
+      "unselected",
+      "hover",
+      "pending"
+    ],
+    "motionProfiles": 5,
+    "hoverPixelStates": 3,
+    "lightProfiles": 4,
+    "reliefSurfaces": 5,
+    "sidebarPageCases": 24,
+    "nativeLegacyIconPaintCases": 72,
+    "pointerSwitchIndependent": true
   }
 }

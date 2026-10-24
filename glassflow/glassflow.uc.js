@@ -235,7 +235,7 @@
   function tabMotion() {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
     const active = new Map();
-    const enabled = () => !reduced.matches && Services.prefs.getBoolPref(PREFIX + "motion.enabled", false) &&
+    const enabled = () => !reduced.matches && Services.prefs.getBoolPref(PREFIX + "motion.enabled", true) &&
       !Services.prefs.getBoolPref(PREFIX + "instant-ui", false) && !window.Motion?.MotionGlobalConfig?.instantAnimations;
     function cancel() { for (const { animation } of active.values()) animation.cancel(); active.clear(); }
     function settle(label) {
@@ -451,12 +451,12 @@
     return wrote > 0;
   }
 
-  // Start the experimental motion opt-in once, including upgrades that seeded
-  // the former On default. Later user choices survive reloads and updates.
+  // Repair 3.74.2's combined switch once: pointer tracking is separate from
+  // ordinary state/spacing motion. Other explicit choices remain intact.
   try {
-    const S = Services.prefs, done = PREFIX + "migrated.motion-opt-in";
+    const S = Services.prefs, done = PREFIX + "migrated.motion-controls";
     if (!S.getBoolPref(done, false)) {
-      S.setBoolPref(PREFIX + "motion.enabled", false);
+      if (S.getBoolPref(PREFIX + "migrated.motion-opt-in", false)) S.setBoolPref(PREFIX + "motion.enabled", true);
       S.setBoolPref(done, true);
     }
   } catch {}

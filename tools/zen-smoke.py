@@ -126,6 +126,81 @@ def check_icons(m, root):
     return len(info)
 
 
+def check_restored_chrome(m, root):
+    """Native images and flex-owned window glyphs must actually paint."""
+    m.script("document.getElementById('zzsmoke-hide-sidebar-content').sheet.disabled=true;return true;")
+    m.script((root/'iconflow/iconflow-parts.uc.js').read_text()+'\nreturn true;')
+    setup=m.script("""return (async()=>{
+      window.restoreOriginalTab=gBrowser.selectedTab;
+      window.restoreTab=gBrowser.addTab('about:blank',{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});gBrowser.selectedTab=restoreTab;
+      document.documentElement.setAttribute('zen-compact-mode','false');document.documentElement.setAttribute('zen-sidebar-expanded','true');
+      await new Promise(r=>setTimeout(r,500));
+      return !window.__zziconMorphInstance&&!document.querySelector('.zzicon-morph-glyph,[data-zz-morph-slot]');
+    })();""")
+    assert setup, 'retired presentation remains'
+    m.script((root/'glassflow/glassflow-edges.uc.js').read_text()+'\nreturn true;')
+    m.script("window.restoreHide=Services.io.newURI('data:text/css,'+encodeURIComponent(':root#main-window #tabbrowser-tabs .tab-close-button[zzsmoke-hidden]{visibility:hidden!important}'));Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService).loadAndRegisterSheet(restoreHide,1);return true;")
+    checks=[]
+    def painted(box, shown, hidden):
+        scale=shown.width/m.script('return window.innerWidth;')
+        crop=tuple(round(v*scale) for v in (box['left'],box['top'],box['right'],box['bottom']))
+        assert min(crop)>=0 and crop[2]>crop[0] and crop[3]>crop[1],crop
+        return max(ImageStat.Stat(ImageChops.difference(shown,hidden).crop(crop)).mean)>0
+    for motion in [False,True]:
+        for left in [False,True]:
+            m.script('Services.prefs.setBoolPref("zzglass.motion.enabled",'+json.dumps(motion)+');Services.prefs.setBoolPref("zzglass.tabs.close-left",'+json.dumps(left)+');InspectorUtils.addPseudoClassLock(restoreTab,":hover");return true;')
+            time.sleep(.5)
+            info=m.script("""const e=restoreTab.querySelector('.tab-close-button'),s=getComputedStyle(e);
+              window.restoreClose=e;window.restoreCloseStyle=e.getAttribute('style');
+              return {box:e.getBoundingClientRect().toJSON(),visibility:s.visibility,opacity:s.opacity,mask:s.maskImage};""")
+            assert info['visibility']=='visible' and float(info['opacity'])>0 and info['mask']=='none',info
+            shown=m.shot();m.script("restoreClose.setAttribute('zzsmoke-hidden','');return new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>r(true))));");hidden=m.shot()
+            assert painted(info['box'],shown,hidden),(motion,left,'close glyph did not paint',info)
+            m.script("restoreClose.removeAttribute('zzsmoke-hidden');if(restoreCloseStyle===null)restoreClose.removeAttribute('style');else restoreClose.setAttribute('style',restoreCloseStyle);InspectorUtils.removePseudoClassLock(restoreTab,':hover');return true;")
+            time.sleep(.3);checks.append({'closeMotion':motion,'closeLeft':left,'painted':True})
+    # The native image carries hover animation itself; its command owner stays put.
+    motion=m.script("""return (async()=>{
+      const host=document.getElementById('PanelUI-menu-button'),slot=host.querySelector('.toolbarbutton-icon');
+      for(let i=0;i<100&&!slot.hasAttribute('zzicon-own');i++)await new Promise(r=>setTimeout(r,30));
+      const bounds=host.getBoundingClientRect().toJSON(),image=getComputedStyle(slot).backgroundImage;
+      const samples=[];InspectorUtils.addPseudoClassLock(host,':hover');
+      for(let i=0;i<12;i++){await new Promise(r=>setTimeout(r,30));samples.push({frame:getComputedStyle(slot).getPropertyValue('--zzicon-frame'),bounds:host.getBoundingClientRect().toJSON()});}
+      InspectorUtils.removePseudoClassLock(host,':hover');await new Promise(r=>setTimeout(r,700));
+      return {bounds,image,samples,end:getComputedStyle(slot).getPropertyValue('--zzicon-frame'),same:slot===host.querySelector('.toolbarbutton-icon')};
+    })();""")
+    assert motion['same'] and 'resource://zz-iconflow-' in motion['image'],motion
+    assert len({x['frame'] for x in motion['samples']})>2 and all(x['bounds']==motion['bounds'] for x in motion['samples']),motion
+    assert float(motion['end'])==0,motion
+    checks.append({'nativeSpriteFrames':len({x['frame'] for x in motion['samples']}),'hostStable':True})
+    m.script("""Services.prefs.setBoolPref('zzglass.buttons.enabled',true);Services.prefs.setBoolPref('zzglass.buttons.glyph-on-hover',true);
+      window.restoreBox=document.querySelector('.titlebar-buttonbox');window.restoreBoxStyle=restoreBox.getAttribute('style');window.restoreBoxPlaceholder=document.createComment('window glyph test');restoreBox.replaceWith(restoreBoxPlaceholder);document.documentElement.append(restoreBox);
+      restoreBox.style.cssText='position:fixed!important;top:80px!important;left:500px!important;right:auto!important;z-index:2147483647!important';
+      InspectorUtils.addPseudoClassLock(restoreBox,':hover');return true;""")
+    time.sleep(.3)
+    for cls in ['titlebar-min','titlebar-max','titlebar-close']:
+        info=m.script("""window.restoreButton=restoreBox.querySelector('."""+cls+"""');if(!restoreButton.getBoundingClientRect().width&&restoreButton.classList.contains('titlebar-max'))restoreButton=restoreBox.querySelector('.titlebar-restore');const s=getComputedStyle(restoreButton,'::after');
+          return {box:restoreButton.getBoundingClientRect().toJSON(),position:s.position,opacity:s.opacity,content:s.content,width:s.width,height:s.height,glyph:s.getPropertyValue('--zzg-glyph'),visibility:s.visibility,rect:restoreBox.getBoundingClientRect().toJSON()};""")
+        assert info['position']=='static' and float(info['opacity'])>0 and info['content']!='none',info
+        shown=m.shot();m.script("restoreButton.style.setProperty('--zzg-glyph','0');return new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>r(true))));");hidden=m.shot()
+        assert painted(info['box'],shown,hidden),(cls,'window glyph did not paint',info,m.script("return getComputedStyle(restoreButton,'::after').width;"))
+        m.script("restoreButton.style.removeProperty('--zzg-glyph');return true;");checks.append({'windowGlyph':cls,'painted':True})
+    m.script("""InspectorUtils.removePseudoClassLock(restoreBox,':hover');restoreBoxPlaceholder.replaceWith(restoreBox);if(restoreBoxStyle===null)restoreBox.removeAttribute('style');else restoreBox.setAttribute('style',restoreBoxStyle);
+      Services.prefs.setBoolPref('zzglass.buttons.enabled',false);Services.prefs.setBoolPref('zzglass.motion.enabled',true);
+      Services.prefs.setBoolPref('zzglass.edges.enabled',false);Services.prefs.setBoolPref('zzglass.selected.rim',true);
+      return true;""")
+    pointer=m.script("""return (async()=>{
+      const move=()=>{const b=restoreTab.getBoundingClientRect();restoreTab.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,pointerType:'mouse',clientX:b.right-2,clientY:b.top+2}));};
+      move();await new Promise(r=>setTimeout(r,100));const off=__zzglassEdgesInstance.owners===0&&!__zzglassEdgesInstance.scheduled;
+      Services.prefs.setBoolPref('zzglass.edges.follow-pointer',true);move();await new Promise(r=>setTimeout(r,100));const on=!!restoreTab.style.getPropertyValue('--zzg-follow-angle');
+      Services.prefs.setBoolPref('zzglass.edges.follow-pointer',false);const released=__zzglassEdgesInstance.owners===0&&!__zzglassEdgesInstance.scheduled;
+      return {off,on,released};
+    })();""")
+    assert all(pointer.values()),pointer;checks.append(pointer)
+    m.script("""Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService).unregisterSheet(restoreHide,1);__zzglassEdgesInstance.retire();__zziconPartsInstance.retire();gBrowser.selectedTab=restoreOriginalTab;gBrowser.removeTab(restoreTab,{animate:false,skipSessionStore:true});
+      document.documentElement.setAttribute('zen-compact-mode','true');document.getElementById('zzsmoke-hide-sidebar-content').sheet.disabled=false;return true;""")
+    return checks
+
+
 def check_sidebar_hover(m):
     """Pixels and geometry outside the sidebar, including remote content."""
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -231,7 +306,7 @@ def check(m, root, arc, transparent):
       document.documentElement.setAttribute('zen-compact-mode','true');
       document.getElementById('navigator-toolbox').setAttribute('zen-user-show','true');
       document.documentElement.style.setProperty('--arc-website-tint','transparent');
-      const style=document.createElementNS('http://www.w3.org/1999/xhtml','style');
+      const style=document.createElementNS('http://www.w3.org/1999/xhtml','style');style.id='zzsmoke-hide-sidebar-content';
       style.textContent='#titlebar > :not(#zen-toolbar-background){visibility:hidden!important} #zen-toolbar-background::before,#zen-toolbar-background::after{display:none!important}';
       document.body.appendChild(style);
       ss.loadAndRegisterSheet(Services.io.newURI('data:text/css,'+encodeURIComponent(
@@ -249,6 +324,7 @@ def check(m, root, arc, transparent):
     def settle():
         m.script("return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))));")
 
+    result['restoredChrome'] = check_restored_chrome(m, root)
     result['sidebarHover'] = check_sidebar_hover(m)
     m.script("Services.prefs.setBoolPref('zzlib.stack.box',true);return true;")
     for master, downloads in [(True, 1), (False, 1), (True, 0), (True, 1)]:

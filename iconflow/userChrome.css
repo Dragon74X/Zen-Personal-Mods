@@ -75,8 +75,8 @@
   #tabs-newtab-button .toolbarbutton-text { display: none !important; }
 }
 @media (-moz-pref("zzicon.newtab.press")) and (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) {
-  #tabs-newtab-button:not([data-zz-morph]) { transition: scale 0.1s ease-out !important; }
-  #tabs-newtab-button:not([data-zz-morph]):active { scale: 0.95 !important; }
+  #tabs-newtab-button:not([zzicon-motion-host]) { transition: scale 0.1s ease-out !important; }
+  #tabs-newtab-button:not([zzicon-motion-host]):active { scale: 0.95 !important; }
 }
 @media (-moz-pref("zzicon.newtab.press-spin")) and (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) {
   #tabs-newtab-button > .toolbarbutton-icon { transition: rotate 0.2s ease-out; }
@@ -189,38 +189,59 @@
   }
 }
 
-/* Morph paints inside the reserved native icon box. Original nodes retain
-   commands, accessible names, dimensions and pointer/focus semantics. */
-:root [data-zz-morph] { animation: none !important; }
-:root [data-zz-morph-slot] {
-  mask-image: linear-gradient(transparent, transparent) !important;
-  animation: none !important; transform: none !important;
-  translate: none !important; rotate: none !important; scale: 1 !important;
+/* Morph uses the same vector-strip engine as the original icon sets. Native
+   images and existing pseudo-elements retain geometry, visibility and opacity.
+   Only their paint changes. JavaScript starts/stops browser-owned frame runs. */
+:root [zzicon-motion="image"],
+:root [zzicon-motion="background"],
+:root [zzicon-motion="before"]::before,
+:root [zzicon-motion="after"]::after {
+  list-style-image: var(--zzicon-blank) !important;
+  -moz-context-properties: fill, fill-opacity, stroke, stroke-opacity !important;
+  fill: currentColor !important;
+  fill-opacity: 1 !important;
+  stroke: currentColor !important;
+  stroke-opacity: 1 !important;
+  background-image: var(--zzicon-sprite) !important;
+  background-size: calc(var(--zzicon-columns) * 100%) calc(var(--zzicon-rows) * 100%) !important;
+  background-position: calc(mod(var(--zzicon-frame), var(--zzicon-columns)) * 100% / (var(--zzicon-columns) - 1)) var(--zzicon-row-position) !important;
+  background-repeat: no-repeat !important;
+  background-origin: content-box !important;
+  background-clip: content-box !important;
+  mask: none !important;
+  animation: none !important;
+  rotate: none !important;
+  scale: none !important;
+  translate: none !important;
+  transform: none !important;
 }
-:root [data-zz-morph] > .zzicon-morph-glyph,
-:root .zzicon-morph-glyph {
-  position: absolute !important;
-  position-visibility: anchors-visible;
-  margin: 0 !important; padding: 0 !important; border: 0 !important;
-  display: block; overflow: visible; pointer-events: none !important;
-  color: inherit; fill: currentColor; flex: none;
-  opacity: 1; animation: none !important; transform: none !important;
-  translate: none !important; rotate: none !important; scale: 1 !important;
+:root [zzicon-motion="before"]::before,
+:root [zzicon-motion="after"]::after { --zzicon-frame: inherit; }
+/* A generated property is non-inheriting; the image's animation is explicit.
+   Leave native opacity transitions (tab close) and button backgrounds intact. */
+:root [zzicon-motion="image"] { transition-property: opacity, filter !important; }
+:root [zzicon-motion="before"]::before {
+  content: "" !important;
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  vertical-align: middle;
 }
-:root :is(.zzgf-close, .zzmf-pip-controls button)[data-zz-morph]::before,
-:root .titlebar-button[data-zz-morph]::after { content: none !important; }
+:root .zen-library-sprite[zzicon-motion="before"]::before {
+  width: 100% !important; height: 100% !important;
+}
+:root .titlebar-button[zzicon-motion="after"]::after {
+  fill: rgb(0 0 0 / .62) !important;
+  stroke: rgb(0 0 0 / .62) !important;
+}
 
-@media (-moz-pref("zzglass.buttons.enabled")) {
-  .titlebar-button[data-zz-morph] > .zzicon-morph-glyph { opacity: 0 !important; }
-  @media (-moz-pref("zzglass.buttons.glyph-on-hover")) {
-    .titlebar-buttonbox:hover .titlebar-button[data-zz-morph] > .zzicon-morph-glyph { opacity: 1 !important; }
-  }
+/* Mediaflow already paints its glyph as the button background. Replace that
+   paint in-place, preserving the 16px/20px icon and the native hit box. */
+:root .zzmf-pip-controls [zzicon-motion="background"] {
+  --zzicon-cell: 16px;
+  fill: white !important;
+  background-size: calc(var(--zzicon-columns) * var(--zzicon-cell)) calc(var(--zzicon-rows) * var(--zzicon-cell)) !important;
+  background-position: calc(50% + (var(--zzicon-columns) - 1) * var(--zzicon-cell) / 2 - mod(var(--zzicon-frame), var(--zzicon-columns)) * var(--zzicon-cell)) calc(50% + (var(--zzicon-rows) - 1) * var(--zzicon-cell) / 2 - var(--zzicon-row) * var(--zzicon-cell)) !important;
 }
-
-:root .zzicon-morph-centered { inset: 0; margin: auto !important; width: min(20px, calc(100% - 8px)); height: min(20px, calc(100% - 8px)); }
-@media (-moz-pref("zzglass.buttons.enabled")) {
-  .titlebar-button[data-zz-morph] > .zzicon-morph-glyph {
-    position-anchor: auto !important; inset: 0 !important; margin: auto !important;
-    width: calc(100% * var(--zzg-glyph, .62)) !important; height: calc(100% * var(--zzg-glyph, .62)) !important;
-  }
-}
+:root .zzmf-pip-controls .zzmf-pip-play[zzicon-motion="background"] { --zzicon-cell: 20px; }
+:root .zzmf-pip-forward[zzicon-motion="background"]::after { transform: none; }

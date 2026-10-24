@@ -33,7 +33,7 @@ with tempfile.TemporaryDirectory(prefix='zen-state-motion-') as d:
                 m.script('Cc["@mozilla.org/content/style-sheet-service;1"].getService(Ci.nsIStyleSheetService).loadAndRegisterSheet(Services.io.newURI('+json.dumps((ROOT/mod/'userChrome.css').as_uri())+'),1);return true;')
                 m.script('Services.scriptloader.loadSubScript('+json.dumps('chrome://sine/content/zz-'+mod+'/'+mod+'.uc.js')+',window);return true;')
             time.sleep(1)
-            assert m.script("return !Services.prefs.getBoolPref('zzglass.motion.enabled');"), 'motion should start disabled'
+            assert m.script("return Services.prefs.getBoolPref('zzglass.motion.enabled')&&!Services.prefs.getBoolPref('zzglass.edges.follow-pointer');"), 'state motion on, pointer tracking off'
             m.script("Services.prefs.setBoolPref('zzglass.motion.enabled',true);Services.scriptloader.loadSubScript('chrome://sine/content/zz-glassflow/glassflow.uc.js',window);return true;")
             assert m.script("return Services.prefs.getBoolPref('zzglass.motion.enabled');"), 'explicit opt-in should survive reload'
             print('INIT',m.script('return {group:!!window.Groupflow,motion:!!window.__zzglassInstance,css:getComputedStyle(document.documentElement).getPropertyValue("--zzg-motion-time"),editor:!!Groupflow.editGradient};'),flush=True)
@@ -59,6 +59,20 @@ with tempfile.TemporaryDirectory(prefix='zen-state-motion-') as d:
               return {tab:motionTab.getBoundingClientRect().toJSON(),header:motionGroup.labelContainerElement.outerHTML};
             })();''')
             (OUT/'setup.json').write_text(json.dumps(setup,indent=2));print('SETUP',setup['tab'],flush=True)
+            # Basic rims must paint with Detailed rim control off (the regression).
+            rim_pixels=[]
+            for state in ['selected','unselected','hover','pending']:
+                m.script("Services.prefs.setBoolPref('zzglass.edges.enabled',false);gBrowser.selectedTab="+('motionTab' if state=='selected' else 'motionOutside')+";motionTab.toggleAttribute('pending',"+json.dumps(state=='pending')+");InspectorUtils."+('add' if state=='hover' else 'remove')+"PseudoClassLock(motionTab,':hover');return true;")
+                hashes=[]
+                for enabled in [True,False]:
+                    m.script('Services.prefs.setBoolPref('+json.dumps('zzglass.'+state+'.rim')+','+json.dumps(enabled)+');return true;');time.sleep(.65)
+                    box=m.script("return motionTab.querySelector('.tab-background').getBoundingClientRect().toJSON();")
+                    crop=m.shot().crop(tuple(round(box[k]) for k in ['left','top','right','bottom']))
+                    crop.save(OUT/(state+'-basic-rim-'+str(enabled)+'.png'));hashes.append(hashlib.sha256(crop.tobytes()).hexdigest())
+                assert hashes[0]!=hashes[1],(state,'basic rim did not paint')
+                rim_pixels.append(state);m.script('Services.prefs.setBoolPref('+json.dumps('zzglass.'+state+'.rim')+',true);return true;')
+            m.script("motionTab.removeAttribute('pending');InspectorUtils.removePseudoClassLock(motionTab,':hover');Services.prefs.setBoolPref('zzglass.edges.enabled',true);return true;")
+            print('BASIC RIM PIXELS',rim_pixels,flush=True)
             results=m.script('''return (async()=>{
               const tab=motionTab,bg=tab.querySelector('.tab-background'),label=tab.querySelector('.tab-label'),icon=tab.querySelector('.tab-icon-stack');
               const read=()=>{const s=getComputedStyle(tab);return {a:s.getPropertyValue('--zzg-a'),dir:s.getPropertyValue('--zzg-dir'),image:getComputedStyle(bg).backgroundImage,shadow:getComputedStyle(bg).boxShadow};};

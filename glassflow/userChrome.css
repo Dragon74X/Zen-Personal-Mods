@@ -409,11 +409,14 @@
   @media (-moz-pref("zzglass.selected.sheen")) {
     :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-sheen-level: 1; }
   }
-  @media (-moz-pref("zzglass.selected.rim")) and (-moz-pref("zzglass.edges.enabled")) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-edge-top: color-mix(in srgb, var(--zzglass-edges-selected-color, white) calc(42% * var(--zzglass-edges-selected-top, 1) * var(--zzg-glass)), transparent);
-    --zzg-edge-ring: color-mix(in srgb, var(--zzglass-edges-selected-color, white) calc(12% * var(--zzglass-edges-selected-ring, 1) * var(--zzg-glass)), transparent);
-    --zzg-edge-width: var(--zzglass-edges-selected-thickness, 1px);
-    --zzg-ring-width: var(--zzglass-edges-selected-ring-width, 1px); }
+  @media (-moz-pref("zzglass.selected.rim")) {
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-edge-top: var(--zzg-rim-top); --zzg-edge-ring: var(--zzg-rim-all); --zzg-edge-owner: tab; }
+    @media (-moz-pref("zzglass.edges.enabled")) {
+      :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-edge-top: color-mix(in srgb, var(--zzglass-edges-selected-color, white) calc(42% * var(--zzglass-edges-selected-top, 1) * var(--zzg-glass)), transparent);
+      --zzg-edge-ring: color-mix(in srgb, var(--zzglass-edges-selected-color, white) calc(12% * var(--zzglass-edges-selected-ring, 1) * var(--zzg-glass)), transparent);
+      --zzg-edge-width: var(--zzglass-edges-selected-thickness, 1px);
+      --zzg-ring-width: var(--zzglass-edges-selected-ring-width, 1px); }
+    }
   }
   @media (-moz-pref("zzglass.selected.rim")) and (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.edges.selected-edge", 0)) {
     :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-edge-angle: 90deg; }
@@ -477,11 +480,14 @@
   @media (-moz-pref("zzglass.unselected.sheen")) {
     :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-sheen-level: 1; }
   }
-  @media (-moz-pref("zzglass.unselected.rim")) and (-moz-pref("zzglass.edges.enabled")) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-edge-top: color-mix(in srgb, var(--zzglass-edges-unselected-color, white) calc(42% * var(--zzglass-edges-unselected-top, 1) * var(--zzg-glass)), transparent);
-    --zzg-edge-ring: color-mix(in srgb, var(--zzglass-edges-unselected-color, white) calc(12% * var(--zzglass-edges-unselected-ring, 1) * var(--zzg-glass)), transparent);
-    --zzg-edge-width: var(--zzglass-edges-unselected-thickness, 1px);
-    --zzg-ring-width: var(--zzglass-edges-unselected-ring-width, 1px); }
+  @media (-moz-pref("zzglass.unselected.rim")) {
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-edge-top: var(--zzg-rim-top); --zzg-edge-ring: var(--zzg-rim-all); --zzg-edge-owner: tab; }
+    @media (-moz-pref("zzglass.edges.enabled")) {
+      :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-edge-top: color-mix(in srgb, var(--zzglass-edges-unselected-color, white) calc(42% * var(--zzglass-edges-unselected-top, 1) * var(--zzg-glass)), transparent);
+      --zzg-edge-ring: color-mix(in srgb, var(--zzglass-edges-unselected-color, white) calc(12% * var(--zzglass-edges-unselected-ring, 1) * var(--zzg-glass)), transparent);
+      --zzg-edge-width: var(--zzglass-edges-unselected-thickness, 1px);
+      --zzg-ring-width: var(--zzglass-edges-unselected-ring-width, 1px); }
+    }
   }
   @media (-moz-pref("zzglass.unselected.rim")) and (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.edges.unselected-edge", 0)) {
     :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-edge-angle: 90deg; }
@@ -545,11 +551,14 @@
   @media (-moz-pref("zzglass.hover.sheen")) {
     :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-sheen-level: 1; }
   }
-  @media (-moz-pref("zzglass.hover.rim")) and (-moz-pref("zzglass.edges.enabled")) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-edge-top: color-mix(in srgb, var(--zzglass-edges-hover-color, white) calc(42% * var(--zzglass-edges-hover-top, 1) * var(--zzg-glass)), transparent);
-    --zzg-edge-ring: color-mix(in srgb, var(--zzglass-edges-hover-color, white) calc(12% * var(--zzglass-edges-hover-ring, 1) * var(--zzg-glass)), transparent);
-    --zzg-edge-width: var(--zzglass-edges-hover-thickness, 1px);
-    --zzg-ring-width: var(--zzglass-edges-hover-ring-width, 1px); }
+  @media (-moz-pref("zzglass.hover.rim")) {
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-edge-top: var(--zzg-rim-top); --zzg-edge-ring: var(--zzg-rim-all); --zzg-edge-owner: tab; }
+    @media (-moz-pref("zzglass.edges.enabled")) {
+      :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-edge-top: color-mix(in srgb, var(--zzglass-edges-hover-color, white) calc(42% * var(--zzglass-edges-hover-top, 1) * var(--zzg-glass)), transparent);
+      --zzg-edge-ring: color-mix(in srgb, var(--zzglass-edges-hover-color, white) calc(12% * var(--zzglass-edges-hover-ring, 1) * var(--zzg-glass)), transparent);
+      --zzg-edge-width: var(--zzglass-edges-hover-thickness, 1px);
+      --zzg-ring-width: var(--zzglass-edges-hover-ring-width, 1px); }
+    }
   }
   @media (-moz-pref("zzglass.hover.rim")) and (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.edges.hover-edge", 0)) {
     :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-edge-angle: 90deg; }
@@ -640,11 +649,14 @@
   @media (-moz-pref("zzglass.pending.sheen")) {
     :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-sheen-level: 1; }
   }
-  @media (-moz-pref("zzglass.pending.rim")) and (-moz-pref("zzglass.edges.enabled")) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-edge-top: color-mix(in srgb, var(--zzglass-edges-pending-color, white) calc(42% * var(--zzglass-edges-pending-top, 1) * var(--zzg-glass)), transparent);
-    --zzg-edge-ring: color-mix(in srgb, var(--zzglass-edges-pending-color, white) calc(12% * var(--zzglass-edges-pending-ring, 1) * var(--zzg-glass)), transparent);
-    --zzg-edge-width: var(--zzglass-edges-pending-thickness, 1px);
-    --zzg-ring-width: var(--zzglass-edges-pending-ring-width, 1px); }
+  @media (-moz-pref("zzglass.pending.rim")) {
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-edge-top: var(--zzg-rim-top); --zzg-edge-ring: var(--zzg-rim-all); --zzg-edge-owner: tab; }
+    @media (-moz-pref("zzglass.edges.enabled")) {
+      :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-edge-top: color-mix(in srgb, var(--zzglass-edges-pending-color, white) calc(42% * var(--zzglass-edges-pending-top, 1) * var(--zzg-glass)), transparent);
+      --zzg-edge-ring: color-mix(in srgb, var(--zzglass-edges-pending-color, white) calc(12% * var(--zzglass-edges-pending-ring, 1) * var(--zzg-glass)), transparent);
+      --zzg-edge-width: var(--zzglass-edges-pending-thickness, 1px);
+      --zzg-ring-width: var(--zzglass-edges-pending-ring-width, 1px); }
+    }
   }
   @media (-moz-pref("zzglass.pending.rim")) and (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.edges.pending-edge", 0)) {
     :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-edge-angle: 90deg; }
@@ -1719,9 +1731,6 @@
   --zzg-follow-angle: inherit; --zzg-follow-gradient: inherit;
 }
 
-@media (-moz-pref("zzglass.edges.enabled")) {
-  :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab { --zzg-edge-owner: tab; }
-}
 @media (-moz-pref("zzglass.sidebar.enabled")) and (-moz-pref("zzglass.sidebar.rim")) { #navigator-toolbox { --zzg-edge-owner: plain; } }
 @media (-moz-pref("zzglass.sidebar.enabled")) and (-moz-pref("zzglass.sidebar.panel-border", 2)) { #zen-toolbar-background { --zzg-edge-owner: plain; } }
 @media (-moz-pref("zzglass.buttons.enabled")) and (-moz-pref("zzglass.buttons.rim")) { .titlebar-button { --zzg-edge-owner: plain; } }

@@ -1,84 +1,54 @@
-// Loaded only by zen-morph-smoke.py in disposable native chrome, never shipped.
+// Executed in disposable Zen chrome by zen-morph-smoke.py.
 return (async()=>{
- const report={checks:[]},verify=(name,pass)=>{report.checks.push({name,pass:!!pass});if(!window.morphMeasureOnly)checkMorph(name,pass);};
- const wait=waitMorph,toolbox=document.getElementById('navigator-toolbox'),originalTab=gBrowser.selectedTab;
- const tabs=[],restore=[],originalStyle=toolbox.getAttribute('style');
- let watched=null;
- const edgePrefs=['zzglass.edges.enabled','zzglass.sidebar.enabled','zzglass.sidebar.rim','zzglass.motion.enabled'];
- const previous=edgePrefs.map(key=>[key,Services.prefs.getBoolPref(key)]);
- const aligned=r=>{
-  const q=r.slot.getBoxQuads({box:'content'})[0],b=r.svg.getBoundingClientRect();
-  return q&&Math.abs((q.p1.x+q.p3.x)/2-(b.left+b.width/2))<.7&&Math.abs((q.p1.y+q.p3.y)/2-(b.top+b.height/2))<.7&&Math.abs(Math.hypot(q.p2.x-q.p1.x,q.p2.y-q.p1.y)-b.width)<.7;
- };
- try{
-  for(const key of edgePrefs)Services.prefs.setBoolPref(key,true);
-  for(let i=0;i<36;i++)tabs.push(gBrowser.addTab('about:blank',{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true}));
-  gBrowser.selectedTab=tabs.at(-1);await wait(500);
-  const menu=rec('#PanelUI-menu-button');
-  verify('badge stack glyph aligns with native content box',aligned(menu));
-  toolbox.style.transform='translate(17px,31px) scale(.8)';await wait(100);
-  verify('glyph stays aligned under translated scaled sidebar',aligned(menu));
-  const margin=menu.slot.style.marginInlineStart;menu.slot.style.marginInlineStart='23px';await wait(80);
-  verify('glyph follows position-only native slot movement',aligned(menu));menu.slot.style.marginInlineStart=margin;
-  toolbox.setAttribute('style',originalStyle||'');await wait(180);
-  const tab=gBrowser.selectedTab,close=__zziconMorphInstance.records.get(tab.querySelector('.tab-close-button'));
-  InspectorUtils.addPseudoClassLock(tab,':hover');await wait(250);
-  verify('native hover reveals aligned close icon',aligned(close)&&Number(getComputedStyle(close.svg).opacity)>.9);
-  InspectorUtils.removePseudoClassLock(tab,':hover');await wait(300);
-  verify('native hidden close icon stays hidden',Number(getComputedStyle(close.slot).opacity)===0&&Number(getComputedStyle(close.svg).opacity)===0);
-  const popup=document.createXULElement('menupopup');popup.id='morph-regression-popup';document.getElementById('mainPopupSet').append(popup);
-  const item=document.createXULElement('menuitem');item.setAttribute('label','Stable action');item.setAttribute('data-zz-action','groupflow--edit-gradient');popup.append(item);await wait(100);
-  verify('dynamic source-owned action attaches once',!!__zziconMorphInstance.records.get(item)&&item.querySelectorAll('.zzicon-morph-glyph').length===1);
-  const pause=document.createXULElement('menuitem');pause.setAttribute('data-l10n-id','downloads-cmd-pause');popup.append(pause);await wait(80);
-  const pauseRecord=__zziconMorphInstance.records.get(pause),pausePath=pauseRecord.parts[0].paths?.[0]||pauseRecord.parts[0].nodes[0].querySelector('path');
-  pause.setAttribute('data-l10n-id','downloads-cmd-resume');await wait(80);
-  verify('pause resume selector changes retain paths and instance',__zziconMorphInstance.records.get(pause)===pauseRecord&&pausePath===(pauseRecord.parts[0].paths?.[0]||pauseRecord.parts[0].nodes[0].querySelector('path'))&&pauseRecord.model.state==='paused');
-  popup.remove();await wait(80);verify('dynamic removal releases instance',!__zziconMorphInstance.records.has(item));
-  const asset=await (await fetch('chrome://sine/content/zz-iconflow/morph.json')).json(),selectors=new Set(asset.bindings.map(b=>b.selector));
-  const counts={documentQueries:0,slotGeometryReads:0,glyphWrites:0},query=document.querySelectorAll;
-  document.querySelectorAll=function(s){if(selectors.has(s)||s.includes('#back-button .toolbarbutton-icon'))counts.documentQueries++;return query.call(this,s);};restore.push(()=>{document.querySelectorAll=query;});
-  for(const r of __zziconMorphInstance.records.values())for(const method of ['getBoundingClientRect','getClientRects']){
-   const own=Object.hasOwn(r.slot,method),original=r.slot[method];
-   r.slot[method]=function(...args){counts.slotGeometryReads++;return original.apply(this,args);};
-   restore.push(()=>{if(own)r.slot[method]=original;else delete r.slot[method];});
-  }
-  watched=new MutationObserver(changes=>{counts.glyphWrites+=changes.filter(c=>c.target.closest?.('.zzicon-morph-glyph')).length;});
-  watched.observe(document.documentElement,{subtree:true,attributes:true,attributeFilter:['transform','d','fill-opacity']});
-  await wait(1200);counts.documentQueries=counts.slotGeometryReads=counts.glyphWrites=0;
-  const label=tab.querySelector('.tab-label'),box=tab.querySelector('.tab-background').getBoundingClientRect();
-  for(let i=0;i<20;i++){
-   tab.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,clientX:box.right-3-i%4,clientY:box.top+4,pointerType:'mouse'}));
-   for(let j=0;j<10;j++)tab.dispatchEvent(new TransitionEvent('transitionend',{bubbles:true,propertyName:'box-shadow'}));
-   label.classList.toggle('morph-unrelated-style');await wait(17);
-  }
-  await wait(80);report.workload={tabs:tabs.length,frames:20,paintTransitionEvents:200,...counts};
-  verify('hover paint workload performs no full document icon scans',counts.documentQueries===0);
-  verify('hover paint workload avoids per-icon geometry reads',counts.slotGeometryReads<100);
-  verify('hidden settled glyphs are not repainted by unrelated classes',counts.glyphWrites===0);
-  watched.disconnect();watched=null;for(const undo of restore.splice(0))undo();
-  const child=tab.querySelector('.tab-label');
-  verify('workload exercises live tab and sidebar edges',!!tab.style.getPropertyValue('--zzg-follow-angle')&&!!toolbox.style.getPropertyValue('--zzg-follow-angle'));
-  verify('pointer input stays local to its edge owner',getComputedStyle(child).getPropertyValue('--zzg-follow-angle').trim()==='');
-  await wait(1200);verify('stationary hover stops edge frames',!__zzglassEdgesInstance.scheduled);
-  toolbox.style.transition='translate .15s linear';toolbox.style.translate='10px 0px';await wait(700);
-  verify('geometry transition settles without idle polling',!__zzglassEdgesInstance.scheduled);
-  toolbox.style.translate='20px 0px';await wait(30);window.dispatchEvent(new Event('blur'));await wait(500);
-  const moved=tab.querySelector('.tab-background').getBoundingClientRect();tab.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,clientX:moved.right-3,clientY:moved.top+3,pointerType:'mouse'}));await wait(1200);
-  verify('exit during geometry motion leaves no stale layout scheduler on reentry',!__zzglassEdgesInstance.scheduled);
-  window.dispatchEvent(new Event('blur'));await wait(1100);
-  verify('hover exit clears local edge inputs',__zzglassEdgesInstance.owners===0&&!__zzglassEdgesInstance.scheduled);
-  const group=gBrowser.addTabGroup(tabs.slice(0,2),{label:'Morph rim ownership',insertBefore:tabs[0]});await wait(180);
-  const header=group.querySelector('.tab-group-label-container'),rim=header.querySelector('.zzgf-rim'),rail=group.querySelector('.tab-group-container');
-  header.style.setProperty('--zzg-follow-gradient','217deg');header.style.setProperty('--zzg-follow-angle','127deg');
-  verify('group child rim inherits only its parent light inputs',rim&&getComputedStyle(rim).getPropertyValue('--zzg-follow-gradient').trim()==='217deg'&&getComputedStyle(rim).getPropertyValue('--zzg-follow-angle').trim()==='127deg');
-  rail.style.setProperty('--zzg-follow-gradient','145deg');verify('rail pseudo retains local gradient input',getComputedStyle(rail,'::before').getPropertyValue('--zzg-follow-gradient').trim()==='145deg');
-  report.instances=__zziconMorphInstance.records.size;
- }finally{
-  watched?.disconnect();for(const undo of restore)undo();
-  for(const [key,value] of previous)Services.prefs.setBoolPref(key,value);
-  toolbox.setAttribute('style',originalStyle||'');
-  for(const tab of tabs){InspectorUtils.removePseudoClassLock(tab,':hover');if(tab.isConnected)gBrowser.removeTab(tab,{animate:false,skipSessionStore:true});}
-  gBrowser.selectedTab=originalTab;await wait(300);
- }
- return report;
+ window.nativeChecks=[];window.nativeWait=ms=>new Promise(r=>setTimeout(r,ms));
+ window.nativeCheck=(name,ok)=>{if(!ok)throw new Error(name);nativeChecks.push(name);};
+ window.nativeRecord=s=>__zziconMorphInstance.records.get(document.querySelector(s));
+ const wait=nativeWait,check=nativeCheck,rec=nativeRecord;
+ const frame=r=>+getComputedStyle(r.paint).getPropertyValue('--zzicon-frame');
+ const event=(r,type)=>r.host.dispatchEvent(new PointerEvent(type,{bubbles:true,pointerType:'mouse'}));
+ check('native renderer attached',__zziconMorphInstance.records.size>40);
+ check('no replacement SVG or transparent mask',!document.querySelector('.zzicon-morph-glyph,[data-zz-morph-slot]'));
+ check('SVG context policy unchanged',!Services.prefs.getBoolPref('svg.context-properties.content.enabled'));
+ Services.prefs.setBoolPref('zen.view.sidebar-expanded',true);document.documentElement.setAttribute('zen-sidebar-expanded','true');document.documentElement.setAttribute('zen-compact-mode','false');
+ window.nativeTab=gBrowser.addTab('about:blank',{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});gBrowser.selectedTab=nativeTab;
+ await wait(500);
+ const reload=rec('#reload-button'),menu=rec('#PanelUI-menu-button'),slot=menu.paint,bounds=menu.host.getBoundingClientRect().toJSON();
+ check('native image owns icon',slot===menu.host.querySelector('.toolbarbutton-icon'));
+ const writes=[];const observe=new MutationObserver(changes=>writes.push(...changes));observe.observe(slot,{attributes:true});
+ event(menu,'pointerover');await wait(40);const a=frame(menu);await wait(50);const b=frame(menu);await wait(200);const wind=frame(menu);
+ check('hover windup advances integer frames',a>0&&b>a&&wind===31);
+ check('host stays anchored during windup',JSON.stringify(bounds)===JSON.stringify(menu.host.getBoundingClientRect().toJSON()));
+ check('windup not driven by per-frame DOM writes',writes.length<=4);observe.disconnect();
+ event(menu,'pointerout');await wait(50);const reversing=frame(menu);event(menu,'pointerover');const resumed=frame(menu);await wait(250);
+ check('hover reversal starts from current frame',reversing>0&&reversing<31&&Math.abs(resumed-reversing)<=1);
+ event(menu,'pointerout');await wait(250);check('pointer exit settles at rest',frame(menu)===0&&!menu.animation);
+ const newTab=rec('#tabs-newtab-button')||rec('#new-tab-button'),openTab=BrowserCommands.openTab;let calls=0;
+ BrowserCommands.openTab=function(...args){calls++;return openTab.apply(this,args);};
+ try{newTab.host.doCommand();await wait(45);newTab.host.doCommand();await wait(180);}finally{BrowserCommands.openTab=openTab;}
+ check('native commands execute exactly once per activation',calls===2);check('action uses browser animation',!!newTab.animation);
+ await wait(1500);check('repeated action settles',frame(newTab)===0&&!newTab.animation);
+ for(const [pref,selector]of [['toolbar','#reload-button'],['plus','#tabs-newtab-button'],['close','.tab-close-button']]){
+  Services.prefs.setIntPref('zzicon.motion.'+pref,2);await wait(100);const r=rec(selector);InspectorUtils.addPseudoClassLock(r.host,':hover');await wait(40);
+  check('one motion owner with custom '+pref+' animation',getComputedStyle(r.paint).animationName==='none');InspectorUtils.removePseudoClassLock(r.host,':hover');Services.prefs.clearUserPref('zzicon.motion.'+pref);
+ }await wait(100);
+ const originalSlot=reload.paint;Services.prefs.setIntPref('zzicon.button.reload',1);await wait(120);
+ check('per-button choice restores image paint',!originalSlot.hasAttribute('zzicon-motion'));
+ Services.prefs.setIntPref('zzicon.button.reload',0);await wait(250);check('per-button choice keeps native node',rec('#reload-button').paint===originalSlot);
+ const compact=rec('#zen-toggle-compact-mode toolbarbutton');
+ if(compact){const original=gZenCompactModeManager.preference;gZenCompactModeManager.preference=!original;await wait(500);check('compact reads native owner',compact.model.state===(!original?'compact':'expanded'));gZenCompactModeManager.preference=original;await wait(500);}
+ await PanelUI.show();await wait(300);check('menu reads native open state',rec('#PanelUI-menu-button').state==='open');PanelUI.hide();await wait(800);check('menu returns to closed state',rec('#PanelUI-menu-button').state==='closed');
+ await SidebarController.show('viewBookmarksSidebar');await wait(250);check('Firefox sidebar reads own owner',rec('#sidebar-button').state==='open');SidebarController.hide();await wait(300);
+ const {PlacesUtils}=ChromeUtils.importESModule('resource://gre/modules/PlacesUtils.sys.mjs');
+ const url=nativeFixtureURL;gBrowser.selectedBrowser.loadURI(Services.io.newURI(url),{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal()});await wait(900);
+ const saved=await PlacesUtils.bookmarks.insert({parentGuid:PlacesUtils.bookmarks.unfiledGuid,url,title:'Icon check'});await wait(400);check('bookmark reads external insert',rec('#star-button').state==='saved');await PlacesUtils.bookmarks.remove(saved.guid);await wait(400);check('bookmark reads external removal',rec('#star-button').state==='unsaved');
+ window.maximize();await wait(300);const max=rec('.titlebar-max')||rec('.titlebar-restore');check('window glyph reads actual maximize',max.model.state==='maximized');window.restore();await wait(500);
+ ZzMediaflowController.updateControls({time:2,duration:20,paused:true,volume:.37,muted:false});await wait(100);
+ check('media replaces existing background once',rec('.zzmf-pip-mute').mode==='background'&&getComputedStyle(rec('.zzmf-pip-mute').host,'::before').content==='none');
+ check('media keeps numeric authority',rec('.zzmf-pip-mute').model.level===37&&rec('.zzmf-pip-play').state==='paused');
+ ZzMediaflowController.updateControls({time:2,duration:20,paused:false,volume:.37,muted:true});await wait(100);
+ check('media follows external mute/play',rec('.zzmf-pip-mute').model.level===0&&rec('.zzmf-pip-play').state==='playing');
+ Services.prefs.setBoolPref('zzicon.animate',false);await wait(150);event(rec('#PanelUI-menu-button'),'pointerover');await wait(50);check('animation off stays at rest',frame(rec('#PanelUI-menu-button'))===0&&!rec('#PanelUI-menu-button').animation);
+ Services.prefs.setBoolPref('zzicon.animate',true);Services.prefs.setIntPref('ui.prefersReducedMotion',1);await wait(150);event(rec('#PanelUI-menu-button'),'pointerover');check('reduced motion stays at rest',frame(rec('#PanelUI-menu-button'))===0&&!rec('#PanelUI-menu-button').animation);Services.prefs.setIntPref('ui.prefersReducedMotion',0);await wait(150);
+ gBrowser.selectedTab=nativeTab;document.documentElement.setAttribute('zen-compact-mode','false');document.documentElement.setAttribute('zen-sidebar-expanded','true');await wait(500);
+ return {checks:nativeChecks,records:__zziconMorphInstance.records.size,windupWrites:writes.length,paintTypes:[...new Set([...__zziconMorphInstance.records.values()].map(r=>r.paint.localName+':'+r.mode))],windupFrames:[a,b,wind],actions:[...new Set([...__zziconMorphInstance.records.values()].map(r=>r.binding.action))].sort()};
 })();

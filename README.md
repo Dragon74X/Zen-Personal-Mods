@@ -25,7 +25,7 @@ Individual READMEs define settings, exclusions, and known limits.
 
 [September 18 audit](docs/AUDIT-2026-09-18.md): findings, pinned upstream sources, native blur checks and remaining runtime limits.
 
-[Circuit · Morph implementation and installation](docs/CIRCUIT-MORPH.md): action/state/edge coverage, native runtime results and remaining desktop checks.
+[Icon engine comparison and native Morph motion](docs/CIRCUIT-MORPH.md): retained artwork/windup, restored native ownership and runtime checks.
 
 ## Regression checks
 

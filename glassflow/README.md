@@ -533,12 +533,14 @@ Tools now offers Save appearance, Restore appearance, Copy appearance, and Copy 
 
 ## State motion and calculated edges
 
-**Experimental hover and selection motion** is **off by default**, under
-**Corners, fonts and motion**. The upgrade switches it off once, including profiles
-that received the old On default; enabling it afterwards survives restarts.
-Off retains the prior static styling and stops pointer-following edge light.
-Saved colours, gradients, shapes and motion profile choices remain untouched.
-When enabled, **Crisp** is the default feel. Soft, Spring, Bounce and Rebound adjust the
+**Animate tab and folder states** is **on by default**, under
+**Corners, fonts and motion**. Version 3.74.3 repairs the over-broad 3.74.2
+migration once; subsequent user choices survive restarts. **Experimental
+pointer-following light** has its own switch and remains **off by default**.
+Basic rim light works without Detailed rim control; that switch only enables
+its extra strength, direction and thickness settings. Saved colours, shapes
+and motion profile choices remain untouched.
+**Crisp** is the default feel. Soft, Spring, Bounce and Rebound adjust the
 same hover geometry, colour, gradient direction, sheen and rim transitions.
 The close glyph fades/scales into its fixed target while the label makes room.
 Selection switches immediately; the existing title moves 4px sideways, rebounds

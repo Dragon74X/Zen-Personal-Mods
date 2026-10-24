@@ -11,7 +11,7 @@ const geometry=/^(?:transform|translate|scale|rotate|(?:min-|max-)?(?:width|heig
 const reduced=matchMedia('(prefers-reduced-motion: reduce)'),forced=matchMedia('(forced-colors: active)');
 let point=null, frame=null, dirty=false, retired=false;
 const listen=(el,type,fn,opts={})=>el.addEventListener(type,fn,{...opts,signal:abort.signal});
-const enabled=()=>!retired&&!document.hidden&&!reduced.matches&&!forced.matches&&Services.prefs.getBoolPref('zzglass.motion.enabled',false)&&!Services.prefs.getBoolPref('zzglass.instant-ui',false);
+const enabled=()=>!retired&&!document.hidden&&!reduced.matches&&!forced.matches&&Services.prefs.getBoolPref('zzglass.edges.follow-pointer',false)&&!Services.prefs.getBoolPref('zzglass.instant-ui',false);
 const selectors='.tabbrowser-tab, .tab-group-label-container, .tab-group-container, #navigator-toolbox, #zen-toolbar-background, .titlebar-button, #zen-workspaces-button, #zen-workspaces-button toolbarbutton, #navigator-toolbox .toolbarbutton-1, .zzicon-ws-swatch, .zzicon-ws-search, .zen-library-space, zen-library, #zen-library-download-list, .zzgf-gradient-editor, .zzdl-panel, .zzdl-name, .zzdl-btn, #zen-sidebar-pip-container, #zen-sidebar-pip-caption, zen-zap-bar';
 const properties=['--zzg-follow-angle','--zzg-follow-gradient','--zzg-follow-top','--zzg-follow-right','--zzg-follow-bottom','--zzg-follow-left','--zzg-follow-ring-x','--zzg-follow-ring-y'];
 function sample(c,time){const t=Math.max(0,(time-c.time)/1000),y=c.x-c.target,b=c.v+c.w*y,e=Math.exp(-c.w*t);return{x:c.target+(y+b*t)*e,v:(c.v-c.w*b*t)*e};}

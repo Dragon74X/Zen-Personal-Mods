@@ -33,6 +33,9 @@ with tempfile.TemporaryDirectory(prefix='zen-state-motion-') as d:
                 m.script('Cc["@mozilla.org/content/style-sheet-service;1"].getService(Ci.nsIStyleSheetService).loadAndRegisterSheet(Services.io.newURI('+json.dumps((ROOT/mod/'userChrome.css').as_uri())+'),1);return true;')
                 m.script('Services.scriptloader.loadSubScript('+json.dumps('chrome://sine/content/zz-'+mod+'/'+mod+'.uc.js')+',window);return true;')
             time.sleep(1)
+            assert m.script("return !Services.prefs.getBoolPref('zzglass.motion.enabled');"), 'motion should start disabled'
+            m.script("Services.prefs.setBoolPref('zzglass.motion.enabled',true);Services.scriptloader.loadSubScript('chrome://sine/content/zz-glassflow/glassflow.uc.js',window);return true;")
+            assert m.script("return Services.prefs.getBoolPref('zzglass.motion.enabled');"), 'explicit opt-in should survive reload'
             print('INIT',m.script('return {group:!!window.Groupflow,motion:!!window.__zzglassInstance,css:getComputedStyle(document.documentElement).getPropertyValue("--zzg-motion-time"),editor:!!Groupflow.editGradient};'),flush=True)
             setup=m.script('''return (async()=>{
               const pause=ms=>new Promise(r=>setTimeout(r,ms));window.motionPause=pause;

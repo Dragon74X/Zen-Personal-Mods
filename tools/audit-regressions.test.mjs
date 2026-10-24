@@ -5,6 +5,26 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import { test } from "node:test";
 
+test("Glassflow starts motion off once on fresh installs and upgrades, then preserves opt-in", async () => {
+  const source = await readFile(new URL("../glassflow/glassflow.uc.js", import.meta.url), "utf8");
+  const migration = source.slice(source.indexOf("  // Start the experimental motion opt-in once,"), source.indexOf("  // Preserve the existing sidebar switch once;"));
+  for (const initial of [undefined, false, true]) {
+    const prefs = new Map([["zzglass.motion.profile", 3], ["zzglass.hover.tint", "35%"]]);
+    if (initial !== undefined) prefs.set("zzglass.motion.enabled", initial);
+    const context = vm.createContext({ PREFIX: "zzglass.", Services: { prefs: {
+      getBoolPref: (key, fallback) => prefs.has(key) ? prefs.get(key) : fallback,
+      setBoolPref: (key, value) => prefs.set(key, value),
+    } } });
+    vm.runInContext(migration, context);
+    assert.equal(prefs.get("zzglass.motion.enabled"), false);
+    prefs.set("zzglass.motion.enabled", true);
+    vm.runInContext(migration, context);
+    assert.equal(prefs.get("zzglass.motion.enabled"), true, "later user opt-in survives reinjection");
+    assert.equal(prefs.get("zzglass.motion.profile"), 3);
+    assert.equal(prefs.get("zzglass.hover.tint"), "35%");
+  }
+});
+
 test("Glassflow upgrades legacy sidebar blur once and preserves explicit native choices", async () => {
   const source = await readFile(new URL("../glassflow/glassflow.uc.js", import.meta.url), "utf8");
   const migration = source.slice(source.indexOf("  // Preserve the existing sidebar switch once;"), source.indexOf("  // Written the moment this script is injected,"));

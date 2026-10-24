@@ -145,6 +145,11 @@ with tempfile.TemporaryDirectory(prefix='zen-morph-') as d:
   })();''')
   # Pointer event delivery uses real coordinates; pointer exit returns to changed state.
   edge=m.script('''return (async()=>{
+   checkMorph('Glassflow motion starts off',!Services.prefs.getBoolPref('zzglass.motion.enabled'));
+   const idleTab=gBrowser.selectedTab,idleRect=idleTab.getBoundingClientRect();
+   idleTab.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,clientX:idleRect.right-2,clientY:idleRect.top+2,pointerType:'mouse'}));await waitMorph(90);
+   checkMorph('default-off hover leaves no edge work',!__zzglassEdgesInstance.scheduled&&__zzglassEdgesInstance.owners===0&&!idleTab.style.getPropertyValue('--zzg-follow-angle'));
+   Services.prefs.setBoolPref('zzglass.motion.enabled',true);
    Services.prefs.setBoolPref('zzglass.edges.enabled',true);await waitMorph(80);
    const tab=gBrowser.selectedTab,bg=tab.querySelector('.tab-background');
    const rect=bg.getBoundingClientRect(),before=getComputedStyle(bg).boxShadow;

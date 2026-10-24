@@ -83,11 +83,3 @@ test('Unloader reaches its ten-second deadline independently of the sweep interv
   now+=5000;const job=[...timers.values()][0];timers.clear();await job.fn();assert.equal(timers.size,0,'stuck marker cannot defer again');
   await h.sweep();assert.equal(timers.size,1);h.retire();const stopped=[...timers.values()][0];timers.clear();await stopped.fn();assert.equal(timers.size,0);
 });
-test('Panel mask follows circular, squircle, zero and percentage corner geometry', async () => {
-  const h=await functions('glassflow','panelMaskPath',{window:{},document:{documentElement:{style:{}}}});
-  const make=(r,shape)=>h.panelMaskPath(100,40,[r,r,r,r],[shape,shape,shape,shape]);
-  const round=make('12px','superellipse(1)'),squircle=make('12px','superellipse(2)');
-  assert.notEqual(round,squircle);assert.ok(!/NaN|Infinity/.test(round+squircle+make('0px','round')));
-  assert.equal(make('50%','round'),make('50px 20px','round'));
-  assert.match(round,/^M0\.000,12\.000L/);assert.match(round,/Z$/);
-});

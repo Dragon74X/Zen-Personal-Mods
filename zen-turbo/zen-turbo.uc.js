@@ -217,12 +217,12 @@
     return changed;
   }
 
-  function syncPacks() {
-    if (!isMainAppWindow()) return;
+  function syncPacks(release = false) {
+    if (!release && !isMainAppWindow()) return;
     const saved = readSaved();
     let changed = reclaimOrphans(saved);
     for (const packName of Object.keys(PACKS)) {
-      const updated = bool("pack-" + packName, PACK_DEFAULTS[packName] ?? true)
+      const updated = !release && bool("pack-" + packName, PACK_DEFAULTS[packName] ?? true)
         ? applyPack(packName, saved) : revertPack(packName, saved);
       changed ||= updated;
     }
@@ -507,7 +507,10 @@
     // still here. Safe now that start() is contained and the top level
     // does nothing that can throw; the DOM unload listener above still
     // releases everything when the window closes.
-    try { window.addUnloadListener?.(cleanup); } catch {}
+    try { window.addUnloadListener?.(() => {
+      cleanup();
+      if (!window.__zzSineWindowClosing && window.__zzSineUnloadReasons?.get("zz-zen-turbo") === "release") syncPacks(true);
+    }); } catch {}
     instance.retire = cleanup;
   }
 

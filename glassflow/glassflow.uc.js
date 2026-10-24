@@ -154,9 +154,28 @@
   // it is. Zen gives every page a solid background unless a mod takes it
   // away, so a page whose browser background is solid is left to Zen's blur
   // alone and nothing extra runs.
-  // ponytail: a rectangle; the panel's rounded corners may show a sliver of
-  // blurred page. A rounded mask (feImage) if that ever shows.
+  // The filter mask follows the panel's computed corner geometry.
   const SHOWN = "[zen-has-hover], [zen-user-show], [zen-has-empty-tab], [flash-popup], [has-popup-menu], [movingtab], [zen-compact-mode-active]";
+  function panelMaskPath(width, height, radii, shapes) {
+    const length = (value, size) => parseFloat(value) * (String(value).endsWith("%") ? size / 100 : 1) || 0;
+    const r = radii.map(value => { const [x, y = x] = value.split(" "); return [length(x, width), length(y, height)]; });
+    const scale = Math.min(1, width / (r[0][0] + r[1][0]), width / (r[2][0] + r[3][0]),
+      height / (r[0][1] + r[3][1]), height / (r[1][1] + r[2][1]));
+    const points = [];
+    for (let corner = 0; corner < 4; corner++) {
+      const [rx, ry] = r[corner].map(n => n * scale);
+      const shape = shapes[corner], k = { round: 1, squircle: 2, square: 16, bevel: 0, scoop: -1, notch: -16 }[shape] ?? parseFloat(shape.match(/superellipse\(([^)]+)\)/)?.[1]) ?? 1;
+      const power = 2 / Math.pow(2, Number.isFinite(k) ? k : 1);
+      const cx = corner === 0 || corner === 3 ? rx : width - rx, cy = corner < 2 ? ry : height - ry;
+      for (let step = 0; step <= 32; step++) {
+        const angle = Math.PI + corner * Math.PI / 2 + step * Math.PI / 64;
+        const c = Math.cos(angle), v = Math.sin(angle);
+        points.push(`${(cx + rx * Math.sign(c) * Math.pow(Math.abs(c), power)).toFixed(3)},${(cy + ry * Math.sign(v) * Math.pow(Math.abs(v), power)).toFixed(3)}`);
+      }
+    }
+    return "M" + points.join("L") + "Z";
+  }
+
   function transparentPageBlur() {
     const NS = "http://www.w3.org/2000/svg", S = Services.prefs, root = document.documentElement;
     const toolbox = document.getElementById("navigator-toolbox"), box = document.getElementById("tabbrowser-tabbox");
@@ -164,12 +183,13 @@
     const el = (parent, tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.append(e); return e; };
     const svg = el(document.documentElement, "svg", { width: 0, height: 0, style: "position:fixed;pointer-events:none", "aria-hidden": "true" });
     const filter = el(svg, "filter", { id: "zzg-strip", filterUnits: "userSpaceOnUse", primitiveUnits: "userSpaceOnUse", "color-interpolation-filters": "sRGB" });
-    const flood = el(filter, "feFlood", { "flood-color": "#fff", result: "m" });
+    const mask = el(filter, "feImage", { result: "m", preserveAspectRatio: "none" });
     const blur = el(filter, "feGaussianBlur", { in: "SourceGraphic", edgeMode: "duplicate", result: "b" });
     el(filter, "feComposite", { in: "SourceGraphic", in2: "m", operator: "out", result: "o" });
+    el(filter, "feComposite", { in: "b", in2: "m", operator: "in", result: "bm" });
     const merge = el(filter, "feMerge", {});
     el(merge, "feMergeNode", { in: "o" });
-    el(merge, "feMergeNode", { in: "b" });
+    el(merge, "feMergeNode", { in: "bm" });
     const wanted = () => S.getBoolPref(PREFIX + "sidebar.blur-transparent-pages", true) &&
       (S.getBoolPref(PREFIX + "sidebar.blur", false) || S.getBoolPref("zen.theme.acrylic-sidebar", false));
     const alpha = c => {
@@ -180,7 +200,14 @@
     const seeThrough = () => alpha(getComputedStyle(gBrowser.selectedBrowser).backgroundColor) < 1;
     // Follows the panel every frame while it slides, in and out, so the blur
     // moves with it and stays until it has gone.
-    let frame = 0;
+    let frame = 0, maskKey = "", previousFilter = null, appliedFilter = null;
+    const releaseFilter = () => {
+      if (appliedFilter && box.style.getPropertyValue("filter") === appliedFilter) {
+        if (previousFilter[0]) box.style.setProperty("filter", ...previousFilter);
+        else box.style.removeProperty("filter");
+      }
+      previousFilter = appliedFilter = null;
+    };
     const sliding = () => toolbox.getAnimations().some(a => a.transitionProperty === "translate" && a.playState === "running");
     const update = () => {
       frame = 0;
@@ -189,14 +216,28 @@
       // switch once. A zero radius or disabled backdrop needs no page filter.
       const r = panel ? parseFloat(getComputedStyle(panel).backdropFilter.match(/\bblur\(([^)]+)\)/)?.[1]) : NaN;
       if (!wanted() || !(r > 0) || root.getAttribute("zen-compact-mode") !== "true" || !(toolbox.matches(SHOWN) || root.getAttribute("zen-renaming-tab") === "true" || moving) || !p?.width || !seeThrough()) {
-        box.style.removeProperty("filter");
+        releaseFilter();
         return;
       }
       const b = box.getBoundingClientRect();
       for (const [k, v] of Object.entries({ x: 0, y: 0, width: b.width, height: b.height })) filter.setAttribute(k, v);
-      for (const e of [flood, blur]) for (const [k, v] of Object.entries({ x: p.left - b.left, y: p.top - b.top, width: p.width, height: p.height })) e.setAttribute(k, v);
+      for (const [k, v] of Object.entries({ x: p.left - b.left, y: p.top - b.top, width: p.width, height: p.height })) mask.setAttribute(k, v);
+      const style = getComputedStyle(panel), corners = ["TopLeft", "TopRight", "BottomRight", "BottomLeft"];
+      const radii = corners.map(c => style["border" + c + "Radius"]);
+      const shapes = corners.map(c => style["corner" + c + "Shape"] || style.cornerShape || "round");
+      const key = [p.width, p.height, ...radii, ...shapes].join(":");
+      if (key !== maskKey) {
+        maskKey = key;
+        const path = panelMaskPath(p.width, p.height, radii, shapes);
+        mask.setAttribute("href", "data:image/svg+xml," + encodeURIComponent(`<svg xmlns="${NS}" width="${p.width}" height="${p.height}"><path fill="white" d="${path}"/></svg>`));
+      }
       blur.setAttribute("stdDeviation", r);
-      box.style.setProperty("filter", "url(#zzg-strip)", "important");
+      if (!appliedFilter) {
+        previousFilter = [box.style.getPropertyValue("filter"), box.style.getPropertyPriority("filter")];
+        appliedFilter = (previousFilter[0] && previousFilter[0] !== "none" ? previousFilter[0] + " " : "") + "url(#zzg-strip)";
+      } else if (box.style.getPropertyValue("filter") !== appliedFilter) return;
+      box.style.setProperty("filter", appliedFilter, "important");
+      appliedFilter = box.style.getPropertyValue("filter"); // CSSOM normalizes URL quoting.
       if (moving) frame = requestAnimationFrame(update);
     };
     const soon = () => { frame ||= requestAnimationFrame(update); };
@@ -221,7 +262,7 @@
       toolbox.removeEventListener("transitionend", soon);
       toolbox.removeEventListener("transitionrun", soon);
       cancelAnimationFrame(frame);
-      box.style.removeProperty("filter");
+      releaseFilter();
       svg.remove();
     };
   }
@@ -312,7 +353,54 @@
     }
   }
 
+  // One retargetable animation on the existing title; selection is never delayed.
+  function tabMotion() {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const active = new Map();
+    const enabled = () => !reduced.matches && Services.prefs.getBoolPref(PREFIX + "motion.enabled", true) &&
+      !Services.prefs.getBoolPref(PREFIX + "instant-ui", false) && !window.Motion?.MotionGlobalConfig?.instantAnimations;
+    function cancel() { for (const { animation } of active.values()) animation.cancel(); active.clear(); }
+    function settle(label) {
+      if (!label?.isConnected || !enabled()) return;
+      const old = active.get(label), from = getComputedStyle(label).transform;
+      const base = old?.base ?? (from === "none" ? "" : from);
+      old?.animation.cancel();
+      const style = getComputedStyle(document.documentElement);
+      const duration = 90 + (parseFloat(style.getPropertyValue("--zzg-motion-ms")) || 150);
+      const easing = style.getPropertyValue("--zzg-motion-ease").trim() || "cubic-bezier(.2,.85,.25,1)";
+      const animation = label.animate([
+        { transform: from, offset: 0, easing: "cubic-bezier(.2,.7,.3,1)" },
+        { transform: `translateX(4px) ${base}`, offset: .24, easing: "cubic-bezier(.3,0,.35,1)" },
+        { transform: `translateX(-1px) ${base}`, offset: .65, easing },
+        { transform: base || "none", offset: 1 },
+      ], { duration });
+      active.set(label, { animation, base });
+      animation.finished.then(() => { if (active.get(label)?.animation === animation) active.delete(label); }, () => {});
+    }
+    const selected = event => settle(event.target.querySelector?.(".tab-label"));
+    const clicked = event => {
+      if (event.button !== 0 || event.target.closest?.("button, toolbarbutton, input, menuitem, .zzgf-control")) return;
+      const header = event.target.closest?.(".tab-group-label-container");
+      if (header?.closest(":is(#navigator-toolbox, .zen-library-space-tabs)")) settle(header.querySelector(".tab-group-label"));
+    };
+    const changed = { observe: cancel };
+    gBrowser.tabContainer.addEventListener("TabSelect", selected);
+    window.addEventListener("click", clicked);
+    reduced.addEventListener("change", cancel);
+    Services.prefs.addObserver(PREFIX + "motion.", changed);
+    Services.prefs.addObserver(PREFIX + "instant-ui", changed);
+    return () => {
+      cancel();
+      gBrowser.tabContainer.removeEventListener("TabSelect", selected);
+      window.removeEventListener("click", clicked);
+      reduced.removeEventListener("change", cancel);
+      Services.prefs.removeObserver(PREFIX + "motion.", changed);
+      Services.prefs.removeObserver(PREFIX + "instant-ui", changed);
+    };
+  }
+
   function start() {
+    const stopMotion = tabMotion();
     window.addEventListener("popupshowing", toolsMenu);
     syncInstantUI();
     Services.prefs.addObserver(PREFIX, prefVarObserver);
@@ -339,6 +427,7 @@
     const cleanup = () => {
       if (retired) return;
       retired = true;
+      stopMotion();
       window.removeEventListener("popupshowing", toolsMenu);
       for (const item of toolItems) item.remove(); toolItems.clear();
       window.removeEventListener("unload", cleanup);
@@ -360,7 +449,7 @@
     // releases everything when the window closes.
     // Sine's own unload (disable, removal or update) also hands back other
     // mods' settings; closing a window does not. An update re-applies them.
-    try { window.addUnloadListener?.(() => { cleanup(); try { syncOtherMods(true); } catch {} }); } catch {}
+    try { window.addUnloadListener?.(() => { cleanup(); if (!window.__zzSineWindowClosing && window.__zzSineUnloadReasons?.get("zz-glassflow") === "release") try { syncOtherMods(true); } catch {} }); } catch {}
     instance.retire = cleanup;
   }
 
@@ -399,7 +488,7 @@
   const OTHER_SAVED = "zzglass-saved.other-mods";   // outside PREFIX: not a CSS variable
   // release: Glassflow is being disabled or removed, so every override goes back.
   function syncOtherMods(release = false) {
-    if (Services.wm.getMostRecentWindow("navigator:browser") !== window) return;
+    if (!release && Services.wm.getMostRecentWindow("navigator:browser") !== window) return;
     const S = Services.prefs;
     const get = name => {
       try {

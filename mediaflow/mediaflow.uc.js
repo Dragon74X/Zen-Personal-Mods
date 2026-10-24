@@ -1,13 +1,12 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.7.0
+// @version        2.7.4
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==
 
 (function () {
   if (window.__zzMediaflowLoaded) return;
-  window.__zzMediaflowLoaded = true;
   // Everything this copy adds to the window is undone from here when Sine
   // disables or updates the mod, as well as when the window closes.
   const undo = [];
@@ -18,7 +17,7 @@
   const LOG_PREFIX = "[Mediaflow]";
   // Gecko caches actor modules across unregister/re-register. Bump with actor
   // changes so Sine updates load replacement code without a browser restart.
-  const ACTOR_VERSION = "2.7.2";
+  const ACTOR_VERSION = "2.7.4";
   const CAPTIONS_PREF = "zzmedia.preview.captions";
   const CAPTIONS_WHEN_PIP_HIDDEN_PREF =
     "zzmedia.preview.captions-when-hidden";
@@ -42,14 +41,6 @@
     CAPTION_ANIM_MS: 180,
     CAPTION_GAP_GRACE_MS: 1000,
     ANIM_TAIL_MS: 350,
-    ELEVATED_HOLD_MS: 180,
-    // A downward move of the player's top edge larger than this (px) is only
-    // committed after the lower edge holds stable for DOWN_HOLD_MS. YouTube's
-    // controls make the measured edge oscillate for a few seconds after a
-    // fast-forward into buffered content while hovered; this asymmetric hold
-    // lets the PiP rise instantly but resists transient drops.
-    TOP_SPIKE_MAX: 32,
-    DOWN_HOLD_MS: 400,
     DEFAULT_ASPECT: 16 / 9,
   });
   // The preview and its caption hang from their bottom edge, set every frame
@@ -80,8 +71,18 @@
     return;
   }
 
+  window.__zzMediaflowLoaded = true;
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const motionMs = ms => reducedMotion.matches ? 0 : ms;
+
   const styleEl = document.createElement("style");
   styleEl.textContent = `
+    @media (prefers-reduced-motion: reduce) {
+      #zen-sidebar-pip-container, #zen-sidebar-pip-caption {
+        transition: none !important;
+        transform: none !important;
+      }
+    }
     #zen-sidebar-pip-container {
       position: fixed;
       background: transparent;
@@ -178,6 +179,7 @@
       font: 600 11px/1 system-ui, sans-serif;
     }
     #zen-sidebar-pip-container[zzmf-controls] .zzmf-pip-controls { display: block; }
+    #zen-sidebar-pip-container[zzmf-interacting] { transition: none !important; }
     #zen-sidebar-pip-container:is(:hover, :focus-within, [zzmf-paused]) .zzmf-pip-controls { opacity: 1; }
     .zzmf-pip-controls button {
       appearance: none;
@@ -278,10 +280,6 @@
   let activeUntil = 0;
   let hoverActive = false;
   let playerSeen = true;                    // the music bar is on screen (syncPosition)
-  let lastElevatedTop = null;
-  let lastElevatedAt = 0;
-  let lastCommittedMediaTop = null;
-  let pendingDownAt = 0;
   let animating = false;
   let animateOutTimer = null;
   let videoAspect = CONFIG.DEFAULT_ASPECT;
@@ -337,10 +335,6 @@
     musicPlayerUI.setAttribute("zzmf-reserve", "true");
     musicPlayerUI.style.setProperty("--zzmf-reserve", px + "px");
     lastReserve = px;
-    // The bar moves by our own hand: follow it at once, not after the hold
-    // that rides out YouTube's control flicker.
-    lastCommittedMediaTop = null;
-    pendingDownAt = 0;
     bump();
   }
   // A live update from a version that sized the tab list.
@@ -402,7 +396,6 @@
     return { visible: true, opacity: parseFloat(cs.opacity), onScreen };
   }
 
-  let maxRise = 0, riseCards = 0;
   function syncPosition() {
     scheduled = false;
     if (!isStreaming) return;
@@ -430,7 +423,7 @@
       browserWindowActive;
     const visibilityState = `${pipVisible}:${captionVisible}`;
     if (visibilityState !== lastVisible) {
-      if (!pipVisible) restorePreviewFocus();
+      if (!pipVisible) { focusedPreview = null; pipContainer.removeAttribute("zzmf-interacting"); restorePreviewFocus(); }
       pipContainer.style.visibility = pipVisible ? "visible" : "hidden";
       captionContainer.style.visibility = captionVisible
         ? "visible"
@@ -461,60 +454,10 @@
         left,
         width: playerWidth,
       } = getMediaTopEdge(true);
-      // Pointing at the bar raises its hover rows; if the preview rose with
-      // them, the edge between the two would move under the pointer and
-      // hover would flip back and forth. So the preview keeps clear of the
-      // tallest the bar has stood with the cards it has now, and pointing at
-      // the bar moves nothing. ponytail: learned, not measured (collapsed
-      // rows do not report their open height), so the first hover with a new
-      // set of cards may lift it once; capped against a stray spike.
-      const cards = musicPlayerUI.querySelectorAll(".zen-media-card:not([hidden])").length;
-      if (cards && cards !== riseCards) { riseCards = cards; maxRise = 0; }
-      maxRise = Math.min(Math.max(maxRise, mediaBottom - mediaTopRaw), mediaBottom - baseTop + 160);
+      // Native card geometry is authoritative. Focused controls retain their
+      // captured preview bounds below; old sources never set future clearance.
       if (playerWidth !== 0) {
-        const now = performance.now();
-        let mediaTop = mediaTopRaw;
-        if (mediaTopRaw < baseTop - 1) {
-          lastElevatedTop = mediaTopRaw;
-          lastElevatedAt = now;
-        } else if (
-          lastElevatedTop !== null &&
-          now - lastElevatedAt < CONFIG.ELEVATED_HOLD_MS
-        ) {
-          mediaTop = lastElevatedTop;
-          schedule();
-        } else {
-          lastElevatedTop = null;
-        }
-
-        // Asymmetric hold for the player's top edge: the PiP may rise
-        // immediately (to stay above the controls), but a downward move is only
-        // committed once the lower edge has held stable for DOWN_HOLD_MS. While
-        // holding we substitute the last committed (higher) edge rather than
-        // skipping the frame, so the position still updates (left/width/aspect)
-        // and always has a value — but doesn't drop for the transient control
-        // oscillation YouTube emits for a few seconds after a fast-forward or a
-        // pause/play while the controls are hovered. The reference persists
-        // across stop/restart (see stopTracking) so pause/play keeps its stable
-        // pre-pause baseline instead of re-seeding mid-oscillation.
-        if (
-          lastCommittedMediaTop !== null &&
-          mediaTop - lastCommittedMediaTop > CONFIG.TOP_SPIKE_MAX
-        ) {
-          if (pendingDownAt === 0) pendingDownAt = now;
-          if (now - pendingDownAt < CONFIG.DOWN_HOLD_MS) {
-            mediaTop = lastCommittedMediaTop;
-            schedule();
-          } else {
-            pendingDownAt = 0;
-            lastCommittedMediaTop = mediaTop;
-          }
-        } else {
-          pendingDownAt = 0;
-          lastCommittedMediaTop = mediaTop;
-        }
-
-        mediaTop = Math.min(mediaTop, mediaBottom - maxRise);
+        const mediaTop = mediaTopRaw;
         let captionHeight = 0;
         let videoBottom = mediaTop - CONFIG.GAP;
         let captionTop = null;
@@ -561,6 +504,15 @@
             const towardRight = left + playerWidth / 2 < window.innerWidth / 2;
             adjustedLeft = towardRight ? adjustedLeft : adjustedLeft + width - shownWidth;
             adjustedLeft = Math.max(4, Math.min(window.innerWidth - shownWidth - 4, adjustedLeft));
+          }
+
+          // A focused control must stay under the pointer through press/release
+          // and repeated clicks, even during hover growth or a caption change.
+          if (focusedPreview) {
+            shownWidth = focusedPreview.width;
+            shownHeight = focusedPreview.height;
+            adjustedLeft = focusedPreview.left;
+            videoBottom = focusedPreview.bottom;
           }
 
           const nextCaptureMaxDimension = Math.max(
@@ -670,7 +622,7 @@
       captionContainer.textContent = "";
       lastTop = lastLeft = lastWidth = -1;
       if (isStreaming) bump();
-    }, CONFIG.CAPTION_ANIM_MS);
+    }, motionMs(CONFIG.CAPTION_ANIM_MS));
   }
 
   function hideCaptionAfterGap() {
@@ -684,7 +636,7 @@
         captionContainer.textContent = "";
         lastTop = lastLeft = lastWidth = -1;
         if (isStreaming) bump();
-      }, CONFIG.CAPTION_ANIM_MS);
+      }, motionMs(CONFIG.CAPTION_ANIM_MS));
     }, CONFIG.CAPTION_GAP_GRACE_MS);
   }
 
@@ -700,14 +652,6 @@
   function stopTracking() {
     activeUntil = 0;
     hoverActive = false;
-    lastElevatedTop = null;
-    lastElevatedAt = 0;
-    // NB: lastCommittedMediaTop is intentionally NOT reset here. The sidebar
-    // player's top edge is stable across a pause/play, so keeping the reference
-    // lets the asymmetric hold resist the transient control oscillation on
-    // restart instead of re-seeding mid-glitch. (pendingDownAt is reset — a
-    // fresh timer per stream is fine and self-heals on the next up-frame.)
-    pendingDownAt = 0;
     clearReserve();
     sourceTabActive = false;
     _notifyTickState();
@@ -715,7 +659,7 @@
 
   // Pointing at the preview grows it (Grow on hover); clicking it goes to the
   // tab the video plays in.
-  let pipHover = false, hoverBottom = null;
+  let pipHover = false, hoverBottom = null, focusedPreview = null;
   const HOVER_PREF = "zzmedia.preview.hover-size", CLICK_PREF = "zzmedia.preview.click-to-tab";
   function hoverGrowth(width) {
     const v = safe(() => Services.prefs.getStringPref(HOVER_PREF, "2")) ?? "2";
@@ -780,8 +724,30 @@
     growTimer = setTimeout(() => { pipHover = true; bump(); }, hoverDelay * 1000);
   });
   on(pipContainer, "mouseleave", () => { clearTimeout(growTimer); pipHover = false; if (!pipContainer.matches(":focus-within")) holdSidebar(false); bump(); });
-  on(pipContainer, "focusin", () => holdSidebar(true));
-  on(pipContainer, "focusout", e => { if (!pipContainer.contains(e.relatedTarget) && !pipContainer.matches(":hover")) holdSidebar(false); });
+  function holdPreview() {
+    holdSidebar(true);
+    clearTimeout(growTimer);
+    if (focusedPreview) return;
+    // Read the in-flight CSS geometry, not the hover animation's destination.
+    const s = getComputedStyle(pipContainer);
+    focusedPreview = { width: parseFloat(s.width), height: parseFloat(s.height),
+      left: parseFloat(s.left), bottom: window.innerHeight - parseFloat(s.bottom) };
+    pipContainer.setAttribute("zzmf-interacting", "");
+    lastTop = lastLeft = lastWidth = -1;
+    syncPosition();
+  }
+  on(pipContainer, "focusin", holdPreview);
+  function releasePreview() {
+    if (pipContainer.matches(":focus-within") || controls.matches(":hover")) return;
+    focusedPreview = null;
+    pipContainer.removeAttribute("zzmf-interacting");
+    if (!pipContainer.matches(":hover")) holdSidebar(false);
+    bump();
+  }
+  on(pipContainer, "focusout", e => {
+    if (pipContainer.contains(e.relatedTarget)) return;
+    releasePreview();
+  });
   on(pipContainer, "click", event => {
     if (!clickToTab() || event.button !== 0) return;
     const browser = safe(() => sourceBC?.top?.embedderElement);
@@ -798,6 +764,8 @@
   const CONTROLS_PREF = "zzmedia.preview.controls", STEP_PREF = "zzmedia.preview.seek-step";
   const controls = document.createElement("div");
   controls.className = "zzmf-pip-controls";
+  on(controls, "mouseenter", holdPreview);
+  on(controls, "mouseleave", releasePreview);
   const control = (cls, label, act) => {
     const b = document.createElement("button");
     b.className = cls;
@@ -1035,8 +1003,23 @@
     }
   }
 
+  const parked = new Map();
+  function unparkNativePipButton(btn) {
+    const saved = parked.get(btn);
+    if (!saved) return;
+    if (btn.style.display === "none") {
+      if (saved.display) btn.style.setProperty("display", saved.display, saved.priority);
+      else btn.style.removeProperty("display");
+    }
+    if (btn.getAttribute("aria-hidden") === "true") {
+      if (saved.aria === null) btn.removeAttribute("aria-hidden"); else btn.setAttribute("aria-hidden", saved.aria);
+    }
+    btn.removeAttribute("zzmf-parked"); parked.delete(btn);
+  }
   function parkNativePipButton(btn) {
     if (!btn || btn.hasAttribute("zzmf-toggle")) return;
+    if (!parked.has(btn)) parked.set(btn, { display: btn.style.getPropertyValue("display"),
+      priority: btn.style.getPropertyPriority("display"), aria: btn.getAttribute("aria-hidden") });
     if (btn.getAttribute("zzmf-parked") !== "true") {
       btn.setAttribute("zzmf-parked", "true");
     }
@@ -1083,7 +1066,7 @@
     for (const [nativeButton, toggle] of togglesByNativeButton) {
       if (!nativeButton.isConnected || !toggle.isConnected || !sourceForToggle(nativeButton)) {
         if (document.activeElement === toggle) window.gZenMediaController?.frontCard?.element.querySelector("button, toolbarbutton")?.focus();
-        toggle.remove(); nativeButton.removeAttribute("zzmf-parked"); nativeButton.removeAttribute("aria-hidden"); nativeButton.style.removeProperty("display");
+        toggle.remove(); unparkNativePipButton(nativeButton);
         togglesByNativeButton.delete(nativeButton);
       }
     }
@@ -1182,22 +1165,35 @@
     }
   }
 
-  const sourceFrames = new Set(), sourceTimers = new Set();
+  const sourceFrames = new Map(), sourceTimers = new Map();
   let sourceEpoch = 0;
   function cancelSourceMotion() {
     sourceEpoch++;
-    for (const id of sourceFrames) cancelAnimationFrame(id);
-    for (const id of sourceTimers) clearTimeout(id);
+    for (const id of sourceFrames.keys()) cancelAnimationFrame(id);
+    for (const id of sourceTimers.keys()) clearTimeout(id);
     sourceFrames.clear(); sourceTimers.clear(); animateOutTimer = null; animating = false;
   }
   function sourceFrame(fn) {
-    const epoch = sourceEpoch, id = requestAnimationFrame(() => { sourceFrames.delete(id); if (!retired && epoch === sourceEpoch) fn(); });
-    sourceFrames.add(id); return id;
+    if (reducedMotion.matches) { fn(); return null; }
+    const epoch = sourceEpoch;
+    const run = () => { sourceFrames.delete(id); if (!retired && epoch === sourceEpoch) fn(); };
+    const id = requestAnimationFrame(run);
+    sourceFrames.set(id, run); return id;
   }
   function sourceDelay(fn, ms) {
-    const epoch = sourceEpoch, id = setTimeout(() => { sourceTimers.delete(id); if (!retired && epoch === sourceEpoch) fn(); }, ms);
-    sourceTimers.add(id); return id;
+    if (reducedMotion.matches) { fn(); return null; }
+    const epoch = sourceEpoch;
+    const run = () => { sourceTimers.delete(id); if (!retired && epoch === sourceEpoch) fn(); };
+    const id = setTimeout(run, ms);
+    sourceTimers.set(id, run); return id;
   }
+  on(reducedMotion, "change", () => {
+    if (!reducedMotion.matches) return;
+    for (const [id, run] of [...sourceFrames]) { cancelAnimationFrame(id); run(); }
+    for (const [id, run] of [...sourceTimers]) { clearTimeout(id); run(); }
+    if (captionExitTimer) hideCaptionNow();
+    bump();
+  });
   undo.push(cancelSourceMotion);
   window.ZzMediaflowController = {
     getActiveBC() {
@@ -1654,9 +1650,7 @@
     safe(clearReserve);
     for (const [nativeButton, toggle] of togglesByNativeButton) {
       toggle.remove();
-      nativeButton.removeAttribute("zzmf-parked");
-      nativeButton.removeAttribute("aria-hidden");
-      nativeButton.style.removeProperty("display");
+      unparkNativePipButton(nativeButton);
     }
     togglesByNativeButton.clear();
     mediaBar?.style.removeProperty("--zen-media-collapsed-height");

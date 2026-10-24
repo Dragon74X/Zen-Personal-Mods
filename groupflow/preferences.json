@@ -1312,7 +1312,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.glow-follows",
-    "label": "Light follows *The selected tab: lines holding it light at its place in the folder, the first row at the top and the last at the bottom, so a lone tab or subfolder sits at the top and switching tabs moves the light. A subfolder's line goes by its own tabs only: the selected tab, else its most recently used loaded tab, else its top. A folder with no loaded tab rests at its top. Point at or scroll a folder's own connector or header arrows and its line shows where you are in it instead; point at its tabs or subfolders, or select a tab, and it goes back to the selected tab. Leaving the sidebar keeps the last one. The light glides between the two. Where you are: every line always shows how far you have scrolled through it.*",
+    "label": "Light follows *The selected tab: lines holding it light at its place in the folder, the first row at the top and the last at the bottom, so a lone tab or subfolder sits at the top and switching tabs moves the light. A subfolder's line goes by its own tabs only: the selected tab, else its most recently used loaded tab, else its top. A folder with no loaded tab rests at its top. Point at or scroll a folder's own connector or context-menu scrolling and its line shows where you are in it instead; point at its tabs or subfolders, or select a tab, and it goes back to the selected tab. Leaving the sidebar keeps the last one. The light glides between the two. Where you are: every line always shows how far you have scrolled through it.*",
     "defaultValue": 1,
     "options": [
       {
@@ -1362,14 +1362,6 @@
     "label": "Fade the edge where tabs are hidden *The tab list's top or bottom edge softly fades while more tabs are scrolled past it, so folders, subfolders and tabs fade as they leave the list. A folder whose contents scroll inside it fades its own edges the same way.*",
     "defaultValue": true,
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "layout"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
-    "operator": "AND"
-  },
-  {
-    "type": "checkbox",
-    "property": "zzgroup.scroll-arrows",
-    "label": "Arrows on hover *With the sidebar expanded, hovering the header of a folder whose contents scroll shows an up and a down arrow beside the tab count; clicking one scrolls a page that way. The arrow at an end stays faint.*",
-    "defaultValue": true,
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "layout"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.connector-scroll", "value": true}}], "operator": "OR"}],
     "operator": "AND"
   },
   {
@@ -2039,7 +2031,7 @@
     "property": "zzgroup.corner.mode",
     "value": "number",
     "label": "Corner shape *Zen 1.22b reshapes every corner with CSS `corner-shape: superellipse()` -- 1.3 on most platforms, 2.3 on Windows -- through a rule on the universal selector, so it reshapes group headers too. Follow Zen mirrors Zen, including Glassflow's Turn squircles off browser-wide setting. Round (classic) restores how headers looked before 1.22b. Set this to match Glassflow's corner shape so headers and tabs agree.*",
-    "defaultValue": 0,
+    "defaultValue": 8,
     "options": [
       {
         "label": "Follow Zen",
@@ -2072,9 +2064,48 @@
       {
         "label": "Scoop",
         "value": 7
+      },
+      {
+        "label": "Shared shape from Glassflow",
+        "value": 8
       }
     ],
-    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "other"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
+    "conditions": [
+      {
+        "conditions": [
+          {
+            "if": {
+              "property": "zzgroup.ui.page",
+              "value": "other"
+            }
+          },
+          {
+            "if": {
+              "property": "zzgroup.ui.page",
+              "value": "all"
+            }
+          },
+          {
+            "if": {
+              "property": "zzgroup.ui.page",
+              "value": ""
+            }
+          }
+        ],
+        "operator": "OR"
+      },
+      {
+        "conditions": [
+          {
+            "if": {
+              "property": "zzgroup.enabled",
+              "value": true
+            }
+          }
+        ],
+        "operator": "OR"
+      }
+    ],
     "operator": "AND",
     "placeholder": false
   },
@@ -2091,7 +2122,7 @@
     "type": "dropdown",
     "property": "zzgroup.corner.radius-source",
     "value": "number",
-    "label": "Radius source *My value uses Header roundness under Headers and labels. Follow Zen uses Zen's own corner radius, including its squircle compensation. Leave Radius compensation Off when following Zen to avoid applying compensation twice.*",
+    "label": "Radius source *My value uses Header roundness under Headers and labels. Follow Zen uses Zen's own corner radius, including its squircle compensation. Auto compensation is applied only to My value; Follow Zen consumes the native compensated radius once.*",
     "defaultValue": 0,
     "options": [
       {

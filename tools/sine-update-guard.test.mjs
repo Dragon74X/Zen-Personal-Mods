@@ -262,13 +262,14 @@ function disk() {
   const under = dir => [...files.keys()].filter(f => f.startsWith(dir + "/"));
   const IOUtils = {
     async exists(path) { return files.has(path) || under(path).length > 0; },
+    async writeJSON() {},
     async getChildren(dir) { return [...new Set(under(dir).map(f => dir + "/" + f.slice(dir.length + 1).split("/")[0]))]; },
     async stat(path) { return files.has(path) ? { type: "regular", size: files.get(path).length } : { type: "directory" }; },
     async remove(path) { files.delete(path); for (const f of under(path)) files.delete(f); },
     async move(from, to) { for (const f of under(from)) { files.set(to + f.slice(from.length), files.get(f)); files.delete(f); } },
-    async copy(from, to, fail) { for (const [n, f] of under(from).entries()) { if (fail && n) throw new Error("copy failed"); files.set(to + f.slice(from.length), files.get(f)); } },
+    async copy(from, to, fail) { for (const [n, f] of under(from).entries()) { if (fail === true && n) throw new Error("copy failed"); files.set(to + f.slice(from.length), files.get(f)); } },
   };
-  const utils = { modsDir: "/m", getModFolder: id => "/m/" + id, async getMods() { return {}; }, async getModPreferences() { return files.get("/m/x/preferences.json"); } };
+  const utils = { modsDir: "/m", modsDataFile: "/m/mods.json", getModFolder: id => "/m/" + id, async getMods() { return {}; }, async getModPreferences() { return files.get("/m/x/preferences.json"); } };
   const manager = {
     async updateMods() {}, async processModUpdate() {}, async installMod() {},
     async syncModData(repo, list, theme, installed) {
@@ -280,7 +281,10 @@ function disk() {
       files.set(folder + "/theme.json", "new theme");
       if (theme.fail === "extract") throw new Error("extraction failed");
       files.set(folder + "/preferences.json", "new prefs");
+      if (theme.fail === "late-extract") throw new Error("late extraction failed");
       await IOUtils.remove(tmp);
+      list[theme.id] = theme;
+      await IOUtils.writeJSON(utils.modsDataFile, list);
       return true;
     },
   };
@@ -294,7 +298,7 @@ function disk() {
 test("a failed update leaves the prior version whole and the next update succeeds", async () => {
   const warn = console.warn; console.warn = () => {};
   try {
-    for (const fail of ["extract", "download"]) {
+    for (const fail of ["extract", "download", "late-extract"]) {
       const { files, manager, utils } = disk();
       await assert.rejects(manager.syncModData("r", {}, { id: "x", fail }, { id: "x" }));
       assert.equal(files.get("/m/x/theme.json"), "old theme", fail);

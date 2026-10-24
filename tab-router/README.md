@@ -131,7 +131,7 @@ TabRouter.forgetCreators()    // clear metadata and pictures
 TabRouter.forgetCreators(id)  // remove this video/resource in each container
 ```
 
-`zzrouter.creators` retains at most 300 metadata records; `zzrouter.avatars`
+The creators cache retains at most 300 metadata records; the avatars cache
 retains at most 100 subjects with 64px icons and optional 384px-wide banners.
 Anonymous requests use the tab's container.
 Private windows start **0** metadata/image requests and persist **0** new records.
@@ -299,3 +299,14 @@ partitioning, anonymous requests and the 15-second timeout remain in force.
 Recovered display associations continue through Groupflow's session mechanism.
 Artwork changes never claim routing ownership, rename/reparent folders, or move
 tabs. Opacity changes reuse cached raster bytes without fetching another image.
+
+## Cache storage
+
+Creators, avatars and learned names now use
+`zen-personal-mods-router-cache.json` in the profile, shared by browser windows.
+Existing cache preferences are migrated only after the replacement file is
+written successfully. A failed migration retains their original bytes. Native
+JSONFile batches writes and flushes at shutdown; container/resource keys and
+existing cache limits are preserved. Routing rules and user settings remain
+preferences. This addresses the large `zzrouter.creators`/`zzrouter.avatars`
+preference warnings, not unrelated browser or extension console exceptions.

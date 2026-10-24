@@ -597,11 +597,14 @@
   const cacheDir = PathUtils.join(PathUtils.tempDir, cacheHost);
   let cacheReady = null, nextStrip = 0;
   async function cacheStrip(svg) {
+    if (retired) return null;
     const file = `${nextStrip++}.svg`;
     cacheReady ??= IOUtils.makeDirectory(cacheDir).then(() => {
+      if (retired) return;
       resource.setSubstitution(cacheHost, Services.io.newURI(PathUtils.toFileURI(cacheDir) + "/"));
     });
     await cacheReady;
+    if (retired) return null;
     await IOUtils.writeUTF8(PathUtils.join(cacheDir, file), svg);
     return `resource://${cacheHost}/${file}`;
   }
@@ -633,6 +636,7 @@
     return url;
   };
   async function dress(el, key) {
+    if (retired) return;
     undress(el);                  // read the button's own image, not our strip
     const url = imageOf(el);
     el.zziconKey = key;
@@ -640,7 +644,7 @@
     if (!url || !/\.svg([?#]|$)|^data:image\/svg\+xml/.test(url)) return;
     const id = key + "\n" + url;
     if (!strips.has(id)) strips.set(id, artwork(url)
-      .then(text => cacheStrip(IconParts.strip(text, key)))
+      .then(text => retired ? null : cacheStrip(IconParts.strip(text, key)))
       .catch(e => { console.warn("[Iconflow] could not animate", key, url.slice(0, 80), e); return null; }));
     const strip = await strips.get(id);
     // Only the latest request for this element, from a live copy, applies:
@@ -653,6 +657,7 @@
   // media card's play/pause and mute. Only those elements are watched.
   const watch = new MutationObserver(() => soon());
   function scan(force) {
+    if (retired) return;
     for (const el of document.querySelectorAll("#star-button, .zen-media-card"))
       watch.observe(el, { attributes: true, attributeFilter: ["starred", "muted", "class"] });
     const seen = new Set(), animate = S.getBoolPref(PREFIX + "animate", true);
@@ -670,6 +675,7 @@
   }
   let timer = 0, forced = false;
   const soon = (force = false) => {
+    if (retired) return;
     forced ||= force;
     clearTimeout(timer);
     timer = setTimeout(() => { const f = forced; forced = false; try { scan(f); } catch (e) { console.error("[Iconflow] parts:", e); } }, 80);
@@ -679,11 +685,13 @@
   const onEvent = () => soon();
   S.addObserver(PREFIX, observer);
   for (const [type, target] of events) target.addEventListener(type, onEvent);
-  window.addEventListener("load", () => soon(true), { once: true });
+  const onLoad = () => soon(true);
+  window.addEventListener("load", onLoad, { once: true });
   soon(true);
   instance.retire = () => {
     if (retired) return;
     retired = true;
+    window.removeEventListener("load", onLoad);
     clearTimeout(timer);
     watch.disconnect();
     try { S.removeObserver(PREFIX, observer); } catch {}

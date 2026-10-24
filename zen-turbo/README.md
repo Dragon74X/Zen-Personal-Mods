@@ -59,7 +59,7 @@ ZenTurbo.warm("https://example.com")
 
 **These counters do not measure socket reuse, successful handshakes, bytes saved, or load-time savings.** Repeated navigations can match one request. Measurement defaults to off. Only explicit measurement installs the diagnostic navigation listener and collects counters; disabling it removes that listener and releases measurement data. Debug logs require their separate explicit setting. The functional recent-warm cache remains independent. Counters belong to the current window/script instance.
 
-Turbo adds one bounded history warmup per session and configurable preference overrides. Zen/Firefox already provides tab and page-link warming. The broad preference packs have no measured speed advantage in this repository; they are optional configuration choices. Disable a pack before removing the mod if you want its captured values restored.
+Turbo adds one bounded history warmup per session and configurable preference overrides. Zen/Firefox already provides tab and page-link warming. The broad preference packs have no measured speed advantage in this repository; they are optional configuration choices. Disabling a pack or removing the mod restores captured values still owned by Turbo. Closing a window or rebuilding enabled scripts keeps feature overrides active. Restart once after upgrading to the new shared lifecycle guard.
 
 `status().managedPrefs` lists captured preference names. `unknownPrefs` lists missing preference names; neither field proves a performance benefit. `warmupRequests` counts accepted API calls, and `recentOriginContexts` counts retained origin/container records, capped at `200`.
 

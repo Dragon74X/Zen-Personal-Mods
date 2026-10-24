@@ -6,6 +6,7 @@ Requires the same Pillow dependency as zen-smoke.py. Never uses a real profile.
 """
 import argparse
 import json
+import re
 from pathlib import Path
 import runpy
 import socket
@@ -272,19 +273,31 @@ def check_subfolder_styles(m):
     def matches(value, state, native=False):
         p = profiles[state]
         colour = {"inactive": "rgb(161, 178, 195)", "hover": "rgb(178, 195, 212)", "active": "rgb(195, 212, 229)"}[state]
-        direction = {"inactive": "to left", "hover": "135deg", "active": "to top"}[state]
+        direction = {"inactive": "270deg", "hover": "135deg", "active": "0deg"}[state]
         assert value['label'] == colour, (state, value)
         opacity_keys = ('folderHeaderOpacity', 'folderLabelOpacity') if native else ('headerOpacity', 'labelOpacity')
         assert value['opacity'] == p['opacity'] and value['headerOpacity'] == baseline[opacity_keys[0]] and value['labelOpacity'] == baseline[opacity_keys[1]], (state, value)
         assert value['width'] > 0 and direction in value['paint'] and p['spread'] in value['paint'], (state, value)
         assert value['blur'] == 'none', (state, value)   # folders blur nothing: Zen's panel does
-        rim_direction = {"inactive": "to right", "hover": "to left", "active": "to top"}[state]
+        rim_direction = {"inactive": "90deg", "hover": "270deg", "active": "0deg"}[state]
         assert value['rim'] and rim_direction in value['rim']['mask'] and p['rim-reach'] in value['rim']['mask'], (state, value)
 
     try:
         # Defaults retain each folder's own palette across all three states.
         # A saved multi-colour gradient is an image, not a tab accent colour.
-        normalize = lambda image: image.removeprefix('none, ').removesuffix(', none')
+        def normalize(image):
+            # Constant transparent layers allow interpolation. Compare the visible
+            # paint, accepting equivalent native CSS colour/direction serialization.
+            image=re.sub(r'rgba\([^()]+, 0\)', 'transparent', image)
+            image=re.sub(r'color\(srgb [^()]+ / 0\)', 'transparent', image)
+            image=image.replace('to right','90deg').replace('to left','270deg').replace('to top','0deg').replace('to bottom','180deg')
+            parts=[];start=depth=0
+            for i,c in enumerate(image):
+                if c=='(':depth+=1
+                elif c==')':depth-=1
+                elif c==',' and depth==0:parts.append(image[start:i].strip());start=i+1
+            parts.append(image[start:].strip())
+            return ', '.join(p for p in parts if p!='none' and not (p.startswith('linear-gradient(') and not re.search(r'(?:rgb|color|hsl)\(',p)))
         default_inactive = point()
         default_hover = point('Child')
         default_plain_hover = point('Grandchild')
@@ -335,21 +348,21 @@ def check_subfolder_styles(m):
         assert len(saved_tint['normal']) >= 2 and all(c[3] == 0 for c in saved_tint['clear']), saved_tint
         assert all(abs(a[i]-b[i]) <= 1 for a, b in zip(saved_tint['normal'], saved_tint['strong']) for i in range(3)), saved_tint
         assert all(abs(b[3]-a[3]/2) <= 1 for a, b in zip(saved_tint['normal'], saved_tint['half'])), saved_tint
-        assert saved_tint['sharedHalf'] == saved_tint['half'], saved_tint
+        assert [c for c in saved_tint['sharedHalf'] if c[3]] == [c for c in saved_tint['half'] if c[3]], saved_tint
         assert all(abs(b[3]-min(255,a[3]*2)) <= 1 for a, b in zip(saved_tint['normal'], saved_tint['strong'])), saved_tint
         container_image = m.script("return (async()=>{" + HELPERS + """
           Services.prefs.setIntPref('zzgroup.color-source',3);Groupflow.refresh();await pause(100);
           return subfolderStyleFixture.ownGradient(group('Child'));
         })();""")
         container = point('Child')
-        assert normalize(container['Child']['paint']) == container_image and container_image != normalize(baseline['savedImage']), container
+        assert normalize(container['Child']['paint']) == normalize(container_image) and container_image != normalize(baseline['savedImage']), container
         stronger_image = m.script("return (async()=>{" + HELPERS + """
           for(const state of ['active','inactive','hover'])
             Services.prefs.setStringPref('zzgroup.subfolder.'+state+'.tint','73%');
           await pause(100);return subfolderStyleFixture.ownGradient(group('Child'),false,'73%');
         })();""")
         stronger = point('Child')
-        assert normalize(stronger['Child']['paint']) == stronger_image and stronger_image != container_image, stronger
+        assert normalize(stronger['Child']['paint']) == normalize(stronger_image) and stronger_image != container_image, stronger
         m.script("""const f=subfolderStyleFixture;
           Services.prefs.setIntPref('zzgroup.color-source',f.source);Groupflow.refresh();
           document.documentElement.style.setProperty('--zzg-tone',f.tone,f.tonePriority);
@@ -466,7 +479,7 @@ def check_sidebar_modes(m, atg):
               });
             })();""")
             assert all(x['width'] > 20 and x['height'] >= 30 and x['inside'] and x['labelFits'] and x['chipsFit'] for x in layout), (compact, expanded, layout)
-            assert layout[0]['arrows'] == 1, ('Overflow fixture missing', compact, expanded, layout)
+            assert all(x['arrows'] == 0 for x in layout), ('Removed header arrows returned', compact, expanded, layout)
             # Real pointer hit testing catches clipped headers and controls that
             # synthetic .click() bypasses. A root press keeps the root visible.
             target = layout[0]

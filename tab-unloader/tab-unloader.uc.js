@@ -254,7 +254,7 @@
   // being broken. Past the cap, sweep anyway: a little animation stutter is a
   // far better failure than never unloading again.
   const MAX_DEFER_MS = 10000;
-  let deferredSince = 0;
+  let deferredSince = 0, deferredTimer = null;
   // Zen marks a trackpad swipe on the tab scroller, the workspaces and the
   // grain layer (ZenSpacesSwipe.mjs), never on :root. A workspace slide is
   // marked on #navigator-toolbox since Zen 1.23b, on :root before it.
@@ -272,11 +272,12 @@
       const waited = Date.now() - deferredSince;
       if (waited < MAX_DEFER_MS) {
         note("sweep deferred: workspace animation in progress");
+        deferredTimer ??= setTimeout(() => { deferredTimer = null; sweep(); }, MAX_DEFER_MS - waited);
         return;
       }
       note(`animation marker stuck for ${Math.round(waited / 1000)}s; sweeping anyway`);
     }
-    deferredSince = 0;
+    clearTimeout(deferredTimer); deferredTimer = null; deferredSince = 0;
     const now = Date.now();
     const tabs = allTabs();
 
@@ -338,6 +339,7 @@
   }
 
   function reschedule(firstDelay = 500) {
+    clearTimeout(deferredTimer); deferredTimer = null; deferredSince = 0;
     if (timer) { clearInterval(timer); timer = null; }
     // A pending first sweep from a previous reschedule must be dropped too,
     // or toggling settings quickly queues one sweep per toggle.
@@ -365,7 +367,7 @@
   const ARC_SAVED = "zzunload-saved.arc";           // outside P: not a setting
   // release: Tab Unloader is being disabled or removed, so Arc gets its settings back.
   function syncArc(release = false) {
-    if (Services.wm.getMostRecentWindow("navigator:browser") !== window) return;
+    if (!release && Services.wm.getMostRecentWindow("navigator:browser") !== window) return;
     const S = Services.prefs, on = !release && bool("enabled", false) && bool("other.arc", true);
     const get = name => {
       const t = S.getPrefType(name);
@@ -492,6 +494,7 @@
     const cleanup = () => {
       if (retired) return;
       retired = true;
+      clearTimeout(deferredTimer); deferredTimer = null;
       window.removeEventListener("popupshowing", folderMenu);
       for (const event of LOADED_EVENTS) window.removeEventListener(event, loadedChanged, true);
       loadedTabs.clear();
@@ -513,7 +516,7 @@
     // releases everything when the window closes.
     // Sine's own unload (disable, removal or update) also gives Arc its
     // settings back; closing a window does not. An update re-applies them.
-    try { window.addUnloadListener?.(() => { cleanup(); try { syncArc(true); } catch {} }); } catch {}
+    try { window.addUnloadListener?.(() => { cleanup(); if (!window.__zzSineWindowClosing && window.__zzSineUnloadReasons?.get("zz-tab-unloader") === "release") try { syncArc(true); } catch {} }); } catch {}
     instance.retire = cleanup;
   }
 

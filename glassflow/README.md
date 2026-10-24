@@ -533,3 +533,28 @@ MIT
 ## October 2026 update
 
 Tools now offers Save appearance, Restore appearance, Copy appearance, and Copy Zen Mods Report. One validated appearance snapshot covers only suite-owned appearance settings and preserves absent user overrides. The immediate report contains bounded settings/version/count information and excludes browsing and file identifiers; timed media diagnostics remain separate.
+
+## State motion and calculated edges
+
+**State motion** defaults to **Crisp**. Soft, Spring, Bounce and Rebound adjust the
+same hover geometry, colour, gradient direction, sheen and rim transitions.
+The close glyph fades/scales into its fixed target while the label makes room.
+Selection switches immediately; the existing title moves 4px sideways, rebounds
+1px and settles at its original position. Tabs, folders and icons do not bounce.
+Rapid selections retarget the current title motion; reduced motion or Instant UI
+cancels it immediately.
+
+**Light transition** offers Horizon, Dawn, Orbital and Atmospheric: different
+subtle light distributions across the existing surface, driven by the saved
+state colours, direction, intensity and edge settings. No separate flash layer
+is added.
+
+**Calculated edges** is opt-in. Rounded glass, Raised, Recessed, Ridge and Groove
+use directional CSS relief with a depth control. The existing state edge width,
+angle, ring, glow and opacity remain the inputs. Text and icons stay sharp. These
+are surface lighting effects, not verified optical backdrop refraction.
+
+Follow Zen radius with Auto compensation now uses the native compensated radius
+once. The transparent-page blur mask follows panel corner geometry and restores
+an existing inline filter on cleanup. Its bounded two-frame compositor refresh
+remains; Windows desktop/GPU backdrop behaviour still requires local checking.

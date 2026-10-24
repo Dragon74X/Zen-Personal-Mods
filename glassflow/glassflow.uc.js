@@ -327,20 +327,20 @@
     if (event.target.id !== "menu_ToolsPopup") return;
     for (const node of toolItems) node.remove(); toolItems.clear();
     const actions = [
-      ["Save appearance", async () => {
+      ["appearance-save", "Save appearance", async () => {
         const saved = await appearanceSnapshot();
         if (window[INSTANCE_KEY] === instance) Services.prefs.setStringPref(APPEARANCE, JSON.stringify(saved));
       }],
-      ["Restore appearance", restoreAppearance],
-      ["Copy appearance", appearanceSnapshot],
-      ["Copy Zen Mods Report", async () => {
+      ["appearance-restore", "Restore appearance", restoreAppearance],
+      ["appearance-copy", "Copy appearance", appearanceSnapshot],
+      ["mods-report-copy", "Copy Zen Mods Report", async () => {
         const { collectReport } = ChromeUtils.importESModule("chrome://sine/content/zz-glassflow/zen-mods-report.sys.mjs");
         return collectReport(window);
       }],
     ];
-    for (const [label, action] of actions) {
+    for (const [id, label, action] of actions) {
       if (label === "Restore appearance" && !savedAppearance()) continue;
-      const item = document.createXULElement("menuitem"); item.setAttribute("label", label);
+      const item = document.createXULElement("menuitem"); item.setAttribute("label", label); item.setAttribute("data-zz-action", "glassflow--" + id);
       item.addEventListener("command", async () => {
         try {
           if (window[INSTANCE_KEY] !== instance) return;

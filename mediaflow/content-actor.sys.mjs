@@ -91,6 +91,7 @@ export class ZzMediaflowChild extends JSWindowActorChild {
     }
 
     if (event.type === "volumechange") {
+      if (target === this._video) this._sendPlaybackState();
       if (this._isAudible(target)) {
         if (!this._video && !target.paused && !target.ended) {
           this._tryStart(target);
@@ -911,6 +912,8 @@ export class ZzMediaflowChild extends JSWindowActorChild {
         time: video.currentTime,
         duration: video.duration,
         paused: video.paused,
+        volume: video.volume,
+        muted: video.muted,
       }, [img.data.buffer]);
       this._sentAt = video.seeking ? undefined : video.currentTime;
     } catch (e) {
@@ -926,6 +929,8 @@ export class ZzMediaflowChild extends JSWindowActorChild {
       time: video.currentTime,
       duration: video.duration,
       paused: video.paused,
+      volume: video.volume,
+      muted: video.muted,
     });
   }
 

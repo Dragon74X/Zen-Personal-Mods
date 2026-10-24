@@ -289,6 +289,10 @@
           // Native handlers retain the actual Download. Recheck command state
           // at execution when a file disappears or a transfer changes meanwhile.
           const popup = [...document.getElementById("mainPopupSet").children].find(p => !popups.has(p));
+          if (popup) {
+            popup.zziconDownload = download;
+            popup.addEventListener("popuphidden", () => { delete popup.zziconDownload; }, { once: true });
+          }
           popup?.addEventListener("command", e => {
             const id = e.target.getAttribute("data-l10n-id"), C = lazy.DownloadsCommon;
             const state = C.stateOfDownload(download), active = state === C.DOWNLOAD_DOWNLOADING || state === C.DOWNLOAD_PAUSED;

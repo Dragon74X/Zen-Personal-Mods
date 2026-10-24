@@ -55,6 +55,9 @@ test('existing storage contracts remain unchanged except approved shape/arrow ch
   const shape = rows.find(r => r[1] === 'zzgroup.corner.mode');
   assert.equal(shape[4], 8); assert.deepEqual(shape[5], [0,1,2,3,4,5,6,7,8]);
   shape[4] = 0; shape[5].pop();
+  const icons=rows.find(r=>r[1]==='zzicon.set');
+  assert.equal(icons[4],4); assert.deepEqual(icons[5],[4,0,2,3]);
+  icons[4]=0;icons[5].shift();
   rows.push(['groupflow','zzgroup.scroll-arrows','checkbox',null,true,null]);
   rows.sort((a,b) => a[1].localeCompare(b[1], 'en'));
   assert.equal(createHash('sha256').update(JSON.stringify(rows)).digest('hex'), '0316bd0c2a6cd4f0a3cc1f7873bfef32fa762ccb8058e7aaff2cf1b2c6c5a038');

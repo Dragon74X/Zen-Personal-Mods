@@ -188,7 +188,7 @@ test("Mediaflow: native state survives same-time pause and hidden capture; PiP t
   const { actor, messages } = mediaActor("content-actor.sys.mjs", "ZzMediaflowChild", "JSWindowActorChild");
   const video = {
     tagName: "VIDEO", currentTime: 30, duration: 100, readyState: 3,
-    videoWidth: 640, videoHeight: 360, paused: false, seeking: false,
+    videoWidth: 640, videoHeight: 360, paused: false, seeking: false, volume: .37, muted: false,
     pause() { this.paused = true; actor.handleEvent({ type: "pause", target: this }); },
     play() { this.paused = false; actor.handleEvent({ type: "play", target: this }); },
   };
@@ -197,6 +197,9 @@ test("Mediaflow: native state survives same-time pause and hidden capture; PiP t
   actor._scaleCanvas = { width: 2, height: 2 };
   actor._ensureScaleContext = () => ({ drawImage() {}, getImageData() { return { data: new Uint8ClampedArray(4) }; } });
   actor._captureFrame("240");
+  assert.equal(messages.at(-1)[1].volume, .37);
+  video.volume = .18;actor.handleEvent({ type: "volumechange", target: video });
+  assert.equal(messages.at(-1)[1].volume, .18, "external numeric volume is delivered without capture polling");
   actor._control("toggle");
   actor._captureFrame("240");
   assert.equal(messages.filter(([name]) => name === "ZenPiP:Frame").length, 1);
@@ -341,7 +344,7 @@ test("Mediaflow: native range seeks once on commit and cancels preview state wit
     return n;
   };
   const env = vm.createContext({
-    document: { createElement: node }, pipContainer: { appendChild() {}, toggleAttribute(k, v) { attrs.set(k, v); } },
+    document: { createElement: node }, pipContainer: { appendChild() {}, setAttribute(k,v){attrs.set(k,v);}, removeAttribute(k){attrs.delete(k);}, toggleAttribute(k, v) { attrs.set(k, v); } },
     holdPreview() {}, releasePreview() {}, safe: fn => fn(), on: (n, event, fn) => n.addEventListener(event, fn), undo: [],
     Services: { prefs: { getBoolPref: () => true, getStringPref: () => "10", addObserver() {} } },
     sourceBC: { id: 11, top: { embedderElement: {} } },
@@ -353,7 +356,8 @@ test("Mediaflow: native range seeks once on commit and cancels preview state wit
   const track = nodes.find(n => n.tag === "input");
   assert.equal(track.type, "range");
   assert.equal(track.attrs.get("aria-label"), "Video position");
-  env.update({ time: 20, duration: 100, paused: false });
+  env.update({ time: 20, duration: 100, paused: false, volume: .37, muted: false });
+  assert.equal(attrs.get("data-zz-volume"), "37");
   assert.equal(track.valueAsNumber, 0.2);
   track.value = "0.65";
   track.handlers.input();

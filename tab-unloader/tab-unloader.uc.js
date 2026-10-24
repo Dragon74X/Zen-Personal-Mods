@@ -432,19 +432,20 @@
     if (!liveFolder(group)) return;
     const parent = panel ? popup.querySelector(".tab-group-edit-actions") : popup;
     if (!parent) return;
-    const add = (label, eligible, action) => {
+    const add = (id, label, eligible, action) => {
       if (!eligible()) return;
       const item = document.createXULElement(panel ? "toolbarbutton" : "menuitem");
       item.zzunloadEligible = eligible;
+      item.setAttribute("data-zz-action", "tab-unloader--" + id);
       item.setAttribute("label", label); item.setAttribute("class", "subviewbutton");
       item.addEventListener("command", () => { if (eligible()) action(); }); parent.appendChild(item); folderItems.add(item);
     };
     const n = window.Groupflow?.folderStatus?.(group);
-    if (n) add(`${n.loaded}/${n.total} loaded · ${n.playing} playing`, () => liveFolder(group), () => {
+    if (n) add("folder-status", `${n.loaded}/${n.total} loaded · ${n.playing} playing`, () => liveFolder(group), () => {
       const current = window.Groupflow?.folderStatus?.(group);
       if (current) Services.prompt.alert(window, "Folder status", `${current.loaded}/${current.total} loaded · ${current.playing} playing`);
     });
-    add("Unload eligible tabs in folder", () => canUnloadFolder(group), () => sweep(group));
+    add("unload-folder", "Unload eligible tabs in folder", () => canUnloadFolder(group), () => sweep(group));
   }
   const LOADED_EVENTS = ["TabOpen", "TabClose", "TabSelect", "TabAttrModified", "SSTabRestored", "TabBrowserDiscarded"];
 

@@ -3,8 +3,8 @@
   "name": "Iconflow",
   "description": "Icon sets and hover motion for Zen. Circuit, matching clean and glass/neon sets that animate on hover; Zen's own icons animated; menu icon animation; motion for close, plus, minus and other buttons; Library button icons; and new tab button options (takes over Better New Tab button).",
   "author": "Dragon74X",
-  "version": "1.20.4",
-  "updatedAt": "2026-10-24T00:16:10Z",
+  "version": "1.21.0",
+  "updatedAt": "2026-10-24T06:55:20Z",
   "homepage": "https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/iconflow",
   "readme": "https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/main/iconflow/README.md",
   "style": {
@@ -35,6 +35,13 @@
     "iconflow-parts.uc.js": {
       "name": "Iconflow parts",
       "description": "Animates Zen's own icons (or New Icons') part by part, from the artwork each button already shows.",
+      "include": [
+        "chrome://browser/content/browser.xhtml"
+      ]
+    },
+    "iconflow-morph.uc.js": {
+      "name": "Circuit Morph",
+      "description": "Approved persistent SVG parts, observed semantic states and interruptible action motion.",
       "include": [
         "chrome://browser/content/browser.xhtml"
       ]

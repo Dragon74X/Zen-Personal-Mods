@@ -59,11 +59,19 @@ https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/iconflow
 
 Requires `sine.allow-unsafe-js` set to `true` in `about:config`.
 
+## Circuit · Morph
+
+New installs default to the approved **Circuit · Morph** set. Existing saved choices stay intact; select it once under **Icon set** to opt in. Enabled controls that follow the set receive persistent inline SVG parts in their native icon slots. Existing explicit native/still and per-button styles are preserved. Menus keep their animation-off default. No SVG security preference changes are needed.
+
+State comes from each actual command target, including Mediaflow's source volume. Native Zen media cards expose mute/activity only; their numeric volume remains unknown. Morph never invokes commands or sets volume. Glassflow supplies pointer direction to the existing rims using their stored shape, state and timing settings.
+
+See [coverage, native checks and install steps](../docs/CIRCUIT-MORPH.md).
+
 ## Icon set
 
 | Setting | Default | Notes |
 |---|---|---|
-| Icon set | Zen's own | Zen's icons, or New Icons' if that mod is installed; or Circuit: glass and neon / clean |
+| Icon set | Circuit · Morph (new installs) | Zen's icons, or New Icons' if that mod is installed; or Circuit: glass and neon / clean |
 | Icon size | Large (20px) | Zen's 16px, 18, 20 or 22px. Toolbar and sidebar icons grow into the padding of their buttons, so the buttons keep their size; the Library button follows |
 | Animate menu icons | off | Context menus and other menus |
 | Animate icons | on | Off keeps every icon still: Zen's own, Circuit, menu icons, hover motion, the Library button and the new tab button's press. Iconflow also stays still when the system asks for reduced motion |

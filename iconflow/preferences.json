@@ -174,7 +174,7 @@
   {
     "type": "checkbox",
     "property": "zzicon.menu.animate",
-    "label": "Animate menu icons *Icons in context menus and other menus (Zen's, or those Context Menu Icons adds) play a short motion when highlighted. Items that do what a toolbar button does move the same way, such as Back, Reload or Bookmark; the rest pop gently. Works with any icon set. Uses Animation speed.*",
+    "label": "Morph and animate menu icons (off by default) *Off leaves original menu icons and text-only entries unchanged. On applies Morph to supported menu and context-menu commands when using that icon set; other sets animate existing menu icons. Uses Animation speed.*",
     "defaultValue": false,
     "operator": "AND",
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}]

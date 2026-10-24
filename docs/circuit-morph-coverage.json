@@ -5,9 +5,9 @@
     "environment": "Linux headless, temporary profiles"
   },
   "engine": "native image/pseudo/background vector frames",
-  "base": "6e22e6ef2c29ee7a13fc92aa32f74d7bf3971d01",
+  "base": "3381bffe7e625d555d55e42618ca3e32bb316134",
   "node": {
-    "passed": 232,
+    "passed": 233,
     "skipped": 1,
     "skippedCheck": "Native smoke opt-in: run separately and passed",
     "sineManager": "Upstream Sine/src/core/manager.sys.mjs supplied"
@@ -17,6 +17,13 @@
       "native renderer attached",
       "no replacement SVG or transparent mask",
       "SVG context policy unchanged",
+      "menu off default leaves zero Morph owners",
+      "context command unchanged while off",
+      "panel command unchanged while off",
+      "menu on attaches context and panel commands",
+      "menu on starts windup",
+      "menu off cancels motion and removes native paint",
+      "new context commands respect menu off",
       "native image owns icon",
       "hover windup advances integer frames",
       "host stays anchored during windup",
@@ -37,18 +44,16 @@
       "Firefox sidebar reads own owner",
       "bookmark reads external insert",
       "bookmark reads external removal",
-      "window glyph reads actual maximize",
+      "window controls excluded from Morph",
       "media replaces existing background once",
       "media keeps numeric authority",
       "media follows external mute/play",
       "animation off stays at rest",
       "reduced motion stays at rest"
     ],
-    "records": 114,
+    "records": 36,
     "windupWrites": 1,
     "paintTypes": [
-      "menuitem:before",
-      "menu:before",
       "toolbarbutton:before",
       "image:image",
       "box:before",
@@ -66,44 +71,11 @@
       "chevron",
       "close-unpinned",
       "compact",
-      "context--back",
-      "context--bookmark",
-      "context--compact",
-      "context--copy",
-      "context--cut",
-      "context--developer",
-      "context--find",
-      "context--forward",
-      "context--new-tab",
-      "context--new-window",
-      "context--paste",
-      "context--print",
-      "context--private",
-      "context--reload",
-      "context--reopen",
-      "context--save-page",
-      "context--screenshot",
-      "context--send-tab",
-      "context--share",
-      "context--stop",
-      "downloads",
       "extensions",
-      "find",
       "firefox-library",
       "forward",
-      "fullscreen",
       "glassflow--close-tab",
-      "glassflow--window-close",
-      "glassflow--window-max",
-      "glassflow--window-min",
-      "glassflow-library--delete-file",
-      "glassflow-library--pause-download",
-      "glassflow-library--remove-download-history",
-      "glassflow-library--show-file",
       "groupflow--native-ungroup",
-      "help",
-      "history",
-      "logins",
       "mediaflow--pip-back",
       "mediaflow--pip-close",
       "mediaflow--pip-forward",
@@ -113,27 +85,50 @@
       "menu",
       "minus",
       "new-tab",
-      "new-window",
       "overflow",
-      "print",
-      "private",
-      "quit",
       "reader",
       "reload",
-      "save-page",
-      "settings",
       "sidebar",
       "site-data",
-      "stop",
-      "zoom-in",
-      "zoom-out"
+      "stop"
+    ],
+    "windowOwnership": [
+      {
+        "glass": false,
+        "glyph": false
+      },
+      {
+        "glass": false,
+        "glyph": true
+      },
+      {
+        "glass": true,
+        "glyph": false
+      },
+      {
+        "glass": true,
+        "glyph": true
+      }
     ],
     "windowPaint": [
-      "titlebar-min",
-      "titlebar-max",
-      "titlebar-close"
+      {
+        "glyph": "titlebar-min",
+        "samePixelsWithMorphOff": true
+      },
+      {
+        "glyph": "titlebar-max",
+        "samePixelsWithMorphOff": true
+      },
+      {
+        "glyph": "titlebar-close",
+        "samePixelsWithMorphOff": true
+      },
+      {
+        "glyph": "titlebar-restore",
+        "samePixelsWithMorphOff": true
+      }
     ],
-    "spritePaintCases": 225,
+    "spritePaintCases": 222,
     "closePaint": [
       {
         "dpi": "1.0",
@@ -189,6 +184,13 @@
       "native renderer attached",
       "no replacement SVG or transparent mask",
       "SVG context policy unchanged",
+      "menu off default leaves zero Morph owners",
+      "context command unchanged while off",
+      "panel command unchanged while off",
+      "menu on attaches context and panel commands",
+      "menu on starts windup",
+      "menu off cancels motion and removes native paint",
+      "new context commands respect menu off",
       "native image owns icon",
       "hover windup advances integer frames",
       "host stays anchored during windup",
@@ -209,7 +211,7 @@
       "Firefox sidebar reads own owner",
       "bookmark reads external insert",
       "bookmark reads external removal",
-      "window glyph reads actual maximize",
+      "window controls excluded from Morph",
       "media replaces existing background once",
       "media keeps numeric authority",
       "media follows external mute/play",
@@ -231,6 +233,10 @@
       "native close visible",
       "native close owns paint",
       "native close visible",
+      "window owner unchanged false/false",
+      "window owner unchanged false/true",
+      "window owner unchanged true/false",
+      "window owner unchanged true/true",
       "other sets release native paint",
       "reenable native frames",
       "reinjection releases old records",
@@ -255,6 +261,8 @@
     "reliefSurfaces": 5,
     "sidebarPageCases": 24,
     "nativeLegacyIconPaintCases": 72,
-    "pointerSwitchIndependent": true
-  }
+    "pointerSwitchIndependent": true,
+    "verification": "Unchanged Glassflow 3.74.3; checks retained from PR #192"
+  },
+  "iconflowVersion": "1.21.3"
 }

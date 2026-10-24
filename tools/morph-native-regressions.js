@@ -6,9 +6,25 @@ return (async()=>{
  const wait=nativeWait,check=nativeCheck,rec=nativeRecord;
  const frame=r=>+getComputedStyle(r.paint).getPropertyValue('--zzicon-frame');
  const event=(r,type)=>r.host.dispatchEvent(new PointerEvent(type,{bubbles:true,pointerType:'mouse'}));
- check('native renderer attached',__zziconMorphInstance.records.size>40);
+ check('native renderer attached',__zziconMorphInstance.records.size>20);
  check('no replacement SVG or transparent mask',!document.querySelector('.zzicon-morph-glyph,[data-zz-morph-slot]'));
  check('SVG context policy unchanged',!Services.prefs.getBoolPref('svg.context-properties.content.enabled'));
+ await PanelUI.show();await wait(200);
+ const menuSelector='menupopup,panelview,menu,menuitem';
+ const menuRecords=()=>[...__zziconMorphInstance.records.values()].filter(r=>r.host.closest(menuSelector));
+ check('menu off default leaves zero Morph owners',!Services.prefs.getBoolPref('zzicon.menu.animate')&&menuRecords().length===0);
+ check('context command unchanged while off',!rec('#context_undoCloseTab'));
+ check('panel command unchanged while off',!rec('#appMenu-settings-button'));
+ Services.prefs.setBoolPref('zzicon.menu.animate',true);
+ for(let i=0;i<60&&(!rec('#context_undoCloseTab')||!rec('#appMenu-settings-button'));i++)await wait(50);
+ check('menu on attaches context and panel commands',!!rec('#context_undoCloseTab')&&!!rec('#appMenu-settings-button'));
+ const menuItem=rec('#appMenu-settings-button');event(menuItem,'pointerover');await wait(40);
+ check('menu on starts windup',!!menuItem.animation);
+ Services.prefs.setBoolPref('zzicon.menu.animate',false);await wait(150);
+ check('menu off cancels motion and removes native paint',!menuItem.animation&&menuRecords().length===0&&!menuItem.paint.hasAttribute('zzicon-motion'));
+ // Added commands must obey the same opt-out before creating icon slots.
+ const dynamic=document.createXULElement('menuitem');dynamic.setAttribute('data-zz-action','glassflow--mods-report-copy');dynamic.setAttribute('label','Menu opt-out check');document.getElementById('tabContextMenu').append(dynamic);await wait(120);
+ check('new context commands respect menu off',!dynamic.hasAttribute('zzicon-motion-host')&&!dynamic.classList.contains('menuitem-iconic')&&!dynamic.querySelector('[zzicon-motion]'));dynamic.remove();PanelUI.hide();await wait(1000);
  Services.prefs.setBoolPref('zen.view.sidebar-expanded',true);document.documentElement.setAttribute('zen-sidebar-expanded','true');document.documentElement.setAttribute('zen-compact-mode','false');
  window.nativeTab=gBrowser.addTab('about:blank',{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});gBrowser.selectedTab=nativeTab;
  await wait(500);
@@ -41,7 +57,7 @@ return (async()=>{
  const {PlacesUtils}=ChromeUtils.importESModule('resource://gre/modules/PlacesUtils.sys.mjs');
  const url=nativeFixtureURL;gBrowser.selectedBrowser.loadURI(Services.io.newURI(url),{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal()});await wait(900);
  const saved=await PlacesUtils.bookmarks.insert({parentGuid:PlacesUtils.bookmarks.unfiledGuid,url,title:'Icon check'});await wait(400);check('bookmark reads external insert',rec('#star-button').state==='saved');await PlacesUtils.bookmarks.remove(saved.guid);await wait(400);check('bookmark reads external removal',rec('#star-button').state==='unsaved');
- window.maximize();await wait(300);const max=rec('.titlebar-max')||rec('.titlebar-restore');check('window glyph reads actual maximize',max.model.state==='maximized');window.restore();await wait(500);
+ check('window controls excluded from Morph',![...__zziconMorphInstance.records.keys()].some(e=>e.matches('.titlebar-button'))&&!document.querySelector('.titlebar-button[zzicon-motion-host],.titlebar-button [zzicon-motion]'));
  ZzMediaflowController.updateControls({time:2,duration:20,paused:true,volume:.37,muted:false});await wait(100);
  check('media replaces existing background once',rec('.zzmf-pip-mute').mode==='background'&&getComputedStyle(rec('.zzmf-pip-mute').host,'::before').content==='none');
  check('media keeps numeric authority',rec('.zzmf-pip-mute').model.level===37&&rec('.zzmf-pip-play').state==='paused');

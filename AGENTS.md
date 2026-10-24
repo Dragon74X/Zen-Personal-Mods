@@ -15,3 +15,9 @@ Glassflow and Groupflow show one page at a time through `*.ui.page`. Every row
 after the picker carries the page condition first, then its own conditions
 (`tools/settings.test.mjs` enforces this). Colours belong to Glassflow; other
 mods say where to find them rather than adding their own colour settings.
+
+# Window controls
+
+Preserve the existing close, minimize, maximize and restore button glyphs and
+behavior. Keep them outside Iconflow/Morph artwork and animation changes unless
+the user explicitly requests changes to those window controls.

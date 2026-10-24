@@ -22,7 +22,9 @@ Icon sets and hover motion for [Zen Browser](https://zen-browser.app/).
   SVGs load through chrome/resource URLs so theme colors work with Firefox's
   default SVG policy. Generated strips use temporary files, removed on retirement;
   hover animation performs no file writes. Non-square icon boxes retain every frame.
-- **Animate menu icons** (off by default): icons in context menus and other
+- **Morph and animate menu icons** (off by default): Off leaves original menu
+  icons and text-only entries unchanged. On applies Morph to supported menu
+  commands when using that set; icons in context menus and other
   menus, Zen's or those Context Menu Icons adds, move when highlighted.
   Items that match a toolbar button (Back, Reload, Bookmark, Copy, Save and
   so on) move the same way; the rest pop gently.
@@ -59,7 +61,10 @@ https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/iconflow
 
 Requires `sine.allow-unsafe-js` set to `true` in `about:config`.
 
-## Circuit · Morph on the native engine (1.21.2)
+## Circuit · Morph on the native engine (1.21.3)
+
+Close, minimize, maximize and restore retain their existing Glassflow/Zen glyphs
+and behavior; Iconflow does not replace or animate those window controls.
 
 The approved artwork, hover windup, release and settle now use vector frame strips
 on native images and existing glyph pseudo-elements. The old engine owns layout,
@@ -83,7 +88,7 @@ See [engine comparison and native checks](../docs/CIRCUIT-MORPH.md).
 |---|---|---|
 | Icon set | Circuit · Morph (new installs) | Zen's icons, or New Icons' if that mod is installed; or Circuit: glass and neon / clean |
 | Icon size | Large (20px) | Zen's 16px, 18, 20 or 22px. Toolbar and sidebar icons grow into the padding of their buttons, so the buttons keep their size; the Library button follows |
-| Animate menu icons | off | Context menus and other menus |
+| Morph and animate menu icons | off | Off leaves original menu/context-menu content unchanged |
 | Animate icons | on | Off keeps every icon still: Zen's own, Circuit, menu icons, hover motion, the Library button and the new tab button's press. Iconflow also stays still when the system asks for reduced motion |
 | Animation speed | Smooth (0.45s) | Quick 0.3s, Slow 0.7s |
 | Glow on hover | on | A soft light in the icon's own colour while hovered, for glass/neon Circuit and Zen's own; clean stays crisp |

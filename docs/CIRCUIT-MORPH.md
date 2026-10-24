@@ -8,14 +8,14 @@ In Zen **Settings → Sine**, use the existing repository-install field with eac
 
 | Module | Version | Sine installation URL |
 |---|---|---|
-| Glassflow | 3.74.0 | https://github.com/Dragon74X/Zen-Personal-Mods/tree/circuit-morph/glassflow |
-| Groupflow | 1.75.0 | https://github.com/Dragon74X/Zen-Personal-Mods/tree/circuit-morph/groupflow |
-| Iconflow | 1.21.0 | https://github.com/Dragon74X/Zen-Personal-Mods/tree/circuit-morph/iconflow |
-| Glassflow Library | 1.4.0 | https://github.com/Dragon74X/Zen-Personal-Mods/tree/circuit-morph/glassflow-library |
-| Download Prompt | 1.4.4 | https://github.com/Dragon74X/Zen-Personal-Mods/tree/circuit-morph/download-prompt |
-| Tab Router | 1.37.4 | https://github.com/Dragon74X/Zen-Personal-Mods/tree/circuit-morph/tab-router |
-| Tab Unloader | 1.15.4 | https://github.com/Dragon74X/Zen-Personal-Mods/tree/circuit-morph/tab-unloader |
-| Mediaflow | 2.8.0 | https://github.com/Dragon74X/Zen-Personal-Mods/tree/circuit-morph/mediaflow |
+| Glassflow | 3.74.1 | https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/glassflow |
+| Groupflow | 1.75.0 | https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/groupflow |
+| Iconflow | 1.21.1 | https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/iconflow |
+| Glassflow Library | 1.4.0 | https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/glassflow-library |
+| Download Prompt | 1.4.4 | https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/download-prompt |
+| Tab Router | 1.37.4 | https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/tab-router |
+| Tab Unloader | 1.15.4 | https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/tab-unloader |
+| Mediaflow | 2.8.0 | https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/mediaflow |
 
 Quit **all** Zen windows and restart once, so cached Mediaflow actors are replaced. In Iconflow, select **Icon set → Circuit · Morph** if upgrading from a saved older set. New/unset installations select Morph automatically. Controls set to follow the set use Morph; explicit native/still/per-button choices and animation-off remain intact. Library's existing **Follow icon set** choice is honored. No comparison UI or global SVG/security preference change is installed.
 
@@ -28,6 +28,26 @@ The ZIP contains these complete mod folders and the normal `theme.json` manifest
 - Persistent paths and analytic position/velocity channels replace competing icon transforms and sprite presentation on Morph-owned slots. Reload retains `+360/+360/−360`, Stop `−90`, New Tab `+90`; commands are only observed. Native commands execute immediately and menus dismiss independently of animation. Shared per-window scheduling stops for settled, hidden, removed, disabled and reduced-motion records.
 - Glassflow owns pointer input for existing rims. Each nested surface receives local geometry and continuous direction retargeting. Entry and return use the existing motion-profile scale; return reads the latest effective state origin. Layout events, resize observation and external style changes handle relocation without idle polling. No extra rim, blur owner or browser-wide shape override is introduced.
 - Source-owned IDs replace translated-label matching in Glassflow, Groupflow, Router, Unloader and Mediaflow menus. Existing applicability checks and command-time eligibility remain in their source owners. Library forwarding retains the actual Download and releases its popup association.
+
+## Placement and scheduling fix (Iconflow 1.21.1 / Glassflow 3.74.1)
+
+The first release could offset glyphs in badge stacks and transformed sidebars, paint tab-close glyphs when native opacity hid their slots, and repeatedly inspect every control after ordinary hover transitions. This update uses native CSS anchors, verified on Zen 1.23.4b, for native image boxes; native padding and opacity remain authoritative. Unsupported anchor runtimes retain native presentation. Original anchor names and owned positioning are restored on removal.
+
+Discovery now visits changed subtrees. Native state refresh and opacity transitions share the existing finite scheduler; settled paths are cached instead of rewritten. Edge inputs are non-inheriting, with explicit forwarding to Groupflow's existing child and rail painters. Paint transitions cannot keep geometry tracking alive. No artwork, action timing, command dispatch, preferences or blur ownership changes are included in this fix. All 125 action IDs and ten state adapters remain covered by the same manifest; pause/resume selector changes retain their persistent paths.
+
+The native regression creates 36 tabs and delivers 200 paint-transition events across 20 pointer frames, with tab/sidebar edges enabled. Measured against `35c4e90` in the same Zen runtime:
+
+| Work in that synthetic hover workload | Before | After |
+|---|---:|---:|
+| Full-document icon selector queries | 7,720 | 0 |
+| Native icon-slot geometry reads | 58,560 | 0 |
+| Settled glyph attribute writes | 11,640 | 0 |
+
+These are operation counts, not a claimed desktop frame-rate measurement. Native checks also cover badge stacks, scaled/translated containers, position-only movement, native close visibility, generated menu attachment/removal, local edge inheritance, Groupflow child/pseudo painters, and scheduler cleanup after pointer exit during a geometry transition. `tools/morph-native-regressions.js` runs through the existing native regression entry point; it is not shipped in a mod.
+
+Fix verification: **235 tests passed, 0 failed, 0 skipped**, including the **29 supplied preview groups** and **67 native/lifecycle assertions** on Zen 1.23.4b. The production glyph contact sheet was inspected again at 16/24/32/48 px. The installed Sine engine and the platform/media limits listed below remain unverified.
+
+Update **Iconflow and Glassflow** in Sine, wait for completion, quit all Zen windows, and restart. Existing controls and set/animation choices remain saved. The published source is `main`; the earlier offline ZIP predates this fix. Native execution below uses a disposable headless Zen profile, not the user's desktop or an installed Sine update engine.
 
 ## Action coverage
 

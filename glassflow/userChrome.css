@@ -1705,15 +1705,20 @@
 /* Edge input belongs to Glassflow; painters retain their original shapes,
    state colors, strengths and gates. Owner marker never inherits to children. */
 @property --zzg-edge-owner { syntax: "*"; inherits: false; initial-value: none; }
-:is(.tabbrowser-tab, .tab-group-label-container, .tab-group-container, #navigator-toolbox,
- #zen-toolbar-background, .titlebar-button, #zen-workspaces-button, #zen-workspaces-button toolbarbutton,
- #navigator-toolbox .toolbarbutton-1, .zzicon-ws-swatch, .zzicon-ws-search,
- .zen-library-space, zen-library, #zen-library-download-list, .zzgf-gradient-editor, .zzdl-panel, .zzdl-name, .zzdl-btn,
- #zen-sidebar-pip-container, #zen-sidebar-pip-caption, zen-zap-bar) {
-  --zzg-follow-angle: initial; --zzg-follow-gradient: initial;
-  --zzg-follow-ring-x: initial; --zzg-follow-ring-y: initial;
-  --zzg-follow-top: initial; --zzg-follow-right: initial; --zzg-follow-bottom: initial; --zzg-follow-left: initial;
+/* Unregistered inherited pointer variables invalidated the entire sidebar on
+   every frame. These inputs belong to one surface, not its descendants. */
+@property --zzg-follow-angle { syntax: "*"; inherits: false; }
+@property --zzg-follow-gradient { syntax: "*"; inherits: false; }
+@property --zzg-follow-ring-x { syntax: "*"; inherits: false; }
+@property --zzg-follow-ring-y { syntax: "*"; inherits: false; }
+@property --zzg-follow-top { syntax: "*"; inherits: false; }
+@property --zzg-follow-right { syntax: "*"; inherits: false; }
+@property --zzg-follow-bottom { syntax: "*"; inherits: false; }
+@property --zzg-follow-left { syntax: "*"; inherits: false; }
+.tab-group-label-container > .zzgf-rim, .tab-group-container::before {
+  --zzg-follow-angle: inherit; --zzg-follow-gradient: inherit;
 }
+
 @media (-moz-pref("zzglass.edges.enabled")) {
   :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab { --zzg-edge-owner: tab; }
 }

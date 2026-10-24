@@ -48,11 +48,11 @@ function createRecord(button,definition,model){
  const record={id:definition.id,definition,model,svg:button,phase:'rest',hover:false,focus:false,consumed:false,parts:[]};
  record.parts=definition.parts.map((part,i)=>{
   const nodes=[...button.querySelectorAll(`[data-part="${i}"]`)];
-  const path=nodes[0].querySelector('path'),restFill=Number(path?.getAttribute('fill-opacity')??1),base=current?.values[i]||part.rest||{};
+  const paths=nodes.map(node=>node.querySelector('path')),path=paths[0],restFill=Number(path?.getAttribute('fill-opacity')??1),base=current?.values[i]||part.rest||{};
   const d=cleanPath(base.d||(part.morph?path?.getAttribute('d'):null));
   const at=transform(base),channels={x:channel(at.x,time),y:channel(at.y,time),angle:channel(at.angle,time),fillOpacity:channel(base.fillOpacity??restFill,time)};
   if(d)channels.d=numbers(d).map(n=>channel(n,time));
-  return {definition:part,nodes,channels,template:d,restD:d,restFill,paintFill:!!model||part.rest?.fillOpacity!==undefined,turn:0,returnAt:null};
+  return {definition:part,nodes,paths,paint:{},channels,template:d,restD:d,restFill,paintFill:!!model||part.rest?.fillOpacity!==undefined,turn:0,returnAt:null};
  });
  draw(record,time);return record;
 }
@@ -74,12 +74,13 @@ function draw(record,time){
   const fill=timeline&&index>0&&index<timeline.marker
    ?part.restFill+(1-part.restFill)*Math.max(0,Math.min(1,(timeline.thresholds[index-1]-markerY)/timeline.span))
    :Math.max(0,Math.min(1,motionAt(c.fillOpacity,time).x));
-  for(const node of part.nodes){
-   node.setAttribute('transform',tx);
-   const path=node.querySelector('path');
-   if(d)path.setAttribute('d',d);
-   if(d||part.paintFill)path.setAttribute('fill-opacity',String(rounded(fill)));
+  const opacity=String(rounded(fill));
+  for(const [i,node] of part.nodes.entries()){
+   if(part.paint.transform!==tx)node.setAttribute('transform',tx);
+   if(d&&part.paint.d!==d)part.paths[i].setAttribute('d',d);
+   if((d||part.paintFill)&&part.paint.fill!==opacity)part.paths[i].setAttribute('fill-opacity',opacity);
   }
+  part.paint={transform:tx,d,fill:opacity};
  }
 }
 function partTarget(record,index,kind,time,instant=false){
@@ -105,9 +106,9 @@ function rest(record,time=performance.now(),instant=false){
  if(instant){active.delete(record);draw(record,time);phase(record,'rest')}
  else{phase(record,'return');active.add(record);schedule()}
 }
-function schedule(){if(frame===null&&active.size&&!reduced()&&!document.hidden)frame=requestAnimationFrame(tick)}
+function schedule(){if(frame===null&&!retired&&!document.hidden&&(pending||presentations.size||fading.size||active.size&&!reduced()))frame=requestAnimationFrame(tick)}
 function tick(time){
- frame=null;
+ frame=null;flush();
  if(retired||document.hidden||reduced()){for(const record of [...active])rest(record,time,true);return}
  for(const record of [...active]){
   if (!visible(record)) { rest(record,time,true); continue; }
@@ -153,17 +154,18 @@ function action(record,time){
 if (typeof window === 'undefined') { globalThis.IconMorph={motionAt,retarget,channel,pose,mixPath,transform}; return; }
 const KEY='__zziconMorphInstance';
 window[KEY]?.retire();
-const S=Services.prefs, abort=new AbortController(), active=new Set(), instances=new Map(), positions=new Map();
+const S=Services.prefs, abort=new AbortController(), active=new Set(), instances=new Map(), positions=new Map(), slots=new Map();
+const roots=new Set(), presentations=new Set(), fading=new Set();
 const reduce=matchMedia('(prefers-reduced-motion: reduce)'), forced=matchMedia('(forced-colors: active)');
-let retired=false, frame=null, pending=false, data=null, contextDownload=null;
+let retired=false, frame=null, pending=false, data=null, contextDownload=null, bindings=[], bindingSet=new Set(), selector='', serial=0, speedValue=1;
 const downloadTargets=new WeakMap();
 const int=(key,fallback=0)=>S.getIntPref('zzicon.'+key,fallback);
 const reduced=()=>reduce.matches||forced.matches||!S.getBoolPref('zzicon.animate',true);
 const stationary=r=>reduced()||(r.host?.closest('menuitem, menupopup')&&!S.getBoolPref('zzicon.menu.animate',false));
-const speed=()=>Math.max(.1,parseFloat(S.getStringPref('zzicon.speed','0.45'))/.45||1);
+const speed=()=>speedValue;
 const listen=(target,type,fn,options={})=>target.addEventListener(type,fn,{...options,signal:abort.signal});
 const enabled=b=>!forced.matches&&int('set',4)===4&&(b.setting==='library'?int('library.style',11)===11:!b.setting||int('button.'+b.setting)===0);
-const visible=r=>r.host.isConnected&&!r.host.closest('[hidden], [collapsed="true"]')&&r.host.getClientRects().length&&getComputedStyle(r.host).visibility==='visible'&&(!r.host.closest('menupopup, panel')||['open','showing'].includes(r.host.closest('menupopup, panel').state));
+const visible=r=>r.present&&r.host.isConnected;
 const svgNS='http://www.w3.org/2000/svg';
 const svgNode=(tag,attrs={})=>{const el=document.createElementNS(svgNS,tag);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,v);return el;};
 const commandSelector='toolbarbutton, button, menuitem, menu, .tab-close-button, .tab-reset-button, .urlbar-icon';
@@ -205,24 +207,39 @@ function snapshot(binding,host,definition) {
  return {definition:control,state};
 }
 function modelKey(model){return model?JSON.stringify([model.state,model.level,model.unknown]):'';}
-function locate(record){
- if(!record.svg.isConnected)return;
- const titlebar=record.host.classList.contains('titlebar-button')&&S.getBoolPref('zzglass.buttons.enabled',false);
- const box=(titlebar?record.host:record.slot).getBoundingClientRect(), parent=record.svg.parentElement, rect=parent.getBoundingClientRect();
- const css=getComputedStyle(record.slot), ps=getComputedStyle(parent);
- const original=record.slot!==record.host||['image','img'].includes(record.slot.localName);
- let width=original?box.width-parseFloat(css.paddingLeft)-parseFloat(css.paddingRight):Math.min(20,box.height-8);
- let height=original?box.height-parseFloat(css.paddingTop)-parseFloat(css.paddingBottom):width;
- if(titlebar)width=height=box.width*(parseFloat(getComputedStyle(record.host).getPropertyValue('--zzg-glyph'))||.62);
- if(!(width>0&&height>0)){record.svg.style.visibility='hidden';return;}
- // Generated menu entries use the native menu image slot; text and hit boxes stay native.
- const x=box.left-rect.left-parent.clientLeft+parent.scrollLeft+(original?(box.width-width)/2:(box.width-width)/2);
- const y=box.top-rect.top-parent.clientTop+parent.scrollTop+(box.height-height)/2;
- Object.assign(record.svg.style,{left:x+'px',top:y+'px',width:width+'px',height:height+'px',visibility:'visible'});
+// Gecko anchors follow the native slot through transforms, popup relocation,
+// flex reordering and compact expansion. No screen-coordinate subtraction or
+// per-icon geometry polling. Padding/visibility stay under the native owner.
+function presentation(record){
+ const {slot,host}=record,titlebar=host.classList.contains('titlebar-button')&&S.getBoolPref('zzglass.buttons.enabled',false);
+ const source=titlebar?host:slot,css=getComputedStyle(source),popup=host.closest('menupopup, panel');
+ const shown=source.isConnected&&css.display!=='none'&&css.visibility==='visible'&&source.getClientRects().length&&(!popup||['open','showing'].includes(popup.state));
+ const opacity=slot===host&&!record.imageSlot?1:Number(css.opacity);
+ const inset=side=>(parseFloat(css['padding'+side])||0)+(parseFloat(css['border'+side+'Width'])||0);
+ return {record,shown,opacity,insets:['Left','Top','Right','Bottom'].map(inset)};
 }
+function paintPresentation({record:r,shown,opacity,insets}){
+ r.present=!!shown&&opacity>0;
+ const write=(key,value)=>{if(r.svg.style[key]!==value)r.svg.style[key]=value;};
+ write('visibility',shown?'inherit':'hidden');write('opacity',String(opacity));
+ if(r.slot!==r.host||r.imageSlot){
+  const [left,top,right,bottom]=insets;
+  write('left',`calc(anchor(left) + ${left}px)`);write('top',`calc(anchor(top) + ${top}px)`);
+  write('width',`max(0px, calc(anchor-size(width) - ${left+right}px))`);
+  write('height',`max(0px, calc(anchor-size(height) - ${top+bottom}px))`);
+ }
+ if(!r.present&&active.has(r))rest(r,performance.now(),true);
+}
+function present(root){
+ for(const r of instances.values())if(root===document||root===r.slot||root.contains?.(r.host)||r.host.contains(root))presentations.add(r);
+ schedule();
+}
+
 function remove(record){
- active.delete(record);instances.delete(record.host);resize.unobserve(record.slot);
- record.svg.remove();record.slot.removeAttribute('data-zz-morph-slot');record.host.removeAttribute('data-zz-morph');
+ active.delete(record);instances.delete(record.host);slots.delete(record.slot);presentations.delete(record);fading.delete(record);resize.unobserve(record.slot);
+ record.svg.remove();
+ if(record.anchorValue)record.slot.style.setProperty('anchor-name',record.anchorValue,record.anchorPriority);else record.slot.style.removeProperty('anchor-name');
+ record.slot.removeAttribute('data-zz-morph-slot');record.host.removeAttribute('data-zz-morph');
  if(record.addedClass)record.host.classList.remove('menuitem-iconic');
  if(record.ownedSlot)record.slot.remove();
  const parent=record.parent;
@@ -255,35 +272,83 @@ function attach(binding,el){
  const parent=slot===host&&!imageSlot?host:slot.parentElement;
  if(!positions.has(parent)&&getComputedStyle(parent).position==='static'){positions.set(parent,{users:0,value:parent.style.getPropertyValue('position'),priority:parent.style.getPropertyPriority('position')});parent.style.position='relative';}
  if(positions.has(parent))positions.get(parent).users++;
+ const anchorValue=slot.style.getPropertyValue('anchor-name'),anchorPriority=slot.style.getPropertyPriority('anchor-name');
+ if(slot!==host||imageSlot){
+  const anchor='--zzicon-slot-'+(++serial),native=getComputedStyle(slot).anchorName;
+  slot.style.setProperty('anchor-name',native&&native!=='none'?native+', '+anchor:anchor,'important');svg.style.positionAnchor=anchor;
+ }
+ else svg.classList.add('zzicon-morph-centered');
  parent.append(svg);host.setAttribute('data-zz-morph',binding.action);if(slot!==host||imageSlot)slot.setAttribute('data-zz-morph-slot','');
- const record=createRecord(svg,definition,model);Object.assign(record,{host,slot,parent,addedClass,ownedSlot,binding,key:modelKey(model)});
- instances.set(host,record);resize.observe(slot);locate(record);
+ const record=createRecord(svg,definition,model);Object.assign(record,{host,slot,parent,el,imageSlot,anchorValue,anchorPriority,addedClass,ownedSlot,binding,key:modelKey(model),present:false});
+ instances.set(host,record);slots.set(slot,record);resize.observe(slot);presentations.add(record);
+}
+function discover(root){
+ if(!selector||!root.isConnected)return;
+ const candidates=[...(root.matches?.(selector)?[root]:[]),...root.querySelectorAll(selector)];
+ for(const el of candidates){
+  const binding=bindings.find(b=>el.matches(b.selector));if(!binding)continue;
+  const host=el.matches(commandSelector)?el:el.closest(commandSelector)||el,old=instances.get(host);
+  if(old?.binding.action===binding.action)continue;
+  if(old)remove(old);attach(binding,el);
+ }
+}
+function flush(){
+ if(retired||!data)return;
+ const statesChanged=pending;
+ if(pending){
+  pending=false;
+  for(const r of [...instances.values()]){
+   if(!r.el.isConnected){remove(r);continue;}
+   if(bindingSet.has(r.binding)&&r.el.matches(r.binding.selector))continue;
+   const next=bindings.find(b=>r.el.matches(b.selector));
+   // Pause/resume may change localization selectors while retaining the same
+   // native command and semantic control. Keep its paths and motion channels.
+   if(next?.action===r.binding.action)r.binding=next;else remove(r);
+  }
+  // Only added/changed subtrees are discovered; state and layout events never
+  // rescan 193 document-wide selectors. Coalesce overlapping mutation roots.
+  const batch=[...roots];roots.clear();
+  for(const root of batch)if(!batch.some(other=>other!==root&&other.contains(root)))discover(root);
+ }
+ const paints=[...new Set([...presentations,...fading])].filter(r=>instances.has(r.host)).map(presentation);presentations.clear();
+ for(const paint of paints)paintPresentation(paint);
+ if(!statesChanged)return;
+ for(const r of instances.values()){
+  if(!r.model)continue;
+  const model=snapshot(r.binding,r.host,r.definition),key=modelKey(model);
+  if(key!==r.key){r.model=model;r.key=key;if(visible(r))action(r,performance.now());else rest(r,performance.now(),true);}
+ }
 }
 function sync(){
- pending=false;if(retired||!data)return;
- const wanted=new Map();
- for(const binding of data.bindings){
-  if(!enabled(binding))continue;
-  for(const el of document.querySelectorAll(binding.selector)){
-   const host=el.matches(commandSelector)?el:el.closest(commandSelector)||el;
-   if(!wanted.has(host))wanted.set(host,{binding,el});
+ if(!data||retired)return;
+ speedValue=Math.max(.1,parseFloat(S.getStringPref('zzicon.speed','0.45'))/.45||1);
+ bindings=data.bindings.filter(enabled);bindingSet=new Set(bindings);selector=bindings.map(b=>b.selector).join(',');
+ roots.add(document.documentElement);pending=true;present(document);flush();schedule();
+}
+function soon(){pending=true;schedule();}
+const resize=new ResizeObserver(entries=>{for(const e of entries){const r=slots.get(e.target);if(r)presentations.add(r);}schedule();});
+const changes=new MutationObserver(records=>{
+ for(const r of records){
+  if(r.target.closest?.('.zzicon-morph-glyph')||r.attributeName==='style'&&!slots.has(r.target)&&!instances.has(r.target))continue;
+  if(r.type==='childList'){
+   const added=[...r.addedNodes].filter(n=>n.nodeType===1&&!n.matches('.zzicon-morph-glyph'));
+   for(const node of added)roots.add(node);
+   if(added.length||[...r.removedNodes].some(n=>n.nodeType===1&&!n.matches('.zzicon-morph-glyph')))pending=true;
+  }else{
+   if(['class','id','data-zz-action','data-l10n-id','zzmf-toggle','downloading','show-in-folder'].includes(r.attributeName))roots.add(r.target);
+   present(r.target);pending=true;
   }
  }
- for(const record of [...instances.values()]){
-  const next=wanted.get(record.host);
-  if(!next||next.binding.action!==record.binding.action){remove(record);continue;}
-  const model=snapshot(record.binding,record.host,record.definition),key=modelKey(model);
-  if(key!==record.key){record.model=model;record.key=key;if(visible(record))action(record,performance.now());else rest(record,performance.now(),true);}
-  if(!visible(record))rest(record,performance.now(),true);
- }
- for(const {binding,el} of wanted.values())attach(binding,el);
-}
-
-function soon(){if(!pending&&!retired){pending=true;queueMicrotask(sync);}}
-const resize=new ResizeObserver(entries=>{for(const r of instances.values())if(entries.some(e=>e.target===r.slot))locate(r);});
-const changes=new MutationObserver(records=>{
- if(records.some(r=>r.type==='childList'?[...r.addedNodes,...r.removedNodes].some(n=>n.nodeType===1&&!n.matches?.('.zzicon-morph-glyph')):!r.target.closest?.('.zzicon-morph-glyph')))soon();
+ if(pending)schedule();
 });
+// Native opacity transitions (notably tab close buttons) remain authoritative.
+// Sample only their own finite transition, never all controls or descendants.
+for(const type of ['transitionrun','transitionend','transitioncancel'])listen(window,type,e=>{
+ if(e.propertyName!=='opacity')return;const r=slots.get(e.target);if(!r)return;
+ if(type==='transitionrun')fading.add(r);else fading.delete(r);
+ presentations.add(r);schedule();
+},{capture:true});
+
 function recordFor(event){let el=event.target;while(el?.nodeType===1){if(instances.has(el))return instances.get(el);el=el.parentElement;}return event.sourceEvent&&event.sourceEvent!==event?recordFor(event.sourceEvent):null;}
 listen(window,'pointerover',e=>{const r=recordFor(e);if(r&&!r.host.contains(e.relatedTarget)&&e.pointerType!=='touch')setHover(r,true);});
 listen(window,'pointerout',e=>{const r=recordFor(e);if(r&&!r.host.contains(e.relatedTarget))setHover(r,false);});
@@ -303,10 +368,10 @@ function activated(e){
  }
 }
 listen(window,'command',activated,{capture:true});listen(window,'click',activated,{capture:true});
-function layout(){soon();for(const r of instances.values())locate(r);}
-for(const type of ['popupshown','popuphidden','ViewShown','aftercustomization','sizemodechange','fullscreen','TabSelect','TabAttrModified','TabMove','ZenWorkspaceChanged','transitionend'])listen(window,type,layout);
-listen(window,'resize',layout);listen(window,'scroll',layout,{capture:true,passive:true});
-function motionChanged(){if(frame!==null)cancelAnimationFrame(frame);frame=null;for(const r of instances.values())rest(r,performance.now(),true);soon();}
+function layout(event){present(event?.target?.nodeType===1?event.target:document);soon();}
+for(const type of ['popupshown','popuphidden','ViewShown','sizemodechange','fullscreen','TabSelect','TabAttrModified','ZenWorkspaceChanged'])listen(window,type,layout);
+listen(window,'aftercustomization',sync);
+function motionChanged(){if(frame!==null)cancelAnimationFrame(frame);frame=null;for(const r of instances.values())rest(r,performance.now(),true);sync();}
 listen(reduce,'change',motionChanged);listen(forced,'change',motionChanged);listen(document,'visibilitychange',motionChanged);
 // Zen's stack creates a fresh popup without a triggerNode. Capture its actual
 // row before the native handler closes over that Download; never use another list.
@@ -346,13 +411,14 @@ const prefs={observe:motionChanged},glassPrefs={observe:layout};S.addObserver('z
 const instance={retire(){
  if(retired)return;retired=true;abort.abort();for(const undo of teardown.splice(0))undo();
  for(const host of document.querySelectorAll('#context_bookmarkTab,#context-bookmarklink,#context-bookmarkpage')){delete host.zziconBookmarked;delete host.zziconBookmarkRequest;}changes.disconnect();resize.disconnect();
- S.removeObserver('zzicon.',prefs);S.removeObserver('zzglass.buttons.',glassPrefs);if(frame!==null)cancelAnimationFrame(frame);frame=null;
+ S.removeObserver('zzicon.',prefs);S.removeObserver('zzglass.buttons.',glassPrefs);if(frame!==null)cancelAnimationFrame(frame);frame=null;roots.clear();presentations.clear();fading.clear();
  for(const r of [...instances.values()])remove(r);
  if(window[KEY]===instance)delete window[KEY];
 },get records(){return instances;},get active(){return active.size;},get scheduled(){return frame!==null;},refresh:sync};
 window[KEY]=instance;listen(window,'unload',()=>instance.retire(),{once:true});window.addUnloadListener?.(()=>instance.retire());
+if(!CSS.supports('position-anchor','--zzicon-slot')){instance.retire();return;}
 fetch('chrome://sine/content/zz-iconflow/morph.json').then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}).then(value=>{
  if(retired)return;data=value;
- changes.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['class','starred','muted','open','hidden','collapsed','checked','disabled','sizemode','zen-sidebar-expanded','zen-compact-mode','zzmf-paused','zzmf-muted','data-zz-volume','data-zz-video-visible','data-l10n-id']});sync();
+ changes.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['style','class','id','data-zz-action','zzmf-toggle','downloading','show-in-folder','starred','muted','open','hidden','collapsed','checked','disabled','sizemode','zen-sidebar-expanded','zen-compact-mode','zzmf-paused','zzmf-muted','data-zz-volume','data-zz-video-visible','data-l10n-id']});sync();
 }).catch(error=>{console.error('[Iconflow] Morph loading failed',error);instance.retire();});
 })();

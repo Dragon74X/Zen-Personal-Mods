@@ -45,6 +45,8 @@ with tempfile.TemporaryDirectory(prefix='zen-morph-') as d:
   checkMorph('Morph loads through chrome manifest',!!window.__zziconMorphInstance&&__zziconMorphInstance.records.size>40);
   checkMorph('SVG security pref unchanged',!Services.prefs.getBoolPref('svg.context-properties.content.enabled'));
   checkMorph('10 state definitions loaded',true);return true;''')
+  regression=m.script((ROOT/'tools/morph-native-regressions.js').read_text())
+  print('PLACEMENT/PERFORMANCE',json.dumps(regression),flush=True)
   m.script('gBrowser.selectedBrowser.loadURI(Services.io.newURI('+json.dumps((profile/'index.html').as_uri())+'),{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal()});return true;');time.sleep(1);time.sleep(.3)
   # Real native toolbar commands, persistent SVGs and interruption.
   basic=m.script('''return (async()=>{
@@ -67,6 +69,11 @@ with tempfile.TemporaryDirectory(prefix='zen-morph-') as d:
    const beforeOff=reload.host.getBoundingClientRect().toJSON();Services.prefs.setIntPref('zzicon.button.reload',1);await waitMorph(80);
    checkMorph('explicit native still restores original slot',!reload.host.hasAttribute('data-zz-morph')&&!reload.slot.hasAttribute('data-zz-morph-slot'));
    checkMorph('icon substitution retains button size',reload.host.getBoundingClientRect().width===beforeOff.width);
+   const originalAnchor=reload.slot.style.getPropertyValue('anchor-name');reload.slot.style.setProperty('anchor-name','--native-reload');
+   Services.prefs.setIntPref('zzicon.button.reload',0);await waitMorph(100);
+   checkMorph('Morph preserves existing native anchor names',getComputedStyle(reload.slot).anchorName.includes('--native-reload'));
+   Services.prefs.setIntPref('zzicon.button.reload',1);await waitMorph(80);checkMorph('removal restores exact native anchor name',reload.slot.style.getPropertyValue('anchor-name')==='--native-reload');
+   if(originalAnchor)reload.slot.style.setProperty('anchor-name',originalAnchor);else reload.slot.style.removeProperty('anchor-name');
    Services.prefs.setIntPref('zzicon.button.reload',0);await waitMorph(100);
    const compact=rec('#zen-toggle-compact-mode toolbarbutton');checkMorph('compact native control found',!!compact);
    if(compact){const original=gZenCompactModeManager.preference;gZenCompactModeManager.preference=!original;await waitMorph(500);
@@ -174,7 +181,7 @@ with tempfile.TemporaryDirectory(prefix='zen-morph-') as d:
    const svg=r.svg.cloneNode(true);svg.removeAttribute('class');svg.style.cssText=`width:${size}px;height:${size}px;position:static`;box.append(svg);
   }document.documentElement.append(box);return true;''');m.shot().save(OUT/'artwork.png')
   version=m.script('return {zen:Services.appinfo.version,build:Services.appinfo.appBuildID,gecko:Services.appinfo.platformVersion};')
-  result={'runtime':version,'loading':'Production manifest scripts via Sine chrome mapping; Sine update engine covered separately','native':edge,'media':media};print('PASS',len(edge['checks']),version,flush=True)
+  result={'runtime':version,'loading':'Production manifest scripts via Sine chrome mapping; Sine update engine covered separately','native':edge,'media':media,'placementPerformance':regression};print('PASS',len(edge['checks']),version,flush=True)
   m.script('document.getElementById("morph-contact").remove();__zziconMorphInstance.retire();__zzglassEdgesInstance.retire();checkMorph("teardown removes presentation",!document.querySelector(".zzicon-morph-glyph,[data-zz-morph-slot],[data-zz-morph]"));Services.prefs.setIntPref("zzicon.button.reload",1);Services.prefs.savePrefFile(null);return true;')
   # Restart verifies explicit user prefs; does not call the command twice.
   proc.terminate()

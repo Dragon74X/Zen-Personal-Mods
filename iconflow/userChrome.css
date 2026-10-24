@@ -123,8 +123,7 @@
                   color-mix(in srgb, currentColor 9%, transparent);
   --zzicon-plate-hover: var(--zzg-sheen, linear-gradient(to bottom, rgb(255 255 255 / .26), rgb(255 255 255 / .07) 45%, rgb(255 255 255 / 0) 55%, rgb(0 0 0 / .05))),
                         color-mix(in srgb, currentColor 17%, transparent);
-  --zzicon-plate-rim: inset calc(cos(var(--zzg-follow-angle, 90deg)) * 1px) calc(sin(var(--zzg-follow-angle, 90deg)) * 1px) 0 var(--zzg-rim-top, rgb(255 255 255 / .38)), inset 0 0 0 1px var(--zzg-rim-all, rgb(255 255 255 / .11)),
-                      0 1px 3px rgb(0 0 0 / .16);
+
   --zzicon-plate-radius: 34%;
 }
 @media (-moz-pref("zzicon.plate.shape", 1)) { #navigator-toolbox { --zzicon-plate-radius: 999px; } }
@@ -194,13 +193,15 @@
    commands, accessible names, dimensions and pointer/focus semantics. */
 :root [data-zz-morph] { animation: none !important; }
 :root [data-zz-morph-slot] {
-  opacity: 0 !important;
+  mask-image: linear-gradient(transparent, transparent) !important;
   animation: none !important; transform: none !important;
   translate: none !important; rotate: none !important; scale: 1 !important;
 }
 :root [data-zz-morph] > .zzicon-morph-glyph,
 :root .zzicon-morph-glyph {
   position: absolute !important;
+  position-visibility: anchors-visible;
+  margin: 0 !important; padding: 0 !important; border: 0 !important;
   display: block; overflow: visible; pointer-events: none !important;
   color: inherit; fill: currentColor; flex: none;
   opacity: 1; animation: none !important; transform: none !important;
@@ -213,5 +214,13 @@
   .titlebar-button[data-zz-morph] > .zzicon-morph-glyph { opacity: 0 !important; }
   @media (-moz-pref("zzglass.buttons.glyph-on-hover")) {
     .titlebar-buttonbox:hover .titlebar-button[data-zz-morph] > .zzicon-morph-glyph { opacity: 1 !important; }
+  }
+}
+
+:root .zzicon-morph-centered { inset: 0; margin: auto !important; width: min(20px, calc(100% - 8px)); height: min(20px, calc(100% - 8px)); }
+@media (-moz-pref("zzglass.buttons.enabled")) {
+  .titlebar-button[data-zz-morph] > .zzicon-morph-glyph {
+    position-anchor: auto !important; inset: 0 !important; margin: auto !important;
+    width: calc(100% * var(--zzg-glyph, .62)) !important; height: calc(100% * var(--zzg-glyph, .62)) !important;
   }
 }

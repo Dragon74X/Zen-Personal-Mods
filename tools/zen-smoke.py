@@ -3,7 +3,7 @@
 
 python tools/zen-smoke.py --zen /path/to/zen --arc /path/to/Arc-2.0
 Uses a temporary profile; never attaches to the user's browser. Screenshots
-test the SVG content filter, not compositor-only CSS backdrop-filter output.
+check page visibility and geometry; compositor-only backdrop blur is not certified.
 """
 import argparse
 import base64
@@ -126,6 +126,77 @@ def check_icons(m, root):
     return len(info)
 
 
+def check_sidebar_hover(m):
+    """Pixels and geometry outside the sidebar, including remote content."""
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from threading import Thread
+    class Page(BaseHTTPRequestHandler):
+        def do_GET(self):
+            fill = 'white' if self.path == '/opaque' else 'transparent'
+            html = f'''<!doctype html><style>html,body{{margin:0;background:{fill}}}
+              #pattern{{position:fixed;inset:0;background:repeating-linear-gradient(90deg,black 0 4px,transparent 4px 8px)}}
+              #card{{position:fixed;left:400px;top:300px;width:200px;height:100px;background:#b24bce;border-radius:32px;corner-shape:squircle}}
+              </style><div id=pattern></div><div id=card></div>'''
+            self.send_response(200); self.send_header('Content-Type','text/html');self.end_headers();self.wfile.write(html.encode())
+        def log_message(self,*args): pass
+    server=ThreadingHTTPServer(('127.0.0.1',0),Page)
+    Thread(target=server.serve_forever,daemon=True).start()
+    checks=[]
+    def hover(on):
+        m.script("""return (async()=>{
+          const box=document.getElementById('navigator-toolbox');
+          box.removeAttribute('zen-user-show');box.toggleAttribute('zen-has-hover',"""+json.dumps(on)+""");
+          if("""+json.dumps(on)+""")InspectorUtils.addPseudoClassLock(box,':hover');else InspectorUtils.removePseudoClassLock(box,':hover');
+          await new Promise(r=>setTimeout(r,300));
+          await Promise.all(box.getAnimations().map(a=>a.finished.catch(()=>{})));return true;
+        })();""")
+    try:
+        for name,url in [('transparent',f'http://127.0.0.1:{server.server_port}/transparent'),('opaque',f'http://127.0.0.1:{server.server_port}/opaque'),('settings','about:preferences')]:
+            m.script('gBrowser.selectedTab=gBrowser.addTab('+json.dumps(url)+',{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});return true;')
+            time.sleep(.8)
+            handles=m.call('WebDriver:GetWindowHandles');m.call('WebDriver:SwitchToWindow',{'handle':handles[-1]})
+            m.script("""document.documentElement.setAttribute('zen-compact-mode','true');
+              Services.prefs.setBoolPref('zzglass.sidebar.page-follow',false);
+              // Existing saved true must not reactivate the retired filter.
+              Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',true);
+              window.hoverWrites=0;window.hoverObserver=new MutationObserver(r=>hoverWrites+=r.length);
+              hoverObserver.observe(document.getElementById('tabbrowser-tabbox'),{attributes:true,attributeFilter:['style']});return true;""")
+            remote=m.script('return gBrowser.selectedBrowser.remoteType;')
+            assert bool(remote)==(name!='settings'),(name,remote)
+            for previous in ['', 'brightness(0.9)']:
+                m.script('document.getElementById("tabbrowser-tabbox").style.filter='+json.dumps(previous)+';return true;')
+                hover(False)
+                before=m.shot()
+                geometry=m.script("return {box:document.getElementById('tabbrowser-tabbox').getBoundingClientRect().toJSON(),filter:document.getElementById('tabbrowser-tabbox').style.filter};")
+                card=m.script("const e=document.querySelector('#card, .main-content');const s=getComputedStyle(e);return {box:e.getBoundingClientRect().toJSON(),radius:s.borderRadius,shape:s.cornerShape};",context='content')
+                if name!='settings':
+                    browser=m.script('return gBrowser.selectedBrowser.getBoundingClientRect().toJSON();')
+                    scale=before.width/m.script('return window.innerWidth;')
+                    def pixel(x,y):
+                        return before.getpixel((round((browser['x']+card['box']['x']+x)*scale),round((browser['y']+card['box']['y']+y)*scale)))
+                    colour=tuple(round(c*(.9 if previous else 1)) for c in (178,75,206))
+                    assert max(abs(a-b) for a,b in zip(pixel(100,50),colour))<=2,(name,'fixture not painted',pixel(100,50))
+                    assert pixel(0,0)!=pixel(100,50),(name,'rounded corner not painted')
+                m.script('hoverWrites=0;return true;')
+                for visible in [True,False,True,False]:
+                    hover(visible)
+                    state=m.script("return {box:document.getElementById('tabbrowser-tabbox').getBoundingClientRect().toJSON(),filter:document.getElementById('tabbrowser-tabbox').style.filter};")
+                    assert state==geometry,(name,visible,state,geometry)
+                    assert m.script("const e=document.querySelector('#card, .main-content');const s=getComputedStyle(e);return {box:e.getBoundingClientRect().toJSON(),radius:s.borderRadius,shape:s.cornerShape};",context='content')==card,(name,'card changed')
+                    after=m.shot();scale=after.width/m.script('return window.innerWidth;')
+                    area=tuple(round(v*scale) for v in (350,160,1000,550))
+                    difference=ImageStat.Stat(ImageChops.difference(before,after).crop(area)).mean
+                    assert max(difference)==0,(name,previous,visible,difference)
+                    checks.append({'page':name,'remote':bool(remote),'hover':visible,'retainedFilter':previous,'outsideDifference':difference})
+                assert m.script("return hoverWrites===0&&!document.getElementById('zzg-strip');"),name
+            m.script("hoverObserver.disconnect();delete window.hoverObserver;document.getElementById('tabbrowser-tabbox').style.removeProperty('filter');return true;")
+        hover(True)
+        assert m.script("return getComputedStyle(document.getElementById('zen-toolbar-background')).backdropFilter.includes('blur(12px)');"),'native blur recipe lost'
+    finally:
+        server.shutdown();server.server_close()
+    return checks
+
+
 def check(m, root, arc, transparent):
     mods = ["download-prompt", "glassflow", "glassflow-library", "groupflow", "iconflow", "tab-router", "tab-unloader", "zen-turbo", "mediaflow"]
     prefs = {}
@@ -178,88 +249,7 @@ def check(m, root, arc, transparent):
     def settle():
         m.script("return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))));")
 
-    def state():
-        return m.script("""const panel=document.getElementById('zen-toolbar-background');return {
-          custom:Services.prefs.getBoolPref("zzglass.sidebar.blur"),native:Services.prefs.getBoolPref("zen.theme.acrylic-sidebar"),
-          sidebar:getComputedStyle(panel).backdropFilter,
-          page:getComputedStyle(document.getElementById('tabbrowser-tabbox')).filter,
-          radius:document.querySelector('#zzg-strip feGaussianBlur').getAttribute('stdDeviation'),
-          bounds:panel.getBoundingClientRect().toJSON()};""")
-
-    filters = state()
-    assert "blur(12px)" in filters["sidebar"] and "zzg-strip" in filters["page"] and filters["radius"] == "12", filters
-    first = m.shot()
-    bounds = filters["bounds"]
-    inside = (round(bounds["left"] + 30), 180, round(bounds["right"] - 30), 240)
-    outside = (round(bounds["right"] + 30), 180, round(bounds["right"] + 150), 240)
-    assert min(ImageStat.Stat(first.crop(outside)).stddev) > 40, "page beside sidebar lost its pattern"
-    m.script("Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',false);return true;")
-    settle()
-    unfiltered = m.shot()
-    pixel_difference = ImageChops.difference(first, unfiltered)
-    assert max(ImageStat.Stat(pixel_difference.crop(inside)).mean) > 1, ("SVG fallback did not alter the page strip", m.script("return (Services.console.getMessageArray()||[]).map(m=>m.message).filter(m=>/zzg|data:image|Content Security|SVG/.test(m)).slice(-12);"))
-    assert max(ImageStat.Stat(pixel_difference.crop(outside)).mean) == 0, "strip fallback altered outside pixels"
-    assert state()["page"] == "none"
-    m.script("Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',true);Services.prefs.setStringPref('zzglass.sidebar.blur-radius','0px');return true;")
-    settle()
-    filters = state()
-    assert "blur(0px)" in filters["sidebar"] and filters["page"] == "none", filters
-    m.script("Services.prefs.setStringPref('zzglass.sidebar.blur-radius','calc(1rem + 2px)');return true;")
-    settle()
-    filters = state()
-    computed = float(filters["sidebar"].split("blur(", 1)[1].split("px)", 1)[0])
-    assert computed > 2 and float(filters["radius"]) == computed, filters
-    m.script("Services.prefs.setBoolPref('zzglass.sidebar.blur',false);return true;")
-    settle()
-    filters = state()
-    assert "blur(42px)" in filters["sidebar"] and "brightness(0.25)" in filters["sidebar"] and filters["radius"] == "42", filters
-    m.script("Services.prefs.setBoolPref('zen.theme.acrylic-sidebar',false);return true;")
-    settle()
-    assert state()["page"] == "none", state()
-    m.script("Services.prefs.setBoolPref('zen.theme.acrylic-sidebar',true);return true;")
-    settle()
-    assert "zzg-strip" in state()["page"], state()
-    m.script("document.documentElement.setAttribute('zzsmoke-opaque','');window.dispatchEvent(new Event('resize'));return true;")
-    settle()
-    assert state()["page"] == "none", state()
-    m.script("document.documentElement.removeAttribute('zzsmoke-opaque');window.dispatchEvent(new Event('resize'));return true;")
-    settle()
-    assert "zzg-strip" in state()["page"], state()
-    m.script("document.documentElement.setAttribute('zen-compact-mode','false');return true;")
-    settle()
-    assert state()["page"] == "none", state()
-    m.script("document.documentElement.setAttribute('zen-compact-mode','true');Services.prefs.setBoolPref('zzglass.sidebar.blur',true);Services.prefs.setStringPref('zzglass.sidebar.blur-radius','12px');return true;")
-    settle()
-    # Wait for native slide completion; the filter must leave with the panel.
-    for renaming in [False, True, False]:
-        m.script("document.getElementById('navigator-toolbox').removeAttribute('zen-user-show');" +
-                 "document.documentElement.setAttribute('zen-renaming-tab'," + json.dumps(str(renaming).lower()) + ");return true;")
-        settle()
-        m.script("return Promise.all(document.getElementById('navigator-toolbox').getAnimations().map(a=>a.finished.catch(()=>{})));")
-        settle()
-        assert ("zzg-strip" in state()["page"]) == renaming, state()
-    m.script("document.documentElement.removeAttribute('zen-renaming-tab');document.getElementById('navigator-toolbox').setAttribute('zen-user-show','true');return true;")
-    settle()
-    m.script("return Promise.all(document.getElementById('navigator-toolbox').getAnimations().map(a=>a.finished.catch(()=>{})));")
-    settle()
-    result["blurChecks"] = ["transparent", "fallback-off", "zero", "css-length", "custom-off", "native-off-on", "opaque", "docked", "slide-hide", "rename"]
-    ownership=m.script("""return (async()=>{
-      const box=document.getElementById('tabbrowser-tabbox'),pause=()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
-      Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',false);await pause();
-      box.style.setProperty('filter','brightness(0.9)');
-      Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',true);await pause();
-      const composed=box.style.filter.includes('brightness(0.9)')&&box.style.filter.includes('zzg-strip');
-      Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',false);await pause();
-      const restored=box.style.filter==='brightness(0.9)'&&box.style.getPropertyPriority('filter')==='';
-      Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',true);await pause();
-      box.style.setProperty('filter','contrast(1.2)','important');
-      Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',false);await pause();
-      const manual=box.style.filter==='contrast(1.2)'&&box.style.getPropertyPriority('filter')==='important';
-      box.style.removeProperty('filter');Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',true);await pause();
-      return {composed,restored,manual};
-    })();""")
-    assert all(ownership.values()),ownership
-    result['blurFilterOwnership']=ownership
+    result['sidebarHover'] = check_sidebar_hover(m)
     m.script("Services.prefs.setBoolPref('zzlib.stack.box',true);return true;")
     for master, downloads in [(True, 1), (False, 1), (True, 0), (True, 1)]:
         m.script("Services.prefs.setBoolPref('zzglass.overlays.enabled'," + json.dumps(master) +
@@ -325,8 +315,6 @@ def check(m, root, arc, transparent):
     m.script("document.querySelector('#zzdl-ask .zzdl-keep').click(); return !document.getElementById('zzdl-ask');")
     m.script("Services.prefs.setBoolPref('zzglass.sidebar.enabled',false); return true;")
     time.sleep(0.1)
-    off = m.shot()
-    assert max(ImageStat.Stat(ImageChops.difference(first, off).crop(outside)).mean) == 0, "outside pixels changed on disable"
     # Trigger Zen's actual hidden-sidebar download pop-out, then change styles
     # while it is alive. The 60s duration belongs only to this temporary profile.
     m.script("""Services.prefs.setIntPref('zen.downloads.download-animation-duration',60000);
@@ -400,8 +388,6 @@ def check(m, root, arc, transparent):
     result["libraryExtraRows"] = library
     m.script("""for(const k of ['__zzdlInstance','__zzglassInstance','__zzgroupInstance','__zzrouterInstance','__zzunloadInstance','__zzturboInstance']) window[k].retire();
       return true;""")
-    result["pixelChecks"] = {"stripDifference": ImageStat.Stat(pixel_difference.crop(inside)).mean,
-                             "outsideDifference": ImageStat.Stat(pixel_difference.crop(outside)).mean}
     return result
 
 

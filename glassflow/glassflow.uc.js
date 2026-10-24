@@ -145,128 +145,6 @@
     },
   };
 
-  // ---- transparent pages under the compact sidebar ---------------------
-  // A page made see-through (Transparent Zen, Zen Internet) leaves the
-  // sidebar's blur nothing to blur: its text sits on nothing, a blurred copy
-  // of it is all but invisible, and the sharp original shows through. While
-  // the compact sidebar shows over such a page, an SVG filter on the page box
-  // blurs the strip under the panel instead, keeping the rest of the page as
-  // it is. Zen gives every page a solid background unless a mod takes it
-  // away, so a page whose browser background is solid is left to Zen's blur
-  // alone and nothing extra runs.
-  // The filter mask follows the panel's computed corner geometry.
-  const SHOWN = "[zen-has-hover], [zen-user-show], [zen-has-empty-tab], [flash-popup], [has-popup-menu], [movingtab], [zen-compact-mode-active]";
-  function panelMaskPath(width, height, radii, shapes) {
-    const length = (value, size) => parseFloat(value) * (String(value).endsWith("%") ? size / 100 : 1) || 0;
-    const r = radii.map(value => { const [x, y = x] = value.split(" "); return [length(x, width), length(y, height)]; });
-    const scale = Math.min(1, width / (r[0][0] + r[1][0]), width / (r[2][0] + r[3][0]),
-      height / (r[0][1] + r[3][1]), height / (r[1][1] + r[2][1]));
-    const points = [];
-    for (let corner = 0; corner < 4; corner++) {
-      const [rx, ry] = r[corner].map(n => n * scale);
-      const shape = shapes[corner], k = { round: 1, squircle: 2, square: 16, bevel: 0, scoop: -1, notch: -16 }[shape] ?? parseFloat(shape.match(/superellipse\(([^)]+)\)/)?.[1]) ?? 1;
-      const power = 2 / Math.pow(2, Number.isFinite(k) ? k : 1);
-      const cx = corner === 0 || corner === 3 ? rx : width - rx, cy = corner < 2 ? ry : height - ry;
-      for (let step = 0; step <= 32; step++) {
-        const angle = Math.PI + corner * Math.PI / 2 + step * Math.PI / 64;
-        const c = Math.cos(angle), v = Math.sin(angle);
-        points.push(`${(cx + rx * Math.sign(c) * Math.pow(Math.abs(c), power)).toFixed(3)},${(cy + ry * Math.sign(v) * Math.pow(Math.abs(v), power)).toFixed(3)}`);
-      }
-    }
-    return "M" + points.join("L") + "Z";
-  }
-
-  function transparentPageBlur() {
-    const NS = "http://www.w3.org/2000/svg", S = Services.prefs, root = document.documentElement;
-    const toolbox = document.getElementById("navigator-toolbox"), box = document.getElementById("tabbrowser-tabbox");
-    if (!toolbox || !box) return () => {};
-    const el = (parent, tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.append(e); return e; };
-    const svg = el(document.documentElement, "svg", { width: 0, height: 0, style: "position:fixed;pointer-events:none", "aria-hidden": "true" });
-    const filter = el(svg, "filter", { id: "zzg-strip", filterUnits: "userSpaceOnUse", primitiveUnits: "userSpaceOnUse", "color-interpolation-filters": "sRGB" });
-    const mask = el(filter, "feImage", { result: "m", preserveAspectRatio: "none" });
-    const blur = el(filter, "feGaussianBlur", { in: "SourceGraphic", edgeMode: "duplicate", result: "b" });
-    el(filter, "feComposite", { in: "SourceGraphic", in2: "m", operator: "out", result: "o" });
-    el(filter, "feComposite", { in: "b", in2: "m", operator: "in", result: "bm" });
-    const merge = el(filter, "feMerge", {});
-    el(merge, "feMergeNode", { in: "o" });
-    el(merge, "feMergeNode", { in: "bm" });
-    const wanted = () => S.getBoolPref(PREFIX + "sidebar.blur-transparent-pages", true) &&
-      (S.getBoolPref(PREFIX + "sidebar.blur", false) || S.getBoolPref("zen.theme.acrylic-sidebar", false));
-    const alpha = c => {
-      if (c === "transparent") return 0;
-      const m = c.match(/^rgba\((?:[^,]+,){3}\s*([\d.]+)\)$/) || c.match(/\/\s*([\d.]+)(%?)\s*\)$/);
-      return m ? parseFloat(m[1]) / (m[2] === "%" ? 100 : 1) : 1;
-    };
-    const seeThrough = () => alpha(getComputedStyle(gBrowser.selectedBrowser).backgroundColor) < 1;
-    // Follows the panel every frame while it slides, in and out, so the blur
-    // moves with it and stays until it has gone.
-    let frame = 0, maskKey = "", previousFilter = null, appliedFilter = null;
-    const releaseFilter = () => {
-      if (appliedFilter && box.style.getPropertyValue("filter") === appliedFilter) {
-        if (previousFilter[0]) box.style.setProperty("filter", ...previousFilter);
-        else box.style.removeProperty("filter");
-      }
-      previousFilter = appliedFilter = null;
-    };
-    const sliding = () => toolbox.getAnimations().some(a => a.transitionProperty === "translate" && a.playState === "running");
-    const update = () => {
-      frame = 0;
-      const panel = document.getElementById("zen-toolbar-background"), p = panel?.getBoundingClientRect(), moving = sliding();
-      // Computed CSS resolves lengths (rem, calc, etc.) and the native/custom
-      // switch once. A zero radius or disabled backdrop needs no page filter.
-      const r = panel ? parseFloat(getComputedStyle(panel).backdropFilter.match(/\bblur\(([^)]+)\)/)?.[1]) : NaN;
-      if (!wanted() || !(r > 0) || root.getAttribute("zen-compact-mode") !== "true" || !(toolbox.matches(SHOWN) || root.getAttribute("zen-renaming-tab") === "true" || moving) || !p?.width || !seeThrough()) {
-        releaseFilter();
-        return;
-      }
-      const b = box.getBoundingClientRect();
-      for (const [k, v] of Object.entries({ x: 0, y: 0, width: b.width, height: b.height })) filter.setAttribute(k, v);
-      for (const [k, v] of Object.entries({ x: p.left - b.left, y: p.top - b.top, width: p.width, height: p.height })) mask.setAttribute(k, v);
-      const style = getComputedStyle(panel), corners = ["TopLeft", "TopRight", "BottomRight", "BottomLeft"];
-      const radii = corners.map(c => style["border" + c + "Radius"]);
-      const shapes = corners.map(c => style["corner" + c + "Shape"] || style.cornerShape || "round");
-      const key = [p.width, p.height, ...radii, ...shapes].join(":");
-      if (key !== maskKey) {
-        maskKey = key;
-        const path = panelMaskPath(p.width, p.height, radii, shapes);
-        mask.setAttribute("href", "data:image/svg+xml," + encodeURIComponent(`<svg xmlns="${NS}" width="${p.width}" height="${p.height}"><path fill="white" d="${path}"/></svg>`));
-      }
-      blur.setAttribute("stdDeviation", r);
-      if (!appliedFilter) {
-        previousFilter = [box.style.getPropertyValue("filter"), box.style.getPropertyPriority("filter")];
-        appliedFilter = (previousFilter[0] && previousFilter[0] !== "none" ? previousFilter[0] + " " : "") + "url(#zzg-strip)";
-      } else if (box.style.getPropertyValue("filter") !== appliedFilter) return;
-      box.style.setProperty("filter", appliedFilter, "important");
-      appliedFilter = box.style.getPropertyValue("filter"); // CSSOM normalizes URL quoting.
-      if (moving) frame = requestAnimationFrame(update);
-    };
-    const soon = () => { frame ||= requestAnimationFrame(update); };
-    const mo = new MutationObserver(soon);
-    mo.observe(toolbox, { attributes: true, attributeFilter: ["zen-has-hover", "zen-user-show", "zen-has-empty-tab", "flash-popup", "has-popup-menu", "movingtab", "zen-compact-mode-active", "zzg-redraw"] });
-    mo.observe(root, { attributes: true, attributeFilter: ["zen-compact-mode", "zen-renaming-tab"] });
-    const prefs = { observe: soon };
-    const transparency = window.matchMedia("(prefers-reduced-transparency: reduce)");
-    transparency.addEventListener("change", soon);
-    S.addObserver(PREFIX + "sidebar.", prefs);
-    S.addObserver("zen.theme.acrylic-sidebar", prefs);
-    window.addEventListener("resize", soon);
-    toolbox.addEventListener("transitionend", soon);
-    toolbox.addEventListener("transitionrun", soon);
-    update();
-    return () => {
-      mo.disconnect();
-      transparency.removeEventListener("change", soon);
-      S.removeObserver(PREFIX + "sidebar.", prefs);
-      S.removeObserver("zen.theme.acrylic-sidebar", prefs);
-      window.removeEventListener("resize", soon);
-      toolbox.removeEventListener("transitionend", soon);
-      toolbox.removeEventListener("transitionrun", soon);
-      cancelAnimationFrame(frame);
-      releaseFilter();
-      svg.remove();
-    };
-  }
-
   const APPEARANCE = "zzglass-saved.appearance";
   async function appearancePrefs() {
     // Only declared appearance settings, never an entire profile branch.
@@ -357,7 +235,7 @@
   function tabMotion() {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
     const active = new Map();
-    const enabled = () => !reduced.matches && Services.prefs.getBoolPref(PREFIX + "motion.enabled", true) &&
+    const enabled = () => !reduced.matches && Services.prefs.getBoolPref(PREFIX + "motion.enabled", false) &&
       !Services.prefs.getBoolPref(PREFIX + "instant-ui", false) && !window.Motion?.MotionGlobalConfig?.instantAnimations;
     function cancel() { for (const { animation } of active.values()) animation.cancel(); active.clear(); }
     function settle(label) {
@@ -420,8 +298,6 @@
     };
     toolbox?.addEventListener("transitionend", redraw);
     gBrowser.tabContainer.addEventListener("TabSelect", redraw);
-    let stopPageBlur = () => {};
-    try { stopPageBlur = transparentPageBlur(); } catch (e) { console.error("[Glassflow] page blur failed to start:", e); }
     // Sine cleanup and window unload can both run; retire this copy once.
     let retired = false;
     const cleanup = () => {
@@ -438,7 +314,6 @@
       toolbox?.removeEventListener("transitionend", redraw);
       gBrowser.tabContainer.removeEventListener("TabSelect", redraw);
       toolbox?.removeAttribute("zzg-redraw");
-      try { stopPageBlur(); } catch {}
     };
     window.addEventListener("unload", cleanup, { once: true });
     // Registered with Sine, so an update re-injects this script live, no
@@ -575,6 +450,16 @@
     }
     return wrote > 0;
   }
+
+  // Start the experimental motion opt-in once, including upgrades that seeded
+  // the former On default. Later user choices survive reloads and updates.
+  try {
+    const S = Services.prefs, done = PREFIX + "migrated.motion-opt-in";
+    if (!S.getBoolPref(done, false)) {
+      S.setBoolPref(PREFIX + "motion.enabled", false);
+      S.setBoolPref(done, true);
+    }
+  } catch {}
 
   // Preserve the existing sidebar switch once; keep the old value for rollback.
   // An explicit new native choice, including Off, always wins.

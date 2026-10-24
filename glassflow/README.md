@@ -245,12 +245,9 @@ Glassflow sets that blur on Zen's panels itself, on the same element and
 property, so it stays one blur, and so another mod cannot remove it: Arc 2.0
 replaces Zen's blur with its own *Compact sidebar blur*, which Glassflow used to
 set to `0px`, leaving no blur at all. That value is now put back, and Glassflow's
-blur wins on the panel. **Customise Zen's blur** changes the values. The live
-page-strip fallback
-reads the panel's computed blur radius, including CSS lengths such as `rem`
-and `calc()`. A zero radius removes that fallback; native preference changes
-apply without reopening the sidebar. Glassflow's
-panel needs **Panel opacity** below 100% for it to show through.
+blur wins on the panel. **Customise Zen's blur** changes the values. Native
+sidebar blur stays on the panel; it never filters the webpage. The panel needs
+**Panel opacity** below 100% for it to show through.
 
 The sidebar's panel blurs without Zen's underlay, an SVG filter that a repaint
 on the panel redrew unevenly. Glassflow used to draw the sidebar's blur on a
@@ -536,7 +533,12 @@ Tools now offers Save appearance, Restore appearance, Copy appearance, and Copy 
 
 ## State motion and calculated edges
 
-**State motion** defaults to **Crisp**. Soft, Spring, Bounce and Rebound adjust the
+**Experimental hover and selection motion** is **off by default**, under
+**Corners, fonts and motion**. The upgrade switches it off once, including profiles
+that received the old On default; enabling it afterwards survives restarts.
+Off retains the prior static styling and stops pointer-following edge light.
+Saved colours, gradients, shapes and motion profile choices remain untouched.
+When enabled, **Crisp** is the default feel. Soft, Spring, Bounce and Rebound adjust the
 same hover geometry, colour, gradient direction, sheen and rim transitions.
 The close glyph fades/scales into its fixed target while the label makes room.
 Selection switches immediately; the existing title moves 4px sideways, rebounds
@@ -555,6 +557,10 @@ angle, ring, glow and opacity remain the inputs. Text and icons stay sharp. Thes
 are surface lighting effects, not verified optical backdrop refraction.
 
 Follow Zen radius with Auto compensation now uses the native compensated radius
-once. The transparent-page blur mask follows panel corner geometry and restores
-an existing inline filter on cleanup. Its bounded two-frame compositor refresh
-remains; Windows desktop/GPU backdrop behaviour still requires local checking.
+once. The page-wide SVG blur fallback and its checkbox were removed in 3.74.2 after
+reports of blank remote webpages, changed corners and sidebar lag. Its `feImage`
+mask forced raster fallback in Zen 1.23.4b. Existing saved values remain untouched
+but cannot reactivate that renderer. Native sidebar blur, tint, shape and lighting
+settings remain. Transparent webpage text may remain unblurred where the platform
+backdrop cannot sample it; page visibility takes priority. The bounded two-frame
+backdrop refresh remains; Windows/GPU behaviour still requires local checking.

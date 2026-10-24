@@ -313,8 +313,8 @@
   --zzg-edge-angle: 90deg;
   --zzg-edge-width: 1px;
   --zzg-ring-width: 1px;
-  --zzg-ex: calc(cos(var(--zzg-edge-angle)) * var(--zzg-edge-width) * var(--zzg-relief-depth) * var(--zzg-relief-sign));
-  --zzg-ey: calc(sin(var(--zzg-edge-angle)) * var(--zzg-edge-width) * var(--zzg-relief-depth) * var(--zzg-relief-sign));
+  --zzg-ex: calc(cos(var(--zzg-follow-angle, var(--zzg-edge-angle))) * var(--zzg-edge-width) * var(--zzg-relief-depth) * var(--zzg-relief-sign));
+  --zzg-ey: calc(sin(var(--zzg-follow-angle, var(--zzg-edge-angle))) * var(--zzg-edge-width) * var(--zzg-relief-depth) * var(--zzg-relief-sign));
   --zzg-shade: rgb(from var(--zzg-edge-top) 0 0 0 / calc(alpha * var(--zzg-relief-shade)));
   --zzg-band: rgb(from var(--zzg-edge-top) r g b / calc(alpha * var(--zzg-relief-band)));
   --zzg-state-shadow: inset var(--zzg-ex) var(--zzg-ey) var(--zzg-relief-blur) var(--zzg-edge-top),
@@ -343,8 +343,8 @@
       rgb(255 255 255 / calc(.20 * var(--zzg-glass) * var(--zzg-sheenamt) * var(--zzgf-sheen-level))) 0%,
       rgb(255 255 255 / calc(var(--zzg-light-wash) * var(--zzg-glass) * var(--zzg-sheenamt) * var(--zzgf-sheen-level))) var(--zzg-light-crest),
       transparent var(--zzg-light-fall), rgb(0 0 0 / calc(.05 * var(--zzg-glass) * var(--zzg-sheenamt) * var(--zzgf-sheen-level))) 100%);
-    --zzgf-ex: calc(cos(var(--zzgf-state-rim-dir)) * var(--zzgroup-rim-thickness, 1px) * var(--zzg-relief-depth) * var(--zzg-relief-sign));
-    --zzgf-ey: calc(sin(var(--zzgf-state-rim-dir)) * var(--zzgroup-rim-thickness, 1px) * var(--zzg-relief-depth) * var(--zzg-relief-sign));
+    --zzgf-ex: calc(cos(var(--zzg-follow-angle, var(--zzgf-state-rim-dir))) * var(--zzgroup-rim-thickness, 1px) * var(--zzg-relief-depth) * var(--zzg-relief-sign));
+    --zzgf-ey: calc(sin(var(--zzg-follow-angle, var(--zzgf-state-rim-dir))) * var(--zzgroup-rim-thickness, 1px) * var(--zzg-relief-depth) * var(--zzg-relief-sign));
     --zzgf-calculated-rim: inset var(--zzgf-ex) var(--zzgf-ey) var(--zzg-relief-blur) var(--zzgf-state-rim-top),
       inset calc(-1 * var(--zzgf-ex)) calc(-1 * var(--zzgf-ey)) var(--zzg-relief-blur) rgb(from var(--zzgf-state-rim-top) 0 0 0 / calc(alpha * var(--zzg-relief-shade))),
       inset calc(-2 * var(--zzgf-ex)) calc(-2 * var(--zzgf-ey)) 0 rgb(from var(--zzgf-state-rim-top) r g b / calc(alpha * var(--zzg-relief-band)));
@@ -848,7 +848,7 @@
   }
   @media (-moz-pref("zzglass.sidebar.rim")) {
     :root:not([zen-compact-mode="true"]) #navigator-toolbox {
-      box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important;
+      box-shadow: inset calc(cos(var(--zzg-follow-angle, 90deg)) * 1px) calc(sin(var(--zzg-follow-angle, 90deg)) * 1px) 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important;
     }
   }
 
@@ -913,11 +913,11 @@
   }
   @media (-moz-pref("zzglass.sidebar.panel-border", 2)) {
     :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background {
-      box-shadow: var(--zen-big-shadow), inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important;
+      box-shadow: var(--zen-big-shadow), inset calc(cos(var(--zzg-follow-angle, 90deg)) * 1px) calc(sin(var(--zzg-follow-angle, 90deg)) * 1px) 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important;
     }
     @media not (-moz-pref("zzglass.sidebar.shadow")) {
       :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background {
-        box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important;
+        box-shadow: inset calc(cos(var(--zzg-follow-angle, 90deg)) * 1px) calc(sin(var(--zzg-follow-angle, 90deg)) * 1px) 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important;
       }
     }
   }
@@ -1011,7 +1011,7 @@
   @media (-moz-pref("zzglass.buttons.rim")) {
     .titlebar-button {
       border: 1px solid rgb(255 255 255 / calc(0.35 * var(--zzg-glass))) !important;
-      box-shadow: inset 0 1px 1px rgb(255 255 255 / calc(0.55 * var(--zzg-glass))),
+      box-shadow: inset calc(cos(var(--zzg-follow-angle, 90deg)) * 1px) calc(sin(var(--zzg-follow-angle, 90deg)) * 1px) 1px rgb(255 255 255 / calc(0.55 * var(--zzg-glass))),
         inset 0 -2px 3px rgb(0 0 0 / calc(0.18 * var(--zzg-glass))),
         inset 0 0 6px rgb(255 255 255 / calc(0.12 * var(--zzg-glass))),
         0 1px 3px rgb(0 0 0 / 0.25) !important;
@@ -1461,7 +1461,8 @@
   zen-zap-bar {
     background: var(--zzg-ov-fill) !important;
     color: light-dark(rgb(24 24 24), rgb(231 231 231)) !important;
-    border-color: color-mix(in srgb, currentColor 20%, transparent) !important;
+    --zzg-edge-owner: plain;
+    border-color: color-mix(in srgb, color-mix(in srgb, currentColor 20%, transparent) var(--zzg-follow-top, 100%), transparent) color-mix(in srgb, color-mix(in srgb, currentColor 20%, transparent) var(--zzg-follow-right, 100%), transparent) color-mix(in srgb, color-mix(in srgb, currentColor 20%, transparent) var(--zzg-follow-bottom, 100%), transparent) color-mix(in srgb, color-mix(in srgb, currentColor 20%, transparent) var(--zzg-follow-left, 100%), transparent) !important;
     backdrop-filter: var(--zzg-ov-glass) !important;
   }
   @media (-moz-pref("zzglass.overlays.boosts", 2)) {
@@ -1571,7 +1572,7 @@
       border-radius: var(--zzg-ws-radius) !important;
       corner-shape: var(--zzg-corner) !important;
       background: var(--zzg-sheen), color-mix(in srgb, currentColor 6%, transparent) !important;
-      box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important;
+      box-shadow: inset calc(cos(var(--zzg-follow-angle, 90deg)) * 1px) calc(sin(var(--zzg-follow-angle, 90deg)) * 1px) 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all) !important;
     }
   }
   /* Hover: the icon grows in place, or (Dock) its neighbours a little too. */
@@ -1592,7 +1593,7 @@
   @media (-moz-pref("zzglass.workspaces.active", 1)) {
     #navigator-toolbox #zen-workspaces-button toolbarbutton[active="true"] {
       background: var(--zzg-sheen), color-mix(in srgb, currentColor 15%, transparent) !important;
-      box-shadow: inset 0 1px 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all), 0 1px 3px rgb(0 0 0 / .18) !important;
+      box-shadow: inset calc(cos(var(--zzg-follow-angle, 90deg)) * 1px) calc(sin(var(--zzg-follow-angle, 90deg)) * 1px) 0 var(--zzg-rim-top), inset 0 0 0 1px var(--zzg-rim-all), 0 1px 3px rgb(0 0 0 / .18) !important;
     }
   }
   @media (-moz-pref("zzglass.workspaces.active", 2)) {
@@ -1699,4 +1700,27 @@
     :is(.titlebar-max, .titlebar-restore) { margin-inline: 5px !important; }
     .titlebar-close:hover { background-color: var(--buttons-destructive-hover-bgcolor) !important; }
   }
+}
+
+/* Edge input belongs to Glassflow; painters retain their original shapes,
+   state colors, strengths and gates. Owner marker never inherits to children. */
+@property --zzg-edge-owner { syntax: "*"; inherits: false; initial-value: none; }
+:is(.tabbrowser-tab, .tab-group-label-container, .tab-group-container, #navigator-toolbox,
+ #zen-toolbar-background, .titlebar-button, #zen-workspaces-button, #zen-workspaces-button toolbarbutton,
+ #navigator-toolbox .toolbarbutton-1, .zzicon-ws-swatch, .zzicon-ws-search,
+ .zen-library-space, zen-library, #zen-library-download-list, .zzgf-gradient-editor, .zzdl-panel, .zzdl-name, .zzdl-btn,
+ #zen-sidebar-pip-container, #zen-sidebar-pip-caption, zen-zap-bar) {
+  --zzg-follow-angle: initial; --zzg-follow-gradient: initial;
+  --zzg-follow-ring-x: initial; --zzg-follow-ring-y: initial;
+  --zzg-follow-top: initial; --zzg-follow-right: initial; --zzg-follow-bottom: initial; --zzg-follow-left: initial;
+}
+@media (-moz-pref("zzglass.edges.enabled")) {
+  :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab { --zzg-edge-owner: tab; }
+}
+@media (-moz-pref("zzglass.sidebar.enabled")) and (-moz-pref("zzglass.sidebar.rim")) { #navigator-toolbox { --zzg-edge-owner: plain; } }
+@media (-moz-pref("zzglass.sidebar.enabled")) and (-moz-pref("zzglass.sidebar.panel-border", 2)) { #zen-toolbar-background { --zzg-edge-owner: plain; } }
+@media (-moz-pref("zzglass.buttons.enabled")) and (-moz-pref("zzglass.buttons.rim")) { .titlebar-button { --zzg-edge-owner: plain; } }
+@media (-moz-pref("zzglass.workspaces.enabled")) {
+  @media (-moz-pref("zzglass.workspaces.capsule", 1)) { #zen-workspaces-button { --zzg-edge-owner: plain; } }
+  @media (-moz-pref("zzglass.workspaces.active", 1)) { #zen-workspaces-button toolbarbutton[active="true"] { --zzg-edge-owner: plain; } }
 }

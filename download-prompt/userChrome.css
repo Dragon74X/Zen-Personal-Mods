@@ -50,6 +50,8 @@
   padding: 18px 20px 14px;
   border-radius: var(--zzglass-sidebar-blur-radius-corner, var(--zzg-round, 12px));
   border: 1px solid var(--zzg-rim-all, rgb(255 255 255 / 0.12));
+  --zzg-edge-owner: plain;
+  border-color: color-mix(in srgb, var(--zzg-rim-all, rgb(255 255 255 / 0.12)) var(--zzg-follow-top, 100%), transparent) color-mix(in srgb, var(--zzg-rim-all, rgb(255 255 255 / 0.12)) var(--zzg-follow-right, 100%), transparent) color-mix(in srgb, var(--zzg-rim-all, rgb(255 255 255 / 0.12)) var(--zzg-follow-bottom, 100%), transparent) color-mix(in srgb, var(--zzg-rim-all, rgb(255 255 255 / 0.12)) var(--zzg-follow-left, 100%), transparent);
   background-color: transparent;
   background-image: var(--zzg-sheen, none),
                     linear-gradient(to bottom, var(--zzdl-a) 0%, var(--zzdl-base) 100%);
@@ -57,7 +59,7 @@
      or off; on its own this mod uses Zen's blur without the darkening. */
   backdrop-filter: var(--zzg-ov-dialog, var(--zen-backdrop-underlay, ) blur(42px) saturate(110%) contrast(100%));
   box-shadow:
-    0 1px 0 var(--zzg-rim-top, rgb(255 255 255 / 0.35)) inset,
+    calc(cos(var(--zzg-follow-angle, 90deg)) * 1px) calc(sin(var(--zzg-follow-angle, 90deg)) * 1px) 0 var(--zzg-rim-top, rgb(255 255 255 / 0.35)) inset,
     0 18px 56px rgb(0 0 0 / 0.42);
   color: light-dark(rgb(21 20 26), rgb(251 251 254));
   animation: zzdl-rise 140ms cubic-bezier(0.2, 0.8, 0.3, 1);
@@ -74,6 +76,8 @@
   padding: 7px 10px;
   border-radius: calc(var(--zzg-round, 10px) * 0.7);
   border: 1px solid var(--zzg-rim-all, rgb(255 255 255 / 0.10));
+  --zzg-edge-owner: plain;
+  border-color: color-mix(in srgb, var(--zzg-rim-all, rgb(255 255 255 / 0.10)) var(--zzg-follow-top, 100%), transparent) color-mix(in srgb, var(--zzg-rim-all, rgb(255 255 255 / 0.10)) var(--zzg-follow-right, 100%), transparent) color-mix(in srgb, var(--zzg-rim-all, rgb(255 255 255 / 0.10)) var(--zzg-follow-bottom, 100%), transparent) color-mix(in srgb, var(--zzg-rim-all, rgb(255 255 255 / 0.10)) var(--zzg-follow-left, 100%), transparent);
   background-color: color-mix(in srgb, var(--zzdl-acc) 16%, transparent);
   overflow-wrap: anywhere;
 }
@@ -100,6 +104,8 @@
   padding: 7px 14px;
   border-radius: var(--zzg-round, 10px);
   border: 1px solid var(--zzg-rim-all, rgb(255 255 255 / 0.14));
+  --zzg-edge-owner: plain;
+  border-color: color-mix(in srgb, var(--zzg-rim-all, rgb(255 255 255 / 0.14)) var(--zzg-follow-top, 100%), transparent) color-mix(in srgb, var(--zzg-rim-all, rgb(255 255 255 / 0.14)) var(--zzg-follow-right, 100%), transparent) color-mix(in srgb, var(--zzg-rim-all, rgb(255 255 255 / 0.14)) var(--zzg-follow-bottom, 100%), transparent) color-mix(in srgb, var(--zzg-rim-all, rgb(255 255 255 / 0.14)) var(--zzg-follow-left, 100%), transparent);
   background-color: color-mix(in srgb, var(--zzdl-acc) 14%, transparent);
   background-image: var(--zzg-sheen, none);
   transition: background-color 120ms ease-out, transform 90ms ease-out;

@@ -3,8 +3,8 @@
   "name": "Glassflow",
   "description": "Per-state glass theming for tabs, sidebar and window buttons. Colourless glass, independent gradients.",
   "author": "Dragon74X",
-  "version": "3.73.0",
-  "updatedAt": "2026-10-24T00:16:10Z",
+  "version": "3.74.0",
+  "updatedAt": "2026-10-24T06:55:20Z",
   "homepage": "https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/glassflow",
   "readme": "https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/main/glassflow/README.md",
   "style": {
@@ -31,6 +31,13 @@
     "glassflow.uc.js": {
       "name": "Glassflow",
       "description": "Writes preference variables at startup, so configured values apply on launch rather than after a mod reload.",
+      "include": [
+        "chrome://browser/content/browser.xhtml"
+      ]
+    },
+    "glassflow-edges.uc.js": {
+      "name": "Glassflow edge input",
+      "description": "Pointer direction for existing owned rims; shared finite scheduler.",
       "include": [
         "chrome://browser/content/browser.xhtml"
       ]

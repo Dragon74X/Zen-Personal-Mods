@@ -2086,19 +2086,20 @@
     for (const node of menuNodes) node.remove(); menuNodes.clear();
     const container = panel ? popup.querySelector(".tab-group-edit-actions") : popup;
     if (!container) return;
-    const item = (label, eligible, action) => {
+    const item = (id, label, eligible, action) => {
       if (!eligible()) return;
       const node = document.createXULElement(panel ? "toolbarbutton" : "menuitem");
       node.zzrouterEligible = eligible;
+      node.setAttribute("data-zz-action", "tab-router--" + id);
       node.setAttribute("label", label); node.setAttribute("class", "subviewbutton");
       node.addEventListener("command", () => { if (!retired && eligible()) action(); });
       container.appendChild(node); menuNodes.add(node); return node;
     };
     const show = (title, value) => Services.prompt.alert(window, title, JSON.stringify(value, null, 2));
     if (popup.id === "menu_ToolsPopup") {
-      item("Generate routing rules from open tabs…", () => true, () => editRules(suggestRules({subdomains: true, copy: false})));
-      item("Validate routing rules", () => true, () => show("Routing rules", validateRules(str("rules", ""))));
-      item("Edit routing rules…", () => true, () => editRules(str("rules", "")));
+      item("generate-routing-rules", "Generate routing rules from open tabs…", () => true, () => editRules(suggestRules({subdomains: true, copy: false})));
+      item("validate-routing-rules", "Validate routing rules", () => true, () => show("Routing rules", validateRules(str("rules", ""))));
+      item("edit-routing-rules", "Edit routing rules…", () => true, () => editRules(str("rules", "")));
       return;
     }
     const scope = panel ? gBrowser.tabGroupMenu.activeGroup : popup.id === "tabContextMenu"
@@ -2107,13 +2108,13 @@
     if (!eligible()) return;
     const group = scope.matches?.("tab-group, zen-folder");
     const tabs = () => group ? [...scope.tabs].filter(liveScope) : [scope];
-    item("Why here?", eligible, () => show("Why here?", tabs().map(tab => window.TabRouter.explain(tab))));
-    item("Preview sorting", eligible, () => show("Preview sorting — no tabs moved", window.TabRouter.preview(tabs())));
+    item("why-here", "Why here?", eligible, () => show("Why here?", tabs().map(tab => window.TabRouter.explain(tab))));
+    item("preview-sorting", "Preview sorting", eligible, () => show("Preview sorting — no tabs moved", window.TabRouter.preview(tabs())));
     const ownLock = () => group ? scope.hasAttribute("data-zzrouter-locked") : window.SessionStore.getCustomTabValue(scope, LOCK) === "true";
     const locked = ownLock();
-    item(locked ? "Resume routing" : "Keep here", () => eligible() && ownLock() === locked, () => setPlacementLock(scope, !locked));
+    item(locked ? "resume-routing" : "keep-here", locked ? "Resume routing" : "Keep here", () => eligible() && ownLock() === locked, () => setPlacementLock(scope, !locked));
     const subject = refreshSubject(scope);
-    if (subject) item("Refresh automatic picture", () => {
+    if (subject) item("refresh-automatic-picture", "Refresh automatic picture", () => {
       const next = refreshSubject(scope); return next?.key === subject.key && next.ctx === subject.ctx;
     }, () => fetchSectionIcon(subject.key, subject.key, subject.ctx, channelKey(subject.key) ? "round" : "square", true));
   }
@@ -2381,7 +2382,7 @@
         } catch {}
 
         const r = {
-          version: "1.37.2",
+          version: "1.37.4",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The

@@ -82,7 +82,7 @@ test('Media sizing: disabled has 0 subscriptions; toggles coalesce and teardown 
 
 test('Completion motion is finite, glyph-only, deduplicated and honors still/reduced/off choices', async () => {
   const s=await source('iconflow'), animations=[], prefs=new Map();let reduced=false;
-  const glyph={isConnected:true,getClientRects:()=>[{}],animate(frames,opts){animations.push({frames,opts});return {finished:new Promise(()=>{})};}};
+  const glyph={hasAttribute:()=>false,closest:()=>null,isConnected:true,getClientRects:()=>[{}],animate(frames,opts){animations.push({frames,opts});return {finished:new Promise(()=>{})};}};
   const env=vm.createContext({retired:false,PREFIX:'zzicon.',Services:{prefs:{getIntPref:(k,d)=>prefs.get(k)??d,getBoolPref:(k,d)=>prefs.get(k)??d}},
     window:{matchMedia:()=>({matches:reduced})},document:{querySelectorAll:()=>[glyph]}});
   vm.runInContext(block(s,'  const completions =', '  function listenForCompletions()'),env);

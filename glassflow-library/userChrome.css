@@ -51,8 +51,8 @@ zen-library .zen-library-space-header {
     corner-shape: inherit;          /* Zen's squircle, where it is on */
     pointer-events: none;
     box-shadow:
-      inset 0 1px 0 var(--zzg-rim-top, rgb(255 255 255 / 0.42)),
-      inset 0 0 0 1px var(--zzg-rim-all, rgb(255 255 255 / 0.12));
+      inset calc(cos(var(--zzg-follow-angle, 90deg)) * 1px) calc(sin(var(--zzg-follow-angle, 90deg)) * 1px) 0 var(--zzg-rim-top, rgb(255 255 255 / 0.42)),
+      inset var(--zzg-follow-ring-x, 0px) var(--zzg-follow-ring-y, 0px) 0 1px var(--zzg-rim-all, rgb(255 255 255 / 0.12));
   }
 }
 
@@ -71,7 +71,7 @@ zen-library[zzlib-float] {
   overflow: clip;
   background: var(--zen-main-browser-background);
   box-shadow: 0 12px 40px rgb(0 0 0 / 0.35),
-    inset 0 0 0 1px var(--zzg-rim-all, rgb(255 255 255 / 0.12));
+    inset var(--zzg-follow-ring-x, 0px) var(--zzg-follow-ring-y, 0px) 0 1px var(--zzg-rim-all, rgb(255 255 255 / 0.12));
 }
 zen-library[zzlib-float="left"] {
   left: var(--zzlib-float-gap, 10px) !important;
@@ -149,7 +149,7 @@ zen-library[zzlib-float="centre"] {
       border-radius: var(--zzg-panel-radius, 20px);
       background: var(--zzg-ov-downloads-fill, var(--zen-main-browser-background, light-dark(rgb(235 235 235), rgb(27 27 27))));
       backdrop-filter: var(--zzg-ov-downloads, none);
-      box-shadow: inset 0 0 0 1px var(--zzg-rim-all, rgb(255 255 255 / 0.1)), 0 8px 24px rgb(0 0 0 / 0.22);
+      box-shadow: inset var(--zzg-follow-ring-x, 0px) var(--zzg-follow-ring-y, 0px) 0 1px var(--zzg-rim-all, rgb(255 255 255 / 0.1)), 0 8px 24px rgb(0 0 0 / 0.22);
       /* Badge progress lives on a sibling; it never reaches this backing. */
       opacity: 0;
       transition: opacity var(--zen-library-open-duration) var(--zen-library-open-easing);
@@ -165,3 +165,6 @@ zen-library[zzlib-float="centre"] {
   }
   #zen-sidebar-foot-buttons[zen-library-stack-open] #zen-library-download-list::before { opacity: 1; }
 }
+
+@media (-moz-pref("zzlib.card.rim")) { .zen-library-space { --zzg-edge-owner: plain; } }
+zen-library[zzlib-float], #zen-library-download-list { --zzg-edge-owner: plain; }

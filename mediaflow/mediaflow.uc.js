@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.7.4
+// @version        2.8.0
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==
@@ -17,7 +17,7 @@
   const LOG_PREFIX = "[Mediaflow]";
   // Gecko caches actor modules across unregister/re-register. Bump with actor
   // changes so Sine updates load replacement code without a browser restart.
-  const ACTOR_VERSION = "2.7.4";
+  const ACTOR_VERSION = "2.8.0";
   const CAPTIONS_PREF = "zzmedia.preview.captions";
   const CAPTIONS_WHEN_PIP_HIDDEN_PREF =
     "zzmedia.preview.captions-when-hidden";
@@ -84,6 +84,7 @@
       }
     }
     #zen-sidebar-pip-container {
+      --zzg-edge-owner: plain;
       position: fixed;
       background: transparent;
       display: none;
@@ -103,6 +104,8 @@
       inset: 0;
       box-sizing: border-box;
       border: 1px solid color-mix(in srgb, white 8%, transparent);
+  --zzg-edge-owner: plain;
+  border-color: color-mix(in srgb, color-mix(in srgb, white 8%, transparent) var(--zzg-follow-top, 100%), transparent) color-mix(in srgb, color-mix(in srgb, white 8%, transparent) var(--zzg-follow-right, 100%), transparent) color-mix(in srgb, color-mix(in srgb, white 8%, transparent) var(--zzg-follow-bottom, 100%), transparent) color-mix(in srgb, color-mix(in srgb, white 8%, transparent) var(--zzg-follow-left, 100%), transparent);
       border-radius: inherit;
       z-index: 1;
       pointer-events: none;
@@ -126,6 +129,8 @@
       color: white;
       background: color-mix(in srgb, black 78%, transparent);
       border: 1px solid color-mix(in srgb, white 8%, transparent);
+  --zzg-edge-owner: plain;
+  border-color: color-mix(in srgb, color-mix(in srgb, white 8%, transparent) var(--zzg-follow-top, 100%), transparent) color-mix(in srgb, color-mix(in srgb, white 8%, transparent) var(--zzg-follow-right, 100%), transparent) color-mix(in srgb, color-mix(in srgb, white 8%, transparent) var(--zzg-follow-bottom, 100%), transparent) color-mix(in srgb, color-mix(in srgb, white 8%, transparent) var(--zzg-follow-left, 100%), transparent);
       border-radius: var(--zen-border-radius);
       box-shadow: 0 3px 12px rgb(0 0 0 / 28%);
       font: 600 12px/1.35 system-ui, sans-serif;
@@ -836,6 +841,9 @@
   function updateControls(state) {
     lastPlaybackState = state;
     const { time: t, duration: d, paused } = state;
+    if (Number.isFinite(state.volume) && state.volume >= 0 && state.volume <= 1) {
+      pipContainer.setAttribute("data-zz-volume", String(state.muted ? 0 : state.volume * 100));
+    } else pipContainer.removeAttribute("data-zz-volume");
     pipContainer.toggleAttribute("zzmf-paused", !!paused);
     nameControl(play, paused ? "Play" : "Pause");
     const live = !(Number.isFinite(d) && d > 0);
@@ -994,6 +1002,7 @@
       }
       const source = sourceForToggle(nativeButton);
       const showing = source?.bc.id === sourceBC?.id && !userHidden;
+      toggle.setAttribute("data-zz-video-visible", String(showing));
       const label = showing ? "Hide sidebar video" : "Show this video in sidebar";
       toggle.setAttribute("aria-label", label); toggle.setAttribute("tooltiptext", label);
       const icon = showing ? EYE_URL : EYE_OFF_URL;
@@ -1457,6 +1466,7 @@
     for (const [i, source] of sources.entries()) {
       const owner = actorRegistry.get(source.bc.id)?.owner;
       const item = document.createXULElement("menuitem");
+      item.setAttribute("data-zz-action", "mediaflow--sidebar-source");
       item.zzmfEligible = () => usableSource(source, tab) && actorRegistry.get(source.bc.id)?.owner === owner;
       item.setAttribute("label", "Show this video in sidebar" + (sources.length > 1 ? ` (${i + 1})` : ""));
       item.addEventListener("command", () => {
@@ -1467,6 +1477,7 @@
     const manual = availableSources.get(chosenSource);
     if (usableSource(manual, tab)) {
       const automatic = document.createXULElement("menuitem");
+      automatic.setAttribute("data-zz-action", "mediaflow--sidebar-automatic");
       automatic.zzmfEligible = () => chosenSource === manual.bc.id && usableSource(manual, tab);
       automatic.setAttribute("label", "Sidebar video: Automatic");
       automatic.addEventListener("command", () => { if (automatic.zzmfEligible()) window.ZzMediaflowController?.chooseSource(); });

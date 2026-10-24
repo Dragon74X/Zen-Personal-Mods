@@ -81,8 +81,8 @@
         color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-header-tint, 25%), transparent) 0%,
         color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-end-tint, 0%), transparent)
           var(--zzgroup-spread, 50%)),
-      linear-gradient(var(--zzg-edge-dir, var(--zzg-dir, 135deg)), var(--zzgf-rim-top) 0%, transparent var(--zzglass-edges-reach, 60%)),
-      linear-gradient(var(--zzg-edge-dir, var(--zzg-dir, 135deg)), var(--zzgf-rim-all) 0%, transparent var(--zzglass-edges-reach, 60%)), var(--zzrouter-banner, none) !important;
+      linear-gradient(var(--zzg-follow-gradient, var(--zzg-edge-dir, var(--zzg-dir, 135deg))), var(--zzgf-rim-top) 0%, transparent var(--zzglass-edges-reach, 60%)),
+      linear-gradient(var(--zzg-follow-gradient, var(--zzg-edge-dir, var(--zzg-dir, 135deg))), var(--zzgf-rim-all) 0%, transparent var(--zzglass-edges-reach, 60%)), var(--zzrouter-banner, none) !important;
     background-size: auto, 100% var(--zzgroup-rim-thickness, 1px), auto !important;
     background-position: center center, top, center center !important;
     background-repeat: repeat, no-repeat, repeat !important;
@@ -122,7 +122,7 @@
     transparent 0%, black var(--zzgf-fade),
     black calc(100% - var(--zzgf-fade)), transparent 100%);
   /* Specular highlight, running across the width like a lit tube. */
-  --zzgf-barsheen: linear-gradient(var(--zzgf-rimA),
+  --zzgf-barsheen: linear-gradient(var(--zzg-follow-gradient, var(--zzgf-rimA)),
     rgb(255 255 255 / calc(0.38 * var(--zzgf-glass))) 0%,
     rgb(255 255 255 / calc(0.10 * var(--zzgf-glass))) 42%,
     transparent 70%);
@@ -270,8 +270,8 @@
         color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-header-tint, 25%), transparent) 0%,
         color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-end-tint, 0%), transparent)
           var(--zzgroup-spread, 50%)),
-      linear-gradient(var(--zzgf-dir), var(--zzgf-rim-top) 0%, transparent var(--zzgroup-rim-reach, var(--zzgroup-spread, 50%))),
-      linear-gradient(var(--zzgf-dir), var(--zzgf-rim-all) 0%, transparent var(--zzgroup-rim-reach, var(--zzgroup-spread, 50%))), var(--zzrouter-banner, none) !important;
+      linear-gradient(var(--zzg-follow-gradient, var(--zzgf-dir)), var(--zzgf-rim-top) 0%, transparent var(--zzgroup-rim-reach, var(--zzgroup-spread, 50%))),
+      linear-gradient(var(--zzg-follow-gradient, var(--zzgf-dir)), var(--zzgf-rim-all) 0%, transparent var(--zzgroup-rim-reach, var(--zzgroup-spread, 50%))), var(--zzrouter-banner, none) !important;
     background-size: auto, 100% var(--zzgroup-rim-thickness, 1px), auto !important;
     background-position: center center, top, center center !important;
     background-repeat: repeat, no-repeat, repeat !important;
@@ -426,10 +426,10 @@
     :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container::before {
       background-image:
         var(--zzgf-light, linear-gradient(transparent, transparent)),
-        linear-gradient(var(--zzgf-rimA),
+        linear-gradient(var(--zzg-follow-gradient, var(--zzgf-rimA)),
           rgb(255 255 255 / calc(0.5 * var(--zzgf-glass))) 0%,
           transparent 45%),
-        linear-gradient(var(--zzgf-rimB),
+        linear-gradient(var(--zzg-follow-gradient, var(--zzgf-rimB)),
           rgb(0 0 0 / calc(0.25 * var(--zzgf-glass))) 0%,
           transparent 40%),
         var(--zzgf-grad) !important;
@@ -440,7 +440,7 @@
       background-image:
         var(--zzgf-light, linear-gradient(transparent, transparent)),
         var(--zzgf-barsheen),
-        linear-gradient(var(--zzgf-rimB),
+        linear-gradient(var(--zzg-follow-gradient, var(--zzgf-rimB)),
           rgb(0 0 0 / calc(0.25 * var(--zzgf-glass))) 0%,
           transparent 40%),
         var(--zzgf-grad) !important;
@@ -1625,9 +1625,9 @@
       border-radius: inherit !important;
       corner-shape: inherit !important;
       opacity: var(--zzgf-state-opacity);
-      box-shadow: var(--zzgf-calculated-rim, inset 0 var(--zzgroup-rim-thickness, 1px) 0 var(--zzgf-state-rim-top)),
+      box-shadow: var(--zzgf-calculated-rim, inset calc(cos(var(--zzg-follow-angle, 90deg)) * var(--zzgroup-rim-thickness, 1px)) calc(sin(var(--zzg-follow-angle, 90deg)) * var(--zzgroup-rim-thickness, 1px)) 0 var(--zzgf-state-rim-top)),
         inset 0 0 0 var(--zzgroup-rim-ring-width, 1px) var(--zzgf-state-rim-all);
-      mask-image: linear-gradient(var(--zzgf-state-rim-dir), black 0%, transparent var(--zzgf-state-rim-reach));
+      mask-image: linear-gradient(var(--zzg-follow-gradient, var(--zzgf-state-rim-dir)), black 0%, transparent var(--zzgf-state-rim-reach));
     }
   }
 
@@ -1700,9 +1700,9 @@
         border-radius: inherit !important;
         corner-shape: inherit !important;
         opacity: var(--zzgf-state-opacity);
-        box-shadow: var(--zzgf-calculated-rim, inset 0 var(--zzgroup-rim-thickness, 1px) 0 var(--zzgf-state-rim-top)),
+        box-shadow: var(--zzgf-calculated-rim, inset calc(cos(var(--zzg-follow-angle, 90deg)) * var(--zzgroup-rim-thickness, 1px)) calc(sin(var(--zzg-follow-angle, 90deg)) * var(--zzgroup-rim-thickness, 1px)) 0 var(--zzgf-state-rim-top)),
           inset 0 0 0 var(--zzgroup-rim-ring-width, 1px) var(--zzgf-state-rim-all);
-        mask-image: linear-gradient(var(--zzgf-state-rim-dir), black 0%, transparent var(--zzgf-state-rim-reach));
+        mask-image: linear-gradient(var(--zzg-follow-gradient, var(--zzgf-state-rim-dir)), black 0%, transparent var(--zzgf-state-rim-reach));
       }
     }
   }
@@ -1998,9 +1998,18 @@
 /* A per-group editor; it leaves shared workspace and Glassflow colours alone. */
 .zzgf-gradient-editor {
   width: min(480px, 90vw); padding: 20px; border: 1px solid GrayText;
+  --zzg-edge-owner: plain;
+  border-color: color-mix(in srgb, GrayText var(--zzg-follow-top, 100%), transparent) color-mix(in srgb, GrayText var(--zzg-follow-right, 100%), transparent) color-mix(in srgb, GrayText var(--zzg-follow-bottom, 100%), transparent) color-mix(in srgb, GrayText var(--zzg-follow-left, 100%), transparent);
   border-radius: 12px; background: Canvas; color: CanvasText; font: menu;
   & textarea { display: block; box-sizing: border-box; width: 100%; margin-block: 8px; }
   & button, & input { margin: 6px 6px 6px 0; }
   & input[type="number"] { width: 64px; }
   & .zzgf-gradient-preview { height: 64px; border-radius: 8px; margin-bottom: 12px; }
+}
+
+/* Only the existing header/connector painters consume this shared input. */
+@media (-moz-pref("zzgroup.enabled")) {
+  .tab-group-label-container { --zzg-edge-owner: header; }
+  .tab-group-label-container:has(> .zzgf-rim) { --zzg-edge-owner: group; }
+  .tab-group-container { --zzg-edge-owner: rail; }
 }

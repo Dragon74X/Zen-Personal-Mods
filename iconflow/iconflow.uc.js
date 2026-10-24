@@ -190,7 +190,7 @@
     if (retired || !S.getBoolPref(PREFIX + "animate", true) || (setting === "library" ? choice === 2 : [1, 5].includes(choice)) ||
         window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     for (const glyph of document.querySelectorAll(selector)) {
-      if (!glyph.isConnected || !glyph.getClientRects().length || completions.has(glyph)) continue;
+      if (!glyph.isConnected || !glyph.getClientRects().length || completions.has(glyph) || glyph.hasAttribute("data-zz-morph-slot") || glyph.closest("[data-zz-morph]")) continue;
       const motion = glyph.animate([{ scale: "1" }, { scale: "1.22", offset: .35 }, { scale: "1" }], { duration: 360, easing: "ease-out" });
       completions.set(glyph, motion);
       motion.finished.catch(() => {}).finally(() => { if (completions.get(glyph) === motion) completions.delete(glyph); });

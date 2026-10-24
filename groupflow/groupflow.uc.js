@@ -612,7 +612,7 @@
       const controls = html("div", form), a = html("input", controls, { type: "color", value: "#7c8cf8", "aria-label": "Start colour" });
       const b = html("input", controls, { type: "color", value: "#1b1b2b", "aria-label": "End colour" });
       const angle = html("input", controls, { type: "number", value: "90", min: "0", max: "360", "aria-label": "Direction in degrees" });
-      const build = html("button", controls, { type: "button" }); build.textContent = "Use these two colours";
+      const build = html("button", controls, { type: "button" }); build.setAttribute("data-zz-action", "groupflow--use-colours"); build.textContent = "Use these two colours";
       const valid = () => /^(?:repeating-)?(?:linear|radial|conic)-gradient\(/i.test(input.value.trim()) &&
         !/url\s*\(/i.test(input.value) && CSS.supports("background-image", input.value);
       const update = () => {
@@ -621,8 +621,8 @@
       };
       build.addEventListener("click", () => { input.value = `linear-gradient(${Number(angle.value) || 0}deg, ${a.value}, ${b.value})`; update(); });
       input.addEventListener("input", update); update();
-      const save = html("button", form, { type: "submit" }); save.textContent = "Save gradient";
-      const cancel = html("button", form, { type: "button" }); cancel.textContent = "Cancel";
+      const save = html("button", form, { type: "submit" }); save.setAttribute("data-zz-action", "groupflow--save-gradient"); save.textContent = "Save gradient";
+      const cancel = html("button", form, { type: "button" }); cancel.setAttribute("data-zz-action", "groupflow--cancel-gradient"); cancel.textContent = "Cancel";
       cancel.addEventListener("click", () => dialog.close());
       form.addEventListener("submit", event => {
         event.preventDefault(); update();
@@ -689,14 +689,14 @@
     const actionItems = new Set();
     function addActions(parent, group, panel = false) {
       const actions = [
-        ["Edit gradient…", () => !!colors, () => editGradient(group)],
-        ["Resample favicon colour", () => !!colors && group.tabs.some(tab => tab.hasAttribute("image")), () => resampleColor(group)],
-        [group.isZenFolder ? "Convert to tab group" : "Convert to folder", () => !!leafTabs(group)?.length, () => convert(group)],
+        ["edit-gradient", "Edit gradient…", () => !!colors, () => editGradient(group)],
+        ["resample-favicon-colour", "Resample favicon colour", () => !!colors && group.tabs.some(tab => tab.hasAttribute("image")), () => resampleColor(group)],
+        [group.isZenFolder ? "convert-to-tab-group" : "convert-to-folder", group.isZenFolder ? "Convert to tab group" : "Convert to folder", () => !!leafTabs(group)?.length, () => convert(group)],
       ];
-      for (const [label, eligible, action] of actions) {
+      for (const [id, label, eligible, action] of actions) {
         if (!live(group) || !eligible()) continue;
         const item = document.createXULElement(panel ? "toolbarbutton" : "menuitem");
-        item.setAttribute("label", label); item.setAttribute("class", "subviewbutton");
+        item.setAttribute("label", label); item.setAttribute("class", "subviewbutton"); item.setAttribute("data-zz-action", "groupflow--" + id);
         item.addEventListener("command", () => {
           if (live(group) && eligible()) Promise.resolve(action()).catch(error => console.error("[Groupflow] Action failed:", error));
         });
@@ -1232,6 +1232,7 @@
       if (!canScroll(box, dir)) continue;
       const item = document.createXULElement(panel ? "toolbarbutton" : "menuitem");
       item.zzgfEligible = () => group.isConnected && group.contains(box) && canScroll(box, dir);
+      item.setAttribute("data-zz-action", "groupflow--scroll-folder-" + dir);
       item.setAttribute("label", "Scroll folder " + dir); item.setAttribute("class", "subviewbutton");
       item.addEventListener("command", () => { if (item.zzgfEligible()) pageFolder(box, dir); });
       parent.appendChild(item); scrollItems.add(item);

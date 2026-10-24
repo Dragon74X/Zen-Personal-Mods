@@ -51,9 +51,10 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzicon.set",
-    "label": "Icon set *Zen's own keeps Zen's icons, or New Icons' if that mod is installed, and moves each to a pose of its own on hover: reload turns, back slides left, downloads drop. Circuit is high-tech glass: chamfered shapes with every corner rounded, a translucent body with a sheen and rim, and neon-tube lines, drawn and animated frame by frame. Either way, motion builds up, overshoots and settles, and plays back when the pointer leaves. Circuit: clean keeps the functions and motion with solid arrow strokes and bars, fewer window contours, restrained panel fills, and no sheen or glow. Each button can differ from the set under Each button.*",
-    "defaultValue": 0,
+    "label": "Icon set *Zen's own keeps Zen's icons, or New Icons' if that mod is installed, and moves each to a pose of its own on hover: reload turns, back slides left, downloads drop. Circuit is high-tech glass: chamfered shapes with every corner rounded, a translucent body with a sheen and rim, and neon-tube lines, drawn and animated frame by frame. Either way, motion builds up, overshoots and settles, and plays back when the pointer leaves. Circuit: clean keeps the functions and motion with solid arrow strokes and bars, fewer window contours, restrained panel fills, and no sheen or glow. Circuit · Morph uses the approved shapes: hover prepares, activation releases, and observed playback/bookmark/window state morphs in place. Existing explicit set choices are preserved. Each button can differ from the set under Each button.*",
+    "defaultValue": 4,
     "options": [
+      {"label": "Circuit · Morph (default)", "value": 4},
       {
         "label": "Zen's own",
         "value": 0

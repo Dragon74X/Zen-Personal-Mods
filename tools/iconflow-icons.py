@@ -1258,9 +1258,15 @@ def motion_css():
         # motion asked for, they stay still rather than falling back to another mod's.
         out.append(f'@media (not (-moz-pref("zzicon.motion.{key}", 0))) and (not (-moz-pref("zzicon.animate"))) {{ {still} }}')
         out.append(f'@media (not (-moz-pref("zzicon.motion.{key}", 0))) and (prefers-reduced-motion: reduce) {{ {still} }}')
+        # A Morph painter already animates its vector frames. Keep older
+        # rotations off that same image/pseudo-element; saved choices still
+        # apply when another set or an explicit per-button style owns it.
+        moving = ", ".join(t.replace("::before", ":not([zzicon-motion])::before")
+                           if "::before" in t else t + ":not([zzicon-motion])"
+                           for t in split_list(targets))
         for value, (_, name, _, timing) in MOTIONS.items():
             name += "-back" if key in BACKWARD and value in TURNS else ""
-            out.append(f'@media (-moz-pref("zzicon.motion.{key}", {value})) and {MOVES} {{ {targets} {{ animation: {name} var(--zzicon-motion-duration) {timing} !important; }}'
+            out.append(f'@media (-moz-pref("zzicon.motion.{key}", {value})) and {MOVES} {{ {moving} {{ animation: {name} var(--zzicon-motion-duration) {timing} !important; }}'
                        f' {parents(split_list(targets))} {{ animation: none !important; transform: none !important; }} }}')
     return out
 

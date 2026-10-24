@@ -59,13 +59,23 @@ https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/iconflow
 
 Requires `sine.allow-unsafe-js` set to `true` in `about:config`.
 
-## Circuit · Morph
+## Circuit · Morph on the native engine (1.21.2)
 
-New installs default to the approved **Circuit · Morph** set. Existing saved choices stay intact; select it once under **Icon set** to opt in. Enabled controls that follow the set receive persistent inline SVG parts in their native icon slots. Existing explicit native/still and per-button styles are preserved. Menus keep their animation-off default. No SVG security preference changes are needed.
+The approved artwork, hover windup, release and settle now use vector frame strips
+on native images and existing glyph pseudo-elements. The old engine owns layout,
+visibility and opacity again. Browser-managed frame animation replaces the live
+SVG overlay and JavaScript path updates. No anchor layer or geometry sampling.
 
-State comes from each actual command target, including Mediaflow's source volume. Native Zen media cards expose mute/activity only; their numeric volume remains unknown. Morph never invokes commands or sets volume. Glassflow supplies pointer direction to the existing rims using their stored shape, state and timing settings.
+**Circuit · Morph** remains the default for new installs; existing set, per-button,
+size, speed and colour preferences stay intact. Menus remain still by default.
+Animation Off and reduced motion show the current state without windup.
+Native commands still execute directly and exactly once per activation.
 
-See [coverage, native checks and install steps](../docs/CIRCUIT-MORPH.md).
+States come from the actual control owner. Numeric media volume is preserved;
+the icon uses the nearest of six supplied volume drawings. Native Zen media cards
+without a numeric volume keep it unknown. No SVG security preference changes.
+
+See [engine comparison and native checks](../docs/CIRCUIT-MORPH.md).
 
 ## Icon set
 

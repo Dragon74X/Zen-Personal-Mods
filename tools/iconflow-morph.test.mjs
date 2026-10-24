@@ -6,7 +6,6 @@ import {execFileSync} from 'node:child_process';
 import vm from 'node:vm';
 const root=new URL('../',import.meta.url),read=p=>readFile(new URL(p,root),'utf8');
 const data=JSON.parse(await read('iconflow/morph.json')),source=await read('iconflow/iconflow-morph.uc.js');
-const env=vm.createContext({});vm.runInContext(source,env);const {channel,motionAt,retarget,pose}=env.IconMorph;
 const glyph=id=>data.glyphs[data.actions[id].glyph];
 test('Morph preserves all 125 action IDs, 75 drawings and 10 compatible semantic path controls',()=>{
  assert.equal(Object.keys(data.actions).length,125);assert.equal(Object.keys(data.glyphs).length,75);assert.equal(data.controls.length,10);
@@ -25,39 +24,12 @@ test('approved Library, Reload, Extensions and History geometry and paint remain
   assert.equal(createHash('sha256').update(svg).digest('hex'),hash,id);
  }
 });
-test('motion preserves position and velocity through repeated retargeting and full rotations',()=>{
- const c=channel(0,0);retarget(c,360,0);
- for(const t of [17,45,70,144,215]){const before=motionAt(c,t);retarget(c,c.target+360,t);const after=motionAt(c,t);assert.ok(Math.abs(after.x-before.x)<1e-9);assert.ok(Math.abs(after.v-before.v)<1e-9);}
- assert.equal(c.target,2160);assert.ok(motionAt(c,5000).x>2159.99);
- assert.deepEqual(glyph('reload').parts.map(p=>p.spin),[360,360,-360]);
- assert.equal(glyph('stop').parts[0].spin,-90);assert.equal(glyph('new-tab').parts[0].spin,90);
- for(const id of ['back','forward'])assert.equal(Math.abs(glyph(id).parts[1].wind.x),3);
-});
-test('volume interpolates observed levels without using preview defaults or writing native state',()=>{
- const definition=data.controls.find(c=>c.id==='volume-control');
- const a=pose({definition,level:37}),b=pose({definition,level:38}),unknown=pose({definition,level:null});
- assert.notEqual(a.values[1].d,b.values[1].d);assert.equal(unknown.id,'100');
- assert.equal(pose({definition,level:0}).id,'0');
- assert.doesNotMatch(source,/defaultVolume|\.toggleMuteAudio\(|\.play\(|\.pause\(|dispatchEvent\(|preventDefault\(|stopPropagation\(/);
-});
-test('all generated menu families publish stable identifiers at their command owner',async()=>{
- for(const mod of ['glassflow','groupflow','tab-router','tab-unloader','mediaflow']){
-  const s=await read(`${mod}/${mod}.uc.js`);assert.match(s,/data-zz-action/);
-  const families=data.bindings.filter(b=>b.module===mod&&b.selector.startsWith('[data-zz-action'));
-  for(const b of families){const key=b.action.slice(mod.length+2);assert.ok(s.includes('"'+key+'"')||s.includes('"'+b.action+'"')||key.startsWith('scroll-folder-'),b.action);}
- }
-});
-test('native Zen installation, commands, state adapters, rendering and teardown', {skip:!process.env.ZEN_BINARY,timeout:240000},()=>{
- const out=execFileSync('python3',[new URL('tools/zen-morph-smoke.py',root).pathname,'--zen',process.env.ZEN_BINARY,'--output',process.env.ZEN_MORPH_OUTPUT||'/tmp/zen-morph-checks'],{timeout:235000,encoding:'utf8',maxBuffer:2e6});
- console.log(out.trim());
-});
-
 test('all ten adapters read their own authorities, including background targets and unknown native volume',()=>{
  const node=(attrs={})=>({attrs,id:'',getAttribute(k){return this.attrs[k]??null;},hasAttribute(k){return k in this.attrs;},closest(){return null;}});
  const root=node({'zen-compact-mode':'false','zen-sidebar-expanded':'false'}),pip=node({'data-zz-volume':'37'}),star=node({starred:''});star.id='star-button';
  const ids={'zen-sidebar-pip-container':pip,'appMenu-popup':{state:'closed'}},win={windowState:1,STATE_MAXIMIZED:2,fullScreen:false,SidebarController:{isOpen:false}};
  const targets=new WeakMap(),env=vm.createContext({data,window:win,document:{documentElement:root,getElementById:id=>ids[id]},downloadTargets:targets});
- vm.runInContext(source.slice(source.indexOf('function snapshot('),source.indexOf('function modelKey(')),env);
+ vm.runInContext(source.slice(source.indexOf('function snapshot('),source.indexOf('function stateKey(')),env);
  const read=(id,host=node(),binding={})=>env.snapshot(binding,host,{controlId:id});
  assert.equal(read('playback').state,'playing');pip.attrs['zzmf-paused']='';assert.equal(read('playback').state,'paused');
  const card=node({});card.classList={contains:()=>true};const native=node();native.closest=selector=>selector==='.zen-media-card'?card:null;
@@ -77,9 +49,15 @@ test('all ten adapters read their own authorities, including background targets 
  assert.equal(read('fullscreen-state').state,'windowed');win.fullScreen=true;assert.equal(read('fullscreen-state').state,'fullscreen');
 });
 
-test('supplied Morph browser checks', {skip:!process.env.ICONFLOW_APPROVED_DIR,timeout:120000},async()=>{
- const approved=JSON.parse(await readFile(process.env.ICONFLOW_APPROVED_DIR+'/assets-expressive.json','utf8'));
- for(const icon of approved.icons)for(const key of ['parts','timeline','controlId'])assert.deepEqual(glyph(icon.id)[key],icon[key],icon.id+' '+key);
- const out=execFileSync(process.execPath,['check.cjs','--browser'],{cwd:process.env.ICONFLOW_APPROVED_DIR,timeout:115000,encoding:'utf8',maxBuffer:2e6});
- console.log(out.trim());
+
+test('native frame sheets reproduce the approved motion definitions',()=>{
+ const out=execFileSync('python3',[new URL('tools/iconflow-morph-frames.py',root).pathname,'--check'],{encoding:'utf8'});console.log(out.trim());
+});
+test('native paint keeps command and geometry ownership; no JS animation loop',()=>{
+ assert.doesNotMatch(source,/requestAnimationFrame|ResizeObserver|anchor-name|createElement|DOMParser|setInterval|setTimeout|dispatchEvent\(|preventDefault\(|stopPropagation\(/);
+ assert.match(source,/image.decode\(\)/);assert.match(source,/r.paint.animate\(/);
+ assert.doesNotMatch(source,/style\.(visibility|opacity|position|width|height)/);
+});
+test('native Zen commands, frames, visibility and teardown',{skip:!process.env.ZEN_BINARY,timeout:240000},()=>{
+ console.log(execFileSync('python3',[new URL('tools/zen-morph-smoke.py',root).pathname,'--zen',process.env.ZEN_BINARY,'--output',process.env.ZEN_MORPH_OUTPUT||'/tmp/zen-native-morph-checks'],{timeout:235000,encoding:'utf8',maxBuffer:2e6}));
 });

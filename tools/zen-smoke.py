@@ -232,10 +232,8 @@ def check_sidebar_hover(m):
             handles=m.call('WebDriver:GetWindowHandles');m.call('WebDriver:SwitchToWindow',{'handle':handles[-1]})
             m.script("""document.documentElement.setAttribute('zen-compact-mode','true');
               Services.prefs.setBoolPref('zzglass.sidebar.page-follow',false);
-              // Existing saved true must not reactivate the retired filter.
-              Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',true);
-              window.hoverWrites=0;window.hoverObserver=new MutationObserver(r=>hoverWrites+=r.length);
-              hoverObserver.observe(document.getElementById('tabbrowser-tabbox'),{attributes:true,attributeFilter:['style']});return true;""")
+              // See-through pages get the strip filter only while the sidebar shows.
+              Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',true);return true;""")
             remote=m.script('return gBrowser.selectedBrowser.remoteType;')
             assert bool(remote)==(name!='settings'),(name,remote)
             for previous in ['', 'brightness(0.9)']:
@@ -252,19 +250,34 @@ def check_sidebar_hover(m):
                     colour=tuple(round(c*(.9 if previous else 1)) for c in (178,75,206))
                     assert max(abs(a-b) for a,b in zip(pixel(100,50),colour))<=2,(name,'fixture not painted',pixel(100,50))
                     assert pixel(0,0)!=pixel(100,50),(name,'rounded corner not painted')
-                m.script('hoverWrites=0;return true;')
                 for visible in [True,False,True,False]:
                     hover(visible)
                     state=m.script("return {box:document.getElementById('tabbrowser-tabbox').getBoundingClientRect().toJSON(),filter:document.getElementById('tabbrowser-tabbox').style.filter};")
-                    assert state==geometry,(name,visible,state,geometry)
+                    assert state['box']==geometry['box'],(name,visible,state,geometry)
+                    # Only WebRender-native primitives: an feImage mask fell back to software.
+                    assert m.script("return [...document.querySelectorAll('#zzg-strip > *')].every(e=>['feFlood','feGaussianBlur','feComposite','feMerge'].includes(e.localName));"),name
+                    assert (state['filter'].startswith((previous+' ') if previous else '') and 'zzg-strip' in state['filter']) if visible else state['filter']==previous,(name,visible,state)
                     assert m.script("const e=document.querySelector('#card, .main-content');const s=getComputedStyle(e);return {box:e.getBoundingClientRect().toJSON(),radius:s.borderRadius,shape:s.cornerShape};",context='content')==card,(name,'card changed')
                     after=m.shot();scale=after.width/m.script('return window.innerWidth;')
                     area=tuple(round(v*scale) for v in (350,160,1000,550))
                     difference=ImageStat.Stat(ImageChops.difference(before,after).crop(area)).mean
                     assert max(difference)==0,(name,previous,visible,difference)
                     checks.append({'page':name,'remote':bool(remote),'hover':visible,'retainedFilter':previous,'outsideDifference':difference})
-                assert m.script("return hoverWrites===0&&!document.getElementById('zzg-strip');"),name
-            m.script("hoverObserver.disconnect();delete window.hoverObserver;document.getElementById('tabbrowser-tabbox').style.removeProperty('filter');return true;")
+                assert m.script("return document.getElementById('tabbrowser-tabbox').style.filter;")==previous,(name,'page filter not restored')
+                if name=='transparent' and not previous:
+                    # The strip under the panel is blurred; the switch turns it off.
+                    hover(True)
+                    panel=m.script("const p=document.getElementById('zen-toolbar-background').getBoundingClientRect();return [p.left,p.top,p.right,p.bottom];")
+                    blurred=m.shot();scale=blurred.width/m.script('return window.innerWidth;')
+                    m.script("Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',false);return true;");time.sleep(.3)
+                    sharp=m.shot();m.script("Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',true);return true;")
+                    strip=tuple(round(v*scale) for v in (panel[0]+20,200,panel[2]-20,260))
+                    detail=[max(ImageStat.Stat(im.crop(strip)).stddev) for im in (blurred,sharp)]
+                    assert detail[0]<detail[1]/2,(name,'strip not blurred',detail)
+                    assert max(ImageStat.Stat(ImageChops.difference(blurred,sharp).crop(area)).mean)==0,(name,'strip filter changed outside pixels')
+                    hover(False)
+                    checks.append({'page':name,'stripDetail':detail})
+            m.script("document.getElementById('tabbrowser-tabbox').style.removeProperty('filter');return true;")
         hover(True)
         assert m.script("return getComputedStyle(document.getElementById('zen-toolbar-background')).backdropFilter.includes('blur(12px)');"),'native blur recipe lost'
     finally:

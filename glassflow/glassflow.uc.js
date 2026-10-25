@@ -145,6 +145,103 @@
     },
   };
 
+  // ---- transparent pages under the compact sidebar ---------------------
+  // A page made see-through (Transparent Zen, Zen Internet) leaves the
+  // sidebar's blur nothing to blur: its text sits on nothing, a blurred copy
+  // of it is all but invisible, and the sharp original shows through. While
+  // the compact sidebar shows over such a page, an SVG filter on the page box
+  // blurs the strip under the panel instead, keeping the rest of the page as
+  // it is. Zen gives every page a solid background unless a mod takes it
+  // away, so a page whose browser background is solid is left to Zen's blur
+  // alone and nothing extra runs.
+  // Only primitives WebRender draws itself (feFlood, feGaussianBlur,
+  // feComposite, feMerge). Zen 1.23.4b ships feImage off, and a filter using
+  // it falls back to software: remote pages went blank and corners changed.
+  // ponytail: a rectangle; the panel's rounded corners may show a sliver of
+  // blurred page. A rounded mask needs feImage, so not until Gecko enables it.
+  const SHOWN = "[zen-has-hover], [zen-user-show], [zen-has-empty-tab], [flash-popup], [has-popup-menu], [movingtab], [zen-compact-mode-active]";
+  function transparentPageBlur() {
+    const NS = "http://www.w3.org/2000/svg", S = Services.prefs, root = document.documentElement;
+    const toolbox = document.getElementById("navigator-toolbox"), box = document.getElementById("tabbrowser-tabbox");
+    if (!toolbox || !box) return () => {};
+    const el = (parent, tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.append(e); return e; };
+    const svg = el(document.documentElement, "svg", { width: 0, height: 0, style: "position:fixed;pointer-events:none", "aria-hidden": "true" });
+    const filter = el(svg, "filter", { id: "zzg-strip", filterUnits: "userSpaceOnUse", primitiveUnits: "userSpaceOnUse", "color-interpolation-filters": "sRGB" });
+    const flood = el(filter, "feFlood", { "flood-color": "#fff", result: "m" });
+    const blur = el(filter, "feGaussianBlur", { in: "SourceGraphic", edgeMode: "duplicate", result: "b" });
+    el(filter, "feComposite", { in: "SourceGraphic", in2: "m", operator: "out", result: "o" });
+    const merge = el(filter, "feMerge", {});
+    el(merge, "feMergeNode", { in: "o" });
+    el(merge, "feMergeNode", { in: "b" });
+    const wanted = () => S.getBoolPref(PREFIX + "sidebar.blur-transparent-pages", true) &&
+      (S.getBoolPref(PREFIX + "sidebar.blur", false) || S.getBoolPref("zen.theme.acrylic-sidebar", false));
+    const alpha = c => {
+      if (c === "transparent") return 0;
+      const m = c.match(/^rgba\((?:[^,]+,){3}\s*([\d.]+)\)$/) || c.match(/\/\s*([\d.]+)(%?)\s*\)$/);
+      return m ? parseFloat(m[1]) / (m[2] === "%" ? 100 : 1) : 1;
+    };
+    const seeThrough = () => alpha(getComputedStyle(gBrowser.selectedBrowser).backgroundColor) < 1;
+    // Follows the panel every frame while it slides, in and out, so the blur
+    // moves with it and stays until it has gone. Another mod's inline filter
+    // on the page box is kept ahead of ours and put back afterwards.
+    let frame = 0, previousFilter = null, appliedFilter = null;
+    const releaseFilter = () => {
+      if (appliedFilter && box.style.getPropertyValue("filter") === appliedFilter) {
+        if (previousFilter[0]) box.style.setProperty("filter", ...previousFilter);
+        else box.style.removeProperty("filter");
+      }
+      previousFilter = appliedFilter = null;
+    };
+    const sliding = () => toolbox.getAnimations().some(a => a.transitionProperty === "translate" && a.playState === "running");
+    const update = () => {
+      frame = 0;
+      const panel = document.getElementById("zen-toolbar-background"), p = panel?.getBoundingClientRect(), moving = sliding();
+      // Computed CSS resolves lengths (rem, calc, etc.) and the native/custom
+      // switch once. A zero radius or disabled backdrop needs no page filter.
+      const r = panel ? parseFloat(getComputedStyle(panel).backdropFilter.match(/\bblur\(([^)]+)\)/)?.[1]) : NaN;
+      if (!wanted() || !(r > 0) || root.getAttribute("zen-compact-mode") !== "true" || !(toolbox.matches(SHOWN) || root.getAttribute("zen-renaming-tab") === "true" || moving) || !p?.width || !seeThrough()) {
+        releaseFilter();
+        return;
+      }
+      const b = box.getBoundingClientRect();
+      for (const [k, v] of Object.entries({ x: 0, y: 0, width: b.width, height: b.height })) filter.setAttribute(k, v);
+      for (const e of [flood, blur]) for (const [k, v] of Object.entries({ x: p.left - b.left, y: p.top - b.top, width: p.width, height: p.height })) e.setAttribute(k, v);
+      blur.setAttribute("stdDeviation", r);
+      if (!appliedFilter) {
+        previousFilter = [box.style.getPropertyValue("filter"), box.style.getPropertyPriority("filter")];
+        appliedFilter = (previousFilter[0] && previousFilter[0] !== "none" ? previousFilter[0] + " " : "") + "url(#zzg-strip)";
+      } else if (box.style.getPropertyValue("filter") !== appliedFilter) return;
+      box.style.setProperty("filter", appliedFilter, "important");
+      appliedFilter = box.style.getPropertyValue("filter"); // CSSOM normalizes URL quoting.
+      if (moving) frame = requestAnimationFrame(update);
+    };
+    const soon = () => { frame ||= requestAnimationFrame(update); };
+    const mo = new MutationObserver(soon);
+    mo.observe(toolbox, { attributes: true, attributeFilter: ["zen-has-hover", "zen-user-show", "zen-has-empty-tab", "flash-popup", "has-popup-menu", "movingtab", "zen-compact-mode-active", "zzg-redraw"] });
+    mo.observe(root, { attributes: true, attributeFilter: ["zen-compact-mode", "zen-renaming-tab"] });
+    const prefs = { observe: soon };
+    const transparency = window.matchMedia("(prefers-reduced-transparency: reduce)");
+    transparency.addEventListener("change", soon);
+    S.addObserver(PREFIX + "sidebar.", prefs);
+    S.addObserver("zen.theme.acrylic-sidebar", prefs);
+    window.addEventListener("resize", soon);
+    toolbox.addEventListener("transitionend", soon);
+    toolbox.addEventListener("transitionrun", soon);
+    update();
+    return () => {
+      mo.disconnect();
+      transparency.removeEventListener("change", soon);
+      S.removeObserver(PREFIX + "sidebar.", prefs);
+      S.removeObserver("zen.theme.acrylic-sidebar", prefs);
+      window.removeEventListener("resize", soon);
+      toolbox.removeEventListener("transitionend", soon);
+      toolbox.removeEventListener("transitionrun", soon);
+      cancelAnimationFrame(frame);
+      releaseFilter();
+      svg.remove();
+    };
+  }
+
   const APPEARANCE = "zzglass-saved.appearance";
   async function appearancePrefs() {
     // Only declared appearance settings, never an entire profile branch.
@@ -298,6 +395,8 @@
     };
     toolbox?.addEventListener("transitionend", redraw);
     gBrowser.tabContainer.addEventListener("TabSelect", redraw);
+    let stopPageBlur = () => {};
+    try { stopPageBlur = transparentPageBlur(); } catch (e) { console.error("[Glassflow] page blur failed to start:", e); }
     // Sine cleanup and window unload can both run; retire this copy once.
     let retired = false;
     const cleanup = () => {
@@ -314,6 +413,7 @@
       toolbox?.removeEventListener("transitionend", redraw);
       gBrowser.tabContainer.removeEventListener("TabSelect", redraw);
       toolbox?.removeAttribute("zzg-redraw");
+      try { stopPageBlur(); } catch {}
     };
     window.addEventListener("unload", cleanup, { once: true });
     // Registered with Sine, so an update re-injects this script live, no

@@ -166,8 +166,9 @@ part with its own setting (all on by default):
   that can scroll; clicking one scrolls a page that way. The same eligible
   actions are available through the folder menu for keyboard access. Reduced
   motion reaches the same final position without a custom glide.
-- **Tab count on hover:** hovering any folder or subfolder header shows how
-  many tabs it holds, subfolders included. Its tooltip/menu reports loaded,
+- **Tab count on hover:** hovering the right end of any folder or subfolder
+  header, where the chip sits, shows how many tabs it holds, subfolders
+  included. Its tooltip/menu reports loaded,
   total and playing counts. Selection-only changes reuse membership counts.
 
 Icon-only sidebars hide the count and scroll chips so they cannot overlap the
@@ -232,7 +233,8 @@ Groupflow supplies group persistence and controls when ATG is absent:
   settings, including Icon rules; left-click does not open a picker.
 - Right-click a header for Firefox's group editor: rename, 9 native colours,
   new tab, close and ungroup. Ungroup moves direct items out while retaining subgroups.
-- On header hover or keyboard focus, the X replaces the favicon in the same slot.
+- On header hover or keyboard focus, the X stays in the favicon's slot while the
+  favicon and name slide one slot over. Icon-only sidebars keep the in-place swap.
   It uses the native close API, including beforeunload cancellation.
 - Native drag handling supplies nesting and movement; header edges accept insertion.
 - Saved ATG parents, icons and colours use the existing `tabGroupParents`,

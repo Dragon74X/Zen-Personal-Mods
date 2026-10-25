@@ -364,7 +364,7 @@
   :is(#navigator-toolbox, .zen-library-space-tabs) .tab-group-label-container { --zzgf-calculated-rim: initial; }
 }
 :is(#navigator-toolbox, .zen-library-space-tabs) :is(.tab-label, .tab-group-label, .tab-icon-stack) {
-  transition: color var(--zzg-motion-light) var(--zzg-motion-ease), opacity var(--zzg-motion-time) var(--zzg-motion-ease), filter var(--zzg-motion-time) var(--zzg-motion-ease) !important;
+  transition: color var(--zzg-motion-light) var(--zzg-motion-ease), opacity var(--zzg-motion-time) var(--zzg-motion-ease), filter var(--zzg-motion-time) var(--zzg-motion-ease), margin-inline-start var(--zzg-motion-time) var(--zzg-motion-ease), text-indent var(--zzg-motion-time) var(--zzg-motion-ease) !important;
 }
 
 /* ---------- Selected tab ---------- */
@@ -1494,14 +1494,15 @@
    replaces, so either can be traced from the other.
    ============================================================ */
 
-/* Close targets remain stationary. Only the existing image eases into view;
-   label space interpolates without moving the tab, icon or hit target. */
+/* Close targets remain stationary in Zen's own slot. Only the existing image
+   eases into view; label space interpolates without moving the hit target. */
 @media (-moz-pref("zzglass.motion.enabled")) {
   :root[zen-sidebar-expanded="true"] #tabbrowser-tabs .tabbrowser-tab:not([pinned], [zen-essential]) {
-    & .tab-content { position: relative; }
+    /* Zen zeroes --tab-padding-inline on the close button itself. */
+    & .tab-content { position: relative; --zzg-tab-pad: var(--tab-padding-inline, 8px); }
     & .tab-close-button {
       position: absolute !important;
-      inset-inline-end: 0;
+      inset-inline-end: var(--zzg-tab-pad);
       visibility: visible !important;
       opacity: 0 !important;
       pointer-events: none;
@@ -1523,14 +1524,26 @@
     transition: scale var(--zzg-motion-time) var(--zzg-motion-ease) !important;
   }
   :root[zzgf-standalone] .tab-group-label-container:is(:hover, :focus-within) > .zzgf-close::before { scale: 1; }
-  :root[zzgf-standalone] :is(.zzgf-close, .zzgf-icon) { transition: opacity var(--zzg-motion-time) var(--zzg-motion-ease) !important; }
+  :root[zzgf-standalone] .zzgf-close { transition: opacity var(--zzg-motion-time) var(--zzg-motion-ease) !important; }
+  :root[zzgf-standalone] .zzgf-icon {
+    transition: opacity var(--zzg-motion-time) var(--zzg-motion-ease), inset-inline-start var(--zzg-motion-time) var(--zzg-motion-ease) !important;
+  }
 }
+/* The X is anchored on the favicon's resting slot (Zen's padding plus the
+   favicon's own start margin, centred); favicon and title slide one slot over. */
 @media (-moz-pref("zzglass.tabs.close-left")) {
   :root[zen-sidebar-expanded="true"] #tabbrowser-tabs .tabbrowser-tab:not([pinned], [zen-essential]) {
-    & .tab-content { position: relative; }
-    & .tab-close-button { position: absolute !important; inset-inline-start: 0; inset-inline-end: auto; }
+    & .tab-content { position: relative; --zzg-tab-pad: var(--tab-padding-inline, 8px); }
+    & .tab-close-button {
+      position: absolute !important;
+      inset-inline-start: calc(var(--zzg-tab-pad) + var(--toolbarbutton-padding-inner, 10px) / 3 + 8px - var(--size-item-medium, 24px) / 2) !important;
+      inset-inline-end: auto !important;
+    }
     & .tab-label-container { margin-inline-end: 0 !important; }
-    &:is(:hover, :focus-within) .tab-icon-stack { opacity: 0 !important; }
+    &:is(:hover, :focus-within, [multiselected][selected]) {
+      & .tab-close-button { visibility: visible !important; }
+      & .tab-icon-stack { margin-inline-start: var(--size-item-medium, 24px) !important; }
+    }
   }
 }
 

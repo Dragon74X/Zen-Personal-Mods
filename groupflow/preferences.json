@@ -236,7 +236,7 @@
   {
     "type": "checkbox",
     "property": "zzgroup.close-left",
-    "label": "ATG close button on the left *Moves ATG's close button before the favicon. Without ATG, the X replaces the favicon on hover or keyboard focus.*",
+    "label": "ATG close button on the left *Moves ATG's close button before the favicon. Without ATG, the X stays in the favicon's slot on hover or keyboard focus while the favicon and name slide over.*",
     "defaultValue": false,
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "headers"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
     "operator": "AND"
@@ -1367,7 +1367,7 @@
   {
     "type": "checkbox",
     "property": "zzgroup.hover-count",
-    "label": "Tab count on hover *With the sidebar expanded, hovering a folder or subfolder header shows how many tabs it holds, subfolders included.*",
+    "label": "Tab count on hover *With the sidebar expanded, hovering the right end of a folder or subfolder header shows how many tabs it holds, subfolders included.*",
     "defaultValue": true,
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "layout"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"

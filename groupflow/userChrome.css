@@ -1390,7 +1390,21 @@
   opacity: 1;
   pointer-events: auto;
 }
-:root[zzgf-standalone] :is(#navigator-toolbox, .zen-library-space-tabs) .tab-group-label-container:is(:hover, :focus-within) > .zzgf-icon {
+/* The X stays anchored in the favicon's slot; favicon and name slide one slot
+   over without resizing anything. Icon-only headers keep the swap. Gecko's
+   scroll anchoring would scroll a capped folder body while a subfolder header
+   slides, so a body holding the hovered header does not anchor meanwhile. */
+:root[zzgf-standalone][zen-sidebar-expanded="true"] :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container:has(.tab-group-label-container:is(:hover, :focus-within)) {
+  overflow-anchor: none;
+}
+:root[zzgf-standalone][zen-sidebar-expanded="true"] :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-label-container {
+  & > .zzgf-icon { position: relative; inset-inline-start: 0; }
+  &:is(:hover, :focus-within) {
+    & > .zzgf-icon { inset-inline-start: calc(var(--zzgroup-icon-size, 14px) + 14px); }
+    & > .tab-group-label { text-indent: calc(var(--zzgroup-icon-size, 14px) + 14px); }
+  }
+}
+:root[zzgf-standalone]:not([zen-sidebar-expanded="true"]) :is(#navigator-toolbox, .zen-library-space-tabs) .tab-group-label-container:is(:hover, :focus-within) > .zzgf-icon {
   opacity: 0;
 }
 @media (-moz-pref("zzgroup.color-source", 0)) {
@@ -1902,13 +1916,14 @@
     font-variant-numeric: tabular-nums;
     background: color-mix(in srgb, currentColor 14%, transparent);
     opacity: 0;
-    pointer-events: none;
+    z-index: 1;
     transition: opacity 0.15s ease-out;
   }
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container:has(> .zzgf-count) {
     position: relative;
   }
-  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container:hover > .zzgf-count {
+  /* Only the chip's own area reveals it; clicks there still reach the header. */
+  #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-label-container > .zzgf-count:hover {
     opacity: 0.85;
   }
 }

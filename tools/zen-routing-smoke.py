@@ -493,10 +493,11 @@ def check_sidebar_modes(m, atg):
                 })();""")
                 assert value == {'root': False, 'child': folded}, (compact, expanded, value)
             if not atg:
+                # The X stays on the favicon's resting slot; hover slides only the favicon.
                 assert m.script(HELPERS + """
-                  const h=group('Root').labelContainerElement;
-                  const a=h.querySelector('.zzgf-icon').getBoundingClientRect(),b=h.querySelector('.zzgf-close').getBoundingClientRect();
-                  return Math.abs(a.x-b.x)<1 && Math.abs(a.y-b.y)<1 &&
+                  const h=group('Root').labelContainerElement,icon=h.querySelector('.zzgf-icon');
+                  const a=icon.getBoundingClientRect(),b=h.querySelector('.zzgf-close').getBoundingClientRect();
+                  return Math.abs(a.x-(parseFloat(getComputedStyle(icon).insetInlineStart)||0)-b.x)<1 && Math.abs(a.y-b.y)<1 &&
                     Math.abs(a.width-b.width)<1 && Math.abs(a.height-b.height)<1;
                 """), ('Close button left the icon slot', compact, expanded)
         return {"compactSidebar": True, "expandedSidebar": True, "iconOnlySidebar": True, "overflowHeaderControls": True}
@@ -1010,7 +1011,7 @@ def check(m, root, atg, port, first):
                   await until(()=>{
                     const s=getComputedStyle(b);
                     return visible ? h.matches(':hover') && s.visibility==='visible' &&
-                      +s.opacity>.99 && b.getBoundingClientRect().width>0 && +getComputedStyle(icon).opacity<.01 : +s.opacity<.01;
+                      +s.opacity>.99 && b.getBoundingClientRect().width>0 && icon.getBoundingClientRect().left>=b.getBoundingClientRect().right-1 : +s.opacity<.01;
                   }).catch(e=>{const s=getComputedStyle(b);throw new Error(JSON.stringify({visible,xy,target:document.elementFromPoint(xy.x,xy.y)?.outerHTML.slice(0,500),hovers:[...document.querySelectorAll(':hover')].slice(-3).map(e=>e.id+'.'+e.className),hover:h.matches(':hover'),rect:h.getBoundingClientRect().toJSON(),button:{visibility:s.visibility,opacity:s.opacity},icon:getComputedStyle(icon).opacity}));}); return true;
                 })();""")
             assert m.script(HELPERS + """

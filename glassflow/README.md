@@ -153,7 +153,7 @@ one white 1px top highlight and 1px ring per state.
 | Texture | None | Diagonal hatch, dots, horizontal lines or fine mesh over the tint |
 | Accent bar on the selected tab | off | 3px bar |
 | Hide Arc's container glow | on | Only matters with Arc 2.0 installed |
-| Close button on the left | on | Hovering a regular tab swaps its icon for the close button. Pinned tabs keep their icon with the button beside it; Essentials keep their icon (the original mod left them blank) |
+| Close button on the left | on | Hovering a regular tab shows the close button in its icon's place while the icon and title slide over. Pinned tabs and Essentials keep Zen's layout |
 | Hide the pinned-tabs separator | on | SuperPins' *Show separator* controls the same line; set only one |
 | Essentials favicon grows on hover | Medium (1.3×) | Off, 1.15×, 1.3× or 1.5×; it overshoots a little and settles, like Iconflow's icons (instant with reduced motion) |
 
@@ -542,7 +542,8 @@ its extra strength, direction and thickness settings. Saved colours, shapes
 and motion profile choices remain untouched.
 **Crisp** is the default feel. Soft, Spring, Bounce and Rebound adjust the
 same hover geometry, colour, gradient direction, sheen and rim transitions.
-The close glyph fades/scales into its fixed target while the label makes room.
+The close glyph fades into its fixed target (the favicon's slot on the left, Zen's
+own slot on the right) while the favicon and title, or the label end, make room.
 Selection switches immediately; the existing title moves 4px sideways, rebounds
 1px and settles at its original position. Tabs, folders and icons do not bounce.
 Rapid selections retarget the current title motion; reduced motion or Instant UI

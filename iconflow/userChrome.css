@@ -217,7 +217,11 @@
 :root [zzicon-motion="before"]::before { --zzicon-frame: inherit; }
 /* A generated property is non-inheriting; the image's animation is explicit.
    Leave native opacity transitions (tab close) and button backgrounds intact. */
-:root [zzicon-motion="image"] { transition-property: opacity, filter !important; }
+:root [zzicon-motion="image"] {
+  transition: opacity .15s ease-out, filter .2s, transform .35s var(--zzicon-spring) !important;
+  /* Native menu img keeps its srcset for teardown; only its paint is owned. */
+  &:is(img) { content: var(--zzicon-blank) !important; }
+}
 :root [zzicon-motion="before"]::before {
   content: "" !important;
   display: inline-block;

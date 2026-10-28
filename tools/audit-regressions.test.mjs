@@ -354,7 +354,7 @@ test("Mediaflow measures Zen's visible front card rather than an earlier hidden 
 });
 
 test("Mediaflow: native range seeks once on commit and cancels preview state without seeking", () => {
-  const nodes = [], sent = [], attrs = new Map();
+  const nodes = [], sent = [], attrs = new Map(), writes = [];
   const node = tag => {
     const n = { tag, handlers: {}, attrs: new Map(), style: {}, dataset: {},
       addEventListener(event, fn) { this.handlers[event] = fn; }, append() {}, appendChild() {},
@@ -365,7 +365,7 @@ test("Mediaflow: native range seeks once on commit and cancels preview state wit
     return n;
   };
   const env = vm.createContext({
-    document: { createElement: node }, pipContainer: { appendChild() {}, setAttribute(k,v){attrs.set(k,v);}, removeAttribute(k){attrs.delete(k);}, toggleAttribute(k, v) { attrs.set(k, v); } },
+    document: { createElement: node }, pipContainer: { appendChild() {}, getAttribute(k){return attrs.get(k)??null;}, setAttribute(k,v){attrs.set(k,v);writes.push(k);}, removeAttribute(k){attrs.delete(k);}, toggleAttribute(k, v) { attrs.set(k, v); } },
     holdPreview() {}, releasePreview() {}, safe: fn => fn(), on: (n, event, fn) => n.addEventListener(event, fn), undo: [],
     Services: { prefs: { getBoolPref: () => true, getStringPref: () => "10", addObserver() {} } },
     sourceBC: { id: 11, top: { embedderElement: {} } },
@@ -379,6 +379,8 @@ test("Mediaflow: native range seeks once on commit and cancels preview state wit
   assert.equal(track.attrs.get("aria-label"), "Video position");
   env.update({ time: 20, duration: 100, paused: false, volume: .37, muted: false });
   assert.equal(attrs.get("data-zz-volume"), "37");
+  for (let i=0;i<60;i++) env.update({time:20,duration:100,paused:false,volume:.37,muted:false});
+  assert.equal(writes.filter(k=>k==="data-zz-volume").length,1,"unchanged frames do not wake Morph through the volume attribute");
   assert.equal(track.valueAsNumber, 0.2);
   track.value = "0.65";
   track.handlers.input();

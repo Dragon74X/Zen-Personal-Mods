@@ -1574,6 +1574,10 @@
     & toolbarbutton {
       border-radius: calc(var(--zzg-ws-radius) - 3px) !important;
       corner-shape: var(--zzg-corner) !important;
+      /* Arc also grows/bounces this parent. Keep the hit box fixed and put
+         hover + press on the existing icon, sharing one scale transition. */
+      transform: none !important;
+      animation: none !important;
       transition: background-color 180ms ease-out, box-shadow 180ms ease-out, opacity 180ms ease-out, filter 180ms ease-out, width .1s !important;
       &::after { transition: opacity 180ms ease-out !important; }
       /* One motion per icon: Zen shrinks the icons it turns into dots with
@@ -1659,6 +1663,7 @@
   @media not (-moz-pref("zzglass.workspaces.steady-dots")) {
     #navigator-toolbox #zen-workspaces-button[icons-overflow]:has(toolbarbutton:hover) toolbarbutton[active="true"]:not([dragged="true"], :hover) .zen-workspace-icon { scale: .8; }
   }
+  #navigator-toolbox #zen-workspaces-button toolbarbutton:active .zen-workspace-icon { scale: .95; }
 }
 
 /* Tabs, shared > Hide the pinned-tabs separator (was Remove Tabs Separator). */

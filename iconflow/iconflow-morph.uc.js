@@ -113,7 +113,7 @@ function updateState(r){
 function remove(r){
  stop(r);records.delete(r.host);r.paint.removeAttribute('zzicon-motion');r.host.removeAttribute('zzicon-motion-host');
  for(const [key,value,priority]of r.saved)if(value)r.paint.style.setProperty(key,value,priority);else r.paint.style.removeProperty(key);
- if(r.addedClass)r.host.classList.remove('menuitem-iconic');
+ if(r.addedClass)r.host.classList.remove(r.addedClass);
 }
 async function attach(binding,el){
  const host=el.matches(ownerSelector)?el:el.closest(ownerSelector)||el;
@@ -124,15 +124,22 @@ async function attach(binding,el){
   if(!images.has(url)){const image=new Image();image.src=url;images.set(url,image.decode());}
   await images.get(url);
   if(retired||pendingHosts.get(host)!==token||!host.isConnected||!enabled(binding,host)||!el.matches(binding.selector))return;
-  let slot=el===host?host.querySelector('.toolbarbutton-icon,.menu-iconic-icon,image')||host:el,addedClass=false;
-  if(host.localName==='menuitem'&&slot===host){addedClass=!host.classList.contains('menuitem-iconic');host.classList.add('menuitem-iconic');slot=host.querySelector('.menu-iconic-icon')||host;}
+  // Gecko's menu icon is now an HTML img, created lazily by the native
+  // menu renderer. Use that slot; adding a second pseudo icon hides CMI's
+  // background and leaves an empty native gutter beside the replacement.
+  const menuItem=host.localName==='menuitem'||host.localName==='menu';
+  if(menuItem)host.render?.();
+  let slot=el===host?host.querySelector('.toolbarbutton-icon,.menu-icon,.menu-iconic-icon,image')||host:el,addedClass=false;
+  const menuClass=host.localName==='menu'?'menu-iconic':'menuitem-iconic';
+  if(menuItem)addedClass=!host.classList.contains(menuClass);
   let mode='image',paint=slot;
   if(host.matches('.zzmf-pip-controls button')){mode='background';paint=host;}
   else if(slot.matches('.zen-library-sprite')||host.matches('.zzgf-close')||slot===host&&!['image','img'].includes(slot.localName)){mode='before';paint=slot===host?host:slot;}
-  if(slot.localName==='svg'||slot.localName==='img')return;
-  const definition=data.glyphs[glyph],model=snapshot(binding,host,definition),r={host,el,paint,mode,binding,definition,model,rows:index.glyphs[glyph].rows,row:0,state:stateKey(model),phase:'rest',hover:false,focus:false,consumed:false,animation:null,addedClass,
+  if(slot.localName==='svg')return;
+  const definition=data.glyphs[glyph],model=snapshot(binding,host,definition),r={host,el,paint,mode,binding,definition,model,rows:index.glyphs[glyph].rows,row:0,state:stateKey(model),phase:'rest',hover:false,focus:false,consumed:false,animation:null,addedClass:addedClass?menuClass:null,
    saved:savedProperties.map(key=>[key,paint.style.getPropertyValue(key),paint.style.getPropertyPriority(key)])};
   paint.style.setProperty('--zzicon-sprite',`url("${url}")`);paint.style.setProperty('--zzicon-columns',index.frames);paint.style.setProperty('--zzicon-rows',r.rows.length);setRow(r,rowFor(r,r.state));paint.style.setProperty('--zzicon-frame','0');
+  if(addedClass)host.classList.add(menuClass);
   paint.setAttribute('zzicon-motion',mode);host.setAttribute('zzicon-motion-host','');records.set(host,r);
  }catch(error){console.warn('[Iconflow] native sprite',binding.action,error);}
  finally{if(pendingHosts.get(host)===token)pendingHosts.delete(host);}

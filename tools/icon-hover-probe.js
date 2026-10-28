@@ -1,0 +1,98 @@
+// Paste in Zen's Browser Console, then hover/click icons and open a context
+// menu. Read-only; copies the report after 20 seconds and removes all hooks.
+(() => {
+  const w = Services.wm.getMostRecentWindow('navigator:browser'), d = w.document;
+  w.__zzIconHoverProbe?.stop();
+  const undo = [], started = w.performance.now(), report = {
+    probe: 'icon-hover-v1', browser: Services.appinfo.version,
+    platform: Services.appinfo.OS, dpr: w.devicePixelRatio,
+    reducedMotion: w.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    instantMotion: !!w.Motion?.MotionGlobalConfig?.instantAnimations,
+    versions: {}, prefs: {}, menus: [], motion: [], errors: [],
+    limit: '20 seconds; up to 12 motion runs, 90 samples/run, 6 menus. Sampling reads styles/layout; timings are not an FPS benchmark.',
+  };
+  const names = ['zzicon.set', 'zzicon.animate', 'zzicon.speed', 'zzicon.menu.animate',
+    'svg.context-properties.content.enabled', 'cmi-Switch-Icon-Package', 'arc-workspace-style', 'zzicon.click.press', 'zzicon.plate', 'zzicon.size', 'zzicon.motion.toolbar',
+    'zzglass.motion.enabled', 'zzglass.edges.follow-pointer', 'zzglass.instant-ui',
+    'zzglass.workspaces.enabled', 'zzglass.workspaces.hover', 'zzglass.workspaces.steady-dots',
+    'zzglass.sidebar.blur-transparent-pages', 'zzmedia.bar.hover-delay',
+    'zzmedia.preview.hover-size', 'zzmedia.preview.controls'];
+  for (const key of names) {
+    const P = Services.prefs, type = P.getPrefType(key);
+    report.prefs[key] = type === P.PREF_BOOL ? P.getBoolPref(key) :
+      type === P.PREF_INT ? P.getIntPref(key) : type === P.PREF_STRING ? P.getStringPref(key) : null;
+  }
+  for (const name of ['iconflow', 'glassflow', 'mediaflow'])
+    w.fetch(`chrome://sine/content/zz-${name}/theme.json`).then(r => r.json())
+      .then(j => { report.versions[name] = j.version; }).catch(() => {});
+  const listen = (node, type, fn) => {
+    node.addEventListener(type, fn, true);
+    undo.push(() => node.removeEventListener(type, fn, true));
+  };
+  const id = e => e ? e.id || e.localName + '.' + [...e.classList].join('.') : null;
+  const source = s => (s || '').replace(/data:[^"\s)]+/g, 'data:[omitted]').slice(0,300);
+  const props = ['display','visibility','opacity','transform','scale','translate','rotate',
+    'transition','animation','image-rendering','background-image','background-size',
+    'background-position','content','list-style-image','mask-image','fill','fill-opacity'];
+  const style = (el, pseudo) => {
+    const s = w.getComputedStyle(el, pseudo), r = {};
+    for (const p of props) r[p] = source(s.getPropertyValue(p));
+    return r;
+  };
+  const rules = el => {
+    const result = [];
+    for (const r of InspectorUtils.getMatchingCSSRules(el)) {
+      if (!r.style) continue;
+      const values = {};
+      for (const p of props) if (r.style.getPropertyValue(p))
+        values[p] = source(r.style.getPropertyValue(p)) + (r.style.getPropertyPriority(p) ? ' !important' : '');
+      if (Object.keys(values).length) result.push({selector:r.selectorText, source:source(r.parentStyleSheet?.href), values});
+    }
+    return result.slice(-30);
+  };
+  let frame = 0, timer, active, stopped = false;
+  function sample() {
+    frame = 0;
+    if (!active || stopped) return;
+    const {el, run, start} = active;
+    if (!el.isConnected) { active = null; return; }
+    const s = w.getComputedStyle(el), r = el.getBoundingClientRect();
+    run.samples.push({ms:Math.round(w.performance.now()-start), frame:s.getPropertyValue('--zzicon-frame'),
+      scale:s.scale, transform:s.transform, backgroundPosition:s.backgroundPosition,
+      box:[r.x,r.y,r.width,r.height], animations:el.getAnimations().map(a => ({
+        property:a.transitionProperty || a.animationName || 'WAAPI', time:a.currentTime, state:a.playState}))});
+    if (w.performance.now()-start < 1000 && run.samples.length < 90) frame = w.requestAnimationFrame(sample);
+    else active = null;
+  }
+  listen(w, 'pointerover', e => {
+    if (active || report.motion.length >= 12) return;
+    const host = e.target.closest?.('[zzicon-motion-host], #zen-workspaces-button toolbarbutton, .tabbrowser-tab');
+    if (!host || host.contains(e.relatedTarget)) return;
+    const record = w.__zziconMorphInstance?.records.get(host);
+    const el = record?.paint || host.querySelector('.zen-workspace-icon,.tab-icon-image') || host;
+    const run = {host:id(host), icon:id(el), action:record?.binding?.action,
+      style:style(el), rules:rules(el), hostStyle:style(host), hostRules:rules(host), samples:[]};
+    report.motion.push(run); active = {el,run,start:w.performance.now()}; sample();
+  });
+  listen(w, 'popupshown', e => {
+    if (e.target.localName !== 'menupopup' || report.menus.length >= 6) return;
+    report.menus.push({id:id(e.target), items:[...e.target.querySelectorAll('menuitem,menu')].slice(0,60).map(el => ({
+      id:id(el), morph:el.hasAttribute('zzicon-motion-host'), style:style(el), before:style(el,'::before'), rules:rules(el),
+      images:[...el.querySelectorAll('.menu-icon,.menu-iconic-icon,image')].slice(0,2).map(i => ({id:id(i), source:source(i.currentSrc), style:style(i)})),
+    }))});
+  });
+  listen(w, 'error', e => {
+    if (report.errors.length < 20) report.errors.push({message:String(e.message).slice(0,200), file:source(e.filename),line:e.lineno});
+  });
+  function stop() {
+    if (stopped) return;
+    stopped = true; w.clearTimeout(timer); w.cancelAnimationFrame(frame); undo.forEach(fn=>fn());
+    report.elapsedMs = Math.round(w.performance.now()-started);
+    if (w.__zzIconHoverProbe?.stop === stop) delete w.__zzIconHoverProbe;
+    const text = JSON.stringify(report,null,2);
+    Cc['@mozilla.org/widget/clipboardhelper;1'].getService(Ci.nsIClipboardHelper).copyString(text);
+    w.console.log('[Iconflow probe] Report copied; hooks removed.', report);
+  }
+  w.__zzIconHoverProbe = {stop}; timer = w.setTimeout(stop,20000);
+  w.console.log('[Iconflow probe] Hover/click affected icons and open a context menu. Auto-copy in 20 seconds.');
+})();

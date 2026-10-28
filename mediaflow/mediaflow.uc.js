@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.8.0
+// @version        2.8.1
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==
@@ -17,7 +17,7 @@
   const LOG_PREFIX = "[Mediaflow]";
   // Gecko caches actor modules across unregister/re-register. Bump with actor
   // changes so Sine updates load replacement code without a browser restart.
-  const ACTOR_VERSION = "2.8.0";
+  const ACTOR_VERSION = "2.8.1";
   const CAPTIONS_PREF = "zzmedia.preview.captions";
   const CAPTIONS_WHEN_PIP_HIDDEN_PREF =
     "zzmedia.preview.captions-when-hidden";
@@ -177,6 +177,7 @@
       inset: 0;
       z-index: 2;
       display: none;
+      pointer-events: none;
       opacity: 0;
       transition: opacity 150ms ease;
       background: linear-gradient(to bottom, rgb(0 0 0 / 0.45), transparent 30%, transparent 62%, rgb(0 0 0 / 0.6));
@@ -187,6 +188,7 @@
     #zen-sidebar-pip-container[zzmf-interacting] { transition: none !important; }
     #zen-sidebar-pip-container:is(:hover, :focus-within, [zzmf-paused]) .zzmf-pip-controls { opacity: 1; }
     .zzmf-pip-controls button {
+      pointer-events: auto;
       appearance: none;
       position: absolute;
       width: 26px;
@@ -224,6 +226,7 @@
     #zen-sidebar-pip-container[zzmf-muted] .zzmf-pip-mute { --zzmf-icon: url("chrome://browser/skin/zen-icons/media-mute.svg"); }
     .zzmf-pip-time { position: absolute; left: 8px; bottom: 11px; font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px rgb(0 0 0 / 0.6); }
     .zzmf-pip-track {
+      pointer-events: auto;
       appearance: none;
       position: absolute;
       left: 8px;
@@ -373,8 +376,6 @@
     }
     return {
       top,
-      baseTop: baseRect.top,
-      bottom: baseRect.bottom,
       left: baseRect.left,
       width: baseRect.width,
     };
@@ -414,21 +415,22 @@
       _notifyTickState();
     }
     const pipVisible =
-      visible &&
-      opacity > 0.01 &&
+      seen &&
       !userHidden &&
       !sourceTabActive &&
       browserWindowActive;
     const captionVisible =
-      visible &&
-      opacity > 0.01 &&
+      seen &&
       captionMode !== "off" &&
       (!userHidden || captionsWhenPipHidden) &&
       !sourceTabActive &&
       browserWindowActive;
     const visibilityState = `${pipVisible}:${captionVisible}`;
     if (visibilityState !== lastVisible) {
-      if (!pipVisible) { focusedPreview = null; pipContainer.removeAttribute("zzmf-interacting"); restorePreviewFocus(); }
+      if (!pipVisible) {
+        clearTimeout(growTimer); pipHover = false; hoverBottom = null; focusedPreview = null;
+        pipContainer.removeAttribute("zzmf-interacting"); restorePreviewFocus();
+      }
       pipContainer.style.visibility = pipVisible ? "visible" : "hidden";
       captionContainer.style.visibility = captionVisible
         ? "visible"
@@ -454,8 +456,6 @@
     if (pipVisible || captionVisible) {
       const {
         top: mediaTopRaw,
-        baseTop,
-        bottom: mediaBottom,
         left,
         width: playerWidth,
       } = getMediaTopEdge(true);
@@ -544,7 +544,7 @@
             lastTop = top;
             lastLeft = adjustedLeft;
             lastWidth = shownWidth;
-            activeUntil = now + CONFIG.ANIM_TAIL_MS;
+            activeUntil = performance.now() + CONFIG.ANIM_TAIL_MS;
           }
         }
         // Keep a small separation between the final tab and what sits above
@@ -723,10 +723,13 @@
     clearTimeout(growTimer);
     musicPlayerUI.style.removeProperty("--zzmf-hover-delay");
   });
-  on(pipContainer, "mouseenter", () => {
-    holdSidebar(true);
+  function queueGrowth() {
     clearTimeout(growTimer);
     growTimer = setTimeout(() => { pipHover = true; bump(); }, hoverDelay * 1000);
+  }
+  on(pipContainer, "mouseenter", () => {
+    holdSidebar(true);
+    queueGrowth();
   });
   on(pipContainer, "mouseleave", () => { clearTimeout(growTimer); pipHover = false; if (!pipContainer.matches(":focus-within")) holdSidebar(false); bump(); });
   function holdPreview() {
@@ -747,6 +750,7 @@
     focusedPreview = null;
     pipContainer.removeAttribute("zzmf-interacting");
     if (!pipContainer.matches(":hover")) holdSidebar(false);
+    else if (!pipHover) queueGrowth();
     bump();
   }
   on(pipContainer, "focusout", e => {
@@ -769,7 +773,10 @@
   const CONTROLS_PREF = "zzmedia.preview.controls", STEP_PREF = "zzmedia.preview.seek-step";
   const controls = document.createElement("div");
   controls.className = "zzmf-pip-controls";
-  on(controls, "mouseenter", holdPreview);
+  // Geometry can carry a button under a stationary pointer while growing.
+  // Freeze for actual targeting/pressing, not those synthetic boundary enters.
+  on(controls, "pointermove", e => { if (e.movementX || e.movementY) holdPreview(); });
+  on(controls, "pointerdown", holdPreview);
   on(controls, "mouseleave", releasePreview);
   const control = (cls, label, act) => {
     const b = document.createElement("button");
@@ -802,7 +809,10 @@
   track.className = "zzmf-pip-track";
   controls.append(time, track);
   pipContainer.appendChild(controls);
-  const nameControl = (button, label) => { button.title = label; button.setAttribute("aria-label", label); };
+  const nameControl = (button, label) => {
+    if (button.title === label) return;
+    button.title = label; button.setAttribute("aria-label", label);
+  };
   const syncMuted = () => {
     const muted = !!sourceTab()?.linkedBrowser?.audioMuted;
     pipContainer.toggleAttribute("zzmf-muted", muted); nameControl(mute, muted ? "Unmute tab" : "Mute tab");
@@ -842,7 +852,8 @@
     lastPlaybackState = state;
     const { time: t, duration: d, paused } = state;
     if (Number.isFinite(state.volume) && state.volume >= 0 && state.volume <= 1) {
-      pipContainer.setAttribute("data-zz-volume", String(state.muted ? 0 : state.volume * 100));
+      const value = String(state.muted ? 0 : state.volume * 100);
+      if (pipContainer.getAttribute("data-zz-volume") !== value) pipContainer.setAttribute("data-zz-volume", value);
     } else pipContainer.removeAttribute("data-zz-volume");
     pipContainer.toggleAttribute("zzmf-paused", !!paused);
     nameControl(play, paused ? "Play" : "Pause");
@@ -850,7 +861,7 @@
     pipContainer.toggleAttribute("zzmf-live", live);
     syncMuted();
     lastDuration = live ? 0 : d;
-    track.disabled = live;
+    if (track.disabled !== live) track.disabled = live;
     if (live) {
       dragging = false;
       track.value = "0";
@@ -861,8 +872,11 @@
     if (dragging) return;
     const position = Number.isFinite(t) ? Math.max(0, Math.min(d, t)) : 0;
     track.value = String(position / d);
-    time.textContent = `${clock(position)} / ${clock(d)}`;
-    track.setAttribute("aria-valuetext", time.textContent);
+    const label = `${clock(position)} / ${clock(d)}`;
+    if (time.textContent !== label) {
+      time.textContent = label;
+      track.setAttribute("aria-valuetext", label);
+    }
   }
 
   on(musicPlayerUI, "mouseenter", () => {

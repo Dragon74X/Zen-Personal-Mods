@@ -37,6 +37,7 @@ with tempfile.TemporaryDirectory(prefix='mediaflow-controls-') as d:
             m=Marionette(port);m.script('return gZenStartup.promiseInitialized.then(()=>true);')
             defaults={r['property']:r['defaultValue'] for r in json.loads((ROOT/'mediaflow/preferences.json').read_text()) if 'property' in r and 'defaultValue' in r}
             m.script('for(const [k,v] of Object.entries('+json.dumps(defaults)+'))Services.prefs[typeof v==="boolean"?"setBoolPref":typeof v==="number"?"setIntPref":"setStringPref"](k,v);return true;')
+            m.script("window.mediaErrors=[];window.addEventListener('error',e=>mediaErrors.push(e.message));return true;")
             m.script((ROOT/'mediaflow/mediaflow.uc.js').read_text()+'\nreturn true;')
             m.call('Marionette:SetContext',{'value':'content'});m.call('WebDriver:Navigate',{'url':f'http://127.0.0.1:{server.server_port}/index.html'})
             m.script('document.querySelector("video").currentTime=35;document.querySelector("video").play();return true;',context='content')
@@ -66,6 +67,19 @@ with tempfile.TemporaryDirectory(prefix='mediaflow-controls-') as d:
                 move(1000,250)
                 m.script("document.activeElement?.blur();gBrowser.selectedTab=mediaOtherTab;return true;")
                 time.sleep(.5)
+            # Canvas hover must grow; the controls' transparent full-size layer
+            # must not claim the pointer and cancel the growth timer.
+            reset();resting=rect()
+            move(round(resting['x']+resting['width']/2),round(resting['y']+25),700)
+            grown=rect();assert grown['width']>resting['width']*1.5,(resting,grown)
+            reset();stable(resting,rect())
+            # The preview lives outside the toolbox. Hide it with the sidebar,
+            # including while a control was focused, then restore without a hold.
+            m.script("document.querySelector('.zzmf-pip-play').focus();document.documentElement.setAttribute('zen-compact-mode','true');Services.prefs.setBoolPref('zen.view.compact.hide-tabbar',true);const t=document.getElementById('navigator-toolbox');for(const a of ['zen-has-hover','zen-user-show','zen-has-empty-tab','flash-popup','has-popup-menu','movingtab','zen-compact-mode-active'])t.removeAttribute(a);return true;")
+            time.sleep(.2)
+            assert m.script("return getComputedStyle(document.getElementById('zen-sidebar-pip-container')).visibility==='hidden'&&!document.getElementById('zen-sidebar-pip-container').hasAttribute('zzmf-interacting');")
+            m.script("document.documentElement.setAttribute('zen-compact-mode','false');return true;")
+            reset()
             results=[]
             for delay in [40,250,340,700]:
                 reset()
@@ -125,7 +139,8 @@ with tempfile.TemporaryDirectory(prefix='mediaflow-controls-') as d:
             assert not report['droppedEvents'] and not report['droppedSnapshots']
             assert m.script('return !window.__zzmfControlProbe;')
             assert m.script('return !Object.hasOwn(ZzMediaflowController.getActiveBC().currentWindowGlobal.getActor("ZzMediaflow"),"sendAsyncMessage");')
-            (OUT/'checks.json').write_text(json.dumps({'hoverCases':results,'keyboard':True,'canvasNavigation':True,'probe':{'presses':6,'commands':4,'misses':2,'autoCopy':True,'cleanup':True}},indent=2))
+            assert m.script('return mediaErrors;')==[],m.script('return mediaErrors;')
+            (OUT/'checks.json').write_text(json.dumps({'runtimeErrors':0,'canvasGrowth':True,'sidebarHide':True,'hoverCases':results,'keyboard':True,'canvasNavigation':True,'probe':{'presses':6,'commands':4,'misses':2,'autoCopy':True,'cleanup':True}},indent=2))
             m.shot().save(OUT/'controls.png')
             print('PASS: 4 hover timings, 8 seeks, focus hold/release, keyboard, canvas navigation; probe captured 6 presses / 4 commands / 2 misses and auto-copied after cleanup.',flush=True)
         finally:

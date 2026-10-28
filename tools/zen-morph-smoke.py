@@ -42,6 +42,60 @@ with tempfile.TemporaryDirectory(prefix='zen-morph-') as d:
   m.script('window.nativeFixtureURL='+json.dumps((profile/'index.html').as_uri())+';return true;')
   result=m.script((ROOT/'tools/morph-native-regressions.js').read_text())
   print('NATIVE',json.dumps(result),flush=True)
+  # Preserve a native context-menu image through Morph Off -> On -> Off.
+  # A text-only item stays text-only; Off must never erase an existing image.
+  m.script("""window.menuFixture=document.createXULElement('menupopup');menuFixture.id='zz-menu-paint-check';document.getElementById('mainPopupSet').append(menuFixture);
+   const original=document.createXULElement('menuitem');original.id='zz-menu-original';original.className='menuitem-iconic';original.setAttribute('label','Native context icon');original.setAttribute('image','chrome://browser/skin/zen-icons/close.svg');original.setAttribute('data-zz-action','glassflow--mods-report-copy');menuFixture.append(original);
+   const plain=document.createXULElement('menuitem');plain.id='zz-menu-plain';plain.setAttribute('label','Original text-only row');plain.setAttribute('data-zz-action','glassflow--mods-report-copy');menuFixture.append(plain);
+   menuFixture.openPopupAtScreen(500,300,false);return true;""");time.sleep(.3)
+  original_menu=m.script("const e=document.getElementById('zz-menu-original'),i=e.querySelector('.menu-icon');return {image:e.getAttribute('image'),paint:i.currentSrc,content:getComputedStyle(i).content,display:getComputedStyle(i).display};")
+  assert 'close.svg' in original_menu['paint'] and original_menu['display']!='none',original_menu
+  m.script("Services.prefs.setBoolPref('zzicon.menu.animate',true);return true;");time.sleep(.5)
+  assert m.script("return ['zz-menu-original','zz-menu-plain'].every(id=>{const e=document.getElementById(id),r=__zziconMorphInstance.records.get(e);return r?.paint===e.querySelector('.menu-icon')&&r.mode==='image'&&getComputedStyle(e,'::before').content==='none';});")
+  m.script("Services.prefs.setBoolPref('zzicon.menu.animate',false);return true;");time.sleep(.3)
+  assert m.script("return document.getElementById('zz-menu-original').classList.contains('menuitem-iconic')&&!document.getElementById('zz-menu-plain').classList.contains('menuitem-iconic')&&!menuFixture.querySelector('[zzicon-motion]');")
+  assert original_menu==m.script("const e=document.getElementById('zz-menu-original'),i=e.querySelector('.menu-icon');return {image:e.getAttribute('image'),paint:i.currentSrc,content:getComputedStyle(i).content,display:getComputedStyle(i).display};"),'Menu Off changed original image ownership'
+  result['originalMenuOwnershipRestored']=True
+  m.script("menuFixture.hidePopup();menuFixture.remove();return true;")
+  # Real pointer input: endpoint-only/pseudo-lock tests missed snapped presses.
+  def pointer(actions):
+   m.call('Marionette:SetContext',{'value':'chrome'})
+   m.call('WebDriver:PerformActions',{'actions':[{'type':'pointer','id':'icon-motion','parameters':{'pointerType':'mouse'},'actions':actions}]})
+  def move(x,y):pointer([{'type':'pointerMove','duration':0,'x':round(x),'y':round(y)}])
+  def sample_motion(host,paint):
+   m.script('window.motionHost=document.querySelector('+json.dumps(host)+');window.motionPaint=document.querySelector('+json.dumps(paint)+');return true;')
+   r=m.script('return motionHost.getBoundingClientRect().toJSON();')
+   move(r['x']+r['width']/2,r['y']+r['height']/2);time.sleep(.6)
+   m.script("window.pressSamples=[];window.pressStart=performance.now();function pressTick(){const t=performance.now()-pressStart,s=getComputedStyle(motionPaint);pressSamples.push({t,transform:s.transform,scale:s.scale,rect:motionHost.getBoundingClientRect().toJSON()});if(t<1100)requestAnimationFrame(pressTick);}requestAnimationFrame(pressTick);return true;")
+   pointer([{'type':'pointerDown','button':0},{'type':'pause','duration':400},{'type':'pointerMove','duration':0,'x':1000,'y':350},{'type':'pointerUp','button':0},{'type':'pause','duration':650}])
+   time.sleep(.1)
+   samples=m.script('return pressSamples;')
+   # A real intermediate scale is required; a binary 1 -> .82 -> 1 fails.
+   values=[float(x['transform'].split('(')[1].split(',')[0]) if x['transform'].startswith('matrix(') else float(x['scale'].split()[0]) if x['scale']!='none' else 1 for x in samples]
+   assert min(values)<.99 and len({round(v,4) for v in values if .83<v<.99})>=3,(host,values)
+   assert abs(values[-1]-1)<.001,(host,values[-1])
+   return samples
+  m.script("Services.prefs.setBoolPref('zzicon.click.press',true);return true;");time.sleep(.2)
+  result['iconPress']=sample_motion('#PanelUI-menu-button','#PanelUI-menu-button .toolbarbutton-icon')
+  # Arc 2.0's captured workspace parent transforms must not compose with
+  # Glassflow's child scale or move the hit target during the animation.
+  m.script("window.arcWorkspaceFixture=Services.io.newURI('data:text/css,'+encodeURIComponent('#zen-workspaces-button .subviewbutton{transform:scale(1)!important;transform-origin:bottom center!important}#zen-workspaces-button .subviewbutton:hover{transform:scale(1.25)!important}#zen-workspaces-button .subviewbutton:active:hover{transform:scale(1)!important}'));Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService).loadAndRegisterSheet(arcWorkspaceFixture,1);return true;")
+  m.script("const h=document.querySelector('#zen-workspaces-button toolbarbutton');h.parentElement.removeAttribute('dont-show');const i=h.querySelector('.zen-workspace-icon');i.removeAttribute('no-icon');i.textContent='🌐';Services.prefs.setBoolPref('zzglass.workspaces.enabled',true);Services.prefs.setIntPref('zzglass.workspaces.hover',1);return true;")
+  time.sleep(.3)
+  result['workspacePress']=sample_motion('#zen-workspaces-button toolbarbutton','#zen-workspaces-button .zen-workspace-icon')
+  boxes=result['workspacePress'];assert max(x['rect']['x'] for x in boxes)-min(x['rect']['x'] for x in boxes)<.1,'Workspace hit box moved'
+  m.script("Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService).unregisterSheet(arcWorkspaceFixture,1);Services.prefs.setBoolPref('zzicon.click.press',false);return true;")
+  m.script((ROOT/'tools/icon-hover-probe.js').read_text()+'\nreturn true;')
+  r=m.script("return document.querySelector('#PanelUI-menu-button').getBoundingClientRect().toJSON();")
+  move(r['x']+r['width']/2,r['y']+r['height']/2);time.sleep(.25)
+  m.script("document.getElementById('tabContextMenu').openPopupAtScreen(500,300,true);return true;");time.sleep(.2)
+  m.script("document.getElementById('tabContextMenu').hidePopup();return true;")
+  time.sleep(20)
+  probe=json.loads(m.script("const t=Cc['@mozilla.org/widget/transferable;1'].createInstance(Ci.nsITransferable);t.init(null);t.addDataFlavor('text/plain');Services.clipboard.getData(t,Services.clipboard.kGlobalClipboard);const v={};t.getTransferData('text/plain',v);return v.value.QueryInterface(Ci.nsISupportsString).data;"))
+  assert probe['probe']=='icon-hover-v1' and probe['motion'] and probe['menus'] and probe['versions']['iconflow']
+  assert m.script('return !window.__zzIconHoverProbe;')
+  (OUT/'probe.json').write_text(json.dumps(probe,indent=2));result['probeAutoCopyCleanup']=True
+  move(1000,350)
   # Native image rendering, including CSS-only visibility changes that broke 1.21.1.
   from PIL import ImageChops,ImageStat
   def settle():

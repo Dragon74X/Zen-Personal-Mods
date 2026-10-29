@@ -115,6 +115,11 @@ with tempfile.TemporaryDirectory(prefix='mediaflow-controls-') as d:
                 move(1000,250)
                 m.script("document.activeElement?.blur();gBrowser.selectedTab=mediaOtherTab;return true;")
                 time.sleep(.5)
+            # Chrome-only dragging values are not exposed by computed style
+            # on every build. Verify the parsed rule on the actual overlay;
+            # WebDriver DOM input cannot certify Windows WM_NCHITTEST behavior.
+            drag_rule=m.script("const p=document.getElementById('zen-sidebar-pip-container');return [...InspectorUtils.getMatchingCSSRules(p)].some(r=>r.selectorText==='#zen-sidebar-pip-container'&&/-moz-window-dragging:\\s*no-drag\\s*;/.test(r.style.cssText));")
+            assert drag_rule, 'The floating preview must exclude underlying native window-drag regions'
             # Exercise real entry from the bar below, including its collapsing
             # rows and the 300ms growth delay. Timer expiry must not swap the
             # card's top edge for its toolbar's top edge.
@@ -263,7 +268,7 @@ with tempfile.TemporaryDirectory(prefix='mediaflow-controls-') as d:
                 m.script("document.querySelector('.zzmf-pip-"+name+"').style.removeProperty('background-image');return true;")
                 paints.append({'control':name,'pixelDifference':amount,'size':info['size']})
             assert m.script('return mediaErrors;')==[],m.script('return mediaErrors;')
-            (OUT/'checks.json').write_text(json.dumps({'runtimeErrors':0,'arcBarHover':arc_cases,'boundaryCases':boundary_cases,'canvasGrowth':True,'controlHoverGrowth':[resting['width'],control_grown['width']],'crossingControlDuringGrowth':[mid_growth['width'],continued['width']],'originalGlyphPaints':paints,'sidebarHide':True,'hoverCases':results,'keyboard':True,'canvasNavigation':True,'probe':{'presses':6,'commands':4,'misses':2,'autoCopy':True,'cleanup':True}},indent=2))
+            (OUT/'checks.json').write_text(json.dumps({'runtimeErrors':0,'windowDragging':{'previewExclusionParsed':drag_rule,'windowsPhysicalInput':'not-tested'},'arcBarHover':arc_cases,'boundaryCases':boundary_cases,'canvasGrowth':True,'controlHoverGrowth':[resting['width'],control_grown['width']],'crossingControlDuringGrowth':[mid_growth['width'],continued['width']],'originalGlyphPaints':paints,'sidebarHide':True,'hoverCases':results,'keyboard':True,'canvasNavigation':True,'probe':{'presses':6,'commands':4,'misses':2,'autoCopy':True,'cleanup':True}},indent=2))
             m.shot().save(OUT/'controls.png')
             print('PASS: control hover growth, 6 original glyph paints, 4 hover timings, 8 seeks, focus hold/release, keyboard, canvas navigation; probe captured 6 presses / 4 commands / 2 misses and auto-copied after cleanup.',flush=True)
         finally:

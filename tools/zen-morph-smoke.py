@@ -204,21 +204,23 @@ with tempfile.TemporaryDirectory(prefix='zen-morph-') as d:
    const read=(el,property)=>{const s=getComputedStyle(el);return property==='scale'?(s.scale==='none'?1:parseFloat(s.scale)):(s.transform==='none'?1:parseFloat(s.transform.slice(7)));};
    for(let profile=0;profile<5;profile++){
     Services.prefs.setIntPref('zzglass.motion.profile',profile);await nativeWait(400);
-    for(const [name,host,el,pseudo,property,target]of [['workspace',ws,wi,':hover','scale',1.3],['essential',nativeTab,essential,':hover','scale',1.3],['press',button,bi,':active','transform',.82]]){
-     if(name==='press'){InspectorUtils.addPseudoClassLock(host,':hover');await tick();}
+    for(const [name,host,el,pseudo,property,target,rest=1]of [['workspace',ws,wi,':hover','scale',1.3],['essential',nativeTab,essential,':hover','scale',1.3],['essential-press',nativeTab,essential,':active','scale',.95,1.3],['press',button,bi,':active','transform',.82]]){
+     if(pseudo===':active'){InspectorUtils.addPseudoClassLock(host,':hover');await tick();await nativeWait(350);}
+     const box=host.getBoundingClientRect();
      for(const on of [true,false]){
       InspectorUtils[on?'addPseudoClassLock':'removePseudoClassLock'](host,pseudo);await tick();
       const a=el.getAnimations().find(a=>a.transitionProperty===property);nativeCheck(name+' transition exists',!!a);a.pause();
       const duration=a.effect.getTiming().duration,values=[];for(let i=0;i<=40;i++){a.currentTime=duration*i/40;values.push(read(el,property));}
-      if(profile<2){const low=Math.min(1,target),high=Math.max(1,target),direction=(target-1)*(on?1:-1);
+      if(profile<2){const low=Math.min(rest,target),high=Math.max(rest,target),direction=(target-rest)*(on?1:-1);
        nativeCheck(name+' profile '+profile+' zero overshoot '+on,values.every(v=>v>=low-.0001&&v<=high+.0001));
        nativeCheck(name+' profile '+profile+' no reversals '+on,values.every((v,i)=>!i||(v-values[i-1])*direction>=-.00001));
       }
       nativeCheck(name+' profile duration '+profile+': '+duration,Math.abs(duration-durations[profile])<.01);
-      nativeCheck(name+' endpoint '+on,Math.abs(values.at(-1)-(on?target:1))<.0001);
+      nativeCheck(name+' endpoint '+on,Math.abs(values.at(-1)-(on?target:rest))<.0001);
+      const next=host.getBoundingClientRect();nativeCheck(name+' hit box fixed', ['x','y','width','height'].every(k=>Math.abs(next[k]-box[k])<.1));
       cases.push({profile,name,on,duration,min:Math.min(...values),max:Math.max(...values)});a.finish();await tick();
      }
-     if(name==='press')InspectorUtils.removePseudoClassLock(host,':hover');
+     if(pseudo===':active')InspectorUtils.removePseudoClassLock(host,':hover');
     }
    }
    Services.prefs.setIntPref('zzglass.motion.profile',0);
@@ -228,6 +230,18 @@ with tempfile.TemporaryDirectory(prefix='zen-morph-') as d:
    nativeCheck('interrupted hover settles',read(wi,'scale')===1&&!wi.getAnimations().some(a=>a.transitionProperty==='scale'));
    Services.prefs.setIntPref('ui.prefersReducedMotion',1);await nativeWait(100);InspectorUtils.addPseudoClassLock(ws,':hover');await tick();
    nativeCheck('reduced motion has no scale transition',!wi.getAnimations().some(a=>a.transitionProperty==='scale'));InspectorUtils.removePseudoClassLock(ws,':hover');
+   InspectorUtils.addPseudoClassLock(nativeTab,':active');await tick();
+   nativeCheck('reduced motion Favorite press has no transition',read(essential,'scale')===.95&&!essential.getAnimations().some(a=>a.transitionProperty==='scale'));
+   Services.prefs.setBoolPref('zzglass.motion.enabled',false);await tick();
+   nativeCheck('motion off releases Favorite press',read(essential,'scale')===1);
+   InspectorUtils.removePseudoClassLock(nativeTab,':active');Services.prefs.setBoolPref('zzglass.motion.enabled',true);
+   // The anchor owns ordinary interaction only, not drag/close geometry.
+   nativeTab.style.transform='scale(.9)';nativeTab.style.scale='.9';nativeTab.style.rotate='1deg';
+   for(const [owner,attr]of [[nativeTab,'closing'],[nativeTab,'drag-image'],[gBrowser.tabContainer,'movingtab']]){
+    owner.setAttribute(attr,'true');await tick();const s=getComputedStyle(nativeTab);
+    nativeCheck(attr+' releases native motion',s.transform.startsWith('matrix(0.9')&&s.scale==='0.9'&&s.rotate==='1deg');owner.removeAttribute(attr);
+   }
+   for(const p of ['transform','scale','rotate'])nativeTab.style.removeProperty(p);
    Services.prefs.setIntPref('ui.prefersReducedMotion',0);Services.prefs.setBoolPref('zzicon.click.press',false);nativeTab.removeAttribute('zen-essential');
    return cases;
   })();""")

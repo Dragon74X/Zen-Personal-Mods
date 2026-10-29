@@ -164,7 +164,8 @@
     const NS = "http://www.w3.org/2000/svg", S = Services.prefs, root = document.documentElement;
     const toolbox = document.getElementById("navigator-toolbox"), box = document.getElementById("tabbrowser-tabbox");
     if (!toolbox || !box) return () => {};
-    const el = (parent, tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.append(e); return e; };
+    const attr = (e, k, v) => { const text = String(v); if (e.getAttribute(k) !== text) e.setAttribute(k, text); };
+    const el = (parent, tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) attr(e, k, attrs[k]); parent.append(e); return e; };
     const svg = el(document.documentElement, "svg", { width: 0, height: 0, style: "position:fixed;pointer-events:none", "aria-hidden": "true" });
     const filter = el(svg, "filter", { id: "zzg-strip", filterUnits: "userSpaceOnUse", primitiveUnits: "userSpaceOnUse", "color-interpolation-filters": "sRGB" });
     const flood = el(filter, "feFlood", { "flood-color": "#fff", result: "m" });
@@ -203,19 +204,23 @@
         releaseFilter();
         return;
       }
+      if (appliedFilter && box.style.getPropertyValue("filter") !== appliedFilter) return;
       const b = box.getBoundingClientRect();
-      for (const [k, v] of Object.entries({ x: 0, y: 0, width: b.width, height: b.height })) filter.setAttribute(k, v);
-      for (const e of [flood, blur]) for (const [k, v] of Object.entries({ x: p.left - b.left, y: p.top - b.top, width: p.width, height: p.height })) e.setAttribute(k, v);
-      blur.setAttribute("stdDeviation", r);
+      for (const [k, v] of Object.entries({ x: 0, y: 0, width: b.width, height: b.height })) attr(filter, k, v);
+      for (const e of [flood, blur]) for (const [k, v] of Object.entries({ x: p.left - b.left, y: p.top - b.top, width: p.width, height: p.height })) attr(e, k, v);
+      attr(blur, "stdDeviation", r);
       if (!appliedFilter) {
         previousFilter = [box.style.getPropertyValue("filter"), box.style.getPropertyPriority("filter")];
         appliedFilter = (previousFilter[0] && previousFilter[0] !== "none" ? previousFilter[0] + " " : "") + "url(#zzg-strip)";
-      } else if (box.style.getPropertyValue("filter") !== appliedFilter) return;
-      box.style.setProperty("filter", appliedFilter, "important");
-      appliedFilter = box.style.getPropertyValue("filter"); // CSSOM normalizes URL quoting.
+        box.style.setProperty("filter", appliedFilter, "important");
+        appliedFilter = box.style.getPropertyValue("filter"); // CSSOM normalizes URL quoting.
+      }
       if (moving) frame = requestAnimationFrame(update);
     };
     const soon = () => { frame ||= requestAnimationFrame(update); };
+    // Descendant icon/colour transitions do not move the sidebar. Rewriting
+    // its page filter for each one invalidates the same pixels repeatedly.
+    const onSlide = e => { if (e.target === toolbox && e.propertyName === "translate") soon(); };
     const mo = new MutationObserver(soon);
     mo.observe(toolbox, { attributes: true, attributeFilter: ["zen-has-hover", "zen-user-show", "zen-has-empty-tab", "flash-popup", "has-popup-menu", "movingtab", "zen-compact-mode-active", "zzg-redraw"] });
     mo.observe(root, { attributes: true, attributeFilter: ["zen-compact-mode", "zen-renaming-tab"] });
@@ -225,8 +230,8 @@
     S.addObserver(PREFIX + "sidebar.", prefs);
     S.addObserver("zen.theme.acrylic-sidebar", prefs);
     window.addEventListener("resize", soon);
-    toolbox.addEventListener("transitionend", soon);
-    toolbox.addEventListener("transitionrun", soon);
+    for (const type of ["transitionrun", "transitionend", "transitioncancel"]) toolbox.addEventListener(type, onSlide);
+    gBrowser.tabContainer.addEventListener("TabSelect", soon);
     update();
     return () => {
       mo.disconnect();
@@ -234,8 +239,8 @@
       S.removeObserver(PREFIX + "sidebar.", prefs);
       S.removeObserver("zen.theme.acrylic-sidebar", prefs);
       window.removeEventListener("resize", soon);
-      toolbox.removeEventListener("transitionend", soon);
-      toolbox.removeEventListener("transitionrun", soon);
+      for (const type of ["transitionrun", "transitionend", "transitioncancel"]) toolbox.removeEventListener(type, onSlide);
+      gBrowser.tabContainer.removeEventListener("TabSelect", soon);
       cancelAnimationFrame(frame);
       releaseFilter();
       svg.remove();

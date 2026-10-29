@@ -267,6 +267,47 @@ def check_sidebar_hover(m):
                 if name=='transparent' and not previous:
                     # The strip under the panel is blurred; the switch turns it off.
                     hover(True)
+                    # Actual icon transitions must not dirty a stationary page
+                    # blur. Count mutations, not just matching final geometry.
+                    motion=m.script("""return (async()=>{
+                      const wait=ms=>new Promise(r=>setTimeout(r,ms));
+                      const toolbox=document.getElementById('navigator-toolbox'),filter=document.getElementById('zzg-strip'),box=document.getElementById('tabbrowser-tabbox');
+                      const keys=['zzglass.workspaces.enabled','zzglass.workspaces.hover','zzglass.tabs.essentials-icon-grow'],S=Services.prefs;
+                      const saved=keys.map(k=>[k,S.prefHasUserValue(k),S.getPrefType(k)===S.PREF_BOOL?S.getBoolPref(k):S.getIntPref(k)]);
+                      S.setBoolPref(keys[0],true);S.setIntPref(keys[1],1);S.setIntPref(keys[2],2);
+                      const ws=document.querySelector('#zen-workspaces-button toolbarbutton'),tab=gBrowser.selectedTab;
+                      const essential=tab.getAttribute('zen-essential');tab.setAttribute('zen-essential','true');
+                      const writes=[];const mo=new MutationObserver(cs=>writes.push(...cs));mo.observe(filter,{attributes:true,subtree:true});mo.observe(box,{attributes:true,attributeFilter:['style']});
+                      const cases=[];
+                      try {
+                        await wait(500);
+                        for(const [name,host,icon] of [['workspace',ws,ws.querySelector('.zen-workspace-icon')],['favorite',tab,tab.querySelector('.tab-icon-image')]]){
+                          writes.length=0;InspectorUtils.addPseudoClassLock(host,':hover');await wait(400);
+                          const scale=getComputedStyle(icon).scale;
+                          InspectorUtils.removePseudoClassLock(host,':hover');await wait(400);
+                          if(scale!=='1.3'||writes.length)throw new Error(name+': '+JSON.stringify({scale,writes:writes.map(c=>c.attributeName)}));
+                          cases.push({name,scale,filterWrites:writes.length});
+                        }
+                        writes.length=0;window.dispatchEvent(new Event('resize'));await wait(100);
+                        if(writes.length)throw new Error('Unchanged geometry rewrote filter');
+                        // Tab selection can change transparency without moving
+                        // the sidebar. Re-evaluate it without relying on bubbling
+                        // icon transitions; retain another owner's filter.
+                        document.documentElement.setAttribute('zzsmoke-opaque','');tab.dispatchEvent(new Event('TabSelect',{bubbles:true}));await wait(100);
+                        if(box.style.filter)throw new Error('Opaque selection retained strip filter');
+                        document.documentElement.removeAttribute('zzsmoke-opaque');
+                        tab.dispatchEvent(new Event('TabSelect',{bubbles:true}));await wait(100);
+                        if(!box.style.filter.includes('zzg-strip'))throw new Error('Transparent selection lost strip filter');
+                        writes.length=0;toolbox.dispatchEvent(new TransitionEvent('transitioncancel',{propertyName:'translate'}));await wait(100);
+                        if(writes.length)throw new Error('Cancelled slide rewrote unchanged geometry');
+                        return cases;
+                      } finally {
+                        mo.disconnect();for(const host of [ws,tab])InspectorUtils.removePseudoClassLock(host,':hover');
+                        if(essential===null)tab.removeAttribute('zen-essential');else tab.setAttribute('zen-essential',essential);
+                        for(const[k,had,v]of saved)if(!had)S.clearUserPref(k);else S[typeof v==='boolean'?'setBoolPref':'setIntPref'](k,v);
+                      }
+                    })();""")
+                    checks.append({'page':name,'stationaryBlurMotion':motion})
                     panel=m.script("const p=document.getElementById('zen-toolbar-background').getBoundingClientRect();return [p.left,p.top,p.right,p.bottom];")
                     blurred=m.shot();scale=blurred.width/m.script('return window.innerWidth;')
                     m.script("Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',false);return true;");time.sleep(.3)

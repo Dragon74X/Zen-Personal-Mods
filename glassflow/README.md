@@ -250,6 +250,9 @@ page-strip fallback (**Blur see-through pages too**) reads the panel's computed
 blur radius, including CSS lengths such as `rem` and `calc()`. A zero radius
 removes that fallback; native preference changes apply without reopening the
 sidebar. The panel needs **Panel opacity** below 100% for it to show through.
+The fallback follows the sidebar's slide and checks tab selection. Hovering
+Favorites or workspace icons does not rewrite the page filter; unchanged
+geometry and blur values are left alone.
 
 The sidebar's panel blurs without Zen's underlay, an SVG filter that a repaint
 on the panel redrew unevenly. Glassflow used to draw the sidebar's blur on a

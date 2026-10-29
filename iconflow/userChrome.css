@@ -221,9 +221,10 @@
 }
 :root [zzicon-motion="before"]::before { --zzicon-frame: inherit; }
 /* A generated property is non-inheriting; the image's animation is explicit.
-   Leave native opacity transitions (tab close) and button backgrounds intact. */
+   Leave native opacity transitions (tab close) and button backgrounds intact.
+   Press uses Glassflow's Motion feel, or Crisp when Iconflow runs alone. */
 :root [zzicon-motion="image"] {
-  transition: opacity .15s ease-out, filter .2s, transform .35s var(--zzicon-spring) !important;
+  transition: opacity .15s ease-out, filter .2s, transform calc(var(--zzg-motion-ms, 150) * 1ms) var(--zzg-motion-ease, cubic-bezier(.2,.85,.25,1)) !important;
   /* Native menu img keeps its srcset for teardown; only its paint is owned. */
   &:is(img) { content: var(--zzicon-blank) !important; }
 }

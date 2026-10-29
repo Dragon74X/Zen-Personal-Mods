@@ -1347,7 +1347,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzglass.tabs.essentials-icon-grow",
-    "label": "Essentials favicon grows on hover *Pointing at an Essential enlarges its favicon, with a small spring.*",
+    "label": "Essentials favicon grows on hover *Pointing at an Essential enlarges its favicon using Motion feel.*",
     "defaultValue": 2,
     "options": [
       {
@@ -1785,7 +1785,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzglass.workspaces.hover",
-    "label": "Pointed at *The icon grows with a small spring and settles; Dock also lifts its neighbours a little. Only icons move, never the buttons.*",
+    "label": "Pointed at *The icon grows using Motion feel; Dock also enlarges its neighbours. Only icons move, never the buttons.*",
     "defaultValue": 1,
     "options": [
       {
@@ -3231,7 +3231,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzglass.motion.profile",
-    "label": "Motion feel",
+    "label": "Motion feel *Controls tab and folder transitions, workspace and Essentials icon sizing, and Morph icon presses. Crisp and Soft have no overshoot.*",
     "defaultValue": 0,
     "options": [
       {

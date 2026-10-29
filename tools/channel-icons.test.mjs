@@ -121,6 +121,25 @@ test('Nexus defaults to verified square thumbnails, upgrades cached covers, and 
   assert.ok(e.requests.every(r=>r.ctx===2));assert.equal(e.moves,0);
 });
 
+test('Nexus game pictures accept official canonical host aliases without changing subject identity',async()=>{
+  const game='https://www.nexusmods.com/games/clairobscurexpedition33';
+  const cover='https://images.nexusmods.com/images/games/v2/7635/tile.jpg';
+  // Both live Expedition 33 and BG3 pages returned next.nexusmods.com on 2026-10-29.
+  for(const host of ['www.nexusmods.com','next.nexusmods.com','nexusmods.com'])for(const slash of ['', '/']){
+    const e=await environment(),t=e.addTab(game,2);
+    const root=e.addGroup('Nexus'),g=e.addGroup('Clair Obscur: Expedition 33',root,game,2);g.addTabs([t]);
+    e.h.updatePicture(t);
+    e.answer(gameMetadata(`https://${host}/games/clairobscurexpedition33${slash}`,cover));
+    assert.equal(e.requests.at(-1).url,'https://images.nexusmods.com/images/games/v2/7635/thumbnail.jpg',host+slash);
+    e.answer('image bytes');await tick();
+    assert.equal(t.getAttribute('data-zzrouter-tab-icon'),ICON);
+    assert.equal(g.getAttribute('data-zzrouter-icon'),ICON);
+    assert.equal(g.getAttribute('data-zzrouter-subject'),game);
+    assert.equal(e.h.iconMap().get('2:'+game).g,'7635');
+    assert.ok(e.requests.every(r=>r.ctx===2));
+  }
+});
+
 test('Nexus thumbnail decode failure falls back to cover; cover choice and failed refresh retain pictures',async()=>{
   const e=await environment(),t=e.addTab(GAME);
   e.h.updatePicture(t);e.answer(gameMetadata());e.answer('invalid');await tick();
@@ -136,6 +155,9 @@ test('Nexus thumbnail decode failure falls back to cover; cover choice and faile
 
 test('Nexus rejects mismatched canonical and unverified image origins; V1 retains cover without invented hero',async()=>{
   for(const [canonical,img] of [[GAME+'/other','https://images.nexusmods.com/images/games/v2/3474/tile.jpg'],
+    [GAME.replace('www.','next.')+'/mods','https://images.nexusmods.com/images/games/v2/3474/tile.jpg'],
+    ['https://next.nexusmods.com/games/clairobscurexpedition33','https://images.nexusmods.com/images/games/v2/3474/tile.jpg'],
+    [GAME.replace('www.nexusmods.com','next.nexusmods.com.evil.example'),'https://images.nexusmods.com/images/games/v2/3474/tile.jpg'],
     [GAME,'https://images.nexusmods.com.evil.example/images/games/v2/3474/tile.jpg'],
     [GAME,'https://images.nexusmods.com/images/games/v2/3474/tile.jpg/other'],
     [GAME,'https://example.com/3474/tile.jpg']]) {

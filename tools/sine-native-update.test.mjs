@@ -7,11 +7,54 @@ import path from "node:path";
 import vm from "node:vm";
 import { setImmediate as tick } from "node:timers/promises";
 import { test } from "node:test";
-import { installSineUpdateGuard } from "../download-prompt/sine-update-guard.sys.mjs";
+import { installSineUpdateGuard, fixChromeStylesheetImports } from "../download-prompt/sine-update-guard.sys.mjs";
 
 const upstream = process.env.SINE_MANAGER_SOURCE;
 const root = new URL("../", import.meta.url);
 const mods = ["download-prompt", "glassflow", "glassflow-library", "groupflow", "iconflow", "tab-router", "tab-unloader", "zen-turbo", "mediaflow", "peekflow"];
+
+test("native Sine: chrome imports retain SVG context paint without changing content imports or enable gates", { skip: !upstream }, async () => {
+  const source = await readFile(path.resolve(path.dirname(upstream), "../services/stylesheets.sys.mjs"), "utf8");
+  const files = new Map(), registry = {
+    zenui: { enabled: true, style: { chrome: "nested/icons.css", content: "page.css" } },
+    disabled: { enabled: false, style: { chrome: "off.css" } },
+    first: { enabled: true, style: { chrome: "first.css" } },
+  };
+  const utils = { modsDir: "/profile with space/chrome/sine-mods",
+    chromeFile: "/profile with space/chrome/sine-mods/chrome.css",
+    contentFile: "/profile with space/chrome/sine-mods/content.css", getMods: async () => registry };
+  const PathUtils = { toFileURI: p => "file://" + p.replaceAll(" ", "%20") };
+  const IOUtils = { async writeUTF8(p, text, options) {
+    assert.equal(this, IOUtils); if (options?.fail) throw new Error("write failed");
+    files.set(p, text); return text.length;
+  } };
+  const context = vm.createContext({ utils, IOUtils, PathUtils, console,
+    ucAPI: { utils: { chromeDir: "/profile with space/chrome" } },
+    ChromeUtils: { registerWindowActor() {} },
+    Services: { io: { newURI: v => v }, wm: { getEnumerator: () => ({ hasMoreElements: () => false }) },
+      ppmm: { broadcastAsyncMessage() {} } } });
+  vm.runInContext(source.replace(/^import .*;\r?\n/gm, "")
+    .replace("export default new StylesheetManager();", "globalThis.styles = new StylesheetManager();"), context);
+  await context.styles.rebuildMods();
+  const before = files.get(utils.chromeFile), content = files.get(utils.contentFile);
+  assert.ok(before.startsWith('@import "file:///profile%20with%20space/chrome/sine-mods/first/first.css";'));
+  assert.equal(fixChromeStylesheetImports(utils, { IOUtils, PathUtils }), true);
+  const wrapped = IOUtils.writeUTF8;
+  assert.equal(fixChromeStylesheetImports(utils, { IOUtils, PathUtils }), false);
+  assert.equal(IOUtils.writeUTF8, wrapped, "one session owner");
+  await context.styles.rebuildMods();
+  assert.equal(files.get(utils.chromeFile), '@import "chrome://sine/content/first/first.css";\n@import "chrome://sine/content/zenui/nested/icons.css";\n');
+  assert.equal(files.get(utils.contentFile), content);
+  registry.zenui.enabled = false;
+  await context.styles.rebuildMods();
+  assert.equal(files.get(utils.chromeFile), '@import "chrome://sine/content/first/first.css";\n');
+  const other = '@import "https://example.invalid/remote.css";\n@import "file:///elsewhere/local.css";\n';
+  assert.equal(await IOUtils.writeUTF8(utils.chromeFile, other), other.length);
+  assert.equal(files.get(utils.chromeFile), other);
+  await IOUtils.writeUTF8("/unrelated.css", before);
+  assert.equal(files.get("/unrelated.css"), before);
+  await assert.rejects(IOUtils.writeUTF8(utils.chromeFile, before, { fail: true }), /write failed/);
+});
 
 async function environment({ realMetadata = false, failArchive = new Set() } = {}) {
   const source = await readFile(upstream, "utf8");

@@ -49,6 +49,9 @@ def check(m, root, sine, profile, output, restarted=False):
       await new Promise(r=>setTimeout(r,250));
       return {cards:d.querySelectorAll('.sineItem').length,rows:d.querySelectorAll('.zzsettings-row').length,toggles:d.querySelectorAll('.zzsettings-boolean moz-toggle').length,errors:(Services.console.getMessageArray()||[]).map(m=>m.message).filter(s=>/Error|exception/i.test(s)).slice(-8)};
     })();'''), flush=True)
+    imports=m.script("return IOUtils.readUTF8(settingsUtils.chromeFile);")
+    assert imports and all(line.startswith('@import "chrome://sine/content/') for line in imports.splitlines() if line),imports
+    print('CHROME IMPORTS',len(imports.splitlines()),'restart',restarted,flush=True)
     if restarted:
         result=m.script("""const d=settingsWin.document;return {
           restartedBoolean:Services.prefs.getBoolPref('zzgroup.enabled')===false&&d.querySelector('#zzgroup-enabled moz-toggle').pressed===false,

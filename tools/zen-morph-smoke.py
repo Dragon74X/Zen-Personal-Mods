@@ -42,6 +42,29 @@ with tempfile.TemporaryDirectory(prefix='zen-morph-') as d:
   m.script('window.nativeFixtureURL='+json.dumps((profile/'index.html').as_uri())+';return true;')
   result=m.script((ROOT/'tools/morph-native-regressions.js').read_text())
   print('NATIVE',json.dumps(result),flush=True)
+  # A relative SVG stroke using context-fill vanishes through a file import
+  # with Gecko's default policy. Exercise the generated entrypoint correction.
+  fixture=folder/'context-paint-check';fixture.mkdir()
+  (fixture/'stroke.svg').write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><g fill="none" stroke="context-fill" stroke-opacity="context-fill-opacity" stroke-width="2"><path d="M2 2H14V14H2Z"/></g></svg>')
+  (fixture/'style.css').write_text('#context-paint-check{background-image:url("stroke.svg")!important;background-size:32px 32px;background-repeat:no-repeat;fill:red;fill-opacity:1;-moz-context-properties:fill,fill-opacity}')
+  entry='@import "'+(fixture/'style.css').as_uri()+'";\n'
+  (folder/'chrome.css').write_text(entry)
+  m.script("const e=document.createElementNS('http://www.w3.org/1999/xhtml','div');e.id='context-paint-check';e.style.cssText='position:fixed;left:400px;top:250px;width:32px;height:32px;z-index:2147483647;background-color:white';document.documentElement.append(e);return true;")
+  paint_counts=[]
+  for phase in ['before','after']:
+   if phase=='after':
+    m.script("return (async()=>{const {fixChromeStylesheetImports}=ChromeUtils.importESModule('chrome://sine/content/zz-iconflow/sine-update-guard.sys.mjs');const modsDir=PathUtils.join(PathUtils.profileDir,'chrome','sine-mods'),chromeFile=PathUtils.join(modsDir,'chrome.css');fixChromeStylesheetImports({modsDir,chromeFile},{IOUtils,PathUtils});await IOUtils.writeUTF8(chromeFile,"+json.dumps(entry)+");return true;})();")
+   uri='chrome://sine/content/chrome.css?paint-check='+phase
+   m.script('Cc["@mozilla.org/content/style-sheet-service;1"].getService(Ci.nsIStyleSheetService).loadAndRegisterSheet(Services.io.newURI('+json.dumps(uri)+'),1);return true;');time.sleep(.4)
+   shot=m.shot().convert('RGB');factor=shot.width/m.script('return window.innerWidth;')
+   r=m.script("return document.getElementById('context-paint-check').getBoundingClientRect().toJSON();")
+   crop=shot.crop(tuple(round(r[k]*factor) for k in ['left','top','right','bottom']));crop.save(OUT/('context-paint-'+phase+'.png'))
+   paint_counts.append(sum(red>green+20 and red>blue+20 for red,green,blue in crop.getdata()))
+   m.script('Cc["@mozilla.org/content/style-sheet-service;1"].getService(Ci.nsIStyleSheetService).unregisterSheet(Services.io.newURI('+json.dumps(uri)+'),1);return true;')
+  assert paint_counts[0]==0 and paint_counts[1]>50,paint_counts
+  assert not m.script("return Services.prefs.getBoolPref('svg.context-properties.content.enabled');")
+  result['contextStrokePixels']=paint_counts
+  m.script("document.getElementById('context-paint-check').remove();return true;")
   # Preserve a native context-menu image through Morph Off -> On -> Off.
   # A text-only item stays text-only; Off must never erase an existing image.
   m.script("""window.menuFixture=document.createXULElement('menupopup');menuFixture.id='zz-menu-paint-check';document.getElementById('mainPopupSet').append(menuFixture);
@@ -76,7 +99,18 @@ with tempfile.TemporaryDirectory(prefix='zen-morph-') as d:
    assert abs(values[-1]-1)<.001,(host,values[-1])
    return samples
   m.script("Services.prefs.setBoolPref('zzicon.click.press',true);return true;");time.sleep(.2)
+  # Arc's captured button press transform must not scale the target as well.
+  m.script("window.arcButtonFixture=Services.io.newURI('data:text/css,'+encodeURIComponent('#PanelUI-menu-button:active{opacity:.5;transform:scale(.95)}:is(#zen-toggle-compact-mode>toolbarbutton:nth-child(1)):hover{transform:scale(1.25)}'));Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService).loadAndRegisterSheet(arcButtonFixture,1);return true;")
   result['iconPress']=sample_motion('#PanelUI-menu-button','#PanelUI-menu-button .toolbarbutton-icon')
+  for axis in ['x','y','width','height']:
+   assert max(x['rect'][axis] for x in result['iconPress'])-min(x['rect'][axis] for x in result['iconPress'])<.1,('Button hit box moved',axis)
+  m.script("const h=document.querySelector('#zen-toggle-compact-mode>toolbarbutton');InspectorUtils.addPseudoClassLock(h,':hover');return true;")
+  time.sleep(.35)
+  assert m.script("return getComputedStyle(document.querySelector('#zen-toggle-compact-mode>toolbarbutton')).transform;")=='none','Compact parent scales under Morph'
+  m.script("Services.prefs.setIntPref('zzicon.set',0);return true;");time.sleep(.35)
+  assert m.script("return getComputedStyle(document.querySelector('#zen-toggle-compact-mode>toolbarbutton')).transform;")=='matrix(1.25, 0, 0, 1.25, 0, 0)','Native host not released when Morph off'
+  m.script("InspectorUtils.removePseudoClassLock(document.querySelector('#zen-toggle-compact-mode>toolbarbutton'),':hover');Services.prefs.setIntPref('zzicon.set',4);Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService).unregisterSheet(arcButtonFixture,1);return true;");time.sleep(.35)
+  result['arcButtonOwnership']=True
   # Arc 2.0's captured workspace parent transforms must not compose with
   # Glassflow's child scale or move the hit target during the animation.
   m.script("window.arcWorkspaceFixture=Services.io.newURI('data:text/css,'+encodeURIComponent('#zen-workspaces-button .subviewbutton{transform:scale(1)!important;transform-origin:bottom center!important}#zen-workspaces-button .subviewbutton:hover{transform:scale(1.25)!important}#zen-workspaces-button .subviewbutton:active:hover{transform:scale(1)!important}'));Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService).loadAndRegisterSheet(arcWorkspaceFixture,1);return true;")
@@ -88,11 +122,13 @@ with tempfile.TemporaryDirectory(prefix='zen-morph-') as d:
   m.script((ROOT/'tools/icon-hover-probe.js').read_text()+'\nreturn true;')
   r=m.script("return document.querySelector('#PanelUI-menu-button').getBoundingClientRect().toJSON();")
   move(r['x']+r['width']/2,r['y']+r['height']/2);time.sleep(.25)
-  m.script("document.getElementById('tabContextMenu').openPopupAtScreen(500,300,true);return true;");time.sleep(.2)
+  m.script("document.getElementById('tabContextMenu').openPopupAtScreen(500,300,true);return true;");time.sleep(.65)
   m.script("document.getElementById('tabContextMenu').hidePopup();return true;")
   time.sleep(20)
   probe=json.loads(m.script("const t=Cc['@mozilla.org/widget/transferable;1'].createInstance(Ci.nsITransferable);t.init(null);t.addDataFlavor('text/plain');Services.clipboard.getData(t,Services.clipboard.kGlobalClipboard);const v={};t.getTransferData('text/plain',v);return v.value.QueryInterface(Ci.nsISupportsString).data;"))
-  assert probe['probe']=='icon-hover-v1' and probe['motion'] and probe['menus'] and probe['versions']['iconflow']
+  assert probe['probe']=='icon-hover-v2' and probe['motion'] and probe['menus'] and probe['versions']['iconflow']
+  assert any('after500ms' in menu for menu in probe['menus'])
+  assert probe['motion'][0]['samples'][-1]['ms']>=1000 and len(probe['motion'][0]['samples'])<=65
   assert m.script('return !window.__zzIconHoverProbe;')
   (OUT/'probe.json').write_text(json.dumps(probe,indent=2));result['probeAutoCopyCleanup']=True
   move(1000,350)

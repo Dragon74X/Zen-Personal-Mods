@@ -1,18 +1,18 @@
 // Paste in Zen's Browser Console, then hover/click icons and open a context
 // menu. Read-only; copies the report after 20 seconds and removes all hooks.
 (() => {
-  const w = Services.wm.getMostRecentWindow('navigator:browser'), d = w.document;
+  const w = Services.wm.getMostRecentWindow('navigator:browser');
   w.__zzIconHoverProbe?.stop();
   const undo = [], started = w.performance.now(), report = {
-    probe: 'icon-hover-v1', browser: Services.appinfo.version,
+    probe: 'icon-hover-v2', browser: Services.appinfo.version,
     platform: Services.appinfo.OS, dpr: w.devicePixelRatio,
     reducedMotion: w.matchMedia('(prefers-reduced-motion: reduce)').matches,
     instantMotion: !!w.Motion?.MotionGlobalConfig?.instantAnimations,
     versions: {}, prefs: {}, menus: [], motion: [], errors: [],
-    limit: '20 seconds; up to 12 motion runs, 90 samples/run, 6 menus. Sampling reads styles/layout; timings are not an FPS benchmark.',
+    limit: '20 seconds; up to 12 one-second motion runs, at most 1 sample/16ms, 6 menus with a 500ms follow-up. Sampling reads styles/layout; timings are not an FPS benchmark.',
   };
   const names = ['zzicon.set', 'zzicon.animate', 'zzicon.speed', 'zzicon.menu.animate',
-    'svg.context-properties.content.enabled', 'cmi-Switch-Icon-Package', 'arc-workspace-style', 'zzicon.click.press', 'zzicon.plate', 'zzicon.size', 'zzicon.motion.toolbar',
+    'svg.context-properties.content.enabled', 'cmi-Switch-Icon-Package', 'arc-workspace-style', 'arc-disable-tab-hover-animations', 'zzicon.click.press', 'zzicon.plate', 'zzicon.size', 'zzicon.motion.toolbar',
     'zzglass.motion.enabled', 'zzglass.edges.follow-pointer', 'zzglass.instant-ui',
     'zzglass.workspaces.enabled', 'zzglass.workspaces.hover', 'zzglass.workspaces.steady-dots',
     'zzglass.sidebar.blur-transparent-pages', 'zzmedia.bar.hover-delay',
@@ -30,10 +30,11 @@
     undo.push(() => node.removeEventListener(type, fn, true));
   };
   const id = e => e ? e.id || e.localName + '.' + [...e.classList].join('.') : null;
-  const source = s => (s || '').replace(/data:[^"\s)]+/g, 'data:[omitted]').slice(0,300);
+  const source = s => (s || '').replace(/file:\/\/\/[^"\n]*?\/chrome\//g, 'file://[profile]/chrome/')
+    .replace(/data:[^"\s)]+/g, 'data:[omitted]').slice(0,300);
   const props = ['display','visibility','opacity','transform','scale','translate','rotate',
     'transition','animation','image-rendering','background-image','background-size',
-    'background-position','content','list-style-image','mask-image','fill','fill-opacity'];
+    'background-position','content','list-style-image','mask-image','fill','fill-opacity','-moz-context-properties'];
   const style = (el, pseudo) => {
     const s = w.getComputedStyle(el, pseudo), r = {};
     for (const p of props) r[p] = source(s.getPropertyValue(p));
@@ -54,14 +55,18 @@
   function sample() {
     frame = 0;
     if (!active || stopped) return;
-    const {el, run, start} = active;
+    const {el, host, run, start} = active, now = w.performance.now();
     if (!el.isConnected) { active = null; return; }
+    if (now - active.last < 16) { frame = w.requestAnimationFrame(sample); return; }
+    active.last = now;
     const s = w.getComputedStyle(el), r = el.getBoundingClientRect();
-    run.samples.push({ms:Math.round(w.performance.now()-start), frame:s.getPropertyValue('--zzicon-frame'),
+    const hs = w.getComputedStyle(host), hr = host.getBoundingClientRect();
+    run.samples.push({ms:Math.round(now-start), frame:s.getPropertyValue('--zzicon-frame'),
       scale:s.scale, transform:s.transform, backgroundPosition:s.backgroundPosition,
+      hostScale:hs.scale, hostTransform:hs.transform, hostBox:[hr.x,hr.y,hr.width,hr.height],
       box:[r.x,r.y,r.width,r.height], animations:el.getAnimations().map(a => ({
         property:a.transitionProperty || a.animationName || 'WAAPI', time:a.currentTime, state:a.playState}))});
-    if (w.performance.now()-start < 1000 && run.samples.length < 90) frame = w.requestAnimationFrame(sample);
+    if (now-start < 1000) frame = w.requestAnimationFrame(sample);
     else active = null;
   }
   listen(w, 'pointerover', e => {
@@ -72,14 +77,21 @@
     const el = record?.paint || host.querySelector('.zen-workspace-icon,.tab-icon-image') || host;
     const run = {host:id(host), icon:id(el), action:record?.binding?.action,
       style:style(el), rules:rules(el), hostStyle:style(host), hostRules:rules(host), samples:[]};
-    report.motion.push(run); active = {el,run,start:w.performance.now()}; sample();
+    report.motion.push(run); active = {el,host,run,start:w.performance.now(),last:-Infinity}; sample();
   });
   listen(w, 'popupshown', e => {
     if (e.target.localName !== 'menupopup' || report.menus.length >= 6) return;
-    report.menus.push({id:id(e.target), items:[...e.target.querySelectorAll('menuitem,menu')].slice(0,60).map(el => ({
+    const popup=e.target, items=[...popup.querySelectorAll('menuitem,menu')].slice(0,60);
+    const menu={id:id(popup), items:items.map(el => ({
       id:id(el), morph:el.hasAttribute('zzicon-motion-host'), style:style(el), before:style(el,'::before'), rules:rules(el),
       images:[...el.querySelectorAll('.menu-icon,.menu-iconic-icon,image')].slice(0,2).map(i => ({id:id(i), source:source(i.currentSrc), style:style(i)})),
-    }))});
+    }))};
+    report.menus.push(menu);
+    const later=w.setTimeout(()=>{
+      if (stopped || popup.state!=='open') return;
+      menu.after500ms=items.filter(el=>el.isConnected).map(el=>({id:id(el),style:style(el),before:style(el,'::before')}));
+    },500);
+    undo.push(()=>w.clearTimeout(later));
   });
   listen(w, 'error', e => {
     if (report.errors.length < 20) report.errors.push({message:String(e.message).slice(0,200), file:source(e.filename),line:e.lineno});

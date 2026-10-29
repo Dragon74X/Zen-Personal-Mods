@@ -307,6 +307,10 @@
 @media (-moz-pref("zzglass.motion.light", 3)) { :root { --zzg-light-crest: 35%; --zzg-light-fall: 90%; --zzg-light-wash: .025; } }
 :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab {
   --zzg-sheen-level: 0;
+  /* Arc's whole-tab hover scale must not compose with favicon growth or
+     snap when the paint transition below owns the transition list.
+     Native tab dragging and closing retain their transforms. */
+  #tabbrowser-tabs:not([movingtab]) &:not([closing], [drag-image]) { transform: none !important; }
   --zzg-edge-top: transparent;
   --zzg-edge-ring: transparent;
   --zzg-state-glow: transparent;

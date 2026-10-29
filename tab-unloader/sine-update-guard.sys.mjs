@@ -2,6 +2,25 @@
 // Sine fb0bd4c: updateMods runs processModUpdate concurrently, but syncModData
 // stages every host-repository mod through the same sine-mods/temp directory.
 // Keep this in a background module: queues must outlive any browser window.
+// Sine already registers sine-mods as chrome://sine/content/. Its generated
+// chrome sheet instead imports file URLs, where stroked context-fill SVGs
+// (including CMI ZenUI) paint nothing with the default SVG content policy.
+export function fixChromeStylesheetImports(utils, { IOUtils, PathUtils } = globalThis) {
+  if (utils.__zenPersonalModsChromeImports || !utils.chromeFile || !utils.modsDir ||
+      !IOUtils?.writeUTF8 || !PathUtils?.toFileURI) return false;
+  const prefix = `@import "${PathUtils.toFileURI(utils.modsDir)}/`;
+  const write = IOUtils.writeUTF8;
+  // ponytail: only Sine's generated chrome entrypoint; remove when upstream
+  // emits chrome imports. Content sheets, external URLs and ordering stay native.
+  IOUtils.writeUTF8 = function (file, source, ...args) {
+    if (file === utils.chromeFile && typeof source === "string")
+      source = source.replaceAll(prefix, '@import "chrome://sine/content/');
+    return write.call(this, file, source, ...args);
+  };
+  utils.__zenPersonalModsChromeImports = true;
+  return true;
+}
+
 export function installSineUpdateGuard(manager, utils, { IOUtils, PathUtils } = globalThis) {
   const marker = "__zenPersonalModsUpdateGuardV1";
   if (manager[marker]) return true;
@@ -622,6 +641,10 @@ if (typeof ChromeUtils !== "undefined") {
       "chrome://userscripts/content/core/manager.sys.mjs").default;
     const utils = ChromeUtils.importESModule(
       "chrome://userscripts/content/core/utils.sys.mjs").default;
+    if (fixChromeStylesheetImports(utils)) {
+      ChromeUtils.importESModule("chrome://userscripts/content/services/stylesheets.sys.mjs")
+        .default.rebuildMods().catch(error => console.warn("[Zen Personal Mods] Chrome styles rebuild failed:", error));
+    }
     if (!installSineUpdateGuard(manager, utils)) {
       console.info("[Zen Personal Mods] Sine update guard skipped: engine does not match the shared-temp implementation.");
     }

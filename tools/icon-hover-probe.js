@@ -4,17 +4,17 @@
   const w = Services.wm.getMostRecentWindow('navigator:browser');
   w.__zzIconHoverProbe?.stop();
   const undo = [], started = w.performance.now(), report = {
-    probe: 'icon-hover-v3', browser: Services.appinfo.version,
+    probe: 'icon-hover-v4', browser: Services.appinfo.version,
     platform: Services.appinfo.OS, dpr: w.devicePixelRatio,
     reducedMotion: w.matchMedia('(prefers-reduced-motion: reduce)').matches,
     instantMotion: !!w.Motion?.MotionGlobalConfig?.instantAnimations,
     versions: {}, prefs: {}, menus: [], motion: [], errors: [],
-    limit: '20 seconds; up to 12 one-second motion runs, at most 1 sample/16ms, 6 menus with a 500ms follow-up. Sampling reads styles/layout; timings are not an FPS benchmark.',
+    limit: '20 seconds; up to 12 one-second motion runs, style/box samples at most once/16ms plus every rAF interval; 6 menus with a 500ms follow-up. Reads can affect timing. Main-thread callbacks are not GPU present times or an FPS benchmark.',
   };
   const names = ['zzicon.set', 'zzicon.animate', 'zzicon.speed', 'zzicon.menu.animate',
     'svg.context-properties.content.enabled', 'cmi-Switch-Icon-Package', 'arc-workspace-style', 'arc-disable-tab-hover-animations', 'zzicon.click.press', 'zzicon.plate', 'zzicon.size', 'zzicon.motion.toolbar',
     'zzglass.motion.enabled', 'zzglass.motion.profile', 'zzglass.tabs.essentials-icon-grow', 'zzglass.edges.follow-pointer', 'zzglass.instant-ui',
-    'zzglass.workspaces.enabled', 'zzglass.workspaces.hover', 'zzglass.workspaces.steady-dots',
+    'zzglass.workspaces.enabled', 'zzglass.workspaces.hover', 'zzglass.workspaces.steady-dots', 'zzglass.workspaces.inactive', 'zzglass.workspaces.active',
     'zzglass.sidebar.blur-transparent-pages', 'zzmedia.bar.hover-delay',
     'zzmedia.preview.hover-size', 'zzmedia.preview.controls'];
   for (const key of names) {
@@ -32,7 +32,7 @@
   const id = e => e ? e.id || e.localName + '.' + [...e.classList].join('.') : null;
   const source = s => (s || '').replace(/file:\/\/\/[^"\n]*?\/chrome\//g, 'file://[profile]/chrome/')
     .replace(/data:[^"\s)]+/g, 'data:[omitted]').slice(0,300);
-  const props = ['display','visibility','opacity','transform','scale','translate','rotate',
+  const props = ['display','visibility','opacity','filter','transform','transform-origin','scale','translate','rotate',
     'transition','animation','image-rendering','background-image','background-size',
     'background-position','content','list-style-image','mask-image','fill','fill-opacity','-moz-context-properties'];
   const style = (el, pseudo) => {
@@ -52,11 +52,19 @@
     return result.slice(-30);
   };
   let frame = 0, timer, active, stopped = false;
-  function sample() {
+  const animations = el => el.getAnimations().map(a => ({
+    property:a.transitionProperty || a.animationName || 'WAAPI', time:a.currentTime, state:a.playState}));
+  function sample(stamp) {
     frame = 0;
     if (!active || stopped) return;
     const {el, host, run, start} = active, now = w.performance.now();
     if (!el.isConnected) { active = null; return; }
+    // Record every callback, including displays faster than 60 Hz. Style/box
+    // reads remain throttled. These are main-thread timings, not GPU present times.
+    if (Number.isFinite(stamp)) {
+      if (active.previousFrame !== undefined) run.frameIntervals.push(+(stamp-active.previousFrame).toFixed(2));
+      active.previousFrame = stamp;
+    }
     if (now - active.last < 16) { frame = w.requestAnimationFrame(sample); return; }
     active.last = now;
     const s = w.getComputedStyle(el), r = el.getBoundingClientRect();
@@ -65,19 +73,20 @@
       scale:s.scale, transform:s.transform, backgroundPosition:s.backgroundPosition,
       hover:host.matches(':hover'), pressed:host.matches(':active'), focusVisible:host.matches(':focus-visible'),
       hostScale:hs.scale, hostTransform:hs.transform, hostBox:[hr.x,hr.y,hr.width,hr.height],
-      box:[r.x,r.y,r.width,r.height], animations:el.getAnimations().map(a => ({
-        property:a.transitionProperty || a.animationName || 'WAAPI', time:a.currentTime, state:a.playState}))});
+      hostOpacity:hs.opacity, hostFilter:hs.filter,
+      box:[r.x,r.y,r.width,r.height], animations:animations(el), hostAnimations:animations(host)});
     if (now-start < 1000) frame = w.requestAnimationFrame(sample);
     else active = null;
   }
   listen(w, 'pointerover', e => {
     if (active || report.motion.length >= 12) return;
-    const host = e.target.closest?.('[zzicon-motion-host], #zen-workspaces-button toolbarbutton, .tabbrowser-tab');
+    const host = e.target.closest?.('[zzicon-motion-host], #zen-workspaces-button toolbarbutton, .tabbrowser-tab, #urlbar');
     if (!host || host.contains(e.relatedTarget)) return;
     const record = w.__zziconMorphInstance?.records.get(host);
     const el = record?.paint || host.querySelector('.zen-workspace-icon,.tab-icon-image') || host;
     const run = {host:id(host), icon:id(el), action:record?.binding?.action,
-      style:style(el), rules:rules(el), hostStyle:style(host), hostRules:rules(host), samples:[]};
+      image:el.localName==='img'?{source:source(el.currentSrc),complete:el.complete,naturalWidth:el.naturalWidth,naturalHeight:el.naturalHeight}:null,
+      style:style(el), rules:rules(el), hostStyle:style(host), hostRules:rules(host), frameIntervals:[], samples:[]};
     report.motion.push(run); active = {el,host,run,start:w.performance.now(),last:-Infinity}; sample();
   });
   listen(w, 'popupshown', e => {

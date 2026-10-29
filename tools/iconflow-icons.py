@@ -750,13 +750,13 @@ TOOLBAR = {
     "sidebar": ("Sidebar toggle", c_sidebar, tb("#sidebar-button")),
     "expand-sidebar": ("Expand sidebar", c_expand, tb("#zen-expand-sidebar-button")),
     "site-data": ("Site settings", c_sliders, [("#zen-site-data-icon-button image", "#zen-site-data-icon-button:hover image")]),
-    "downloads": ("Downloads", c_downloads, tb("#downloads-button", "#appMenu-downloads-button")),
+    "downloads": ("Downloads", c_downloads, [("#downloads-button #downloads-indicator-icon", "#downloads-button:hover #downloads-indicator-icon")] + tb("#appMenu-downloads-button")),
     "extensions": ("Extensions", c_extensions, tb("#unified-extensions-button", "#add-ons-button", "#appMenu-extensions-themes-button", "#appMenu-unified-extensions-button")),
     "bookmark": ("Bookmark", c_bookmark, [("#star-button:not([starred])", "#star-button-box:hover > #star-button:not([starred])")]
                  + tb("#bookmarks-menu-button", "#appMenu-bookmarks-button")),
     "bookmarked": ("Bookmark, saved", c_bookmarked, [("#star-button[starred]", "#star-button-box:hover > #star-button[starred]")]),
     "reader": ("Reader view", c_reader, [("#reader-mode-button > .urlbar-icon", "#reader-mode-button:hover > .urlbar-icon")]),
-    "share": ("Share and copy link", c_share, tb("#zen-copy-current-url-button", "#share-tab-button")),
+    "share": ("Share and copy link", c_share, [("#zen-copy-url-button .urlbar-icon", "#zen-copy-url-button:hover .urlbar-icon")] + tb("#zen-copy-current-url-button", "#share-tab-button")),
     "history": ("History", c_history, tb("#history-panelmenu", "#appMenu-history-button", "#PanelUI-historyMore")),
     "screenshot": ("Screenshot", c_screenshot, tb("#screenshot-button")),
     "overflow": ("More tools", c_overflow, tb("#nav-bar-overflow-button")),
@@ -1443,8 +1443,9 @@ def main():
            "   numbers, so a hover that interrupts one in progress still lands on\n"
            "   whole frames and never shows the strip sliding between two. */",
            '@property --zzicon-frame { syntax: "<integer>"; inherits: false; initial-value: 0; }']
-    for old in (OUT.parent / "icons").glob("*/*.svg"):
-        old.unlink()
+    for directory in ("circuit", "clean", "library"):
+        for old in (OUT.parent / "icons" / directory).glob("*.svg"):
+            old.unlink()
     url = {}
     for key, (_, draw, _) in TOOLBAR.items():
         frames, zoom = 1 if key in CSS_MOTION else FRAMES, fit(draw, FRAMES)

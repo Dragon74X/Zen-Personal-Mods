@@ -16,7 +16,7 @@ const enabled=(b,host)=>!forced.matches&&int('set',4)===4&&(b.setting==='library
 const still=()=>reduced.matches||forced.matches||!S.getBoolPref('zzicon.animate',true);
 const listen=(el,type,fn,opts={})=>el.addEventListener(type,fn,{...opts,signal:abort.signal});
 const namespace='http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul';
-const ownerSelector='toolbarbutton, button, menuitem, menu, .tab-close-button, .tab-reset-button, .urlbar-icon';
+const ownerSelector='toolbarbutton, button, menuitem, menu, .tab-close-button, .tab-reset-button, .urlbar-page-action, .identity-box-button';
 const savedProperties=['--zzicon-frame','--zzicon-sprite','--zzicon-columns','--zzicon-rows','--zzicon-row-position','--zzicon-row'];
 function snapshot(binding,host,definition) {
  const control=data.controls.find(c=>c.id===definition.controlId);if(!control)return null;
@@ -27,7 +27,7 @@ function snapshot(binding,host,definition) {
  case 'bookmark-toggle': {
   if(binding.state==='bookmark-launcher'){state='unsaved';break;}
   // Native context refresh marks the actual target. Link/add commands remain add commands.
-  if(host.id==='star-button')state=host.hasAttribute('starred')?'saved':'unsaved';
+  if(host.id==='star-button'||host.id==='star-button-box')state=(host.querySelector?.('#star-button')||host).hasAttribute('starred')?'saved':'unsaved';
   else state=host.hasAttribute('starred')||host.zziconBookmarked===true?'saved':'unsaved';
   break;
  }
@@ -90,7 +90,7 @@ function move(r,to,kind){
 }
 function hover(r,on){
  r.hover=on;if(!on)r.consumed=false;if(r.phase==='fire')return;
- move(r,(on||r.focus)&&!r.consumed&&!r.host.disabled?index.wind:0,'wind');
+ move(r,(on||r.focus)&&!r.consumed&&!r.host.disabled&&r.host.getAttribute('disabled')!=='true'?index.wind:0,'wind');
 }
 function fire(r){
  r.consumed=true;
@@ -175,7 +175,8 @@ listen(window,'focusout',e=>{const r=recordFor(e);if(r){r.focus=false;hover(r,r.
 function activated(e){
  const direct=recordFor(e),targets=direct?[direct]:e.type==='command'&&e.target.localName==='command'?[...records.values()].filter(r=>r.host.getAttribute('command')===e.target.id):[];
  for(const r of targets){if(r.host.disabled||r.host.getAttribute('disabled')==='true')continue;
-  if(e.type==='click'&&(e.button!==0||(r.host.namespaceURI===namespace&&r.host.localName!=='image')))continue;fire(r);
+  // XUL buttons/menus emit command as well as click; URL-bar boxes use click.
+  if(e.type==='click'&&(e.button!==0||(r.host.namespaceURI===namespace&&r.host.matches('toolbarbutton,button,menuitem,menu'))))continue;fire(r);
  }
 }
 listen(window,'command',activated,{capture:true});listen(window,'click',activated,{capture:true});

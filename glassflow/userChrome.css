@@ -1499,6 +1499,11 @@
 /* Close targets remain stationary in Zen's own slot. Only the existing image
    eases into view; label space interpolates without moving the hit target. */
 @media (-moz-pref("zzglass.motion.enabled")) {
+  /* Arc lifts the hit target by 2px on hover. Pointer movement along its
+     lower edge repeatedly enters/leaves it. Keep the closed target anchored;
+     Zen's floating URL bar and search-mode animation retain their transform. */
+  :root #urlbar:not([breakout-extend]) { transform: none !important; }
+
   :root[zen-sidebar-expanded="true"] #tabbrowser-tabs .tabbrowser-tab:not([pinned], [zen-essential]) {
     /* Zen zeroes --tab-padding-inline on the close button itself. */
     & .tab-content { position: relative; --zzg-tab-pad: var(--tab-padding-inline, 8px); }

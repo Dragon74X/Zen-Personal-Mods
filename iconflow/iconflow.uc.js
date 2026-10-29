@@ -202,7 +202,7 @@
     if (nativeToast) {
       const toast = function(id, ...args) {
         const result = nativeToast.call(this, id, ...args);
-        if (["zen-copy-current-url-confirmation", "zen-copy-current-url-as-markdown-confirmation"].includes(id)) completion("share", "#zen-copy-current-url-button .toolbarbutton-icon");
+        if (["zen-copy-current-url-confirmation", "zen-copy-current-url-as-markdown-confirmation"].includes(id)) completion("share", "#zen-copy-url-button .urlbar-icon, #zen-copy-current-url-button .toolbarbutton-icon");
         return result;
       };
       manager.showToast = toast;
@@ -221,7 +221,7 @@
       onDownloadChanged(d) {
         const prior = succeeded.get(d); succeeded.set(d, !!d.succeeded);
         if (prior === false && d.succeeded) {
-          completion("downloads", "#downloads-button .toolbarbutton-icon");
+          completion("downloads", "#downloads-button #downloads-indicator-icon");
           completion("library", "#zen-library-button .zen-library-sprite");
         }
       },

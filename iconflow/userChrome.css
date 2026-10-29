@@ -192,7 +192,7 @@
 /* Morph uses the same vector-strip engine as the original icon sets. Native
    images and existing pseudo-elements retain geometry, visibility and opacity.
    Only their paint changes. JavaScript starts/stops browser-owned frame runs. */
-:root:not([customizing]) toolbarbutton[zzicon-motion-host] {
+:root:not([customizing]) :is(toolbarbutton, .urlbar-page-action, .identity-box-button)[zzicon-motion-host] {
   /* Arc scales this parent too. Keep the target fixed; Morph and press own
      the existing image. Removing the marker releases the native button. */
   transform: none !important;

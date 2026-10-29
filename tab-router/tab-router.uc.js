@@ -1015,7 +1015,10 @@
           // Nexus's documented V2 thumbnail/hero templates are keyed by the
           // numeric ID in a canonically verified game page, never a folder name.
           const art = /^https:\/\/images\.nexusmods\.com\/images\/games\/(?:v2\/([1-9]\d*)\/tile|4_3\/tile_([1-9]\d*))\.(?:jpg|png|webp)(?:\?[^\s"'<>\\]*)?$/.exec(img || "");
-          if (!art || metadata.canonical?.replace(/\/$/, "") !== pageUrl) return done(null);
+          // Nexus serves www pages with next-host canonical metadata too.
+          // Normalize only official host aliases; keep the complete path check.
+          const canonical = metadata.canonical?.replace(/^https:\/\/(?:next\.)?nexusmods\.com\//, "https://www.nexusmods.com/").replace(/\/$/, "");
+          if (!art || canonical !== pageUrl) return done(null);
           const gameId = art[1] || art[2];
           const name = metadata.title?.replace(/ Mods(?: - Nexus Mods)?$/, "");
           if (!refresh && name && name.length <= 160) {
@@ -2382,7 +2385,7 @@
         } catch {}
 
         const r = {
-          version: "1.37.4",
+          version: "1.37.6",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The

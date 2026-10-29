@@ -277,6 +277,9 @@ Existing tab/folder menus offer Why here?, Preview sorting, Keep here / Resume r
 as an option. A canonical game page and its numeric artwork ID must agree before
 any rendition is used. Existing cached covers remain visible while thumbnails
 load; unavailable thumbnails fall back to covers. V1 artwork retains its cover.
+Game metadata may name Nexus's `www`, `next` or bare official host. These aliases
+share the same verified game path, so current pages such as Expedition 33 can
+load their artwork without accepting another game's page or an external host.
 Manual icons retain priority. “Refresh automatic picture” retries the preferred
 source and refreshes an enabled banner while retaining usable cached artwork.
 

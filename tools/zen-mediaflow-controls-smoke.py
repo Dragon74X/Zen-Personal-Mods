@@ -12,6 +12,46 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from functools import partial
 from threading import Thread
 ROOT=Path(__file__).resolve().parents[1]
+# Exact geometry rules from Arc 2.0, loaded AFTER Mediaflow to exercise priority:
+# https://github.com/YashjitPal/Arc-2.0/blob/eaf001a7a2d9c797ba3af41fd50feefc657679b2/modules/chrome/media-player.css
+ARC_MEDIA_HOVER='''
+@media not (-moz-pref("arc-disable-media-player-styles")) {
+  @media (-moz-pref("arc.media-controls-toolbar-bottom")) {
+    #zen-media-controls-toolbar { order: 1 !important; }
+    #zen-media-controls-toolbar:hover + #zen-sidebar-foot-buttons {
+      transform: translateY(-36px);
+      transition: transform 0.2s ease-in-out !important;
+    }
+  }
+  @media not (-moz-pref("arc.media-controls-toolbar-bottom")) {
+    #zen-media-controls-toolbar {
+      &:hover { height: 120px !important; margin-top: -10px !important; }
+    }
+  }
+  #zen-media-controls-toolbar { transition: height 0.25s ease-in-out !important; }
+  #zen-media-controls-toolbar {
+    & .show-on-hover {
+      max-height: unset !important; opacity: 1 !important;
+      transform: translateY(0) !important; padding-right: 6px;
+      pointer-events: none;
+      transition: max-height 0.5s ease, opacity 0.5s ease, transform 0.5s ease, padding 0.5s ease;
+    }
+  }
+  #zen-media-controls-toolbar {
+    .zen-media-controls-hbox {
+      order: 0 !important; height: 0 !important; opacity: 0;
+      transition: all 0.25s !important; pointer-events: none;
+    }
+    &:hover {
+      .zen-media-controls-hbox {
+        height: fit-content !important; opacity: 1 !important; pointer-events: all;
+      }
+    }
+  }
+  .zen-media-main-vbox > vbox { order: 1 !important; }
+  #zen-sidebar-foot-buttons { margin-bottom: 5px !important; margin-top: 7px; }
+}
+'''
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--zen',required=True,type=Path)
 parser.add_argument('--output',required=True,type=Path)
@@ -104,6 +144,31 @@ with tempfile.TemporaryDirectory(prefix='mediaflow-controls-') as d:
                     time.sleep(.4);before=rect();m.script('dispatchEvent(new Event("resize"));return true;');time.sleep(.4);stable(before,rect())
                     boundary_cases.append({'expanded':expanded,'direction':direction,'hoverBottomRange':max(s['bottom'] for s in active)-min(s['bottom'] for s in active),'returnDistance':distance})
             m.script('Services.prefs.setBoolPref("zzmedia.bar.always-expanded",false);return true;')
+            reset()
+            # Hover the MUSIC BAR below the preview, without hovering the
+            # preview itself. The former tests missed Arc resizing this anchor.
+            m.script('window.arcMediaFixture=Services.io.newURI("data:text/css,"+encodeURIComponent('+json.dumps(ARC_MEDIA_HOVER)+'));Cc["@mozilla.org/content/style-sheet-service;1"].getService(Ci.nsIStyleSheetService).loadAndRegisterSheet(arcMediaFixture,1);return true;')
+            arc_cases=[]
+            for bottom in [False,True]:
+                for still,expanded,room in [(True,False,False),(True,True,False),(True,False,True),(False,True,False),(False,False,False)]:
+                    m.script('for(const[k,v]of Object.entries('+json.dumps({'arc.media-controls-toolbar-bottom':bottom,'zzmedia.bar.still-on-hover':still,'zzmedia.bar.always-expanded':expanded,'zzmedia.preview.make-room':room})+'))Services.prefs.setBoolPref(k,v);return true;')
+                    reset();time.sleep(.3);before=rect();bar=rect('#zen-media-controls-toolbar')
+                    m.script("window.barSamples=[];window.barStart=performance.now();function barTick(){const p=document.getElementById('zen-sidebar-pip-container'),r=p.getBoundingClientRect(),b=document.getElementById('zen-media-controls-toolbar'),s=getComputedStyle(b),br=b.getBoundingClientRect();barSamples.push({t:performance.now()-barStart,bottom:r.bottom,barHeight:br.height,margin:parseFloat(s.marginTop),hover:b.matches(':hover'),videoHover:p.matches(':hover')});if(performance.now()-barStart<1700)requestAnimationFrame(barTick);}requestAnimationFrame(barTick);return true;")
+                    move(round(bar['x']+bar['width']/2),round(bar['bottom']-3),pause=800)
+                    hovered=rect();move(1000,250,pause=950)
+                    samples=m.script('return barSamples;');travel=max(s['bottom'] for s in samples)-min(s['bottom'] for s in samples)
+                    assert any(s['hover'] for s in samples) and not any(s['videoHover'] for s in samples),(bottom,still,expanded,room,samples)
+                    if still or expanded:
+                        assert travel<1,(bottom,still,expanded,room,travel)
+                        assert max(s['barHeight'] for s in samples)-min(s['barHeight'] for s in samples)<1,samples
+                        margin=m.script("const b=document.getElementById('zen-media-controls-toolbar');return {actual:parseFloat(getComputedStyle(b).marginTop),reserved:parseFloat(b.style.getPropertyValue('--zzmf-reserve'))||0};")
+                        assert abs(margin['actual']-margin['reserved'])<1,margin
+                        assert (margin['reserved']>0)==room,margin
+                        assert m.script("const s=getComputedStyle(document.querySelector('.zen-media-controls-hbox'));return parseFloat(s.height)>0&&s.opacity==='1'&&s.pointerEvents==='auto';")
+                    else:
+                        assert travel>10,('Off failed to release Arc layout',bottom,travel)
+                    arc_cases.append({'bottomPlacement':bottom,'still':still,'expanded':expanded,'room':room,'previewTravel':travel})
+            m.script('Cc["@mozilla.org/content/style-sheet-service;1"].getService(Ci.nsIStyleSheetService).unregisterSheet(arcMediaFixture,1);for(const k of ["arc.media-controls-toolbar-bottom","zzmedia.bar.always-expanded","zzmedia.preview.make-room"])Services.prefs.setBoolPref(k,false);Services.prefs.setBoolPref("zzmedia.bar.still-on-hover",true);return true;')
             reset()
             # Canvas hover must grow; the controls' transparent full-size layer
             # must not claim the pointer and cancel the growth timer.
@@ -198,7 +263,7 @@ with tempfile.TemporaryDirectory(prefix='mediaflow-controls-') as d:
                 m.script("document.querySelector('.zzmf-pip-"+name+"').style.removeProperty('background-image');return true;")
                 paints.append({'control':name,'pixelDifference':amount,'size':info['size']})
             assert m.script('return mediaErrors;')==[],m.script('return mediaErrors;')
-            (OUT/'checks.json').write_text(json.dumps({'runtimeErrors':0,'boundaryCases':boundary_cases,'canvasGrowth':True,'controlHoverGrowth':[resting['width'],control_grown['width']],'crossingControlDuringGrowth':[mid_growth['width'],continued['width']],'originalGlyphPaints':paints,'sidebarHide':True,'hoverCases':results,'keyboard':True,'canvasNavigation':True,'probe':{'presses':6,'commands':4,'misses':2,'autoCopy':True,'cleanup':True}},indent=2))
+            (OUT/'checks.json').write_text(json.dumps({'runtimeErrors':0,'arcBarHover':arc_cases,'boundaryCases':boundary_cases,'canvasGrowth':True,'controlHoverGrowth':[resting['width'],control_grown['width']],'crossingControlDuringGrowth':[mid_growth['width'],continued['width']],'originalGlyphPaints':paints,'sidebarHide':True,'hoverCases':results,'keyboard':True,'canvasNavigation':True,'probe':{'presses':6,'commands':4,'misses':2,'autoCopy':True,'cleanup':True}},indent=2))
             m.shot().save(OUT/'controls.png')
             print('PASS: control hover growth, 6 original glyph paints, 4 hover timings, 8 seeks, focus hold/release, keyboard, canvas navigation; probe captured 6 presses / 4 commands / 2 misses and auto-copied after cleanup.',flush=True)
         finally:

@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.8.5
+// @version        2.8.6
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==
@@ -17,7 +17,7 @@
   const LOG_PREFIX = "[Mediaflow]";
   // Gecko caches actor modules across unregister/re-register. Bump with actor
   // changes so Sine updates load replacement code without a browser restart.
-  const ACTOR_VERSION = "2.8.5";
+  const ACTOR_VERSION = "2.8.6";
   const CAPTIONS_PREF = "zzmedia.preview.captions";
   const CAPTIONS_WHEN_PIP_HIDDEN_PREF =
     "zzmedia.preview.captions-when-hidden";
@@ -93,6 +93,9 @@
       contain: strict;
       z-index: 10;
       pointer-events: auto;
+      /* This overlay can cover Zen's draggable empty tab strip. DOM hit
+         testing alone does not exclude that underlying native drag region. */
+      -moz-window-dragging: no-drag;
       transform-origin: 50% 100%;
       transition: ${LAYOUT_TRANSITION};
       will-change: opacity, transform, bottom, left, width, height;

@@ -22,12 +22,22 @@
   #zen-media-controls-toolbar .zen-media-card .zen-media-progress-hbox { padding-top: 0 !important; }
 }
 
-/* Zen pads the title and progress rows by 5px while the player is hovered.
-   With the rows already showing (Arc 2.0), that padding is all the player
-   grows by, and the growth moves the preview and resizes the glass behind
-   the card every frame. */
-@media (-moz-pref("zzmedia.bar.still-on-hover")) and (not (-moz-pref("zzmedia.bar.always-expanded"))) {
-  #zen-media-controls-toolbar .zen-media-card .show-on-hover { padding-block: 0 !important; }
+/* Keep native bar geometry: Arc also changes the toolbar to 120px with a
+   -10px margin and collapses the control row until hover. All three move
+   the preview's anchor even when the title/progress padding stays fixed. */
+@media (-moz-pref("zzmedia.bar.still-on-hover")), (-moz-pref("zzmedia.bar.always-expanded")) {
+  #navigator-toolbox #zen-media-controls-toolbar {
+    height: calc(var(--zen-media-collapsed-height, 2.5rem) + var(--zen-media-stack-peek, 8px) * var(--zen-media-stack-behind, 0)) !important;
+    margin-top: var(--zzmf-reserve, 0px) !important;
+    & .zen-media-controls-hbox {
+      height: auto !important;
+      opacity: 1 !important;
+      pointer-events: auto !important;
+    }
+  }
+  @media not (-moz-pref("zzmedia.bar.always-expanded")) {
+    #zen-media-controls-toolbar .zen-media-card .show-on-hover { padding-block: 0 !important; }
+  }
 }
 
 /* Wait before expanding: the rows (and the stacked cards) start rising only

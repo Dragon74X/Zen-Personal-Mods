@@ -17,6 +17,16 @@ engine. It needs no specific installed mod version; auto-copy/cleanup remains
 20 seconds. Compositor status identifies execution location, not GPU present
 times. No Windows scale fix is claimed from Linux geometry checks.
 
+The subsequent Windows v5 capture reports Iconflow 1.21.8, Glassflow 3.74.11 and
+Mediaflow 2.8.4 installed. Four workspace and two Favorite runs show zero hit-box
+travel and zero sampled scale reversals while hover/press state is unchanged.
+Icon-center rounding spans at most 0.017px. Scale transitions report compositor
+execution after startup. Median callback interval is 4.17ms; three runs contain
+75–79.16ms gaps. Parent grayscale and tab-light transitions also run, but these
+samples do not establish their effect on displayed frame pacing. The attached
+icon probe contains no Mediaflow geometry, so its installed version alone does
+not verify the running preview's layout or explain the reported bar-hover shift.
+
 ## Confirmed defects and corrections
 
 - Arc's exact `#urlbar:hover` rule translates the whole target upward 2px over

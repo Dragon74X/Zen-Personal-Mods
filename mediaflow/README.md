@@ -133,5 +133,13 @@ the toolbar's different top edge no longer causes a one-frame position jump. Red
 motion changes apply live, and disabling the mod restores parked native PiP
 buttons only while Mediaflow still owns their hidden state.
 
+Keep the player's size now preserves Zen's toolbar height, the control row's
+layout space, and Mediaflow's reserved top margin. This also applies when title
+and progress are always shown. Arc's 120px hover height, -10px margin and
+0px-to-content-height control row otherwise moved the preview even while the
+pointer stayed on the music bar below it. Turning both size preservation and
+always-show off releases that geometry. Native title/progress hover disclosure
+and multiple-card stack sizing remain available.
+
 The diagnostic in `tools/mediaflow-controls-probe.js` records attempted presses as well as
 commands, so missed clicks are visible; it automatically copies its report.

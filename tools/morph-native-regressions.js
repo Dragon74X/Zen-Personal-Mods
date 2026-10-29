@@ -71,10 +71,11 @@ return (async()=>{
  const saved=await PlacesUtils.bookmarks.insert({parentGuid:PlacesUtils.bookmarks.unfiledGuid,url,title:'Icon check'});await wait(400);check('bookmark reads external insert',rec('#star-button-box').state==='saved');await PlacesUtils.bookmarks.remove(saved.guid);await wait(400);check('bookmark reads external removal',rec('#star-button-box').state==='unsaved');
  check('window controls excluded from Morph',![...__zziconMorphInstance.records.keys()].some(e=>e.matches('.titlebar-button'))&&!document.querySelector('.titlebar-button[zzicon-motion-host],.titlebar-button [zzicon-motion]'));
  ZzMediaflowController.updateControls({time:2,duration:20,paused:true,volume:.37,muted:false});await wait(100);
- check('media replaces existing background once',rec('.zzmf-pip-mute').mode==='background'&&getComputedStyle(rec('.zzmf-pip-mute').host,'::before').content==='none');
- check('media keeps numeric authority',rec('.zzmf-pip-mute').model.level===37&&rec('.zzmf-pip-play').state==='paused');
+ const mediaButtons=[...document.querySelectorAll('.zzmf-pip-controls button')];
+ check('media retains original six controls',mediaButtons.length===6&&mediaButtons.every(b=>!__zziconMorphInstance.records.has(b)&&!b.hasAttribute('zzicon-motion')&&getComputedStyle(b,'::before').content==='none'));
+ check('media original paused glyph',getComputedStyle(document.querySelector('.zzmf-pip-play')).backgroundImage.includes('/media-play.svg'));
  ZzMediaflowController.updateControls({time:2,duration:20,paused:false,volume:.37,muted:true});await wait(100);
- check('media follows external mute/play',rec('.zzmf-pip-mute').model.level===0&&rec('.zzmf-pip-play').state==='playing');
+ check('media original playing glyph',getComputedStyle(document.querySelector('.zzmf-pip-play')).backgroundImage.includes('/media-pause.svg'));
  Services.prefs.setBoolPref('zzicon.animate',false);await wait(150);event(rec('#PanelUI-menu-button'),'pointerover');await wait(50);check('animation off stays at rest',frame(rec('#PanelUI-menu-button'))===0&&!rec('#PanelUI-menu-button').animation);
  Services.prefs.setBoolPref('zzicon.animate',true);Services.prefs.setIntPref('ui.prefersReducedMotion',1);await wait(150);event(rec('#PanelUI-menu-button'),'pointerover');check('reduced motion stays at rest',frame(rec('#PanelUI-menu-button'))===0&&!rec('#PanelUI-menu-button').animation);Services.prefs.setIntPref('ui.prefersReducedMotion',0);await wait(150);
  gBrowser.selectedTab=nativeTab;document.documentElement.setAttribute('zen-compact-mode','false');document.documentElement.setAttribute('zen-sidebar-expanded','true');await wait(500);

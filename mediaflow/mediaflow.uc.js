@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.8.2
+// @version        2.8.3
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==
@@ -17,7 +17,7 @@
   const LOG_PREFIX = "[Mediaflow]";
   // Gecko caches actor modules across unregister/re-register. Bump with actor
   // changes so Sine updates load replacement code without a browser restart.
-  const ACTOR_VERSION = "2.8.2";
+  const ACTOR_VERSION = "2.8.3";
   const CAPTIONS_PREF = "zzmedia.preview.captions";
   const CAPTIONS_WHEN_PIP_HIDDEN_PREF =
     "zzmedia.preview.captions-when-hidden";
@@ -773,9 +773,8 @@
   const CONTROLS_PREF = "zzmedia.preview.controls", STEP_PREF = "zzmedia.preview.seek-step";
   const controls = document.createElement("div");
   controls.className = "zzmf-pip-controls";
-  // Geometry can carry a button under a stationary pointer while growing.
-  // Freeze for actual targeting/pressing, not those synthetic boundary enters.
-  on(controls, "pointermove", e => { if (e.movementX || e.movementY) holdPreview(); });
+  // Hover continues the same growth over canvas and controls. Freeze only on
+  // press/focus, so moving across a button cannot strand an intermediate size.
   on(controls, "pointerdown", holdPreview);
   on(controls, "mouseleave", releasePreview);
   const control = (cls, label, act) => {

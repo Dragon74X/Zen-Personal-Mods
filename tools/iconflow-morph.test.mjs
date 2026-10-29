@@ -7,9 +7,9 @@ import vm from 'node:vm';
 const root=new URL('../',import.meta.url),read=p=>readFile(new URL(p,root),'utf8');
 const data=JSON.parse(await read('iconflow/morph.json')),source=await read('iconflow/iconflow-morph.uc.js');
 const glyph=id=>data.glyphs[data.actions[id].glyph];
-test('Morph preserves 122 action IDs, 74 drawings and 9 semantic controls; window controls excluded',()=>{
- assert.equal(Object.keys(data.actions).length,122);assert.equal(Object.keys(data.glyphs).length,74);assert.equal(data.controls.length,9);
- for(const b of data.bindings)assert.doesNotMatch(b.selector,/titlebar/);
+test('Morph retains 107 action IDs, 64 drawings and 6 controls; media and window controls excluded',()=>{
+ assert.equal(Object.keys(data.actions).length,107);assert.equal(Object.keys(data.glyphs).length,64);assert.equal(data.controls.length,6);
+ for(const b of data.bindings)assert.doesNotMatch(b.selector,/titlebar|zzmf|zen-media|zen-sidebar-pip|mediaflow/);
  assert.doesNotMatch(source,/titlebar|window-size|zzglass\.buttons/);
  const signatures=d=>d.replace(/[-+]?(?:\d*\.)?\d+(?:e[-+]?\d+)?/gi,'#').replace(/[\s,]/g,'');
  for(const c of data.controls)for(const s of c.states)for(const [i,v] of s.values.entries()){
@@ -26,24 +26,18 @@ test('approved Library, Reload, Extensions and History geometry and paint remain
   assert.equal(createHash('sha256').update(svg).digest('hex'),hash,id);
  }
 });
-test('all nine adapters read their own authorities, including background targets and unknown native volume',()=>{
+test('all six state adapters read their own authorities, including background command targets',()=>{
  const node=(attrs={})=>({attrs,id:'',getAttribute(k){return this.attrs[k]??null;},hasAttribute(k){return k in this.attrs;},closest(){return null;}});
- const root=node({'zen-compact-mode':'false','zen-sidebar-expanded':'false'}),pip=node({'data-zz-volume':'37'}),star=node({starred:''});star.id='star-button';
- const ids={'zen-sidebar-pip-container':pip,'appMenu-popup':{state:'closed'}},win={windowState:1,STATE_MAXIMIZED:2,fullScreen:false,SidebarController:{isOpen:false}};
+ const root=node({'zen-compact-mode':'false','zen-sidebar-expanded':'false'}),star=node({starred:''});star.id='star-button';
+ const ids={'appMenu-popup':{state:'closed'}},win={windowState:1,STATE_MAXIMIZED:2,fullScreen:false,SidebarController:{isOpen:false}};
  const targets=new WeakMap(),env=vm.createContext({data,window:win,document:{documentElement:root,getElementById:id=>ids[id]},downloadTargets:targets});
  vm.runInContext(source.slice(source.indexOf('function snapshot('),source.indexOf('function stateKey(')),env);
  const read=(id,host=node(),binding={})=>env.snapshot(binding,host,{controlId:id});
- assert.equal(read('playback').state,'playing');pip.attrs['zzmf-paused']='';assert.equal(read('playback').state,'paused');
- const card=node({});card.classList={contains:()=>true};const native=node();native.closest=selector=>selector==='.zen-media-card'?card:null;
- assert.equal(read('playback',native).state,'playing','another source remains playing');
  assert.equal(read('bookmark-toggle',star).state,'saved');assert.equal(read('bookmark-toggle',star,{state:'bookmark-launcher'}).state,'unsaved');
  const starBox=node();starBox.id='star-button-box';starBox.querySelector=()=>star;assert.equal(read('bookmark-toggle',starBox).state,'saved');delete star.attrs.starred;assert.equal(read('bookmark-toggle',starBox).state,'unsaved');
  const background=node();background.zziconBookmarked=false;assert.equal(read('bookmark-toggle',background).state,'unsaved','context target does not inherit selected tab bookmark');background.zziconBookmarked=true;assert.equal(read('bookmark-toggle',background).state,'saved');
- assert.equal(read('volume-control').level,37);pip.attrs['zzmf-muted']='';assert.equal(read('volume-control').level,0);assert.equal(read('volume-control').lastVolume,37);delete pip.attrs['zzmf-muted'];assert.equal(read('volume-control').level,37);
- assert.equal(read('volume-control',native).level,null);assert.equal(read('volume-control',native).unknown,true);
  const popup=node(),download={stopped:false},pause=node();targets.set(popup,download);pause.closest=()=>popup;
  assert.equal(read('download-playback',pause).state,'downloading');download.stopped=true;assert.equal(read('download-playback',pause).state,'paused');
- const toggle=node({'data-zz-video-visible':'false'});assert.equal(read('video-visibility',toggle).state,'hidden');toggle.attrs['data-zz-video-visible']='true';assert.equal(read('video-visibility',toggle).state,'visible');
  assert.equal(read('menu-state').state,'closed');ids['appMenu-popup'].state='open';assert.equal(read('menu-state').state,'open');
  assert.equal(read('compact-mode').state,'expanded');root.attrs['zen-compact-mode']='true';assert.equal(read('compact-mode').state,'compact');
  const zen=node();zen.id='zen-expand-sidebar-button';win.SidebarController.isOpen=true;

@@ -337,7 +337,7 @@ with tempfile.TemporaryDirectory(prefix='zen-morph-') as d:
    __zziconMorphInstance.retire();nativeCheck('retirement restores paint',!document.querySelector('[zzicon-motion],[zzicon-motion-host]'));
    return nativeChecks;
   })();''')
-  result['limitations']=['Linux headless; Windows compositor smoothness/antialiasing not measured','Native file media may not play; numeric media states exercised through the existing Mediaflow adapter']
+  result['limitations']=['Linux headless; Windows compositor smoothness/antialiasing not measured','Media state is injected into Mediaflow here; real playback and control commands are checked by zen-mediaflow-controls-smoke.py']
   (OUT/'result.json').write_text(json.dumps(result,indent=2));print(json.dumps(result,indent=2),flush=True)
  finally:
   proc.terminate()

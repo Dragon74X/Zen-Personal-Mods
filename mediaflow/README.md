@@ -120,10 +120,12 @@ Supported background-video tabs expose Show this video in sidebar and Sidebar vi
 
 ## Stable controls
 
-Entering the preview controls or focusing one captures the current preview
+Pressing a preview control or focusing one captures the current preview
 geometry until pointer and keyboard focus both leave. Play/pause and seeking
 therefore retain the same target while the native music bar changes size. The
-canvas can still animate while its controls are not being targeted. Reduced
+canvas and control hover share the same growth; crossing a button during that
+growth no longer cancels the timer or freezes an intermediate size. Controls use
+their original glyphs, including the seek-step labels, with no Morph replacement. Reduced
 motion changes apply live, and disabling the mod restores parked native PiP
 buttons only while Mediaflow still owns their hidden state.
 

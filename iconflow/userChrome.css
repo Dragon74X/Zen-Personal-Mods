@@ -198,7 +198,6 @@
   transform: none !important;
 }
 :root [zzicon-motion="image"],
-:root [zzicon-motion="background"],
 :root [zzicon-motion="before"]::before {
   list-style-image: var(--zzicon-blank) !important;
   -moz-context-properties: fill, fill-opacity, stroke, stroke-opacity !important;
@@ -238,14 +237,3 @@
 :root .zen-library-sprite[zzicon-motion="before"]::before {
   width: 100% !important; height: 100% !important;
 }
-
-/* Mediaflow already paints its glyph as the button background. Replace that
-   paint in-place, preserving the 16px/20px icon and the native hit box. */
-:root .zzmf-pip-controls [zzicon-motion="background"] {
-  --zzicon-cell: 16px;
-  fill: white !important;
-  background-size: calc(var(--zzicon-columns) * var(--zzicon-cell)) calc(var(--zzicon-rows) * var(--zzicon-cell)) !important;
-  background-position: calc(50% + (var(--zzicon-columns) - 1) * var(--zzicon-cell) / 2 - mod(var(--zzicon-frame), var(--zzicon-columns)) * var(--zzicon-cell)) calc(50% + (var(--zzicon-rows) - 1) * var(--zzicon-cell) / 2 - var(--zzicon-row) * var(--zzicon-cell)) !important;
-}
-:root .zzmf-pip-controls .zzmf-pip-play[zzicon-motion="background"] { --zzicon-cell: 20px; }
-:root .zzmf-pip-forward[zzicon-motion="background"]::after { transform: none; }

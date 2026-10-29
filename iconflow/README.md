@@ -79,9 +79,10 @@ URL-bar windups follow the whole button, including padding, for Copy URL,
 Site Settings, Reader View and Bookmark. Copy URL and Downloads use Zen’s
 current image slots; disabling a control suppresses its windup.
 
-States come from the actual control owner. Numeric media volume is preserved;
-the icon uses the nearest of six supplied volume drawings. Native Zen media cards
-without a numeric volume keep it unknown. No SVG security preference changes.
+States come from the actual control owner. Mediaflow's preview, source menu and
+sidebar media controls retain their original glyphs; Circuit · Morph no longer
+replaces them. Other Morph artwork and choreography stay unchanged. No SVG
+security preference changes.
 
 See [engine comparison and native checks](../docs/CIRCUIT-MORPH.md).
 

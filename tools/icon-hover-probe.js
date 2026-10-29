@@ -4,12 +4,12 @@
   const w = Services.wm.getMostRecentWindow('navigator:browser');
   w.__zzIconHoverProbe?.stop();
   const undo = [], started = w.performance.now(), report = {
-    probe: 'icon-hover-v5', browser: Services.appinfo.version,
+    probe: 'icon-hover-v6', browser: Services.appinfo.version,
     platform: Services.appinfo.OS, dpr: w.devicePixelRatio,
     reducedMotion: w.matchMedia('(prefers-reduced-motion: reduce)').matches,
     instantMotion: !!w.Motion?.MotionGlobalConfig?.instantAnimations,
     versions: {}, prefs: {}, menus: [], motion: [], errors: [],
-    limit: '20 seconds; up to 12 one-second motion runs, style/box samples at most once/16ms plus every rAF interval; 6 menus with a 500ms follow-up. Reads can affect timing. Main-thread callbacks are not GPU present times or an FPS benchmark.',
+    limit: '20 seconds; up to 12 one-second motion runs, style/box samples at most once/16ms plus every rAF interval; 6 menus with a 500ms follow-up. Reads can affect timing. Compositor intervals cover the whole window, not one icon or display scan-out. First compositor interval may begin before recording; idle gaps are not dropped frames. Empty intervals mean no frames or an unavailable/overwritten buffer, not zero latency. Main-thread callbacks are not compositor intervals.',
   };
   const names = ['zzicon.set', 'zzicon.animate', 'zzicon.speed', 'zzicon.menu.animate',
     'svg.context-properties.content.enabled', 'cmi-Switch-Icon-Package', 'arc-workspace-style', 'arc-disable-tab-hover-animations', 'zzicon.click.press', 'zzicon.plate', 'zzicon.size', 'zzicon.motion.toolbar',
@@ -25,6 +25,18 @@
   for (const name of ['iconflow', 'glassflow', 'mediaflow'])
     w.fetch(`chrome://sine/content/zz-${name}/theme.json`).then(r => r.json())
       .then(j => { report.versions[name] = j.version; }).catch(() => {});
+  // Native counters only: never change graphics prefs or take over a profiler.
+  const read = fn => { try { return fn(); } catch (e) { return {unavailable:String(e)}; } };
+  const utils = w.windowUtils;
+  report.graphics = read(() => {
+    const gfx = Cc['@mozilla.org/gfx/info;1'].getService(Ci.nsIGfxInfo), out = {};
+    for (const key of ['adapterDescription','adapterDescription2','adapterDriverVersion','adapterDriverVersion2','isGPU2Active','isHeadless','TargetFrameRate'])
+      out[key] = read(() => gfx[key]);
+    out.features = read(() => gfx.getFeatures());
+    out.monitors = read(() => gfx.getMonitors());
+    out.windowRenderer = read(() => utils.layerManagerType);
+    return out;
+  });
   const listen = (node, type, fn) => {
     node.addEventListener(type, fn, true);
     undo.push(() => node.removeEventListener(type, fn, true));
@@ -52,6 +64,14 @@
     return result.slice(-30);
   };
   let frame = 0, timer, active, stopped = false;
+  function finishRun() {
+    if (!active) return;
+    const {run, start, recording} = active;
+    run.elapsedMs = +(w.performance.now()-start).toFixed(2);
+    run.compositorIntervalsMs = read(() => typeof recording === 'number'
+      ? utils.stopFrameTimeRecording(recording) : recording);
+    active = null;
+  }
   const animationIds = new WeakMap(); let nextAnimationId = 0;
   const animations = el => el.getAnimations().map(a => {
     if (!animationIds.has(a)) animationIds.set(a, ++nextAnimationId);
@@ -65,7 +85,7 @@
     frame = 0;
     if (!active || stopped) return;
     const {el, host, run, start} = active, now = w.performance.now();
-    if (!el.isConnected) { active = null; return; }
+    if (!el.isConnected) { finishRun(); return; }
     // Record every callback, including displays faster than 60 Hz. Style/box
     // reads remain throttled. These are main-thread timings, not GPU present times.
     if (Number.isFinite(stamp)) {
@@ -81,9 +101,11 @@
       hover:host.matches(':hover'), pressed:host.matches(':active'), focusVisible:host.matches(':focus-visible'),
       hostScale:hs.scale, hostTransform:hs.transform, hostBox:[hr.x,hr.y,hr.width,hr.height],
       hostOpacity:hs.opacity, hostFilter:hs.filter,
-      box:[r.x,r.y,r.width,r.height], animations:animations(el), hostAnimations:animations(host)});
+      box:[r.x,r.y,r.width,r.height], animations:animations(el), hostAnimations:animations(host),
+      paintCount:read(() => utils.paintCount)});
+    run.sampleReadMs += w.performance.now()-now;
     if (now-start < 1000) frame = w.requestAnimationFrame(sample);
-    else active = null;
+    else finishRun();
   }
   listen(w, 'pointerover', e => {
     if (active || report.motion.length >= 12) return;
@@ -91,14 +113,26 @@
     if (!host || host.contains(e.relatedTarget)) return;
     const record = w.__zziconMorphInstance?.records.get(host);
     const el = record?.paint || host.querySelector('.zen-workspace-icon,.tab-icon-image') || host;
+    const start = w.performance.now(), recording = read(() => utils.startFrameTimeRecording());
     const run = {host:id(host), icon:id(el), action:record?.binding?.action,
       image:el.localName==='img'?{source:source(el.currentSrc),complete:el.complete,naturalWidth:el.naturalWidth,naturalHeight:el.naturalHeight}:null,
-      style:style(el), rules:rules(el), hostStyle:style(host), hostRules:rules(host), frameIntervals:[], samples:[]};
+      style:style(el), rules:rules(el), hostStyle:style(host), hostRules:rules(host), frameIntervals:[], samples:[], events:[], sampleReadMs:0};
     run.ancestors=[];
     for(let parent=el.parentElement;parent && run.ancestors.length<6;parent=parent.parentElement)
       run.ancestors.push({id:id(parent),style:style(parent)});
-    report.motion.push(run); active = {el,host,run,start:w.performance.now(),last:-Infinity}; sample();
+    run.setupMs = w.performance.now()-start;
+    report.motion.push(run); active = {el,host,run,start,recording,last:-Infinity}; sample();
   });
+  for (const type of ['transitionrun','transitioncancel','transitionend','pointerover','pointerout','pointerdown','pointerup'])
+    listen(w, type, e => {
+      if (!active || active.run.events.length >= 100) return;
+      const {host, el, run, start} = active;
+      if (type.startsWith('transition') ? e.target !== el && e.target !== host
+        : !host.contains(e.target) || type === 'pointerover' && host.contains(e.relatedTarget)
+          || type === 'pointerout' && host.contains(e.relatedTarget)) return;
+      run.events.push({ms:+(w.performance.now()-start).toFixed(2), type, target:e.target === el ? 'icon' : 'host',
+        property:e.propertyName, elapsedTime:e.elapsedTime, hover:host.matches(':hover'), pressed:host.matches(':active')});
+    });
   listen(w, 'popupshown', e => {
     if (e.target.localName !== 'menupopup' || report.menus.length >= 6) return;
     const popup=e.target, items=[...popup.querySelectorAll('menuitem,menu')].slice(0,60);
@@ -118,7 +152,7 @@
   });
   function stop() {
     if (stopped) return;
-    stopped = true; w.clearTimeout(timer); w.cancelAnimationFrame(frame); undo.forEach(fn=>fn());
+    stopped = true; w.clearTimeout(timer); w.cancelAnimationFrame(frame); finishRun(); undo.forEach(fn=>fn());
     report.elapsedMs = Math.round(w.performance.now()-started);
     if (w.__zzIconHoverProbe?.stop === stop) delete w.__zzIconHoverProbe;
     const text = JSON.stringify(report,null,2);

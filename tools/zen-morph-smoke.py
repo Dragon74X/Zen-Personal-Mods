@@ -251,7 +251,15 @@ with tempfile.TemporaryDirectory(prefix='zen-morph-') as d:
   assert m.script('return !window.__zzIconHoverProbe;'),'Probe did not auto-stop'
   probe=json.loads(m.script("const t=Cc['@mozilla.org/widget/transferable;1'].createInstance(Ci.nsITransferable);t.init(null);t.addDataFlavor('text/plain');Services.clipboard.getData(t,Services.clipboard.kGlobalClipboard);const v={};t.getTransferData('text/plain',v);return v.value.QueryInterface(Ci.nsISupportsString).data;"))
   (OUT/'probe.json').write_text(json.dumps(probe,indent=2))
-  assert probe['probe']=='icon-hover-v5' and probe['motion'] and probe['menus'] and probe['versions']['iconflow']
+  assert probe['probe']=='icon-hover-v6' and probe['motion'] and probe['menus'] and probe['versions']['iconflow']
+  assert probe['graphics']['windowRenderer'].startswith('WebRender') and probe['graphics']['features']['compositor']
+  assert probe['graphics']['monitors'] and probe['graphics']['TargetFrameRate']>0
+  scale_runs=[run for run in probe['motion'] if any(e.get('property')=='scale' for e in run['events'])]
+  assert len(scale_runs)>=2,'Workspace and Favorite transition events missing'
+  for run in scale_runs:
+   assert len(run['compositorIntervalsMs'])>1 and all(t>=0 for t in run['compositorIntervalsMs']),run
+   assert 0<=run['setupMs']<run['elapsedMs'] and 0<=run['sampleReadMs']<run['elapsedMs']
+   assert all(isinstance(s['paintCount'],int) for s in run['samples'])
   assert probe['motion'][0]['ancestors']
   properties=[p for run in probe['motion'] for s in run['samples'] for a in s['animations']+s['hostAnimations'] for p in a['compositor'] if isinstance(a['compositor'],list)]
   assert properties and all(isinstance(p['runningOnCompositor'],bool) for p in properties),properties

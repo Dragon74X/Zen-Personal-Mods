@@ -27,6 +27,7 @@ Individual READMEs define settings, exclusions, and known limits.
 
 [Icon engine comparison and native Morph motion](docs/CIRCUIT-MORPH.md): retained artwork/windup, restored native ownership and runtime checks.
 [URL-bar hover audit](docs/AUDIT-2026-10-29-URLBAR.md): confirmed hit-target and binding fixes; workspace smoothness remains open.
+[Animated icon designs](resources/animated-icons/): 114 glyphs for every Zen and mod icon in 10 motion styles, with an eye test. Design resources only; no mod uses them yet.
 
 ## Regression checks
 

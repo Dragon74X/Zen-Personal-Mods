@@ -113,8 +113,6 @@
 :root {
   --zzg-panel-radius: calc(var(--zen-native-inner-radius, 8px) - var(--zen-compact-mode-no-padding-radius-fix, 0px));
   --zzg-panel-corner: var(--zzg-corner);
-  /* A spring that overshoots a little and settles: Iconflow's curve. */
-  --zzg-spring: linear(0.000, 0.000, 0.001, 0.007, 0.023, 0.053, 0.104, 0.181, 0.280, 0.389, 0.501, 0.613, 0.721, 0.820, 0.910, 0.988, 1.053, 1.106, 1.146, 1.174, 1.192, 1.199, 1.198, 1.190, 1.177, 1.159, 1.139, 1.117, 1.094, 1.072, 1.051, 1.031, 1.013, 0.998, 0.986, 0.975, 0.968, 0.963, 0.959, 0.958, 0.958, 0.959, 0.961, 0.964, 0.967, 0.970, 0.974, 0.977, 0.980, 0.983, 0.986, 0.988, 0.990, 0.992, 0.994, 0.996, 0.997, 0.998, 0.999, 0.999, 1.000);
 }
 @media (-moz-pref("zzglass.sidebar.enabled")) {
   :root { --zzg-panel-radius: var(--zzglass-sidebar-blur-radius-corner, 12px); --zzg-panel-corner: var(--zzg-corner-side); }
@@ -1551,8 +1549,8 @@
   }
 }
 
-/* Tabs, shared > Essentials favicon grows on hover: a spring that overshoots
-   a little and settles, the curve Iconflow's icons use. */
+/* Icon sizing uses Motion feel too: Crisp reaches its size once; only
+   the selected Spring, Bounce and Rebound profiles reverse direction. */
 @media (-moz-pref("zzglass.tabs.essentials-icon-grow", 1)) { :root { --zzg-ess-grow: 1.15; } }
 @media (-moz-pref("zzglass.tabs.essentials-icon-grow", 2)) { :root { --zzg-ess-grow: 1.3; } }
 @media (-moz-pref("zzglass.tabs.essentials-icon-grow", 3)) { :root { --zzg-ess-grow: 1.5; } }
@@ -1560,8 +1558,8 @@
   /* Firefox sets transition: none on loaded tab icons, which a user sheet
      overrides only with !important; unloaded ones keep its 1s fade. */
   @media (prefers-reduced-motion: no-preference) {
-    transition: scale .45s var(--zzg-spring) !important;
-    &[pending] { transition: scale .45s var(--zzg-spring), filter 1s, opacity 1s !important; }
+    transition: scale calc(var(--zzg-motion-ms) * 1ms) var(--zzg-motion-ease) !important;
+    &[pending] { transition: scale calc(var(--zzg-motion-ms) * 1ms) var(--zzg-motion-ease), filter 1s, opacity 1s !important; }
   }
 }
 :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[zen-essential="true"]:hover .tab-icon-image {
@@ -1570,7 +1568,7 @@
 
 /* Sidebar > Workspaces: the switcher at the bottom of the sidebar, in the
    same glass as the window buttons and tabs, and moving like them: glass
-   fades in 180ms, icons grow on the spring Essentials use. Hover effects
+   fades in 180ms, icons share Motion feel with Essentials. Hover effects
    move the icon only, never the buttons, so nothing beside them shifts. */
 @media (-moz-pref("zzglass.workspaces.enabled")) {
   #navigator-toolbox #zen-workspaces-button {
@@ -1591,7 +1589,7 @@
         transform: none !important;
         transition: opacity 180ms ease-out, filter 180ms ease-out !important;
         @media (prefers-reduced-motion: no-preference) {
-          transition: scale .45s var(--zzg-spring), opacity 180ms ease-out, filter 180ms ease-out !important;
+          transition: scale calc(var(--zzg-motion-ms) * 1ms) var(--zzg-motion-ease), opacity 180ms ease-out, filter 180ms ease-out !important;
         }
       }
     }
@@ -1642,7 +1640,7 @@
       background: var(--zen-primary-color);
       pointer-events: none;
       @media (prefers-reduced-motion: no-preference) {
-        transition: scale .45s var(--zzg-spring);
+        transition: scale calc(var(--zzg-motion-ms) * 1ms) var(--zzg-motion-ease);
         @starting-style { scale: 0; }
       }
     }

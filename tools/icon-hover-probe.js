@@ -4,7 +4,7 @@
   const w = Services.wm.getMostRecentWindow('navigator:browser');
   w.__zzIconHoverProbe?.stop();
   const undo = [], started = w.performance.now(), report = {
-    probe: 'icon-hover-v2', browser: Services.appinfo.version,
+    probe: 'icon-hover-v3', browser: Services.appinfo.version,
     platform: Services.appinfo.OS, dpr: w.devicePixelRatio,
     reducedMotion: w.matchMedia('(prefers-reduced-motion: reduce)').matches,
     instantMotion: !!w.Motion?.MotionGlobalConfig?.instantAnimations,
@@ -13,7 +13,7 @@
   };
   const names = ['zzicon.set', 'zzicon.animate', 'zzicon.speed', 'zzicon.menu.animate',
     'svg.context-properties.content.enabled', 'cmi-Switch-Icon-Package', 'arc-workspace-style', 'arc-disable-tab-hover-animations', 'zzicon.click.press', 'zzicon.plate', 'zzicon.size', 'zzicon.motion.toolbar',
-    'zzglass.motion.enabled', 'zzglass.edges.follow-pointer', 'zzglass.instant-ui',
+    'zzglass.motion.enabled', 'zzglass.motion.profile', 'zzglass.tabs.essentials-icon-grow', 'zzglass.edges.follow-pointer', 'zzglass.instant-ui',
     'zzglass.workspaces.enabled', 'zzglass.workspaces.hover', 'zzglass.workspaces.steady-dots',
     'zzglass.sidebar.blur-transparent-pages', 'zzmedia.bar.hover-delay',
     'zzmedia.preview.hover-size', 'zzmedia.preview.controls'];
@@ -63,6 +63,7 @@
     const hs = w.getComputedStyle(host), hr = host.getBoundingClientRect();
     run.samples.push({ms:Math.round(now-start), frame:s.getPropertyValue('--zzicon-frame'),
       scale:s.scale, transform:s.transform, backgroundPosition:s.backgroundPosition,
+      hover:host.matches(':hover'), pressed:host.matches(':active'), focusVisible:host.matches(':focus-visible'),
       hostScale:hs.scale, hostTransform:hs.transform, hostBox:[hr.x,hr.y,hr.width,hr.height],
       box:[r.x,r.y,r.width,r.height], animations:el.getAnimations().map(a => ({
         property:a.transitionProperty || a.animationName || 'WAAPI', time:a.currentTime, state:a.playState}))});

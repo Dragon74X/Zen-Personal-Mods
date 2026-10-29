@@ -155,7 +155,7 @@ one white 1px top highlight and 1px ring per state.
 | Hide Arc's container glow | on | Only matters with Arc 2.0 installed |
 | Close button on the left | on | Hovering a regular tab shows the close button in its icon's place while the icon and title slide over. Pinned tabs and Essentials keep Zen's layout |
 | Hide the pinned-tabs separator | on | SuperPins' *Show separator* controls the same line; set only one |
-| Essentials favicon grows on hover | Medium (1.3×) | Off, 1.15×, 1.3× or 1.5×; it overshoots a little and settles, like Iconflow's icons (instant with reduced motion) |
+| Essentials favicon grows on hover | Medium (1.3×) | Off, 1.15×, 1.3× or 1.5×; uses Motion feel (instant with reduced motion) |
 
 ## Tab strip
 
@@ -202,7 +202,7 @@ down and let this own it.
 The row of workspace icons at the bottom of the sidebar, in the same glass as
 the tabs and window buttons. Pointing at an icon only ever moves the icon, so
 the buttons beside it stay put. It moves like the rest of Glassflow: the glass
-fades in 180ms, as on tabs, and icons grow on the spring the Essentials use,
+fades in 180ms, as on tabs, and icons share Motion feel with Essentials,
 one motion each (Zen's own shrink for dots is replaced, not stacked). While this is on, Arc 2.0's own workspace
 styles are switched off (see [Other mods](#other-mods)).
 
@@ -210,7 +210,7 @@ styles are switched off (see [Other mods](#other-mods)).
 |---|---|---|
 | Style the workspace switcher | on | |
 | Background | Glass capsule | None, or a capsule with the sheen and rim of Glassflow's glass |
-| Pointed at | Grows | Stays still; Grows (the icon springs a little larger and settles); Dock (its neighbours grow a little too) |
+| Pointed at | Grows | Stays still; Grows (1.3× using Motion feel); Dock (its neighbours grow a little too) |
 | Other workspaces | Grey and faded (Zen's) | Faded colour, or full colour |
 | Current workspace | Glass plate | As Zen marks it; a glass plate; a dot beneath; a glow |
 | Steady dots | on | With more workspaces than fit, Zen shrinks the others to dots and widens the one you point at, pushing its neighbours; on, every dot keeps its width and shows its icon in place |
@@ -544,6 +544,9 @@ its extra strength, direction and thickness settings. Saved colours, shapes
 and motion profile choices remain untouched.
 **Crisp** is the default feel. Soft, Spring, Bounce and Rebound adjust the
 same hover geometry, colour, gradient direction, sheen and rim transitions.
+Workspace and Essentials sizing and Morph image presses use this profile too:
+Crisp is 150ms and Soft 210ms, both without overshoot; Spring, Bounce and Rebound
+use 240/270/290ms. Hover size choices and Morph windup artwork are unchanged.
 The close glyph fades into its fixed target (the favicon's slot on the left, Zen's
 own slot on the right) while the favicon and title, or the label end, make room.
 Selection switches immediately; the existing title moves 4px sideways, rebounds

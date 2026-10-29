@@ -119,14 +119,57 @@ with tempfile.TemporaryDirectory(prefix='zen-morph-') as d:
   result['workspacePress']=sample_motion('#zen-workspaces-button toolbarbutton','#zen-workspaces-button .zen-workspace-icon')
   boxes=result['workspacePress'];assert max(x['rect']['x'] for x in boxes)-min(x['rect']['x'] for x in boxes)<.1,'Workspace hit box moved'
   m.script("Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService).unregisterSheet(arcWorkspaceFixture,1);Services.prefs.setBoolPref('zzicon.click.press',false);return true;")
+  # Sample browser-owned transitions at fixed times, including release. This
+  # catches oscillation that endpoint and anchored-hit-box checks cannot see.
+  result['scaleProfiles']=m.script("""return (async()=>{
+   const cases=[],durations=[150,210,240,270,290];
+   const ws=document.querySelector('#zen-workspaces-button toolbarbutton'),wi=ws.querySelector('.zen-workspace-icon');
+   const button=document.getElementById('PanelUI-menu-button'),bi=button.querySelector('.toolbarbutton-icon');
+   const essential=nativeTab.querySelector('.tab-icon-image');nativeTab.setAttribute('zen-essential','true');
+   Services.prefs.setIntPref('zzglass.tabs.essentials-icon-grow',2);Services.prefs.setBoolPref('zzicon.click.press',true);
+   const tick=()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+   const read=(el,property)=>{const s=getComputedStyle(el);return property==='scale'?(s.scale==='none'?1:parseFloat(s.scale)):(s.transform==='none'?1:parseFloat(s.transform.slice(7)));};
+   for(let profile=0;profile<5;profile++){
+    Services.prefs.setIntPref('zzglass.motion.profile',profile);await nativeWait(400);
+    for(const [name,host,el,pseudo,property,target]of [['workspace',ws,wi,':hover','scale',1.3],['essential',nativeTab,essential,':hover','scale',1.3],['press',button,bi,':active','transform',.82]]){
+     if(name==='press'){InspectorUtils.addPseudoClassLock(host,':hover');await tick();}
+     for(const on of [true,false]){
+      InspectorUtils[on?'addPseudoClassLock':'removePseudoClassLock'](host,pseudo);await tick();
+      const a=el.getAnimations().find(a=>a.transitionProperty===property);nativeCheck(name+' transition exists',!!a);a.pause();
+      const duration=a.effect.getTiming().duration,values=[];for(let i=0;i<=40;i++){a.currentTime=duration*i/40;values.push(read(el,property));}
+      if(profile<2){const low=Math.min(1,target),high=Math.max(1,target),direction=(target-1)*(on?1:-1);
+       nativeCheck(name+' profile '+profile+' zero overshoot '+on,values.every(v=>v>=low-.0001&&v<=high+.0001));
+       nativeCheck(name+' profile '+profile+' no reversals '+on,values.every((v,i)=>!i||(v-values[i-1])*direction>=-.00001));
+      }
+      nativeCheck(name+' profile duration '+profile+': '+duration,Math.abs(duration-durations[profile])<.01);
+      nativeCheck(name+' endpoint '+on,Math.abs(values.at(-1)-(on?target:1))<.0001);
+      cases.push({profile,name,on,duration,min:Math.min(...values),max:Math.max(...values)});a.finish();await tick();
+     }
+     if(name==='press')InspectorUtils.removePseudoClassLock(host,':hover');
+    }
+   }
+   Services.prefs.setIntPref('zzglass.motion.profile',0);
+   // A release during growth must finish without a second hover cycle.
+   InspectorUtils.addPseudoClassLock(ws,':hover');await tick();await nativeWait(60);
+   InspectorUtils.removePseudoClassLock(ws,':hover');await tick();await nativeWait(350);
+   nativeCheck('interrupted hover settles',read(wi,'scale')===1&&!wi.getAnimations().some(a=>a.transitionProperty==='scale'));
+   Services.prefs.setIntPref('ui.prefersReducedMotion',1);await nativeWait(100);InspectorUtils.addPseudoClassLock(ws,':hover');await tick();
+   nativeCheck('reduced motion has no scale transition',!wi.getAnimations().some(a=>a.transitionProperty==='scale'));InspectorUtils.removePseudoClassLock(ws,':hover');
+   Services.prefs.setIntPref('ui.prefersReducedMotion',0);Services.prefs.setBoolPref('zzicon.click.press',false);nativeTab.removeAttribute('zen-essential');
+   return cases;
+  })();""")
   m.script((ROOT/'tools/icon-hover-probe.js').read_text()+'\nreturn true;')
   r=m.script("return document.querySelector('#PanelUI-menu-button').getBoundingClientRect().toJSON();")
   move(r['x']+r['width']/2,r['y']+r['height']/2);time.sleep(.25)
   m.script("document.getElementById('tabContextMenu').openPopupAtScreen(500,300,true);return true;");time.sleep(.65)
   m.script("document.getElementById('tabContextMenu').hidePopup();return true;")
-  time.sleep(20)
+  # Wait for the probe's own timer/cleanup, not a race with the next command.
+  for _ in range(100):
+   if m.script('return !window.__zzIconHoverProbe;'):break
+   time.sleep(.25)
+  assert m.script('return !window.__zzIconHoverProbe;'),'Probe did not auto-stop'
   probe=json.loads(m.script("const t=Cc['@mozilla.org/widget/transferable;1'].createInstance(Ci.nsITransferable);t.init(null);t.addDataFlavor('text/plain');Services.clipboard.getData(t,Services.clipboard.kGlobalClipboard);const v={};t.getTransferData('text/plain',v);return v.value.QueryInterface(Ci.nsISupportsString).data;"))
-  assert probe['probe']=='icon-hover-v2' and probe['motion'] and probe['menus'] and probe['versions']['iconflow']
+  assert probe['probe']=='icon-hover-v3' and probe['motion'] and probe['menus'] and probe['versions']['iconflow']
   assert any('after500ms' in menu for menu in probe['menus'])
   assert probe['motion'][0]['samples'][-1]['ms']>=1000 and len(probe['motion'][0]['samples'])<=65
   assert m.script('return !window.__zzIconHoverProbe;')

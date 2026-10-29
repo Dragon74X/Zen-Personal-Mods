@@ -4,7 +4,7 @@
   const w = Services.wm.getMostRecentWindow('navigator:browser');
   w.__zzIconHoverProbe?.stop();
   const undo = [], started = w.performance.now(), report = {
-    probe: 'icon-hover-v4', browser: Services.appinfo.version,
+    probe: 'icon-hover-v5', browser: Services.appinfo.version,
     platform: Services.appinfo.OS, dpr: w.devicePixelRatio,
     reducedMotion: w.matchMedia('(prefers-reduced-motion: reduce)').matches,
     instantMotion: !!w.Motion?.MotionGlobalConfig?.instantAnimations,
@@ -33,7 +33,7 @@
   const source = s => (s || '').replace(/file:\/\/\/[^"\n]*?\/chrome\//g, 'file://[profile]/chrome/')
     .replace(/data:[^"\s)]+/g, 'data:[omitted]').slice(0,300);
   const props = ['display','visibility','opacity','filter','transform','transform-origin','scale','translate','rotate',
-    'transition','animation','image-rendering','background-image','background-size',
+    'transition','animation','will-change','contain','backdrop-filter','corner-shape','border-radius','overflow','clip-path','image-rendering','background-image','background-size',
     'background-position','content','list-style-image','mask-image','fill','fill-opacity','-moz-context-properties'];
   const style = (el, pseudo) => {
     const s = w.getComputedStyle(el, pseudo), r = {};
@@ -52,8 +52,15 @@
     return result.slice(-30);
   };
   let frame = 0, timer, active, stopped = false;
-  const animations = el => el.getAnimations().map(a => ({
-    property:a.transitionProperty || a.animationName || 'WAAPI', time:a.currentTime, state:a.playState}));
+  const animationIds = new WeakMap(); let nextAnimationId = 0;
+  const animations = el => el.getAnimations().map(a => {
+    if (!animationIds.has(a)) animationIds.set(a, ++nextAnimationId);
+    let compositor;
+    try { compositor = a.effect.getProperties().map(({property,runningOnCompositor,warning}) => ({property,runningOnCompositor,warning})); }
+    catch (e) { compositor = {unavailable:String(e)}; }
+    return {id:animationIds.get(a), property:a.transitionProperty || a.animationName || 'WAAPI',
+      time:a.currentTime, startTime:a.startTime, state:a.playState, compositor};
+  });
   function sample(stamp) {
     frame = 0;
     if (!active || stopped) return;
@@ -87,6 +94,9 @@
     const run = {host:id(host), icon:id(el), action:record?.binding?.action,
       image:el.localName==='img'?{source:source(el.currentSrc),complete:el.complete,naturalWidth:el.naturalWidth,naturalHeight:el.naturalHeight}:null,
       style:style(el), rules:rules(el), hostStyle:style(host), hostRules:rules(host), frameIntervals:[], samples:[]};
+    run.ancestors=[];
+    for(let parent=el.parentElement;parent && run.ancestors.length<6;parent=parent.parentElement)
+      run.ancestors.push({id:id(parent),style:style(parent)});
     report.motion.push(run); active = {el,host,run,start:w.performance.now(),last:-Infinity}; sample();
   });
   listen(w, 'popupshown', e => {

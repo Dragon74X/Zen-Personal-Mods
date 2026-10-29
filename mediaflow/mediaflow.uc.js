@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.8.3
+// @version        2.8.4
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==
@@ -17,7 +17,7 @@
   const LOG_PREFIX = "[Mediaflow]";
   // Gecko caches actor modules across unregister/re-register. Bump with actor
   // changes so Sine updates load replacement code without a browser restart.
-  const ACTOR_VERSION = "2.8.3";
+  const ACTOR_VERSION = "2.8.4";
   const CAPTIONS_PREF = "zzmedia.preview.captions";
   const CAPTIONS_WHEN_PIP_HIDDEN_PREF =
     "zzmedia.preview.captions-when-hidden";
@@ -43,10 +43,10 @@
     ANIM_TAIL_MS: 350,
     DEFAULT_ASPECT: 16 / 9,
   });
-  // The preview and its caption hang from their bottom edge, set every frame
-  // from the bar's top, so they move with the bar instead of trailing it;
-  // only their size and side ease, for the grow on hover.
+  // Preview geometry shares one transition, including the return from its
+  // held hover anchor to the music bar. Captions follow the bar directly.
   const LAYOUT_TRANSITION =
+    `bottom ${CONFIG.LAYOUT_ANIM_MS}ms ease-out, ` +
     `left ${CONFIG.LAYOUT_ANIM_MS}ms ease-out, ` +
     `width ${CONFIG.LAYOUT_ANIM_MS}ms ease-out, ` +
     `height ${CONFIG.LAYOUT_ANIM_MS}ms ease-out`;
@@ -286,7 +286,6 @@
   let userHidden = false;
   let scheduled = false;
   let activeUntil = 0;
-  let hoverActive = false;
   let playerSeen = true;                    // the music bar is on screen (syncPosition)
   let animating = false;
   let animateOutTimer = null;
@@ -351,27 +350,25 @@
     el.style.removeProperty("--zzmf-tab-list-height");
   }
 
-  function getMediaTopEdge(walkDescendants) {
+  function getMediaTopEdge() {
     const baseRect = musicPlayerUI.getBoundingClientRect();
     let top = baseRect.top;
-    if (walkDescendants && (hoverActive || performance.now() < activeUntil)) {
-      // Zen's cards hold every row that rises on hover, so their edges are
-      // enough; other markup (another music-bar mod) falls back to all of it.
-      let kids = musicPlayerUI.querySelectorAll(".zen-media-card");
-      if (!kids.length) kids = musicPlayerUI.querySelectorAll("*");
-      for (let i = 0; i < kids.length; i++) {
-        const kid = kids[i];
-        const r = kid.getBoundingClientRect();
-        if (r.width !== 0 && r.height !== 0 && r.top < top) {
-          const style = window.getComputedStyle(kid);
-          if (style.position === "absolute" || style.position === "fixed") {
-            continue;
-          }
-          if (style.visibility === "hidden" || style.display === "none" || style.opacity === "0") {
-            continue;
-          }
-          top = r.top;
+    // Zen's cards hold every row that rises on hover, so their edges are
+    // enough; other markup (another music-bar mod) falls back to all of it.
+    let kids = musicPlayerUI.querySelectorAll(".zen-media-card");
+    if (!kids.length) kids = musicPlayerUI.querySelectorAll("*");
+    for (let i = 0; i < kids.length; i++) {
+      const kid = kids[i];
+      const r = kid.getBoundingClientRect();
+      if (r.width !== 0 && r.height !== 0 && r.top < top) {
+        const style = window.getComputedStyle(kid);
+        if (style.position === "absolute" || style.position === "fixed") {
+          continue;
         }
+        if (style.visibility === "hidden" || style.display === "none" || style.opacity === "0") {
+          continue;
+        }
+        top = r.top;
       }
     }
     return {
@@ -458,7 +455,7 @@
         top: mediaTopRaw,
         left,
         width: playerWidth,
-      } = getMediaTopEdge(true);
+      } = getMediaTopEdge();
       // Native card geometry is authoritative. Focused controls retain their
       // captured preview bounds below; old sources never set future clearance.
       if (playerWidth !== 0) {
@@ -479,10 +476,9 @@
           captionContainer.style.display = "none";
         }
 
-        // Pointed at, the preview keeps the bottom edge it had: the bar folding
-        // its hover rows away beneath it would otherwise drop it mid-grow.
-        if (pipHover) videoBottom = hoverBottom ??= videoBottom;
-        else hoverBottom = null;
+        // Hold from pointer entry, including the growth delay: the bar can
+        // fold its rows away as the pointer crosses from below into the video.
+        if (hoverBottom !== null) videoBottom = hoverBottom;
 
         let height = 0;
         if (pipVisible) {
@@ -656,7 +652,6 @@
   }
   function stopTracking() {
     activeUntil = 0;
-    hoverActive = false;
     clearReserve();
     sourceTabActive = false;
     _notifyTickState();
@@ -728,10 +723,12 @@
     growTimer = setTimeout(() => { pipHover = true; bump(); }, hoverDelay * 1000);
   }
   on(pipContainer, "mouseenter", () => {
+    hoverBottom = pipContainer.getBoundingClientRect().bottom;
     holdSidebar(true);
     queueGrowth();
+    bump();
   });
-  on(pipContainer, "mouseleave", () => { clearTimeout(growTimer); pipHover = false; if (!pipContainer.matches(":focus-within")) holdSidebar(false); bump(); });
+  on(pipContainer, "mouseleave", () => { clearTimeout(growTimer); pipHover = false; hoverBottom = null; if (!pipContainer.matches(":focus-within")) holdSidebar(false); bump(); });
   function holdPreview() {
     holdSidebar(true);
     clearTimeout(growTimer);
@@ -878,14 +875,8 @@
     }
   }
 
-  on(musicPlayerUI, "mouseenter", () => {
-    hoverActive = true;
-    bump();
-  });
-  on(musicPlayerUI, "mouseleave", () => {
-    hoverActive = false;
-    bump();
-  });
+  on(musicPlayerUI, "mouseenter", bump);
+  on(musicPlayerUI, "mouseleave", bump);
   for (const ev of [
     "transitionrun",
     "transitionend",

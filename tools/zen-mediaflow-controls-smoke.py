@@ -75,6 +75,36 @@ with tempfile.TemporaryDirectory(prefix='mediaflow-controls-') as d:
                 move(1000,250)
                 m.script("document.activeElement?.blur();gBrowser.selectedTab=mediaOtherTab;return true;")
                 time.sleep(.5)
+            # Exercise real entry from the bar below, including its collapsing
+            # rows and the 300ms growth delay. Timer expiry must not swap the
+            # card's top edge for its toolbar's top edge.
+            boundary_cases=[]
+            for expanded in [False,True]:
+                m.script('Services.prefs.setBoolPref("zzmedia.bar.always-expanded",'+json.dumps(expanded)+');return true;')
+                for direction in ['below','above']:
+                    reset()
+                    if direction=='below':move(*center('.zen-media-controls-hbox'),pause=700)
+                    r=rect();x=round(r['x']+r['width']/2);y=round(r['bottom']-2) if direction=='below' else round(r['top']+2)
+                    m.script("window.boundarySamples=[];window.boundaryStart=performance.now();function boundaryTick(){const p=document.getElementById('zen-sidebar-pip-container'),r=p.getBoundingClientRect();boundarySamples.push({t:performance.now()-boundaryStart,bottom:r.bottom,width:r.width,hover:p.matches(':hover')});if(performance.now()-boundaryStart<1700)requestAnimationFrame(boundaryTick);}requestAnimationFrame(boundaryTick);return true;")
+                    move(x,y,pause=800);hovered=rect()
+                    assert abs(hovered['bottom']-r['bottom'])<1,(expanded,direction,r,hovered)
+                    assert hovered['width']>r['width']*1.95,(expanded,direction,hovered)
+                    # Exit sideways while the bar is folded; its return must
+                    # interpolate instead of jumping by the height of its rows.
+                    move(1000,250,pause=850)
+                    samples=m.script('return boundarySamples;')
+                    active=[s for s in samples if s['hover']]
+                    assert active and max(s['bottom'] for s in active)-min(s['bottom'] for s in active)<1,(expanded,direction,samples)
+                    resting=rect();distance=abs(resting['bottom']-hovered['bottom'])
+                    if distance>2:
+                        middle=[s for s in samples if not s['hover'] and min(resting['bottom'],hovered['bottom'])+1<s['bottom']<max(resting['bottom'],hovered['bottom'])-1]
+                        assert len(middle)>=3,('Return snapped',expanded,direction,samples)
+                    # Wait beyond the tracking tail and trigger an unrelated
+                    # layout update: idle and active geometry must agree.
+                    time.sleep(.4);before=rect();m.script('dispatchEvent(new Event("resize"));return true;');time.sleep(.4);stable(before,rect())
+                    boundary_cases.append({'expanded':expanded,'direction':direction,'hoverBottomRange':max(s['bottom'] for s in active)-min(s['bottom'] for s in active),'returnDistance':distance})
+            m.script('Services.prefs.setBoolPref("zzmedia.bar.always-expanded",false);return true;')
+            reset()
             # Canvas hover must grow; the controls' transparent full-size layer
             # must not claim the pointer and cancel the growth timer.
             reset();resting=rect()
@@ -168,7 +198,7 @@ with tempfile.TemporaryDirectory(prefix='mediaflow-controls-') as d:
                 m.script("document.querySelector('.zzmf-pip-"+name+"').style.removeProperty('background-image');return true;")
                 paints.append({'control':name,'pixelDifference':amount,'size':info['size']})
             assert m.script('return mediaErrors;')==[],m.script('return mediaErrors;')
-            (OUT/'checks.json').write_text(json.dumps({'runtimeErrors':0,'canvasGrowth':True,'controlHoverGrowth':[resting['width'],control_grown['width']],'crossingControlDuringGrowth':[mid_growth['width'],continued['width']],'originalGlyphPaints':paints,'sidebarHide':True,'hoverCases':results,'keyboard':True,'canvasNavigation':True,'probe':{'presses':6,'commands':4,'misses':2,'autoCopy':True,'cleanup':True}},indent=2))
+            (OUT/'checks.json').write_text(json.dumps({'runtimeErrors':0,'boundaryCases':boundary_cases,'canvasGrowth':True,'controlHoverGrowth':[resting['width'],control_grown['width']],'crossingControlDuringGrowth':[mid_growth['width'],continued['width']],'originalGlyphPaints':paints,'sidebarHide':True,'hoverCases':results,'keyboard':True,'canvasNavigation':True,'probe':{'presses':6,'commands':4,'misses':2,'autoCopy':True,'cleanup':True}},indent=2))
             m.shot().save(OUT/'controls.png')
             print('PASS: control hover growth, 6 original glyph paints, 4 hover timings, 8 seeks, focus hold/release, keyboard, canvas navigation; probe captured 6 presses / 4 commands / 2 misses and auto-copied after cleanup.',flush=True)
         finally:

@@ -7,6 +7,16 @@ child scale and parent greyscale/opacity transitions have separate roles;
 the earlier live capture did not show two competing size controllers.
 Workspace frame pacing and Windows antialiasing remain unresolved.
 
+The subsequent 35.39-second, 30 fps recording does not resolve that uncertainty.
+Workspace and Favorites growth already use browser-owned, time-based CSS scale
+transitions, not discrete Morph sprite frames. Probe v5 adds each animation's
+identity and start time, Gecko's `runningOnCompositor` status and warnings, and
+up to six ancestor styles. This separates transition restarts, compositor
+fallback and parent effects in a live capture without changing the animation
+engine. It needs no specific installed mod version; auto-copy/cleanup remains
+20 seconds. Compositor status identifies execution location, not GPU present
+times. No Windows scale fix is claimed from Linux geometry checks.
+
 ## Confirmed defects and corrections
 
 - Arc's exact `#urlbar:hover` rule translates the whole target upward 2px over

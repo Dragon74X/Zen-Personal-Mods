@@ -20,10 +20,8 @@ const ownerSelector='toolbarbutton, button, menuitem, menu, .tab-close-button, .
 const savedProperties=['--zzicon-frame','--zzicon-sprite','--zzicon-columns','--zzicon-rows','--zzicon-row-position','--zzicon-row'];
 function snapshot(binding,host,definition) {
  const control=data.controls.find(c=>c.id===definition.controlId);if(!control)return null;
- const card=host.closest('.zen-media-card'), pip=document.getElementById('zen-sidebar-pip-container');
  let state;
  switch(control.id){
- case 'playback': state=card?(card.classList.contains('playing')?'playing':'paused'):(pip?.hasAttribute('zzmf-paused')?'paused':'playing');break;
  case 'bookmark-toggle': {
   if(binding.state==='bookmark-launcher'){state='unsaved';break;}
   // Native context refresh marks the actual target. Link/add commands remain add commands.
@@ -31,22 +29,12 @@ function snapshot(binding,host,definition) {
   else state=host.hasAttribute('starred')||host.zziconBookmarked===true?'saved':'unsaved';
   break;
  }
- case 'volume-control': {
-  const muted=card?card.hasAttribute('muted'):pip?.hasAttribute('zzmf-muted');
-  const raw=card?card.getAttribute('data-zz-volume'):pip?.getAttribute('data-zz-volume');
-  const level=raw!==null&&raw!==undefined&&raw!==''&&Number.isFinite(+raw)?Math.max(0,Math.min(100,+raw)):null;
-  // ponytail: native Zen exposes only tab mute; keep numeric state unknown
-  // until its media controller supplies source volume. Null means unknown;
-  // use the unmuted glyph endpoint without asserting or writing a volume level.
-  return {definition:control,state:muted?'muted':'audible',level:muted?0:level,lastVolume:level,unknown:level===null};
- }
  case 'download-playback': {
   const popup=host.closest('menupopup');
   const row=popup?.triggerNode?.closest('.download, .download-state, .zen-library-download-list-download')||(popup?.id==='downloadsContextMenu'?document.getElementById('downloadsListBox')?.selectedItem:null);
   const download=downloadTargets.get(popup)||popup?.zziconDownload||row?.download||row?._shell?.download||row?._download;
   state=download?(!download.stopped?'downloading':'paused'):host.getAttribute('data-l10n-id')==='downloads-cmd-resume'?'paused':'downloading';break;
  }
- case 'video-visibility':state=host.getAttribute('data-zz-video-visible')==='true'?'visible':'hidden';break;
  case 'menu-state':state=host.getAttribute('open')==='true'||document.getElementById('appMenu-popup')?.state==='open'?'open':'closed';break;
  case 'compact-mode':state=document.documentElement.getAttribute('zen-compact-mode')==='true'?'compact':'expanded';break;
  case 'sidebar-state':state=(host.id==='zen-expand-sidebar-button'?document.documentElement.getAttribute('zen-sidebar-expanded')==='true':!!window.SidebarController?.isOpen)?'open':'closed';break;
@@ -56,14 +44,7 @@ function snapshot(binding,host,definition) {
 }
 
 
-function stateKey(model){
- if(!model)return 'rest';
- if(model.definition.kind!=='volume')return model.state;
- // The approved volume drawing has six landmarks. Native numeric volume and
- // the command target remain untouched; its icon selects the nearest landmark.
- const level=model.level??100;
- return model.definition.states.reduce((a,b)=>Math.abs(+a.id-level)<=Math.abs(+b.id-level)?a:b).id;
-}
+function stateKey(model){return model?.state||'rest';}
 function rowFor(r,from,to){return r.rows.findIndex(row=>row[0]===from&&(to===undefined||row[1]===to));}
 function setRow(r,row){r.row=Math.max(0,row);r.paint.style.setProperty('--zzicon-row',r.row);r.paint.style.setProperty('--zzicon-row-position',(r.rows.length>1?r.row*100/(r.rows.length-1):0)+'%');}
 function stop(r){const a=r.animation;r.animation=null;a?.cancel();}
@@ -133,8 +114,7 @@ async function attach(binding,el){
   const menuClass=host.localName==='menu'?'menu-iconic':'menuitem-iconic';
   if(menuItem)addedClass=!host.classList.contains(menuClass);
   let mode='image',paint=slot;
-  if(host.matches('.zzmf-pip-controls button')){mode='background';paint=host;}
-  else if(slot.matches('.zen-library-sprite')||host.matches('.zzgf-close')||slot===host&&!['image','img'].includes(slot.localName)){mode='before';paint=slot===host?host:slot;}
+  if(slot.matches('.zen-library-sprite')||host.matches('.zzgf-close')||slot===host&&!['image','img'].includes(slot.localName)){mode='before';paint=slot===host?host:slot;}
   if(slot.localName==='svg')return;
   const definition=data.glyphs[glyph],model=snapshot(binding,host,definition),r={host,el,paint,mode,binding,definition,model,rows:index.glyphs[glyph].rows,row:0,state:stateKey(model),phase:'rest',hover:false,focus:false,consumed:false,animation:null,addedClass:addedClass?menuClass:null,
    saved:savedProperties.map(key=>[key,paint.style.getPropertyValue(key),paint.style.getPropertyPriority(key)])};
@@ -186,7 +166,7 @@ listen(document,'visibilitychange',()=>{if(document.hidden)for(const r of record
 const watch=new MutationObserver(changes=>{
  for(const c of changes){
   if(c.type==='childList'){for(const n of c.addedNodes)if(n.nodeType===1)roots.add(n);}
-  else if(['id','data-zz-action','data-l10n-id','class','zzmf-toggle','downloading','show-in-folder'].includes(c.attributeName))roots.add(c.target);
+  else if(['id','data-zz-action','data-l10n-id','class','downloading','show-in-folder'].includes(c.attributeName))roots.add(c.target);
  }queue();
 });
 // Zen's stack creates a fresh popup without a triggerNode. Capture its actual
@@ -233,6 +213,6 @@ const instance={retire(){
 listen(window,'unload',()=>instance.retire());window.addUnloadListener?.(()=>instance.retire());
 Promise.all(['morph.json','morph-frames.json'].map(name=>fetch('chrome://sine/content/zz-iconflow/'+name).then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}))).then(values=>{
  if(retired)return;[data,index]=values;
- watch.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['class','id','data-zz-action','data-l10n-id','zzmf-toggle','starred','muted','open','hidden','collapsed','checked','disabled','zen-sidebar-expanded','zen-compact-mode','zzmf-paused','zzmf-muted','data-zz-volume','data-zz-video-visible','downloading','show-in-folder']});sync();
+ watch.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['class','id','data-zz-action','data-l10n-id','starred','open','hidden','collapsed','checked','disabled','zen-sidebar-expanded','zen-compact-mode','downloading','show-in-folder']});sync();
 }).catch(error=>{console.error('[Iconflow] native frames',error);instance.retire();});
 })();

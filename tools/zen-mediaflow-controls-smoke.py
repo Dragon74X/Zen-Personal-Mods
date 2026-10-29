@@ -20,6 +20,7 @@ Marionette=runpy.run_path(str(ROOT/'tools/zen-smoke.py'))['Marionette']
 OUT=args.output.resolve();OUT.mkdir(parents=True,exist_ok=True)
 with tempfile.TemporaryDirectory(prefix='mediaflow-controls-') as d:
     p=Path(d);mod=p/'chrome/sine-mods/zz-mediaflow';mod.parent.mkdir(parents=True);mod.symlink_to(ROOT/'mediaflow',target_is_directory=True)
+    (mod.parent/'zz-iconflow').symlink_to(ROOT/'iconflow',target_is_directory=True)
     subprocess.run(['ffmpeg','-loglevel','error','-f','lavfi','-i','color=c=blue:s=320x180:r=15','-t','120','-c:v','libvpx','-deadline','realtime','-b:v','50k',str(p/'video.webm')],check=True)
     (p/'index.html').write_text('<video src="/video.webm" controls preload="none" loop></video>')
     server=ThreadingHTTPServer(('127.0.0.1',0),partial(SimpleHTTPRequestHandler,directory=str(p)))
@@ -35,6 +36,7 @@ with tempfile.TemporaryDirectory(prefix='mediaflow-controls-') as d:
                     with socket.create_connection(('127.0.0.1',port),timeout=.2):break
                 except OSError:time.sleep(.2)
             m=Marionette(port);m.script('return gZenStartup.promiseInitialized.then(()=>true);')
+            m.script('window.mediaSmokeChrome=Cc["@mozilla.org/addons/addon-manager-startup;1"].getService(Ci.amIAddonManagerStartup).registerChrome(Services.io.newURI('+json.dumps((p/'chrome.manifest').as_uri())+'),'+json.dumps([['content','sine',mod.parent.as_uri()+'/']])+');return true;')
             defaults={r['property']:r['defaultValue'] for r in json.loads((ROOT/'mediaflow/preferences.json').read_text()) if 'property' in r and 'defaultValue' in r}
             m.script('for(const [k,v] of Object.entries('+json.dumps(defaults)+'))Services.prefs[typeof v==="boolean"?"setBoolPref":typeof v==="number"?"setIntPref":"setStringPref"](k,v);return true;')
             m.script("window.mediaErrors=[];window.addEventListener('error',e=>mediaErrors.push(e.message));return true;")
@@ -48,7 +50,13 @@ with tempfile.TemporaryDirectory(prefix='mediaflow-controls-') as d:
             # Native card markup, but never force the preview's normal geometry.
             m.script("const bar=document.getElementById('zen-media-controls-toolbar');bar.append(document.getElementById('zen-media-card-template').content.cloneNode(true));bar.hidden=false;return true;")
             m.script("Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService).loadAndRegisterSheet(Services.io.newURI("+json.dumps((ROOT/'mediaflow/userChrome.css').as_uri())+"),1);return true;")
+            # The actual Morph engine remains enabled elsewhere while media
+            # controls retain their original paint and commands.
+            icon_defaults={r['property']:r['defaultValue'] for r in json.loads((ROOT/'iconflow/preferences.json').read_text()) if 'property' in r and 'defaultValue' in r}
+            m.script('for(const[k,v]of Object.entries('+json.dumps(icon_defaults)+'))Services.prefs[typeof v==="boolean"?"setBoolPref":typeof v==="number"?"setIntPref":"setStringPref"](k,v);Services.prefs.setIntPref("zzicon.set",4);Cc["@mozilla.org/content/style-sheet-service;1"].getService(Ci.nsIStyleSheetService).loadAndRegisterSheet(Services.io.newURI("chrome://sine/content/zz-iconflow/userChrome.css"),1);return true;')
+            m.script((ROOT/'iconflow/iconflow-morph.uc.js').read_text()+'\nreturn true;')
             time.sleep(.5)
+            assert m.script("return __zziconMorphInstance.records.size>0&&!document.querySelector('#zen-sidebar-pip-container [zzicon-motion],#zen-media-controls-toolbar [zzicon-motion],#zen-media-controls-toolbar [zzicon-motion-host]');"),'Media glyph ownership not released'
             def video():return m.script('const v=document.querySelector("video");return {time:v.currentTime,paused:v.paused};',context='content')
             def rect(selector='#zen-sidebar-pip-container'):
                 return m.script('return document.querySelector('+json.dumps(selector)+').getBoundingClientRect().toJSON();')
@@ -72,6 +80,13 @@ with tempfile.TemporaryDirectory(prefix='mediaflow-controls-') as d:
             reset();resting=rect()
             move(round(resting['x']+resting['width']/2),round(resting['y']+25),700)
             grown=rect();assert grown['width']>resting['width']*1.5,(resting,grown)
+            reset();stable(resting,rect())
+            move(*center('.zzmf-pip-play'),pause=800)
+            control_grown=rect();assert control_grown['width']>resting['width']*1.95,(resting,control_grown)
+            assert m.script("return !document.getElementById('zen-sidebar-pip-container').hasAttribute('zzmf-interacting');")
+            reset();r=rect();move(round(r['x']+r['width']/2),round(r['y']+25),350)
+            mid_growth=rect();move(*center('.zzmf-pip-play'),pause=600)
+            continued=rect();assert continued['width']>resting['width']*1.95,(mid_growth,continued)
             reset();stable(resting,rect())
             # The preview lives outside the toolbox. Hide it with the sidebar,
             # including while a control was focused, then restore without a hold.
@@ -139,10 +154,23 @@ with tempfile.TemporaryDirectory(prefix='mediaflow-controls-') as d:
             assert not report['droppedEvents'] and not report['droppedSnapshots']
             assert m.script('return !window.__zzmfControlProbe;')
             assert m.script('return !Object.hasOwn(ZzMediaflowController.getActiveBC().currentWindowGlobal.getActor("ZzMediaflow"),"sendAsyncMessage");')
+            # Original glyphs actually paint with Morph enabled. Hide only the
+            # glyph background for each pixel comparison, retaining its hit box.
+            from PIL import ImageChops,ImageStat
+            paints=[]
+            for name in ['popout','close','back','play','forward','mute']:
+                info=m.script("const b=document.querySelector('.zzmf-pip-"+name+"'),s=getComputedStyle(b);return {rect:b.getBoundingClientRect().toJSON(),image:s.backgroundImage,size:s.backgroundSize,owned:b.hasAttribute('zzicon-motion-host')};")
+                assert not info['owned'] and 'chrome://' in info['image'] and '/morph/' not in info['image'],info
+                before=m.shot();m.script("document.querySelector('.zzmf-pip-"+name+"').style.backgroundImage='none';return new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>r(true))));");after=m.shot()
+                r=info['rect'];factor=before.width/m.script('return innerWidth;');crop=tuple(round(r[k]*factor) for k in ['left','top','right','bottom'])
+                amount=max(ImageStat.Stat(ImageChops.difference(before,after).crop(crop)).mean)
+                assert amount>0,(name,'original glyph did not paint',info)
+                m.script("document.querySelector('.zzmf-pip-"+name+"').style.removeProperty('background-image');return true;")
+                paints.append({'control':name,'pixelDifference':amount,'size':info['size']})
             assert m.script('return mediaErrors;')==[],m.script('return mediaErrors;')
-            (OUT/'checks.json').write_text(json.dumps({'runtimeErrors':0,'canvasGrowth':True,'sidebarHide':True,'hoverCases':results,'keyboard':True,'canvasNavigation':True,'probe':{'presses':6,'commands':4,'misses':2,'autoCopy':True,'cleanup':True}},indent=2))
+            (OUT/'checks.json').write_text(json.dumps({'runtimeErrors':0,'canvasGrowth':True,'controlHoverGrowth':[resting['width'],control_grown['width']],'crossingControlDuringGrowth':[mid_growth['width'],continued['width']],'originalGlyphPaints':paints,'sidebarHide':True,'hoverCases':results,'keyboard':True,'canvasNavigation':True,'probe':{'presses':6,'commands':4,'misses':2,'autoCopy':True,'cleanup':True}},indent=2))
             m.shot().save(OUT/'controls.png')
-            print('PASS: 4 hover timings, 8 seeks, focus hold/release, keyboard, canvas navigation; probe captured 6 presses / 4 commands / 2 misses and auto-copied after cleanup.',flush=True)
+            print('PASS: control hover growth, 6 original glyph paints, 4 hover timings, 8 seeks, focus hold/release, keyboard, canvas navigation; probe captured 6 presses / 4 commands / 2 misses and auto-copied after cleanup.',flush=True)
         finally:
             process.terminate()
             try:process.wait(timeout=5)

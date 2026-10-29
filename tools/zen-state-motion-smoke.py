@@ -59,6 +59,15 @@ with tempfile.TemporaryDirectory(prefix='zen-state-motion-') as d:
               return {tab:motionTab.getBoundingClientRect().toJSON(),header:motionGroup.labelContainerElement.outerHTML};
             })();''')
             (OUT/'setup.json').write_text(json.dumps(setup,indent=2));print('SETUP',setup['tab'],flush=True)
+            # Captured Arc whole-tab scale must not compose with image growth.
+            m.script("window.arcTabFixture=Services.io.newURI('data:text/css,'+encodeURIComponent('.tabbrowser-tab:hover{transform:scale(1.03)}'));Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService).loadAndRegisterSheet(arcTabFixture,1);InspectorUtils.addPseudoClassLock(motionTab,':hover');return true;")
+            assert m.script('return getComputedStyle(motionTab).transform;')=='none'
+            # Native dragging uses inline transforms; closing is also released.
+            for attribute,target in [('movingtab','gBrowser.tabContainer'),('closing','motionTab')]:
+                value=m.script(target+".setAttribute('"+attribute+"','true');motionTab.style.transform='translateX(12px)';return getComputedStyle(motionTab).transform;")
+                assert value=='matrix(1, 0, 0, 1, 12, 0)',(attribute,value)
+                m.script(target+".removeAttribute('"+attribute+"');motionTab.style.removeProperty('transform');return true;")
+            m.script("InspectorUtils.removePseudoClassLock(motionTab,':hover');return true;")
             # Basic rims must paint with Detailed rim control off (the regression).
             rim_pixels=[]
             for state in ['selected','unselected','hover','pending']:

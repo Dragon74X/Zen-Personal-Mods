@@ -547,6 +547,9 @@ same hover geometry, colour, gradient direction, sheen and rim transitions.
 Workspace and Essentials sizing and Morph image presses use this profile too:
 Crisp is 150ms and Soft 210ms, both without overshoot; Spring, Bounce and Rebound
 use 240/270/290ms. Hover size choices and Morph windup artwork are unchanged.
+With state motion enabled, the closed URL bar stays anchored so Arc’s hover
+lift cannot repeatedly move its hit target away from the pointer. Zen’s open
+URL bar and search-mode motion keep their transforms.
 The close glyph fades into its fixed target (the favicon's slot on the left, Zen's
 own slot on the right) while the favicon and title, or the label end, make room.
 Selection switches immediately; the existing title moves 4px sideways, rebounds

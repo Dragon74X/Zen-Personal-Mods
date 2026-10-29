@@ -75,6 +75,9 @@ SVG overlay and JavaScript path updates. No anchor layer or geometry sampling.
 size, speed and colour preferences stay intact. Menus remain still by default.
 Animation Off and reduced motion show the current state without windup.
 Native commands still execute directly and exactly once per activation.
+URL-bar windups follow the whole button, including padding, for Copy URL,
+Site Settings, Reader View and Bookmark. Copy URL and Downloads use Zen’s
+current image slots; disabling a control suppresses its windup.
 
 States come from the actual control owner. Numeric media volume is preserved;
 the icon uses the nearest of six supplied volume drawings. Native Zen media cards

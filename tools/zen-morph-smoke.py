@@ -85,6 +85,79 @@ with tempfile.TemporaryDirectory(prefix='zen-morph-') as d:
    m.call('Marionette:SetContext',{'value':'chrome'})
    m.call('WebDriver:PerformActions',{'actions':[{'type':'pointer','id':'icon-motion','parameters':{'pointerType':'mouse'},'actions':actions}]})
   def move(x,y):pointer([{'type':'pointerMove','duration':0,'x':round(x),'y':round(y)}])
+  # Real pointer motion along Arc's moving bottom edge, not a forced :hover.
+  # The captured Arc rule is intentionally loaded after our sheet.
+  m.script("window.arcURLFixture=Services.io.newURI('data:text/css,'+encodeURIComponent('#urlbar{transition:transform 0.5s ease-out,box-shadow 0.5s ease-out}#urlbar:hover{transform:translateY(-2px)!important;box-shadow:0 12px 12px -12px light-dark(rgb(255 255 255 / 10%),rgb(0 0 0 / 10%));transition-duration:0.5s!important}#zen-site-data-icon-button:active,#zen-copy-url-button:active{opacity:.5;transform:scale(.95)}'));Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService).loadAndRegisterSheet(arcURLFixture,1);return true;")
+  result['urlbarEdge']=[]
+  for enabled in [False,True]:
+   move(1000,350)
+   m.script('Services.prefs.setBoolPref("zzglass.motion.enabled",'+json.dumps(enabled)+');return true;');time.sleep(.65)
+   r=m.script("return document.getElementById('urlbar').getBoundingClientRect().toJSON();")
+   m.script("window.urlSamples=[];window.urlStart=performance.now();function sampleURL(){const u=document.getElementById('urlbar');urlSamples.push({t:performance.now()-urlStart,hover:u.matches(':hover'),y:u.getBoundingClientRect().y});if(performance.now()-urlStart<1600)requestAnimationFrame(sampleURL);}requestAnimationFrame(sampleURL);return true;")
+   for i in range(35):move(r['x']+r['width']/2+(i%2),int(r['bottom'])-1);time.sleep(.045)
+   time.sleep(.15);samples=m.script('return urlSamples;')
+   changes=sum(a['hover']!=b['hover'] for a,b in zip(samples,samples[1:]));travel=max(x['y'] for x in samples)-min(x['y'] for x in samples)
+   assert (changes<=1 and travel<.1) if enabled else (changes>=3 and travel>1), (enabled,changes,travel)
+   result['urlbarEdge'].append(dict(enabled=enabled,hoverChanges=changes,travel=travel,samples=samples))
+  move(1000,350)
+  m.script("gURLBar.focus();gURLBar.value='zz-native-motion-check';gURLBar.startQuery({searchString:gURLBar.value});return gURLBar.lastQueryContextPromise.then(()=>true);");time.sleep(.5)
+  if not m.script("return document.getElementById('urlbar').hasAttribute('breakout-extend');"):
+   r=m.script("return gURLBar.getBoundingClientRect().toJSON();");move(r['x']+r['width']/2,r['y']+r['height']/2);pointer([{'type':'pointerDown','button':0},{'type':'pointerUp','button':0}]);time.sleep(.5)
+  assert m.script("return document.getElementById('urlbar').hasAttribute('breakout-extend');")
+  move(1100,850);time.sleep(.65)
+  # Native search-mode motion uses scale; prove the open bar still accepts it.
+  assert m.script("const a=gURLBar.animate([{transform:'scale(.98)'},{transform:'scale(.98)'}],{duration:250,fill:'forwards'});a.pause();a.currentTime=100;const t=getComputedStyle(gURLBar).transform;a.cancel();return t;").startswith('matrix(0.98'), 'Open URL bar transform overridden'
+  m.script("gURLBar.blur();gURLBar.view.close();return true;");time.sleep(.5)
+  # Native URL-bar boxes receive events over their padding; child images do not.
+  # Keep the real DOM/handlers. A local HTTP page makes Copy URL natively enabled.
+  import http.server,threading,functools
+  server=http.server.ThreadingHTTPServer(('127.0.0.1',0),functools.partial(http.server.SimpleHTTPRequestHandler,directory=d))
+  threading.Thread(target=server.serve_forever,daemon=True).start()
+  try:
+   url='http://127.0.0.1:'+str(server.server_port)+'/index.html'
+   m.script('gBrowser.selectedBrowser.loadURI(Services.io.newURI('+json.dumps(url)+'),{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal()});return true;');time.sleep(1)
+   # Reveal the native page actions by hovering the valid closed URL bar.
+   bar=m.script("return gURLBar.getBoundingClientRect().toJSON();")
+   move(bar['x']+bar['width']/2,bar['y']+bar['height']/2);time.sleep(.5)
+   result['urlbarBindings']=[]
+   for selector in ['#zen-copy-url-button','#zen-site-data-icon-button']:
+    move(bar['x']+30,bar['y']+bar['height']/2);time.sleep(.4)
+    info=m.script('const h=document.querySelector('+json.dumps(selector)+'),r=__zziconMorphInstance.records.get(h);return {owner:!!r,box:h.getBoundingClientRect().toJSON(),paint:r?.paint.getBoundingClientRect().toJSON(),disabled:h.getAttribute("disabled")};')
+    assert info['owner'] and info['box']['width']>0,(selector,info)
+    h=info['box'];i=info['paint'];x=round(h['left']+1);y=round(h['top']+h['height']/2)
+    assert not (i['left']<=x<i['right'] and i['top']<=y<i['bottom']),('Point must be padding',selector,info)
+    assert m.script('return document.elementFromPoint('+str(x)+','+str(y)+')?.closest('+json.dumps(selector)+')===document.querySelector('+json.dumps(selector)+');'),('Padding is not hit-testable',selector,info)
+    box=m.script('return __zziconMorphInstance.records.get(document.querySelector('+json.dumps(selector)+')).paint.getBoundingClientRect().toJSON();')
+    move(x,y);time.sleep(.4)
+    state=m.script('const r=__zziconMorphInstance.records.get(document.querySelector('+json.dumps(selector)+'));return {hover:r.hover,frame:+getComputedStyle(r.paint).getPropertyValue("--zzicon-frame")};')
+    assert state['hover'] and state['frame']==31,(selector,state)
+    # Compare fixed frames under identical settled hover styling. Native
+    # opacity/background changes must not masquerade as a Morph windup.
+    shots=[]
+    for fixed in [0,31]:
+     m.script('const r=__zziconMorphInstance.records.get(document.querySelector('+json.dumps(selector)+'));r.paint.style.setProperty("--zzicon-frame",'+json.dumps(str(fixed))+');return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))));')
+     shots.append(m.shot())
+    before,after=shots
+    from PIL import ImageChops,ImageStat
+    factor=before.width/m.script('return innerWidth;');crop=tuple(round(box[k]*factor) for k in ['left','top','right','bottom'])
+    pixel_change=sum(ImageStat.Stat(ImageChops.difference(before,after).crop(crop)).sum)
+    assert pixel_change>0,(selector,box,pixel_change)
+    result['urlbarBindings'].append(dict(selector=selector,padding=[x,y],pixelChange=pixel_change,**state))
+   move(bar['x']+30,bar['y']+bar['height']/2);time.sleep(.4)
+   m.script("window.copyCalls=0;window.copyCommand=document.getElementById('cmd_zenCopyCurrentURL');window.countCopy=()=>copyCalls++;copyCommand.addEventListener('command',countCopy);return true;")
+   r=m.script("return document.getElementById('zen-copy-url-button').getBoundingClientRect().toJSON();")
+   move(r['x']+1,r['y']+r['height']/2);time.sleep(.3)
+   pointer([{'type':'pointerDown','button':0},{'type':'pause','duration':200}])
+   assert m.script("return getComputedStyle(document.getElementById('zen-copy-url-button')).transform;")=='none','Copy URL hit box scales under Arc'
+   pointer([{'type':'pointerUp','button':0}])
+   assert m.script("const r=__zziconMorphInstance.records.get(document.getElementById('zen-copy-url-button'));return copyCalls===1&&r.phase==='fire'&&r.animation?.effect.getKeyframes().at(-1)['--zzicon-frame']==='127';"),'Copy URL did not execute/animate exactly once'
+   m.script("copyCommand.removeEventListener('command',countCopy);document.getElementById('zen-copy-url-button').setAttribute('disabled','true');return true;");time.sleep(1.5)
+   move(1000,700);move(r['x']+1,r['y']+r['height']/2);time.sleep(.4)
+   assert m.script("const r=__zziconMorphInstance.records.get(document.getElementById('zen-copy-url-button'));return +getComputedStyle(r.paint).getPropertyValue('--zzicon-frame')===0&&!r.animation;"),'Disabled box winds up'
+   m.script("document.getElementById('zen-copy-url-button').removeAttribute('disabled');gURLBar.blur();gURLBar.view.close();gBrowser.selectedBrowser.loadURI(Services.io.newURI(nativeFixtureURL),{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal()});return true;");time.sleep(.8)
+  finally:
+   server.shutdown();server.server_close()
+   m.script("Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService).unregisterSheet(arcURLFixture,1);return true;")
   def sample_motion(host,paint):
    m.script('window.motionHost=document.querySelector('+json.dumps(host)+');window.motionPaint=document.querySelector('+json.dumps(paint)+');return true;')
    r=m.script('return motionHost.getBoundingClientRect().toJSON();')
@@ -169,9 +242,10 @@ with tempfile.TemporaryDirectory(prefix='zen-morph-') as d:
    time.sleep(.25)
   assert m.script('return !window.__zzIconHoverProbe;'),'Probe did not auto-stop'
   probe=json.loads(m.script("const t=Cc['@mozilla.org/widget/transferable;1'].createInstance(Ci.nsITransferable);t.init(null);t.addDataFlavor('text/plain');Services.clipboard.getData(t,Services.clipboard.kGlobalClipboard);const v={};t.getTransferData('text/plain',v);return v.value.QueryInterface(Ci.nsISupportsString).data;"))
-  assert probe['probe']=='icon-hover-v3' and probe['motion'] and probe['menus'] and probe['versions']['iconflow']
+  assert probe['probe']=='icon-hover-v4' and probe['motion'] and probe['menus'] and probe['versions']['iconflow']
   assert any('after500ms' in menu for menu in probe['menus'])
   assert probe['motion'][0]['samples'][-1]['ms']>=1000 and len(probe['motion'][0]['samples'])<=65
+  assert len(probe['motion'][0]['frameIntervals'])>20 and 'hostAnimations' in probe['motion'][0]['samples'][0]
   assert m.script('return !window.__zzIconHoverProbe;')
   (OUT/'probe.json').write_text(json.dumps(probe,indent=2));result['probeAutoCopyCleanup']=True
   move(1000,350)

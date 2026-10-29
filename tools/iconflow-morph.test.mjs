@@ -37,6 +37,7 @@ test('all nine adapters read their own authorities, including background targets
  const card=node({});card.classList={contains:()=>true};const native=node();native.closest=selector=>selector==='.zen-media-card'?card:null;
  assert.equal(read('playback',native).state,'playing','another source remains playing');
  assert.equal(read('bookmark-toggle',star).state,'saved');assert.equal(read('bookmark-toggle',star,{state:'bookmark-launcher'}).state,'unsaved');
+ const starBox=node();starBox.id='star-button-box';starBox.querySelector=()=>star;assert.equal(read('bookmark-toggle',starBox).state,'saved');delete star.attrs.starred;assert.equal(read('bookmark-toggle',starBox).state,'unsaved');
  const background=node();background.zziconBookmarked=false;assert.equal(read('bookmark-toggle',background).state,'unsaved','context target does not inherit selected tab bookmark');background.zziconBookmarked=true;assert.equal(read('bookmark-toggle',background).state,'saved');
  assert.equal(read('volume-control').level,37);pip.attrs['zzmf-muted']='';assert.equal(read('volume-control').level,0);assert.equal(read('volume-control').lastVolume,37);delete pip.attrs['zzmf-muted'];assert.equal(read('volume-control').level,37);
  assert.equal(read('volume-control',native).level,null);assert.equal(read('volume-control',native).unknown,true);
@@ -70,4 +71,20 @@ test('native paint keeps command and geometry ownership; no JS animation loop',(
 });
 test('native Zen commands, frames, visibility and teardown',{skip:!process.env.ZEN_BINARY,timeout:240000},()=>{
  console.log(execFileSync('python3',[new URL('tools/zen-morph-smoke.py',root).pathname,'--zen',process.env.ZEN_BINARY,'--output',process.env.ZEN_MORPH_OUTPUT||'/tmp/zen-native-morph-checks'],{timeout:235000,encoding:'utf8',maxBuffer:2e6}));
+});
+
+test('URL-bar click owners animate once; command widgets ignore duplicate clicks and disabled boxes stay still',()=>{
+ const namespace='xul',calls=[];
+ const host=(name,attrs={})=>({localName:name,namespaceURI:namespace,disabled:false,getAttribute:k=>attrs[k]??null,matches:()=>['toolbarbutton','button','menuitem','menu'].includes(name)});
+ const scope=vm.createContext({namespace,records:new Map(),recordFor:e=>e.record,fire:r=>calls.push(r),index:{wind:31},move:(r,to)=>{r.frame=to;}});
+ vm.runInContext(source.slice(source.indexOf('function activated('),source.indexOf("listen(window,'command'")),scope);
+ vm.runInContext(source.slice(source.indexOf('function hover('),source.indexOf('function fire(')),scope);
+ for(const name of ['box','hbox','toolbarbutton']){
+  const r={host:host(name)},e={record:r,type:'click',button:0};const before=calls.length;
+  scope.activated(e);if(name==='toolbarbutton')scope.activated({...e,type:'command'});
+  assert.equal(calls.length,before+1,name);
+  scope.activated({...e,button:2});assert.equal(calls.length,before+1,'right click ignored');
+ }
+ const disabled={host:host('hbox',{disabled:'true'})};scope.activated({record:disabled,type:'click',button:0});scope.hover(disabled,true);
+ assert.equal(calls.length,3);assert.equal(disabled.frame,0);
 });

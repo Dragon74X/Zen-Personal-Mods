@@ -7,6 +7,18 @@ return (async()=>{
  const frame=r=>+getComputedStyle(r.paint).getPropertyValue('--zzicon-frame');
  const event=(r,type)=>r.host.dispatchEvent(new PointerEvent(type,{bubbles:true,pointerType:'mouse'}));
  check('native renderer attached',__zziconMorphInstance.records.size>20);
+ // Zen's Library replaces this widget in this profile. Exercise the native
+ // Downloads markup (an indicator image, not .toolbarbutton-icon) as a fixture.
+ const downloadFixture=document.createXULElement('toolbarbutton');downloadFixture.id='downloads-button';
+ const anchor=document.createXULElement('box');anchor.id='downloads-indicator-anchor';
+ const downloadImage=document.createXULElement('image');downloadImage.id='downloads-indicator-icon';anchor.append(downloadImage);downloadFixture.append(anchor);
+ document.getElementById('nav-bar-customization-target').append(downloadFixture);await wait(300);
+ check('Downloads binds its native indicator slot',rec('#downloads-button')?.paint===downloadImage);
+ let downloadCommands=0;downloadFixture.addEventListener('command',()=>downloadCommands++);
+ event(rec('#downloads-button'),'pointerover');await wait(250);check('Downloads winds up',frame(rec('#downloads-button'))===31);
+ downloadFixture.doCommand();await wait(40);check('Downloads command fires once',downloadCommands===1&&rec('#downloads-button').phase==='fire');
+ const downloadRecord=rec('#downloads-button');downloadFixture.remove();await wait(50);
+ check('removed Downloads releases its animation',!rec('#downloads-button')&&!downloadRecord.animation);
  check('no replacement SVG or transparent mask',!document.querySelector('.zzicon-morph-glyph,[data-zz-morph-slot]'));
  check('SVG context policy unchanged',!Services.prefs.getBoolPref('svg.context-properties.content.enabled'));
  await PanelUI.show();await wait(200);
@@ -56,7 +68,7 @@ return (async()=>{
  await SidebarController.show('viewBookmarksSidebar');await wait(250);check('Firefox sidebar reads own owner',rec('#sidebar-button').state==='open');SidebarController.hide();await wait(300);
  const {PlacesUtils}=ChromeUtils.importESModule('resource://gre/modules/PlacesUtils.sys.mjs');
  const url=nativeFixtureURL;gBrowser.selectedBrowser.loadURI(Services.io.newURI(url),{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal()});await wait(900);
- const saved=await PlacesUtils.bookmarks.insert({parentGuid:PlacesUtils.bookmarks.unfiledGuid,url,title:'Icon check'});await wait(400);check('bookmark reads external insert',rec('#star-button').state==='saved');await PlacesUtils.bookmarks.remove(saved.guid);await wait(400);check('bookmark reads external removal',rec('#star-button').state==='unsaved');
+ const saved=await PlacesUtils.bookmarks.insert({parentGuid:PlacesUtils.bookmarks.unfiledGuid,url,title:'Icon check'});await wait(400);check('bookmark reads external insert',rec('#star-button-box').state==='saved');await PlacesUtils.bookmarks.remove(saved.guid);await wait(400);check('bookmark reads external removal',rec('#star-button-box').state==='unsaved');
  check('window controls excluded from Morph',![...__zziconMorphInstance.records.keys()].some(e=>e.matches('.titlebar-button'))&&!document.querySelector('.titlebar-button[zzicon-motion-host],.titlebar-button [zzicon-motion]'));
  ZzMediaflowController.updateControls({time:2,duration:20,paused:true,volume:.37,muted:false});await wait(100);
  check('media replaces existing background once',rec('.zzmf-pip-mute').mode==='background'&&getComputedStyle(rec('.zzmf-pip-mute').host,'::before').content==='none');

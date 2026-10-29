@@ -26,6 +26,7 @@ Individual READMEs define settings, exclusions, and known limits.
 [September 18 audit](docs/AUDIT-2026-09-18.md): findings, pinned upstream sources, native blur checks and remaining runtime limits.
 
 [Icon engine comparison and native Morph motion](docs/CIRCUIT-MORPH.md): retained artwork/windup, restored native ownership and runtime checks.
+[URL-bar hover audit](docs/AUDIT-2026-10-29-URLBAR.md): confirmed hit-target and binding fixes; workspace smoothness remains open.
 
 ## Regression checks
 

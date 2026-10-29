@@ -125,7 +125,11 @@ geometry until pointer and keyboard focus both leave. Play/pause and seeking
 therefore retain the same target while the native music bar changes size. The
 canvas and control hover share the same growth; crossing a button during that
 growth no longer cancels the timer or freezes an intermediate size. Controls use
-their original glyphs, including the seek-step labels, with no Morph replacement. Reduced
+their original glyphs, including the seek-step labels, with no Morph replacement.
+Pointer entry holds the preview's bottom edge immediately, including the growth
+delay when arriving from the music bar below. Leaving returns it to the bar over
+180ms. Card geometry remains authoritative after the tracking timer expires;
+the toolbar's different top edge no longer causes a one-frame position jump. Reduced
 motion changes apply live, and disabling the mod restores parked native PiP
 buttons only while Mediaflow still owns their hidden state.
 

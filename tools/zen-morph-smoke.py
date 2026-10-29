@@ -231,23 +231,37 @@ with tempfile.TemporaryDirectory(prefix='zen-morph-') as d:
    Services.prefs.setIntPref('ui.prefersReducedMotion',0);Services.prefs.setBoolPref('zzicon.click.press',false);nativeTab.removeAttribute('zen-essential');
    return cases;
   })();""")
+  m.script("window.probeFavorite=gBrowser.addTab(nativeFixtureURL,{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});gBrowser.pinTab(probeFavorite);gZenPinnedTabManager.addToEssentials(probeFavorite,{replicating:true});gURLBar.blur();gURLBar.view.close();return true;");time.sleep(.3)
   m.script((ROOT/'tools/icon-hover-probe.js').read_text()+'\nreturn true;')
   r=m.script("return document.querySelector('#PanelUI-menu-button').getBoundingClientRect().toJSON();")
   move(r['x']+r['width']/2,r['y']+r['height']/2);time.sleep(.25)
   m.script("document.getElementById('tabContextMenu').openPopupAtScreen(500,300,true);return true;");time.sleep(.65)
-  m.script("document.getElementById('tabContextMenu').hidePopup();return true;")
+  m.script("document.getElementById('tabContextMenu').hidePopup();PanelUI.hide();return true;")
+  time.sleep(.4);move(1000,700)
+  r=m.script("return document.querySelector('#zen-workspaces-button toolbarbutton').getBoundingClientRect().toJSON();")
+  move(r['x']+r['width']/2,r['y']+r['height']/2);time.sleep(1.2);move(1000,700)
+  r=m.script("const r=probeFavorite.getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return {...r.toJSON(),hit:hit?.localName,hitFavorite:hit?.closest('.tabbrowser-tab')===probeFavorite,probeActive:!!window.__zzIconHoverProbe};")
+  assert r['width']>0 and r['height']>0,r
+  assert r['hitFavorite'] and r['probeActive'],r
+  move(r['x']+r['width']/2,r['y']+r['height']/2);time.sleep(1.2);move(1000,700)
   # Wait for the probe's own timer/cleanup, not a race with the next command.
   for _ in range(100):
    if m.script('return !window.__zzIconHoverProbe;'):break
    time.sleep(.25)
   assert m.script('return !window.__zzIconHoverProbe;'),'Probe did not auto-stop'
   probe=json.loads(m.script("const t=Cc['@mozilla.org/widget/transferable;1'].createInstance(Ci.nsITransferable);t.init(null);t.addDataFlavor('text/plain');Services.clipboard.getData(t,Services.clipboard.kGlobalClipboard);const v={};t.getTransferData('text/plain',v);return v.value.QueryInterface(Ci.nsISupportsString).data;"))
-  assert probe['probe']=='icon-hover-v4' and probe['motion'] and probe['menus'] and probe['versions']['iconflow']
+  (OUT/'probe.json').write_text(json.dumps(probe,indent=2))
+  assert probe['probe']=='icon-hover-v5' and probe['motion'] and probe['menus'] and probe['versions']['iconflow']
+  assert probe['motion'][0]['ancestors']
+  properties=[p for run in probe['motion'] for s in run['samples'] for a in s['animations']+s['hostAnimations'] for p in a['compositor'] if isinstance(a['compositor'],list)]
+  assert properties and all(isinstance(p['runningOnCompositor'],bool) for p in properties),properties
+  assert sum(any(p['property']=='scale' for s in run['samples'] for a in s['animations'] for p in a['compositor'] if isinstance(a['compositor'],list)) for run in probe['motion'])>=2,'Workspace and Favorite compositor capture missing'
   assert any('after500ms' in menu for menu in probe['menus'])
   assert probe['motion'][0]['samples'][-1]['ms']>=1000 and len(probe['motion'][0]['samples'])<=65
   assert len(probe['motion'][0]['frameIntervals'])>20 and 'hostAnimations' in probe['motion'][0]['samples'][0]
   assert m.script('return !window.__zzIconHoverProbe;')
-  (OUT/'probe.json').write_text(json.dumps(probe,indent=2));result['probeAutoCopyCleanup']=True
+  m.script("gBrowser.removeTab(probeFavorite,{skipPermitUnload:true,animate:false});return true;")
+  result['probeAutoCopyCleanup']=True
   move(1000,350)
   # Native image rendering, including CSS-only visibility changes that broke 1.21.1.
   from PIL import ImageChops,ImageStat

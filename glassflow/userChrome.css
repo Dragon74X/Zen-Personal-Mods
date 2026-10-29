@@ -626,7 +626,9 @@
      tab's own colours (tint, rim, marks) stay as the state draws them. */
   :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] :is(.tab-icon-stack, .tab-label-container) {
     opacity: var(--zzglass-pending-opacity, 0.62) !important;
-    transition: opacity 180ms ease-out, filter 180ms ease-out !important;
+    /* Keep close-button spacing in the transition list while unloaded. */
+    transition: opacity 180ms ease-out, filter 180ms ease-out,
+      margin-inline-start var(--zzg-motion-time) var(--zzg-motion-ease) !important;
   }
   @media (-moz-pref("zzglass.pending.greyscale")) {
     :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] .tab-icon-stack { filter: grayscale(1) !important; }

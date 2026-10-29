@@ -158,6 +158,60 @@ def check_restored_chrome(m, root):
             assert painted(info['box'],shown,hidden),(motion,left,'close glyph did not paint',info)
             m.script("restoreClose.removeAttribute('zzsmoke-hidden');if(restoreCloseStyle===null)restoreClose.removeAttribute('style');else restoreClose.setAttribute('style',restoreCloseStyle);InspectorUtils.removePseudoClassLock(restoreTab,':hover');return true;")
             time.sleep(.3);checks.append({'closeMotion':motion,'closeLeft':left,'painted':True})
+    # Discard a real background tab: its pending fade used to replace the
+    # spacing transition. Sample native animation times and rendered geometry.
+    close_motion=m.script("""return (async()=>{
+      const S=Services.prefs,wait=ms=>new Promise(r=>setTimeout(r,ms));
+      const keys=['zzglass.motion.enabled','zzglass.instant-ui','zzglass.pending.enabled','zzglass.motion.profile','zzglass.tabs.close-left','ui.prefersReducedMotion'];
+      const saved=keys.map(k=>{const had=S.prefHasUserValue(k);return [k,had,had?(S.getPrefType(k)===S.PREF_BOOL?S.getBoolPref(k):S.getIntPref(k)):null];});
+      S.setBoolPref(keys[0],true);S.setBoolPref(keys[1],false);S.setBoolPref(keys[2],true);S.setIntPref(keys[5],0);
+      const tab=gBrowser.addTab('data:text/html,<title>Close spacing test</title>',{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});
+      const stack=tab.querySelector('.tab-icon-stack'),label=tab.querySelector('.tab-label-container'),close=tab.querySelector('.tab-close-button');
+      const cases=[],gates=[],rect=e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height];};
+      try {
+        await wait(800);
+        for(const pending of [false,true]){
+          if(pending){gBrowser.discardBrowser(tab);await wait(200);if(!tab.hasAttribute('pending'))throw new Error('Native discard failed');}
+          for(const [profile,duration]of [150,210,240,270,290].entries())for(const left of [false,true]){
+            S.setIntPref(keys[3],profile);S.setBoolPref(keys[4],left);await wait(350);
+            const el=left?stack:label,property=left?'marginInlineStart':'marginInlineEnd';
+            const anchor=rect(close),origin=rect(label),directions=[];
+            for(const hover of [true,false]){
+              InspectorUtils[hover?'addPseudoClassLock':'removePseudoClassLock'](tab,':hover');
+              const slide=el.getAnimations().find(a=>a.transitionProperty?.startsWith('margin-'));
+              const fade=close.getAnimations().find(a=>a.transitionProperty==='opacity');
+              if(!slide||!fade||Math.abs(slide.effect.getTiming().duration-duration)>.01)throw new Error('Missing close transition '+JSON.stringify({pending,profile,left,hover,duration:slide?.effect.getTiming().duration,fade:!!fade,transition:getComputedStyle(el).transition}));
+              const animations=[slide,fade];animations.forEach(a=>a.pause());
+              const frames=[];
+              for(const fraction of [0,.25,.5,.75,1]){
+                animations.forEach(a=>a.currentTime=duration*fraction);
+                const margin=parseFloat(getComputedStyle(el)[property]),box=rect(label),hit=rect(close);
+                if(hit.some((v,i)=>Math.abs(v-anchor[i])>.02))throw new Error('Close target moved');
+                const travel=left?box[0]-origin[0]:origin[2]-box[2];
+                if(Math.abs(travel-margin)>.05)throw new Error('Label did not follow spacing');
+                frames.push({margin,opacity:+getComputedStyle(close).opacity});
+              }
+              const end=hover?24:0;
+              if(Math.abs(frames.at(-1).margin-end)>.02||new Set(frames.map(f=>f.margin.toFixed(2))).size<3)throw new Error('Spacing jumped');
+              animations.forEach(a=>a.finish());directions.push({hover,frames});
+            }
+            cases.push({pending,profile,left,duration,directions});
+          }
+        }
+        S.setBoolPref(keys[4],true);
+        for(const [name,key,value]of [['disabled',keys[0],false],['instant',keys[1],true],['reduced',keys[5],1]]){
+          const set=v=>S[typeof v==='boolean'?'setBoolPref':'setIntPref'](key,v);set(value);await wait(350);
+          InspectorUtils.addPseudoClassLock(tab,':hover');
+          if(stack.getAnimations().some(a=>a.transitionProperty?.startsWith('margin-'))||parseFloat(getComputedStyle(stack).marginInlineStart)!==24)throw new Error(name+' did not disable spacing motion');
+          InspectorUtils.removePseudoClassLock(tab,':hover');set(name==='disabled'?true:name==='instant'?false:0);gates.push(name);
+        }
+        return {cases,gates};
+      } finally {
+        InspectorUtils.removePseudoClassLock(tab,':hover');gBrowser.removeTab(tab,{animate:false});
+        for(const[k,had,v]of saved)if(!had)S.clearUserPref(k);else S[typeof v==='boolean'?'setBoolPref':'setIntPref'](k,v);
+      }
+    })();""")
+    checks.append({'tabCloseMotion':close_motion})
     # The native image carries hover animation itself; its command owner stays put.
     motion=m.script("""return (async()=>{
       const host=document.getElementById('PanelUI-menu-button'),slot=host.querySelector('.toolbarbutton-icon');

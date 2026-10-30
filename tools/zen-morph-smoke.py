@@ -7,6 +7,72 @@ import argparse,base64,io,json,os,runpy,socket,subprocess,tempfile,time
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 M=runpy.run_path(str(ROOT/'tools/zen-smoke.py'))['Marionette']
+def check_icon_click(m,out):
+ """Native CSS ownership and WebDriver input; not Windows physical-input certification."""
+ m.script('''window.clickTabs=[];window.clickWait=ms=>new Promise(r=>setTimeout(r,ms));
+  Services.prefs.setBoolPref('zzglass.motion.enabled',true);Services.prefs.setBoolPref('zzglass.instant-ui',false);
+  Services.prefs.setIntPref('zzglass.motion.profile',0);Services.prefs.setBoolPref('zzglass.workspaces.enabled',true);
+  Services.prefs.setIntPref('zzglass.workspaces.hover',1);Services.prefs.setIntPref('zzglass.tabs.essentials-icon-grow',2);
+  window.clickWorkspace=document.querySelector('#zen-workspaces-button toolbarbutton');clickWorkspace.parentElement.removeAttribute('dont-show');
+  window.clickOldImage=clickWorkspace.querySelector('.zen-workspace-icon');
+  const art='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300"><circle cx="150" cy="150" r="120" fill="red"/></svg>');
+  const image=document.createElementNS('http://www.w3.org/1999/xhtml','img');image.className='zen-workspace-icon';image.src=art;image.style.cssText='width:18px;height:18px';clickOldImage.replaceWith(image);
+  for(const pending of [false,true]){const t=gBrowser.addTab('about:blank',{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});
+    gBrowser.pinTab(t);gZenPinnedTabManager.addToEssentials(t,{replicating:true});gBrowser.setIcon(t,art);if(pending)t.setAttribute('pending','true');clickTabs.push(t);}
+  gZenWorkspaces.onWindowResize();return true;''')
+ time.sleep(.5)
+ def pointer(actions):m.call('WebDriver:PerformActions',{'actions':[{'type':'pointer','id':'click-mouse','parameters':{'pointerType':'mouse'},'actions':actions}]})
+ results=[]
+ try:
+  for name,host in [('workspace','clickWorkspace'),('favorite-loaded','clickTabs[0]'),('favorite-pending','clickTabs[1]')]:
+   m.script('window.clickHost='+host+";window.clickImage=clickHost.querySelector('.zen-workspace-icon,.tab-icon-image');return true;")
+   r=m.script('return clickHost.getBoundingClientRect().toJSON();');assert r['width']>0 and r['height']>0,(name,r)
+   pointer([{'type':'pointerMove','duration':0,'x':round(r['x']+r['width']/2),'y':round(r['y']+r['height']/2)},{'type':'pause','duration':400}])
+   assert abs(m.script("return parseFloat(getComputedStyle(clickImage).scale);")-1.3)<.001,name
+   m.script('''window.clickSamples=[];window.clickStart=performance.now();
+    function sample(){const s=getComputedStyle(clickImage),r=clickImage.getBoundingClientRect();clickSamples.push({t:performance.now()-clickStart,scale:parseFloat(s.scale),duration:s.transitionDuration,easing:s.transitionTimingFunction,pressed:clickHost.hasAttribute('zzg-icon-pressed'),click:clickHost.hasAttribute('zzg-icon-click'),x:r.x+r.width/2,y:r.y+r.height/2,
+      owners:clickImage.getAnimations().filter(a=>a.effect.getProperties().some(p=>p.property==='scale')).length,host:clickHost.getBoundingClientRect().toJSON()});if(performance.now()-clickStart<600)requestAnimationFrame(sample);}requestAnimationFrame(sample);return true;''')
+   pointer([{'type':'pointerDown','button':0},{'type':'pause','duration':25}])
+   if name.startswith('favorite'):assert m.script('return gBrowser.selectedTab===clickHost;'),name+' selection delayed'
+   pointer([{'type':'pointerUp','button':0},{'type':'pause','duration':650}])
+   samples=m.script('return clickSamples;');values=[s['scale'] for s in samples]
+   (out/(name+'-click.json')).write_text(json.dumps(samples,indent=2))
+   assert min(values)<.97 and 1.305<max(values)<1.32,(name,min(values),max(values))
+   assert abs(values[-1]-1.3)<.001 and max(s['owners'] for s in samples)==1,(name,values[-1])
+   assert max(s['x'] for s in samples)-min(s['x'] for s in samples)<.03,name+' center moved'
+   assert max(s['y'] for s in samples)-min(s['y'] for s in samples)<.03,name+' center moved vertically'
+   assert all(abs(s['host'][k]-r[k])<.03 for s in samples for k in ['x','y','width','height']),name+' target moved'
+   assert m.script("return !clickHost.hasAttribute('zzg-icon-click')&&!clickHost.hasAttribute('zzg-icon-pressed');"),name+' state retained'
+   results.append({'target':name,'minScale':min(values),'maxScale':max(values),'finalScale':values[-1],'maxScaleOwners':1,'samples':samples})
+  # Repeated activation of the selected Favorite retargets its existing scale.
+  pointer([{'type':'pointerDown','button':0},{'type':'pointerUp','button':0},{'type':'pause','duration':130},
+    {'type':'pointerDown','button':0},{'type':'pause','duration':25},{'type':'pointerUp','button':0},{'type':'pause','duration':450}])
+  assert m.script("return !clickHost.hasAttribute('zzg-icon-click')&&Math.abs(parseFloat(getComputedStyle(clickImage).scale)-1.3)<.001;"),'repeat did not settle'
+  for host,key in [('clickWorkspace','\ue007'),('clickTabs[0]',' ')]:
+   focused=m.script('window.clickHost='+host+";window.clickTabIndex=clickHost.getAttribute('tabindex');clickHost.setAttribute('tabindex','0');clickHost.focus();return {focused:document.activeElement===clickHost,tag:document.activeElement?.localName,id:document.activeElement?.id};")
+   assert focused['focused'],(host,focused)
+   m.call('WebDriver:PerformActions',{'actions':[{'type':'key','id':'click-key','actions':[{'type':'keyDown','value':key},{'type':'pause','duration':25}]}]})
+   assert m.script("return clickHost.hasAttribute('zzg-icon-pressed');"),host+' keyboard press missing'
+   m.call('WebDriver:PerformActions',{'actions':[{'type':'key','id':'click-key','actions':[{'type':'keyUp','value':key},{'type':'pause','duration':450}]}]})
+   assert m.script("return !clickHost.hasAttribute('zzg-icon-click');"),host+' keyboard release retained'
+   m.script("if(clickTabIndex===null)clickHost.removeAttribute('tabindex');else clickHost.setAttribute('tabindex',clickTabIndex);return true;")
+  # Interruption must release input state; reduced motion cannot queue a spring.
+  cleanup=m.script('''return (async()=>{
+   const host=clickTabs[0],image=host.querySelector('.tab-icon-image'),down=()=>host.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0,isPrimary:true}));
+   const empty=()=>!host.hasAttribute('zzg-icon-click')&&!host.hasAttribute('zzg-icon-pressed');
+   const results={};for(const type of ['pointercancel','dragstart','deactivate']){down();window.dispatchEvent(new Event(type));results[type]=empty();}
+   down();Services.prefs.setIntPref('ui.prefersReducedMotion',1);await clickWait(60);results.reduced=empty();down();results.reducedBlocks=empty();Services.prefs.setIntPref('ui.prefersReducedMotion',0);await clickWait(60);
+   down();Services.prefs.setBoolPref('zzglass.motion.enabled',false);results.disabled=empty();Services.prefs.setBoolPref('zzglass.motion.enabled',true);
+   down();Services.prefs.setBoolPref('zzglass.instant-ui',true);results.instant=empty();Services.prefs.setBoolPref('zzglass.instant-ui',false);
+   return results;
+  })();''')
+  assert all(cleanup.values()),cleanup
+  (out/'icon-click.json').write_text(json.dumps({'cases':results,'cleanup':cleanup,'limits':'WebDriver input and computed animation behavior; Windows physical input and presented pixels not certified.'},indent=2))
+  print('CLICK PASS',[(r['target'],round(r['minScale'],4),round(r['maxScale'],4))for r in results],cleanup,flush=True)
+ finally:
+  pointer([{'type':'pointerMove','duration':0,'x':1000,'y':700}])
+  m.script("for(const t of clickTabs)gBrowser.removeTab(t,{skipPermitUnload:true,animate:false});clickWorkspace.querySelector('.zen-workspace-icon').replaceWith(clickOldImage);return true;")
+
 def record_hover(m,out):
  """Sample X11 output, not drawSnapshot. Diagnostic counts are not an FPS score."""
  from PIL import Image,ImageDraw
@@ -223,7 +289,7 @@ def check_hover_ab(m,out):
  assert m.script('return abPrefs();')==before
  print('PASS cancellation restores active override',flush=True)
 
-p=argparse.ArgumentParser(description=__doc__);p.add_argument('--zen',required=True,type=Path);p.add_argument('--output',required=True,type=Path);modes=p.add_mutually_exclusive_group();modes.add_argument('--record-hover',action='store_true',help='Record current/Oct 21 hover comparisons and clipping bounds from an existing X11 DISPLAY');modes.add_argument('--probe-ab',action='store_true',help='Check the user-facing hover A/B probe and clipboard cleanup in native Zen');p.add_argument('--record-case',action='append',help='Run only this named hover recording case (repeatable)');p.add_argument('--record-dpr',type=float,default=1,help='Device pixel ratio for the disposable recording profile');args=p.parse_args()
+p=argparse.ArgumentParser(description=__doc__);p.add_argument('--zen',required=True,type=Path);p.add_argument('--output',required=True,type=Path);modes=p.add_mutually_exclusive_group();modes.add_argument('--record-hover',action='store_true',help='Record current/Oct 21 hover comparisons and clipping bounds from an existing X11 DISPLAY');modes.add_argument('--probe-ab',action='store_true',help='Check the user-facing hover A/B probe and clipboard cleanup in native Zen');modes.add_argument('--clicks',action='store_true',help='Check workspace/Favorite click spring and cleanup');p.add_argument('--record-case',action='append',help='Run only this named hover recording case (repeatable)');p.add_argument('--record-dpr',type=float,default=1,help='Device pixel ratio for the disposable recording profile');args=p.parse_args()
 OUT=args.output.resolve();OUT.mkdir(parents=True,exist_ok=True)
 MODS=['glassflow','groupflow','iconflow','glassflow-library','download-prompt','tab-router','tab-unloader','mediaflow']
 with tempfile.TemporaryDirectory(prefix='zen-morph-') as d:
@@ -261,6 +327,8 @@ with tempfile.TemporaryDirectory(prefix='zen-morph-') as d:
   if args.probe_ab:
    check_hover_ab(m,OUT)
    raise SystemExit(0)
+  check_icon_click(m,OUT)
+  if args.clicks:raise SystemExit(0)
   m.script("for(const id of ['sidebar-button','zen-expand-sidebar-button'])CustomizableUI.addWidgetToArea(id,'nav-bar');return true;")
   m.script('window.nativeFixtureURL='+json.dumps((profile/'index.html').as_uri())+';return true;')
   result=m.script((ROOT/'tools/morph-native-regressions.js').read_text())
@@ -438,7 +506,7 @@ with tempfile.TemporaryDirectory(prefix='zen-morph-') as d:
        nativeCheck(name+' profile '+profile+' zero overshoot '+on,values.every(v=>v>=low-.0001&&v<=high+.0001));
        nativeCheck(name+' profile '+profile+' no reversals '+on,values.every((v,i)=>!i||(v-values[i-1])*direction>=-.00001));
       }
-      nativeCheck(name+' profile duration '+profile+': '+duration,Math.abs(duration-durations[profile])<.01);
+      nativeCheck(name+' profile duration '+profile+': '+duration,Math.abs(duration-(name==='essential-press'&&on?90:durations[profile]))<.01);
       nativeCheck(name+' endpoint '+on,Math.abs(values.at(-1)-(on?target:rest))<.0001);
       const next=host.getBoundingClientRect();nativeCheck(name+' hit box fixed', ['x','y','width','height'].every(k=>Math.abs(next[k]-box[k])<.1));
       cases.push({profile,name,on,duration,min:Math.min(...values),max:Math.max(...values)});a.finish();await tick();

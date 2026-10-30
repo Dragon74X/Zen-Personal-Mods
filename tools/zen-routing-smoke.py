@@ -1190,7 +1190,7 @@ def check_subject_pictures(m, root, first):
     # no live YouTube/Nexus requests or external account state enter the fixture.
     source = (root / "tab-router/tab-router.uc.js").read_text()
     source = source.replace("  // ---- declared defaults", """
-      window.subjectFixture={route,updatePicture,captureNexus,creatorMap,iconMap,stampIcons,saveNexus,fetchAnon,saveIcons,saveCreators,refreshPictures,toIcon};
+      window.subjectFixture={route,placeInPath,skip,updatePicture,captureNexus,creatorMap,iconMap,stampIcons,saveNexus,fetchAnon,saveIcons,saveCreators,refreshPictures,toIcon};
       // ---- declared defaults""")
     m.script(source + "\nreturn true;")
     m.script("""const ss=Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService);
@@ -1242,6 +1242,29 @@ def check_subject_pictures(m, root, first):
       };
       const painted=t=>getComputedStyle(t.querySelector('.tab-icon-image')).content.includes(icon);
       try {
+        // Real native groups with the two identities returned by YouTube.
+        // Metadata parsing/queueing is covered by channel-icons.test.mjs;
+        // this checks addTabs, empty-group cleanup and container preservation.
+        {
+        const canonical='https://www.youtube.com/channel/UCNativeFixture',alias='https://www.youtube.com/@native-alias';
+        const channelTab=await make(canonical),videoTab=await make('https://www.youtube.com/watch?v=native-identity');
+        const context=channelTab.userContextId,record={key:canonical,label:'Identity Channel'};
+        h.creatorMap().set(context+':'+canonical,record);h.creatorMap().set(context+':'+alias,record);
+        h.creatorMap().set(context+':native-identity',{key:alias,label:record.label});
+        const siteIdentity=gBrowser.addTabGroup([channelTab,videoTab],{label:'Identity Site',insertBefore:channelTab});
+        const primary=gBrowser.addTabGroup([channelTab],{label:record.label,insertBefore:channelTab});
+        const duplicate=gBrowser.addTabGroup([videoTab],{label:record.label,insertBefore:videoTab});
+        for(const [g,key]of [[primary,canonical],[duplicate,alias]]){
+          g.setAttribute('data-zzrouter-created','true');g.setAttribute('data-zzrouter-subject',key);g.setAttribute('data-zzrouter-context',String(context));
+        }
+        const want=['Identity Site',{...record,ctx:context}],workspace=videoTab.getAttribute('zen-workspace-id');
+        checks.channelDuplicateEligible=h.skip(videoTab,want)===null;
+        await h.placeInPath(videoTab,want);
+        await until(()=>!duplicate.isConnected); // Native close animation removes the empty group.
+        checks.channelDuplicateMerged=videoTab.group===primary && channelTab.group===primary && primary.group===siteIdentity;
+        checks.channelDuplicateRemoved=!duplicate.isConnected;
+        checks.channelIdentityContext=videoTab.userContextId===context && videoTab.getAttribute('zen-workspace-id')===workspace;
+        }
         const requestSeen={};
         const observer={observe(subject){
           const channel=subject.QueryInterface(Ci.nsIHttpChannel);
@@ -1448,6 +1471,8 @@ def main():
                  "browser.aboutwelcome.enabled": False, "zen.welcome-screen.seen": True,
                  "zen.welcome-screen.enabled": False, "browser.startup.page": 3,
                  "zen.workspaces.continue-where-left-off": True,
+                 # Fixtures use the built-in container IDs; Zen 1.24 can omit them.
+                 "zen.containers.create-default-identities": True,
                  "browser.tabs.groups.arc-style": True, "browser.tabs.groups.folder-look": True}
         for mod in ["groupflow", "tab-router"]:
             for pref in json.loads((root / mod / "preferences.json").read_text()):

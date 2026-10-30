@@ -629,6 +629,13 @@
     return "https://www.youtube.com/" + (m[1].startsWith("channel/") ? m[1] : m[1].toLowerCase());
   }
 
+  // oEmbed returns handles; channel metadata can return /channel/ID. Only
+  // verified, container-scoped metadata connects them, never display names.
+  function subjectKey(key, ctx) {
+    const channel = channelKey(key);
+    return channel ? channelKey(creatorMap().get(scoped(channel, ctx))?.key) || channel : key;
+  }
+
   function channelRecord(tab) {
     const key = channelKey(tab.linkedBrowser?.currentURI?.spec);
     if (!key) return null;
@@ -674,7 +681,12 @@
       if (record) {
         creatorMap().set(slot, record);
         if (record.key !== key) creatorMap().set(scoped(record.key, ctx), record);
+        const picture = iconMap().get(slot), canonical = scoped(record.key, ctx);
+        if (kind === "channel" && picture?.d && !iconMap().get(canonical)?.d) {
+          iconMap().set(canonical, picture); saveIcons();
+        }
         saveCreators(); targetGen++;
+        if (kind === "channel") queueChannelDuplicates();
       }
       else noteFail(slot);
       finishLookup(slot, request);
@@ -974,6 +986,9 @@
     if (retired || isPrivate() || !bool("section-icons", true) || !pageUrl) return;
     try { if (!lookupURIAllowed(Services.io.newURI(pageUrl))) return; } catch { return; }
     const key = scoped(label, ctx), slot = "icon:" + key;
+    // The pending channel lookup supplies this same metadata; its completion
+    // queues the tab again. Do not fetch the channel page twice in parallel.
+    if (!refresh && channelKey(pageUrl) && inFlight.has(scoped(pageUrl, ctx))) return;
     const nexus = nexusURLFrom(pageUrl)?.game === pageUrl, rendition = nexus ? nexusRendition() : null;
     const cachedIcon = iconMap().get(key);
     if (!refresh && cachedIcon?.d && (!nexus || cachedIcon.n === rendition)) {
@@ -1096,7 +1111,7 @@
         }
       }
       const want = picture?.key && picturesEnabled(/^https:\/\/([^/]+)/.exec(picture.key)?.[1])
-        ? iconMap().get(scoped(picture.key, picture.ctx)) : null;
+        ? iconMap().get(scoped(subjectKey(picture.key, picture.ctx), picture.ctx)) || iconMap().get(scoped(picture.key, picture.ctx)) : null;
       const automatic = window.Groupflow?.automaticPictureAllowed?.(g);
       const nexus = picture && nexusURLFrom(picture.key)?.game === picture.key;
       paintBanner(g, automatic && nexus && (bannerMode() & 1) ? want?.b : null);
@@ -1129,7 +1144,9 @@
     if (!id) return null;
     const known = creatorMap().get(scoped(id, contextOf(tab)));
     if (!known?.key && learn) fetchCreator(tab, id);
-    return known?.key ? known : null;
+    if (!known?.key) return null;
+    if (learn && !creatorMap().has(scoped(known.key, contextOf(tab)))) fetchPageName(tab, known.key, "channel");
+    return { ...known, key: subjectKey(known.key, contextOf(tab)) };
   }
 
   function presentable(tab) {
@@ -1306,7 +1323,7 @@
 
   const samePath = (a, b) =>
     a.length === b.length && a.every((s, i) => typeof b[i] === "object"
-      ? typeof s === "object" && s.key === b[i].key && s.ctx === b[i].ctx
+      ? typeof s === "object" && s.ctx === b[i].ctx && subjectKey(s.key, s.ctx) === subjectKey(b[i].key, b[i].ctx)
       : partLabel(s).toLowerCase() === partLabel(b[i]).toLowerCase());
 
   // DOM tabs include all workspaces and Essentials; gBrowser.tabs is a subset.
@@ -1344,8 +1361,24 @@
     !(chain.slice(want.length).some(p => typeof p === "object" && nexusURLFrom(p.key)?.author) &&
       chain.slice(want.length).every(p => typeof p === "object"));
 
-  function placedInPath(chain, want) {
-    if (startsWithPath(chain, want)) return true;
+  function duplicateChannelGroup(tab, want) {
+    const group = tab?.group, key = group?.getAttribute("data-zzrouter-subject");
+    if (!channelKey(key) || !group.hasAttribute("data-zzrouter-created") ||
+        window.Groupflow?.automaticPictureAllowed?.(group) === false ||
+        !want?.length || !samePath(chainOf(tab), want) ||
+        group.label?.trim().toLowerCase() !== partLabel(want.at(-1))?.toLowerCase()) return null;
+    const first = findChild(want.at(-1), parentOf(group), wsOfEl(group));
+    return first && first !== group && first.hasAttribute("data-zzrouter-created") &&
+      first.label?.trim().toLowerCase() === group.label.trim().toLowerCase() ? first : null;
+  }
+
+  function queueChannelDuplicates() {
+    if (!bool("enabled", false) || !bool("refile-mismatched", true)) return;
+    for (const tab of allTabs()) if (duplicateChannelGroup(tab, targetPath(tab, false))) queueRoute(tab, "channel identity");
+  }
+
+  function placedInPath(chain, want, tab) {
+    if (startsWithPath(chain, want)) return !duplicateChannelGroup(tab, want);
     let at = 0;
     while (at < chain.length && at < want.length && samePath([chain[at]], [want[at]])) at++;
     // Unowned subfolders below a matching prefix remain manual. Their labels
@@ -1371,7 +1404,7 @@
     if (cap > 0) parts = parts.slice(0, cap);
 
     const chain = chainOf(tab);
-    const filed = placedInPath(chain, parts);
+    const filed = placedInPath(chain, parts, tab);
 
     // ---- destination resolution, systemic and in strict order ----------
     // Workspace:  Zen space-routing rule  >  workspace already holding the
@@ -1801,7 +1834,7 @@
         const want = precomputedParts !== undefined ? precomputedParts : targetPath(tab);
         const have = chainOf(tab);
         if (want?.length && have.length) {
-          if (!placedInPath(have, want)) return null;
+          if (!placedInPath(have, want, tab)) return null;
           // The previous version could file a tab before changing its
           // container. Also repair that case without flattening subgroups.
           const ctx = bool("follow-containers", true) ? resolveDestination(tab, want).ctx : null;
@@ -2149,7 +2182,7 @@
     });
   } };
 
-  function pictureReady() { if (!retired) { stampIcons(); refreshPictures(); } }
+  function pictureReady() { if (!retired) { stampIcons(); refreshPictures(); queueChannelDuplicates(); } }
 
   function start() {
     Services.obs.addObserver(prefObserver, "zzrouter-cache-changed");
@@ -2365,7 +2398,7 @@
           if (why) { reasons[why] = (reasons[why] ?? 0) + 1; continue; }
           if (!parts?.length) { reasons["no rule"] = (reasons["no rule"] ?? 0) + 1; continue; }
           const have = chainOf(t);
-          if (!placedInPath(have, parts)) {
+          if (!placedInPath(have, parts, t)) {
             stalled.push({
               tab: t.label,
               host: hostOf(t),
@@ -2385,7 +2418,7 @@
         } catch {}
 
         const r = {
-          version: "1.37.7",
+          version: "1.37.8",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The

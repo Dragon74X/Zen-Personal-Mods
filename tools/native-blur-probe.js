@@ -8,7 +8,9 @@
     browser: Services.appinfo.version, platform: Services.appinfo.OS, cases: [], errors: [],
     limitations: 'Generated fixture only. Desktop GDI crops test presented pixels, not animation FPS. Native acrylic must be enabled before browser startup; its renderer startup latch is not observable here. Compare native-only against installed output, including transparent pages. A computed filter alone is not visual proof.' };
   const P = Services.prefs, doc = w.document, root = doc.documentElement;
-  const wait = ms => new Promise(resolve => w.setTimeout(resolve, ms));
+  // Window timers are canceled on close, which would strand global test prefs.
+  const clock = ChromeUtils.importESModule('resource://gre/modules/Timer.sys.mjs');
+  const wait = ms => new Promise(resolve => clock.setTimeout(resolve, ms));
   const read = fn => { try { return fn(); } catch (e) { return { error: String(e) }; } };
   const saved = new Map(), attributes = [];
   let stopped = '', task, worker, directory, fixture, originalTab, status, deadline;
@@ -35,7 +37,12 @@
   const abort = reason => { stopped ||= reason; };
   const guard = () => { if (stopped || w.closed) throw Error(stopped || 'window closed'); };
   const onSelect = () => { if (fixture && w.gBrowser.selectedTab !== fixture) abort('selected tab changed'); };
-  const onUnload = () => { abort('window closed'); try { if(worker?.isRunning)worker.kill(); } catch {} };
+  const onUnload = () => {
+    abort('window closed');
+    try { if(worker?.isRunning)worker.kill(); } catch {}
+    // Restore global prefs synchronously, even if this is the final window.
+    for(const [key] of saved)try { restorePref(key); } catch(e) { report.errors.push('Unload: '+String(e)); }
+  };
   const localFile = path => { const file = Cc['@mozilla.org/file/local;1'].createInstance(Ci.nsIFile); file.initWithPath(path); return file; };
   const api = { stop: async reason => { abort(reason || 'stopped by user'); await task; } };
   w.__zzNativeBlurProbe = api;
@@ -208,21 +215,27 @@ while ([DateTime]::UtcNow -lt $end -and !(Test-Path (Join-Path $Directory 'stop'
     }
   };
   const finish = async () => {
-    w.clearTimeout(deadline);
+    clock.clearTimeout(deadline);
     // Stop screen IO before restoring any user content. The worker also has
     // its own deadline and checks a stop file every request.
     if(directory)await IOUtils.writeUTF8(PathUtils.join(directory,'stop'),'stop').catch(()=>{});
-    if(worker?.isRunning)worker.kill();
+    if(worker?.isRunning) {
+      try { worker.kill(); } catch(e) {
+        // A natural exit can race its main-thread ProcessComplete notification.
+        for(let n=0;n<40 && worker.isRunning;n++)await wait(50);
+        if(worker.isRunning)throw e;
+      }
+    }
     if(worker?.isRunning)throw Error('Capture worker still running; fixture retained to protect user content');
     const clean = fn => { try { fn(); } catch(e) { report.errors.push('Cleanup: '+String(e)); } };
-    w.removeEventListener('TabSelect',onSelect); w.removeEventListener('unload',onUnload);
+    clean(()=>w.removeEventListener('TabSelect',onSelect)); clean(()=>w.removeEventListener('unload',onUnload));
     clean(()=>unSheet(phaseSheet)); clean(()=>unSheet(maskSheet)); clean(()=>status?.remove());
     for(const [key] of saved)clean(()=>restorePref(key));
     for(const [node,key,value] of attributes.reverse())clean(()=>{ if(value===null)node.removeAttribute(key);else node.setAttribute(key,value); });
-    if(fixture?.isConnected) {
+    clean(()=>{ if(fixture?.isConnected && !w.closed) {
       if(w.gBrowser.selectedTab===fixture && originalTab?.isConnected)w.gBrowser.selectedTab=originalTab;
       w.gBrowser.removeTab(fixture,{animate:false,skipPermitUnload:true});
-    }
+    } });
     report.finished=stopped||'completed'; report.ended=new Date().toISOString();
     if(directory) {
       report.directory=directory; report.archive=directory+'.zip';
@@ -235,14 +248,14 @@ while ([DateTime]::UtcNow -lt $end -and !(Test-Path (Join-Path $Directory 'stop'
       } finally { zip.close(); }
     }
   };
-  deadline=w.setTimeout(()=>abort('deadline reached'),150000);
+  deadline=clock.setTimeout(()=>abort('deadline reached'),150000);
   task=(async()=>{
     try { await run(); } catch(e) { stopped ||= 'error'; report.errors.push(String(e)); }
     try { await finish(); } catch(e) { report.errors.push('Cleanup/package: '+String(e)); }
     const text=JSON.stringify(report,null,2);
     console.log('[Native blur capture]',text);
     Cc['@mozilla.org/widget/clipboardhelper;1'].getService(Ci.nsIClipboardHelper).copyString(text);
-    if(w.__zzNativeBlurProbe===api)delete w.__zzNativeBlurProbe;
+    try { if(w.__zzNativeBlurProbe===api)delete w.__zzNativeBlurProbe; } catch {}
     return report;
   })();
   return task;

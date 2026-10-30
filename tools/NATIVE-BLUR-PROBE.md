@@ -44,7 +44,7 @@ pixel results. A Windows policy that blocks PowerShell can prevent capture.
 
 ## Evidence and limits
 
-- Node lifecycle checks exercise all 32 cases, cancellation, capture failure,
+- Node lifecycle checks exercise all 32 cases, cancellation, capture failure, window closure,
   unsupported OS and cleanup failure.
 - A disposable Linux Zen 1.24b test exercises actual chrome geometry, the same
   phases, preference/UI restoration and ZIP creation with a **simulated screen

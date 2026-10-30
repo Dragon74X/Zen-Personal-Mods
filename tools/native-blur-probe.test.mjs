@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import {test} from 'node:test';
 const source=await readFile(new URL('./native-blur-probe.js',import.meta.url),'utf8');
 
-async function run({failAt=0,cancelAt=0,platform='WINNT',cleanupFailure=false}={}) {
+async function run({failAt=0,cancelAt=0,closeAt=0,platform='WINNT',cleanupFailure=false}={}) {
   const prefs=new Map([['zen.theme.acrylic-sidebar',true],['zen.theme.acrylic-urlbar',false],['zzglass.sidebar.blur-transparent-pages',true]]);
   const initial=new Map(prefs), files=new Map(), registered=new Set(), events=new Map(), trace=[];
   const element=()=>{const attrs=new Map();return{style:{},isConnected:true,attrs,
@@ -18,7 +18,7 @@ async function run({failAt=0,cancelAt=0,platform='WINNT',cleanupFailure=false}={
     addTab(url){doc.title=decodeURIComponent(url).match(/<title>([^<]+)/)[1];fixture=element();return fixture;},
     removeTab(tab){trace.push('restore tab');tab.isConnected=false;}};
   const window={document:doc,gBrowser:browser,innerWidth:1000,innerHeight:800,devicePixelRatio:1,
-    setTimeout(fn,ms){if(ms<10000)queueMicrotask(fn);return ++timer;},clearTimeout(){},
+    setTimeout(){throw Error('Window timers cannot guarantee cleanup after close');},
     addEventListener:(k,fn)=>events.set(k,fn),removeEventListener:k=>events.delete(k),focus(){},
     matchMedia:()=>({matches:!!prefs.get('ui.prefersReducedTransparency')}),fetch:async()=>({json:async()=>({version:'test'})})};
   const worker={get isRunning(){return workerRunning;},init(){},runwAsync(){workerRunning=true;trace.push('worker start');},kill(){workerRunning=false;trace.push('worker stopped');}};
@@ -41,10 +41,12 @@ async function run({failAt=0,cancelAt=0,platform='WINNT',cleanupFailure=false}={
       const req=JSON.parse(text);
       response={id:req.id,error:req.id===failAt?'capture refused':null,files:[{name:'fixture.png'}]};
       if(req.id===cancelAt)void window.__zzNativeBlurProbe.stop('test cancellation');
+      if(req.id===closeAt){window.closed=true;events.get('unload')();assert.deepEqual(prefs,initial,'global prefs restore synchronously on window close');}
     }
   },readJSON:async()=>response,writeJSON:async(p,j)=>files.set(p,JSON.stringify(j)),getChildren:async()=>[]};
   window.getComputedStyle=node=>({backdropFilter:'none',filter:'none'});
-  const ctx=vm.createContext({Services,Cc,Ci:{},PathUtils:{tempDir:'/tmp',join:(...a)=>a.join('/'),filename:p=>p.split('/').at(-1)},IOUtils,
+  const clock={setTimeout(fn,ms){if(ms<10000)queueMicrotask(fn);return ++timer;},clearTimeout(){}};
+  const ctx=vm.createContext({Services,Cc,Ci:{},ChromeUtils:{importESModule:()=>clock},PathUtils:{tempDir:'/tmp',join:(...a)=>a.join('/'),filename:p=>p.split('/').at(-1)},IOUtils,
     console:{log(){}},getComputedStyle:window.getComputedStyle});
   const report=await vm.runInContext(source,ctx);
   return {report,prefs,initial,registered,trace,copied,events,window,root,fixture,files};
@@ -62,7 +64,7 @@ test('Blur probe automatically completes 32 cases and restores state before copy
   assert.equal(JSON.parse(e.copied).cases.length,32);
   assert.equal(e.window.__zzNativeBlurProbe,undefined);
 });
-for(const options of [{failAt:3},{cancelAt:2},{platform:'Linux'},{cleanupFailure:true}])test('Blur probe failure/cancel cleanup '+JSON.stringify(options),async()=>{
+for(const options of [{failAt:3},{cancelAt:2},{closeAt:2},{platform:'Linux'},{cleanupFailure:true}])test('Blur probe failure/cancel cleanup '+JSON.stringify(options),async()=>{
   const e=await run(options);
   assert.deepEqual(e.prefs,e.initial);assert.equal(e.registered.size,0);assert.equal(e.root.attrs.size,0);assert.equal(e.events.size,0);
   if(!options.cleanupFailure)assert.ok(e.report.finished!=='completed');assert.ok(e.report.errors.length);

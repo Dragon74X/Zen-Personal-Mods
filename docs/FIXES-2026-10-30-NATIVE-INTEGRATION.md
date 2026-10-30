@@ -43,20 +43,20 @@ see [Mozilla's CSS guidance](https://github.com/mozilla-firefox/firefox/blob/mai
 
 ## Verification
 
-- Repository gate with upstream Sine manager: **249 passed, 0 failed, 1 optional native entry skipped**; native checks ran separately.
+- Repository gate with upstream Sine manager: **250 passed, 0 failed, 1 optional native entry skipped**; native checks ran separately.
 - Native Zen 1.24b integration: code-only preload without Library construction;
   explicit SessionStore scope; native Paste & Search labels and clipboard preview
   via synthetic mouse events; reduced-transparency sidebar/overlay/caption checks;
   selected-tab indicator with open/collapsed groups on both sides and native Off;
   contrast token/card checks. Headless screenshot reviewed for visible sidebar
   text. This is not a complete Windows high-contrast theme/menus rendering matrix.
-- Native routing/session runner initially exposed a restored unloaded pin with stale `visuallyselected` bypassing last-used Off. A focused regression reproduced it; the visibility owner was corrected and the full runner repeated. The editor check now waits for the native popup-open state instead of assuming its animation ends within 100ms.
+- Native routing/session runner initially exposed a restored unloaded pin with stale `visuallyselected` bypassing last-used Off. A focused regression reproduced it; the visibility owner was corrected and all three launches of the full runner passed after correction (140 / 89 / 89 boolean checks). Popup and shape checks now await the required native state rather than assuming settling within 50–100ms.
 - Native Mediaflow actor/playback + WebDriver: hover growth, six original glyph
   paints, four hover timings, eight seeks, focus/keyboard/canvas navigation, and
   diagnostic capture of delivered presses, commands and misses all passed.
 - Automatic blur orchestration: 32 real Zen chrome phases, state restoration and
-  ZIP output passed using a simulated screen backend; Node failure/cancellation
-  coverage passed. Windows PowerShell/GDI execution remains unverified here.
+  ZIP output passed using a simulated screen backend; Node failure/cancellation/window-close
+  coverage passed; global preferences restore synchronously on window unload. Windows PowerShell/GDI execution remains unverified here.
 - Remaining coverage: selected-tab indicator inside independently scrolled nested
   folder bodies and Library copies; complete Windows accessibility palettes;
   Windows presented blur pixels; stock-vs-Turbo workload benchmarking. No blanket

@@ -993,7 +993,7 @@ def check_native_integration(m, root):
     probe = probe.replace("Services.appinfo.OS !== 'WINNT'", 'false')
     probe = probe.replace("const shell = PathUtils.join(Services.dirsvc.get('WinD',Ci.nsIFile).path,'System32','WindowsPowerShell','v1.0','powershell.exe');", "const shell = 'test-worker';")
     probe = probe.replace("worker = Cc['@mozilla.org/process/util;1'].createInstance(Ci.nsIProcess); worker.init(localFile(shell));", "worker = {isRunning:false,runwAsync(){this.isRunning=true;},kill(){this.isRunning=false;}};")
-    probe = probe.replace('        let response;', "        await IOUtils.writeJSON(PathUtils.join(directory,'response.json'),{id,files:[],simulated:true});\n        let response;")
+    probe = probe.replace('        let response;', "        await IOUtils.writeJSON(responsePath,{id,files:[],simulated:true});\n        let response;")
     m.sock.settimeout(180)
     m.call('WebDriver:SetTimeouts', {'script':180000})
     capture = m.script('return (\n'+probe.rstrip().removesuffix(';')+'\n);')
@@ -1066,6 +1066,8 @@ def check_probe_loader(m, root):
         assert isinstance(before, str) and 'CSP' in before and 'EvalError' in before, before
         initial = temp_files()
         result = {'oldLoaderBlocked': before, 'cases': []}
+        result['missingReplyError'] = m.script("return IOUtils.readJSON(PathUtils.join(PathUtils.tempDir,Services.uuid.generateUUID().toString())).then(()=>null,e=>e.name);")
+        assert result['missingReplyError'] == 'NotFoundError', result
         for path in ['/success.js', '/download-error.js', '/syntax-error.js', '/native-blur-probe.js']:
             code = loader.replace(url, f'http://127.0.0.1:{server.server_port}{path}')
             value = evaluate(code)
@@ -1074,7 +1076,7 @@ def check_probe_loader(m, root):
             else:
                 report = clipboard()
                 if path == '/native-blur-probe.js':
-                    assert report['probe'] == 'native-blur-v2' and report['cases'] == [], report
+                    assert report['probe'] == 'native-blur-v3' and report['cases'] == [], report
                     assert report['finished'] == 'error' and len(report['errors']) == 1, report
                     assert any(s in report['errors'][0] for s in ['requires Windows', 'Enable native Zen acrylic']), report
                     assert m.script('return !window.__zzNativeBlurProbe;'), 'Probe lifecycle did not finish'

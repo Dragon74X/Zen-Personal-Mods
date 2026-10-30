@@ -43,7 +43,7 @@ for(const failure of [null,'fetch','http','write','compile','run','remove'])test
   if(['fetch','http'].includes(failure))assert.deepEqual(trace,[],'failed download never creates or executes a file');
 });
 
-async function run({failAt=0,cancelAt=0,closeAt=0,platform='WINNT',cleanupFailure=false,fatalWorker=false}={}) {
+async function run({failAt=0,cancelAt=0,closeAt=0,platform='WINNT',cleanupFailure=false,fatalWorker=false,badReply=false,readFailure=false}={}) {
   const prefs=new Map([['zen.theme.acrylic-sidebar',true],['zen.theme.acrylic-urlbar',false],['zzglass.sidebar.blur-transparent-pages',true]]);
   const initial=new Map(prefs), files=new Map(), registered=new Set(), events=new Map(), trace=[];
   const element=()=>{const attrs=new Map();return{style:{},isConnected:true,attrs,
@@ -74,16 +74,26 @@ async function run({failAt=0,cancelAt=0,closeAt=0,platform='WINNT',cleanupFailur
   const zip={open(){trace.push('zip');},addEntryFile(){},close(){}};
   const Cc=new Proxy({}, {get:(_t,k)=>({getService:()=>k.includes('style-sheet')?sheet:k.includes('clipboard')?{copyString:s=>copied=s}:gfx,
     createInstance:()=>k.includes('process')?worker:k.includes('zipwriter')?zip:{initWithPath(){}}})});
-  const IOUtils={makeDirectory:async()=>{},writeUTF8:async(path,text)=>{
+  const IOUtils={makeDirectory:async()=>{},writeUTF8:async(path,text,options)=>{
+    assert.equal(files.has(path),false,'Messages must never overwrite a reader-held file');
     files.set(path,text);
-    if(path.endsWith('request.json')) {
+    if(/\/request-\d{2}\.json$/.test(path)) {
       const req=JSON.parse(text);
-      response={id:req.id,error:req.id===failAt?'capture refused':null,files:[{name:'fixture.png'}]};
+      assert.equal(path.split('/').at(-1),'request-'+String(req.id).padStart(2,'0')+'.json');
+      assert.equal(options.tmpPath,path.replace(/\.json$/,'.tmp'));
+      response={id:badReply?999:req.id,error:req.id===failAt?'capture refused':null,files:[{name:'fixture.png'}]};
       if(fatalWorker){workerRunning=false;response=undefined;}
       if(req.id===cancelAt)void window.__zzNativeBlurProbe.stop('test cancellation');
       if(req.id===closeAt){window.closed=true;events.get('unload')();assert.deepEqual(prefs,initial,'global prefs restore synchronously on window close');}
     }
-  },readJSON:async path=>fatalWorker&&path.endsWith('fatal.json')?{error:'worker fixture failure',failure:{stage:'initialize',id:'fixture',line:4}}:response,
+  },readJSON:async path=>{
+      if(fatalWorker&&path.endsWith('fatal.json'))return {error:'worker fixture failure',failure:{stage:'initialize',id:'fixture',line:4}};
+      assert.match(path,/\/response-\d{2}\.json$/);
+      if(readFailure)throw Object.assign(Error('unreadable response fixture'),{name:'NotAllowedError'});
+      if(!response)throw Object.assign(Error('not published'),{name:'NotFoundError'});
+      if(!badReply)assert.equal(path.split('/').at(-1),'response-'+String(response.id).padStart(2,'0')+'.json');
+      return response;
+    },
     writeJSON:async(p,j)=>files.set(p,JSON.stringify(j)),getChildren:async()=>[]};
   window.getComputedStyle=node=>({backdropFilter:'none',filter:'none'});
   const clock={setTimeout(fn,ms){if(ms<10000)queueMicrotask(fn);return ++timer;},clearTimeout(){}};
@@ -104,12 +114,15 @@ test('Blur probe automatically completes 32 cases and restores state before copy
   assert.ok(e.trace.indexOf('worker stopped')<e.trace.indexOf('restore tab'));
   assert.equal(JSON.parse(e.copied).cases.length,32);
   assert.equal(e.window.__zzNativeBlurProbe,undefined);
+  assert.equal([...e.files.keys()].filter(p=>/\/request-\d{2}\.json$/.test(p)).length,32);
 });
-for(const options of [{failAt:3},{cancelAt:2},{closeAt:2},{platform:'Linux'},{cleanupFailure:true},{fatalWorker:true}])test('Blur probe failure/cancel cleanup '+JSON.stringify(options),async()=>{
+for(const options of [{failAt:3},{cancelAt:2},{closeAt:2},{platform:'Linux'},{cleanupFailure:true},{fatalWorker:true},{badReply:true},{readFailure:true}])test('Blur probe failure/cancel cleanup '+JSON.stringify(options),async()=>{
   const e=await run(options);
   assert.deepEqual(e.prefs,e.initial);assert.equal(e.registered.size,0);assert.equal(e.root.attrs.size,0);assert.equal(e.events.size,0);
   if(!options.cleanupFailure)assert.ok(e.report.finished!=='completed');assert.ok(e.report.errors.length);
   assert.ok(e.copied);assert.equal(e.window.__zzNativeBlurProbe,undefined);
   if(options.platform)assert.equal(e.files.size,0,'unsupported platform never starts screen capture');
   if(options.fatalWorker){assert.equal(e.report.workerFailure.failure.stage,'initialize');assert.equal(JSON.parse(e.copied).workerFailure.failure.line,4);}
+  if(options.badReply)assert.match(e.report.errors[0],/response id mismatch/);
+  if(options.readFailure)assert.match(e.report.errors[0],/unreadable response fixture/);
 });

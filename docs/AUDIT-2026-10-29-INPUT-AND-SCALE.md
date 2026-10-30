@@ -162,7 +162,7 @@ there and run separately. Native runner passes 268 checks, 40 scale cases and
 192 sprite-paint cases. Screen-capture mode passes all six cases. The confirmed
 attachment bug is fixed; remaining Windows workspace/Favorite jitter is open.
 
-## Automatic Windows comparison (v2)
+## Automatic Windows comparison (v3)
 
 The first Windows report had zero phases and `finished: manual`. Version 1
 required selection, F8, Begin and rating choices before collecting data. That
@@ -198,7 +198,7 @@ of remaining workspace/Favorite raster jitter remains open.
 Run the existing native check:
 
 ```sh
-python3 tools/zen-morph-smoke.py --zen /path/to/zen \
+MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1 python3 tools/zen-morph-smoke.py --zen /path/to/zen \
   --output /tmp/zen-hover-ab --probe-ab
 ```
 
@@ -231,3 +231,78 @@ Morph scales its 180ms wind-up and 600ms action by 0.7/0.45: **280ms and
 110.7 and 102.9 changes/second, below 240Hz. This is separate from continuous
 workspace/Favorite scale transitions. Labels now expose Circuit duration and
 Morph segment times; saved values and artwork/choreography are unchanged.
+
+## Windows v2 capture: center and container-fit hypothesis
+
+The next Windows capture completed 17 phases and 187 snapshots without reported
+errors, on **Zen 1.24b**. All ten installed metadata versions match the available
+versions. Metadata alone does not identify every cached runtime module.
+
+The three Current scaling cases contradict corner-origin or container-fit
+motion at the sampled times:
+
+| Target | Rest / hovered image width | Maximum center range, either axis | Maximum size error against rest size × computed scale |
+| --- | --- | --- | --- |
+| Workspace | 18 / 23.4px | 0.000107px | 0.00310px |
+| Pending Favorite | 20 / 26px | 0.008339px | 0.008281px |
+| Loaded Favorite | 20 / 26px | 0.008339px | 0.008281px |
+
+All sampled host boxes remain stationary. The inferred origins at the settled
+1.3 scale are 9px/9px for the workspace and 10px/10px for both Favorites: half
+the resting image dimensions. A top-left origin would shift these centers by
+2.7px or 3px. No layout-size correction appears in the measured image boxes.
+Across all 15 scaling comparisons, center range stays below 0.017px per axis.
+Running image scale/transform samples each have one compositor animation owner.
+This is sampled CSS/geometry evidence; it does not capture Windows pixels.
+
+The Favorite sources report 16×16 intrinsic dimensions, displayed at 20×20
+normally and 26×26 on hover (1.25× and 1.625× source size). Magnification can
+affect raster detail; it does not explain the 300×300 SVG workspace source.
+Crisp's 150ms curve completes about 93% of growth by the ~71ms hover samples.
+No production sizing, origin, timing or artwork is changed on that evidence.
+
+Across the whole report: 13,423 rAF intervals; 4.166ms median, 16.666ms maximum,
+six intervals above 8.4ms. These are main-thread intervals, not image frame
+delivery. The pending normal tab's close-button opacity passes through 0.9306
+and its content through 22.333px of its 24px displacement at ~71ms: interpolation
+is present in that sampled case. The loaded-tab target was at x=1326px; v2 did
+not verify ancestor clipping or hit-test visibility, so that target cannot
+establish behavior of a visible loaded tab.
+
+### Measurement corrections
+
+- The three 450ms phases returned no compositor intervals. Gecko's recorder has
+  a default 600-frame ring and returns an empty array after it is overwritten.
+  600 frames cover only 2.5 seconds at 240Hz; a 3.3-second phase can exceed it.
+  V3 drains at existing state checkpoints, at most 600ms scheduled per segment,
+  without changing preferences. Empty segments are explicitly unavailable.
+- V2 released press after 300ms, cancelling its own 450ms comparison three
+  times. V3 holds press for 600ms, as it already does for hover/release.
+- Sine uses `sine.auto-updates`, not `sine.auto-update`. Module presence belongs
+  to `Components.utils.isESModuleLoaded`, not `ChromeUtils.isESModuleLoaded`.
+  The old `loaded:false` result did not establish an absent updater. V3 reports
+  API availability separately and reads the shared loader without loading an
+  absent manager.
+- Target discovery now requires a center hit inside the host, excluding
+  clipped/covered slots despite nonzero bounding boxes. Geometry samples now
+  include layout width/height, transform origin/box and object fitting.
+
+Sources: [Gecko recorder limits](https://github.com/mozilla-firefox/firefox/blob/FIREFOX_159_0_RELEASE/dom/base/nsDOMWindowUtils.cpp),
+[ring behavior](https://github.com/mozilla-firefox/firefox/blob/FIREFOX_159_0_RELEASE/layout/painting/WindowRenderer.cpp),
+[module-presence API](https://github.com/mozilla-firefox/firefox/blob/FIREFOX_159_0_RELEASE/js/xpconnect/idl/xpccomponents.idl),
+and upstream Sine `src/core/utils.sys.mjs`.
+
+The existing native check now verifies centered scaling and fixed layout size,
+proportional rendered bounds, segmented capture, absence of probe-induced
+scale cancellations, clipped-target exclusion, and updater preference/API
+reads, alongside automatic capture and restoration. Its cancellation check
+waits for the actual 450ms override instead of assuming it from elapsed time.
+Zen 1.24b requires `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1` for this disposable-profile
+test; its old command-line system-access flag alone is insufficient.
+
+Validation: Zen 1.24b completed all 17 phases, 187 snapshots and 153 timing
+segments; maximum segment 602.64ms, maximum image-center range 0.016694px.
+Clipping exclusion, prior locks, saved preferences, selection, automatic
+clipboard and cancellation during an observed override passed. The Node gate
+passed 237 tests, zero failed, one optional native entry skipped there. These
+native results use Linux rendering, not the user's Windows output.

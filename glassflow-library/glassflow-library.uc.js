@@ -377,6 +377,9 @@
   // and up to date, until the Library is first opened and closed, as Zen
   // keeps it for 30 seconds after any close); 1 only loads the code and
   // stylesheet; 0 leaves it to Zen.
+  // ponytail: native entry import upgrades the Library element and starts its
+  // observers. Keep this bounded list for code-only warming until Zen exports
+  // a side-effect-free preload/section registry; review it on Zen releases.
   const SECTIONS = ["History", "Downloads", "Boosts", "Media", "Spaces"];
   let warmTimer = null, warmIdle = null, preload = null, warmDue = false;
   function warmLibrary() {
@@ -392,6 +395,8 @@
         return;
       }
       for (const name of SECTIONS) load(`moz-src:///zen/library/sections/ZenLibrary${name}Section.mjs`);
+      if (Services.vc.compare(Services.appinfo.version, "1.24b") >= 0)
+        load("moz-src:///zen/library/sections/ZenLibrarySpaceRoutingSection.mjs");
       preload = document.createElementNS("http://www.w3.org/1999/xhtml", "link");
       Object.assign(preload, { rel: "preload", as: "style", href: "chrome://browser/content/zen-styles/zen-library.css" });
       document.documentElement.appendChild(preload);

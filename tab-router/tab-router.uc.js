@@ -782,6 +782,7 @@
     } catch {}
   }
   function captureNexus(tab, source = null) {
+    if (nativeManaged(tab)) return;
     const nx = nexusURL(tab), prior = savedNexus(tab);
     if (!nx) {
       if (tab.linkedBrowser?.currentURI?.spec === "about:blank" && (source || prior?.initial)) {
@@ -1096,7 +1097,7 @@
     let removed = false;
     for (const g of targets) {
       let picture = null;
-      if (on && parentOf(g)) {
+      if (on && !nativeManaged(g) && parentOf(g)) {
         const key = g.getAttribute("data-zzrouter-picture"), ctx = g.getAttribute("data-zzrouter-context");
         if (key && /^https:\/\//.test(key) && /^\d+$/.test(ctx || "")) picture = { key, ctx: Number(ctx) };
         else if (!g.hasAttribute("data-zzrouter-subject")) {
@@ -1133,6 +1134,7 @@
   }
 
   function pictureSubject(tab, learn = true) {
+    if (nativeManaged(tab)) return null;
     const nx = nexusURL(tab);
     if (nx) return nexusGame(tab, learn);
     const channel = channelRecord(tab);
@@ -1151,6 +1153,14 @@
 
   function presentable(tab) {
     return tab?.isConnected && !tab.closing && !tab.closest?.("zen-library") && !heldElsewhere(tab);
+  }
+  // Live Folder providers own placement and artwork, regardless of the user's
+  // ordinary pinned/grouped routing choices. Also cover items during reparenting.
+  function nativeManaged(tab) {
+    if (tab?.hasAttribute("zen-live-folder-item-id")) return true;
+    let group = ["tab-group", "zen-folder"].includes(tab?.tagName) ? tab : tab?.group;
+    for (; group; group = parentOf(group)) if (group.isLiveFolder) return true;
+    return false;
   }
   function updatePicture(tab, learn = true) {
     if (!presentable(tab)) return;
@@ -1263,7 +1273,7 @@
     // are positional artifacts. Leave both alone.
     // Zen's library holds clones of every strip; never file into those.
     groupsCache = [...document.querySelectorAll("tab-group:not(zen-library *)")].filter(g =>
-      !g.isZenFolder && !g.hasAttribute("split-view-group") && live(g));
+      !g.isZenFolder && !nativeManaged(g) && !g.hasAttribute("split-view-group") && live(g));
     return groupsCache;
   }
 
@@ -1593,6 +1603,7 @@
   const canCreateGroups = () => bool("create-groups", true) && typeof gBrowser.addTabGroup === "function";
 
   function file(tab, parts) {
+    if (nativeManaged(tab)) return false;
     const ws = wsOf(tab) || window.gZenWorkspaces?.activeWorkspace || null;
 
     // Deepest existing prefix of the path, root level scoped to the workspace.
@@ -1813,6 +1824,7 @@
 
   function skip(tab, precomputedParts) {
     if (!tab || !tab.isConnected || tab.closing) return "gone";
+    if (nativeManaged(tab)) return "live folder";
     if (placementLocked(tab)) return "placement locked";
     if (heldElsewhere(tab)) return "held by another window";
     if (tab.hasAttribute("zen-glance-tab")) return "glance";
@@ -1984,7 +1996,11 @@
       if (source && presentable(source)) captureNexus(source);
       captureNexus(tab, source);
     }
-    if (event.type === "TabGrouped" || event.type === "TabUngrouped") { captureNexus(tab); return; }
+    if (event.type === "TabGrouped" || event.type === "TabUngrouped") {
+      captureNexus(tab);
+      updatePicture(tab, false);
+      return;
+    }
     if (event.type === "ZenTabIconChanged") updatePicture(tab, false);
     else queueRoute(tab, event.type);
   }
@@ -2082,7 +2098,7 @@
     log = [];
   }
 
-  const liveScope = scope => !retired && !!scope?.isConnected && !scope.closing && !scope.closest?.("zen-library") &&
+  const liveScope = scope => !retired && !!scope?.isConnected && !scope.closing && !scope.closest?.("zen-library") && !nativeManaged(scope) &&
     (scope.matches?.("tab-group:not([split-view-group]), zen-folder") || !!scope.linkedBrowser && gBrowser.getTabForBrowser(scope.linkedBrowser) === scope);
   function refreshSubject(scope) {
     if (!liveScope(scope) || isPrivate()) return null;
@@ -2418,7 +2434,7 @@
         } catch {}
 
         const r = {
-          version: "1.37.8",
+          version: "1.37.9",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The

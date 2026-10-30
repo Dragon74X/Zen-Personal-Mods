@@ -1134,10 +1134,14 @@ test("Groupflow keeps last-used tabs by default and preserves explicit false", a
   e.prefs.delete("zzgroup.collapse-keep-last-used");
   root.collapsed = child.collapsed = true;
   const loaded = new e.Tab(child, 10), last = new e.Tab(child, 30, true);
+  last.setAttribute("visuallyselected", "true"); // native restored pin may retain its old paint state
   const cleanup = e.h.startCollapsedVisibility();
   assert.deepEqual([loaded.visible, last.visible], [true, true]);
   e.prefs.set("zzgroup.collapse-keep-last-used", false); e.changed(last); e.flush();
   assert.equal(last.visible, false, "explicit false stays off");
+  assert.equal(last.hasAttribute("visuallyselected"), true, "native paint state remains native-owned");
+  last.setAttribute("selected", "true"); e.w.fire("TabSelect", {target:last}); e.flush();
+  assert.equal(last.visible, true, "actual selection still keeps a pending row");
   cleanup();
 });
 
@@ -1396,7 +1400,12 @@ test("Groupflow skips metadata work on collapse and reuses one scan for existing
       getCustomWindowValue: (_w, k) => stored.get(k) || "{}",
       setCustomWindowValue: (_w, k, v) => stored.set(k, v),
       getClosedTabGroups() { reads++; if (unavailable) throw new Error("Store unavailable"); return []; },
-      getSavedTabGroups() { reads++; return []; }, getClosedTabData() { reads++; return []; },
+      getSavedTabGroups() { reads++; return []; }, getClosedTabData(options) {
+        assert.equal(options.sourceWindow, w);
+        assert.equal(options.closedTabsFromAllWindows, false);
+        assert.equal(options.closedTabsFromClosedWindows, false);
+        reads++; return [];
+      },
     }, console: { error() {} },
   });
   const cleanup = h.startStandaloneGroups({});
@@ -1411,6 +1420,44 @@ test("Groupflow skips metadata work on collapse and reuses one scan for existing
   w.fire("FolderGrouped");
   for (const [id, fn] of [...c.timers]) { c.clearTimeout(id); fn(); }
   assert.equal(stored.get("tabGroupParents"), "previous", "unchanged metadata is not serialized, and ordinary membership events do not prune history");
+  cleanup();
+});
+
+test("Groupflow scopes closed history explicitly and retains metadata when the store is unavailable", async () => {
+  const c = clock(), w = browser(), stored = new Map([["tabGroupIcons", '{"undo":"saved","stale":"old"}']]);
+  let unavailable = false;
+  const errors = [], scopes = [];
+  const h = await load("groupflow", "startStandaloneGroups", { ...c, window: w,
+    document: { documentElement: element(), querySelectorAll: () => [] },
+    gBrowser: { createTabsForSessionRestore() {} },
+    Services: { prefs: { prefHasUserValue: () => true }, obs: { addObserver() {}, removeObserver() {} } },
+    SessionStore: {
+      getCustomWindowValue: (_w, k) => stored.get(k) || "{}",
+      setCustomWindowValue: (_w, k, v) => stored.set(k, v),
+      getClosedTabGroups(options) { scopes.push(options); return []; }, getSavedTabGroups: () => [],
+      getClosedTabData(options) {
+        assert.equal(options.sourceWindow, w, "passing Window to Object.assign reads throwing DOM getters");
+        scopes.push(options);
+        if (unavailable) throw new Error("Store unavailable");
+        return [{ state: { groupId: "undo" } }];
+      },
+    }, console: { error: (...args) => errors.push(args) },
+  });
+  const cleanup = h.startStandaloneGroups({});
+  assert.equal(errors.length, 0);
+  assert.deepEqual(JSON.parse(stored.get("tabGroupIcons")), { undo: "saved" });
+  assert.ok(scopes.length >= 2);
+  for (const options of scopes) {
+    assert.equal(options.sourceWindow, w);
+    assert.equal(options.closedTabsFromAllWindows, false);
+    assert.equal(options.closedTabsFromClosedWindows, false);
+  }
+  unavailable = true;
+  const before = new Map(stored);
+  w.fire("TabGroupRemoved");
+  for (const [id, fn] of [...c.timers]) { c.clearTimeout(id); fn(); }
+  assert.deepEqual(stored, before);
+  assert.equal(errors.length, 1);
   cleanup();
 });
 
@@ -1690,6 +1737,30 @@ test("Glassflow Library seeds unset defaults and writes its string prefs as vari
   assert.equal(prefs.get("zzlib.card.fill"), "70%");
   observers[0].observe(null, null, "zzlib.card.fill");
   assert.equal(style.get("--zzlib-card-fill"), "70%", "changes are written live");
+});
+
+test("Library code-only warming includes routing on 1.24 without constructing the Library", async () => {
+  const source = await readFile(new URL("../glassflow-library/glassflow-library.uc.js", import.meta.url), "utf8");
+  const warm = source.slice(source.indexOf('  const SECTIONS ='), source.indexOf('  const warmReady ='));
+  for (const modern of [false, true]) {
+    const imports = [], links = [], instance = {}, window = { instance };
+    const ctx = vm.createContext({ window, instance, INSTANCE_KEY: 'instance',
+      gBrowser: { selectedTab: { hasAttribute: () => false } },
+      pref: (name, fallback) => name === 'zzlib.warm' ? 1 : fallback,
+      libraryNode: () => null, Library: () => { throw Error('Library constructor touched'); },
+      Services: { appinfo: { version: modern ? '1.24b' : '1.23.4b' }, vc: { compare: () => modern ? 0 : -1 } },
+      ChromeUtils: { importESModule: url => { imports.push(url); if(url.endsWith('/ZenLibrary.mjs'))throw Error('Native entry constructs observers'); } },
+      document: { createElementNS: () => ({}), documentElement: { appendChild: link => links.push(link) } },
+      console: { error: error => { throw error; } },
+    });
+    vm.runInContext(warm+'warmLibrary();', ctx);
+    assert.equal(imports.length, modern ? 6 : 5);
+    assert.equal(imports.some(url => url.includes('SpaceRouting')), modern);
+    assert.equal(links.length, 1);
+    window.instance = {}; // retired while its idle callback was queued
+    vm.runInContext('warmLibrary();', ctx);
+    assert.equal(imports.length, modern ? 6 : 5);
+  }
 });
 
 // A preference store with Firefox's typed API, for the other-mods switches.

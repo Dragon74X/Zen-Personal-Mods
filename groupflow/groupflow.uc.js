@@ -776,9 +776,9 @@
     function pruneClosedState(groups) {
       // Retain metadata while Firefox can undo the close, including descendants
       // of a closed parent. Never prune against an unavailable closed-tabs store.
-      const closed = [...SessionStore.getClosedTabGroups({ sourceWindow: window,
-        closedTabsFromAllWindows: false, closedTabsFromClosedWindows: false }), ...SessionStore.getSavedTabGroups()];
-      const closedTabs = SessionStore.getClosedTabData(window);
+      const scope = { sourceWindow: window, closedTabsFromAllWindows: false, closedTabsFromClosedWindows: false };
+      const closed = [...SessionStore.getClosedTabGroups(scope), ...SessionStore.getSavedTabGroups()];
+      const closedTabs = SessionStore.getClosedTabData(scope);
       if (!Array.isArray(closedTabs) || closed.some(g => !g || typeof g.id !== "string" || !Array.isArray(g.tabs)) ||
           closedTabs.some(t => !t || !t.state)) throw new Error("Unavailable closed history");
       const retained = new Set(closed.map(group => group.id));
@@ -979,8 +979,10 @@
         lastTabs.set(group, last);
         if (last && keepLast) retained.add(last);
       }
+      // Zen may leave visuallyselected on a restored, unloaded pin. It is
+      // native paint state, not an additional selection/retention authority.
       const shown = new Set(tabs.filter(tab => open(tab) && !tab.hidden && tab.group &&
-        (retained.has(tab) || tab.selected || tab.multiselected || tab.hasAttribute("visuallyselected") ||
+        (retained.has(tab) || tab.selected || tab.multiselected ||
           (!tab.hasAttribute("pending") && !tab.hasAttribute("discarded")))));
       for (const tab of shown) {
         if (tab.group.hasAttribute("split-view-group")) {
@@ -1033,11 +1035,11 @@
       // Selection attributes are changed by the same native selection path.
       // Reuse its affected tabs; no membership scan on this observer either.
       for (const record of relevant) affected.add(record.target);
-      changed({ type: relevant.some(r => !["multiselected", "visuallyselected"].includes(r.attributeName)) ? "state" : "TabSelect",
+      changed({ type: relevant.some(r => r.attributeName !== "multiselected") ? "state" : "TabSelect",
         target: gBrowser.selectedTab });
     });
     observer.observe(gBrowser.tabContainer, { subtree: true, attributes: true,
-      attributeFilter: ["pending", "discarded", "hidden", "multiselected", "visuallyselected"] });
+      attributeFilter: ["pending", "discarded", "hidden", "multiselected"] });
     sync();
     return () => {
       retired = true;

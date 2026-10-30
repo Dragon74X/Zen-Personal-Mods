@@ -922,7 +922,9 @@ def check(m, root, atg, port, first):
           const refreshedColour=getComputedStyle(root).getPropertyValue('--tab-group-color').trim();
           const gradient=getComputedStyle(child.labelContainerElement).backgroundImage;
           child.labelContainerElement.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,button:2}));
-          await pause(100);
+          // Native popup opening is asynchronous and can exceed 100ms during
+          // session restoration. Wait for the required state, not a frame budget.
+          await until(()=>gBrowser.tabGroupMenu.activeGroup===child && gBrowser.tabGroupMenu.panel.state==='open');
           const editor=gBrowser.tabGroupMenu.activeGroup===child && gBrowser.tabGroupMenu.panel.state==='open';
           gBrowser.tabGroupMenu.close();
           // A cancelled native close must retain tabs and all saved state.

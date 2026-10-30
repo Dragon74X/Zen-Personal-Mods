@@ -72,7 +72,7 @@
 
 /* ---- New tab button (was Better New Tab button) ------------------------- */
 @media (-moz-pref("zzicon.newtab.hide-label")) {
-  #tabs-newtab-button .toolbarbutton-text { display: none !important; }
+  #tabs-newtab-button:not([zen-paste-and-search]) .toolbarbutton-text { display: none !important; }
 }
 @media (-moz-pref("zzicon.newtab.press")) and (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) {
   #tabs-newtab-button:not([zzicon-motion-host]) { transition: scale 0.1s ease-out !important; }

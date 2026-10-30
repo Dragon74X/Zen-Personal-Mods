@@ -24,6 +24,15 @@ zen-library .zen-library-space {
   &::before { opacity: var(--zzlib-card-gradient, 1); }
 }
 
+@media (prefers-reduced-transparency: reduce), (forced-colors), (prefers-contrast) {
+  zen-library .zen-library-space, zen-library[zzlib-float] {
+    background: Canvas !important;
+    color: CanvasText !important;
+  }
+  zen-library .zen-library-space::before,
+  zen-library .zen-library-space::after { display: none !important; }
+}
+
 zen-library .zen-library-space-header {
   font-size: var(--zzlib-card-title-size, 13px) !important;
 }

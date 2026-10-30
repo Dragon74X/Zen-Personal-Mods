@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.8.9
+// @version        2.8.10
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==
@@ -17,7 +17,7 @@
   const LOG_PREFIX = "[Mediaflow]";
   // Gecko caches actor modules across unregister/re-register. Bump with actor
   // changes so Sine updates load replacement code without a browser restart.
-  const ACTOR_VERSION = "2.8.9";
+  const ACTOR_VERSION = "2.8.10";
   const CAPTIONS_PREF = "zzmedia.preview.captions";
   const CAPTIONS_WHEN_PIP_HIDDEN_PREF =
     "zzmedia.preview.captions-when-hidden";
@@ -711,7 +711,7 @@
       keep();
       // Zen checks the sidebar a moment after the pointer left it and starts
       // its hide countdown then; cancel that one too.
-      holdTimer = setTimeout(() => { if (pipContainer.matches(":hover, :focus-within")) keep(); }, (cm.HOVER_HACK_DELAY || 0) + 40);
+      holdTimer = setTimeout(() => { if (preview.phase !== "rest") keep(); }, (cm.HOVER_HACK_DELAY || 0) + 40);
     } else if (!side.matches(":hover") && !sidebarAway()) {
       const ms = safe(() => Services.prefs.getIntPref("zen.view.compact.sidebar-keep-hover.duration", 0)) ?? 0;
       safe(() => cm.flashElement(side, ms, id, "zen-has-hover"));
@@ -761,9 +761,10 @@
     preview.bottom ??= previewBounds().bottom;
     if (preview.phase !== "held") previewPhase("waiting");
   });
-  on(pipContainer, "mouseleave", () => {
-    if (pipContainer.matches(":focus-within")) holdPreview();
-    else resetPreview();
+  on(pipContainer, "mouseleave", event => {
+    // Clicking a button leaves DOM focus behind. That is not pointer hover:
+    // only an unfinished press/drag may keep its target fixed after exit.
+    if (preview.phase !== "held" || !(event.buttons & 1)) resetPreview();
   });
   function holdPreview() {
     if (preview.phase === "held") return;
@@ -774,8 +775,8 @@
     syncPosition();
   }
   on(pipContainer, "focusin", holdPreview);
-  function releasePreview() {
-    if (pipContainer.matches(":focus-within") || controls.matches(":hover")) return;
+  function releasePreview(event) {
+    if (preview.phase === "rest" || (event?.buttons & 1) || controls.matches(":hover")) return;
     if (!pipContainer.matches(":hover")) resetPreview();
     else previewPhase(performance.now() >= preview.enteredAt + hoverDelay * 1000 ? "grown" : "waiting");
   }
@@ -783,6 +784,8 @@
     if (pipContainer.contains(e.relatedTarget)) return;
     releasePreview();
   });
+  on(window, "pointerup", releasePreview, true);
+  on(window, "pointercancel", () => { if (preview.phase === "held") resetPreview(); }, true);
   on(pipContainer, "click", event => {
     if (!clickToTab() || event.button !== 0) return;
     const browser = safe(() => sourceBC?.top?.embedderElement);
@@ -802,6 +805,7 @@
   // Hover continues the same growth over canvas and controls. Freeze only on
   // press/focus, so moving across a button cannot strand an intermediate size.
   on(controls, "pointerdown", holdPreview);
+  on(controls, "keydown", holdPreview);
   on(controls, "mouseleave", releasePreview);
   const control = (cls, label, act) => {
     const b = document.createElement("button");

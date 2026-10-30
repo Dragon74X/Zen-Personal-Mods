@@ -212,7 +212,15 @@ test("Mediaflow interaction owns one delay, layout anchor and held rectangle", (
   overControls=false;env.releasePreview();assert.equal(preview.phase,"waiting");
   assert.equal([...timers.values()][0].ms,210,"resume uses the original entry deadline");
   now=310;const timer=[...timers.values()][0];timer.fn();assert.equal(preview.phase,"grown");assert.equal(timers.size,0);
-  focus=true;handlers.get("mouseleave")();assert.equal(preview.phase,"held","keyboard focus keeps controls fixed");
+  focus=true;handlers.get("mouseleave")({buttons:0});
+  assert.equal(preview.phase,"rest","leaving the preview releases mouse-acquired focus without blurring the control");
+  assert.equal(focus,true);
+  handlers.get("mouseenter")();assert.equal(preview.phase,"waiting","re-entry starts growth despite retained DOM focus");
+  env.holdPreview();handlers.get("mouseleave")({buttons:1});
+  assert.equal(preview.phase,"held","an unfinished press/drag keeps its target until release");
+  hover=false;handlers.get("pointerup")({buttons:0});assert.equal(preview.phase,"rest");
+  handlers.get("focusin")();assert.equal(preview.phase,"held","keyboard focus can hold controls without pointer hover");
+  handlers.get("pointercancel")();assert.equal(preview.phase,"rest","cancelled input releases captured geometry");
   focus=false;hover=false;env.releasePreview();
   assert.equal(preview.phase,"rest");assert.equal(preview.bottom,null);assert.equal(preview.bounds,null);
   hover=true;handlers.get("mouseenter")();env.resetPreview();

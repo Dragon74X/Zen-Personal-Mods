@@ -262,6 +262,8 @@ def check_sidebar_hover(m):
     from threading import Thread
     class Page(BaseHTTPRequestHandler):
         def do_GET(self):
+            if self.path.startswith('/load-'):
+                time.sleep(.2)
             fill = 'white' if self.path == '/opaque' else 'transparent'
             html = f'''<!doctype html><style>html,body{{margin:0;background:{fill}}}
               #pattern{{position:fixed;inset:0;background:repeating-linear-gradient(90deg,black 0 4px,transparent 4px 8px)}}
@@ -281,6 +283,34 @@ def check_sidebar_hover(m):
           await Promise.all(box.getAnimations().map(a=>a.finished.catch(()=>{})));return true;
         })();""")
     try:
+        # Navigate the current tab while its sidebar stays open. The late
+        # transparency change models a theme applying to the loaded document;
+        # the real top-level load callback must refresh both blur paths.
+        for compatibility in [False, True]:
+            m.script("document.documentElement.setAttribute('zzsmoke-opaque','');Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',"+json.dumps(compatibility)+");return true;")
+            hover(True)
+            url=f'http://127.0.0.1:{server.server_port}/load-{compatibility}'
+            loaded=m.script("""return (async()=>{
+              const browser=gBrowser.selectedBrowser, tab=gBrowser.selectedTab, toolbox=document.getElementById('navigator-toolbox');
+              let timer, finish, done=false, redraws=0;
+              const mo=new MutationObserver(()=>{if(done && toolbox.hasAttribute('zzg-redraw'))redraws++;});
+              mo.observe(toolbox,{attributes:true,attributeFilter:['zzg-redraw']});
+              const progress={onStateChange(b,wp,_r,flags){const W=Ci.nsIWebProgressListener;
+                if(b!==browser || !wp?.isTopLevel || !(flags&W.STATE_STOP) || !(flags&W.STATE_IS_NETWORK))return;
+                document.documentElement.removeAttribute('zzsmoke-opaque');done=true;finish();
+              }};
+              gBrowser.addTabsProgressListener(progress);
+              try {
+                await new Promise((resolve,reject)=>{finish=resolve;timer=setTimeout(()=>reject(Error('Load did not finish')),8000);
+                  browser.loadURI(Services.io.newURI("""+json.dumps(url)+"""),{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal()});});
+                for(let n=0;n<4;n++)await new Promise(r=>requestAnimationFrame(r));
+                return {redraws,sameTab:gBrowser.selectedTab===tab,open:toolbox.hasAttribute('zen-has-hover'),
+                  background:getComputedStyle(browser).backgroundColor,filter:document.getElementById('tabbrowser-tabbox').style.filter};
+              } finally {clearTimeout(timer);mo.disconnect();gBrowser.removeTabsProgressListener(progress);}
+            })();""")
+            assert loaded['sameTab'] and loaded['open'] and loaded['redraws']>0,loaded
+            assert ('zzg-strip' in loaded['filter'])==compatibility,loaded
+            checks.append({'page':'loaded-with-open-sidebar','compatibility':compatibility,**loaded})
         for name,url in [('transparent',f'http://127.0.0.1:{server.server_port}/transparent'),('opaque',f'http://127.0.0.1:{server.server_port}/opaque'),('settings','about:preferences')]:
             m.script('gBrowser.selectedTab=gBrowser.addTab('+json.dumps(url)+',{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});return true;')
             time.sleep(.8)

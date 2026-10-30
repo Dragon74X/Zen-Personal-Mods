@@ -333,7 +333,85 @@
     }
   }
 
-  // One retargetable animation on the existing title; selection is never delayed.
+  // Keep the image's layout origin on the device-pixel grid before scaling.
+  // Fractional layout placement can change raster placement at compositor
+  // handoff even when the CSS center stays fixed. Translated layers do not fix
+  // that: align layout once, then leave every animation frame to CSS.
+  function iconAlignment() {
+    const selector = "#zen-workspaces-button img.zen-workspace-icon, .tabbrowser-tab[zen-essential='true'] .tab-icon-image";
+    const toolbox = document.getElementById("navigator-toolbox");
+    const owned = new Map(), abort = new AbortController();
+    let frame = 0;
+    const clear = image => {
+      image.style.removeProperty("--zzg-icon-pixel-x");
+      image.style.removeProperty("--zzg-icon-pixel-y");
+      resize.unobserve(image); owned.delete(image);
+    };
+    function update() {
+      frame = 0;
+      // Its translated screen coordinates are transient while compact mode
+      // slides the sidebar. Align at the endpoint, including its first reveal.
+      if (toolbox?.getAnimations().some(a => a.transitionProperty === "translate" && a.playState === "running")) return;
+      const keep = new Set(), writes = [], dpr = window.devicePixelRatio || 1;
+      for (const image of document.querySelectorAll(selector)) {
+        const style = getComputedStyle(image), kind = style.getPropertyValue("--zzg-icon-align").trim();
+        if (kind !== "workspace" && kind !== "favorite") continue;
+        keep.add(image);
+        const box = image.getBoundingClientRect();
+        if (!box.width || !box.height || box.right <= 0 || box.bottom <= 0 || box.left >= innerWidth || box.top >= innerHeight) continue;
+        const factor = kind === "workspace" ? 2 : 1;
+        const old = owned.get(image) || {
+          x: (parseFloat(style.getPropertyValue("--zzg-icon-pixel-x")) || 0) / factor,
+          y: (parseFloat(style.getPropertyValue("--zzg-icon-pixel-y")) || 0) / factor,
+        };
+        const align = (center, size, offset) => {
+          const raw = center - offset, phase = Math.round(size * dpr) % 2 / 2;
+          return Math.round(((Math.round(raw * dpr - phase) + phase) / dpr - raw) * 60) / 60;
+        };
+        const x = align(box.x + box.width / 2, parseFloat(style.width), old.x);
+        const y = align(box.y + box.height / 2, parseFloat(style.height), old.y);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+        if (!owned.has(image) || Math.abs(x - old.x) > 1 / 60 || Math.abs(y - old.y) > 1 / 60)
+          writes.push({ image, kind, x, y });
+      }
+      for (const image of owned.keys()) if (!keep.has(image)) clear(image);
+      // Batch reads above; only layout changes write, never hover/press frames.
+      for (const { image, kind, x, y } of writes) {
+        const factor = kind === "workspace" ? 2 : 1; // absolute flex centering splits margins
+        image.style.setProperty("--zzg-icon-pixel-x", `${x * factor}px`);
+        image.style.setProperty("--zzg-icon-pixel-y", `${y * factor}px`);
+        if (!owned.has(image)) resize.observe(image);
+        owned.set(image, { x, y });
+      }
+    }
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
+    const resize = new ResizeObserver(schedule);
+    for (const id of ["navigator-toolbox", "zen-workspaces-button", "tabbrowser-tabs"]) {
+      const node = document.getElementById(id); if (node) resize.observe(node);
+    }
+    const mutations = new MutationObserver(records => {
+      if (records.some(r => r.type === "attributes" || [...r.addedNodes, ...r.removedNodes].some(n => n.nodeType === 1 &&
+        (n.matches(".tab-icon-image,.zen-workspace-icon") || n.querySelector(".tab-icon-image,.zen-workspace-icon"))))) schedule();
+    });
+    mutations.observe(document.documentElement, { childList: true, subtree: true });
+    if (toolbox) {
+      mutations.observe(toolbox, { attributes: true, attributeFilter: ["zen-has-hover", "zen-user-show", "zen-has-empty-tab", "flash-popup", "has-popup-menu", "movingtab", "zen-compact-mode-active"] });
+      const moved = event => { if (event.target === toolbox && event.propertyName === "translate") schedule(); };
+      for (const type of ["transitionend", "transitioncancel"]) toolbox.addEventListener(type, moved, { signal: abort.signal });
+    }
+    for (const type of ["resize", "TabOpen", "TabClose", "TabPinned", "TabUnpinned", "ZenWorkspacesUIUpdate", "ZenWorkspaceChanged", "aftercustomization"])
+      window.addEventListener(type, schedule, { signal: abort.signal });
+    const prefs = { observe: schedule }; Services.prefs.addObserver(PREFIX, prefs);
+    schedule();
+    return () => {
+      abort.abort(); resize.disconnect(); mutations.disconnect(); cancelAnimationFrame(frame);
+      Services.prefs.removeObserver(PREFIX, prefs);
+      for (const image of owned.keys()) clear(image);
+    };
+  }
+
+  // One retargetable horizontal settle on the existing title. Zen owns its
+  // transform (including the 1.24 sublabel lift), which must stay live throughout.
   function tabMotion() {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
     const active = new Map();
@@ -342,19 +420,18 @@
     function cancel() { for (const { animation } of active.values()) animation.cancel(); active.clear(); }
     function settle(label) {
       if (!label?.isConnected || !enabled()) return;
-      const old = active.get(label), from = getComputedStyle(label).transform;
-      const base = old?.base ?? (from === "none" ? "" : from);
+      const old = active.get(label), from = getComputedStyle(label).translate;
       old?.animation.cancel();
       const style = getComputedStyle(document.documentElement);
       const duration = 90 + (parseFloat(style.getPropertyValue("--zzg-motion-ms")) || 150);
       const easing = style.getPropertyValue("--zzg-motion-ease").trim() || "cubic-bezier(.2,.85,.25,1)";
       const animation = label.animate([
-        { transform: from, offset: 0, easing: "cubic-bezier(.2,.7,.3,1)" },
-        { transform: `translateX(4px) ${base}`, offset: .24, easing: "cubic-bezier(.3,0,.35,1)" },
-        { transform: `translateX(-1px) ${base}`, offset: .65, easing },
-        { transform: base || "none", offset: 1 },
+        { translate: from, offset: 0, easing: "cubic-bezier(.2,.7,.3,1)" },
+        { translate: "4px", offset: .24, easing: "cubic-bezier(.3,0,.35,1)" },
+        { translate: "-1px", offset: .65, easing },
+        { translate: "none", offset: 1 },
       ], { duration });
-      active.set(label, { animation, base });
+      active.set(label, { animation });
       animation.finished.then(() => { if (active.get(label)?.animation === animation) active.delete(label); }, () => {});
     }
     const selected = event => settle(event.target.querySelector?.(".tab-label"));
@@ -381,6 +458,7 @@
 
   function start() {
     const stopMotion = tabMotion();
+    const stopAlignment = iconAlignment();
     window.addEventListener("popupshowing", toolsMenu);
     syncInstantUI();
     Services.prefs.addObserver(PREFIX, prefVarObserver);
@@ -408,6 +486,7 @@
       if (retired) return;
       retired = true;
       stopMotion();
+      stopAlignment();
       window.removeEventListener("popupshowing", toolsMenu);
       for (const item of toolItems) item.remove(); toolItems.clear();
       window.removeEventListener("unload", cleanup);

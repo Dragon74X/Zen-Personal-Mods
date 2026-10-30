@@ -21,8 +21,8 @@ def record_hover(m,out):
   Services.prefs.setIntPref('zzglass.tabs.essentials-icon-grow',2);Services.prefs.setIntPref('zzglass.motion.profile',0);
   Services.prefs.setBoolPref('zzglass.edges.follow-pointer',false);
   window.hfWorkspace=document.querySelector('#zen-workspaces-button toolbarbutton');hfWorkspace.parentElement.removeAttribute('dont-show');
-  hfWorkspace.removeAttribute('active');hfWorkspace.querySelector('.zen-workspace-icon').remove();
-  const image=document.createElementNS('http://www.w3.org/1999/xhtml','img');image.className='zen-workspace-icon';image.style.cssText='width:18px;height:18px';image.src=hfAssets.svg;hfWorkspace.append(image);gZenWorkspaces.onWindowResize();
+  hfWorkspace.setAttribute('active','true');hfWorkspace.querySelector('.zen-workspace-icon').remove();
+  const image=document.createElementNS('http://www.w3.org/1999/xhtml','img');image.className='zen-workspace-icon';image.style.cssText='width:18px;height:18px';image.src=hfAssets.svg;hfWorkspace.append(image);gZenWorkspaces.onWindowResize();hfWorkspace.parentElement.removeAttribute('icons-overflow');
   window.hfFavorite=gBrowser.addTab('about:blank',{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});
   gBrowser.pinTab(hfFavorite);gZenPinnedTabManager.addToEssentials(hfFavorite,{replicating:true});gBrowser.setIcon(hfFavorite,hfAssets.svg);
   window.hfReference=document.createElementNS('http://www.w3.org/1999/xhtml','div');hfReference.style.cssText='position:fixed;left:400px;top:400px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;z-index:2147483647';
@@ -31,16 +31,32 @@ def record_hover(m,out):
   window.hfCSS=css=>{if(hfURI)hfSS.unregisterSheet(hfURI,1);hfURI=Services.io.newURI('data:text/css,'+encodeURIComponent(css));hfSS.loadAndRegisterSheet(hfURI,1);};
   return true;''')
  time.sleep(.5)
+ # Exact shared icon curve from f075bc1 (2026-10-21, Glassflow 3.70.0).
+ legacy='linear(0.000, 0.000, 0.001, 0.007, 0.023, 0.053, 0.104, 0.181, 0.280, 0.389, 0.501, 0.613, 0.721, 0.820, 0.910, 0.988, 1.053, 1.106, 1.146, 1.174, 1.192, 1.199, 1.198, 1.190, 1.177, 1.159, 1.139, 1.117, 1.094, 1.072, 1.051, 1.031, 1.013, 0.998, 0.986, 0.975, 0.968, 0.963, 0.959, 0.958, 0.958, 0.959, 0.961, 0.964, 0.967, 0.970, 0.974, 0.977, 0.980, 0.983, 0.986, 0.988, 0.990, 0.992, 0.994, 0.996, 0.997, 0.998, 0.999, 0.999, 1.000)'
  cases=[('workspace-current','hfWorkspace',150,'cubic-bezier(.2,.85,.25,1)','svg'),
+        ('workspace-oct21-spring','hfWorkspace',450,legacy,'svg'),
+        ('workspace-current-half-pixel','hfWorkspace',150,'cubic-bezier(.2,.85,.25,1)','svg'),
+        ('workspace-oct21-half-pixel','hfWorkspace',450,legacy,'svg'),
+        ('workspace-transform-half-pixel','hfWorkspace',150,'cubic-bezier(.2,.85,.25,1)','svg'),
+        ('workspace-will-change-half-pixel','hfWorkspace',150,'cubic-bezier(.2,.85,.25,1)','svg'),
+        ('workspace-3d-half-pixel','hfWorkspace',150,'cubic-bezier(.2,.85,.25,1)','svg'),
+        ('workspace-unclipped-half-pixel','hfWorkspace',150,'cubic-bezier(.2,.85,.25,1)','svg'),
+        ('workspace-aligned-half-pixel','hfWorkspace',150,'cubic-bezier(.2,.85,.25,1)','svg'),
+        ('workspace-margin-half-pixel','hfWorkspace',150,'cubic-bezier(.2,.85,.25,1)','svg'),
+        ('workspace-production-half-pixel','hfWorkspace',150,'cubic-bezier(.2,.85,.25,1)','svg'),
+        ('favorite-current-half-pixel','hfFavorite',150,'cubic-bezier(.2,.85,.25,1)','svg'),
+        ('favorite-production-half-pixel','hfFavorite',150,'cubic-bezier(.2,.85,.25,1)','svg'),
         ('workspace-duration-only','hfWorkspace',450,'cubic-bezier(.2,.85,.25,1)','svg'),
         ('workspace-linear-svg','hfWorkspace',1000,'linear','svg'),
         ('workspace-linear-png','hfWorkspace',1000,'linear','png'),
         ('favorite-linear-svg','hfFavorite',1000,'linear','svg'),
         ('reference-linear-svg','hfReference',1000,'linear','svg')]
  report={'browser':m.script('return Services.appinfo.version;'),'graphics':m.script('return Cc["@mozilla.org/gfx/info;1"].getService(Ci.nsIGfxInfo).getFeatures();'),'cases':[],
-  'limitations':['Disposable Linux X11 window; cannot certify Windows GPU output.','120 screen samples/second; duplicate images are retained. Distinct images are not compositor FPS.','Synthetic symmetric fixtures; frozen parent paint isolates image scaling. No per-frame DOM/style reads.','A bare HTML reference distinguishes sidebar-specific behavior from renderer behavior. Timing counters and computed values alone do not prove smoothness.']}
+  'limitations':['Disposable Linux X11 window; cannot certify Windows GPU output.','120 screen samples/second; duplicate images are retained. Distinct images are not compositor FPS.','Synthetic symmetric fixtures; visible non-overflow workspace; frozen parent paint isolates image scaling. No per-frame DOM/style reads.','A bare HTML reference distinguishes sidebar-specific behavior from renderer behavior. Timing counters and computed values alone do not prove smoothness.']}
  try:
   for name,host,duration,easing,asset in cases:
+   if args.record_case and name not in args.record_case:continue
+   m.script("hfWorkspace.style.left=hfFavorite.style.left="+json.dumps('.5px' if 'half-pixel' in name else '0px')+";return true;")
    m.script('window.hfHost='+host+''';window.hfImage=hfHost.querySelector('.zen-workspace-icon,.tab-icon-image');hfHost.id='zz-hover-host';hfImage.id='zz-hover-image';
     InspectorUtils.removePseudoClassLock(hfHost,':hover');hfImage.setAttribute('src',hfAssets.'''+asset+''');return true;''')
    # Multiple IDs deliberately outrank existing user-sheet rules; verify the
@@ -48,33 +64,105 @@ def record_hover(m,out):
    owner='#zz-hover-host#zz-hover-host#zz-hover-host';paint='#zz-hover-image#zz-hover-image#zz-hover-image'
    css=owner+'{background:black!important;box-shadow:none!important;filter:none!important;opacity:1!important;transition:none!important;}'
    css+=owner+' .tab-background{background:black!important;box-shadow:none!important;}'
-   css+=paint+'{width:'+('20' if host=='hfFavorite' else '18')+'px!important;height:'+('20' if host=='hfFavorite' else '18')+'px!important;scale:1!important;transition:scale '+str(duration)+'ms '+easing+'!important;}'
-   css+=owner+':hover '+paint+'{scale:1.3!important;}'
-   m.script('hfCSS('+json.dumps(css)+');return true;');time.sleep(1.2)
-   info=m.script('const s=getComputedStyle(hfImage);return {rect:hfImage.getBoundingClientRect().toJSON(),duration:parseFloat(s.transitionDuration)*1000,easing:s.transitionTimingFunction,offset:[mozInnerScreenX,mozInnerScreenY]};')
+   prop='transform' if 'transform-half' in name else 'scale'
+   css+=paint+'{width:'+('20' if host=='hfFavorite' else '18')+'px!important;height:'+('20' if host=='hfFavorite' else '18')+'px!important;scale:1!important;'+('transform:scale(1)!important;' if prop=='transform' else '')+'transition:'+prop+' '+str(duration)+'ms '+easing+'!important;}'
+   css+=owner+':hover '+paint+'{'+('transform:scale(1.3)' if prop=='transform' else 'scale:1.3')+'!important;}'
+   if '-production-' not in name:css+=paint+'{--zzg-icon-align:none!important;}'
+   if 'will-change' in name:css+=paint+'{will-change:scale,transform!important;}'
+   if '-3d-' in name:css+=paint+'{transform:translateZ(0)!important;}'
+   if '-unclipped-' in name:css+=paint+'{overflow:visible!important;clip-path:none!important;}'
+   if '-aligned-' in name:css+=paint+'{translate:.5px 0!important;}'
+   if '-margin-' in name:css+=paint+'{margin-left:1px!important;}'
+   m.script('hfCSS('+json.dumps(css)+');dispatchEvent(new Event("resize"));return true;');time.sleep(1.2)
+   info=m.script('const s=getComputedStyle(hfImage);return {rect:hfImage.getBoundingClientRect().toJSON(),duration:parseFloat(s.transitionDuration)*1000,easing:s.transitionTimingFunction,dpr:devicePixelRatio,offset:[mozInnerScreenX,mozInnerScreenY]};')
    assert abs(info['duration']-duration)<.01,(name,info)
    r=info['rect'];assert r['width']>0 and r['height']>0,(name,r)
-   x=round(info['offset'][0]+r['x']+r['width']/2)-14;y=round(info['offset'][1]+r['y']+r['height']/2)-14
+   radius=round(14*info['dpr']);side=radius*2
+   x=round((info['offset'][0]+r['x']+r['width']/2)*info['dpr'])-radius;y=round((info['offset'][1]+r['y']+r['height']/2)*info['dpr'])-radius
+   m.script("window.hfAlignWrites=0;window.hfAlignWatch=new MutationObserver(rs=>hfAlignWrites+=rs.length);hfAlignWatch.observe(hfImage,{attributes:true,attributeFilter:['style']});return true;")
    movie=out/(name+'.mkv')
    with (out/(name+'.log')).open('w') as log:
-    capture=subprocess.Popen(['ffmpeg','-y','-loglevel','error','-f','x11grab','-draw_mouse','0','-framerate','120','-video_size','28x28','-i',os.environ['DISPLAY']+f'+{x},{y}','-t','3','-c:v','ffv1',str(movie)],stdout=subprocess.DEVNULL,stderr=log)
+    capture=subprocess.Popen(['ffmpeg','-y','-loglevel','error','-f','x11grab','-draw_mouse','0','-framerate','120','-video_size',f'{side}x{side}','-i',os.environ['DISPLAY']+f'+{x},{y}','-t','3','-c:v','ffv1',str(movie)],stdout=subprocess.DEVNULL,stderr=log)
     try:
      time.sleep(.5);m.script("InspectorUtils.addPseudoClassLock(hfHost,':hover');return true;")
      time.sleep(.07)
      info['animation']=m.script('return hfImage.getAnimations().map(a=>({property:a.transitionProperty,properties:a.effect.getProperties()}));')
-     assert any(a['property']=='scale' for a in info['animation']),(name,'No running scale transition')
+     assert any(a['property']==prop for a in info['animation']),(name,'No running '+prop+' transition')
      time.sleep(1.13);m.script("InspectorUtils.removePseudoClassLock(hfHost,':hover');return true;")
      assert capture.wait(timeout=10)==0,name
     finally:
      if capture.poll() is None:capture.terminate();capture.wait(timeout=5)
    raw=subprocess.check_output(['ffmpeg','-loglevel','error','-i',str(movie),'-fps_mode','passthrough','-f','rawvideo','-pix_fmt','rgb24','-'])
-   size=28*28*3;frames=[raw[i:i+size] for i in range(0,len(raw),size)]
+   size=side*side*3;frames=[raw[i:i+size] for i in range(0,len(raw),size)]
    assert len(frames)>1 and all(len(f)==size for f in frames),(name,'Incomplete capture')
    distinct=len(set(frames));assert distinct>1,(name,'No visible changes; capture cannot validate motion')
    changes=[i for i in range(1,len(frames)) if frames[i]!=frames[i-1]]
-   row={'name':name,'sampledFrames':len(frames),'distinctImages':distinct,'changeFrames':changes,**info};report['cases'].append(row)
-   print(json.dumps({k:row[k] for k in ['name','sampledFrames','distinctImages']}),flush=True)
+   centers=[];centers_y=[]
+   for data in frames:
+    weights=[max(0,data[i]-max(data[i+1],data[i+2])) for i in range(0,len(data),3)]
+    assert sum(weights)>0,(name,'Fixture invisible in a captured frame')
+    centers.append(sum((i%side)*w for i,w in enumerate(weights))/sum(weights))
+    centers_y.append(sum((i//side)*w for i,w in enumerate(weights))/sum(weights))
+   writes=m.script('hfAlignWatch.disconnect();return hfAlignWrites;')
+   row={'name':name,'sampledFrames':len(frames),'distinctImages':distinct,'changeFrames':changes,'paintCenterRangeX':max(centers)-min(centers),'paintCenterRangeY':max(centers_y)-min(centers_y),'paintCentersX':centers,'paintCentersY':centers_y,'styleWritesDuringMotion':writes,**info};report['cases'].append(row)
+   (out/'hover-result.json').write_text(json.dumps(report,indent=2))
+   print(json.dumps({k:row[k] for k in ['name','sampledFrames','distinctImages','paintCenterRangeX']}),flush=True)
+   if '-production-' in name:
+    # Antialiasing changes the weighted centroid by up to .039 device pixels
+    # in these fixtures. Reject handoff movement, not raster-weight symmetry.
+    assert max(row['paintCenterRangeX'],row['paintCenterRangeY'])<.05,(name,'Painted center shifted',row['paintCenterRangeX'],row['paintCenterRangeY'])
+    assert writes==0,(name,'Style writes during motion',writes)
    m.script("hfHost.removeAttribute('id');hfImage.removeAttribute('id');return true;")
+  (out/'hover-result.json').write_text(json.dumps(report,indent=2))
+  # Full-bleed art exposes clipping by an ancestor; the normal inset fixture
+  # above cannot. Read one screenshot per endpoint, not inside the animation.
+  report['bounds']=[]
+  for name,host in [('workspace','hfWorkspace'),('favorite','hfFavorite')]:
+   m.script('window.hfHost='+host+''';window.hfImage=hfHost.querySelector('.zen-workspace-icon,.tab-icon-image');hfHost.id='zz-hover-host';hfImage.id='zz-hover-image';
+    InspectorUtils.removePseudoClassLock(hfHost,':hover');
+    hfImage.src='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300"><rect width="300" height="300" fill="red"/></svg>');
+    hfCSS('#zz-hover-host#zz-hover-host{background:black!important;box-shadow:none!important;filter:none!important;opacity:1!important;}#zz-hover-host .tab-background{background:black!important;box-shadow:none!important;}#zz-hover-image#zz-hover-image{width:'''+('20' if host=='hfFavorite' else '18')+'''px!important;height:'''+('20' if host=='hfFavorite' else '18')+'''px!important;}');return true;''')
+   for hovered in [False,True]:
+    m.script('InspectorUtils.'+('add' if hovered else 'remove')+"PseudoClassLock(hfHost,':hover');return true;");time.sleep(.65)
+    info=m.script('''const r=hfImage.getBoundingClientRect(),ancestors=[];
+     for(let n=hfImage;n&&n!==document.documentElement;n=n.parentElement){const s=getComputedStyle(n);ancestors.push({tag:n.localName,id:n.id,classes:n.className,box:n.getBoundingClientRect().toJSON(),overflow:s.overflow,clip:s.clipPath,mask:s.maskImage,contain:s.contain,scale:s.scale,transform:s.transform,origin:s.transformOrigin,objectFit:s.objectFit});}
+     return {rect:r.toJSON(),ancestors};''')
+    r=info['rect'];shot=m.shot();ratio=shot.width/m.script('return innerWidth;')
+    cx=(r['x']+r['width']/2)*ratio;cy=(r['y']+r['height']/2)*ratio
+    radius=round(20*ratio)
+    crop=shot.crop((round(cx)-radius,round(cy)-radius,round(cx)+radius,round(cy)+radius)).convert('RGB');crop.save(out/f'{name}-bounds-{hovered}.png')
+    red=[x for x in range(radius*2) if (lambda c:c[0]>180 and c[1]<60 and c[2]<60)(crop.getpixel((x,radius)))]
+    visible=(max(red)-min(red)+1)/ratio if red else 0
+    assert abs(visible-r['width'])<=2,(name,hovered,'Ancestor clipped image',visible,r)
+    report['bounds'].append({'name':name,'hovered':hovered,'visibleCenterRowWidth':visible,**info})
+   m.script("InspectorUtils.removePseudoClassLock(hfHost,':hover');hfHost.removeAttribute('id');hfImage.removeAttribute('id');return true;")
+  report['alignmentLifecycle']=m.script('''return (async()=>{
+   const pause=ms=>new Promise(r=>setTimeout(r,ms));
+   const ws=hfWorkspace.querySelector('.zen-workspace-icon'),fav=hfFavorite.querySelector('.tab-icon-image');
+   Services.prefs.setBoolPref('zzglass.workspaces.enabled',false);await pause(100);
+   const workspaceOff=!ws.style.getPropertyValue('--zzg-icon-pixel-x');
+   const favoriteKept=!!fav.style.getPropertyValue('--zzg-icon-pixel-x');
+   Services.prefs.setBoolPref('zzglass.workspaces.enabled',true);await pause(100);
+   const restored=!!ws.style.getPropertyValue('--zzg-icon-pixel-x');
+   window.__zzglassInstance.retire();dispatchEvent(new Event('resize'));await pause(100);
+   const retired=!ws.style.getPropertyValue('--zzg-icon-pixel-x')&&!fav.style.getPropertyValue('--zzg-icon-pixel-x');
+   Services.scriptloader.loadSubScript('chrome://sine/content/zz-glassflow/glassflow.uc.js',window);await pause(150);
+   const reloaded=!!fav.style.getPropertyValue('--zzg-icon-pixel-x');
+   const toolbox=document.getElementById('navigator-toolbox'),wasHover=toolbox.hasAttribute('zen-has-hover');
+   const hiddenStart=[];
+   for(const duration of [180,0]){
+     hfCSS('#navigator-toolbox{translate:-2000px 0!important;transition:translate '+duration+'ms linear!important}#navigator-toolbox[zen-has-hover]{translate:0!important}');
+     toolbox.removeAttribute('zen-has-hover');await pause(250);
+     window.__zzglassInstance.retire();
+     Services.scriptloader.loadSubScript('chrome://sine/content/zz-glassflow/glassflow.uc.js',window);await pause(100);
+     if(fav.getBoundingClientRect().right>0)throw new Error('Sidebar fixture did not start offscreen');
+     toolbox.setAttribute('zen-has-hover','true');await pause(300);
+     hiddenStart.push(!!fav.style.getPropertyValue('--zzg-icon-pixel-x'));
+   }
+   hfCSS('');toolbox.toggleAttribute('zen-has-hover',wasHover);await pause(200);
+   return {workspaceOff,favoriteKept,restored,retired,reloaded,hiddenStartAnimated:hiddenStart[0],hiddenStartInstant:hiddenStart[1]};
+  })();''')
+  assert all(report['alignmentLifecycle'].values()),report['alignmentLifecycle']
   (out/'hover-result.json').write_text(json.dumps(report,indent=2))
  finally:
   m.script("InspectorUtils.removePseudoClassLock(hfHost,':hover');if(hfURI)hfSS.unregisterSheet(hfURI,1);return true;")
@@ -135,7 +223,7 @@ def check_hover_ab(m,out):
  assert m.script('return abPrefs();')==before
  print('PASS cancellation restores active override',flush=True)
 
-p=argparse.ArgumentParser(description=__doc__);p.add_argument('--zen',required=True,type=Path);p.add_argument('--output',required=True,type=Path);modes=p.add_mutually_exclusive_group();modes.add_argument('--record-hover',action='store_true',help='Record six hover comparisons from an existing X11 DISPLAY instead of the headless suite');modes.add_argument('--probe-ab',action='store_true',help='Check the user-facing hover A/B probe and clipboard cleanup in native Zen');args=p.parse_args()
+p=argparse.ArgumentParser(description=__doc__);p.add_argument('--zen',required=True,type=Path);p.add_argument('--output',required=True,type=Path);modes=p.add_mutually_exclusive_group();modes.add_argument('--record-hover',action='store_true',help='Record current/Oct 21 hover comparisons and clipping bounds from an existing X11 DISPLAY');modes.add_argument('--probe-ab',action='store_true',help='Check the user-facing hover A/B probe and clipboard cleanup in native Zen');p.add_argument('--record-case',action='append',help='Run only this named hover recording case (repeatable)');p.add_argument('--record-dpr',type=float,default=1,help='Device pixel ratio for the disposable recording profile');args=p.parse_args()
 OUT=args.output.resolve();OUT.mkdir(parents=True,exist_ok=True)
 MODS=['glassflow','groupflow','iconflow','glassflow-library','download-prompt','tab-router','tab-unloader','mediaflow']
 with tempfile.TemporaryDirectory(prefix='zen-morph-') as d:
@@ -145,6 +233,7 @@ with tempfile.TemporaryDirectory(prefix='zen-morph-') as d:
  subprocess.run(['ffmpeg','-loglevel','error','-f','lavfi','-i','color=c=blue:s=160x90:r=10','-f','lavfi','-i','sine=frequency=440:sample_rate=48000','-t','12','-c:v','libvpx','-deadline','realtime','-b:v','30k','-c:a','libopus',str(profile/'video.webm')],check=True)
  with socket.socket() as sock:sock.bind(('127.0.0.1',0));port=sock.getsockname()[1]
  prefs={'marionette.port':port,'browser.shell.checkDefaultBrowser':False,'zen.welcome-screen.seen':True,'zen.welcome-screen.enabled':False,'sine.auto-updates':False,'ui.prefersReducedMotion':0,'zzrouter.enabled':False,'media.cubeb.backend':'dummy','media.autoplay.default':0,'media.autoplay.blocking_policy':0,'svg.context-properties.content.enabled':False}
+ if args.record_hover:prefs['layout.css.devPixelsPerPx']=str(args.record_dpr)
  (profile/'user.js').write_text('\n'.join(f'user_pref({json.dumps(k)},{json.dumps(v)});' for k,v in prefs.items()))
  def start():
   log=(OUT/'browser.log').open('a');proc=subprocess.Popen([str(args.zen.resolve()),*([] if args.record_hover else ['--headless']),'--no-remote','--profile',d,'--marionette','--remote-allow-system-access','about:blank'],stdout=log,stderr=log)

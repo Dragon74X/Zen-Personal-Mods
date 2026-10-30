@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.8.7
+// @version        2.8.8
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==
@@ -17,7 +17,7 @@
   const LOG_PREFIX = "[Mediaflow]";
   // Gecko caches actor modules across unregister/re-register. Bump with actor
   // changes so Sine updates load replacement code without a browser restart.
-  const ACTOR_VERSION = "2.8.7";
+  const ACTOR_VERSION = "2.8.8";
   const CAPTIONS_PREF = "zzmedia.preview.captions";
   const CAPTIONS_WHEN_PIP_HIDDEN_PREF =
     "zzmedia.preview.captions-when-hidden";
@@ -428,8 +428,7 @@
     const visibilityState = `${pipVisible}:${captionVisible}`;
     if (visibilityState !== lastVisible) {
       if (!pipVisible) {
-        clearTimeout(growTimer); pipHover = false; hoverBottom = null; focusedPreview = null;
-        pipContainer.removeAttribute("zzmf-interacting"); restorePreviewFocus();
+        resetPreview(); restorePreviewFocus();
       }
       pipContainer.style.visibility = pipVisible ? "visible" : "hidden";
       captionContainer.style.visibility = captionVisible
@@ -481,7 +480,7 @@
 
         // Hold from pointer entry, including the growth delay: the bar can
         // fold its rows away as the pointer crosses from below into the video.
-        if (hoverBottom !== null) videoBottom = hoverBottom;
+        if (preview.bottom !== null) videoBottom = preview.bottom;
 
         let height = 0;
         if (pipVisible) {
@@ -499,7 +498,7 @@
           // its bottom edge where it was. The room it keeps above the bar
           // stays the resting size.
           let shownWidth = width, shownHeight = height;
-          const grow = pipHover ? hoverGrowth(width) : 1;
+          const grow = preview.phase === "grown" ? hoverGrowth(width) : 1;
           if (grow > 1) {
             shownWidth = width * grow;
             shownHeight = shownWidth / videoAspect;
@@ -512,11 +511,11 @@
 
           // A focused control must stay under the pointer through press/release
           // and repeated clicks, even during hover growth or a caption change.
-          if (focusedPreview) {
-            shownWidth = focusedPreview.width;
-            shownHeight = focusedPreview.height;
-            adjustedLeft = focusedPreview.left;
-            videoBottom = focusedPreview.bottom;
+          if (preview.bounds) {
+            shownWidth = preview.bounds.width;
+            shownHeight = preview.bounds.height;
+            adjustedLeft = preview.bounds.left;
+            videoBottom = preview.bounds.bottom;
           }
 
           const nextCaptureMaxDimension = Math.max(
@@ -662,7 +661,7 @@
 
   // Pointing at the preview grows it (Grow on hover); clicking it goes to the
   // tab the video plays in.
-  let pipHover = false, hoverBottom = null, focusedPreview = null;
+  const preview = { phase: "rest", bottom: null, bounds: null, enteredAt: 0 };
   const HOVER_PREF = "zzmedia.preview.hover-size", CLICK_PREF = "zzmedia.preview.click-to-tab";
   function hoverGrowth(width) {
     const v = safe(() => Services.prefs.getStringPref(HOVER_PREF, "2")) ?? "2";
@@ -685,6 +684,8 @@
   // preview (growing over the page) sits outside it: pointing at the preview
   // keeps the sidebar open, through Zen's own hover state, and leaving it
   // starts Zen's usual countdown. Docked and other modes are untouched.
+  const SIDEBAR_SHOW_ATTRS = ["zen-has-hover", "zen-user-show", "zen-has-empty-tab",
+    "flash-popup", "has-popup-menu", "movingtab", "zen-compact-mode-active"];
   let holdTimer = null;
   function holdSidebar(hold) {
     const cm = window.gZenCompactModeManager, side = cm?.sidebar;
@@ -700,7 +701,7 @@
       // Zen checks the sidebar a moment after the pointer left it and starts
       // its hide countdown then; cancel that one too.
       holdTimer = setTimeout(() => { if (pipContainer.matches(":hover, :focus-within")) keep(); }, (cm.HOVER_HACK_DELAY || 0) + 40);
-    } else if (!side.matches(":hover")) {
+    } else if (!side.matches(":hover") && !sidebarAway()) {
       const ms = safe(() => Services.prefs.getIntPref("zen.view.compact.sidebar-keep-hover.duration", 0)) ?? 0;
       safe(() => cm.flashElement(side, ms, id, "zen-has-hover"));
     }
@@ -713,45 +714,59 @@
   const syncDelay = () => {
     hoverDelay = Math.max(0, parseFloat(safe(() => Services.prefs.getStringPref(DELAY_PREF, "0.3")) ?? "0.3") || 0);
     musicPlayerUI.style.setProperty("--zzmf-hover-delay", hoverDelay + "s");
+    if (preview.phase === "waiting") previewPhase("waiting");
   };
   syncDelay();
   safe(() => Services.prefs.addObserver(DELAY_PREF, syncDelay));
   undo.push(() => {
     safe(() => Services.prefs.removeObserver(DELAY_PREF, syncDelay));
-    clearTimeout(growTimer);
+    resetPreview();
     musicPlayerUI.style.removeProperty("--zzmf-hover-delay");
   });
-  function queueGrowth() {
-    clearTimeout(growTimer);
-    growTimer = setTimeout(() => { pipHover = true; bump(); }, hoverDelay * 1000);
-  }
-  on(pipContainer, "mouseenter", () => {
-    hoverBottom = pipContainer.getBoundingClientRect().bottom;
-    holdSidebar(true);
-    queueGrowth();
-    bump();
-  });
-  on(pipContainer, "mouseleave", () => { clearTimeout(growTimer); pipHover = false; hoverBottom = null; if (!pipContainer.matches(":focus-within")) holdSidebar(false); bump(); });
-  function holdPreview() {
-    holdSidebar(true);
-    clearTimeout(growTimer);
-    if (focusedPreview) return;
-    // Read the in-flight CSS geometry, not the hover animation's destination.
+  // One interaction state owns the delay, anchor and frozen control bounds.
+  // Read CSS layout coordinates: getBoundingClientRect includes the entrance
+  // transform, and feeding it back into `bottom` applies that movement twice.
+  function previewBounds() {
     const s = getComputedStyle(pipContainer);
-    focusedPreview = { width: parseFloat(s.width), height: parseFloat(s.height),
+    return { width: parseFloat(s.width), height: parseFloat(s.height),
       left: parseFloat(s.left), bottom: window.innerHeight - parseFloat(s.bottom) };
-    pipContainer.setAttribute("zzmf-interacting", "");
+  }
+  function previewPhase(phase) {
+    if (phase !== "rest" && getComputedStyle(pipContainer).visibility !== "visible") phase = "rest";
+    clearTimeout(growTimer);
+    growTimer = null;
+    preview.phase = phase;
+    if (phase !== "held") preview.bounds = null;
+    if (phase === "rest") { preview.bottom = null; preview.enteredAt = 0; }
+    pipContainer.toggleAttribute("zzmf-interacting", phase === "held");
+    if (phase === "waiting") growTimer = setTimeout(() => previewPhase("grown"),
+      Math.max(0, preview.enteredAt + hoverDelay * 1000 - performance.now()));
+    holdSidebar(phase !== "rest");
+    bump();
+  }
+  function resetPreview() { previewPhase("rest"); }
+  on(pipContainer, "mouseenter", () => {
+    preview.enteredAt = performance.now();
+    preview.bottom ??= previewBounds().bottom;
+    if (preview.phase !== "held") previewPhase("waiting");
+  });
+  on(pipContainer, "mouseleave", () => {
+    if (pipContainer.matches(":focus-within")) holdPreview();
+    else resetPreview();
+  });
+  function holdPreview() {
+    if (preview.phase === "held") return;
+    preview.bounds = previewBounds();
+    preview.bottom = preview.bounds.bottom;
+    previewPhase("held");
     lastTop = lastLeft = lastWidth = -1;
     syncPosition();
   }
   on(pipContainer, "focusin", holdPreview);
   function releasePreview() {
     if (pipContainer.matches(":focus-within") || controls.matches(":hover")) return;
-    focusedPreview = null;
-    pipContainer.removeAttribute("zzmf-interacting");
-    if (!pipContainer.matches(":hover")) holdSidebar(false);
-    else if (!pipHover) queueGrowth();
-    bump();
+    if (!pipContainer.matches(":hover")) resetPreview();
+    else previewPhase(performance.now() >= preview.enteredAt + hoverDelay * 1000 ? "grown" : "waiting");
   }
   on(pipContainer, "focusout", e => {
     if (pipContainer.contains(e.relatedTarget)) return;
@@ -817,7 +832,9 @@
     pipContainer.toggleAttribute("zzmf-muted", muted); nameControl(mute, muted ? "Unmute tab" : "Mute tab");
   };
   const syncControls = () => {
-    pipContainer.toggleAttribute("zzmf-controls", safe(() => Services.prefs.getBoolPref(CONTROLS_PREF, true)) ?? true);
+    const enabled = safe(() => Services.prefs.getBoolPref(CONTROLS_PREF, true)) ?? true;
+    pipContainer.toggleAttribute("zzmf-controls", enabled);
+    if (!enabled) { restorePreviewFocus(); resetPreview(); }
     for (const b of [back, forward]) b.dataset.step = String(seekStep());
     nameControl(back, `Back ${seekStep()} seconds`); nameControl(forward, `Forward ${seekStep()} seconds`);
   };
@@ -903,8 +920,6 @@
   // Compact mode shows the hidden sidebar while one of these is on it (the
   // same test Glassflow uses); recheck as they change, so copying stops while
   // the sidebar is away and resumes as it comes back.
-  const SIDEBAR_SHOW_ATTRS = ["zen-has-hover", "zen-user-show", "zen-has-empty-tab",
-    "flash-popup", "has-popup-menu", "movingtab", "zen-compact-mode-active"];
   function sidebarAway() {
     const root = document.documentElement, toolbox = document.getElementById("navigator-toolbox");
     if (root.getAttribute("zen-compact-mode") !== "true" || !toolbox || root.hasAttribute("customizing")) return false;
@@ -1346,6 +1361,7 @@
       const sourceChanged =
         previousSourceBC && nextSourceBC && previousSourceBC.id !== nextSourceBC.id;
       if (sourceChanged) {
+        resetPreview();
         const previous = actorRegistry.get(previousSourceBC.id);
         previous?.setProcessingActive?.(false, captionMode, false);
         previous?.stopTick();

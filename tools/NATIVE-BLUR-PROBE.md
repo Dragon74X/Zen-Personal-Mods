@@ -11,7 +11,7 @@ Console**, or run this loader there:
 (async () => {
   const w = Services.wm.getMostRecentWindow('navigator:browser');
   if (!w) throw Error('No browser window');
-  const response = await w.fetch('https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/63ef36b76074ef56cf24ea58bd7006cc762ec0bb/tools/native-blur-probe.js',
+  const response = await w.fetch('https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/f4a357c919b468f03558a8ca13ca30d64fe284aa/tools/native-blur-probe.js',
     { signal: w.AbortSignal.timeout(15000) });
   if (!response.ok) throw Error('Probe download: HTTP ' + response.status);
   const code = await response.text();

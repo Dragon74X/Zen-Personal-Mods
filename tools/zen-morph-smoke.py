@@ -3,11 +3,83 @@
 Run through ZEN_BINARY=/path/to/zen node --test tools/*.test.mjs or directly.
 Pillow (existing smoke harness) and ffmpeg required for native media/volume.
 """
-import argparse,json,os,runpy,socket,subprocess,tempfile,time
+import argparse,base64,io,json,os,runpy,socket,subprocess,tempfile,time
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 M=runpy.run_path(str(ROOT/'tools/zen-smoke.py'))['Marionette']
-p=argparse.ArgumentParser(description=__doc__);p.add_argument('--zen',required=True,type=Path);p.add_argument('--output',required=True,type=Path);args=p.parse_args()
+def record_hover(m,out):
+ """Sample X11 output, not drawSnapshot. Diagnostic counts are not an FPS score."""
+ from PIL import Image,ImageDraw
+ if not os.environ.get('DISPLAY'):raise RuntimeError('--record-hover requires an X11 DISPLAY')
+ png=Image.new('RGBA',(300,300));draw=ImageDraw.Draw(png)
+ draw.rectangle((50,50,249,249),fill='white');draw.rectangle((80,80,219,219),fill='red');draw.ellipse((110,110,190,190),fill='black')
+ buffer=io.BytesIO();png.save(buffer,format='PNG')
+ svg='<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300"><rect x="50" y="50" width="200" height="200" fill="white"/><rect x="80" y="80" width="140" height="140" fill="red"/><circle cx="150" cy="150" r="40" fill="black"/></svg>'
+ assets={'svg':'data:image/svg+xml;base64,'+base64.b64encode(svg.encode()).decode(),'png':'data:image/png;base64,'+base64.b64encode(buffer.getvalue()).decode()}
+ m.script('window.hfAssets='+json.dumps(assets)+''';
+  Services.prefs.setBoolPref('zzglass.workspaces.enabled',true);Services.prefs.setIntPref('zzglass.workspaces.hover',1);
+  Services.prefs.setIntPref('zzglass.tabs.essentials-icon-grow',2);Services.prefs.setIntPref('zzglass.motion.profile',0);
+  Services.prefs.setBoolPref('zzglass.edges.follow-pointer',false);
+  window.hfWorkspace=document.querySelector('#zen-workspaces-button toolbarbutton');hfWorkspace.parentElement.removeAttribute('dont-show');
+  hfWorkspace.removeAttribute('active');hfWorkspace.querySelector('.zen-workspace-icon').remove();
+  const image=document.createElementNS('http://www.w3.org/1999/xhtml','img');image.className='zen-workspace-icon';image.style.cssText='width:18px;height:18px';image.src=hfAssets.svg;hfWorkspace.append(image);gZenWorkspaces.onWindowResize();
+  window.hfFavorite=gBrowser.addTab('about:blank',{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});
+  gBrowser.pinTab(hfFavorite);gZenPinnedTabManager.addToEssentials(hfFavorite,{replicating:true});gBrowser.setIcon(hfFavorite,hfAssets.svg);
+  window.hfReference=document.createElementNS('http://www.w3.org/1999/xhtml','div');hfReference.style.cssText='position:fixed;left:400px;top:400px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;z-index:2147483647';
+  const ref=image.cloneNode();hfReference.append(ref);document.documentElement.append(hfReference);
+  window.hfSS=Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService);window.hfURI=null;
+  window.hfCSS=css=>{if(hfURI)hfSS.unregisterSheet(hfURI,1);hfURI=Services.io.newURI('data:text/css,'+encodeURIComponent(css));hfSS.loadAndRegisterSheet(hfURI,1);};
+  return true;''')
+ time.sleep(.5)
+ cases=[('workspace-current','hfWorkspace',150,'cubic-bezier(.2,.85,.25,1)','svg'),
+        ('workspace-duration-only','hfWorkspace',450,'cubic-bezier(.2,.85,.25,1)','svg'),
+        ('workspace-linear-svg','hfWorkspace',1000,'linear','svg'),
+        ('workspace-linear-png','hfWorkspace',1000,'linear','png'),
+        ('favorite-linear-svg','hfFavorite',1000,'linear','svg'),
+        ('reference-linear-svg','hfReference',1000,'linear','svg')]
+ report={'browser':m.script('return Services.appinfo.version;'),'graphics':m.script('return Cc["@mozilla.org/gfx/info;1"].getService(Ci.nsIGfxInfo).getFeatures();'),'cases':[],
+  'limitations':['Disposable Linux X11 window; cannot certify Windows GPU output.','120 screen samples/second; duplicate images are retained. Distinct images are not compositor FPS.','Synthetic symmetric fixtures; frozen parent paint isolates image scaling. No per-frame DOM/style reads.','A bare HTML reference distinguishes sidebar-specific behavior from renderer behavior. Timing counters and computed values alone do not prove smoothness.']}
+ try:
+  for name,host,duration,easing,asset in cases:
+   m.script('window.hfHost='+host+''';window.hfImage=hfHost.querySelector('.zen-workspace-icon,.tab-icon-image');hfHost.id='zz-hover-host';hfImage.id='zz-hover-image';
+    InspectorUtils.removePseudoClassLock(hfHost,':hover');hfImage.setAttribute('src',hfAssets.'''+asset+''');return true;''')
+   # Multiple IDs deliberately outrank existing user-sheet rules; verify the
+   # applied duration below so an ineffective test override cannot pass.
+   owner='#zz-hover-host#zz-hover-host#zz-hover-host';paint='#zz-hover-image#zz-hover-image#zz-hover-image'
+   css=owner+'{background:black!important;box-shadow:none!important;filter:none!important;opacity:1!important;transition:none!important;}'
+   css+=owner+' .tab-background{background:black!important;box-shadow:none!important;}'
+   css+=paint+'{width:'+('20' if host=='hfFavorite' else '18')+'px!important;height:'+('20' if host=='hfFavorite' else '18')+'px!important;scale:1!important;transition:scale '+str(duration)+'ms '+easing+'!important;}'
+   css+=owner+':hover '+paint+'{scale:1.3!important;}'
+   m.script('hfCSS('+json.dumps(css)+');return true;');time.sleep(1.2)
+   info=m.script('const s=getComputedStyle(hfImage);return {rect:hfImage.getBoundingClientRect().toJSON(),duration:parseFloat(s.transitionDuration)*1000,easing:s.transitionTimingFunction,offset:[mozInnerScreenX,mozInnerScreenY]};')
+   assert abs(info['duration']-duration)<.01,(name,info)
+   r=info['rect'];assert r['width']>0 and r['height']>0,(name,r)
+   x=round(info['offset'][0]+r['x']+r['width']/2)-14;y=round(info['offset'][1]+r['y']+r['height']/2)-14
+   movie=out/(name+'.mkv')
+   with (out/(name+'.log')).open('w') as log:
+    capture=subprocess.Popen(['ffmpeg','-y','-loglevel','error','-f','x11grab','-draw_mouse','0','-framerate','120','-video_size','28x28','-i',os.environ['DISPLAY']+f'+{x},{y}','-t','3','-c:v','ffv1',str(movie)],stdout=subprocess.DEVNULL,stderr=log)
+    try:
+     time.sleep(.5);m.script("InspectorUtils.addPseudoClassLock(hfHost,':hover');return true;")
+     time.sleep(.07)
+     info['animation']=m.script('return hfImage.getAnimations().map(a=>({property:a.transitionProperty,properties:a.effect.getProperties()}));')
+     assert any(a['property']=='scale' for a in info['animation']),(name,'No running scale transition')
+     time.sleep(1.13);m.script("InspectorUtils.removePseudoClassLock(hfHost,':hover');return true;")
+     assert capture.wait(timeout=10)==0,name
+    finally:
+     if capture.poll() is None:capture.terminate();capture.wait(timeout=5)
+   raw=subprocess.check_output(['ffmpeg','-loglevel','error','-i',str(movie),'-fps_mode','passthrough','-f','rawvideo','-pix_fmt','rgb24','-'])
+   size=28*28*3;frames=[raw[i:i+size] for i in range(0,len(raw),size)]
+   assert len(frames)>1 and all(len(f)==size for f in frames),(name,'Incomplete capture')
+   distinct=len(set(frames));assert distinct>1,(name,'No visible changes; capture cannot validate motion')
+   changes=[i for i in range(1,len(frames)) if frames[i]!=frames[i-1]]
+   row={'name':name,'sampledFrames':len(frames),'distinctImages':distinct,'changeFrames':changes,**info};report['cases'].append(row)
+   print(json.dumps({k:row[k] for k in ['name','sampledFrames','distinctImages']}),flush=True)
+   m.script("hfHost.removeAttribute('id');hfImage.removeAttribute('id');return true;")
+  (out/'hover-result.json').write_text(json.dumps(report,indent=2))
+ finally:
+  m.script("InspectorUtils.removePseudoClassLock(hfHost,':hover');if(hfURI)hfSS.unregisterSheet(hfURI,1);return true;")
+
+p=argparse.ArgumentParser(description=__doc__);p.add_argument('--zen',required=True,type=Path);p.add_argument('--output',required=True,type=Path);p.add_argument('--record-hover',action='store_true',help='Record six hover comparisons from an existing X11 DISPLAY instead of the headless suite');args=p.parse_args()
 OUT=args.output.resolve();OUT.mkdir(parents=True,exist_ok=True)
 MODS=['glassflow','groupflow','iconflow','glassflow-library','download-prompt','tab-router','tab-unloader','mediaflow']
 with tempfile.TemporaryDirectory(prefix='zen-morph-') as d:
@@ -19,7 +91,7 @@ with tempfile.TemporaryDirectory(prefix='zen-morph-') as d:
  prefs={'marionette.port':port,'browser.shell.checkDefaultBrowser':False,'zen.welcome-screen.seen':True,'zen.welcome-screen.enabled':False,'sine.auto-update':False,'ui.prefersReducedMotion':0,'zzrouter.enabled':False,'media.cubeb.backend':'dummy','media.autoplay.default':0,'media.autoplay.blocking_policy':0,'svg.context-properties.content.enabled':False}
  (profile/'user.js').write_text('\n'.join(f'user_pref({json.dumps(k)},{json.dumps(v)});' for k,v in prefs.items()))
  def start():
-  log=(OUT/'browser.log').open('a');proc=subprocess.Popen([str(args.zen.resolve()),'--headless','--no-remote','--profile',d,'--marionette','--remote-allow-system-access','about:blank'],stdout=log,stderr=log)
+  log=(OUT/'browser.log').open('a');proc=subprocess.Popen([str(args.zen.resolve()),*([] if args.record_hover else ['--headless']),'--no-remote','--profile',d,'--marionette','--remote-allow-system-access','about:blank'],stdout=log,stderr=log)
   for _ in range(100):
    try:
     with socket.create_connection(('127.0.0.1',port),timeout=.2):break
@@ -38,6 +110,9 @@ with tempfile.TemporaryDirectory(prefix='zen-morph-') as d:
    for script in theme['scripts']:
     if script.endswith('.uc.js'):m.script('Services.scriptloader.loadSubScript('+json.dumps('chrome://sine/content/'+theme['id']+'/'+script)+',window);return true;')
   time.sleep(2)
+  if args.record_hover:
+   record_hover(m,OUT)
+   raise SystemExit(0)
   m.script("for(const id of ['sidebar-button','zen-expand-sidebar-button'])CustomizableUI.addWidgetToArea(id,'nav-bar');return true;")
   m.script('window.nativeFixtureURL='+json.dumps((profile/'index.html').as_uri())+';return true;')
   result=m.script((ROOT/'tools/morph-native-regressions.js').read_text())

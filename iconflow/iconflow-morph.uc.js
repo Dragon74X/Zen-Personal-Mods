@@ -121,6 +121,10 @@ async function attach(binding,el){
   paint.style.setProperty('--zzicon-sprite',`url("${url}")`);paint.style.setProperty('--zzicon-columns',index.frames);paint.style.setProperty('--zzicon-rows',r.rows.length);setRow(r,rowFor(r,r.state));paint.style.setProperty('--zzicon-frame','0');
   if(addedClass)host.classList.add(menuClass);
   paint.setAttribute('zzicon-motion',mode);host.setAttribute('zzicon-motion-host','');records.set(host,r);
+  // Decode/refresh can finish after pointer entry or keyboard focus. No new
+  // entry event will arrive while the pointer/focus stays on this button.
+  const hovered=host.matches(':hover');r.focus=host.matches(':focus-visible');
+  if(hovered||r.focus)hover(r,hovered);
  }catch(error){console.warn('[Iconflow] native sprite',binding.action,error);}
  finally{if(pendingHosts.get(host)===token)pendingHosts.delete(host);}
 }

@@ -1185,6 +1185,46 @@ def check_probe_loader(m, root):
         thread.join(timeout=2)
 
 
+def check_probe_fixture(m, root):
+    """Render the shipped challenge in Gecko; this checks content, not acrylic."""
+    source = (root/'tools/native-blur-probe.js').read_text()
+    factory = source[source.index('    const pageURL ='):source.index('    fixture = w.gBrowser.addTab')]
+    m.script("window.fixtureOriginalTab=gBrowser.selectedTab;return true;")
+    results = []
+    try:
+        for page in ['opaque', 'transparent']:
+            for paint, expected in [('cyan', (32, 200, 255)), ('amber', (255, 144, 32))]:
+                url = m.script("const marker='ZZBLUR-render-fixture',fixtureDocuments=new Map();"+factory+
+                               'return pageURL('+json.dumps(page)+','+json.dumps(paint)+');')
+                m.call('Marionette:SetContext',{'value':'content'})
+                handles = m.call('WebDriver:GetWindowHandles')
+                m.script('window.paintFixture=gBrowser.addTab('+json.dumps(url)+', {triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});gBrowser.selectedTab=paintFixture;return true;')
+                m.call('Marionette:SetContext',{'value':'content'})
+                added = set(m.call('WebDriver:GetWindowHandles'))-set(handles)
+                assert len(added) == 1, 'Expected one generated tab'
+                m.call('WebDriver:SwitchToWindow',{'handle':added.pop()})
+                try:
+                    for _ in range(100):
+                        if m.script('return !gBrowser.selectedBrowser.webProgress.isLoadingDocument&&gBrowser.selectedBrowser.currentURI.spec==='+json.dumps(url)+';'):
+                            break
+                        time.sleep(.05)
+                    time.sleep(.1)
+                    style = m.script('return {html:getComputedStyle(document.documentElement).backgroundColor,body:getComputedStyle(document.body).backgroundColor};',context='content')
+                    expected_background = 'rgb(255, 255, 255)' if page == 'opaque' else 'rgba(0, 0, 0, 0)'
+                    assert style['html'] == style['body'] == expected_background, style
+                    bounds = m.script('const r=gBrowser.selectedBrowser.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width};')
+                    pixel = m.shot().getpixel((round(bounds['x']+bounds['width']/2),round(bounds['y']+208)))
+                    assert max(abs(a-b) for a,b in zip(pixel,expected)) <= 2, (page,paint,pixel,expected)
+                    results.append({'page':page,'paint':paint,'actualRGB':pixel,'expectedRGB':expected,'background':style['html']})
+                finally:
+                    m.script('gBrowser.removeTab(paintFixture,{animate:false,skipPermitUnload:true});return true;')
+                    m.call('Marionette:SetContext',{'value':'content'})
+                    m.call('WebDriver:SwitchToWindow',{'handle':handles[0]})
+    finally:
+        m.script('gBrowser.selectedTab=fixtureOriginalTab;delete window.fixtureOriginalTab;delete window.paintFixture;return true;')
+    return {'fixturePaint':results,'limitation':'Gecko content pixels only; no Windows backdrop or frame-pacing claim'}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--zen", type=Path, required=True)
@@ -1194,6 +1234,7 @@ def main():
     parser.add_argument("--actions", action="store_true", help="Check native menus, snapshots, diagnostics and scoped actions")
     parser.add_argument("--native-integration", action="store_true", help="Check Zen 1.24 native ownership and accessibility")
     parser.add_argument("--probe-loader", action="store_true", help="Check the blur loader through the actual Browser Console actor with CSP enabled")
+    parser.add_argument("--probe-fixture", action="store_true", help="Render the actual cyan/amber navigation challenge and document transparency")
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
     with tempfile.TemporaryDirectory(prefix="zen-mod-smoke-") as directory:
@@ -1227,7 +1268,7 @@ def main():
                 m.script("""window.zzsmokeChrome=Cc['@mozilla.org/addons/addon-manager-startup;1']
                   .getService(Ci.amIAddonManagerStartup).registerChrome(Services.io.newURI(""" +
                   json.dumps((profile / 'chrome.manifest').as_uri()) + """),[['content','sine','sine-mods/']]);return true;""")
-                result = check_probe_loader(m, root) if args.probe_loader else check_native_integration(m, root) if args.native_integration else check_actions(m, root) if args.actions else check_library_hover(m, root, args.arc) if args.library_hover else check(m, root, args.arc, args.transparent)
+                result = check_probe_fixture(m, root) if args.probe_fixture else check_probe_loader(m, root) if args.probe_loader else check_native_integration(m, root) if args.native_integration else check_actions(m, root) if args.actions else check_library_hover(m, root, args.arc) if args.library_hover else check(m, root, args.arc, args.transparent)
                 print(json.dumps(result, indent=2))
             finally:
                 process.terminate()

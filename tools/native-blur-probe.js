@@ -4,7 +4,7 @@
   const w = Services.wm.getMostRecentWindow('navigator:browser');
   if (!w) throw Error('No browser window');
   await w.__zzNativeBlurProbe?.stop?.('replaced');
-  const report = { probe: 'native-blur-v4', started: new Date().toISOString(),
+  const report = { probe: 'native-blur-v5', started: new Date().toISOString(),
     browser: Services.appinfo.version, platform: Services.appinfo.OS, cases: [], errors: [],
     limitations: 'Generated fixture only. Desktop GDI crops test presented pixels, not animation FPS. Native acrylic must be enabled before browser startup; its renderer startup latch is not observable here. Compare native-only against installed output, including transparent pages. A computed filter alone is not visual proof.' };
   const P = Services.prefs, doc = w.document, root = doc.documentElement;
@@ -12,7 +12,7 @@
   const clock = ChromeUtils.importESModule('resource://gre/modules/Timer.sys.mjs');
   const wait = ms => new Promise(resolve => clock.setTimeout(resolve, ms));
   const read = fn => { try { return fn(); } catch (e) { return { error: String(e) }; } };
-  const saved = new Map(), attributes = [], fixtures = new Set(), temporary = [];
+  const saved = new Map(), attributes = [], fixtures = new Set(), fixtureDocuments = new Map(), temporary = [];
   const addFixture = tab => { fixtures.add(tab); return tab; };
   let stopped = '', task, worker, directory, fixture, originalTab, status, deadline, restoreLibrary;
   let phaseSheet = null, maskSheet = null;
@@ -36,7 +36,12 @@
   };
   const unSheet = uri => { if (uri && ss.sheetRegistered(uri, ss.USER_SHEET)) ss.unregisterSheet(uri, ss.USER_SHEET); };
   const abort = reason => { stopped ||= reason; };
-  const guard = () => { if (stopped || w.closed) throw Error(stopped || 'window closed'); };
+  const guard = () => {
+    if (stopped || w.closed) throw Error(stopped || 'window closed');
+    const browser = w.gBrowser.selectedBrowser;
+    if (fixture && fixtures.has(w.gBrowser.selectedTab) && browser.currentURI.spec !== 'about:blank' &&
+        !fixtureDocuments.has(browser.currentURI.spec)) throw Error('Fixture navigated away; capture refused');
+  };
   const onSelect = () => { if (fixture && !fixtures.has(w.gBrowser.selectedTab)) abort('selected tab changed'); };
   const onUnload = () => {
     abort('window closed');
@@ -80,6 +85,7 @@ $null = [BlurWindow]::SetThreadDpiAwarenessContext([IntPtr](-4))
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 $end = [DateTime]::UtcNow.AddSeconds(260)
 $nextId = 1
+$fixtureHandle = [IntPtr]::Zero
 while ([DateTime]::UtcNow -lt $end -and !(Test-Path (Join-Path $Directory 'stop'))) {
  # Publish each message once. Windows readers can hold a file against replacement.
  $requestPath = Join-Path $Directory ('request-{0:D2}.json' -f $nextId)
@@ -108,12 +114,31 @@ while ([DateTime]::UtcNow -lt $end -and !(Test-Path (Join-Path $Directory 'stop'
   for ($frame=0; $frame -lt $frames; $frame++) {
   if (Test-Path (Join-Path $Directory 'stop')) { throw 'Capture stopped' }
   $stage = 'verify-window'
-  $handle = [BlurWindow]::GetForegroundWindow()
-  [uint32]$owner = 0
-  $null = [BlurWindow]::GetWindowThreadProcessId($handle,[ref]$owner)
-  $title = New-Object System.Text.StringBuilder(1024)
-  $null = [BlurWindow]::GetWindowText($handle,$title,1024)
-  if ($owner -ne $q.pid -or !$title.ToString().Contains($q.marker)) { throw 'Fixture browser is not the foreground window; capture refused' }
+  # Navigation can briefly replace a window title. Never capture through that
+  # gap: wait at most 2s, reverify every condition, and record omitted time.
+  $identityWait = [Diagnostics.Stopwatch]::StartNew()
+  $miss = $null
+  do {
+   $handle = [BlurWindow]::GetForegroundWindow()
+   if ($q.ownedPopup) { $handle = [BlurWindow]::GetAncestor($handle,3) }
+   [uint32]$owner = 0
+   $null = [BlurWindow]::GetWindowThreadProcessId($handle,[ref]$owner)
+   $title = New-Object System.Text.StringBuilder(1024)
+   $null = [BlurWindow]::GetWindowText($handle,$title,1024)
+   $identity = @{processMatches=($owner -eq $q.pid);titleMatches=$title.ToString().Contains($q.marker);windowMatches=($fixtureHandle -eq [IntPtr]::Zero -or $handle -eq $fixtureHandle)}
+   if ($identity.processMatches -and $identity.titleMatches -and $identity.windowMatches) { break }
+   $miss = $identity
+   if (Test-Path (Join-Path $Directory 'stop')) { throw 'Capture stopped' }
+   if ($identityWait.ElapsedMilliseconds -ge 2000) {
+    $answer.identity=$identity
+    if (!$identity.processMatches) { throw 'Foreground process changed; capture refused' }
+    if (!$identity.windowMatches) { throw 'Foreground browser window changed; capture refused' }
+    throw 'Fixture title marker unavailable; capture refused'
+   }
+   Start-Sleep -Milliseconds 25
+  } while ($true)
+  if ($fixtureHandle -eq [IntPtr]::Zero) { $fixtureHandle=$handle }
+  if ($miss) { $answer.gaps += @(@{frame=$frame;waitMs=$identityWait.ElapsedMilliseconds;identity=$miss}) }
   $client = New-Object BlurWindow+Rect
   $origin = New-Object BlurWindow+Point(0,0)
   if (![BlurWindow]::GetClientRect($handle,[ref]$client) -or ![BlurWindow]::ClientToScreen($handle,[ref]$origin)) { throw 'Cannot resolve physical client coordinates' }
@@ -192,7 +217,17 @@ while ([DateTime]::UtcNow -lt $end -and !(Test-Path (Join-Path $Directory 'stop'
     await IOUtils.writeUTF8(PathUtils.join(directory,'capture.ps1'), capturePS);
     const marker = 'ZZBLUR-'+Date.now();
     originalTab = w.gBrowser.selectedTab;
-    fixture = w.gBrowser.addTab('data:text/html,'+encodeURIComponent('<!doctype html><title>'+marker+'</title><style>html,body{margin:0;background:transparent}body{position:fixed;inset:0;background:repeating-linear-gradient(90deg,#000 0 4px,transparent 4px 8px)}</style>'),
+    // Fine stripes reveal blur; wide cyan/amber bands distinguish a freshly
+    // painted document from a stale backdrop even after strong blur/dimming.
+    const pageURL = (page,paint='stripes') => {
+      const color=paint==='cyan'?'#20c8ff':'#ff9020';
+      const html='<!doctype html><title>'+marker+'</title><style>html,body{margin:0!important;background:'+(page==='opaque'?'white':'transparent')+'!important;color-scheme:only light;forced-color-adjust:none}svg{position:fixed;inset:0;width:100%;height:100%}</style>'+
+        '<svg xmlns="http://www.w3.org/2000/svg"><defs><pattern id="stripes" width="8" height="8" patternUnits="userSpaceOnUse"><rect width="4" height="8" fill="#000"/></pattern></defs><rect width="100%" height="100%" fill="url(#stripes)"/>'+
+        (paint==='stripes'?'':'<rect y="176" width="100%" height="64" fill="'+color+'"/>')+'</svg>';
+      const url='data:text/html,'+encodeURIComponent(html);
+      fixtureDocuments.set(url,{page,paint});return url;
+    };
+    fixture = w.gBrowser.addTab(pageURL('transparent'),
       { triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true });
     addFixture(fixture);
     w.gBrowser.selectedTab = fixture;
@@ -222,7 +257,9 @@ while ([DateTime]::UtcNow -lt $end -and !(Test-Path (Join-Path $Directory 'stop'
     let id = 0;
     const panel = doc.getElementById('zen-toolbar-background'), toolbox=doc.getElementById('navigator-toolbox');
 
-    const snapshot = () => ({utcMs:Date.now(),panel:read(()=>{const r=panel.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};}),
+    const snapshot = () => ({utcMs:Date.now(),document:fixtureDocuments.get(w.gBrowser.selectedBrowser.currentURI.spec) || null,
+      loading:!!w.gBrowser.selectedBrowser.webProgress.isLoadingDocument,titleMatches:doc.title.includes(marker),
+      panel:read(()=>{const r=panel.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};}),
       filter:w.getComputedStyle(panel).backdropFilter,pageFilter:w.getComputedStyle(doc.getElementById('tabbrowser-tabbox')).filter});
     const capture = async (entry,start=null) => {
       const {id,rois}=entry;
@@ -299,10 +336,9 @@ while ([DateTime]::UtcNow -lt $end -and !(Test-Path (Join-Path $Directory 'stop'
       const showAttrs=['zen-has-hover','zen-has-empty-tab','flash-popup','has-popup-menu','movingtab','zen-compact-mode-active'];
       for(const key of showAttrs)attributes.push([toolbox,key,toolbox.getAttribute(key)]);
       const show = value => {for(const key of showAttrs)toolbox.removeAttribute(key);if(value)toolbox.setAttribute('zen-user-show','true');else toolbox.removeAttribute('zen-user-show');};
-      const pageURL = page => 'data:text/html,'+encodeURIComponent('<!doctype html><title>'+marker+'</title><style>html,body{margin:0;background:'+ (page==='opaque'?'white':'transparent') +'}body{position:fixed;inset:0;background:repeating-linear-gradient(90deg,#000 0 4px,transparent 4px 8px)}</style>');
       const alternate = addFixture(w.gBrowser.addTab(pageURL('transparent'),{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true}));
-      const load = async (tab,page) => {
-        const url=pageURL(page),browser=tab.linkedBrowser;
+      const load = async (tab,page,paint='stripes') => {
+        const url=pageURL(page,paint),browser=tab.linkedBrowser;
         browser.loadURI(Services.io.newURI(url),{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal()});
         for(let n=0;n<100;n++) {
           guard();await wait(30);
@@ -324,20 +360,21 @@ while ([DateTime]::UtcNow -lt $end -and !(Test-Path (Join-Path $Directory 'stop'
       setPref('ui.prefersReducedTransparency',0);
       for(const right of [false,true])for(const page of ['opaque','transparent'])for(const variant of ['installed','native-only','native-no-nudge']) {
         setPref('zen.tabs.vertical.right-side',right);
-        await load(alternate,page);
+        await load(alternate,page,'amber');
         unSheet(phaseSheet);phaseSheet=null;
         if(variant==='installed')restorePref('zzglass.sidebar.blur-transparent-pages');else setPref('zzglass.sidebar.blur-transparent-pages',false);
         if(variant==='native-no-nudge')phaseSheet=sheet(':root[zz-native-blur-test] #navigator-toolbox#navigator-toolbox #titlebar #zen-toolbar-background{backdrop-filter:var(--zzg-acrylic-flat)!important}');
         for(const scenario of ['load-open','tab-switch-open','slide-open','slide-close']) {
           guard();w.gBrowser.selectedTab=fixture;
-          await load(fixture,scenario==='load-open'?(page==='opaque'?'transparent':'opaque'):page);
+          await load(fixture,scenario==='load-open'?(page==='opaque'?'transparent':'opaque'):page,'cyan');
           show(true);await wait(450);
           const rois=sidebarCrops();
           if(scenario==='slide-open'){show(false);await wait(450);}
           status.textContent=`${id+1}: ${scenario}, ${right?'right':'left'}, ${page}, ${variant} — Stop + copy`;
-          const entry={id:++id,kind:'sequence',scenario,right,page,variant,rois,before:snapshot()};
+          const entry={id:++id,kind:'sequence',scenario,right,page,variant,rois,before:snapshot(),
+            expectedPaint:scenario==='load-open'||scenario==='tab-switch-open'?'amber':'cyan'};
           await capture(entry,()=>{
-            if(scenario==='load-open')w.gBrowser.selectedBrowser.loadURI(Services.io.newURI(pageURL(page)),{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal()});
+            if(scenario==='load-open')w.gBrowser.selectedBrowser.loadURI(Services.io.newURI(pageURL(page,'amber')),{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal()});
             else if(scenario==='tab-switch-open')w.gBrowser.selectedTab=alternate;
             else show(scenario==='slide-open');
           });

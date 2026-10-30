@@ -11,7 +11,7 @@ Console**, or run this loader there:
 (async () => {
   const w = Services.wm.getMostRecentWindow('navigator:browser');
   if (!w) throw Error('No browser window');
-  const response = await w.fetch('https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/f4a357c919b468f03558a8ca13ca30d64fe284aa/tools/native-blur-probe.js',
+  const response = await w.fetch('https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/49ab36852a791d3c8e9c110e1d86bdea61fcf7ee/tools/native-blur-probe.js',
     { signal: w.AbortSignal.timeout(15000) });
   if (!response.ok) throw Error('Probe download: HTTP ' + response.status);
   const code = await response.text();
@@ -40,7 +40,7 @@ or enable page `eval()`. The old fetch-then-eval loader was blocked by chrome CS
 before the probe could start. The temporary script is removed after execution;
 download/load errors are automatically copied too.
 
-The report identifies this revision as `native-blur-v4`. Each case publishes its
+The report identifies this revision as `native-blur-v5`. Each case publishes its
 own request and reply exactly once. Neither side replaces a file the other side
 may still be reading. This removes version 2's Windows file-sharing race on the
 reused `request.json` and `response.json`. Malformed or mismatched messages fail
@@ -57,6 +57,16 @@ about two to three minutes. Keep that window in front and unobscured while it ru
 foreground check refuses other windows, including the Browser Console. **Stop + copy** is
 optional. There are no phase/start/rating buttons.
 
+Version 4 stopped one returned run during a document load after 60 completed
+cases. Its error combined process, window and title checks, so it could not tell
+a foreground change from a temporary navigation title. Version 5 distinguishes
+those conditions and waits at most two seconds for the same authenticated
+window, process and fixture title to return. No pixels are captured during that
+wait; recorded gaps retain the skipped time. A different window is never
+accepted merely because it belongs to the same process. Native fixture menus
+are verified through their owning browser. Foreign titles, process IDs and
+window handles are not written to the report.
+
 The probe creates a generated striped tab, masks sidebar labels, and compares:
 
 - Left and right compact sidebar.
@@ -66,6 +76,9 @@ The probe creates a generated striped tab, masks sidebar labels, and compares:
   strip filter disabled; that same comparison with the redraw nudge suppressed.
 - Open-sidebar document loads, selected-tab switches, sidebar opening and closing.
   Each sequence records 16 timestamped desktop frames and bounded DOM samples.
+  Loads and tab switches change a wide cyan band to amber, allowing stale pixels
+  to be distinguished from the new document even through blur. Slides retain one
+  challenge. Document identity/loading samples contain only fixture labels.
 - The installed media-preview overlay recipe over opaque/transparent documents,
   at 52px/180px heights and 8px/42px blur, against the same no-blur reference.
 - Light/dark native menu and system-text fixtures under normal, reduced-transparency
@@ -129,10 +142,22 @@ pixel results. A Windows policy that blocks PowerShell can prevent capture.
   phases, preference/UI restoration and ZIP creation with a **simulated screen
   worker**. It caught a reference-selector conflict with the redraw rule before
   delivery.
+- `python3 tools/zen-smoke.py --zen /path/to/zen --probe-fixture` renders the
+  shipped navigation challenge and verifies its cyan/amber pixels and actual
+  opaque/transparent document backgrounds. This verifies the fixture content,
+  not Windows acrylic.
+- `python3 tools/analyze-native-blur.py /path/to/capture.zip` measures crop
+  differences, stripe contrast and sample intervals without extracting files.
+  It requires Pillow, like the native runner. `--self-test` checks the metrics
+  against generated flat, striped and color-change images. Output excludes user
+  paths, dates, graphics identifiers and raw screenshots; it makes no automatic
+  smoothness or freshness verdict.
 - The earlier v3 **32-case settled** matrix completed on Windows and supported
-  making the existing page-filter fallback opt-in. The expanded v4 Windows
-  sequence/overlay/menu capture still requires the user's machine; its simulated
-  backend is not evidence of backdrop pixels.
+  making the existing page-filter fallback opt-in. The returned v4 run contains
+  32 settled cases, 28 complete sequences and one partial sequence (964 PNGs).
+  Its identical before/after load pattern does not reliably establish backdrop
+  freshness; overlay/menu cases were not reached. The corrected v5 capture is
+  needed for that evidence. Its simulated backend is not Windows pixel proof.
 - Sequence sampling deliberately runs below monitor refresh rate. Timestamps help
   find missing/stale/blank blur during loads and slides; they do not certify GPU
   frame pacing or icon smoothness. Compare stripe detail with the outside control.

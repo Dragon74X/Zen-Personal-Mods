@@ -161,3 +161,61 @@ Validation: 236 Node tests pass, zero fail, one optional native entry skipped
 there and run separately. Native runner passes 268 checks, 40 scale cases and
 192 sprite-paint cases. Screen-capture mode passes all six cases. The confirmed
 attachment bug is fixed; remaining Windows workspace/Favorite jitter is open.
+
+## Windows user comparison
+
+`tools/icon-hover-ab-probe.js` runs from the Browser Console against installed
+mods; it has no version gate and writes no preferences. It presents five
+6-second phases on one selected workspace or Favorite icon:
+
+1. Current behavior.
+2. Same easing, with image scale duration changed to 450ms.
+3. Current scale timing, with image/ancestor opacity fixed at 1 and filters off.
+4. Current scale timing, with ancestor lighting/background inputs fixed.
+5. Hover-only comparison through `transform`, using observed scale endpoints
+   and the existing timing. The separate scale transition is disabled for this
+   phase, so two properties cannot simultaneously resize the icon.
+
+Hover an affected icon, press F8, move off it, then click Begin. Move on/off the
+same icon during each recording. After Current, click Next comparison; after
+each other phase choose Fewer jumps, Same jumps, More jumps, or Cannot compare.
+The final choice copies one JSON report and removes temporary styling/UI.
+Stop + copy does the same early; a 3-minute deadline also restores and copies.
+Repeat with the other icon type for a second report.
+
+Copy and paste the complete self-contained file into Browser Console
+(Ctrl+Shift+J on Windows). No update is required to run it. Do not use an
+`eval()` or data/file subscript download launcher: Zen's chrome CSP/trust checks
+reject those paths. No security preference change is required. Reduced/instant
+motion disables the probe's interpolation overrides and is reported explicitly.
+
+The probe records installed versions, graphics details, relevant preferences,
+interaction/transition events, observed animation owners, rAF intervals and
+window-wide compositor intervals. It limits each phase to 16 style snapshots,
+100 events and 2,000 rAF intervals. It never captures pixels or page URLs.
+Visual choices are required because timing/computed values alone cannot certify
+the icon's raster output. URL-valued CSS is omitted from exported data.
+
+The first compositor interval can begin before the phase. Idle window gaps are
+not evidence of dropped icon frames. The report marks ineffective overrides or
+unsupported transform endpoints unavailable rather than counting them as a
+successful comparison. An opacity of zero is not frozen in the fade test:
+overflow workspace icons must remain visible for the comparison.
+
+Interpret fewer jumps by condition: timing -> test the shared scale duration;
+fade/filter -> isolate state filtering/opacity from scaling; lighting -> inspect
+paint invalidation; transform -> compare the shared transform path. All-same
+results require further renderer/asset isolation; no global graphics setting
+change follows from these counters alone.
+
+Runnable native check, reusing the existing runner:
+
+```sh
+python3 tools/zen-morph-smoke.py --zen /path/to/zen \
+  --output /tmp/zen-hover-ab --probe-ab
+```
+
+Checks all five phases on native workspace and Favorite slots, verifies the
+duration/transform overrides, reads the auto-copied report, checks unchanged
+saved preferences, and checks cleanup after completion and cancellation.
+Its scripted Same verdicts exercise the controls; they are not visual findings.

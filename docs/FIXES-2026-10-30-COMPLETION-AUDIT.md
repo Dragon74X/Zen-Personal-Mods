@@ -4,9 +4,10 @@ This reconciles earlier remaining-work notes with implementation and evidence.
 Requested implementation and verification remain the implementer's work. A device
 limitation is not permission to hand the implementation back to the user.
 
-Follow-up: [returned v4 pixels and corrected v5 collection](NATIVE-BLUR-2026-10-30-CAPTURE-ANALYSIS.md)
-identify the completed cases, the ambiguous navigation evidence and the collector
-repairs. Windows transition/overlay/menu validation remains open.
+Follow-up: [returned v5 pixels and popup correction](NATIVE-BLUR-2026-10-30-CAPTURE-ANALYSIS.md)
+show working generated-fixture loading/slide/overlay blur and expose a menu
+defect fixed in Glassflow 3.74.20. The requested opaque/transparent backgrounds
+painted alike; the short follow-up verifies their actual state and corrected menus. No other implementation is delegated.
 
 ## Missed work completed in this change
 
@@ -108,11 +109,11 @@ budget and partition tests verify behavior, not time saved.
 
 ## Explicit machine-data request
 
-Run the [automatic Windows capture](../tools/NATIVE-BLUR-PROBE.md) and return its
-ZIP plus copied JSON. It starts and advances by itself. This supplies the missing
-presented pixels for loading/sliding/tab switches, webpage-backed overlays and
-native menu/system-color fixtures. Analysis and any resulting changes remain the
-implementer's work. It does not collect arbitrary page screenshots or publish data.
+The full Windows v5 capture has been returned and analyzed. Run only the
+[automatic short follow-up](../tools/NATIVE-BLUR-PROBE.md) with Glassflow 3.74.20
+and return its ZIP plus copied JSON. It starts and advances by itself; the earlier
+loading/sliding/overlay matrix is not requested again. Analysis and resulting
+changes remain the implementer's work. No arbitrary page screenshots or uploads.
 
 If the unattributed exceptions recur, run the separate
 [60-second console-origin collector](../tools/CONSOLE-ORIGIN-PROBE.md) and return

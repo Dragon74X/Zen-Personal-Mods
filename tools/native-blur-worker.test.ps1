@@ -25,6 +25,7 @@ $geometry = [scriptblock]::Create(
 Add-Type -TypeDefinition @'
 using System;
 using System.Collections.Generic;
+using System.Text;
 public static class BlurWindow {
     public struct Point {
         public int X, Y;
@@ -36,7 +37,15 @@ public static class BlurWindow {
         Seen.Add(point);
         return new IntPtr(Seen.Count - 1 == OccludedAt ? 99 : 42);
     }
-    public static IntPtr GetAncestor(IntPtr window, uint flags) { return window; }
+    public static IntPtr Foreground = new IntPtr(42);
+    public static uint Owner = 123;
+    public static int MissingTitle = 0;
+    public static IntPtr GetForegroundWindow() { return Foreground; }
+    public static uint GetWindowThreadProcessId(IntPtr window, out uint owner) { owner = Owner; return 1; }
+    public static int GetWindowText(IntPtr window, StringBuilder text, int size) {
+        text.Append(MissingTitle-- > 0 ? "loading" : "ZZBLUR-fixture"); return text.Length;
+    }
+    public static IntPtr GetAncestor(IntPtr window, uint flags) { return flags == 3 && window == new IntPtr(43) ? new IntPtr(42) : window; }
 }
 '@
 
@@ -94,3 +103,40 @@ $answer = @{}; $stage = 'synthetic-capture-failure'
 if ($answer.error -ne 'synthetic failure' -or $answer.failure.stage -ne $stage -or
     !$answer.failure.id -or $answer.failure.line -lt 1) { throw 'Worker failure lost its stage, identifier or line' }
 Write-Output "PowerShell $($PSVersionTable.PSVersion): 5 coordinate cases, 9 refusal cases and error-journal check passed; Win32 substituted, no pixel claim."
+
+# Execute the shipped identity gate. Missing titles must omit captures, then
+# recover only after process, marker and previously authenticated HWND agree.
+$identityStart = $ast.Find({ param($n)
+    $n -is [System.Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -eq '$stage' -and $n.Right.Extent.Text -eq "'verify-window'"
+}, $true).Extent.StartOffset
+$identityEnd = $ast.Find({ param($n)
+    $n -is [System.Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -eq '$client'
+}, $true).Extent.StartOffset
+$identityGate = [scriptblock]::Create($worker.Substring($identityStart,$identityEnd-$identityStart))
+$Directory = Join-Path ([IO.Path]::GetTempPath()) ('zen-identity-fixture-'+[Guid]::NewGuid().ToString('N'))
+$null = New-Item -ItemType Directory -Path $Directory
+try {
+    $q = [pscustomobject]@{pid=123;marker='ZZBLUR-fixture';ownedPopup=$false}
+    $answer=@{}; $fixtureHandle=[IntPtr]::Zero; $frame=2
+    [BlurWindow]::MissingTitle=3
+    . $identityGate
+    if ($fixtureHandle -ne [IntPtr]42 -or $answer.gaps.Count -ne 1 -or $answer.gaps[0].waitMs -lt 50 -or $answer.gaps[0].identity.titleMatches) { throw 'Transient title gap not recorded or recovered safely' }
+    $q.ownedPopup=$true; [BlurWindow]::Foreground=[IntPtr]43; $answer=@{}
+    . $identityGate
+    if ($handle -ne [IntPtr]42 -or $answer.gaps) { throw 'Owned native popup did not retain the verified browser' }
+    $q.ownedPopup=$false; [BlurWindow]::Foreground=[IntPtr]42
+    foreach ($failure in @('title','process','window')) {
+        $answer=@{}
+        [BlurWindow]::MissingTitle=if($failure -eq 'title'){100000}else{0}
+        [BlurWindow]::Owner=if($failure -eq 'process'){999}else{123}
+        [BlurWindow]::Foreground=if($failure -eq 'window'){[IntPtr]99}else{[IntPtr]42}
+        try { . $identityGate; throw 'Expected identity refusal' } catch {
+            if ($_.Exception.Message -notmatch 'capture refused') { throw }
+            $key=@{title='titleMatches';process='processMatches';window='windowMatches'}[$failure]
+            if ($answer.identity[$key]) { throw 'Identity refusal lost the specific failing condition' }
+        }
+    }
+    [IO.File]::WriteAllText((Join-Path $Directory 'stop'),'stop')
+    try { . $identityGate; throw 'Expected cancellation' } catch { if ($_.Exception.Message -ne 'Capture stopped') { throw } }
+} finally { Remove-Item -LiteralPath $Directory -Recurse -Force }
+Write-Output 'Identity gate: transient title recovery, owned popup, three distinct refusals and cancellation passed; no window titles or process identifiers recorded.'

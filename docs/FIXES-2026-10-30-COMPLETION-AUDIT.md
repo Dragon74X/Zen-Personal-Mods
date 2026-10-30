@@ -4,6 +4,10 @@ This reconciles earlier remaining-work notes with implementation and evidence.
 Requested implementation and verification remain the implementer's work. A device
 limitation is not permission to hand the implementation back to the user.
 
+Follow-up: [returned v4 pixels and corrected v5 collection](NATIVE-BLUR-2026-10-30-CAPTURE-ANALYSIS.md)
+identify the completed cases, the ambiguous navigation evidence and the collector
+repairs. Windows transition/overlay/menu validation remains open.
+
 ## Missed work completed in this change
 
 | Owner | Cause and resulting behavior |

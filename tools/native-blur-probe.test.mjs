@@ -43,7 +43,7 @@ for(const failure of [null,'fetch','http','write','compile','run','remove'])test
   if(['fetch','http'].includes(failure))assert.deepEqual(trace,[],'failed download never creates or executes a file');
 });
 
-async function run({failAt=0,cancelAt=0,closeAt=0,platform='WINNT',cleanupFailure=false,fatalWorker=false,badReply=false,readFailure=false,followUp=false}={}) {
+async function run({failAt=0,cancelAt=0,closeAt=0,navigateAt=0,platform='WINNT',cleanupFailure=false,fatalWorker=false,badReply=false,readFailure=false,followUp=false}={}) {
   const prefs=new Map([['zen.theme.acrylic-sidebar',true],['zen.theme.acrylic-urlbar',false],['zzglass.sidebar.blur-transparent-pages',true]]);
   const initial=new Map(prefs), files=new Map(), registered=new Set(), events=new Map(), trace=[];
   const nodes=[];
@@ -90,6 +90,7 @@ async function run({failAt=0,cancelAt=0,closeAt=0,platform='WINNT',cleanupFailur
       if(fatalWorker){workerRunning=false;response=undefined;}
       if(req.id===cancelAt)void window.__zzNativeBlurProbe.stop('test cancellation');
       if(req.id===closeAt){window.closed=true;events.get('unload')();assert.deepEqual(prefs,initial,'global prefs restore synchronously on window close');}
+      if(req.id===navigateAt)browser.selectedBrowser.currentURI.spec='https://private.invalid/never-record-this';
     }
   },readJSON:async path=>{
       if(/\/ready-\d+\.json$/.test(path))return {id:response.id};
@@ -118,6 +119,23 @@ for(const options of [{},{cancelAt:85},{cancelAt:99},{failAt:100},{closeAt:101}]
   assert.ok(e.nodes.every(n=>n.state!=='open'),'Native popup is closed even on capture failure');
   if(Object.keys(options).length===0){assert.equal(e.report.cases.length,102);assert.equal(e.report.errors.length,0);}
   else assert.ok(e.report.errors.length);
+});
+
+test('Navigation cases change their visible challenge; slides keep one document and capture identity stays bounded',async()=>{
+  const e=await run({followUp:true});
+  for(const c of e.report.cases.filter(c=>c.kind==='sequence')) {
+    assert.equal(c.before.document.paint,'cyan');
+    assert.equal(c.after.document.paint,c.expectedPaint);
+    assert.equal(c.after.document.page,c.page);
+    assert.equal(c.after.loading,false);
+    assert.equal(c.after.titleMatches,true);
+    assert.equal(c.expectedPaint,c.scenario.includes('open')&&!c.scenario.includes('slide')?'amber':'cyan');
+  }
+  const escaped=await run({navigateAt:33,followUp:true});
+  assert.match(escaped.report.errors[0],/Fixture navigated away/);
+  assert.equal(escaped.report.cases.length,32);
+  assert.ok(!escaped.copied.includes('private.invalid'));
+  assert.deepEqual(escaped.prefs,escaped.initial);assert.equal(escaped.registered.size,0);
 });
 
 test('Blur probe automatically completes 32 cases and restores state before copying',async()=>{

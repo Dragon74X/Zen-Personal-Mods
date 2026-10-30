@@ -82,6 +82,10 @@ analysis and fixes remain implementer-owned. The full 108-case runner remains av
   Windows worker. Both document backgrounds are verified, both fixture palettes
   differ and every captured menu/item opacity is settled. Full Windows pixel
   confirmation remains the explicit data request above.
+- The full 108-case collector also completes in native Zen with the simulated
+  screen worker, creates its ZIP and restores preferences/selected tab/Library.
+  Nested selected-tab return, independent Library copies and six existing
+  accessibility appearance cases pass in the same serial run.
 - Real Browser Console tests retain CSP, execute the local-file loader and check
   success/download/compile/precondition cleanup and clipboard reporting. The
   stale hard-coded v4 expectation now follows the tested source's probe version.

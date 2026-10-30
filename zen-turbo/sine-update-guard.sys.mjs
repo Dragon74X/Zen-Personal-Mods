@@ -21,7 +21,7 @@ export function fixChromeStylesheetImports(utils, { IOUtils, PathUtils } = globa
   return true;
 }
 
-export function installSineUpdateGuard(manager, utils, { IOUtils, PathUtils } = globalThis) {
+export function installSineUpdateGuard(manager, utils, { IOUtils, PathUtils, Services } = globalThis) {
   const marker = "__zenPersonalModsUpdateGuardV1";
   if (manager[marker]) return true;
   const names = ["updateMods", "processModUpdate", "installMod", "syncModData"];
@@ -75,9 +75,11 @@ export function installSineUpdateGuard(manager, utils, { IOUtils, PathUtils } = 
         args[1] = await utils.getMods();
         // Sine compares only updatedAt. Several store entries never get one,
         // or change version without a new date, so they never update. For
-        // store mods, a different store version counts as newer.
+        // store mods, only a newer version may supply a missing/stale date.
+        // A cached older store entry must not undo an installed correction.
         const [mod, , store] = args, entry = mod?.origin === "store" && store?.[mod.id];
-        if (entry?.version && entry.version !== mod.version &&
+        if (entry?.version && mod.version && entry.version !== mod.version &&
+            Services?.vc?.compare(entry.version, mod.version) > 0 &&
             !(new Date(mod.updatedAt) < new Date(entry.updatedAt))) {
           args[2] = { ...store, [mod.id]: { ...entry, updatedAt: new Date().toISOString() } };
         }

@@ -80,49 +80,38 @@ def record_hover(m,out):
   m.script("InspectorUtils.removePseudoClassLock(hfHost,':hover');if(hfURI)hfSS.unregisterSheet(hfURI,1);return true;")
 
 def check_hover_ab(m,out):
- """Run the user-facing probe on native workspace and Favorite slots."""
- def load_probe():
-  # Execute the complete self-contained source, matching a Browser Console
-  # paste. Chrome CSP/trust checks reject eval/data/file download launchers.
-  m.script((ROOT/'tools/icon-hover-ab-probe.js').read_text()+'\nreturn true;')
- def move(x,y):m.call('WebDriver:PerformActions',{'actions':[{'type':'pointer','id':'hover-ab','parameters':{'pointerType':'mouse'},'actions':[{'type':'pointerMove','duration':0,'x':round(x),'y':round(y)}]}]})
- def button(text):m.script('document.querySelector("#zz-hover-ab-panel").querySelectorAll("button").values().find(b=>b.textContent==='+json.dumps(text)+').click();return true;')
+ """Automatic capture must finish without pointer, keyboard or start controls."""
  read_clip="const t=Cc['@mozilla.org/widget/transferable;1'].createInstance(Ci.nsITransferable);t.init(null);t.addDataFlavor('text/plain');Services.clipboard.getData(t,Services.clipboard.kGlobalClipboard);const v={};t.getTransferData('text/plain',v);return v.value.QueryInterface(Ci.nsISupportsString).data;"
- m.script("window.abPrefs=()=>JSON.stringify(Services.prefs.getChildList('zz').map(k=>[k,Services.prefs.prefHasUserValue(k),Services.prefs.getPrefType(k)===128?Services.prefs.getBoolPref(k):Services.prefs.getPrefType(k)===64?Services.prefs.getIntPref(k):Services.prefs.getStringPref(k)]));window.abSource='data:image/svg+xml,%3Csvg xmlns=\"http://www.w3.org/2000/svg\" width=\"300\" height=\"300\"%3E%3Ccircle cx=\"150\" cy=\"150\" r=\"120\" fill=\"red\"/%3E%3C/svg%3E';const h=document.querySelector('#zen-workspaces-button toolbarbutton');h.parentElement.removeAttribute('dont-show');h.removeAttribute('active');const i=h.querySelector('.zen-workspace-icon');i.removeAttribute('no-icon');i.textContent='🌐';gZenWorkspaces.onWindowResize();window.abFavorite=gBrowser.addTab('about:blank',{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});gBrowser.pinTab(abFavorite);gZenPinnedTabManager.addToEssentials(abFavorite,{replicating:true});gBrowser.setIcon(abFavorite,abSource);Services.prefs.setIntPref('zzglass.workspaces.hover',1);Services.prefs.setIntPref('zzglass.tabs.essentials-icon-grow',2);return true;")
- time.sleep(.5)
- for kind,selector in [('workspace','#zen-workspaces-button toolbarbutton'),('favorite','.tabbrowser-tab[zen-essential="true"]')]:
-  move(1000,700);time.sleep(.6)
-  before=m.script('return abPrefs();')
-  load_probe()
-  box=m.script('return document.querySelector('+json.dumps(selector)+').getBoundingClientRect().toJSON();');assert box['width']>0,(kind,box)
-  move(box['x']+box['width']/2,box['y']+box['height']/2)
-  m.script("window.dispatchEvent(new KeyboardEvent('keydown',{key:'F8',bubbles:true}));return true;")
-  move(1000,700);button('Begin')
-  for phase in range(5):
-   time.sleep(.8)
-   for _ in range(2):
-    move(box['x']+box['width']/2,box['y']+box['height']/2);time.sleep(.65);move(1000,700);time.sleep(.3)
-   for _ in range(40):
-    if m.script("return [...document.querySelector('#zz-hover-ab-panel').querySelectorAll('button')].some(b=>!b.hidden&&['Next comparison','Same jumps'].includes(b.textContent));"):break
-    time.sleep(.15)
-   else:raise AssertionError(('Probe phase did not finish',kind,phase))
-   button('Next comparison' if phase==0 else 'Same jumps')
-  report=json.loads(m.script(read_clip));assert report['finished']=='completed' and report['target']['kind']==kind,report
-  assert len(report['phases'])==5 and all(p['samples'] and p['rafIntervalsMs'] for p in report['phases']),report
-  assert all(len(p['samples'])<=16 and len(p['events'])<=100 and len(p['rafIntervalsMs'])<=2000 for p in report['phases'])
-  (out/(kind+'-ab.json')).write_text(json.dumps(report,indent=2))
-  assert report['phases'][1]['overrideVerified'] and report['phases'][4]['overrideVerified'],[(p['name'],p.get('unavailable')) for p in report['phases']]
-  assert all(p['verdict']=='same' for p in report['phases'][1:])
-  assert m.script('return abPrefs();')==before,'Probe changed saved preferences'
-  assert m.script("return !window.__zzHoverABProbe&&!document.querySelector('#zz-hover-ab-panel,[data-zz-hover-ab]');"),'Probe leaked UI/markers'
-  print('PASS',kind,'5 phases, clipboard and restoration',flush=True)
- # Cancellation during an active CSS override must also release it.
- load_probe()
- box=m.script("return document.querySelector('#zen-workspaces-button toolbarbutton').getBoundingClientRect().toJSON();")
- move(box['x']+box['width']/2,box['y']+box['height']/2);m.script("window.dispatchEvent(new KeyboardEvent('keydown',{key:'F8',bubbles:true}));return true;");move(1000,700);button('Begin');time.sleep(6.8);button('Next comparison');time.sleep(.8);button('Stop + copy')
+ m.script("window.abPrefs=()=>JSON.stringify(Services.prefs.getChildList('zz').map(k=>[k,Services.prefs.prefHasUserValue(k),Services.prefs.getPrefType(k)===128?Services.prefs.getBoolPref(k):Services.prefs.getPrefType(k)===64?Services.prefs.getIntPref(k):Services.prefs.getStringPref(k)]));window.abSource='data:image/svg+xml,%3Csvg xmlns=\"http://www.w3.org/2000/svg\" width=\"300\" height=\"300\"%3E%3Ccircle cx=\"150\" cy=\"150\" r=\"120\" fill=\"red\"/%3E%3C/svg%3E';const h=document.querySelector('#zen-workspaces-button toolbarbutton');h.parentElement.removeAttribute('dont-show');h.removeAttribute('active');const i=h.querySelector('.zen-workspace-icon');i.removeAttribute('no-icon');i.textContent='🌐';gZenWorkspaces.onWindowResize();window.abFavorite=gBrowser.addTab('about:blank',{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});gBrowser.pinTab(abFavorite);gZenPinnedTabManager.addToEssentials(abFavorite,{replicating:true});gBrowser.setIcon(abFavorite,abSource);window.abPendingFavorite=gBrowser.addTab('about:blank',{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});gBrowser.pinTab(abPendingFavorite);gZenPinnedTabManager.addToEssentials(abPendingFavorite,{replicating:true});gBrowser.setIcon(abPendingFavorite,abSource);window.abPendingTab=gBrowser.addTab('about:blank',{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});gBrowser.setIcon(abPendingTab,abSource);Services.prefs.setIntPref('zzglass.workspaces.hover',1);Services.prefs.setIntPref('zzglass.tabs.essentials-icon-grow',2);return true;")
+ time.sleep(.7)
+ m.script("abPendingFavorite.setAttribute('pending','true');abPendingTab.setAttribute('pending','true');InspectorUtils.addPseudoClassLock(abFavorite,':hover',false);return true;")
+ before=m.script('return abPrefs();');selected=m.script('return gBrowser.selectedTab.id;')
+ assert m.script("return [Services.vc.compare('1.0.0','9.9.9'),Services.vc.compare('9.9.9','1.0.0'),Services.vc.compare('1.0.0','1.0.0')].map(Math.sign);")==[-1,1,0]
+ m.script((ROOT/'tools/icon-hover-ab-probe.js').read_text()+'\nreturn true;')
+ assert m.script("return [...document.querySelector('#zz-hover-ab-panel').querySelectorAll('button')].map(b=>b.textContent);")==['Stop + copy']
+ for _ in range(250):
+  if not m.script('return !!window.__zzHoverABProbe;'):break
+  time.sleep(.5)
+ else:raise AssertionError('Automatic probe did not finish')
+ report=json.loads(m.script(read_clip));(out/'automatic-ab.json').write_text(json.dumps(report,indent=2))
+ assert report['probe']=='hover-ab-v2' and report['automatic'] and report['finished']=='completed',report['finished']
+ kinds={t['kind'] for t in report['targets']};assert kinds=={'workspace','favorite-pending','favorite-loaded','tab-pending','tab-loaded'},kinds
+ assert len(report['phases'])==17,len(report['phases'])
+ for row in report['phases']:
+  assert row['samples'] and row['rafIntervalsMs'],(row['target'],row['name'])
+  assert len(row['samples'])<=12 and len(row['events'])<=100 and len(row['rafIntervalsMs'])<=2000
+  if row['variant'] in [1,4]:assert row['overrideVerified'],(row['target'],row['name'],row.get('unavailable'))
+ assert m.script('return abPrefs();')==before,'Probe changed saved preferences'
+ assert m.script('return gBrowser.selectedTab.id;')==selected,'Probe selected a tab'
+ assert m.script("return InspectorUtils.hasPseudoClassLock(abFavorite,':hover')&&!abFavorite.matches(':hover');"),'Prior negative pseudo lock lost'
+ assert m.script("return !window.__zzHoverABProbe&&!document.querySelector('#zz-hover-ab-panel,[data-zz-hover-ab]');"),'Probe leaked UI/markers'
+ print('PASS automatic 17 phases / 5 targets; clipboard, preferences, selection and prior locks restored',flush=True)
+ m.script((ROOT/'tools/icon-hover-ab-probe.js').read_text()+'\nreturn true;');time.sleep(5.5)
+ m.script("__zzHoverABProbe.stop();return true;")
  assert json.loads(m.script(read_clip))['finished']=='manual'
  assert m.script("return !window.__zzHoverABProbe&&!document.querySelector('#zz-hover-ab-panel,[data-zz-hover-ab]');")
- print('PASS cancellation restores temporary override',flush=True)
+ assert m.script('return abPrefs();')==before
+ print('PASS cancellation restores active override',flush=True)
 
 p=argparse.ArgumentParser(description=__doc__);p.add_argument('--zen',required=True,type=Path);p.add_argument('--output',required=True,type=Path);modes=p.add_mutually_exclusive_group();modes.add_argument('--record-hover',action='store_true',help='Record six hover comparisons from an existing X11 DISPLAY instead of the headless suite');modes.add_argument('--probe-ab',action='store_true',help='Check the user-facing hover A/B probe and clipboard cleanup in native Zen');args=p.parse_args()
 OUT=args.output.resolve();OUT.mkdir(parents=True,exist_ok=True)

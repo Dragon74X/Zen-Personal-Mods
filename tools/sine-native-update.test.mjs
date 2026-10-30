@@ -279,7 +279,8 @@ test("native Sine: a store mod whose store entry changes version without a newer
   const unguarded = await env.utils.getMods();
   assert.equal((await env.manager.processModUpdate(unguarded[id], unguarded, env.marketplace)).changed, false,
     "baseline: Sine never updates it");
-  installSineUpdateGuard(env.manager, env.utils, { IOUtils: env.IOUtils, PathUtils: path.posix });
+  installSineUpdateGuard(env.manager, env.utils, { IOUtils: env.IOUtils, PathUtils: path.posix,
+    Services: { vc: { compare(a,b) { assert.notEqual(a,b); return 1; } } } });
   assert.equal(await env.manager.updateMods("auto"), true);
   assert.deepEqual(env.updatedMods, [id]);
   assert.equal(env.registry[id].version, entry.version);
@@ -290,6 +291,23 @@ test("native Sine: a store mod whose store entry changes version without a newer
   env.registry[id].updatedAt = "2026-01-02T00:00:00Z";
   assert.equal(await env.manager.updateMods("auto"), true, "different version, same date");
   assert.deepEqual(env.updatedMods, [id, id]);
+});
+
+test("native Sine: stale store versions cannot force a version-only downgrade", { skip: !upstream }, async () => {
+  const env = await environment();
+  const id = "zz-groupflow", { updatedAt, ...entry } = env.manifests[id];
+  Object.assign(env.registry[id], { origin: "store", version: "9.9.9", updatedAt: "2026-01-02T00:00:00Z" });
+  env.marketplace[id] = { ...entry, version: "1.0.0", commit: "cached" };
+  installSineUpdateGuard(env.manager, env.utils, { IOUtils: env.IOUtils, PathUtils: path.posix,
+    Services: { vc: { compare(a, b) { assert.equal(a, "1.0.0"); assert.equal(b, "9.9.9"); return -1; } } } });
+  const before = await env.utils.getMods();
+  for (const date of [undefined, "2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z"]) {
+    if (date) env.marketplace[id].updatedAt = date;
+    else delete env.marketplace[id].updatedAt;
+    assert.equal((await env.manager.processModUpdate(before[id], before, env.marketplace)).changed, false);
+  }
+  assert.equal(env.registry[id].version, "9.9.9");
+  assert.deepEqual(env.updatedMods, []);
 });
 
 test("native Sine: an installed Zenslop fork updates into Mediaflow and keeps its id", { skip: !upstream }, async () => {

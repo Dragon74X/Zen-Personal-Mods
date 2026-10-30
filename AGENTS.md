@@ -21,3 +21,16 @@ mods say where to find them rather than adding their own colour settings.
 Preserve the existing close, minimize, maximize and restore button glyphs and
 behavior. Keep them outside Iconflow/Morph artwork and animation changes unless
 the user explicitly requests changes to those window controls.
+
+# Diagnostics
+
+Start collecting immediately when a probe runs. Discover targets and advance
+phases automatically; never require F8, target selection, Begin/Next buttons or
+rating choices. Keep only an optional Stop + copy control. Restore temporary
+styles, CSS state locks and UI state on completion, cancellation and a bounded
+deadline, then auto-copy the report. Diagnose installed versions and available
+APIs without requiring a mod update merely to run the probe.
+
+Distinguish automated CSS-state tests from real pointer/OS input and rendered
+pixels. Synthetic clicks or direct commands cannot verify physical input
+delivery. Timing/computed values alone cannot certify visual smoothness.

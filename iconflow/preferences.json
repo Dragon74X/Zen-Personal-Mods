@@ -111,19 +111,19 @@
   {
     "type": "dropdown",
     "property": "zzicon.speed",
-    "label": "Animation duration (ms)",
+    "label": "Icon animation timing *Circuit: duration. Morph: wind-up + action. Clicking before wind-up finishes also includes its remaining time.*",
     "defaultValue": "0.45s",
     "options": [
       {
-        "label": "Quick — 300ms",
+        "label": "Quick — 300ms / Morph 120 + 400ms",
         "value": "0.3s"
       },
       {
-        "label": "Smooth — 450ms",
+        "label": "Default — 450ms / Morph 180 + 600ms",
         "value": "0.45s"
       },
       {
-        "label": "Slow — 700ms",
+        "label": "Slow — 700ms / Morph 280 + 933ms",
         "value": "0.7s"
       }
     ],

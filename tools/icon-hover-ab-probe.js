@@ -1,142 +1,109 @@
-// Run in Zen's Browser Console. Hover a workspace/Favorite, then press F8.
-// Five 6-second comparisons; auto-copy and restore on Finish, Stop or 3 minutes.
-// No preference writes, graphics changes, synthetic icon clicks or pixel capture.
+// Paste the complete file into Zen's Browser Console. Starts immediately.
+// Automatically finds icons, exercises CSS hover/press, restores, and copies.
+// No clicks, tab selection, preference writes, graphics changes or screenshots.
 (() => {
   'use strict';
   const w=Services.wm.getMostRecentWindow('navigator:browser');
   if(!w)throw new Error('No Zen browser window');
-  const KEY='__zzHoverABProbe';w[KEY]?.stop('replaced');
-  w.__zzIconHoverProbe?.stop();
-  const doc=w.document,utils=w.windowUtils,abort=new w.AbortController(),timers=new Set(),tagged=[];
-  const attr='data-zz-hover-ab',token=Date.now().toString(36),ss=Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService);
-  const report={probe:'hover-ab-v1',browser:Services.appinfo.version,platform:Services.appinfo.OS,dpr:w.devicePixelRatio,
+  const KEY='__zzHoverABProbe';w[KEY]?.stop('replaced');w.__zzIconHoverProbe?.stop();
+  const doc=w.document,utils=w.windowUtils,abort=new w.AbortController(),timers=new Map(),tags=new Map(),locks=new Map(),undo=[];
+  const ss=Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService),attr='data-zz-hover-ab',token=Date.now().toString(36);
+  let stopped=false,uri=null,active=null,frame=0;
+  const report={probe:'hover-ab-v2',browser:Services.appinfo.version,platform:Services.appinfo.OS,dpr:w.devicePixelRatio,
     reducedMotion:w.matchMedia('(prefers-reduced-motion: reduce)').matches,instantMotion:!!w.Motion?.MotionGlobalConfig?.instantAnimations,
-    versions:{},prefs:{},phases:[],errors:[],
-    limitations:'6 seconds per phase; at most 2000 rAF intervals and 16 style snapshots per phase; 3-minute total limit. rAF is main-thread timing, compositor intervals are window-wide, neither proves icon pixel smoothness. First compositor interval can predate capture; idle gaps are not dropped icon frames. Your comparison supplies the visual observation. No screenshots or page URLs collected. No preference changes.'};
+    automatic:true,versions:{},prefs:{},discovery:{},targets:[],phases:[],errors:[],
+    limitations:'Automatic CSS :hover/:active locks; no pointer/click commands. Does not test OS input delivery, JS-driven Morph wind-up, or PiP controls. Up to 17 phases; 120-second deadline. At most 12 style snapshots, 100 events and 2000 rAF intervals per phase. rAF is main-thread timing; compositor intervals cover the window and include idle time. Neither proves pixel smoothness. No screenshots or page URLs. No preference changes.'};
   const attempt=fn=>{try{return fn();}catch(e){return {unavailable:String(e)};}};
-  const listen=(el,type,fn,opts={})=>el.addEventListener(type,fn,{...opts,signal:abort.signal});
-  const later=(fn,ms)=>{const id=w.setTimeout(()=>{timers.delete(id);if(!stopped)try{fn();}catch(e){report.errors.push(String(e));stop('error');}},ms);timers.add(id);return id;};
-  const names=['zzglass.motion.enabled','zzglass.motion.profile','zzglass.instant-ui','zzglass.edges.follow-pointer',
-    'zzglass.workspaces.enabled','zzglass.workspaces.hover','zzglass.workspaces.inactive','zzglass.workspaces.steady-dots',
-    'zzglass.tabs.essentials-icon-grow','zzicon.set','zzicon.animate','zzicon.speed','zzmedia.preview.controls'];
-  for(const key of names){const p=Services.prefs,t=p.getPrefType(key);report.prefs[key]=t===p.PREF_BOOL?p.getBoolPref(key):t===p.PREF_INT?p.getIntPref(key):t===p.PREF_STRING?p.getStringPref(key):null;}
-  for(const name of ['glassflow','iconflow','mediaflow'])w.fetch(`chrome://sine/content/zz-${name}/theme.json`).then(r=>r.json()).then(j=>{if(!stopped)report.versions[name]=j.version;}).catch(()=>{});
-  report.graphics=attempt(()=>{const g=Cc['@mozilla.org/gfx/info;1'].getService(Ci.nsIGfxInfo);return {adapter:attempt(()=>g.adapterDescription),driver:attempt(()=>g.adapterDriverVersion),features:attempt(()=>g.getFeatures()),monitors:attempt(()=>g.getMonitors())};});
-  const props=['scale','transform','rotate','translate','opacity','filter','transition','transition-property','transition-duration','transition-timing-function','transition-delay','border-radius','corner-shape','overflow','image-rendering'];
-  const lights=['background-color','background-image','box-shadow','border-top-color','border-right-color','border-bottom-color','border-left-color',
-    '--zzg-a','--zzg-b','--zzg-dir','--zzg-spread','--zzg-edge-top','--zzg-edge-ring','--zzg-edge-angle','--zzg-edge-width','--zzg-ring-width','--zzg-state-glow','--zzg-sheen-level',
-    '--zzg-follow-angle','--zzg-follow-gradient','--zzg-follow-top','--zzg-follow-right','--zzg-follow-bottom','--zzg-follow-left'];
+  const listen=(el,type,fn)=>el.addEventListener(type,fn,{capture:true,signal:abort.signal});
+  const sleep=ms=>new Promise(resolve=>{if(stopped){resolve(false);return;}const id=w.setTimeout(()=>{timers.delete(id);resolve(!stopped);},ms);timers.set(id,()=>resolve(false));});
   const clean=s=>String(s).replace(/url\([^)]*\)/gi,'url([omitted])');
+  const names=['sine.auto-update','zzglass.motion.enabled','zzglass.motion.profile','zzglass.instant-ui','zzglass.edges.follow-pointer','zzglass.workspaces.enabled','zzglass.workspaces.hover','zzglass.workspaces.inactive','zzglass.workspaces.steady-dots','zzglass.tabs.essentials-icon-grow','zzglass.tabs.close-left','zzicon.set','zzicon.animate','zzicon.speed','zzmedia.preview.controls'];
+  for(const key of names){const p=Services.prefs,t=p.getPrefType(key);report.prefs[key]=t===p.PREF_BOOL?p.getBoolPref(key):t===p.PREF_INT?p.getIntPref(key):t===p.PREF_STRING?p.getStringPref(key):null;}
+  for(const name of ['glassflow','groupflow','iconflow','mediaflow','glassflow-library','download-prompt','tab-router','tab-unloader','zen-turbo','peekflow']){
+    w.fetch(`chrome://sine/content/zz-${name}/theme.json`).then(r=>r.json()).then(j=>{if(!stopped)report.versions[name]=j.version;}).catch(()=>{});
+    w.fetch(`https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/main/${name}/theme.json`,{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}).then(j=>{if(!stopped)(report.availableVersions??={})[name]={version:j.version,updatedAt:j.updatedAt};}).catch(()=>{});
+  }
+  w.fetch('chrome://sine/content/zz-iconflow/morph-frames.json').then(r=>r.json()).then(j=>{if(!stopped){const ratio=Math.max(.1,parseFloat(report.prefs['zzicon.speed']||'.45')/.45||1);report.configuredMorph={model:'Installed frame index, 450ms reference; not measured motion',windIntervals:j.wind,actionIntervals:j.frames-1-j.wind,windMs:180*ratio,actionMs:j.fireMs*ratio};}}).catch(()=>{});
+  report.graphics=attempt(()=>{const g=Cc['@mozilla.org/gfx/info;1'].getService(Ci.nsIGfxInfo);return {adapter:attempt(()=>g.adapterDescription),driver:attempt(()=>g.adapterDriverVersion),features:attempt(()=>g.getFeatures()),monitors:attempt(()=>g.getMonitors())};});
+  report.updater=attempt(()=>{const uri='chrome://userscripts/content/core/manager.sys.mjs';if(typeof ChromeUtils.isESModuleLoaded!=='function'||!ChromeUtils.isESModuleLoaded(uri))return {loaded:false};const m=ChromeUtils.importESModule(uri).default;return {loaded:true,guardInstalled:!!m.__zenPersonalModsUpdateGuardV1,periodicChecks:!!m.__zenPersonalModsUpdateTimer,versionComparatorPresent:/vc\??\.compare/.test(String(m.processModUpdate))};});
+  const props=['scale','transform','rotate','translate','opacity','filter','transition','transition-property','transition-duration','transition-timing-function','transition-delay','border-radius','corner-shape','overflow','image-rendering'];
+  const lights=['background-color','background-image','box-shadow','border-top-color','border-right-color','border-bottom-color','border-left-color','--zzg-a','--zzg-b','--zzg-dir','--zzg-spread','--zzg-edge-top','--zzg-edge-ring','--zzg-edge-angle','--zzg-edge-width','--zzg-ring-width','--zzg-state-glow','--zzg-sheen-level','--zzg-follow-angle','--zzg-follow-gradient','--zzg-follow-top','--zzg-follow-right','--zzg-follow-bottom','--zzg-follow-left'];
   const style=(el,list=props)=>{const s=w.getComputedStyle(el);return Object.fromEntries(list.map(p=>[p,s.getPropertyValue(p)]));};
   const bounds=el=>{const r=typeof utils.getBoundsWithoutFlushing==='function'?utils.getBoundsWithoutFlushing(el):el.getBoundingClientRect();return [r.x,r.y,r.width,r.height];};
   const label=el=>el.id||el.localName+'.'+[...el.classList].join('.');
   const split=s=>{let depth=0,start=0,out=[];for(let i=0;i<s.length;i++){if(s[i]==='(')depth++;else if(s[i]===')')depth--;else if(s[i]===','&&!depth){out.push(s.slice(start,i).trim());start=i+1;}}out.push(s.slice(start).trim());return out;};
   const scalar=s=>{if(s==='none')return 1;const a=s.trim().split(/\s+/).map(Number);return a.length<=2&&a.every(Number.isFinite)&&(a.length===1||a[0]===a[1])?a[0]:null;};
-  let stopped=false,candidate=null,host=null,image=null,nodes=[],baseline=null,uri=null,index=-1,active=null,frame=0,nativeHoverScale=null,nativePressScale=null,started=0,ready=false;
-  const phases=[['Current','Repeat the affected hover/click movement.'],['450ms only','Same easing; only image scale duration changes.'],
-    ['Fade/filter off','Current timing; opacity 1 and filter none on image and ancestors.'],
-    ['Lighting held','Current timing; ancestor background, rim and lighting inputs held at rest values.'],
-    ['Transform scaling','Hover only: current timing and measured hover sizes through transform.']];
-  const ns='http://www.w3.org/1999/xhtml';
-  function node(name,text,parent){const e=doc.createElementNS(ns,name);if(text)e.textContent=text;if(parent)parent.append(e);return e;}
-  const panel=node('div');panel.id='zz-hover-ab-panel';panel.setAttribute('role','region');panel.setAttribute('aria-label','Icon hover comparison');
-  panel.style.cssText='all:initial;position:fixed;right:16px;top:16px;z-index:2147483647;width:345px;padding:14px;border:1px solid CanvasText;border-radius:8px;background:Canvas;color:CanvasText;font:14px system-ui;box-shadow:0 2px 12px #0006;';
-  node('strong','Icon hover comparison',panel);const status=node('p','Hover a workspace or Favorite icon, then press F8.',panel);status.setAttribute('aria-live','polite');
-  const buttons=node('div',null,panel);buttons.style.cssText='display:flex;gap:6px;flex-wrap:wrap;';
-  const begin=node('button','Begin',buttons),less=node('button','Fewer jumps',buttons),same=node('button','Same jumps',buttons),more=node('button','More jumps',buttons),unknown=node('button','Cannot compare',buttons),finish=node('button','Stop + copy',buttons);
-  for(const b of [begin,less,same,more,unknown,finish])b.style.cssText='font:13px system-ui;padding:5px 8px;';
-  begin.hidden=true;for(const b of [less,same,more,unknown])b.hidden=true;
-  doc.documentElement.append(panel);
-  function clearSheet(){if(uri){ss.unregisterSheet(uri,ss.USER_SHEET);uri=null;}}
-  function tag(el){const value=token+'-'+tagged.length,old=el.getAttribute(attr);tagged.push({el,value,old});el.setAttribute(attr,value);return value;}
+  const ns='http://www.w3.org/1999/xhtml',panel=doc.createElementNS(ns,'div');panel.id='zz-hover-ab-panel';panel.setAttribute('role','status');
+  panel.style.cssText='all:initial;position:fixed;right:16px;top:16px;z-index:2147483647;width:330px;padding:14px;border:1px solid CanvasText;border-radius:8px;background:Canvas;color:CanvasText;font:14px system-ui;';
+  const status=doc.createElementNS(ns,'p');status.textContent='Automatic icon comparison starting. No buttons or keys required.';panel.append(status);
+  const cancel=doc.createElementNS(ns,'button');cancel.textContent='Stop + copy';cancel.style.cssText='font:13px system-ui;padding:5px 8px;';panel.append(cancel);doc.documentElement.append(panel);
   const rank=doc.documentElement.id?'#'+w.CSS.escape(doc.documentElement.id):':not(#zz-hover-ab-unused)';
-  const selector=el=>':root'+rank.repeat(4)+` [${attr}="${el.getAttribute(attr)}"]`;
+  function tag(el){if(!tags.has(el)){const value=token+'-'+tags.size;tags.set(el,{value,old:el.getAttribute(attr)});el.setAttribute(attr,value);}}
+  const selector=el=>':root'+rank.repeat(4)+` [${attr}="${tags.get(el).value}"]`;
   const declarations=(values,keys)=>keys.filter(k=>values[k]?.trim()).map(k=>`${k}:${values[k]}!important;`).join('');
-  function pick(h){
-    if(host||!h?.isConnected)return;
-    host=h;image=host.querySelector('.zen-workspace-icon,.tab-icon-image');if(!image){host=null;return;}
-    for(let e=image;e&&nodes.length<8;e=e.parentElement){nodes.push(e);if(e.id==='navigator-toolbox'||e.classList.contains('zen-library-space-tabs'))break;}
-    for(const e of nodes)tag(e);
-    report.target={kind:host.closest('#zen-workspaces-button')?'workspace':'favorite',host:label(host),image:label(image)};
-    const src=image.currentSrc||image.getAttribute('src')||'';
-    report.target.asset={tag:image.localName,width:image.naturalWidth??null,height:image.naturalHeight??null,complete:image.complete??null,type:src.match(/^data:([^;,]+)/)?.[1]||src.match(/\.([a-z0-9]+)(?:[?#]|$)/i)?.[1]||'unknown'};
-    status.textContent='Selected '+report.target.kind+'. Move off the icon, then click Begin. No settings changed.';begin.hidden=false;candidate=null;
-  }
-  listen(w,'pointerover',e=>{if(host)return;candidate=e.target.closest?.('#zen-workspaces-button toolbarbutton,.tabbrowser-tab[zen-essential="true"]')||null;});
-  listen(w,'keydown',e=>{if(e.key==='F8'&&!host){e.preventDefault();pick(candidate);}}, {capture:true});
-  function animations(el){return el.getAnimations().map(a=>({property:a.transitionProperty||a.animationName||'WAAPI',state:a.playState,
-    properties:attempt(()=>a.effect.getProperties().map(({property,runningOnCompositor,warning})=>({property,runningOnCompositor,warning})))}));}
-  function snapshot(row,reason){
-    if(row.samples.length>=16||!image.isConnected)return;
-    const start=w.performance.now(),s=style(image),hover=host.matches(':hover'),pressed=host.matches(':active');
-    row.samples.push({ms:+(start-started).toFixed(2),reason,hover,pressed,style:s,hostStyle:style(host),hostBox:bounds(host),imageBox:bounds(image),animations:animations(image)});
-    row.readMs+=w.performance.now()-start;
-    if(index===0&&hover){
-      const a=image.getAnimations().find(a=>a.transitionProperty==='scale'),end=a?.effect.getKeyframes().at(-1)?.scale;
-      const target=scalar(end||s.scale);
-      if(target!==null){if(pressed)nativePressScale=target;else if(end||reason==='settled')nativeHoverScale=target;}
-    }
+  function clearSheet(){if(uri){ss.unregisterSheet(uri,ss.USER_SHEET);uri=null;}}
+  function setState(el,pseudo,value){if(!locks.has(el))locks.set(el,new Map());const saved=locks.get(el);if(!saved.has(pseudo))saved.set(pseudo,{had:InspectorUtils.hasPseudoClassLock(el,pseudo),value:el.matches(pseudo)});InspectorUtils.addPseudoClassLock(el,pseudo,value);}
+  function restoreLocks(){for(const[el,states]of locks)for(const[p,s]of states){if(s.had)InspectorUtils.addPseudoClassLock(el,p,s.value);else InspectorUtils.removePseudoClassLock(el,p);}locks.clear();}
+  const animations=el=>el.getAnimations().map(a=>({property:a.transitionProperty||a.animationName||'WAAPI',state:a.playState,properties:attempt(()=>a.effect.getProperties().map(({property,runningOnCompositor,warning})=>({property,runningOnCompositor,warning})))}));
+  function snapshot(reason,settled=false){
+    if(!active||active.row.samples.length>=12||!active.t.image.isConnected)return;
+    const {t,row,start}=active,before=w.performance.now(),s=style(t.image),hover=t.host.matches(':hover'),pressed=t.host.matches(':active');
+    const extra={};for(const[name,q]of [['stack','.tab-icon-stack'],['label','.tab-label-container'],['close','.tab-close-button']]){const e=t.host.querySelector(q);if(e)extra[name]={box:bounds(e),opacity:w.getComputedStyle(e).opacity};}
+    row.samples.push({ms:+(before-start).toFixed(2),reason,hover,pressed,style:s,hostStyle:style(t.host),hostBox:bounds(t.host),imageBox:bounds(t.image),extra,animations:animations(t.image)});row.readMs+=w.performance.now()-before;
+    if(row.variant===0&&hover){const a=t.image.getAnimations().find(a=>a.transitionProperty==='scale'),end=a?.effect.getKeyframes().at(-1)?.scale;const value=end?scalar(end):settled?scalar(s.scale):null;if(value!==null){if(pressed)t.press=value;else t.hover=value;}}
   }
   function sample(stamp){frame=0;if(!active)return;if(active.previous!==undefined&&active.row.rafIntervalsMs.length<2000)active.row.rafIntervalsMs.push(+(stamp-active.previous).toFixed(3));active.previous=stamp;frame=w.requestAnimationFrame(sample);}
-  function endCapture(){
-    if(!active)return;
-    const {row,recording}=active;active=null;w.cancelAnimationFrame(frame);frame=0;
-    row.elapsedMs=+(w.performance.now()-started).toFixed(2);
-    row.compositorIntervalsMs=attempt(()=>typeof recording==='number'?utils.stopFrameTimeRecording(recording):recording);
-    snapshot(row,'finished');
+  function endCapture(){if(!active)return;const {row,start,recording}=active;snapshot('finished',true);active=null;w.cancelAnimationFrame(frame);frame=0;row.elapsedMs=+(w.performance.now()-start).toFixed(2);row.compositorIntervalsMs=attempt(()=>typeof recording==='number'?utils.stopFrameTimeRecording(recording):recording);const boxes=row.samples.map(s=>s.hostBox);row.hostTravel=boxes.length?['x','y','width','height'].reduce((out,k,i)=>(out[k]=Math.max(...boxes.map(b=>b[i]))-Math.min(...boxes.map(b=>b[i])),out),{}):null;}
+  const phases=['Current','450ms only','Fade/filter off','Lighting held','Transform scaling'];
+  async function phase(t,variant){
+    clearSheet();setState(t.host,':active',false);setState(t.host,':hover',false);if(!await sleep(650))return;
+    if(!t.host.isConnected||!t.image.isConnected){report.errors.push('Target removed: '+t.kind);return;}
+    if(!t.base){t.base=style(t.image);t.paint=t.nodes.map(el=>({el,values:style(el,[...props,...lights])}));}
+    const row={target:t.kind,name:phases[variant],variant,samples:[],events:[],rafIntervalsMs:[],readMs:0};report.phases.push(row);
+    const s=t.base,properties=split(s['transition-property']),slot=properties.lastIndexOf('scale'),at=slot>=0?slot:Math.max(0,properties.lastIndexOf('all'));
+    const component=p=>{const values=split(s[p]);return values[at%values.length];},easing=component('transition-timing-function'),duration=component('transition-duration'),delay=component('transition-delay');
+    const interpolate=!report.reducedMotion&&!report.instantMotion&&!report.prefs['zzglass.instant-ui'];let css='';
+    if((variant===1||variant===4)&&!interpolate)row.unavailable='Reduced/instant motion active; no interpolation override.';
+    else if(variant===1)css=selector(t.image)+`{transition:${s.transition},scale 450ms ${easing} ${delay}!important;}`;
+    else if(variant===2||variant===3)css=t.paint.map(({el,values})=>selector(el)+'{'+declarations(variant===2?{opacity:'1',filter:'none'}:values,variant===2?['opacity','filter']:lights)+'}').join('');
+    else if(variant===4){const rest=scalar(s.scale);if(rest===null||t.hover===null||t.hover===rest||s.transform!=='none')row.unavailable='No supported scale change in baseline.';else{const paint=selector(t.image),owner=selector(t.host),child=`[${attr}="${tags.get(t.image).value}"]`;css=paint+`{scale:none!important;transform:scale(${rest})!important;transition:${s.transition},scale 0s,transform ${duration} ${easing} ${delay}!important;}`+owner+':hover '+child+`{transform:scale(${t.hover})!important;}`;if(t.press!==null)css+=owner+':active '+child+`{transform:scale(${t.press})!important;}`;}}
+    if(css){uri=Services.io.newURI('data:text/css,'+encodeURIComponent(css));ss.loadAndRegisterSheet(uri,ss.USER_SHEET);}
+    if(!await sleep(200))return;
+    row.appliedStyle=style(t.image);const effective=split(row.appliedStyle['transition-property']).lastIndexOf('scale'),durations=split(row.appliedStyle['transition-duration']);
+    row.overrideVerified=variant===1?effective>=0&&parseFloat(durations[effective%durations.length])===.45:variant===4?!row.unavailable&&row.appliedStyle.scale==='none'&&row.appliedStyle.transform.startsWith('matrix('):null;
+    if((variant===1||variant===4)&&!row.overrideVerified&&!row.unavailable)row.unavailable='Override did not apply; ignore this condition.';
+    status.textContent=`Automatic: ${t.kind} — ${phases[variant]}. Report copies when all phases finish.`;
+    active={t,row,start:w.performance.now(),recording:attempt(()=>utils.startFrameTimeRecording())};frame=w.requestAnimationFrame(sample);snapshot('rest',true);
+    for(const [hover,pressed,ms,reason,settled]of [[true,false,70,'hover transition',false],[true,false,530,'hovered',true],[false,false,70,'exit transition',false],[false,false,530,'restored',true],[true,false,600,'hover before press',true],[true,true,70,'press transition',false],[true,true,230,'pressed',true],[true,false,600,'released',true],[false,false,600,'rest end',true]]){setState(t.host,':hover',hover);setState(t.host,':active',pressed);if(!await sleep(ms))return;snapshot(reason,settled);}
+    endCapture();
   }
-  function advance(){
-    if(stopped)return;ready=false;for(const b of [begin,less,same,more,unknown])b.hidden=true;
-    clearSheet();index++;if(index===phases.length){stop('completed');return;}
-    status.textContent=`Preparing ${index+1}/${phases.length}: ${phases[index][0]}. Keep pointer off the icon for 0.6 seconds.`;
-    later(()=>{
-      if(!host.isConnected||!image.isConnected){stop('target removed');return;}
-      if(!baseline){baseline={image:style(image),nodes:nodes.map(el=>({el,values:style(el,[...props,...lights])}))};report.rest={image:Object.fromEntries(Object.entries(baseline.image).map(([k,v])=>[k,clean(v)])),ancestors:baseline.nodes.map(({el,values})=>({node:label(el),style:Object.fromEntries(Object.entries(values).map(([k,v])=>[k,clean(v)]))}))};}
-      const row={name:phases[index][0],samples:[],events:[],rafIntervalsMs:[],readMs:0,verdict:null};report.phases.push(row);
-      const s=baseline.image,properties=split(s['transition-property']),slot=properties.lastIndexOf('scale'),fallback=properties.lastIndexOf('all'),at=slot>=0?slot:fallback>=0?fallback:0;
-      const component=p=>{const values=split(s[p]);return values[at%values.length];};
-      const easing=component('transition-timing-function'),duration=component('transition-duration'),delay=component('transition-delay');
-      let css='';
-      const interpolate=!report.reducedMotion&&!report.instantMotion&&!report.prefs['zzglass.instant-ui'];
-      if(index===1){if(interpolate)css=selector(image)+`{transition:${s.transition},scale 450ms ${easing} ${delay}!important;}`;else row.unavailable='Reduced/instant motion is active; interpolation override is not applied.';}
-      if(index===2||index===3)css=baseline.nodes.map(({el,values})=>selector(el)+'{'+declarations(index===2?{opacity:'1',filter:'none'}:values,index===2?['opacity','filter']:lights)+'}').join('');
-      if(index===4){
-        const rest=scalar(s.scale);
-        if(!interpolate)row.unavailable='Reduced/instant motion is active; interpolation override is not applied.';
-        else if(rest===null||nativeHoverScale===null||s.transform!=='none'||host.matches(':hover'))row.unavailable='Baseline did not establish supported rest/hover scale endpoints. Rerun and complete one hover in Current.';
-        else{const paint=selector(image),owner=selector(host);css=paint+`{scale:none!important;transform:scale(${rest})!important;transition:${s.transition},scale 0s,transform ${duration} ${easing} ${delay}!important;}`+owner+':hover '+`[${attr}="${image.getAttribute(attr)}"]{transform:scale(${nativeHoverScale})!important;}`;
-          if(nativePressScale!==null)css+=owner+':active '+`[${attr}="${image.getAttribute(attr)}"]{transform:scale(${nativePressScale})!important;}`;
-        }
-      }
-      if(css){uri=Services.io.newURI('data:text/css,'+encodeURIComponent(css));ss.loadAndRegisterSheet(uri,ss.USER_SHEET);}
-      row.appliedStyle=style(image);row.overrideVerified=index===1?row.appliedStyle['transition-duration'].split(',').some(v=>parseFloat(v)===.45):index===4?!row.unavailable&&row.appliedStyle.scale==='none'&&row.appliedStyle.transform.startsWith('matrix('):null;
-      if((index===1||index===4)&&!row.overrideVerified&&!row.unavailable)row.unavailable='Temporary override did not apply; do not interpret this comparison.';
-      started=w.performance.now();active={row,recording:attempt(()=>utils.startFrameTimeRecording())};frame=w.requestAnimationFrame(sample);
-      status.textContent=`${index+1}/${phases.length}: ${phases[index][0]}. ${row.unavailable||phases[index][1]} Move on/off the SAME icon for 6 seconds.`;
-      later(()=>{endCapture();ready=true;if(index===0){begin.textContent='Next comparison';begin.hidden=false;status.textContent='Current recorded. Click Next comparison.';}else{for(const b of [less,same,more,unknown])b.hidden=false;status.textContent=phases[index][0]+': compare jumps against Current, then choose.';}},6000);
-    },600);
-  }
-  listen(begin,'click',()=>{if(index<0||ready)advance();});
-  for(const [b,value]of [[less,'fewer'],[same,'same'],[more,'more'],[unknown,'cannot compare']])listen(b,'click',()=>{if(!ready)return;report.phases.at(-1).verdict=value;advance();});
-  for(const type of ['pointerover','pointerout','pointerdown','pointerup','transitionrun','transitionend','transitioncancel'])listen(w,type,e=>{
-    if(!active||!host)return;
-    if(type.startsWith('transition')?e.target!==image&&!nodes.includes(e.target):!host.contains(e.target)||((type==='pointerover'||type==='pointerout')&&host.contains(e.relatedTarget)))return;
-    const row=active.row;if(row.events.length<100)row.events.push({ms:+(w.performance.now()-started).toFixed(2),type,property:e.propertyName,target:e.target===image?'image':e.target===host?'host':'ancestor'});
-    if((type==='pointerover'||type==='pointerdown')&&(row.scheduledSnapshots||0)<14){row.scheduledSnapshots=(row.scheduledSnapshots||0)+2;later(()=>{if(active?.row===row)snapshot(row,'transition');},70);later(()=>{if(active?.row===row&&host.matches(':hover'))snapshot(row,'settled');},500);}
-  },{capture:true});
-  listen(w,'error',e=>{if(report.errors.length<12)report.errors.push(String(e.message).slice(0,200));});
   function stop(reason='manual'){
-    if(stopped)return;endCapture();stopped=true;
-    for(const id of timers)w.clearTimeout(id);timers.clear();abort.abort();
-    try{clearSheet();}catch(e){report.errors.push('Style cleanup: '+String(e));}
-    for(const {el,value,old}of tagged)if(el.getAttribute(attr)===value){if(old===null)el.removeAttribute(attr);else el.setAttribute(attr,old);}
+    if(stopped)return;endCapture();stopped=true;for(const[id,resolve]of timers){w.clearTimeout(id);resolve();}timers.clear();abort.abort();
+    for(const fn of [clearSheet,restoreLocks,...undo])try{fn();}catch(e){report.errors.push('Cleanup: '+String(e));}
+    for(const[el,{value,old}]of tags)if(el.getAttribute(attr)===value){if(old===null)el.removeAttribute(attr);else el.setAttribute(attr,old);}
     panel.remove();if(w[KEY]?.stop===stop)delete w[KEY];report.finished=reason;
     report.mediaflow={present:!!w.ZzMediaflowController,activeSource:attempt(()=>!!w.ZzMediaflowController?.getActiveBC?.())};
     const text=JSON.stringify(report,(_key,value)=>typeof value==='string'?clean(value):value,2);w.__zzHoverABLastReport=text;
-    try{Cc['@mozilla.org/widget/clipboardhelper;1'].getService(Ci.nsIClipboardHelper).copyString(text);w.console.info('[Hover A/B] Report copied; temporary styles removed.',report);}catch(e){w.console.error('[Hover A/B] Clipboard failed; report available as window.__zzHoverABLastReport',e);}
-    return text;
+    try{Cc['@mozilla.org/widget/clipboardhelper;1'].getService(Ci.nsIClipboardHelper).copyString(text);w.console.info('[Hover A/B] Automatic report copied; changes restored.',report);}catch(e){w.console.error('[Hover A/B] Clipboard failed; use window.__zzHoverABLastReport',e);}return text;
   }
-  listen(finish,'click',()=>stop());listen(w,'unload',()=>stop('window closed'),{once:true});
-  w[KEY]={stop};later(()=>stop('3-minute limit'),180000);
-  w.console.info('[Hover A/B] Point at workspace/Favorite, press F8. Five 6-second phases. Report auto-copies after final choice.');
+  listen(cancel,'click',()=>stop());listen(w,'unload',()=>stop('window closed'));
+  listen(w,'error',e=>{if(report.errors.length<12)report.errors.push(String(e.message).slice(0,200));});
+  for(const type of ['transitionrun','transitionend','transitioncancel'])listen(w,type,e=>{if(active&&active.t.nodes.includes(e.target)&&active.row.events.length<100)active.row.events.push({ms:+(w.performance.now()-active.start).toFixed(2),type,property:e.propertyName,target:e.target===active.t.image?'image':e.target===active.t.host?'host':'ancestor'});});
+  w[KEY]={stop};const deadline=w.setTimeout(()=>stop('120-second limit'),120000);timers.set(deadline,()=>{});
+  (async()=>{
+    if(!['addPseudoClassLock','removePseudoClassLock','hasPseudoClassLock'].every(k=>typeof InspectorUtils[k]==='function')){report.errors.push('CSS state-lock API unavailable');stop('unsupported');return;}
+    attempt(()=>w.focus());
+    const sidebar=doc.getElementById('navigator-toolbox');if(sidebar&&doc.documentElement.getAttribute('zen-compact-mode')==='true'&&!sidebar.hasAttribute('zen-user-show')){sidebar.setAttribute('zen-user-show','');undo.push(()=>{if(sidebar.getAttribute('zen-user-show')==='')sidebar.removeAttribute('zen-user-show');});}
+    if(!await sleep(900))return;
+    const groups=[['workspace','#zen-workspaces-button toolbarbutton'],['favorite-pending','.tabbrowser-tab[zen-essential][pending]'],['favorite-loaded','.tabbrowser-tab[zen-essential]:not([pending])'],['tab-pending','#tabbrowser-tabs .tabbrowser-tab[pending]:not([pinned],[zen-essential])'],['tab-loaded','#tabbrowser-tabs .tabbrowser-tab:not([pending],[pinned],[zen-essential])']];
+    const targets=[];
+    for(const[kind,q]of groups){const available=[...doc.querySelectorAll(q)].map(host=>({host,image:host.querySelector('.zen-workspace-icon,.tab-icon-image')})).filter(t=>{if(!t.image)return false;const r=t.host.getBoundingClientRect(),s=w.getComputedStyle(t.host);return r.width>0&&r.height>0&&r.right>0&&r.bottom>0&&r.left<w.innerWidth&&r.top<w.innerHeight&&s.visibility==='visible';});report.discovery[kind]=available.length;
+      if(!available.length)continue;available.sort((a,b)=>Number(a.host.hasAttribute('active'))-Number(b.host.hasAttribute('active')));const t={...available[0],kind,hover:null,press:null,nodes:[]};
+      for(let e=t.image;e&&t.nodes.length<8;e=e.parentElement){t.nodes.push(e);tag(e);if(e.id==='navigator-toolbox'||e.classList.contains('zen-library-space-tabs'))break;}
+      const src=t.image.currentSrc||t.image.getAttribute('src')||'';report.targets.push({kind,host:label(t.host),image:label(t.image),asset:{tag:t.image.localName,width:t.image.naturalWidth??null,height:t.image.naturalHeight??null,complete:t.image.complete??null,type:src.match(/^data:([^;,]+)/)?.[1]||src.match(/\.([a-z0-9]+)(?:[?#]|$)/i)?.[1]||'unknown'}});targets.push(t);
+    }
+    if(!targets.length){report.errors.push('No visible workspace, Favorite or tab icon found');stop('no targets');return;}
+    for(const t of targets){for(let i=0;i<(t.kind.startsWith('tab-')?1:5);i++){if(stopped)return;await phase(t,i);}restoreLocks();}
+    stop('completed');
+  })().catch(e=>{report.errors.push(String(e));stop('error');});
 })();

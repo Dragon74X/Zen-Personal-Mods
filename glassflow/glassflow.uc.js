@@ -415,9 +415,44 @@
   function tabMotion() {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
     const active = new Map();
+    const presses = new Map();
+    let held = null;
     const enabled = () => !reduced.matches && Services.prefs.getBoolPref(PREFIX + "motion.enabled", true) &&
       !Services.prefs.getBoolPref(PREFIX + "instant-ui", false) && !window.Motion?.MotionGlobalConfig?.instantAnimations;
-    function cancel() { for (const { animation } of active.values()) animation.cancel(); active.clear(); }
+    function clearPress(host) {
+      clearTimeout(presses.get(host)?.timer); presses.delete(host);
+      host.removeAttribute("zzg-icon-pressed"); host.removeAttribute("zzg-icon-click");
+      if (held === host) held = null;
+    }
+    function cancelPresses() { for (const host of presses.keys()) clearPress(host); }
+    function cancel() { for (const { animation } of active.values()) animation.cancel(); active.clear(); cancelPresses(); }
+    // Native CSS remains the only scale owner. Hold a short tap for the 90ms
+    // compression, then use a 240ms spring return; native activation never waits.
+    function press(event) {
+      if (!enabled() || (event.type === "keydown" ? event.repeat || !["Enter", " "].includes(event.key)
+        : event.button !== 0 || event.isPrimary === false)) return;
+      if (event.target.closest?.("button, input, menuitem, .tab-close-button, .tab-icon-overlay, .tab-sharing-icon-overlay")) return;
+      const host = event.target.closest?.(".tabbrowser-tab[zen-essential='true'], #zen-workspaces-button toolbarbutton");
+      const image = host?.querySelector(".tab-icon-image, .zen-workspace-icon");
+      if (!image || !host.closest("#navigator-toolbox, .zen-library-space-tabs") ||
+          host.closest("#zen-workspaces-button") && !Services.prefs.getBoolPref(PREFIX + "workspaces.enabled", true)) return;
+      if (held && held !== host) clearPress(held);
+      clearTimeout(presses.get(host)?.timer);
+      held = host; presses.set(host, { at: performance.now(), timer: null });
+      host.setAttribute("zzg-icon-click", ""); host.setAttribute("zzg-icon-pressed", "");
+    }
+    function release(event) {
+      if (!held || event.type === "keyup" && !["Enter", " "].includes(event.key) ||
+          event.type === "pointerup" && event.button !== 0) return;
+      const host = held, record = presses.get(host); held = null;
+      record.timer = setTimeout(() => {
+        host.removeAttribute("zzg-icon-pressed");
+        record.timer = setTimeout(() => clearPress(host), 240);
+      }, Math.max(0, 90 - (performance.now() - record.at)));
+    }
+    const inputs = [["pointerdown", press], ["pointerup", release], ["keydown", press], ["keyup", release],
+      ["pointercancel", cancelPresses], ["dragstart", cancelPresses], ["deactivate", cancelPresses]];
+    for (const [type, handler] of inputs) window.addEventListener(type, handler, true);
     function settle(label) {
       if (!label?.isConnected || !enabled()) return;
       const old = active.get(label), from = getComputedStyle(label).translate;
@@ -448,6 +483,7 @@
     Services.prefs.addObserver(PREFIX + "instant-ui", changed);
     return () => {
       cancel();
+      for (const [type, handler] of inputs) window.removeEventListener(type, handler, true);
       gBrowser.tabContainer.removeEventListener("TabSelect", selected);
       window.removeEventListener("click", clicked);
       reduced.removeEventListener("change", cancel);

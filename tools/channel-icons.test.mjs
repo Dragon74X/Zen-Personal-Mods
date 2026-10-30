@@ -322,6 +322,53 @@ test("same-name subjects have separate groups and pictures; ambiguous legacy fol
   assert.equal(legacy.getAttribute("data-zzrouter-subject"),undefined);
   assert.equal(legacy.getAttribute("data-zzrouter-icon"),undefined);
 });
+test('YouTube channel pages and videos reuse verified handle/ID identity in either opening order',async()=>{
+  const id='https://www.youtube.com/channel/UCVerified';
+  for(const videoFirst of [false,true]){
+    const e=await environment({'zzrouter.section-icons':false}),channel=e.addTab(CHANNEL+'/videos'),video=e.addTab();
+    e.h.creatorMap().set('0:'+CHANNEL,{key:id,label:'Channel'});
+    e.h.creatorMap().set('0:'+id,{key:id,label:'Channel'});
+    e.h.creatorMap().set('0:video',{key:CHANNEL,label:'Channel'});
+    for(const tab of videoFirst?[video,channel]:[channel,video])await e.h.route(tab,'test');
+    assert.equal(channel.group,video.group,'one channel group, not separate handle/ID groups');
+    assert.equal(e.h.pictureSubject(video,false).key,id);
+    assert.equal(e.groups.filter(g=>g.getAttribute('data-zzrouter-subject')).length,1);
+  }
+});
+test('verified YouTube duplicate repair moves direct tabs; preserves manual names, icons and subfolders',async()=>{
+  const id='https://www.youtube.com/channel/UCVerified';
+  for(const protectedBy of ['', 'name', 'icon', 'subfolder']){
+    const e=await environment({'zzrouter.section-icons':false}),root=e.addGroup('Youtube');
+    const a=e.addGroup('Channel',root,id),b=e.addGroup(protectedBy==='name'?'Saved channel':'Channel',root,CHANNEL);
+    a.setAttribute('data-zzrouter-created','1');b.setAttribute('data-zzrouter-created','2');
+    if(protectedBy==='icon')b.customIcon=true;
+    const channel=e.addTab(id),video=e.addTab();a.addTabs([channel]);
+    const destination=protectedBy==='subfolder'?e.addGroup('Watch later',b):b;destination.addTabs([video]);
+    e.h.creatorMap().set('0:'+CHANNEL,{key:id,label:'Channel'});
+    e.h.creatorMap().set('0:'+id,{key:id,label:'Channel'});
+    e.h.creatorMap().set('0:video',{key:CHANNEL,label:'Channel'});
+    await e.h.route(video,'test');
+    assert.equal(video.group,protectedBy?destination:a,protectedBy||'duplicate consolidated');
+  }
+});
+test('channel metadata queues only verified duplicate repairs and keeps container identities separate',async()=>{
+  const id='https://www.youtube.com/channel/UCVerified',e=await environment({'zzrouter.section-icons':false}),queued=[];
+  e.h.observeQueues((tab,why)=>queued.push({tab,why}));
+  const root=e.addGroup('Youtube'),a=e.addGroup('Channel',root,id),b=e.addGroup('Channel',root,CHANNEL);
+  a.setAttribute('data-zzrouter-created','1');b.setAttribute('data-zzrouter-created','2');
+  const channel=e.addTab(CHANNEL+'/videos'),video=e.addTab(),canonical=e.addTab(id),other=e.addTab('https://www.youtube.com/watch?v=other',2);
+  a.addTabs([canonical]);b.addTabs([channel,video]);
+  e.h.creatorMap().set('0:video',{key:CHANNEL,label:'Channel'});
+  e.h.creatorMap().set('2:other',{key:CHANNEL,label:'Channel'});
+  e.h.pictureSubject(channel);assert.equal(e.requests.length,1);
+  e.answer(`<meta property="og:url" content="${id}"><meta property="og:title" content="Channel - YouTube">`);
+  assert.ok(queued.some(r=>r.tab===video&&r.why==='channel identity'));
+  assert.ok(queued.some(r=>r.tab===channel&&r.why==='channel identity'));
+  assert.ok(queued.every(r=>r.tab!==canonical&&r.tab!==other));
+  assert.equal(e.h.pictureSubject(other,false).key,CHANNEL,'another container has no verified alias');
+  for(const tab of new Set(queued.map(r=>r.tab)))await e.h.route(tab,'metadata');
+  assert.equal(channel.group,a);assert.equal(video.group,a);
+});
 test("picture-only updates work when movement disabled, creator grouping off, pinned, Essential or manually grouped",async()=>{
   for(const mode of ["disabled","creator-off","pinned","essential","grouped"]){
     const e=await environment(),t=e.addTab();
@@ -493,7 +540,12 @@ test("metadata completion repairs a legacy folder even when its picture was alre
   await e.h.route(t,'before metadata');assert.equal(g.hasAttribute('data-zzrouter-icon'),false);
   e.answer(JSON.stringify({author_name:'Channel',author_url:CHANNEL}));
   await e.h.route(t,'metadata');assert.equal(g.getAttribute('data-zzrouter-icon'),ICON);
-  assert.equal(e.requests.length,1);assert.equal(t.group,g);
+  assert.equal(e.requests.length,2,'one oEmbed request plus one channel identity lookup');
+  const id='https://www.youtube.com/channel/UCVerified';
+  e.answer(`<meta property="og:url" content="${id}"><meta property="og:title" content="Channel - YouTube">`);
+  await e.h.route(t,'canonical');
+  assert.equal(e.requests.length,2,'canonical identity reuses cached picture');
+  assert.equal(g.getAttribute('data-zzrouter-icon'),ICON);assert.equal(t.getAttribute('data-zzrouter-tab-icon'),ICON);assert.equal(t.group,g);
 });
 
 test("pre-update label caches refetch verified YouTube and Nexus pictures without reusing ambiguous bytes",async()=>{
@@ -510,7 +562,9 @@ test("pre-update label caches refetch verified YouTube and Nexus pictures withou
       e.answer(JSON.stringify({author_name:label,author_url:key}));await e.h.route(t,'verified channel');
     }
     assert.equal(e.requests.at(-1).url,key);
-    e.answer(nexus?gameMetadata():'<meta property="og:image" content="https://example.com/verified.png">');e.answer('image bytes');await tick();
+    e.answer(nexus?gameMetadata():`<meta property="og:url" content="${key}"><meta property="og:title" content="Channel - YouTube"><meta property="og:image" content="https://example.com/verified.png">`);
+    if(!nexus)await e.h.route(t,'channel metadata');
+    e.answer('image bytes');await tick();
     assert.equal(g.getAttribute('data-zzrouter-icon'),ICON);
     assert.equal(t.getAttribute('data-zzrouter-tab-icon'),ICON);
     assert.equal(g.getAttribute('data-zzrouter-picture'),key);

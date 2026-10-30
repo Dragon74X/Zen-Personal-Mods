@@ -938,7 +938,7 @@ test("Router restores a missing avatar for a cached creator without rerouting or
   child.setAttribute("data-zzrouter-subject", key);
   child.setAttribute("data-zzrouter-picture", key);
   child.setAttribute("data-zzrouter-context", "0");
-  e.prefs.set("zzrouter.creators", JSON.stringify({ "0:video": { key, label: "Channel" } }));
+  e.prefs.set("zzrouter.creators", JSON.stringify({ "0:video": { key, label: "Channel" }, ["0:" + key]: { key, label: "Channel" } }));
   e.prefs.set("zzrouter.avatars", JSON.stringify({ ["0:" + key]: { d: null, s: "round" } }));
   e.h.refreshPictures(); assert.equal(opened, 1);
   e.answer("<meta content='https://example.com/avatar.png?a=1&amp;b=2' property='og:image'>");

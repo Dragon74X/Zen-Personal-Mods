@@ -3231,7 +3231,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzglass.motion.profile",
-    "label": "Motion feel *Controls tab and folder transitions, workspace and Essentials icon sizing, and Morph icon presses. Crisp and Soft have no overshoot.*",
+    "label": "Motion feel *Controls tab and folder transitions, workspace and Favorites hover sizing, and Morph icon presses. Workspace and Favorites clicks spring back; Crisp and Soft have no hover overshoot.*",
     "defaultValue": 0,
     "options": [
       {

@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.8.8
+// @version        2.8.9
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==
@@ -17,7 +17,7 @@
   const LOG_PREFIX = "[Mediaflow]";
   // Gecko caches actor modules across unregister/re-register. Bump with actor
   // changes so Sine updates load replacement code without a browser restart.
-  const ACTOR_VERSION = "2.8.8";
+  const ACTOR_VERSION = "2.8.9";
   const CAPTIONS_PREF = "zzmedia.preview.captions";
   const CAPTIONS_WHEN_PIP_HIDDEN_PREF =
     "zzmedia.preview.captions-when-hidden";
@@ -208,6 +208,17 @@
     }
     .zzmf-pip-controls button:hover { background-color: rgb(255 255 255 / 0.18); }
     .zzmf-pip-controls :is(button, input):focus-visible { outline: 2px solid white; outline-offset: 1px; }
+    @media (prefers-reduced-transparency: reduce), (forced-colors), (prefers-contrast) {
+      #zen-sidebar-pip-caption { background: Canvas; color: CanvasText; }
+      .zzmf-pip-controls button {
+        background-color: Canvas;
+        color: CanvasText;
+        fill: CanvasText;
+      }
+      .zzmf-pip-controls button:hover { background-color: Highlight; color: HighlightText; fill: HighlightText; }
+      .zzmf-pip-time { background: Canvas; color: CanvasText; }
+      .zzmf-pip-controls :is(button, input):focus-visible { outline-color: CanvasText; }
+    }
     .zzmf-pip-close { top: 4px; right: 4px; --zzmf-icon: url("chrome://browser/skin/zen-icons/close.svg"); }
     .zzmf-pip-popout { top: 4px; left: 4px; --zzmf-icon: url("chrome://global/skin/media/picture-in-picture-open.svg"); }
     .zzmf-pip-back, .zzmf-pip-play, .zzmf-pip-forward { top: calc(50% - 14px); }

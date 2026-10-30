@@ -963,6 +963,47 @@ def check_actions(m, root):
     return result
 
 
+def check_native_integration(m, root):
+    m.script('return gZenStartup.promiseInitialized.then(()=>true);')
+    mods = ['glassflow', 'glassflow-library', 'groupflow', 'iconflow', 'tab-router', 'mediaflow']
+    prefs = {}
+    for mod in mods:
+        for row in json.loads((root/mod/'preferences.json').read_text()):
+            if 'property' in row and 'defaultValue' in row:
+                prefs[row['property']] = row['defaultValue']
+    prefs.update({'zzrouter.enabled': False, 'zzlib.warm': 1, 'zzglass.sidebar.blur': True,
+                  'zzicon.newtab.hide-label': True, 'zen.view.show-scroll-to-selected-tab': True})
+    m.script('for(const[k,v]of Object.entries('+json.dumps(prefs)+'))Services.prefs[typeof v==="boolean"?"setBoolPref":typeof v==="number"?"setIntPref":"setStringPref"](k,v);return true;')
+    m.script('window.integrationErrors=[];window.addEventListener("error",e=>integrationErrors.push(e.message));return true;')
+    for mod in mods:
+        if (root/mod/'userChrome.css').exists():
+            m.script('Cc["@mozilla.org/content/style-sheet-service;1"].getService(Ci.nsIStyleSheetService).loadAndRegisterSheet(Services.io.newURI('+json.dumps((root/mod/'userChrome.css').as_uri())+'),1);return true;')
+        if mod == 'iconflow': continue
+        source = (root/mod/(mod+'.uc.js')).read_text()
+        if mod == 'glassflow-library':
+            source = source.replace('  const warmReady =', '  window.integrationWarmLibrary = warmLibrary;\n  const warmReady =')
+        m.script(source+'\nreturn true;')
+    result = m.script((root/'tools/native-integration-checks.js').read_text())
+    m.shot().save('/tmp/zen-native-high-contrast.png')
+    # Exercise real chrome geometry, pref restoration and ZIP APIs on Linux;
+    # only the Windows screen worker is substituted. Never call this pixel proof.
+    m.script('Services.prefs.clearUserPref("browser.display.document_color_use");Services.prefs.clearUserPref("ui.useAccessibilityTheme");Services.prefs.setBoolPref("zen.theme.acrylic-sidebar",true);window.integrationOriginalTab=gBrowser.selectedTab;return true;')
+    probe = (root/'tools/native-blur-probe.js').read_text()
+    probe = probe.replace("Services.appinfo.OS !== 'WINNT'", 'false')
+    probe = probe.replace("const shell = PathUtils.join(Services.dirsvc.get('WinD',Ci.nsIFile).path,'System32','WindowsPowerShell','v1.0','powershell.exe');", "const shell = 'test-worker';")
+    probe = probe.replace("worker = Cc['@mozilla.org/process/util;1'].createInstance(Ci.nsIProcess); worker.init(localFile(shell));", "worker = {isRunning:false,runwAsync(){this.isRunning=true;},kill(){this.isRunning=false;}};")
+    probe = probe.replace('        let response;', "        await IOUtils.writeJSON(PathUtils.join(directory,'response.json'),{id,files:[],simulated:true});\n        let response;")
+    m.sock.settimeout(180)
+    m.call('WebDriver:SetTimeouts', {'script':180000})
+    capture = m.script('return (\n'+probe.rstrip().removesuffix(';')+'\n);')
+    assert len(capture['cases']) == 32 and not capture['errors'], capture
+    assert m.script('return gBrowser.selectedTab===integrationOriginalTab&&!document.documentElement.hasAttribute("zz-native-blur-test")&&!window.__zzNativeBlurProbe;')
+    result['blurOrchestration'] = {'cases':len(capture['cases']), 'restored':True, 'zip':Path(capture['archive']).exists(), 'captureBackend':'simulated; no Windows pixels'}
+    import shutil
+    shutil.rmtree(capture['directory']); Path(capture['archive']).unlink()
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--zen", type=Path, required=True)
@@ -970,6 +1011,7 @@ def main():
     parser.add_argument("--transparent", type=Path, help="Optional sameerasw/zen-themes/TransparentZen directory (Normal sidebar mode)")
     parser.add_argument("--library-hover", action="store_true", help="Check compact sidebar pointer handoff from recent downloads")
     parser.add_argument("--actions", action="store_true", help="Check native menus, snapshots, diagnostics and scoped actions")
+    parser.add_argument("--native-integration", action="store_true", help="Check Zen 1.24 native ownership and accessibility")
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
     with tempfile.TemporaryDirectory(prefix="zen-mod-smoke-") as directory:
@@ -1003,7 +1045,7 @@ def main():
                 m.script("""window.zzsmokeChrome=Cc['@mozilla.org/addons/addon-manager-startup;1']
                   .getService(Ci.amIAddonManagerStartup).registerChrome(Services.io.newURI(""" +
                   json.dumps((profile / 'chrome.manifest').as_uri()) + """),[['content','sine','sine-mods/']]);return true;""")
-                result = check_actions(m, root) if args.actions else check_library_hover(m, root, args.arc) if args.library_hover else check(m, root, args.arc, args.transparent)
+                result = check_native_integration(m, root) if args.native_integration else check_actions(m, root) if args.actions else check_library_hover(m, root, args.arc) if args.library_hover else check(m, root, args.arc, args.transparent)
                 print(json.dumps(result, indent=2))
             finally:
                 process.terminate()

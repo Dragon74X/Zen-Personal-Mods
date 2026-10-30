@@ -922,7 +922,9 @@ def check(m, root, atg, port, first):
           const refreshedColour=getComputedStyle(root).getPropertyValue('--tab-group-color').trim();
           const gradient=getComputedStyle(child.labelContainerElement).backgroundImage;
           child.labelContainerElement.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,button:2}));
-          await pause(100);
+          // Native popup opening is asynchronous and can exceed 100ms during
+          // session restoration. Wait for the required state, not a frame budget.
+          await until(()=>gBrowser.tabGroupMenu.activeGroup===child && gBrowser.tabGroupMenu.panel.state==='open');
           const editor=gBrowser.tabGroupMenu.activeGroup===child && gBrowser.tabGroupMenu.panel.state==='open';
           gBrowser.tabGroupMenu.close();
           // A cancelled native close must retain tabs and all saved state.
@@ -1357,13 +1359,21 @@ def check_subject_pictures(m, root, first):
         Services.prefs.setIntPref('zzgroup.tab-icon-shape',0);
         for(const [mode,radius] of [[1,12],[2,18]]) {
           Services.prefs.setIntPref('zzgroup.corner.mode',mode);
-          Services.prefs.setStringPref('zzgroup.header-roundness',radius+'px');await pause(50);
+          Services.prefs.setStringPref('zzgroup.header-roundness',radius+'px');
+          await until(()=>{
+            const s=getComputedStyle(image),h=getComputedStyle(group('Child').labelContainerElement);
+            return s.cornerShape===h.cornerShape && Math.abs(radiusPx(s)-parseFloat(h.borderTopLeftRadius)*parseFloat(s.width)/36)<.1;
+          });
           const style=getComputedStyle(image),header=getComputedStyle(group('Child').labelContainerElement);
           checks['tabIconFolderCorners_'+mode]=style.cornerShape===header.cornerShape &&
             Math.abs(radiusPx(style)-parseFloat(header.borderTopLeftRadius)*parseFloat(style.width)/36)<.1;
         }
         for(const [mode,radius,corner] of [[1,25,'superellipse(1)'],[2,38,'superellipse(2)'],[3,50,'superellipse(1)'],[4,0,'superellipse(1)']]) {
-          Services.prefs.setIntPref('zzgroup.tab-icon-shape',mode);await pause(50);
+          Services.prefs.setIntPref('zzgroup.tab-icon-shape',mode);
+          await until(()=>{
+            const s=getComputedStyle(image);
+            return parseFloat(s.borderTopLeftRadius)===radius && s.cornerShape===corner;
+          });
           const style=getComputedStyle(image);
           checks['tabIconShape_'+mode]=parseFloat(style.borderTopLeftRadius)===radius && style.cornerShape===corner;
         }

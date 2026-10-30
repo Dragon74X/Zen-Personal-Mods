@@ -108,6 +108,32 @@ async function environment(options = {}) {
 }
 const tick = () => new Promise(resolve=>setImmediate(resolve));
 
+test('Live Folder ownership prevents routing and artwork even with pinned/grouped exclusions off', async()=>{
+  for (const kind of ['item', 'folder', 'ancestor']) {
+    const e=await environment({'zzrouter.skip-pinned':false,'zzrouter.skip-grouped':false});
+    const t=e.addTab(GAME), parent=e.addGroup('Provider');
+    const g=kind==='ancestor'?e.addGroup('Nested',parent):parent;
+    g.addTabs([t]);
+    if(kind==='item')t.setAttribute('zen-live-folder-item-id','provider-item');
+    else parent.isLiveFolder=true;
+    t.pinned=true;
+    t.setAttribute('image','native-provider-icon');
+    t.setAttribute('data-zzrouter-tab-icon',ICON);
+    t.style.setProperty('--zzrouter-tab-icon',`url("${ICON}")`);
+    e.h.onTabEvent({type:'TabGrouped',target:t});
+    await e.h.route(t,'test');
+    assert.equal(e.h.file(t,['Nexus','Baldurs Gate 3']),false,'final placement boundary rejects provider tabs');
+    assert.equal(t.group,g,kind);
+    assert.equal(e.moves,1,kind);
+    assert.equal(e.requests.length,0,kind);
+    assert.equal(t.getAttribute('data-zzrouter-tab-icon'),undefined);
+    assert.equal(t.style.getPropertyValue('--zzrouter-tab-icon'),'');
+    assert.equal(t.getAttribute('image'),'native-provider-icon');
+    assert.equal(e.h.pictureSubject(t),null);
+    assert.equal(e.h.refreshSubject(t),null);
+  }
+});
+
 test('Nexus defaults to verified square thumbnails, upgrades cached covers, and starts zero banner requests',async()=>{
   const e=await environment({'zzrouter.enabled':false}), t=e.addTab(GAME,2);
   e.h.iconMap().set('2:'+GAME,{d:BANNER,s:'square'});

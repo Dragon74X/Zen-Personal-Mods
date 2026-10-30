@@ -117,7 +117,7 @@
 @media (-moz-pref("zzglass.sidebar.enabled")) {
   :root { --zzg-panel-radius: var(--zzglass-sidebar-blur-radius-corner, 12px); --zzg-panel-corner: var(--zzg-corner-side); }
 }
-@media (-moz-pref("zen.theme.acrylic-sidebar")) and (not (prefers-reduced-transparency: reduce)), (-moz-pref("zzglass.sidebar.blur")) {
+@media ((-moz-pref("zen.theme.acrylic-sidebar")) or (-moz-pref("zzglass.sidebar.blur"))) and (not (prefers-reduced-transparency: reduce)) and (not (forced-colors)) and (not (prefers-contrast)) {
   :root[zen-compact-mode="true"] .zen-toolbar-background {
     backdrop-filter: var(--zzg-acrylic) !important;
   }
@@ -131,7 +131,7 @@
 }
 /* Arc still reads the retired acrylic-elements preference. When Glassflow
    owns the sidebar, honour the current native off/reduced-transparency choice. */
-@media (-moz-pref("zzglass.sidebar.enabled")) and (not (-moz-pref("zzglass.sidebar.blur"))) and ((not (-moz-pref("zen.theme.acrylic-sidebar"))) or (prefers-reduced-transparency: reduce)) {
+@media (-moz-pref("zzglass.sidebar.enabled")) and (not (-moz-pref("zzglass.sidebar.blur"))) and (not (-moz-pref("zen.theme.acrylic-sidebar"))) {
   :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background {
     backdrop-filter: none !important;
   }
@@ -1386,6 +1386,27 @@
   --zzg-ov-music: var(--zzg-ov-glass);
   --zzg-ov-status: var(--zzg-ov-glass);
 }
+/* One accessibility policy for the shared recipes, including Library and
+   Download Prompt consumers. Saved appearance choices remain untouched. */
+@media (prefers-reduced-transparency: reduce), (forced-colors), (prefers-contrast) {
+  :root {
+    --zzg-acrylic: none !important;
+    --zzg-acrylic-flat: none !important;
+    --zzg-ov-glass: none !important;
+    --zzg-ov-glass-dim: none !important;
+    --zzg-ov-fill: Canvas !important;
+    --zzg-ov-downloads-fill: Canvas !important;
+    --zzglass-overlays-opacity: 100% !important;
+    --zzglass-popups-opacity: 100% !important;
+  }
+  @media (-moz-pref("zzglass.sidebar.enabled")), (-moz-pref("zzglass.sidebar.blur")) {
+    :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background,
+    :root[zen-compact-mode="true"] .zen-toolbar-background {
+      backdrop-filter: none !important;
+      background: Canvas !important;
+    }
+  }
+}
 @media (-moz-pref("zzglass.overlays.downloads", 2)) { :root { --zzg-ov-downloads: var(--zzg-ov-glass-dim); } }
 @media (-moz-pref("zzglass.overlays.toasts", 2)) { :root { --zzg-ov-toasts: var(--zzg-ov-glass-dim); } }
 @media (-moz-pref("zzglass.overlays.glance", 2)) { :root { --zzg-ov-glance: var(--zzg-ov-glass-dim); } }
@@ -1478,7 +1499,7 @@
 
 /* Zen 1.23.4b owns Zap's controls and page-space reservation. Theme only
    the native bar; its shadow buttons keep their actions and focus rings. */
-@media (-moz-pref("zzglass.overlays.enabled")) and (not (-moz-pref("zzglass.overlays.boosts", 0))) and (not (forced-colors: active)) {
+@media (-moz-pref("zzglass.overlays.enabled")) and (not (-moz-pref("zzglass.overlays.boosts", 0))) and (not (forced-colors)) and (not (prefers-contrast)) {
   zen-zap-bar {
     background: var(--zzg-ov-fill) !important;
     color: light-dark(rgb(24 24 24), rgb(231 231 231)) !important;

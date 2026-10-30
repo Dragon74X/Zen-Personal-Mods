@@ -120,9 +120,11 @@ Supported background-video tabs expose Show this video in sidebar and Sidebar vi
 
 ## Stable controls
 
-Pressing a preview control or focusing one captures the current preview
-geometry until pointer and keyboard focus both leave. Play/pause and seeking
-therefore retain the same target while the native music bar changes size. The
+Pressing a preview control or using its keyboard controls captures the current
+preview geometry. Pause alone keeps that size. Leaving the preview shrinks it,
+even if the clicked button still has DOM focus; hovering the media bar does not
+hold the video expanded. An unfinished press or timeline drag keeps its target
+fixed until release. Keyboard focus remains on the control after shrinking. The
 canvas and control hover share the same growth; crossing a button during that
 growth no longer cancels the timer or freezes an intermediate size. Controls use
 their original glyphs, including the seek-step labels, with no Morph replacement.

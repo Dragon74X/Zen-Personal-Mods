@@ -159,20 +159,20 @@
   // ponytail: a rectangle; the panel's rounded corners may show a sliver of
   // blurred page. A rounded mask needs feImage, so not until Gecko enables it.
   const SHOWN = "[zen-has-hover], [zen-user-show], [zen-has-empty-tab], [flash-popup], [has-popup-menu], [movingtab], [zen-compact-mode-active]";
-  let stopPageBlur = null;
+  let pageBlur = null;
   function syncPageBlur() {
     if (Services.prefs.getBoolPref(PREFIX + "sidebar.blur-transparent-pages", false)) {
-      try { stopPageBlur ||= transparentPageBlur(); } catch (e) { console.error("[Glassflow] page blur failed to start:", e); }
+      try { pageBlur ||= transparentPageBlur(); } catch (e) { console.error("[Glassflow] page blur failed to start:", e); }
     } else {
-      const stop = stopPageBlur;
-      stopPageBlur = null;
-      stop?.();
+      const old = pageBlur;
+      pageBlur = null;
+      old?.destroy();
     }
   }
   function transparentPageBlur() {
     const NS = "http://www.w3.org/2000/svg", S = Services.prefs, root = document.documentElement;
     const toolbox = document.getElementById("navigator-toolbox"), box = document.getElementById("tabbrowser-tabbox");
-    if (!toolbox || !box) return () => {};
+    if (!toolbox || !box) return null;
     const attr = (e, k, v) => { const text = String(v); if (e.getAttribute(k) !== text) e.setAttribute(k, text); };
     const el = (parent, tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) attr(e, k, attrs[k]); parent.append(e); return e; };
     const svg = el(document.documentElement, "svg", { width: 0, height: 0, style: "position:fixed;pointer-events:none", "aria-hidden": "true" });
@@ -230,7 +230,7 @@
     // its page filter for each one invalidates the same pixels repeatedly.
     const onSlide = e => { if (e.target === toolbox && e.propertyName === "translate") soon(); };
     const mo = new MutationObserver(soon);
-    mo.observe(toolbox, { attributes: true, attributeFilter: ["zen-has-hover", "zen-user-show", "zen-has-empty-tab", "flash-popup", "has-popup-menu", "movingtab", "zen-compact-mode-active", "zzg-redraw"] });
+    mo.observe(toolbox, { attributes: true, attributeFilter: ["zen-has-hover", "zen-user-show", "zen-has-empty-tab", "flash-popup", "has-popup-menu", "movingtab", "zen-compact-mode-active"] });
     mo.observe(root, { attributes: true, attributeFilter: ["zen-compact-mode", "zen-renaming-tab"] });
     const prefs = { observe: soon };
     const transparency = window.matchMedia("(prefers-reduced-transparency: reduce)");
@@ -238,21 +238,66 @@
     S.addObserver(PREFIX + "sidebar.", prefs);
     S.addObserver("zen.theme.acrylic-sidebar", prefs);
     window.addEventListener("resize", soon);
-    for (const type of ["transitionrun", "transitionend", "transitioncancel"]) toolbox.addEventListener(type, onSlide);
-    gBrowser.tabContainer.addEventListener("TabSelect", soon);
+    for (const type of ["transitionrun", "transitioncancel"]) toolbox.addEventListener(type, onSlide);
     update();
-    return () => {
+    return { refresh: soon, destroy() {
       retired = true;
       mo.disconnect();
       transparency.removeEventListener("change", soon);
       S.removeObserver(PREFIX + "sidebar.", prefs);
       S.removeObserver("zen.theme.acrylic-sidebar", prefs);
       window.removeEventListener("resize", soon);
-      for (const type of ["transitionrun", "transitionend", "transitioncancel"]) toolbox.removeEventListener(type, onSlide);
-      gBrowser.tabContainer.removeEventListener("TabSelect", soon);
+      for (const type of ["transitionrun", "transitioncancel"]) toolbox.removeEventListener(type, onSlide);
       cancelAnimationFrame(frame);
       releaseFilter();
       svg.remove();
+    } };
+  }
+
+  // Sidebar selection, navigation and slide completion share one invalidation
+  // owner. Loading a new page while the sidebar stays open changes its backdrop
+  // without a TabSelect or translate transition. Refresh after top-level load
+  // completion, including the optional page filter's transparency decision.
+  function sidebarBackdrop() {
+    const root = document.documentElement, toolbox = document.getElementById("navigator-toolbox");
+    let frame = 0, retired = false;
+    const refresh = () => {
+      if (retired) return;
+      pageBlur?.refresh();
+      cancelAnimationFrame(frame);
+      toolbox?.removeAttribute("zzg-redraw");
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        if (retired || !toolbox || root.getAttribute("zen-compact-mode") !== "true" ||
+            !(toolbox.matches(SHOWN) || root.getAttribute("zen-renaming-tab") === "true")) return;
+        const panel = document.getElementById("zen-toolbar-background");
+        if (!panel || getComputedStyle(panel).backdropFilter === "none") return;
+        // ponytail: finite renderer invalidation, not a renderer repair. Retain
+        // until Windows load/slide captures prove stale backdrops are fixed.
+        toolbox.setAttribute("zzg-redraw", "");
+        frame = requestAnimationFrame(() => {
+          frame = requestAnimationFrame(() => { frame = 0; toolbox.removeAttribute("zzg-redraw"); });
+        });
+      });
+    };
+    const progress = {
+      onStateChange(browser, wp, _request, flags) {
+        const W = Ci.nsIWebProgressListener;
+        if (browser === gBrowser.selectedBrowser && wp?.isTopLevel &&
+            (flags & W.STATE_STOP) && (flags & W.STATE_IS_NETWORK)) refresh();
+      },
+    };
+    const slide = e => { if (e.target === toolbox && e.propertyName === "translate") refresh(); };
+    gBrowser.addTabsProgressListener(progress);
+    gBrowser.tabContainer.addEventListener("TabSelect", refresh);
+    toolbox?.addEventListener("transitionend", slide);
+    return () => {
+      retired = true;
+      cancelAnimationFrame(frame);
+      toolbox?.removeAttribute("zzg-redraw");
+      gBrowser.removeTabsProgressListener(progress);
+      gBrowser.tabContainer.removeEventListener("TabSelect", refresh);
+      toolbox?.removeEventListener("transitionend", slide);
     };
   }
 
@@ -510,20 +555,8 @@
     try { syncOtherMods(); } catch (e) { console.error("[Glassflow] other mods failed:", e); }
     for (const branch of OTHER_WATCH) Services.prefs.addObserver(branch, otherModsObserver);
     try { gBrowser.addTabsProgressListener(iconKeeper); } catch (e) { console.error("[Glassflow] favicon hold failed to start:", e); }
-    // The compact sidebar's blur sometimes stayed missing after the sidebar
-    // slid in, until the page under it repainted. Redraw it once the slide
-    // ends and on every tab switch: a filter that looks the same but is not,
-    // for two frames (userChrome.css, [zzg-redraw]).
-    // ponytail: a nudge, not a cause found; drop it if Firefox fixes stale backdrops.
-    const toolbox = document.getElementById("navigator-toolbox");
-    const redraw = e => {
-      if (e.type === "transitionend" && (e.target !== toolbox || e.propertyName !== "translate")) return;
-      toolbox?.setAttribute("zzg-redraw", "");
-      requestAnimationFrame(() => requestAnimationFrame(() => toolbox?.removeAttribute("zzg-redraw")));
-    };
-    toolbox?.addEventListener("transitionend", redraw);
-    gBrowser.tabContainer.addEventListener("TabSelect", redraw);
     syncPageBlur();
+    const stopBackdrop = sidebarBackdrop();
     // Sine cleanup and window unload can both run; retire this copy once.
     let retired = false;
     const cleanup = () => {
@@ -538,11 +571,9 @@
       for (const branch of OTHER_WATCH) try { Services.prefs.removeObserver(branch, otherModsObserver); } catch {}
       restoreInstantUI();
       try { gBrowser.removeTabsProgressListener(iconKeeper); } catch {}
-      toolbox?.removeEventListener("transitionend", redraw);
-      gBrowser.tabContainer.removeEventListener("TabSelect", redraw);
-      toolbox?.removeAttribute("zzg-redraw");
-      try { stopPageBlur?.(); } catch {}
-      stopPageBlur = null;
+      stopBackdrop();
+      try { pageBlur?.destroy(); } catch {}
+      pageBlur = null;
     };
     window.addEventListener("unload", cleanup, { once: true });
     // Registered with Sine, so an update re-injects this script live, no

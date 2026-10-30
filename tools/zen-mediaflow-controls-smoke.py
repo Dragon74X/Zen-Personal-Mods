@@ -115,10 +115,13 @@ with tempfile.TemporaryDirectory(prefix='mediaflow-controls-') as d:
                 m.call('WebDriver:PerformActions',{'actions':[{'type':'pointer','id':'mediaflow-test','parameters':{'pointerType':'mouse'},'actions':actions}]})
             def move(x,y,pause=0):pointer([{'type':'pointerMove','duration':0,'x':x,'y':y},{'type':'pause','duration':pause}])
             def click(selector,hold=30):
-                move(*center(selector))
-                pointer([{'type':'pointerDown','button':0},{'type':'pause','duration':hold},{'type':'pointerUp','button':0},{'type':'pause','duration':150}])
-            def stable(before,after):
-                assert all(abs(before[k]-after[k])<1 for k in ['x','y','width','height']), (before,after)
+                # Resolve the element's center when WebDriver delivers the
+                # action. A prior coordinate snapshot can age past a moving
+                # button during the separate protocol round trips.
+                target=m.script('return document.querySelector('+json.dumps(selector)+');')
+                pointer([{'type':'pointerMove','duration':0,'origin':target,'x':0,'y':0},{'type':'pointerDown','button':0},{'type':'pause','duration':hold},{'type':'pointerUp','button':0},{'type':'pause','duration':150}])
+            def stable(before,after,keys=('x','y','width','height')):
+                assert all(abs(before[k]-after[k])<1 for k in keys), (before,after)
             def reset():
                 move(1000,250)
                 m.script("document.activeElement?.blur();gBrowser.selectedTab=mediaOtherTab;return true;")
@@ -213,6 +216,14 @@ with tempfile.TemporaryDirectory(prefix='mediaflow-controls-') as d:
             m.script("document.documentElement.setAttribute('zen-compact-mode','false');return true;")
             reset()
             results=[]
+            m.script("""window.controlEvents=[];
+              for(const type of ['pointerdown','pointerup','mousedown','mouseup','click'])addEventListener(type,e=>{
+                const p=document.getElementById('zen-sidebar-pip-container'),b=document.querySelector('.zzmf-pip-play');
+                controlEvents.push({type,target:e.target.className,x:e.clientX,y:e.clientY,buttons:e.buttons,
+                  held:p.hasAttribute('zzmf-interacting'),hover:p.matches(':hover'),controlHover:b.matches(':hover'),
+                  preview:p.getBoundingClientRect().toJSON(),button:b.getBoundingClientRect().toJSON()});
+                if(controlEvents.length>100)controlEvents.shift();
+              },true);return true;""")
             for delay in [40,250,340,700]:
                 reset()
                 resting=rect()
@@ -221,19 +232,52 @@ with tempfile.TemporaryDirectory(prefix='mediaflow-controls-') as d:
                 # Reacquire its current position, then hold across the growth boundary.
                 was=video()
                 click('.zzmf-pip-play',hold=140)
-                after=video();assert after['paused'] != was['paused'], (delay,was,after)
+                after=video()
+                if after['paused']==was['paused']:
+                    (OUT/'control-failure.json').write_text(json.dumps(m.script('return controlEvents;'),indent=2))
+                assert after['paused'] != was['paused'], (delay,was,after)
                 assert m.script("return gBrowser.selectedTab===mediaOtherTab;"), 'control click selected source'
                 held=rect()
                 move(1000,250,400)
-                stable(held,rect())
+                stable(resting,rect())
+                assert m.script("return !document.getElementById('zen-sidebar-pip-container').hasAttribute('zzmf-interacting');"), 'Mouse-acquired focus retained expanded geometry'
                 for cls,delta in [('forward',10),('back',-10)]:
                     # Pause first so the seek distance is exact.
                     if not video()['paused']:click('.zzmf-pip-play')
-                    before=video();click('.zzmf-pip-'+cls);after=video()
+                    before=video();held=rect();click('.zzmf-pip-'+cls);after=video()
                     assert abs(after['time']-before['time']-delta)<.01,(cls,before,after)
                     stable(held,rect())
                 reset();stable(resting,rect())
-                results.append({'hoverDelayMs':delay,'toggle':True,'seeks':2,'heldFocusGeometry':True,'releasedGeometry':True})
+                results.append({'hoverDelayMs':delay,'toggle':True,'seeks':2,'pressGeometry':True,'hoverExitReleasesFocusedControl':True,'releasedGeometry':True})
+            # Pause does not collapse; leaving for the media bar does. Retained
+            # button focus must not freeze the next hover at an intermediate size.
+            reset()
+            if video()['paused']:click('.zzmf-pip-play')
+            reset();paused_rest=rect()
+            move(round(paused_rest['x']+paused_rest['width']/2),round(paused_rest['y']+25),800)
+            pause_grown=rect();assert pause_grown['width']>paused_rest['width']*1.95
+            click('.zzmf-pip-play');assert video()['paused']
+            stable(pause_grown,rect())
+            move(*center('.zen-media-controls-hbox'),pause=700)
+            # Native title/progress disclosure can move the card; size must
+            # return to rest and the next preview entry must keep that anchor.
+            paused_bar=rect();stable(paused_rest,paused_bar,('width','height'))
+            assert m.script("return document.activeElement===document.querySelector('.zzmf-pip-play')&&!document.getElementById('zen-sidebar-pip-container').hasAttribute('zzmf-interacting');"), 'Bar hover retained the preview hold or removed keyboard focus'
+            move(round(paused_bar['x']+paused_bar['width']/2),round(paused_bar['y']+25),800)
+            paused_reentry=rect();stable(pause_grown,paused_reentry,('width','height'))
+            assert abs(paused_reentry['bottom']-paused_bar['bottom'])<1, 'Re-entry moved the video anchor'
+            assert video()['paused']
+            pause_hover={'restingWidth':paused_rest['width'],'pauseWidth':pause_grown['width'],'barWidth':paused_bar['width'],'reentryWidth':paused_reentry['width'],'barBottom':paused_bar['bottom'],'reentryBottom':paused_reentry['bottom'],'focusPreserved':True}
+            reset()
+            # Press at the expanded preview, leave while held, then release over
+            # remote content. Hold only until release; cancel the original click.
+            resting=rect();move(*center('.zzmf-pip-play'),pause=800)
+            move(*center('.zzmf-pip-play'));pressed=rect();was=video()
+            pointer([{'type':'pointerDown','button':0}]);move(1000,250,pause=400)
+            stable(pressed,rect())
+            pointer([{'type':'pointerUp','button':0},{'type':'pause','duration':500}])
+            stable(resting,rect());assert video()['paused']==was['paused']
+            pause_hover['releaseOutsideCancelsClickAndHold']=True
             # Keyboard activation remains native; the canvas still opens its source tab.
             m.script("document.querySelector('.zzmf-pip-play').focus();return true;")
             before=video()
@@ -285,9 +329,9 @@ with tempfile.TemporaryDirectory(prefix='mediaflow-controls-') as d:
                 m.script("document.querySelector('.zzmf-pip-"+name+"').style.removeProperty('background-image');return true;")
                 paints.append({'control':name,'pixelDifference':amount,'size':info['size']})
             assert m.script('return mediaErrors;')==[],m.script('return mediaErrors;')
-            (OUT/'checks.json').write_text(json.dumps({'runtimeErrors':0,'windowDragging':{'previewExclusionParsed':drag_rule,'windowsPhysicalInput':'not-tested'},'arcBarHover':arc_cases,'boundaryCases':boundary_cases,'canvasGrowth':True,'controlHoverGrowth':[resting['width'],control_grown['width']],'crossingControlDuringGrowth':[mid_growth['width'],continued['width']],'originalGlyphPaints':paints,'sidebarHide':True,'hoverCases':results,'keyboard':True,'canvasNavigation':True,'probe':{'presses':6,'commands':4,'misses':2,'autoCopy':True,'cleanup':True}},indent=2))
+            (OUT/'checks.json').write_text(json.dumps({'runtimeErrors':0,'windowDragging':{'previewExclusionParsed':drag_rule,'windowsPhysicalInput':'not-tested'},'arcBarHover':arc_cases,'boundaryCases':boundary_cases,'canvasGrowth':True,'controlHoverGrowth':[resting['width'],control_grown['width']],'crossingControlDuringGrowth':[mid_growth['width'],continued['width']],'originalGlyphPaints':paints,'sidebarHide':True,'hoverCases':results,'pauseHover':pause_hover,'keyboard':True,'canvasNavigation':True,'probe':{'presses':6,'commands':4,'misses':2,'autoCopy':True,'cleanup':True}},indent=2))
             m.shot().save(OUT/'controls.png')
-            print('PASS: control hover growth, 6 original glyph paints, 4 hover timings, 8 seeks, focus hold/release, keyboard, canvas navigation; probe captured 6 presses / 4 commands / 2 misses and auto-copied after cleanup.',flush=True)
+            print('PASS: control hover growth, 6 original glyph paints, 4 hover timings, 8 seeks, pause stays expanded, bar exit shrinks, paused re-entry grows, keyboard, canvas navigation; probe captured 6 presses / 4 commands / 2 misses and auto-copied after cleanup.',flush=True)
         finally:
             process.terminate()
             try:process.wait(timeout=5)

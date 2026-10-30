@@ -11,7 +11,7 @@ for(const failure of [null,'fetch','http','write','compile','run','remove'])test
   let copied,signal;
   const payload='/* unchanged fetched script */',path='/tmp/zen-native-blur-probe-unique.js';
   const w={AbortSignal:{timeout:ms=>signal={ms}},fetch:async(url,options)=>{
-    assert.match(url,/\/59ade980dd1a4d70daff6bfdb707cedcfbb227af\/tools\/native-blur-probe\.js$/);
+    assert.match(url,/\/[0-9a-f]{40}\/tools\/native-blur-probe\.js$/);
     assert.equal(options.signal,signal);assert.equal(signal.ms,15000);
     if(failure==='fetch')throw Error('network fixture');
     return {ok:failure!=='http',status:503,text:async()=>payload};

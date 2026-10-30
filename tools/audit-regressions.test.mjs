@@ -194,6 +194,32 @@ test("Library extra rows delegate blocked downloads to native confirmation witho
 
 const mediaRoot = new URL("../mediaflow/", import.meta.url);
 const mediaSource = readFileSync(new URL("mediaflow.uc.js", mediaRoot), "utf8");
+test("Mediaflow interaction owns one delay, layout anchor and held rectangle", () => {
+  const timers=new Map(), handlers=new Map(), attrs=new Map();let now=10,id=0,hover=true,focus=false,overControls=false,visibility="visible";
+  const preview={phase:"rest",bottom:null,bounds:null,enteredAt:0};
+  const env=vm.createContext({preview,growTimer:null,hoverDelay:.3,performance:{now:()=>now},window:{innerHeight:800},
+    pipContainer:{matches:s=>s===":hover"?hover:focus,contains:()=>false,toggleAttribute:(n,v)=>attrs.set(n,v)},
+    controls:{matches:()=>overControls},getComputedStyle:()=>({width:"180px",height:"90px",left:"10px",bottom:"100px",visibility}),
+    on:(_node,event,fn)=>handlers.set(event,fn),holdSidebar(){},bump(){},syncPosition(){},lastTop:0,lastLeft:0,lastWidth:0,
+    setTimeout:(fn,ms)=>{timers.set(++id,{fn,ms});return id;},clearTimeout:id=>timers.delete(id)});
+  vm.runInContext(mediaSource.slice(mediaSource.indexOf("  function previewBounds()"),mediaSource.indexOf('  on(pipContainer, "click"')),env);
+  handlers.get("mouseenter")();
+  assert.equal(preview.bottom,700,"anchor excludes the entrance transform");
+  assert.equal(preview.phase,"waiting");assert.equal(timers.size,1);
+  now=100;handlers.get("focusin")();
+  assert.equal(preview.phase,"held");assert.equal(timers.size,0);assert.equal(preview.bounds.width,180);
+  overControls=true;env.releasePreview();assert.equal(preview.phase,"held");
+  overControls=false;env.releasePreview();assert.equal(preview.phase,"waiting");
+  assert.equal([...timers.values()][0].ms,210,"resume uses the original entry deadline");
+  now=310;const timer=[...timers.values()][0];timer.fn();assert.equal(preview.phase,"grown");assert.equal(timers.size,0);
+  focus=true;handlers.get("mouseleave")();assert.equal(preview.phase,"held","keyboard focus keeps controls fixed");
+  focus=false;hover=false;env.releasePreview();
+  assert.equal(preview.phase,"rest");assert.equal(preview.bottom,null);assert.equal(preview.bounds,null);
+  hover=true;handlers.get("mouseenter")();env.resetPreview();
+  assert.equal(timers.size,0,"hide/source reset cancels pending growth");assert.equal(attrs.get("zzmf-interacting"),false);
+  visibility="hidden";handlers.get("focusin")();
+  assert.equal(preview.phase,"rest","late focus/leave events cannot hold a hidden preview");
+});
 function mediaActor(file, name, base) {
   const messages = [];
   const env = vm.createContext({
@@ -263,7 +289,7 @@ function mediaController() {
     animateOutTimer: null, animating: false, dragging: false,
     gBrowser: { selectedBrowser: { browsingContext: { id: 99 } }, tabs: [] },
     pipContainer: { style: {}, getBoundingClientRect() {} },
-    setSourceDimensions() {}, clearCaptionImmediately() {}, log() {}, updateControls() {},
+    setSourceDimensions() {}, clearCaptionImmediately() {}, resetPreview() {}, log() {}, updateControls() {},
     requestAnimationFrame() {}, cancelAnimationFrame() {}, setTimeout(fn) { timers.set(++timerId, fn); return timerId; },
     clearTimeout(id) { timers.delete(id); }, CONFIG: { ANIM_MS: 220 },
     lastOpacity: 0, lastCaptionOpacity: 0,

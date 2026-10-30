@@ -66,7 +66,7 @@ with tempfile.TemporaryDirectory(prefix='mediaflow-controls-') as d:
     server=ThreadingHTTPServer(('127.0.0.1',0),partial(SimpleHTTPRequestHandler,directory=str(p)))
     Thread(target=server.serve_forever,daemon=True).start()
     with socket.socket() as s:s.bind(('127.0.0.1',0));port=s.getsockname()[1]
-    prefs={'marionette.port':port,'browser.shell.checkDefaultBrowser':False,'browser.aboutwelcome.enabled':False,'zen.welcome-screen.seen':True,'zen.welcome-screen.enabled':False,'sine.auto-update':False,'media.autoplay.default':0,'media.autoplay.blocking_policy':0}
+    prefs={'marionette.port':port,'browser.shell.checkDefaultBrowser':False,'browser.aboutwelcome.enabled':False,'zen.welcome-screen.seen':True,'zen.welcome-screen.enabled':False,'sine.auto-updates':False,'media.autoplay.default':0,'media.autoplay.blocking_policy':0}
     (p/'user.js').write_text('\n'.join(f'user_pref({json.dumps(k)},{json.dumps(v)});' for k,v in prefs.items()))
     with (OUT/'browser.log').open('w') as log:
         process=subprocess.Popen([str(args.zen.resolve()),'--headless','--no-remote','--profile',d,'--marionette','--remote-allow-system-access','about:blank'],stdout=log,stderr=log)
@@ -80,13 +80,21 @@ with tempfile.TemporaryDirectory(prefix='mediaflow-controls-') as d:
             defaults={r['property']:r['defaultValue'] for r in json.loads((ROOT/'mediaflow/preferences.json').read_text()) if 'property' in r and 'defaultValue' in r}
             m.script('for(const [k,v] of Object.entries('+json.dumps(defaults)+'))Services.prefs[typeof v==="boolean"?"setBoolPref":typeof v==="number"?"setIntPref":"setStringPref"](k,v);return true;')
             m.script("window.mediaErrors=[];window.addEventListener('error',e=>mediaErrors.push(e.message));return true;")
+            # Loading with controls disabled must also work in compact mode.
+            # Preference synchronization runs before later observers are wired.
+            m.script("Services.prefs.setBoolPref('zzmedia.preview.controls',false);Services.prefs.setBoolPref('zen.view.compact',true);Services.prefs.setBoolPref('zen.view.compact.hide-tabbar',true);document.documentElement.setAttribute('zen-compact-mode','true');return true;")
             m.script((ROOT/'mediaflow/mediaflow.uc.js').read_text()+'\nreturn true;')
+            assert m.script("return !!window.ZzMediaflowController&&!document.getElementById('zen-sidebar-pip-container').hasAttribute('zzmf-controls');")
+            m.script("Services.prefs.setBoolPref('zzmedia.preview.controls',true);Services.prefs.setBoolPref('zen.view.compact',false);document.documentElement.setAttribute('zen-compact-mode','false');return true;")
             m.call('Marionette:SetContext',{'value':'content'});m.call('WebDriver:Navigate',{'url':f'http://127.0.0.1:{server.server_port}/index.html'})
-            m.script('document.querySelector("video").currentTime=35;document.querySelector("video").play();return true;',context='content')
+            playback=m.script('return (async()=>{const v=document.querySelector("video");let error=null;await Promise.race([v.play().catch(e=>error=String(e)),new Promise(r=>setTimeout(r,3000))]);if(v.readyState>=2)v.currentTime=35;return {paused:v.paused,ready:v.readyState,width:v.videoWidth,visibility:document.visibilityState,error};})();',context='content')
+            print('PLAYBACK',playback,flush=True)
             time.sleep(1)
             m.script('window.mediaSourceTab=gBrowser.selectedTab;gBrowser.selectedTab=window.mediaOtherTab=gBrowser.addTab("about:blank",{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});return true;')
             time.sleep(2)
-            print('SOURCE',m.script('return {active:ZzMediaflowController.getActiveBC()?.id,source:mediaSourceTab.linkedBrowser.browsingContext.id,paused:document.querySelector("#zen-sidebar-pip-container").getAttribute("zzmf-paused")};'),flush=True)
+            source=m.script('return {active:ZzMediaflowController.getActiveBC()?.id,source:mediaSourceTab.linkedBrowser.browsingContext.id,paused:document.querySelector("#zen-sidebar-pip-container").getAttribute("zzmf-paused")};')
+            print('SOURCE',source,flush=True)
+            assert source['active']==source['source'],source
             # Native card markup, but never force the preview's normal geometry.
             m.script("const bar=document.getElementById('zen-media-controls-toolbar');bar.append(document.getElementById('zen-media-card-template').content.cloneNode(true));bar.hidden=false;return true;")
             m.script("Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService).loadAndRegisterSheet(Services.io.newURI("+json.dumps((ROOT/'mediaflow/userChrome.css').as_uri())+"),1);return true;")
@@ -120,6 +128,15 @@ with tempfile.TemporaryDirectory(prefix='mediaflow-controls-') as d:
             # WebDriver DOM input cannot certify Windows WM_NCHITTEST behavior.
             drag_rule=m.script("const p=document.getElementById('zen-sidebar-pip-container');return [...InspectorUtils.getMatchingCSSRules(p)].some(r=>r.selectorText==='#zen-sidebar-pip-container'&&/-moz-window-dragging:\\s*no-drag\\s*;/.test(r.style.cssText));")
             assert drag_rule, 'The floating preview must exclude underlying native window-drag regions'
+            # Enter while the source entrance transform is still in flight.
+            # Layout bottom and transformed visual bottom are different spaces.
+            reset()
+            m.script("const p=document.getElementById('zen-sidebar-pip-container');p.style.transition='none';p.style.transform='scale(0.9) translateY(8px)';return true;")
+            entering=rect();move(*center('#zen-sidebar-pip-container'),pause=80)
+            entered=rect()
+            (OUT/'entrance-hover.json').write_text(json.dumps({'before':entering,'after':entered},indent=2))
+            assert abs(entered['bottom']-entering['bottom'])<1,('Entrance hover moved bottom',entering,entered)
+            m.script("const p=document.getElementById('zen-sidebar-pip-container');p.style.removeProperty('transition');p.style.removeProperty('transform');return true;")
             # Exercise real entry from the bar below, including its collapsing
             # rows and the 300ms growth delay. Timer expiry must not swap the
             # card's top edge for its toolbar's top edge.

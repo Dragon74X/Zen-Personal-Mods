@@ -59,6 +59,26 @@ with tempfile.TemporaryDirectory(prefix='zen-state-motion-') as d:
               return {tab:motionTab.getBoundingClientRect().toJSON(),header:motionGroup.labelContainerElement.outerHTML};
             })();''')
             (OUT/'setup.json').write_text(json.dumps(setup,indent=2));print('SETUP',setup['tab'],flush=True)
+            # Zen 1.24 moves a title vertically when its sublabel appears. Keep
+            # that native transition live during our horizontal click settle.
+            if m.script("return Services.vc.compare(Services.appinfo.version,'1.24b')>=0;"):
+                native_title=m.script('''return (async()=>{
+                  const label=motionTab.querySelector('.tab-label');
+                  const read=()=>{const r=label.getBoundingClientRect();return {x:r.x,y:r.y};};
+                  gBrowser.selectedTab=motionOutside;await motionPause(400);
+                  gBrowser.selectedTab=motionTab;await motionPause(35);
+                  const animation=label.getAnimations().find(a=>a.constructor.name==='Animation');
+                  if(!animation)throw new Error('No click animation');
+                  animation.pause();animation.currentTime=60;
+                  const before=read();motionTab.setAttribute('zen-show-sublabel','true');await motionPause(180);
+                  const shown=read();motionTab.removeAttribute('zen-show-sublabel');await motionPause(180);
+                  const hidden=read();animation.cancel();
+                  return {before,shown,hidden};
+                })();''')
+                (OUT/'native-title.json').write_text(json.dumps(native_title,indent=2));print('NATIVE TITLE',native_title,flush=True)
+                assert abs(native_title['shown']['y']-native_title['before']['y']+6)<.02,native_title
+                assert abs(native_title['hidden']['y']-native_title['before']['y'])<.02,native_title
+                assert abs(native_title['shown']['x']-native_title['before']['x'])<.02,native_title
             # Captured Arc whole-tab scale must not compose with image growth.
             m.script("window.arcTabFixture=Services.io.newURI('data:text/css,'+encodeURIComponent('.tabbrowser-tab:hover{transform:scale(1.03)}'));Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService).loadAndRegisterSheet(arcTabFixture,1);InspectorUtils.addPseudoClassLock(motionTab,':hover');return true;")
             assert m.script('return getComputedStyle(motionTab).transform;')=='none'
@@ -90,21 +110,21 @@ with tempfile.TemporaryDirectory(prefix='zen-state-motion-') as d:
                 Services.prefs.setIntPref('zzglass.motion.profile',profile);InspectorUtils.removePseudoClassLock(tab,':hover');gBrowser.selectedTab=motionOutside;await motionPause(650);
                 const before=read();InspectorUtils.addPseudoClassLock(tab,':hover');await motionPause(60);const during=read();await motionPause(650);const after=read();
                 const box=bg.getBoundingClientRect().toJSON(), ibox=icon.getBoundingClientRect().toJSON();
-                gBrowser.selectedTab=tab;await motionPause(35);const moved=getComputedStyle(label).transform;await motionPause(450);const settled=getComputedStyle(label).transform;
+                gBrowser.selectedTab=tab;await motionPause(35);const moved=getComputedStyle(label).translate;await motionPause(450);const settled=getComputedStyle(label).translate;
                 results.push({profile,before,during,after,moved,settled,boxStable:JSON.stringify(box)===JSON.stringify(bg.getBoundingClientRect().toJSON()),iconStable:JSON.stringify(ibox)===JSON.stringify(icon.getBoundingClientRect().toJSON())});
               }
               InspectorUtils.removePseudoClassLock(tab,':hover');
               Services.prefs.setBoolPref('zzglass.edges.enabled',false);await motionPause(650);const off=getComputedStyle(bg).boxShadow;
               Services.prefs.setBoolPref('zzglass.edges.enabled',true);
               gBrowser.selectedTab=motionOutside;await motionPause(400);gBrowser.selectedTab=tab;Services.prefs.setIntPref('ui.prefersReducedMotion',1);await motionPause(50);
-              const reduced={transform:getComputedStyle(label).transform,animations:label.getAnimations().length};Services.prefs.setIntPref('ui.prefersReducedMotion',0);
+              const reduced={translate:getComputedStyle(label).translate,animations:label.getAnimations().length};Services.prefs.setIntPref('ui.prefersReducedMotion',0);
               return {profiles:results,off,reduced};
             })();''')
             (OUT/'motion.json').write_text(json.dumps(results,indent=2));print('MOTION',[(r['profile'],r['moved'],r['settled']) for r in results['profiles']],flush=True)
             for row in results['profiles']:
                 assert row['before']['image'] != row['during']['image'] != row['after']['image'], row
                 assert row['moved']!='none' and row['settled']=='none' and row['boxStable'] and row['iconStable'],row
-            assert results['reduced']['transform']=='none' and results['reduced']['animations']==0,results['reduced']
+            assert results['reduced']['translate']=='none' and results['reduced']['animations']==0,results['reduced']
             # Freeze actual CSS transitions for repeatable before/mid/after pixels.
             m.script("Services.prefs.setIntPref('zzglass.motion.profile',1);gBrowser.selectedTab=motionOutside;InspectorUtils.removePseudoClassLock(motionTab,':hover');return true;");time.sleep(.65)
             box=m.script("return motionTab.querySelector('.tab-background').getBoundingClientRect().toJSON();")
@@ -118,7 +138,7 @@ with tempfile.TemporaryDirectory(prefix='zen-state-motion-') as d:
             hover_hashes.append(pixels('hover-after'))
             assert len(set(hover_hashes))==3,hover_hashes
             assert close_before==m.script("return motionTab.querySelector('.tab-close-button').getBoundingClientRect().toJSON();"),'Close target moved'
-            repeat=m.script("return (async()=>{gBrowser.selectedTab=motionTab;await motionPause(30);gBrowser.selectedTab=motionOutside;gBrowser.selectedTab=motionTab;await motionPause(500);return getComputedStyle(motionTab.querySelector('.tab-label')).transform;})();")
+            repeat=m.script("return (async()=>{gBrowser.selectedTab=motionTab;await motionPause(30);gBrowser.selectedTab=motionOutside;gBrowser.selectedTab=motionTab;await motionPause(500);return getComputedStyle(motionTab.querySelector('.tab-label')).translate;})();")
             assert repeat=='none',repeat
             light_hashes=[]
             for light in range(4):

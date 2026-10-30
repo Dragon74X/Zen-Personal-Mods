@@ -84,3 +84,80 @@ Final results: 236 Node tests passed, zero failed, one optional native entry
 skipped there and run separately. Both native harnesses passed on Zen 1.23.4b.
 The additional native-Favorite before/after measurement confirms zero position
 or size travel after the correction (176 × 50px throughout press/release).
+
+## Follow-up: rendered frames and missing wind-up
+
+**Iconflow 1.21.9:** attachment awaited image decoding, then initialized hover
+and keyboard focus to false. Refreshing a hovered button reproduced
+`matches(':hover') === true`, `record.hover === false`, phase `rest`, frame `0`.
+No second pointer-entry event arrives while the pointer remains there.
+Attachment now reads the current hover/focus state and invokes the existing
+wind-up path only when either is present. Four native regression checks cover
+hovered/focused attachment and the corresponding rest states. No new animation
+engine, artwork, duration, selector, setting or per-frame callback was added.
+
+The single-frame composition recorder was not treated as a stopping point.
+Zen 1.23.4b was run in a disposable **windowed X11** profile and its screen output
+captured through FFmpeg, without `drawSnapshot` or per-frame DOM/style reads.
+The existing runner now exposes this diagnostic:
+
+```sh
+DISPLAY=:99 python3 tools/zen-morph-smoke.py --zen /path/to/zen \
+  --output /tmp/zen-hover-render --record-hover
+```
+
+Requires an existing X11 display, FFmpeg and the runner's existing Pillow
+dependency. Writes six lossless videos and `hover-result.json`; rejects missing
+motion, ineffective duration overrides, empty captures and one-image captures.
+Decoding preserves source frames rather than duplicating them to an inferred
+frame rate. Test profiles and CSS overrides are disposable.
+
+Final run: **2,160 captured frames**, six cases, 360 samples each. The symmetric
+300px SVG/PNG fixture renders at 18px for workspaces/reference and 20px for the
+native Favorite. Parent paint is frozen to isolate image scaling. All six scale
+animations reported compositor execution.
+
+| Case | Transition | Distinct captured images |
+| --- | --- | ---: |
+| Workspace, current timing | 150ms Crisp | 16 |
+| Workspace, duration only | 450ms Crisp | 27 |
+| Workspace SVG | 1000ms linear | 16 |
+| Workspace PNG | 1000ms linear | 16 |
+| Native Favorite SVG | 1000ms linear | 5 |
+| Bare HTML image outside sidebar | 1000ms linear | 5 |
+
+These counts are **not compositor FPS or a smoothness score**. Duplicate screen
+samples and settled periods are included. Stepped raster output also occurs on
+the bare reference, so it cannot establish a mod-specific cause. Earlier
+isolated tests found the same nine distinct workspace images with or without
+`will-change: transform`, `will-change: scale`, `translateZ(0)` or
+`image-rendering: smooth`. None of those hints was shipped. A forced OpenGL
+comparison produced black X11 captures and was rejected, not called a pass.
+Available usable renderer: Linux software WebRender; Windows hardware output
+remains unverified.
+
+### Source comparison
+
+- [Mozilla's icon animation reference](https://firefox-source-docs.mozilla.org/devtools-user/page_inspector/how_to/work_with_animations/index.html)
+  scales and changes grayscale using compositor animation. Our workspace and
+  Favorite images likewise use native CSS scale, not a JS resize/frame loop.
+  A compositor flag alone does not certify the resulting pixels.
+- [Zen 1.23.4b workspace CSS](https://github.com/zen-browser/desktop/blob/1.23.4b/src/zen/spaces/zen-workspaces.css)
+  transitions parent filter/opacity and overflow widths. Its
+  [overflow image rule](https://github.com/zen-browser/desktop/blob/1.23.4b/src/zen/spaces/overflow-icons.inc.css)
+  also uses transform/opacity; Glassflow already replaces that transform with
+  its single scale owner. The supplied non-overflow capture has zero host travel.
+- [Mozilla browser performance guidance](https://github.com/mozilla-firefox/firefox/blob/FIREFOX_158_0_1_RELEASE/docs/performance/bestpractices.md)
+  recommends compositor transforms and avoiding layout/style read-write loops.
+  Reviewed Morph discovery, edge following, page-blur updates and Mediaflow
+  geometry. No new hover-driven resize loop was established for these images.
+- Morph differs from continuous image scaling: 32 wind-up poses over 180ms
+  (31 pose intervals), then 96 action intervals over 600ms at default speed.
+  Those finite poses cannot provide one new pose at every 240Hz refresh.
+  Workspace/Favorite images are not Morph sprites, so this cannot explain
+  their scaling issue. The approved sprite artwork/choreography is preserved.
+
+Validation: 236 Node tests pass, zero fail, one optional native entry skipped
+there and run separately. Native runner passes 268 checks, 40 scale cases and
+192 sprite-paint cases. Screen-capture mode passes all six cases. The confirmed
+attachment bug is fixed; remaining Windows workspace/Favorite jitter is open.

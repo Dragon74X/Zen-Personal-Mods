@@ -50,6 +50,15 @@ return (async()=>{
  event(menu,'pointerout');await wait(50);const reversing=frame(menu);event(menu,'pointerover');const resumed=frame(menu);await wait(250);
  check('hover reversal starts from current frame',reversing>0&&reversing<31&&Math.abs(resumed-reversing)<=1);
  event(menu,'pointerout');await wait(250);check('pointer exit settles at rest',frame(menu)===0&&!menu.animation);
+ // Refresh/decode can attach while the pointer or keyboard focus is already
+ // present. Reattachment must not wait for a second entry event.
+ for(const pseudo of [':hover',':focus-visible']){
+  InspectorUtils.addPseudoClassLock(menu.host,pseudo);__zziconMorphInstance.refresh();await wait(300);
+  const attached=rec('#PanelUI-menu-button');
+  check('reattach reads '+pseudo,frame(attached)===31&&(pseudo===':hover'?attached.hover:attached.focus));
+  InspectorUtils.removePseudoClassLock(menu.host,pseudo);__zziconMorphInstance.refresh();await wait(80);
+  check('reattach without '+pseudo+' stays at rest',frame(rec('#PanelUI-menu-button'))===0&&!rec('#PanelUI-menu-button').animation);
+ }
  const newTab=rec('#tabs-newtab-button')||rec('#new-tab-button'),openTab=BrowserCommands.openTab;let calls=0;
  BrowserCommands.openTab=function(...args){calls++;return openTab.apply(this,args);};
  try{newTab.host.doCommand();await wait(45);newTab.host.doCommand();await wait(180);}finally{BrowserCommands.openTab=openTab;}

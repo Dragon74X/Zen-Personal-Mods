@@ -9,9 +9,13 @@ entry says what is true today, what would change, and what to check first.
   "One blur: Zen's own acrylic"). The see-through-page blur was rebuilt in
   `18bb149` (6 October 2026) with an `feFlood` mask instead of `feImage`, and
   is attached only while the compact sidebar shows over a see-through page.
-- **Still open:** not measured on a GPU machine. The mask is a rectangle, so
-  the panel's rounded corners may show a sliver of blurred page (the
-  `ponytail:` note in `glassflow.uc.js` says what to do if it does).
+- **Updated:** the [Zen 1.24 Windows pixel comparison](AUDIT-2026-10-30-NATIVE-BLUR-PIXELS.md)
+  covers 32 cases without capture errors. Native blur covers the tested opaque
+  and transparent pages. Glassflow 3.74.17 defaults the existing compatibility
+  filter off and removes its resources while off; saved choices remain intact.
+- **Still open:** transient redraw behavior and other renderer/theme combinations.
+  The retained fallback mask is a rectangle, so rounded panel corners may show
+  a sliver of blurred page (the `ponytail:` note describes the limit).
 - **Recorded:** 9 October 2026 audit ([AUDIT-2026-10-09.md](AUDIT-2026-10-09.md)).
 
 ## Glassflow: blur behind overlays

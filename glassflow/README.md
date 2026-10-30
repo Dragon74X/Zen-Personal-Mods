@@ -195,7 +195,15 @@ down and let this own it.
 | Customise Zen's blur | off | Off keeps Glassflow's existing blur preset. On sets the four values below, see [Zen's blur](#zens-blur). Shown whether or not sidebar styling is on |
 | Blur strength / brightness / saturation / contrast | `42px` / `0.25` / `1.1` / `1` | Custom preset; native Zen 1.23 brightness is `0.5` |
 | Darken the sidebar's edges | Soft | Off, Soft, Medium or Strong: a shade painted just inside the compact sidebar's edges |
-| Blur see-through pages too | on | A page made see-through (Transparent Zen's transparent tint, Zen Internet) leaves the sidebar's blur nothing to blur, so its text showed through sharp. While the compact sidebar shows over such a page, the page itself is blurred under it. Pages with a solid background (Zen's default) get Zen's blur alone |
+| Extra blur for see-through pages (compatibility) | off | Adds a page filter only if native blur leaves transparent page content sharp under the compact sidebar. Previously called **Blur see-through pages too**; saved values are preserved |
+
+With native Zen acrylic enabled before startup, the Zen 1.24 Windows pixel
+comparison blurred opaque and transparent pages without the extra page filter.
+Leave the compatibility option off on that configuration. Turning it off also
+removes its SVG, geometry tracking and listeners; it does not change the native
+blur recipe or its custom values. An existing saved **On** stays on until you
+switch it off. Other renderers and themes can still use the fallback.
+See the [pixel results and limits](../docs/AUDIT-2026-10-30-NATIVE-BLUR-PIXELS.md).
 
 ### Workspaces
 

@@ -106,6 +106,7 @@
     observe(_s, _t, data) {
       if (!data || !data.startsWith(PREFIX)) return;
       if (data === PREFIX + "instant-ui") { syncInstantUI(); return; }
+      if (data === PREFIX + "sidebar.blur-transparent-pages") { syncPageBlur(); return; }
       const name = "--" + data.replace(/\./g, "-");
       const value = readPrefValue(data);
       try {
@@ -145,21 +146,29 @@
     },
   };
 
-  // ---- transparent pages under the compact sidebar ---------------------
-  // A page made see-through (Transparent Zen, Zen Internet) leaves the
-  // sidebar's blur nothing to blur: its text sits on nothing, a blurred copy
-  // of it is all but invisible, and the sharp original shows through. While
-  // the compact sidebar shows over such a page, an SVG filter on the page box
-  // blurs the strip under the panel instead, keeping the rest of the page as
-  // it is. Zen gives every page a solid background unless a mod takes it
-  // away, so a page whose browser background is solid is left to Zen's blur
-  // alone and nothing extra runs.
+  // ---- optional transparent-page blur compatibility --------------------
+  // Zen 1.24's native backdrop covered transparent and opaque pages in the
+  // Windows pixel test. Keep the page filter opt-in for renderers/themes
+  // that still show sharp page content through the panel. Current acrylic
+  // prefs cannot reveal the renderer's startup latch; do not guess support
+  // from the browser version or silently replace a saved choice.
+  // Off means no SVG, geometry reads, frame loop or page-blur listeners.
   // Only primitives WebRender draws itself (feFlood, feGaussianBlur,
   // feComposite, feMerge). Zen 1.23.4b ships feImage off, and a filter using
   // it falls back to software: remote pages went blank and corners changed.
   // ponytail: a rectangle; the panel's rounded corners may show a sliver of
   // blurred page. A rounded mask needs feImage, so not until Gecko enables it.
   const SHOWN = "[zen-has-hover], [zen-user-show], [zen-has-empty-tab], [flash-popup], [has-popup-menu], [movingtab], [zen-compact-mode-active]";
+  let stopPageBlur = null;
+  function syncPageBlur() {
+    if (Services.prefs.getBoolPref(PREFIX + "sidebar.blur-transparent-pages", false)) {
+      try { stopPageBlur ||= transparentPageBlur(); } catch (e) { console.error("[Glassflow] page blur failed to start:", e); }
+    } else {
+      const stop = stopPageBlur;
+      stopPageBlur = null;
+      stop?.();
+    }
+  }
   function transparentPageBlur() {
     const NS = "http://www.w3.org/2000/svg", S = Services.prefs, root = document.documentElement;
     const toolbox = document.getElementById("navigator-toolbox"), box = document.getElementById("tabbrowser-tabbox");
@@ -174,8 +183,7 @@
     const merge = el(filter, "feMerge", {});
     el(merge, "feMergeNode", { in: "o" });
     el(merge, "feMergeNode", { in: "b" });
-    const wanted = () => S.getBoolPref(PREFIX + "sidebar.blur-transparent-pages", true) &&
-      (S.getBoolPref(PREFIX + "sidebar.blur", false) || S.getBoolPref("zen.theme.acrylic-sidebar", false));
+    const wanted = () => S.getBoolPref(PREFIX + "sidebar.blur", false) || S.getBoolPref("zen.theme.acrylic-sidebar", false);
     const alpha = c => {
       if (c === "transparent") return 0;
       const m = c.match(/^rgba\((?:[^,]+,){3}\s*([\d.]+)\)$/) || c.match(/\/\s*([\d.]+)(%?)\s*\)$/);
@@ -185,7 +193,7 @@
     // Follows the panel every frame while it slides, in and out, so the blur
     // moves with it and stays until it has gone. Another mod's inline filter
     // on the page box is kept ahead of ours and put back afterwards.
-    let frame = 0, previousFilter = null, appliedFilter = null;
+    let frame = 0, previousFilter = null, appliedFilter = null, retired = false;
     const releaseFilter = () => {
       if (appliedFilter && box.style.getPropertyValue("filter") === appliedFilter) {
         if (previousFilter[0]) box.style.setProperty("filter", ...previousFilter);
@@ -217,7 +225,7 @@
       }
       if (moving) frame = requestAnimationFrame(update);
     };
-    const soon = () => { frame ||= requestAnimationFrame(update); };
+    const soon = () => { if (!retired) frame ||= requestAnimationFrame(update); };
     // Descendant icon/colour transitions do not move the sidebar. Rewriting
     // its page filter for each one invalidates the same pixels repeatedly.
     const onSlide = e => { if (e.target === toolbox && e.propertyName === "translate") soon(); };
@@ -234,6 +242,7 @@
     gBrowser.tabContainer.addEventListener("TabSelect", soon);
     update();
     return () => {
+      retired = true;
       mo.disconnect();
       transparency.removeEventListener("change", soon);
       S.removeObserver(PREFIX + "sidebar.", prefs);
@@ -514,8 +523,7 @@
     };
     toolbox?.addEventListener("transitionend", redraw);
     gBrowser.tabContainer.addEventListener("TabSelect", redraw);
-    let stopPageBlur = () => {};
-    try { stopPageBlur = transparentPageBlur(); } catch (e) { console.error("[Glassflow] page blur failed to start:", e); }
+    syncPageBlur();
     // Sine cleanup and window unload can both run; retire this copy once.
     let retired = false;
     const cleanup = () => {
@@ -533,7 +541,8 @@
       toolbox?.removeEventListener("transitionend", redraw);
       gBrowser.tabContainer.removeEventListener("TabSelect", redraw);
       toolbox?.removeAttribute("zzg-redraw");
-      try { stopPageBlur(); } catch {}
+      try { stopPageBlur?.(); } catch {}
+      stopPageBlur = null;
     };
     window.addEventListener("unload", cleanup, { once: true });
     // Registered with Sine, so an update re-injects this script live, no

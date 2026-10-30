@@ -24,6 +24,11 @@ the user explicitly requests changes to those window controls.
 
 # Diagnostics
 
+Requested implementation and verification remain agent-owned. Do not turn
+unfinished authorized work into a task handoff to the user. Only request data or
+a test that requires the user's machine, explicitly naming what to run and return.
+Continue all independent implementation/checks while that evidence is unavailable.
+
 Start collecting immediately when a probe runs. Discover targets and advance
 phases automatically; never require F8, target selection, Begin/Next buttons or
 rating choices. Keep only an optional Stop + copy control. Restore temporary

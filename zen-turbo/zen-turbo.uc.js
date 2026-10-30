@@ -76,10 +76,8 @@
     predictor: [
       ["network.predictor.enable-hover-on-ssl", true],
     ],
-    // Session state is written to disk every 15s by default; that write is
-    // a periodic jank source on HDDs and busy systems. 30s halves it. Cost:
-    // after a hard crash, up to 30s of very recent session changes instead
-    // of 15s. Zen's own window sync is unaffected.
+    // A minimum spacing, not a reason to shorten a newer native interval.
+    // Zen 1.24 already uses 40s. applyPack releases our old 30s override there.
     "io-jank": [
       ["browser.sessionstore.interval", 30000],
     ],
@@ -159,6 +157,19 @@
       // An existing snapshot means this pack already applied. Re-syncing
       // must not overwrite a later user edit, including after a restart.
       const current = getAny(name);
+      if (packName === "io-jank") {
+        const prior = saved[name];
+        let original = current;
+        if (prior?.had) original = prior.v;
+        else if (prior) {
+          try { original = Services.prefs.getDefaultBranch("").getIntPref(name); }
+          catch { original = undefined; }
+        }
+        if (typeof original === "number" && original >= v) {
+          if (prior) changed = revertPack(packName, saved) || changed;
+          continue;
+        }
+      }
       if (current === v || name in saved) continue;
       const before = Services.prefs.prefHasUserValue(name)
         ? { had: true, v: current } : { had: false };

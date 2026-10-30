@@ -11,7 +11,7 @@ Console**, or run this loader there:
 (async () => {
   const w = Services.wm.getMostRecentWindow('navigator:browser');
   if (!w) throw Error('No browser window');
-  const response = await w.fetch('https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/63ef36b76074ef56cf24ea58bd7006cc762ec0bb/tools/native-blur-probe.js',
+  const response = await w.fetch('https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/f4a357c919b468f03558a8ca13ca30d64fe284aa/tools/native-blur-probe.js',
     { signal: w.AbortSignal.timeout(15000) });
   if (!response.ok) throw Error('Probe download: HTTP ' + response.status);
   const code = await response.text();
@@ -40,7 +40,7 @@ or enable page `eval()`. The old fetch-then-eval loader was blocked by chrome CS
 before the probe could start. The temporary script is removed after execution;
 download/load errors are automatically copied too.
 
-The report identifies this revision as `native-blur-v3`. Each case publishes its
+The report identifies this revision as `native-blur-v4`. Each case publishes its
 own request and reply exactly once. Neither side replaces a file the other side
 may still be reading. This removes version 2's Windows file-sharing race on the
 reused `request.json` and `response.json`. Malformed or mismatched messages fail
@@ -53,7 +53,7 @@ Worker failures now include the failing stage, PowerShell error identifier and
 script line, including startup failures.
 
 It starts immediately, requests focus for the fixture window, and normally takes
-about 40 seconds. Keep that window in front and unobscured while it runs. The
+about two to three minutes. Keep that window in front and unobscured while it runs. The
 foreground check refuses other windows, including the Browser Console. **Stop + copy** is
 optional. There are no phase/start/rating buttons.
 
@@ -64,19 +64,34 @@ The probe creates a generated striped tab, masks sidebar labels, and compares:
 - Normal and reduced-transparency preferences.
 - No-blur reference; installed behavior; native backdrop with Glassflow's page
   strip filter disabled; that same comparison with the redraw nudge suppressed.
+- Open-sidebar document loads, selected-tab switches, sidebar opening and closing.
+  Each sequence records 16 timestamped desktop frames and bounded DOM samples.
+- The installed media-preview overlay recipe over opaque/transparent documents,
+  at 52px/180px heights and 8px/42px blur, against the same no-blur reference.
+- Light/dark native menu and system-text fixtures under normal, reduced-transparency
+  and chrome contrast signals. This emulates browser signals; it does not switch
+  Windows system themes or certify every Windows high-contrast palette.
+
+The full matrix contains **102 cases**: 32 settled, 48 sequences, 16 overlays and
+6 accessibility cases, producing 1,628 cropped PNGs. Sequence triggers wait for a
+worker readiness handshake. Cancellation and foreground/occlusion checks apply
+throughout each frame sequence. The overlay is a generated recipe fixture; real
+Library interactions are checked separately in the disposable native runner.
 
 “Native” here retains the installed backdrop recipe and other installed theme
 rules; it is **not a stock Zen profile**. The page-filter and redraw owners are
 isolated, not all of Glassflow. The no-blur reference is checked before capture.
 The probe never changes native acrylic or graphics startup preferences.
 
-A local Windows PowerShell worker uses `Graphics.CopyFromScreen` for the two
-small fixture crops in each case. It checks the foreground process, unique test
+A local Windows PowerShell worker uses `Graphics.CopyFromScreen` for small
+fixture crops in each case. It checks the foreground process, unique test
 title, physical/CSS coordinate ratio, and crop occlusion before capture. The
 worker is stopped before restoring user content. It neither uploads captures nor
 reads site URLs. User preferences, selected tab, temporary styles and attributes
-are restored; the fixture closes. A 150-second controller deadline and a
-170-second independent worker deadline bound the run.
+are restored; an initially open Library closes for capture and reopens on its
+original section afterward. Existing Library/popup contents are masked during
+capture. The fixture closes. A 240-second controller deadline and a
+260-second independent worker deadline bound the run.
 
 The JSON report automatically replaces the clipboard. Its `archive` field gives
 the local ZIP containing PNG crops and `report.json`. Send that ZIP and the copied
@@ -86,8 +101,9 @@ pixel results. A Windows policy that blocks PowerShell can prevent capture.
 
 ## Evidence and limits
 
-- Node lifecycle checks exercise all 32 cases, cancellation, capture failure, window closure,
-  unsupported OS, worker startup failure and cleanup failure.
+- Node lifecycle checks exercise all 102 cases, including cancellation and failure
+  during overlays/menus, popup cleanup, window closure, unsupported OS, worker
+  startup failure and cleanup failure.
 - `powershell -NoProfile -File tools/native-blur-worker.test.ps1` executes the
   shipped worker's geometry and occlusion code, with only Win32 calls substituted.
   Five coordinate cases cover left/right crops, fractional scale, negative desktop
@@ -99,7 +115,8 @@ pixel results. A Windows policy that blocks PowerShell can prevent capture.
   transport in another process, substituting only desktop capture. On Windows it
   holds prior request/reply files open without delete sharing, reproduces the
   rejected replacement, then completes all 32 per-case exchanges. It also checks
-  partial temporary files, invalid JSON, wrong IDs and stopping. Windows CI uses
+  partial temporary files, invalid JSON, wrong IDs, sequence readiness/trigger order,
+  frame bounds, cancellation before/during capture, and stopping. Windows CI uses
   PowerShell 5.1; on other hosts set `PWSH` to a PowerShell executable. No screen
   pixels or user data are used by this check.
 - `python3 tools/zen-smoke.py --zen /path/to/zen --probe-loader` exercises the
@@ -112,15 +129,19 @@ pixel results. A Windows policy that blocks PowerShell can prevent capture.
   phases, preference/UI restoration and ZIP creation with a **simulated screen
   worker**. It caught a reference-selector conflict with the redraw rule before
   delivery.
-- The Windows worker/GDI path has produced PNGs in a partial desktop run. The
-  complete 32-case Windows matrix remains **unverified**. Neither headless
-  screenshots nor the simulated backend establish backdrop rendering.
-- The PNGs are settled-state crops, not a measurement of animation smoothness,
-  GPU frame pacing or performance savings. Compare stripe detail and the outside
-  control crop; reduced-transparency cases should be opaque. Black/blank or
-  unchanged crops are data to investigate, not an automatic pass.
-- Keep the production transparent-page filter and redraw nudge until the Windows
-  captures establish that removing each preserves the required rendering.
+- The earlier v3 **32-case settled** matrix completed on Windows and supported
+  making the existing page-filter fallback opt-in. The expanded v4 Windows
+  sequence/overlay/menu capture still requires the user's machine; its simulated
+  backend is not evidence of backdrop pixels.
+- Sequence sampling deliberately runs below monitor refresh rate. Timestamps help
+  find missing/stale/blank blur during loads and slides; they do not certify GPU
+  frame pacing or icon smoothness. Compare stripe detail with the outside control.
+- Generated content only: no screenshots of page content or tab titles, no GPU
+  model/driver/monitor identifiers, and no upload. Local archive paths may contain
+  the Windows account name; do not publish raw capture reports.
+- Keep the bounded redraw workaround until the new presented-pixel comparison
+  supports removing it. Analysis of returned captures remains the implementer's
+  work, including any resulting code changes.
 
 Primary APIs: [CopyFromScreen](https://learn.microsoft.com/en-us/dotnet/api/system.drawing.graphics.copyfromscreen),
 [ClientToScreen](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-clienttoscreen),

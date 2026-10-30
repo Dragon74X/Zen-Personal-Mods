@@ -12,7 +12,7 @@ const worker=source.match(/const capturePS = String.raw`([\s\S]*?)`;/)[1];
 
 // Run the shipped transport in another process. Substitute only desktop capture;
 // keep real PowerShell parsing, file handles, JSON, atomic publication and stop IO.
-const fixture=String.raw`param([string]$Directory,[string]$Source)
+const fixture=String.raw`param([string]$Directory,[string]$Source,[string]$Mode)
 $ErrorActionPreference = 'Stop'
 $worker = Get-Content -Raw -Encoding UTF8 -LiteralPath $Source
 $tokens = $null; $errors = $null
@@ -38,6 +38,17 @@ $replacement = @'
  $answer.fixture = 'transport-only'
 }
 '@
+if ($Mode -eq 'sequence') {
+ $body=$capture.Body.Extent.Text
+ $a=$body.IndexOf("  $"+"stage = 'verify-window'")
+ $z=$body.IndexOf('  $answer.scale=$sx')
+ if ($a -lt 0 -or $z -lt $a) { throw 'Frame capture boundaries missing' }
+ $frameCapture=@'
+  $answer.files += @{frame=$frame;elapsedMs=$sequence.ElapsedMilliseconds}
+  [IO.File]::WriteAllText((Join-Path $Directory ('frame-'+$frame)), 'captured')
+'@
+ $replacement=$body.Remove($a,$z-$a).Insert($a,$frameCapture+[Environment]::NewLine)
+}
 $offset = $capture.Body.Extent.StartOffset - $loop.Extent.StartOffset
 $transport = $worker.Substring($start,$loop.Extent.StartOffset-$start) +
  $loop.Extent.Text.Remove($offset,$capture.Body.Extent.Text.Length).Insert($offset,$replacement)
@@ -49,11 +60,11 @@ $script = 'try {' + $transport + '} catch ' + $outer.CatchClauses[0].Body.Extent
 & ([scriptblock]::Create($script))
 `;
 
-async function startWorker(t) {
+async function startWorker(t,mode='transport') {
   const directory=await mkdtemp(join(tmpdir(),'zen-blur-ipc-fixture-'));
   const workerPath=join(directory,'worker.ps1'),runner=join(directory,'fixture.ps1');
   await writeFile(workerPath,worker);await writeFile(runner,fixture);
-  const child=spawn(shell,['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',runner,'-Directory',directory,'-Source',workerPath]);
+  const child=spawn(shell,['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',runner,'-Directory',directory,'-Source',workerPath,'-Mode',mode]);
   let state,output='';
   child.stdout.on('data',data=>output+=data);child.stderr.on('data',data=>output+=data);
   const finished=new Promise(resolve=>{
@@ -122,3 +133,45 @@ for(const [name,payload,message] of [
   assert.equal((await e.finished).code,1,e.output);
   await assert.rejects(readFile(join(e.directory,'response-01.json')),error=>error.code==='ENOENT');
 });
+
+test('PowerShell sequence waits for its trigger and captures every bounded frame',
+  {skip:!shell,timeout:15000},async t=>{
+    const e=await startWorker(t,'sequence');
+    await writeFile(join(e.directory,'request-01.json'),JSON.stringify({id:1,frames:4,intervalMs:40}));
+    assert.equal((await e.read('ready-01.json')).id,1);
+    await assert.rejects(readFile(join(e.directory,'response-01.json')),err=>err.code==='ENOENT');
+    await assert.rejects(readFile(join(e.directory,'frame-0')),err=>err.code==='ENOENT');
+    await writeFile(join(e.directory,'go-01'),'go');
+    const reply=await e.read('response-01.json');
+    assert.equal(reply.error,null);assert.deepEqual(reply.files.map(f=>f.frame),[0,1,2,3]);
+    assert.ok(reply.files.at(-1).elapsedMs>=110);
+    assert.equal((await e.stop()).code,0,e.output);
+  });
+
+for(const frames of [0,65])test('PowerShell sequence rejects invalid frame bound '+frames,
+  {skip:!shell,timeout:15000},async t=>{
+    const e=await startWorker(t,'sequence');
+    await writeFile(join(e.directory,'request-01.json'),JSON.stringify({id:1,frames}));
+    const reply=await e.read('response-01.json');
+    assert.match(reply.error,/Invalid frame count/);assert.equal(reply.files.length,0);
+    assert.equal((await e.stop()).code,0,e.output);
+  });
+
+for(const during of [false,true])test('PowerShell sequence cancels '+(during?'during frames':'before trigger'),
+  {skip:!shell,timeout:15000},async t=>{
+    const e=await startWorker(t,'sequence');
+    await writeFile(join(e.directory,'request-01.json'),JSON.stringify({id:1,frames:64,intervalMs:40}));
+    await e.read('ready-01.json');
+    if(during) {
+      await writeFile(join(e.directory,'go-01'),'go');
+      for(let n=0;n<100;n++) {
+        try {await readFile(join(e.directory,'frame-1'));break;}
+        catch(err) {if(err.code!=='ENOENT')throw err;}
+        await delay(10);
+      }
+    }
+    assert.equal((await e.stop()).code,0,e.output);
+    const reply=await e.read('response-01.json');
+    assert.match(reply.error,during?/Capture stopped/:/cancelled or timed out/);
+    assert.ok(reply.files.length<64);assert.ok(during?reply.files.length>=2:reply.files.length===0);
+  });

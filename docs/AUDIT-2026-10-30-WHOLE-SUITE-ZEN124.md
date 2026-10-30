@@ -1,5 +1,9 @@
 # Whole-suite review against Zen 1.24
 
+> Follow-up: [completion audit and native rendering checks](FIXES-2026-10-30-COMPLETION-AUDIT.md)
+> reconciles the older remaining-work entries below, including nested scrolling,
+> accessibility rendering, Router placement and the Turbo benchmark.
+
 Reviewed on 30 October 2026. Latest published release: **1.24b**, commit
 `f75390aa2b797ddc3524ff9ed52ceb32a839f9fa`. Development head inspected:
 `46eb9b9ac6de8195f1842add3e2381977f66f703`, three commits ahead. This covers all

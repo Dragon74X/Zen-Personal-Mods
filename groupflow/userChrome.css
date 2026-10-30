@@ -1725,6 +1725,27 @@
 /* Decorative children never participate in header layout. */
 .zzgf-rim { display: none !important; }
 
+/* The same header painter covers the sidebar and native Library copies.
+   Accessibility is temporary presentation, never a rewrite of saved colours. */
+@media (-moz-pref("zzgroup.enabled")) {
+  @media (prefers-reduced-transparency: reduce), (forced-colors), (prefers-contrast) {
+    :root :is(#navigator-toolbox, .zen-library-space-tabs) :is(tab-group, zen-folder):not([split-view-group]) > .tab-group-label-container,
+    :root :is(#navigator-toolbox, .zen-library-space-tabs) :is(tab-group, zen-folder):not([split-view-group]) tab-group:not([split-view-group]) > .tab-group-label-container {
+      background: Canvas !important;
+      opacity: 1 !important;
+      filter: none !important;
+      box-shadow: none !important;
+      &::before, & > .zzgf-rim { display: none !important; }
+      &:has(:focus-visible) { outline: 2px solid Highlight !important; outline-offset: -2px; }
+      @media (forced-colors), (prefers-contrast) {
+        color: CanvasText !important;
+        & > .tab-group-label { color: inherit !important; opacity: 1 !important; }
+        &:hover { background: ButtonFace !important; color: ButtonText !important; }
+      }
+    }
+  }
+}
+
 /* Icon-only sidebars have one tab-width column, independent of compact mode.
    Nested rails and text must not force that column wider than the sidebar. */
 @media (-moz-pref("zzgroup.enabled")) {

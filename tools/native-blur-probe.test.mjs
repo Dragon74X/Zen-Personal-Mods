@@ -43,18 +43,23 @@ for(const failure of [null,'fetch','http','write','compile','run','remove'])test
   if(['fetch','http'].includes(failure))assert.deepEqual(trace,[],'failed download never creates or executes a file');
 });
 
-async function run({failAt=0,cancelAt=0,closeAt=0,platform='WINNT',cleanupFailure=false,fatalWorker=false,badReply=false,readFailure=false}={}) {
+async function run({failAt=0,cancelAt=0,closeAt=0,platform='WINNT',cleanupFailure=false,fatalWorker=false,badReply=false,readFailure=false,followUp=false}={}) {
   const prefs=new Map([['zen.theme.acrylic-sidebar',true],['zen.theme.acrylic-urlbar',false],['zzglass.sidebar.blur-transparent-pages',true]]);
   const initial=new Map(prefs), files=new Map(), registered=new Set(), events=new Map(), trace=[];
-  const element=()=>{const attrs=new Map();return{style:{},isConnected:true,attrs,
+  const nodes=[];
+  const element=()=>{const attrs=new Map();const node={style:{setProperty(){},removeProperty(){}},isConnected:true,attrs,namespaceURI:'http://www.w3.org/1999/xhtml',
     getAttribute:k=>attrs.has(k)?attrs.get(k):null,setAttribute:(k,v)=>attrs.set(k,String(v)),removeAttribute:k=>attrs.delete(k),hasAttribute:k=>attrs.has(k),
-    appendChild(){},addEventListener(){},remove(){this.isConnected=false;}};};
+    getBoundingClientRect:()=>({x:400,y:250,left:400,top:250,right:700,bottom:430,width:300,height:180}),
+    openPopupAtScreen(){this.state='open';},hidePopup(){this.state='closed';},
+    appendChild(){},addEventListener(){},remove(){this.isConnected=false;}};nodes.push(node);return node;};
   const root=element(),panel=element(),toolbox=element(),box=element(),userTab=element();
   panel.getBoundingClientRect=()=>prefs.get('zen.tabs.vertical.right-side')?{left:800,top:0,right:1000,bottom:800}:{left:0,top:0,right:200,bottom:800};
   let timer=0,workerRunning=false,copied,response,fixture;
-  const doc={documentElement:root,title:'User page',getElementById:id=>({'zen-toolbar-background':panel,'navigator-toolbox':toolbox,'tabbrowser-tabbox':box}[id]),createElementNS:()=>element()};
-  const browser={selectedTab:userTab,selectedBrowser:{getBoundingClientRect:()=>({left:0,top:80,right:1000,bottom:800})},
-    addTab(url){doc.title=decodeURIComponent(url).match(/<title>([^<]+)/)[1];fixture=element();return fixture;},
+  const doc={documentElement:root,title:'User page',getElementById:id=>({'zen-toolbar-background':panel,'navigator-toolbox':toolbox,'tabbrowser-tabbox':box,'mainPopupSet':root}[id]),createElementNS:()=>element(),createXULElement:()=>element()};
+  const makeBrowser=url=>({currentURI:{spec:url},webProgress:{isLoadingDocument:false},loadURI(uri){this.currentURI.spec=uri;},getBoundingClientRect:()=>({left:0,top:80,right:1000,bottom:800,width:1000,height:720})});
+  userTab.linkedBrowser=makeBrowser('about:blank');
+  const browser={selectedTab:userTab,get selectedBrowser(){return this.selectedTab.linkedBrowser;},
+    addTab(url){doc.title=decodeURIComponent(url).match(/<title>([^<]+)/)[1];fixture=element();fixture.linkedBrowser=makeBrowser(url);return fixture;},
     removeTab(tab){trace.push('restore tab');tab.isConnected=false;}};
   const window={document:doc,gBrowser:browser,innerWidth:1000,innerHeight:800,devicePixelRatio:1,
     setTimeout(){throw Error('Window timers cannot guarantee cleanup after close');},
@@ -77,7 +82,7 @@ async function run({failAt=0,cancelAt=0,closeAt=0,platform='WINNT',cleanupFailur
   const IOUtils={makeDirectory:async()=>{},writeUTF8:async(path,text,options)=>{
     assert.equal(files.has(path),false,'Messages must never overwrite a reader-held file');
     files.set(path,text);
-    if(/\/request-\d{2}\.json$/.test(path)) {
+    if(/\/request-\d{2,3}\.json$/.test(path)) {
       const req=JSON.parse(text);
       assert.equal(path.split('/').at(-1),'request-'+String(req.id).padStart(2,'0')+'.json');
       assert.equal(options.tmpPath,path.replace(/\.json$/,'.tmp'));
@@ -87,21 +92,33 @@ async function run({failAt=0,cancelAt=0,closeAt=0,platform='WINNT',cleanupFailur
       if(req.id===closeAt){window.closed=true;events.get('unload')();assert.deepEqual(prefs,initial,'global prefs restore synchronously on window close');}
     }
   },readJSON:async path=>{
+      if(/\/ready-\d+\.json$/.test(path))return {id:response.id};
       if(fatalWorker&&path.endsWith('fatal.json'))return {error:'worker fixture failure',failure:{stage:'initialize',id:'fixture',line:4}};
-      assert.match(path,/\/response-\d{2}\.json$/);
+      assert.match(path,/\/response-\d{2,3}\.json$/);
       if(readFailure)throw Object.assign(Error('unreadable response fixture'),{name:'NotAllowedError'});
       if(!response)throw Object.assign(Error('not published'),{name:'NotFoundError'});
       if(!badReply)assert.equal(path.split('/').at(-1),'response-'+String(response.id).padStart(2,'0')+'.json');
       return response;
     },
     writeJSON:async(p,j)=>files.set(p,JSON.stringify(j)),getChildren:async()=>[]};
-  window.getComputedStyle=node=>({backdropFilter:'none',filter:'none'});
+  window.getComputedStyle=node=>({backdropFilter:node.className==='zen-library-media-preview-backdrop' &&
+    ![...registered].some(uri=>decodeURIComponent(uri).includes('#zz-render-fixtures .zen-library-media-preview-backdrop{backdrop-filter:none'))?'blur(8px)':'none',filter:'none'});
   const clock={setTimeout(fn,ms){if(ms<10000)queueMicrotask(fn);return ++timer;},clearTimeout(){}};
   const ctx=vm.createContext({Services,Cc,Ci:{},ChromeUtils:{importESModule:()=>clock},PathUtils:{tempDir:'/tmp',join:(...a)=>a.join('/'),filename:p=>p.split('/').at(-1)},IOUtils,
     console:{log(){}},getComputedStyle:window.getComputedStyle});
-  const report=await vm.runInContext(source,ctx);
-  return {report,prefs,initial,registered,trace,copied,events,window,root,fixture,files};
+  const report=await vm.runInContext(followUp?source:source.replace('    await followUp();',''),ctx);
+  return {report,prefs,initial,registered,trace,copied,events,window,root,fixture,files,nodes};
 }
+
+for(const options of [{},{cancelAt:85},{cancelAt:99},{failAt:100},{closeAt:101}])test('Full render matrix and late-phase cleanup '+JSON.stringify(options),async()=>{
+  const e=await run({...options,followUp:true});
+  assert.deepEqual(e.prefs,e.initial);assert.equal(e.registered.size,0);assert.equal(e.events.size,0);assert.equal(e.root.attrs.size,0);
+  assert.ok(e.copied);assert.equal(e.window.__zzNativeBlurProbe,undefined);
+  if(!options.closeAt)assert.equal(e.fixture.isConnected,false);
+  assert.ok(e.nodes.every(n=>n.state!=='open'),'Native popup is closed even on capture failure');
+  if(Object.keys(options).length===0){assert.equal(e.report.cases.length,102);assert.equal(e.report.errors.length,0);}
+  else assert.ok(e.report.errors.length);
+});
 
 test('Blur probe automatically completes 32 cases and restores state before copying',async()=>{
   const e=await run();

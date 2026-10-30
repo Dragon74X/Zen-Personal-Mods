@@ -21,7 +21,7 @@
   {
     "type": "checkbox",
     "property": "zzturbo.pack-io-jank",
-    "label": "Session-store interval *Sets browser.sessionstore.interval to 30000 milliseconds. Fewer scheduled writes can also leave more recent session changes unpersisted after a crash.*",
+    "label": "Session-store interval *Raises shorter scheduled-save intervals to 30 seconds. Leaves longer native or user intervals intact and releases an obsolete Turbo override after a browser update. Less frequent saving can leave more recent changes unpersisted after a crash.*",
     "defaultValue": true
   },
   {

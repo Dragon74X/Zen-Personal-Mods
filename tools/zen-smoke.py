@@ -1034,7 +1034,23 @@ def check_native_integration(m, root):
             source = source.replace('  const warmReady =', '  window.integrationWarmLibrary = warmLibrary;\n  const warmReady =')
         m.script(source+'\nreturn true;')
     result = m.script((root/'tools/native-integration-checks.js').read_text())
-    m.shot().save('/tmp/zen-native-high-contrast.png')
+    result['accessibility']=[]
+    for dark in [False,True]:
+        for mode in ['normal','reduced-transparency','contrast']:
+            case=m.script('return integrationAppearance('+json.dumps(dark)+','+json.dumps(mode)+');')
+            shot=m.shot().convert('RGB')
+            shot.save('/tmp/zen-appearance-'+str(int(dark))+'-'+mode+'.png')
+            if mode!='normal':
+                r=case['card']['rect']
+                actual=shot.getpixel((round(r['left']+3),round(r['top']+40)))
+                expected=tuple(map(int,re.findall(r'\d+',case['palette']['canvas'])))
+                assert max(abs(a-b) for a,b in zip(actual,expected))<=5, (case,actual,expected)
+                case['cardPixel']={'actual':actual,'expected':expected}
+            result['accessibility'].append(case)
+    m.script("return integrationAppearance(false,'normal');")
+    Path('/tmp/zen-native-appearance.json').write_text(json.dumps(result,indent=2))
+    # Leave the real Library open: the capture must close/mask it and restore
+    # its section after stopping the screen worker, without collecting its text.
     # Exercise real chrome geometry, pref restoration and ZIP APIs on Linux;
     # only the Windows screen worker is substituted. Never call this pixel proof.
     m.script('Services.prefs.clearUserPref("browser.display.document_color_use");Services.prefs.clearUserPref("ui.useAccessibilityTheme");Services.prefs.setBoolPref("zen.theme.acrylic-sidebar",true);window.integrationOriginalTab=gBrowser.selectedTab;return true;')
@@ -1042,12 +1058,14 @@ def check_native_integration(m, root):
     probe = probe.replace("Services.appinfo.OS !== 'WINNT'", 'false')
     probe = probe.replace("const shell = PathUtils.join(Services.dirsvc.get('WinD',Ci.nsIFile).path,'System32','WindowsPowerShell','v1.0','powershell.exe');", "const shell = 'test-worker';")
     probe = probe.replace("worker = Cc['@mozilla.org/process/util;1'].createInstance(Ci.nsIProcess); worker.init(localFile(shell));", "worker = {isRunning:false,runwAsync(){this.isRunning=true;},kill(){this.isRunning=false;}};")
-    probe = probe.replace('        let response;', "        await IOUtils.writeJSON(responsePath,{id,files:[],simulated:true});\n        let response;")
+    probe = probe.replace("const readyPath=PathUtils.join(directory,'ready-'+messageId+'.json');", "const readyPath=PathUtils.join(directory,'ready-'+messageId+'.json');await IOUtils.writeJSON(readyPath,{id});")
+    probe = probe.replace('      let response;', "      if(start)await wait(800);await IOUtils.writeJSON(responsePath,{id,files:[],simulated:true});\n      let response;")
     m.sock.settimeout(180)
     m.call('WebDriver:SetTimeouts', {'script':180000})
     capture = m.script('return (\n'+probe.rstrip().removesuffix(';')+'\n);')
-    assert len(capture['cases']) == 32 and not capture['errors'], capture
+    assert len(capture['cases']) == 102 and not capture['errors'], capture
     assert m.script('return gBrowser.selectedTab===integrationOriginalTab&&!document.documentElement.hasAttribute("zz-native-blur-test")&&!window.__zzNativeBlurProbe;')
+    assert m.script("return customElements.get('zen-library').isLibraryOpen;")
     result['blurOrchestration'] = {'cases':len(capture['cases']), 'restored':True, 'zip':Path(capture['archive']).exists(), 'captureBackend':'simulated; no Windows pixels'}
     import shutil
     shutil.rmtree(capture['directory']); Path(capture['archive']).unlink()
@@ -1125,7 +1143,7 @@ def check_probe_loader(m, root):
             else:
                 report = clipboard()
                 if path == '/native-blur-probe.js':
-                    assert report['probe'] == 'native-blur-v3' and report['cases'] == [], report
+                    assert report['probe'] == 'native-blur-v4' and report['cases'] == [], report
                     assert report['finished'] == 'error' and len(report['errors']) == 1, report
                     assert any(s in report['errors'][0] for s in ['requires Windows', 'Enable native Zen acrylic']), report
                     assert m.script('return !window.__zzNativeBlurProbe;'), 'Probe lifecycle did not finish'
@@ -1136,6 +1154,28 @@ def check_probe_loader(m, root):
             result['cases'].append({'fixture': path, 'passed': True, 'temporaryFileRemoved': True})
         assert evaluate(blocked) == before, 'CSP behavior changed'
         result['cspStillEnforced'] = True
+        m.script((root/'tools/console-origin-probe.js').read_text()+'\nreturn true;')
+        origin=m.script('''return (async()=>{
+          const error=Cc['@mozilla.org/scripterror;1'].createInstance(Ci.nsIScriptError);
+          error.init('Console origin fixture','chrome://sine/content/zz-groupflow/fixture.js',17,0,0,'chrome javascript');
+          Services.console.logMessage(error);
+          await new Promise(r=>setTimeout(r,100));
+          return window.__zzConsoleOriginProbe.stop('native fixture completed');
+        })();''')
+        assert any(e['message']=='Console origin fixture' and e['line']==17 and e['source'].endswith('/fixture.js') for e in origin['entries']), origin
+        assert clipboard()['probe']=='console-origin-v1'
+        result['consoleOrigin']={'nativeScriptErrorSource':True,'clipboard':True,
+          'cleaned':m.script('return !window.__zzConsoleOriginProbe;')}
+        m.script('''for(const k of ['network','predictor','media','gfx'])Services.prefs.setBoolPref('zzturbo.pack-'+k,false);
+          Services.prefs.setBoolPref('zzturbo.pack-io-jank',true);Services.prefs.setBoolPref('zzturbo.startup-warmup',false);
+          Services.prefs.setStringPref('zzturbo.saved-prefs',JSON.stringify({'browser.sessionstore.interval':{had:false,applied:30000}}));
+          Services.prefs.setIntPref('browser.sessionstore.interval',30000);return true;''')
+        m.script((root/'zen-turbo/zen-turbo.uc.js').read_text()+'\nreturn true;')
+        result['turboNativeIntervalRecovery']=m.script('''return (async()=>{
+          for(let i=0;i<80 && Services.prefs.prefHasUserValue('browser.sessionstore.interval');i++)await new Promise(r=>setTimeout(r,50));
+          return {value:Services.prefs.getIntPref('browser.sessionstore.interval'),owned:Services.prefs.prefHasUserValue('browser.sessionstore.interval')};
+        })();''')
+        assert result['turboNativeIntervalRecovery']=={'value':40000,'owned':False}, result
         result['captureBackend'] = 'Not invoked; tests console startup and reporting only'
         return result
     finally:

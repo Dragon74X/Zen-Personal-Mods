@@ -1,5 +1,9 @@
 # Native integration and console findings
 
+> Follow-up: [completion audit and native rendering checks](FIXES-2026-10-30-COMPLETION-AUDIT.md)
+> reconciles the older remaining-work entries below, including nested scrolling,
+> accessibility rendering, Router placement and the Turbo benchmark.
+
 Follow-up to [the Zen 1.24 suite audit](AUDIT-2026-10-30-WHOLE-SUITE-ZEN124.md).
 
 | Owner | Change and reason |

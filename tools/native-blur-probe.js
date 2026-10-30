@@ -3,8 +3,10 @@
 (async () => {
   const w = Services.wm.getMostRecentWindow('navigator:browser');
   if (!w) throw Error('No browser window');
+  const followUpOnly = w.__zzNativeBlurFollowUpOnly === true;
+  delete w.__zzNativeBlurFollowUpOnly;
   await w.__zzNativeBlurProbe?.stop?.('replaced');
-  const report = { probe: 'native-blur-v5', started: new Date().toISOString(),
+  const report = { probe: 'native-blur-v6', scope: followUpOnly ? 'follow-up' : 'all', started: new Date().toISOString(),
     browser: Services.appinfo.version, platform: Services.appinfo.OS, cases: [], errors: [],
     limitations: 'Generated fixture only. Desktop GDI crops test presented pixels, not animation FPS. Native acrylic must be enabled before browser startup; its renderer startup latch is not observable here. Compare native-only against installed output, including transparent pages. A computed filter alone is not visual proof.' };
   const P = Services.prefs, doc = w.document, root = doc.documentElement;
@@ -219,11 +221,14 @@ while ([DateTime]::UtcNow -lt $end -and !(Test-Path (Join-Path $Directory 'stop'
     originalTab = w.gBrowser.selectedTab;
     // Fine stripes reveal blur; wide cyan/amber bands distinguish a freshly
     // painted document from a stale backdrop even after strong blur/dimming.
+    const fixtureCSS='@-moz-document url-prefix('+JSON.stringify('data:text/html,'+encodeURIComponent('<!doctype html><title>'+marker))+') {'+
+      ['opaque','transparent'].map(page=>':root:has(body#zz-blur-fixture[data-page="'+page+'"]),body#zz-blur-fixture[data-page="'+page+'"]{background:'+(page==='opaque'?'white':'transparent')+'!important}').join('')+'}';
     const pageURL = (page,paint='stripes') => {
       const color=paint==='cyan'?'#20c8ff':'#ff9020';
       const html='<!doctype html><title>'+marker+'</title><style>html,body{margin:0!important;background:'+(page==='opaque'?'white':'transparent')+'!important;color-scheme:only light;forced-color-adjust:none}svg{position:fixed;inset:0;width:100%;height:100%}</style>'+
-        '<svg xmlns="http://www.w3.org/2000/svg"><defs><pattern id="stripes" width="8" height="8" patternUnits="userSpaceOnUse"><rect width="4" height="8" fill="#000"/></pattern></defs><rect width="100%" height="100%" fill="url(#stripes)"/>'+
-        (paint==='stripes'?'':'<rect y="176" width="100%" height="64" fill="'+color+'"/>')+'</svg>';
+        '<body id="zz-blur-fixture" data-page="'+page+'"><svg xmlns="http://www.w3.org/2000/svg"><defs><pattern id="stripes" width="8" height="8" patternUnits="userSpaceOnUse"><rect width="4" height="8" fill="#000"/></pattern></defs><rect width="100%" height="100%" fill="url(#stripes)"/>'+
+        (paint==='stripes'?'':'<rect y="176" width="100%" height="64" fill="'+color+'"/>')+'</svg><script>{const state='+JSON.stringify({page,paint})+';'+
+        'const report=()=>{state.html=getComputedStyle(document.documentElement).backgroundColor;state.body=getComputedStyle(document.body).backgroundColor;document.title='+JSON.stringify(marker+'|')+'+JSON.stringify(state);};report();for(const ms of [100,500,1500])setTimeout(report,ms);}</script>';
       const url='data:text/html,'+encodeURIComponent(html);
       fixtureDocuments.set(url,{page,paint});return url;
     };
@@ -238,7 +243,7 @@ while ([DateTime]::UtcNow -lt $end -and !(Test-Path (Join-Path $Directory 'stop'
       ':root[zz-native-blur-test] #titlebar > :not(#zen-toolbar-background),:root[zz-native-blur-test] #zen-sidebar-pip-container,:root[zz-native-blur-test] #zen-media-controls-toolbar{visibility:hidden!important}' +
       ':root[zz-native-blur-test] #zen-toolbar-background::before,:root[zz-native-blur-test] #zen-toolbar-background::after{display:none!important}' +
       ':root[zz-native-blur-test] #tabbrowser-tabbox browser{background-color:transparent!important}' +
-      ':root[zz-native-blur-test][zz-blur-page="opaque"] #tabbrowser-tabbox browser{background-color:#fff!important}');
+      ':root[zz-native-blur-test][zz-blur-page="opaque"] #tabbrowser-tabbox browser{background-color:#fff!important}'+fixtureCSS);
     attr(root,'zz-blur-page','transparent');
     setPref('zen.view.compact',true); setPref('zen.view.compact.hide-tabbar',true);
     attr(root,'zen-compact-mode','true');
@@ -257,7 +262,23 @@ while ([DateTime]::UtcNow -lt $end -and !(Test-Path (Join-Path $Directory 'stop'
     let id = 0;
     const panel = doc.getElementById('zen-toolbar-background'), toolbox=doc.getElementById('navigator-toolbox');
 
+    // Only generated documents can report these fields; never copy an arbitrary title.
+    const backgrounds = browser => {
+      if(!fixtureDocuments.has(browser.currentURI.spec))return null;
+      try {
+        const title=browser.contentTitle, prefix=marker+'|';
+        if(!title.startsWith(prefix))return null;
+        const data=JSON.parse(title.slice(prefix.length)), expected=fixtureDocuments.get(browser.currentURI.spec);
+        if(data.page!==expected.page || data.paint!==expected.paint)return null;
+        return {html:data.html,body:data.body};
+      } catch { return null; }
+    };
+    const validBackground = browser => {
+      const expected=fixtureDocuments.get(browser.currentURI.spec)?.page==='opaque'?'rgb(255, 255, 255)':'rgba(0, 0, 0, 0)', actual=backgrounds(browser);
+      return actual?.html===expected && actual?.body===expected;
+    };
     const snapshot = () => ({utcMs:Date.now(),document:fixtureDocuments.get(w.gBrowser.selectedBrowser.currentURI.spec) || null,
+      backgrounds:backgrounds(w.gBrowser.selectedBrowser),
       loading:!!w.gBrowser.selectedBrowser.webProgress.isLoadingDocument,titleMatches:doc.title.includes(marker),
       panel:read(()=>{const r=panel.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};}),
       filter:w.getComputedStyle(panel).backdropFilter,pageFilter:w.getComputedStyle(doc.getElementById('tabbrowser-tabbox')).filter});
@@ -298,9 +319,20 @@ while ([DateTime]::UtcNow -lt $end -and !(Test-Path (Join-Path $Directory 'stop'
       if(response?.id!==id)throw Error('Windows capture timed out');
       entry.capture=response; entry.after=snapshot(); report.cases.push(entry);
       if(response.error)throw Error(response.error);
+      if(!validBackground(w.gBrowser.selectedBrowser))throw Error('Generated page background did not match its requested state');
     };
-    for (const right of [false,true]) for (const page of ['opaque','transparent']) for (const reduced of [false,true]) {
+    const load = async (tab,page,paint='stripes') => {
+      const url=pageURL(page,paint),browser=tab.linkedBrowser;
+      browser.loadURI(Services.io.newURI(url),{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal()});
+      for(let n=0;n<100;n++) {
+        guard();await wait(30);
+        if(browser.currentURI.spec===url && !browser.webProgress.isLoadingDocument && validBackground(browser))return;
+      }
+      throw Error('Generated document or its requested background did not finish loading');
+    };
+    for (const right of followUpOnly ? [] : [false,true]) for (const page of ['opaque','transparent']) for (const reduced of [false,true]) {
       setPref('zen.tabs.vertical.right-side',right); setPref('ui.prefersReducedTransparency',reduced?1:0);
+      await load(fixture,page);
       root.setAttribute('zz-blur-page',page);
       for (const variant of ['reference','installed','native-only','native-no-nudge']) {
         guard();
@@ -336,16 +368,7 @@ while ([DateTime]::UtcNow -lt $end -and !(Test-Path (Join-Path $Directory 'stop'
       const showAttrs=['zen-has-hover','zen-has-empty-tab','flash-popup','has-popup-menu','movingtab','zen-compact-mode-active'];
       for(const key of showAttrs)attributes.push([toolbox,key,toolbox.getAttribute(key)]);
       const show = value => {for(const key of showAttrs)toolbox.removeAttribute(key);if(value)toolbox.setAttribute('zen-user-show','true');else toolbox.removeAttribute('zen-user-show');};
-      const alternate = addFixture(w.gBrowser.addTab(pageURL('transparent'),{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true}));
-      const load = async (tab,page,paint='stripes') => {
-        const url=pageURL(page,paint),browser=tab.linkedBrowser;
-        browser.loadURI(Services.io.newURI(url),{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal()});
-        for(let n=0;n<100;n++) {
-          guard();await wait(30);
-          if(browser.currentURI.spec===url && !browser.webProgress.isLoadingDocument)return;
-        }
-        throw Error('Generated document did not finish loading');
-      };
+      const alternate = followUpOnly ? null : addFixture(w.gBrowser.addTab(pageURL('transparent'),{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true}));
       // Subsequent cases use real opaque/transparent document backgrounds,
       // rather than the browser backing used by the settled matrix.
       root.setAttribute('zz-blur-page','document');
@@ -358,7 +381,18 @@ while ([DateTime]::UtcNow -lt $end -and !(Test-Path (Join-Path $Directory 'stop'
         return [{name:'sidebar',x,y,width,height},{name:'control',x:controlX,y,width:128,height}];
       };
       setPref('ui.prefersReducedTransparency',0);
-      for(const right of [false,true])for(const page of ['opaque','transparent'])for(const variant of ['installed','native-only','native-no-nudge']) {
+      // The short follow-up verifies both actual canvas backgrounds while an
+      // already-open sidebar tracks a newly painted document on the saved side.
+      if(followUpOnly) {
+        setPref('zzglass.sidebar.blur-transparent-pages',false);
+        for(const page of ['opaque','transparent']) {
+          await load(fixture,page==='opaque'?'transparent':'opaque','cyan');show(true);await wait(450);
+          status.textContent=`${id+1}/14: verified ${page} document load — Stop + copy`;
+          await capture({id:++id,kind:'sequence',scenario:'load-open',right:P.getBoolPref('zen.tabs.vertical.right-side',false),page,variant:'native-only',rois:sidebarCrops(),before:snapshot(),expectedPaint:'amber'},
+            ()=>w.gBrowser.selectedBrowser.loadURI(Services.io.newURI(pageURL(page,'amber')),{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal()}));
+        }
+      }
+      for(const right of followUpOnly ? [] : [false,true])for(const page of ['opaque','transparent'])for(const variant of ['installed','native-only','native-no-nudge']) {
         setPref('zen.tabs.vertical.right-side',right);
         await load(alternate,page,'amber');
         unSheet(phaseSheet);phaseSheet=null;
@@ -394,7 +428,7 @@ while ([DateTime]::UtcNow -lt $end -and !(Test-Path (Join-Path $Directory 'stop'
       };
       const crop = node => {const r=node.getBoundingClientRect();if(r.width<40||r.height<40)throw Error('Render fixture has no visible bounds');return [{name:'surface',x:r.left+12,y:r.top+12,width:r.width-24,height:r.height-24}];};
       setPref('zzglass.overlays.enabled',true);setPref('zzglass.overlays.media-preview',1);
-      for(const page of ['opaque','transparent'])for(const height of [52,180])for(const radius of [8,42])for(const variant of ['reference','blur']) {
+      for(const page of followUpOnly ? [] : ['opaque','transparent'])for(const height of [52,180])for(const radius of [8,42])for(const variant of ['reference','blur']) {
         guard();await load(fixture,page);place(overlay,height);setPref('zzglass.overlays.blur',radius+'px');
         unSheet(phaseSheet);phaseSheet=null;
         if(variant==='reference')phaseSheet=sheet(':root[zz-native-blur-test] #zz-render-fixtures .zen-library-media-preview-backdrop{backdrop-filter:none!important}');
@@ -416,22 +450,48 @@ while ([DateTime]::UtcNow -lt $end -and !(Test-Path (Join-Path $Directory 'stop'
       doc.getElementById('mainPopupSet').appendChild(popup);temporary.push(popup);
       const swatch=doc.createElementNS(host.namespaceURI,'div');
       swatch.textContent='Fixture text — Aa 0123';host.appendChild(swatch);
-      for(const dark of [false,true])for(const mode of ['normal','reduced-transparency','contrast']) {
-        guard();setPref('ui.systemUsesDarkTheme',dark?1:0);setPref('ui.prefersReducedTransparency',mode==='reduced-transparency'?1:0);
+      const settleMenu = async () => {
+        const started=Date.now();
+        for(let n=0;n<40;n++) {
+          guard();
+          const pending=popup.getAnimations({subtree:true}).filter(a=>a.playState!=='finished' && a.playState!=='idle');
+          if(!pending.some(a=>Number.isFinite(a.effect?.getComputedTiming().endTime)))
+            return {waitedMs:Date.now()-started,infiniteAnimations:pending.length};
+          await wait(50);
+        }
+        throw Error('Native menu animations did not settle within 2 seconds');
+      };
+      for(const fixtureScheme of ['light','dark'])for(const mode of ['normal','reduced-transparency','contrast']) {
+        guard();setPref('ui.prefersReducedTransparency',mode==='reduced-transparency'?1:0);
         setPref('browser.display.document_color_use',mode==='contrast'?2:0);setPref('ui.useAccessibilityTheme',mode==='contrast'?1:0);
         place(swatch,100);swatch.style.setProperty('background','Canvas');swatch.style.setProperty('color','CanvasText');swatch.style.setProperty('padding','16px');swatch.style.setProperty('box-sizing','border-box');swatch.style.setProperty('font','20px system-ui');
+        // A fixed installed theme can ignore ui.systemUsesDarkTheme. Narrow
+        // only the generated surfaces; do not claim to switch the user's theme.
+        for(const node of [popup,swatch])node.style.setProperty('color-scheme','only '+fixtureScheme,'important');
         await wait(250);
         const b=w.gBrowser.selectedBrowser.getBoundingClientRect();
         popup.openPopupAtScreen(w.mozInnerScreenX+b.left+Math.max(100,b.width/2-140),w.mozInnerScreenY+b.top+320,false);
         for(let n=0;n<40 && popup.state!=='open';n++){guard();await wait(50);}
         if(popup.state!=='open')throw Error('Accessibility menu did not open');
-        const r=popup.getBoundingClientRect(), cs=w.getComputedStyle(popup), text=w.getComputedStyle(swatch);
-        const rois=[...crop(swatch),{name:'menu',x:r.x,y:r.y,width:r.width,height:r.height}];
-        status.textContent=`${id+1}: ${dark?'dark':'light'} ${mode} native menu — Stop + copy`;
-        await capture({id:++id,kind:'accessibility',dark,mode,ownedPopup:true,rois,signals:{contrast:w.matchMedia('(prefers-contrast)').matches,reduced:w.matchMedia('(prefers-reduced-transparency: reduce)').matches},computed:{menuFill:cs.backgroundColor,menuText:cs.color,canvas:text.backgroundColor,canvasText:text.color}});
+        const content=popup.shadowRoot?.querySelector('[part~="content"]');
+        if(!content)throw Error('Native menu painted content unavailable');
+        for(const selected of [false,true]) {
+          // Native selection styling only; not a physical keyboard-input test.
+          if(selected)popup.children[1].setAttribute('_moz-menuactive','true');
+          const motion=await settleMenu();
+          const r=popup.getBoundingClientRect(), cs=w.getComputedStyle(content), outer=w.getComputedStyle(popup), text=w.getComputedStyle(swatch);
+          if(!cs.colorScheme.split(' ').includes(fixtureScheme))throw Error('Native menu fixture color scheme was overridden');
+          const rois=[...crop(swatch),{name:'menu',x:r.x,y:r.y,width:r.width,height:r.height}];
+          status.textContent=`${id+1}: ${fixtureScheme} ${mode} native menu — Stop + copy`;
+          await capture({id:++id,kind:'accessibility',fixtureScheme,mode,selected,motion,ownedPopup:true,rois,
+            signals:{contrast:w.matchMedia('(prefers-contrast)').matches,forced:w.matchMedia('(forced-colors)').matches,reduced:w.matchMedia('(prefers-reduced-transparency: reduce)').matches,documentDark:w.matchMedia('(prefers-color-scheme: dark)').matches},
+            computed:{menuFill:cs.backgroundColor,menuText:cs.color,menuOpacity:outer.opacity,contentOpacity:cs.opacity,colorScheme:cs.colorScheme,canvas:text.backgroundColor,canvasText:text.color,
+              items:[...popup.children].map(item=>{const s=w.getComputedStyle(item);return {fill:s.backgroundColor,color:s.color,opacity:s.opacity,disabled:item.hasAttribute('disabled'),selected:item.hasAttribute('_moz-menuactive')};})}});
+        }
+        popup.children[1].removeAttribute('_moz-menuactive');
         popup.hidePopup();
       }
-      report.coverage={settled:32,sequences:48,overlay:16,accessibility:6};
+      report.coverage={settled:followUpOnly?0:32,sequences:followUpOnly?2:48,overlay:followUpOnly?0:16,accessibility:12};
     }
 
   };

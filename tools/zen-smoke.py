@@ -1013,6 +1013,45 @@ def check_actions(m, root):
     return result
 
 
+def check_native_popups(m, root):
+    m.script('return gZenStartup.promiseInitialized.then(()=>true);')
+    # Exercise the Windows-only tint branch without claiming a Windows renderer.
+    css = (root/'glassflow/userChrome.css').read_text().replace('(-moz-windows-mica-popups)', '(-moz-pref("test.mica"))')
+    m.script('window.popupTestCSS='+json.dumps(css)+';return true;')
+    m.sock.settimeout(180)
+    m.call('WebDriver:SetTimeouts', {'script':180000})
+    result=m.script((root/'tools/native-popup-checks.js').read_text())
+    # Use the shipped collector with actual Arc menu animation and shadow DOM.
+    m.script('''const ss=Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService);
+      for(const css of [popupTestCSS,popupTestArc])ss.loadAndRegisterSheet(Services.io.newURI('data:text/css,'+encodeURIComponent(css)),1);
+      Services.prefs.setBoolPref('zen.theme.acrylic-sidebar',true);
+      Services.prefs.setBoolPref('zzglass.overlays.enabled',true);window.__zzNativeBlurFollowUpOnly=true;return true;''')
+    probe=(root/'tools/native-blur-probe.js').read_text()
+    probe=probe.replace("Services.appinfo.OS !== 'WINNT'", 'false')
+    probe=probe.replace("const shell = PathUtils.join(Services.dirsvc.get('WinD',Ci.nsIFile).path,'System32','WindowsPowerShell','v1.0','powershell.exe');", "const shell = 'test-worker';")
+    probe=probe.replace("worker = Cc['@mozilla.org/process/util;1'].createInstance(Ci.nsIProcess); worker.init(localFile(shell));", "worker = {isRunning:false,runwAsync(){this.isRunning=true;},kill(){this.isRunning=false;}};")
+    probe=probe.replace("const readyPath=PathUtils.join(directory,'ready-'+messageId+'.json');", "const readyPath=PathUtils.join(directory,'ready-'+messageId+'.json');await IOUtils.writeJSON(readyPath,{id});")
+    probe=probe.replace('      let response;', "      if(start)await wait(800);await IOUtils.writeJSON(responsePath,{id,files:[],simulated:true});\n      let response;")
+    capture=m.script('return (\n'+probe.rstrip().removesuffix(';')+'\n);')
+    assert len(capture['cases'])==14 and not capture['errors'], capture
+    palettes={}
+    for case in capture['cases']:
+        if case['kind']!='accessibility':
+            assert case['after']['backgrounds']['html']==('rgb(255, 255, 255)' if case['page']=='opaque' else 'rgba(0, 0, 0, 0)'),case
+            continue
+        computed=case['computed']
+        assert all(float(item['opacity'])==1 for item in computed['items']), case
+        assert float(computed['menuOpacity'])==1 and float(computed['contentOpacity'])==1,case
+        assert case['fixtureScheme'] in computed['colorScheme'],case
+        if case['mode']=='normal': palettes[case['fixtureScheme']]=computed['canvas']
+    assert palettes['light']!=palettes['dark'],palettes
+    assert m.script('return !window.__zzNativeBlurFollowUpOnly&&!window.__zzNativeBlurProbe&&!document.getElementById("zz-render-menu");')
+    result['collector']={'cases':len(capture['cases']),'verifiedBackgrounds':2,'opacitiesSettled':True,'distinctFixturePalettes':True,'backend':'simulated; no Windows pixels'}
+    import shutil
+    shutil.rmtree(capture['directory']);Path(capture['archive']).unlink()
+    return result
+
+
 def check_native_integration(m, root):
     m.script('return gZenStartup.promiseInitialized.then(()=>true);')
     mods = ['glassflow', 'glassflow-library', 'groupflow', 'iconflow', 'tab-router', 'mediaflow']
@@ -1063,7 +1102,7 @@ def check_native_integration(m, root):
     m.sock.settimeout(180)
     m.call('WebDriver:SetTimeouts', {'script':180000})
     capture = m.script('return (\n'+probe.rstrip().removesuffix(';')+'\n);')
-    assert len(capture['cases']) == 102 and not capture['errors'], capture
+    assert len(capture['cases']) == 108 and not capture['errors'], capture
     assert m.script('return gBrowser.selectedTab===integrationOriginalTab&&!document.documentElement.hasAttribute("zz-native-blur-test")&&!window.__zzNativeBlurProbe;')
     assert m.script("return customElements.get('zen-library').isLibraryOpen;")
     result['blurOrchestration'] = {'cases':len(capture['cases']), 'restored':True, 'zip':Path(capture['archive']).exists(), 'captureBackend':'simulated; no Windows pixels'}
@@ -1102,7 +1141,7 @@ def check_probe_loader(m, root):
     thread.start()
     m.script("""return (async()=>{
       await gZenStartup.promiseInitialized;
-      // The unchanged probe must stop before screen capture on every platform.
+      // The full probe must stop before screen capture on every platform.
       Services.prefs.setBoolPref('zen.theme.acrylic-sidebar',false);
       Services.prefs.setBoolPref('zen.theme.acrylic-urlbar',false);
       const {require}=ChromeUtils.importESModule('resource://devtools/shared/loader/Loader.sys.mjs');
@@ -1137,13 +1176,18 @@ def check_probe_loader(m, root):
         assert result['missingReplyError'] == 'NotFoundError', result
         for path in ['/success.js', '/download-error.js', '/syntax-error.js', '/native-blur-probe.js']:
             code = loader.replace(url, f'http://127.0.0.1:{server.server_port}{path}')
+            if path == '/native-blur-probe.js':
+                # Full scope retains the acrylic precondition on Windows too;
+                # this loader test must never start a desktop capture worker.
+                code=code.replace('w.__zzNativeBlurFollowUpOnly = true;', 'w.__zzNativeBlurFollowUpOnly = false;')
             value = evaluate(code)
             if path == '/success.js':
                 assert value == 'local script executed', value
             else:
                 report = clipboard()
                 if path == '/native-blur-probe.js':
-                    assert report['probe'] == 'native-blur-v4' and report['cases'] == [], report
+                    expected_probe=re.search(r"probe: '([^']+)'",fixtures['/native-blur-probe.js'])[1]
+                    assert report['probe'] == expected_probe and report['cases'] == [], report
                     assert report['finished'] == 'error' and len(report['errors']) == 1, report
                     assert any(s in report['errors'][0] for s in ['requires Windows', 'Enable native Zen acrylic']), report
                     assert m.script('return !window.__zzNativeBlurProbe;'), 'Probe lifecycle did not finish'
@@ -1151,6 +1195,7 @@ def check_probe_loader(m, root):
                     assert report['probe'] == 'native-blur-loader' and len(report['errors']) == 1, report
                     assert ('HTTP 503' if path == '/download-error.js' else 'SyntaxError') in report['errors'][0], report
             assert temp_files() == initial, (path, 'Temporary script remains')
+            assert m.script('return !window.__zzNativeBlurFollowUpOnly;'), 'Menu-only request remains after loader exit'
             result['cases'].append({'fixture': path, 'passed': True, 'temporaryFileRemoved': True})
         assert evaluate(blocked) == before, 'CSP behavior changed'
         result['cspStillEnforced'] = True
@@ -1188,14 +1233,16 @@ def check_probe_loader(m, root):
 def check_probe_fixture(m, root):
     """Render the shipped challenge in Gecko; this checks content, not acrylic."""
     source = (root/'tools/native-blur-probe.js').read_text()
-    factory = source[source.index('    const pageURL ='):source.index('    fixture = w.gBrowser.addTab')]
-    m.script("window.fixtureOriginalTab=gBrowser.selectedTab;return true;")
+    factory = source[source.index('    const fixtureCSS='):source.index('    fixture = w.gBrowser.addTab')]
+    m.script("""window.fixtureOriginalTab=gBrowser.selectedTab;window.fixtureSheets=[];
+      window.fixtureRegister=css=>{const ss=Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService),uri=Services.io.newURI('data:text/css,'+encodeURIComponent(css));if(!ss.sheetRegistered(uri,1)){ss.loadAndRegisterSheet(uri,1);fixtureSheets.push(uri);}};
+      fixtureRegister('html,body{background:rgb(22,23,22)!important}');return true;""")
     results = []
     try:
         for page in ['opaque', 'transparent']:
             for paint, expected in [('cyan', (32, 200, 255)), ('amber', (255, 144, 32))]:
                 url = m.script("const marker='ZZBLUR-render-fixture',fixtureDocuments=new Map();"+factory+
-                               'return pageURL('+json.dumps(page)+','+json.dumps(paint)+');')
+                               'fixtureRegister(fixtureCSS);return pageURL('+json.dumps(page)+','+json.dumps(paint)+');')
                 m.call('Marionette:SetContext',{'value':'content'})
                 handles = m.call('WebDriver:GetWindowHandles')
                 m.script('window.paintFixture=gBrowser.addTab('+json.dumps(url)+', {triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});gBrowser.selectedTab=paintFixture;return true;')
@@ -1212,6 +1259,8 @@ def check_probe_fixture(m, root):
                     style = m.script('return {html:getComputedStyle(document.documentElement).backgroundColor,body:getComputedStyle(document.body).backgroundColor};',context='content')
                     expected_background = 'rgb(255, 255, 255)' if page == 'opaque' else 'rgba(0, 0, 0, 0)'
                     assert style['html'] == style['body'] == expected_background, style
+                    reported = m.script("return JSON.parse(gBrowser.selectedBrowser.contentTitle.split('|')[1]);")
+                    assert reported['html']==reported['body']==expected_background,reported
                     bounds = m.script('const r=gBrowser.selectedBrowser.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width};')
                     pixel = m.shot().getpixel((round(bounds['x']+bounds['width']/2),round(bounds['y']+208)))
                     assert max(abs(a-b) for a,b in zip(pixel,expected)) <= 2, (page,paint,pixel,expected)
@@ -1221,7 +1270,7 @@ def check_probe_fixture(m, root):
                     m.call('Marionette:SetContext',{'value':'content'})
                     m.call('WebDriver:SwitchToWindow',{'handle':handles[0]})
     finally:
-        m.script('gBrowser.selectedTab=fixtureOriginalTab;delete window.fixtureOriginalTab;delete window.paintFixture;return true;')
+        m.script('gBrowser.selectedTab=fixtureOriginalTab;for(const u of fixtureSheets)Cc["@mozilla.org/content/style-sheet-service;1"].getService(Ci.nsIStyleSheetService).unregisterSheet(u,1);delete window.fixtureSheets;delete window.fixtureRegister;delete window.fixtureOriginalTab;delete window.paintFixture;return true;')
     return {'fixturePaint':results,'limitation':'Gecko content pixels only; no Windows backdrop or frame-pacing claim'}
 
 
@@ -1233,6 +1282,7 @@ def main():
     parser.add_argument("--library-hover", action="store_true", help="Check compact sidebar pointer handoff from recent downloads")
     parser.add_argument("--actions", action="store_true", help="Check native menus, snapshots, diagnostics and scoped actions")
     parser.add_argument("--native-integration", action="store_true", help="Check Zen 1.24 native ownership and accessibility")
+    parser.add_argument("--popup-accessibility", action="store_true", help="Check native popup paint ownership against Arc and settled menu capture")
     parser.add_argument("--probe-loader", action="store_true", help="Check the blur loader through the actual Browser Console actor with CSP enabled")
     parser.add_argument("--probe-fixture", action="store_true", help="Render the actual cyan/amber navigation challenge and document transparency")
     args = parser.parse_args()
@@ -1268,7 +1318,7 @@ def main():
                 m.script("""window.zzsmokeChrome=Cc['@mozilla.org/addons/addon-manager-startup;1']
                   .getService(Ci.amIAddonManagerStartup).registerChrome(Services.io.newURI(""" +
                   json.dumps((profile / 'chrome.manifest').as_uri()) + """),[['content','sine','sine-mods/']]);return true;""")
-                result = check_probe_fixture(m, root) if args.probe_fixture else check_probe_loader(m, root) if args.probe_loader else check_native_integration(m, root) if args.native_integration else check_actions(m, root) if args.actions else check_library_hover(m, root, args.arc) if args.library_hover else check(m, root, args.arc, args.transparent)
+                result = check_native_popups(m, root) if args.popup_accessibility else check_probe_fixture(m, root) if args.probe_fixture else check_probe_loader(m, root) if args.probe_loader else check_native_integration(m, root) if args.native_integration else check_actions(m, root) if args.actions else check_library_hover(m, root, args.arc) if args.library_hover else check(m, root, args.arc, args.transparent)
                 print(json.dumps(result, indent=2))
             finally:
                 process.terminate()

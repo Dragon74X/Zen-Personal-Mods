@@ -23,6 +23,7 @@ for(const failure of [null,'fetch','http','write','compile','run','remove'])test
     scriptloader:{loadSubScriptWithOptions(url,options){
       assert.equal(url,'file://'+path);assert.equal(options.target,w);
       assert.equal(options.allowUnsafeURL,true);assert.equal(options.ignoreCache,true);assert.equal(options.wantReturnValue,true);
+      assert.equal(w.__zzNativeBlurFollowUpOnly,true);
       assert.equal(files.get(path),payload);trace.push('load');
       if(failure==='compile')throw SyntaxError('compile fixture');
       return Promise.resolve().then(()=>{
@@ -37,31 +38,39 @@ for(const failure of [null,'fetch','http','write','compile','run','remove'])test
       remove:async p=>{trace.push('remove');if(failure==='remove')throw Error('remove fixture');files.delete(p);}},
     console:{error(){}}});
   const result=await vm.runInContext(loader,ctx);
+  assert.equal(w.__zzNativeBlurFollowUpOnly,undefined);
   assert.equal(files.size,failure==='remove'?1:0);
   if(failure){assert.equal(copied.probe,'native-blur-loader');assert.equal(copied.errors.length,1);}
   else {assert.equal(result,'probe result');assert.equal(copied,undefined);assert.deepEqual(trace,['create','load','finished','remove']);}
   if(['fetch','http'].includes(failure))assert.deepEqual(trace,[],'failed download never creates or executes a file');
 });
 
-async function run({failAt=0,cancelAt=0,closeAt=0,navigateAt=0,platform='WINNT',cleanupFailure=false,fatalWorker=false,badReply=false,readFailure=false,followUp=false}={}) {
+async function run({failAt=0,cancelAt=0,closeAt=0,navigateAt=0,platform='WINNT',cleanupFailure=false,fatalWorker=false,badReply=false,readFailure=false,followUp=false,followUpOnly=false,stuckMenu=false,infiniteMenu=false,wrongBackground=false}={}) {
   const prefs=new Map([['zen.theme.acrylic-sidebar',true],['zen.theme.acrylic-urlbar',false],['zzglass.sidebar.blur-transparent-pages',true]]);
   const initial=new Map(prefs), files=new Map(), registered=new Set(), events=new Map(), trace=[];
   const nodes=[];
-  const element=()=>{const attrs=new Map();const node={style:{setProperty(){},removeProperty(){}},isConnected:true,attrs,namespaceURI:'http://www.w3.org/1999/xhtml',
+  const element=()=>{const attrs=new Map(),styleValues=new Map();const node={styleValues,style:{setProperty(k,v){styleValues.set(k,v);},removeProperty(k){styleValues.delete(k);}},children:[],isConnected:true,attrs,namespaceURI:'http://www.w3.org/1999/xhtml',
     getAttribute:k=>attrs.has(k)?attrs.get(k):null,setAttribute:(k,v)=>attrs.set(k,String(v)),removeAttribute:k=>attrs.delete(k),hasAttribute:k=>attrs.has(k),
     getBoundingClientRect:()=>({x:400,y:250,left:400,top:250,right:700,bottom:430,width:300,height:180}),
-    openPopupAtScreen(){this.state='open';},hidePopup(){this.state='closed';},
-    appendChild(){},addEventListener(){},remove(){this.isConnected=false;}};nodes.push(node);return node;};
+    openPopupAtScreen(){this.state='open';this.remainingMotion=4;},hidePopup(){this.state='closed';},
+    getAnimations(){return [...(stuckMenu || this.remainingMotion-->0?[{playState:'running',effect:{getComputedTiming:()=>({endTime:350})}}]:[]),
+      ...(infiniteMenu?[{playState:'running',effect:{getComputedTiming:()=>({endTime:Infinity})}}]:[])];},
+    appendChild(child){this.children.push(child);return child;},addEventListener(){},remove(){this.isConnected=false;}};
+    node.shadowRoot={querySelector:()=>node};nodes.push(node);return node;};
   const root=element(),panel=element(),toolbox=element(),box=element(),userTab=element();
   panel.getBoundingClientRect=()=>prefs.get('zen.tabs.vertical.right-side')?{left:800,top:0,right:1000,bottom:800}:{left:0,top:0,right:200,bottom:800};
   let timer=0,workerRunning=false,copied,response,fixture;
   const doc={documentElement:root,title:'User page',getElementById:id=>({'zen-toolbar-background':panel,'navigator-toolbox':toolbox,'tabbrowser-tabbox':box,'mainPopupSet':root}[id]),createElementNS:()=>element(),createXULElement:()=>element()};
-  const makeBrowser=url=>({currentURI:{spec:url},webProgress:{isLoadingDocument:false},loadURI(uri){this.currentURI.spec=uri;},getBoundingClientRect:()=>({left:0,top:80,right:1000,bottom:800,width:1000,height:720})});
+  const makeBrowser=url=>({currentURI:{spec:url},webProgress:{isLoadingDocument:false},loadURI(uri){this.currentURI.spec=uri;},
+    get contentTitle(){const html=decodeURIComponent(this.currentURI.spec),state=JSON.parse(html.match(/const state=(\{.*?\});/)[1]);
+      const fill=wrongBackground?'rgb(22, 23, 22)':state.page==='opaque'?'rgb(255, 255, 255)':'rgba(0, 0, 0, 0)';return html.match(/<title>([^<]+)/)[1]+'|'+JSON.stringify({...state,html:fill,body:fill});},
+    getBoundingClientRect:()=>({left:0,top:80,right:1000,bottom:800,width:1000,height:720})});
   userTab.linkedBrowser=makeBrowser('about:blank');
   const browser={selectedTab:userTab,get selectedBrowser(){return this.selectedTab.linkedBrowser;},
     addTab(url){doc.title=decodeURIComponent(url).match(/<title>([^<]+)/)[1];fixture=element();fixture.linkedBrowser=makeBrowser(url);return fixture;},
     removeTab(tab){trace.push('restore tab');tab.isConnected=false;}};
   const window={document:doc,gBrowser:browser,innerWidth:1000,innerHeight:800,devicePixelRatio:1,
+    __zzNativeBlurFollowUpOnly:followUpOnly,
     setTimeout(){throw Error('Window timers cannot guarantee cleanup after close');},
     addEventListener:(k,fn)=>events.set(k,fn),removeEventListener:k=>events.delete(k),focus(){},
     matchMedia:()=>({matches:!!prefs.get('ui.prefersReducedTransparency')}),fetch:async()=>({json:async()=>({version:'test'})})};
@@ -84,6 +93,7 @@ async function run({failAt=0,cancelAt=0,closeAt=0,navigateAt=0,platform='WINNT',
     files.set(path,text);
     if(/\/request-\d{2,3}\.json$/.test(path)) {
       const req=JSON.parse(text);
+      if(req.ownedPopup)assert.ok(nodes.find(n=>n.state==='open').remainingMotion<=0,'Capture waits for finite opening animations');
       assert.equal(path.split('/').at(-1),'request-'+String(req.id).padStart(2,'0')+'.json');
       assert.equal(options.tmpPath,path.replace(/\.json$/,'.tmp'));
       response={id:badReply?999:req.id,error:req.id===failAt?'capture refused':null,files:[{name:'fixture.png'}]};
@@ -102,7 +112,7 @@ async function run({failAt=0,cancelAt=0,closeAt=0,navigateAt=0,platform='WINNT',
       return response;
     },
     writeJSON:async(p,j)=>files.set(p,JSON.stringify(j)),getChildren:async()=>[]};
-  window.getComputedStyle=node=>({backdropFilter:node.className==='zen-library-media-preview-backdrop' &&
+  window.getComputedStyle=node=>({colorScheme:node.styleValues?.get('color-scheme')||'normal',backdropFilter:node.className==='zen-library-media-preview-backdrop' &&
     ![...registered].some(uri=>decodeURIComponent(uri).includes('#zz-render-fixtures .zen-library-media-preview-backdrop{backdrop-filter:none'))?'blur(8px)':'none',filter:'none'});
   const clock={setTimeout(fn,ms){if(ms<10000)queueMicrotask(fn);return ++timer;},clearTimeout(){}};
   const ctx=vm.createContext({Services,Cc,Ci:{},ChromeUtils:{importESModule:()=>clock},PathUtils:{tempDir:'/tmp',join:(...a)=>a.join('/'),filename:p=>p.split('/').at(-1)},IOUtils,
@@ -117,8 +127,34 @@ for(const options of [{},{cancelAt:85},{cancelAt:99},{failAt:100},{closeAt:101}]
   assert.ok(e.copied);assert.equal(e.window.__zzNativeBlurProbe,undefined);
   if(!options.closeAt)assert.equal(e.fixture.isConnected,false);
   assert.ok(e.nodes.every(n=>n.state!=='open'),'Native popup is closed even on capture failure');
-  if(Object.keys(options).length===0){assert.equal(e.report.cases.length,102);assert.equal(e.report.errors.length,0);}
+  if(Object.keys(options).length===0){assert.equal(e.report.cases.length,108);assert.equal(e.report.errors.length,0);}
   else assert.ok(e.report.errors.length);
+});
+
+test('Short follow-up checks both document backgrounds and settled menu selection; ignores endless decorations',async()=>{
+  const e=await run({followUpOnly:true,followUp:true,infiniteMenu:true});
+  assert.equal(e.report.scope,'follow-up');assert.equal(e.report.errors.length,0);assert.equal(e.report.cases.length,14);
+  assert.equal(e.window.__zzNativeBlurFollowUpOnly,undefined);assert.deepEqual(e.prefs,e.initial);
+  const menus=e.report.cases.filter(c=>c.kind==='accessibility');
+  assert.equal(menus.length,12);assert.ok(menus.every(c=>c.motion.infiniteAnimations===1 && c.computed.items.length===3));
+  assert.equal(e.report.cases.filter(c=>c.selected).length,6);
+  assert.deepEqual([...new Set(menus.map(c=>c.fixtureScheme))],['light','dark']);
+  assert.deepEqual(Array.from(e.report.cases.slice(0,2),c=>c.after.backgrounds.html),['rgb(255, 255, 255)','rgba(0, 0, 0, 0)']);
+  assert.equal(e.files.size>0,true);
+});
+
+test('A theme overriding generated backgrounds cannot pass as opaque/transparent coverage',async()=>{
+  const e=await run({followUpOnly:true,followUp:true,wrongBackground:true});
+  assert.match(e.report.errors[0],/requested background did not finish loading/);
+  assert.equal(e.report.cases.length,0);assert.deepEqual(e.prefs,e.initial);assert.equal(e.registered.size,0);
+  assert.ok(e.copied);
+});
+
+test('Unsettled menu motion fails within the bound and restores the session',async()=>{
+  const e=await run({followUpOnly:true,followUp:true,stuckMenu:true});
+  assert.match(e.report.errors[0],/animations did not settle/);assert.equal(e.report.cases.length,2);
+  assert.deepEqual(e.prefs,e.initial);assert.equal(e.registered.size,0);
+  assert.ok(e.nodes.every(n=>n.state!=='open'));assert.ok(e.copied);
 });
 
 test('Navigation cases change their visible challenge; slides keep one document and capture identity stays bounded',async()=>{

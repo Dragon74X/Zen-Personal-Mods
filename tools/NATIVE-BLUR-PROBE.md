@@ -1,11 +1,15 @@
-# Automatic native-blur capture (Windows)
+# Automatic blur and menu capture (Windows)
 
-Enable Zen's native acrylic/sidebar blur and restart Zen before testing. The
-cross-slice renderer switch is read at startup; changing a preference during a
-probe cannot establish that the renderer enabled it.
+The returned v5 run completed all 102 cases. Loading, sliding and overlay pixels
+have been analyzed. The follow-up checks corrected menu accessibility and verifies
+that opaque/transparent fixture backgrounds really differ. With
+Glassflow **3.74.20** installed, run the loader below in the **Browser Console**
+and return its ZIP and automatically copied JSON. It runs **2 load sequences + 12 menu cases**,
+normally in about 20 seconds. No manual phases or theme changes are needed.
+Leave native Zen acrylic enabled, as in the returned v5 capture.
 
-Run the complete [native-blur-probe.js](native-blur-probe.js) in the **Browser
-Console**, or run this loader there:
+It can also diagnose older installed versions; an older build does not validate
+the new fix. Keep the generated browser window in front and unobscured.
 
 ```js
 (async () => {
@@ -20,11 +24,13 @@ Console**, or run this loader there:
   file.createUnique(Ci.nsIFile.NORMAL_FILE_TYPE, 0o600);
   try {
     await IOUtils.writeUTF8(file.path, code);
+    w.__zzNativeBlurFollowUpOnly = true;
     return await Services.scriptloader.loadSubScriptWithOptions(
       Services.io.newFileURI(file).spec,
       { target: w, ignoreCache: true, wantReturnValue: true, allowUnsafeURL: true }
     );
   } finally {
+    delete w.__zzNativeBlurFollowUpOnly;
     await IOUtils.remove(file.path);
   }
 })().catch(error => {
@@ -40,7 +46,18 @@ or enable page `eval()`. The old fetch-then-eval loader was blocked by chrome CS
 before the probe could start. The temporary script is removed after execution;
 download/load errors are automatically copied too.
 
-The report identifies this revision as `native-blur-v5`. Each case publishes its
+The report identifies this revision as `native-blur-v6`, with `scope: "follow-up"`.
+Version 6 gives only the generated documents a scoped background override and
+verifies their computed HTML/body backgrounds through generated title metadata.
+The previous capture painted the same dark background for both requested states;
+labels alone were insufficient. The short follow-up loads each verified state
+while the sidebar is already open. It then waits at most two seconds for finite popup/item animations, records
+the shadow content that actually paints the menu, and captures native selection
+styling as well as ordinary/disabled text. It narrows `color-scheme` on the
+generated fixtures and records effective colors, rather than assuming that
+`ui.systemUsesDarkTheme` changed an installed theme. No OS theme is switched.
+
+Each case publishes its
 own request and reply exactly once. Neither side replaces a file the other side
 may still be reading. This removes version 2's Windows file-sharing race on the
 reused `request.json` and `response.json`. Malformed or mismatched messages fail
@@ -52,8 +69,7 @@ into an array before subtraction. Version 2 constructs typed points directly.
 Worker failures now include the failing stage, PowerShell error identifier and
 script line, including startup failures.
 
-It starts immediately, requests focus for the fixture window, and normally takes
-about two to three minutes. Keep that window in front and unobscured while it runs. The
+It starts immediately and requests focus for the fixture window. The
 foreground check refuses other windows, including the Browser Console. **Stop + copy** is
 optional. There are no phase/start/rating buttons.
 
@@ -67,7 +83,12 @@ accepted merely because it belongs to the same process. Native fixture menus
 are verified through their owning browser. Foreign titles, process IDs and
 window handles are not written to the report.
 
-The probe creates a generated striped tab, masks sidebar labels, and compares:
+For the full blur matrix, run the complete
+[native-blur-probe.js](native-blur-probe.js) directly in the Browser Console.
+Enable Zen's native acrylic/sidebar blur and restart before that full run: its
+renderer switch is read at startup. The short follow-up also requires native acrylic, as its first two cases test loading.
+The full matrix takes about two to three minutes. It creates a generated striped
+tab, masks sidebar labels, and compares:
 
 - Left and right compact sidebar.
 - Opaque and transparent page backgrounds.
@@ -81,12 +102,14 @@ The probe creates a generated striped tab, masks sidebar labels, and compares:
   challenge. Document identity/loading samples contain only fixture labels.
 - The installed media-preview overlay recipe over opaque/transparent documents,
   at 52px/180px heights and 8px/42px blur, against the same no-blur reference.
-- Light/dark native menu and system-text fixtures under normal, reduced-transparency
-  and chrome contrast signals. This emulates browser signals; it does not switch
-  Windows system themes or certify every Windows high-contrast palette.
+- Light/dark fixture color schemes under normal, reduced-transparency and chrome
+  contrast signals, with ordinary/disabled items and native selection styling.
+  These are generated states, not physical keyboard-input coverage or a switch
+  of the installed browser/Windows theme.
 
-The full matrix contains **102 cases**: 32 settled, 48 sequences, 16 overlays and
-6 accessibility cases, producing 1,628 cropped PNGs. Sequence triggers wait for a
+The full matrix contains **108 cases**: 32 settled, 48 sequences, 16 overlays and
+12 accessibility cases, producing 1,640 cropped PNGs. The short follow-up produces
+88 crops: 64 load-sequence crops and 24 menu crops. Sequence triggers wait for a
 worker readiness handshake. Cancellation and foreground/occlusion checks apply
 throughout each frame sequence. The overlay is a generated recipe fixture; real
 Library interactions are checked separately in the disposable native runner.
@@ -114,9 +137,15 @@ pixel results. A Windows policy that blocks PowerShell can prevent capture.
 
 ## Evidence and limits
 
-- Node lifecycle checks exercise all 102 cases, including cancellation and failure
+- Node lifecycle checks exercise all 108 cases and the short follow-up path, including cancellation and failure
   during overlays/menus, popup cleanup, window closure, unsupported OS, worker
   startup failure and cleanup failure.
+- `python3 tools/zen-smoke.py --zen /path/to/zen --popup-accessibility` tests
+  actual native popup/shadow styles against Arc's competing fill, both stylesheet
+  orders, both fixture schemes, normal/reduced/contrast signals, Off release and
+  native selection/disabled colors. It exercises the shipped short collector with
+  Arc's finite entrance animations. The screen worker is simulated on Linux;
+  this does not establish Windows popup pixels.
 - `powershell -NoProfile -File tools/native-blur-worker.test.ps1` executes the
   shipped worker's geometry and occlusion code, with only Win32 calls substituted.
   Five coordinate cases cover left/right crops, fractional scale, negative desktop
@@ -155,17 +184,20 @@ pixel results. A Windows policy that blocks PowerShell can prevent capture.
 - The earlier v3 **32-case settled** matrix completed on Windows and supported
   making the existing page-filter fallback opt-in. The returned v4 run contains
   32 settled cases, 28 complete sequences and one partial sequence (964 PNGs).
-  Its identical before/after load pattern does not reliably establish backdrop
-  freshness; overlay/menu cases were not reached. The corrected v5 capture is
-  needed for that evidence. Its simulated backend is not Windows pixel proof.
+  Its identical before/after load pattern did not reliably establish backdrop
+  freshness; overlay/menu cases were not reached. The returned v5 run completed
+  all 102 cases. See the [pixel analysis](../docs/NATIVE-BLUR-2026-10-30-CAPTURE-ANALYSIS.md)
+  for the loading/slide/overlay evidence and the menu defect it exposed.
 - Sequence sampling deliberately runs below monitor refresh rate. Timestamps help
   find missing/stale/blank blur during loads and slides; they do not certify GPU
   frame pacing or icon smoothness. Compare stripe detail with the outside control.
 - Generated content only: no screenshots of page content or tab titles, no GPU
   model/driver/monitor identifiers, and no upload. Local archive paths may contain
   the Windows account name; do not publish raw capture reports.
-- Keep the bounded redraw workaround until the new presented-pixel comparison
-  supports removing it. Analysis of returned captures remains the implementer's
+- The generated v5 pages also work with the redraw nudge disabled, but their
+  requested backgrounds painted alike. The corrected follow-up verifies actual
+  document backgrounds; real-site process changes remain outside its scope. The bounded workaround
+  remains. Analysis of returned captures remains the implementer's
   work, including any resulting code changes.
 
 Primary APIs: [CopyFromScreen](https://learn.microsoft.com/en-us/dotnet/api/system.drawing.graphics.copyfromscreen),

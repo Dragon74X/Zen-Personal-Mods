@@ -162,60 +162,72 @@ there and run separately. Native runner passes 268 checks, 40 scale cases and
 192 sprite-paint cases. Screen-capture mode passes all six cases. The confirmed
 attachment bug is fixed; remaining Windows workspace/Favorite jitter is open.
 
-## Windows user comparison
+## Automatic Windows comparison (v2)
 
-`tools/icon-hover-ab-probe.js` runs from the Browser Console against installed
-mods; it has no version gate and writes no preferences. It presents five
-6-second phases on one selected workspace or Favorite icon:
+The first Windows report had zero phases and `finished: manual`. Version 1
+required selection, F8, Begin and rating choices before collecting data. That
+interaction requirement was a diagnostic defect; it is removed rather than
+retained as another mode.
 
-1. Current behavior.
-2. Same easing, with image scale duration changed to 450ms.
-3. Current scale timing, with image/ancestor opacity fixed at 1 and filters off.
-4. Current scale timing, with ancestor lighting/background inputs fixed.
-5. Hover-only comparison through `transform`, using observed scale endpoints
-   and the existing timing. The separate scale transition is disabled for this
-   phase, so two properties cannot simultaneously resize the icon.
+Paste the complete `tools/icon-hover-ab-probe.js` source into Browser Console.
+Execution starts the entire capture. It selects up to one visible workspace,
+one pending Favorite, one loaded Favorite, one pending normal tab and one
+loaded normal tab. There is no version gate, F8, start button or rating step.
+The only control is optional Stop + copy.
 
-Hover an affected icon, press F8, move off it, then click Begin. Move on/off the
-same icon during each recording. After Current, click Next comparison; after
-each other phase choose Fewer jumps, Same jumps, More jumps, or Cannot compare.
-The final choice copies one JSON report and removes temporary styling/UI.
-Stop + copy does the same early; a 3-minute deadline also restores and copies.
-Repeat with the other icon type for a second report.
+Workspace/Favorite targets each receive five conditions: Current, 450ms only,
+opacity/filter off, fixed lighting, and observed scale endpoints through
+transform. Normal tabs receive the Current condition, including label/stack/
+close-button geometry. At most 17 phases run; each applies a bounded automatic
+hover/press/release sequence. A 120-second deadline restores and copies even
+if capture cannot finish. Hidden/missing targets and unavailable APIs are
+reported without inventing samples.
 
-Copy and paste the complete self-contained file into Browser Console
-(Ctrl+Shift+J on Windows). No update is required to run it. Do not use an
-`eval()` or data/file subscript download launcher: Zen's chrome CSP/trust checks
-reject those paths. No security preference change is required. Reduced/instant
-motion disables the probe's interpolation overrides and is reported explicitly.
+The probe temporarily reveals a compact sidebar through Zen's existing
+`zen-user-show` attribute and restores it. CSS locks, including prior forced
+on/off states, are saved and restored. No tab selection, click commands,
+preference writes, graphics changes, screenshots or page URLs. Installed and
+available versions, Sine auto-update/guard state, frame-index timing, window
+compositor intervals and bounded style/geometry samples are collected.
 
-The probe records installed versions, graphics details, relevant preferences,
-interaction/transition events, observed animation owners, rAF intervals and
-window-wide compositor intervals. It limits each phase to 16 style snapshots,
-100 events and 2,000 rAF intervals. It never captures pixels or page URLs.
-Visual choices are required because timing/computed values alone cannot certify
-the icon's raster output. URL-valued CSS is omitted from exported data.
+Automated CSS states do not exercise JavaScript pointer handlers or OS input
+routing. Timing and computed geometry do not certify Windows pixel smoothness.
+No visual ratings are required or manufactured. The root-cause investigation
+of remaining workspace/Favorite raster jitter remains open.
 
-The first compositor interval can begin before the phase. Idle window gaps are
-not evidence of dropped icon frames. The report marks ineffective overrides or
-unsupported transform endpoints unavailable rather than counting them as a
-successful comparison. An opacity of zero is not frozen in the fade test:
-overflow workspace icons must remain visible for the comparison.
-
-Interpret fewer jumps by condition: timing -> test the shared scale duration;
-fade/filter -> isolate state filtering/opacity from scaling; lighting -> inspect
-paint invalidation; transform -> compare the shared transform path. All-same
-results require further renderer/asset isolation; no global graphics setting
-change follows from these counters alone.
-
-Runnable native check, reusing the existing runner:
+Run the existing native check:
 
 ```sh
 python3 tools/zen-morph-smoke.py --zen /path/to/zen \
   --output /tmp/zen-hover-ab --probe-ab
 ```
 
-Checks all five phases on native workspace and Favorite slots, verifies the
-duration/transform overrides, reads the auto-copied report, checks unchanged
-saved preferences, and checks cleanup after completion and cancellation.
-Its scripted Same verdicts exercise the controls; they are not visual findings.
+It supplies no pointer, keyboard, start or rating input. It checks autonomous
+completion, all 17 phases across five native target categories, clipboard
+output, unchanged saved preferences and tab selection, prior negative CSS-lock
+restoration, and cancellation during an active override.
+
+## Additional audit findings
+
+The supplied report still has Glassflow 3.74.11, Mediaflow 2.8.5 and Iconflow
+1.21.8. Those installed metadata versions predate the three previously merged
+fixes. This does not prove an updater failure: the shared updater checks every
+three hours and respects Sine auto-update. Installed metadata also does not
+prove which cached runtime code is active.
+
+A separate update bug **was reproduced against upstream Sine**. The shared
+guard treated any different store version as newer, synthesizing a current
+release date even for a stale older entry. A store `1.0.0` entry could replace
+installed `9.9.9` with missing, older or equal timestamps. The guard now uses
+Gecko's version comparator and supplies a synthetic date only for a greater
+version. Explicit newer release dates retain native Sine behavior. The same
+implementation is shipped in all ten standalone mods. These background
+modules are cached; the revised guard takes effect after updating and
+restarting Zen.
+
+The speed label also hid a timing distinction. At the supplied `0.7s` setting,
+Morph scales its 180ms wind-up and 600ms action by 0.7/0.45: **280ms and
+933.33ms**, respectively. Its 31 and 96 pose intervals then provide at most
+110.7 and 102.9 changes/second, below 240Hz. This is separate from continuous
+workspace/Favorite scale transitions. Labels now expose Circuit duration and
+Morph segment times; saved values and artwork/choreography are unchanged.

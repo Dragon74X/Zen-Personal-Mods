@@ -10,6 +10,7 @@ import base64
 import io
 import json
 from pathlib import Path
+import re
 import socket
 import subprocess
 import tempfile
@@ -1004,6 +1005,95 @@ def check_native_integration(m, root):
     return result
 
 
+def check_probe_loader(m, root):
+    """Use the Browser Console's evaluation actor, not Marionette's eval sandbox."""
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from threading import Thread
+
+    guide = (root/'tools/NATIVE-BLUR-PROBE.md').read_text()
+    loader = re.search(r'```js\n([\s\S]*?)\n```', guide)[1]
+    url = re.search(r"https://raw\.githubusercontent\.com/[^']+", loader)[0]
+    fixtures = {
+        '/success.js': "Promise.resolve('local script executed');",
+        '/syntax-error.js': '(() => {',
+        '/native-blur-probe.js': (root/'tools/native-blur-probe.js').read_text(),
+    }
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            body = fixtures.get(self.path)
+            self.send_response(200 if body is not None else 503)
+            self.send_header('Content-Type', 'application/javascript; charset=utf-8')
+            self.end_headers()
+            self.wfile.write((body or '').encode())
+
+        def log_message(self, *_args):
+            pass
+
+    server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    m.script("""return (async()=>{
+      await gZenStartup.promiseInitialized;
+      // The unchanged probe must stop before screen capture on every platform.
+      Services.prefs.setBoolPref('zen.theme.acrylic-sidebar',false);
+      Services.prefs.setBoolPref('zen.theme.acrylic-urlbar',false);
+      const {require}=ChromeUtils.importESModule('resource://devtools/shared/loader/Loader.sys.mjs');
+      const {CommandsFactory}=require('resource://devtools/shared/commands/commands-factory.js');
+      window.probeLoaderCommands=await CommandsFactory.forBrowserConsole();
+      await probeLoaderCommands.targetCommand.startListening();
+      return true;
+    })();""")
+
+    def evaluate(code):
+        response = m.script("return probeLoaderCommands.scriptCommand.execute("+json.dumps(code)+""",
+          {mapped:{await:true}}).then(r=>({result:typeof r.result==='string'?r.result:null,error:!!r.exceptionMessage,rejected:r.topLevelAwaitRejected}));""")
+        assert not response.get('error') and not response.get('rejected'), response
+        return response.get('result')
+
+    def temp_files():
+        return m.script("return IOUtils.getChildren(PathUtils.tempDir).then(paths=>paths.filter(p=>PathUtils.filename(p).startsWith('zen-native-blur-probe')).sort());")
+
+    def clipboard():
+        return json.loads(m.script("""const t=Cc['@mozilla.org/widget/transferable;1'].createInstance(Ci.nsITransferable);
+          t.init(null);t.addDataFlavor('text/plain');Services.clipboard.getData(t,Services.clipboard.kGlobalClipboard);
+          const v={};t.getTransferData('text/plain',v);return v.value.QueryInterface(Ci.nsISupportsString).data;"""))
+
+    try:
+        # Same nested eval and async callback as the failed fetch-then-eval loader.
+        blocked = "Promise.resolve('1').then(code=>(0,eval)(code)).then(()=>false,e=>e.name+': '+e.message)"
+        before = evaluate(blocked)
+        assert isinstance(before, str) and 'CSP' in before and 'EvalError' in before, before
+        initial = temp_files()
+        result = {'oldLoaderBlocked': before, 'cases': []}
+        for path in ['/success.js', '/download-error.js', '/syntax-error.js', '/native-blur-probe.js']:
+            code = loader.replace(url, f'http://127.0.0.1:{server.server_port}{path}')
+            value = evaluate(code)
+            if path == '/success.js':
+                assert value == 'local script executed', value
+            else:
+                report = clipboard()
+                if path == '/native-blur-probe.js':
+                    assert report['probe'] == 'native-blur-v1' and report['cases'] == [], report
+                    assert report['finished'] == 'error' and len(report['errors']) == 1, report
+                    assert any(s in report['errors'][0] for s in ['requires Windows', 'Enable native Zen acrylic']), report
+                    assert m.script('return !window.__zzNativeBlurProbe;'), 'Probe lifecycle did not finish'
+                else:
+                    assert report['probe'] == 'native-blur-loader' and len(report['errors']) == 1, report
+                    assert ('HTTP 503' if path == '/download-error.js' else 'SyntaxError') in report['errors'][0], report
+            assert temp_files() == initial, (path, 'Temporary script remains')
+            result['cases'].append({'fixture': path, 'passed': True, 'temporaryFileRemoved': True})
+        assert evaluate(blocked) == before, 'CSP behavior changed'
+        result['cspStillEnforced'] = True
+        result['captureBackend'] = 'Not invoked; tests console startup and reporting only'
+        return result
+    finally:
+        m.script('return probeLoaderCommands.destroy().then(()=>{delete window.probeLoaderCommands;return true;});')
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--zen", type=Path, required=True)
@@ -1012,6 +1102,7 @@ def main():
     parser.add_argument("--library-hover", action="store_true", help="Check compact sidebar pointer handoff from recent downloads")
     parser.add_argument("--actions", action="store_true", help="Check native menus, snapshots, diagnostics and scoped actions")
     parser.add_argument("--native-integration", action="store_true", help="Check Zen 1.24 native ownership and accessibility")
+    parser.add_argument("--probe-loader", action="store_true", help="Check the blur loader through the actual Browser Console actor with CSP enabled")
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
     with tempfile.TemporaryDirectory(prefix="zen-mod-smoke-") as directory:
@@ -1045,7 +1136,7 @@ def main():
                 m.script("""window.zzsmokeChrome=Cc['@mozilla.org/addons/addon-manager-startup;1']
                   .getService(Ci.amIAddonManagerStartup).registerChrome(Services.io.newURI(""" +
                   json.dumps((profile / 'chrome.manifest').as_uri()) + """),[['content','sine','sine-mods/']]);return true;""")
-                result = check_native_integration(m, root) if args.native_integration else check_actions(m, root) if args.actions else check_library_hover(m, root, args.arc) if args.library_hover else check(m, root, args.arc, args.transparent)
+                result = check_probe_loader(m, root) if args.probe_loader else check_native_integration(m, root) if args.native_integration else check_actions(m, root) if args.actions else check_library_hover(m, root, args.arc) if args.library_hover else check(m, root, args.arc, args.transparent)
                 print(json.dumps(result, indent=2))
             finally:
                 process.terminate()

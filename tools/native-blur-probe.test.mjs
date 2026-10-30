@@ -3,6 +3,45 @@ import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
 import {test} from 'node:test';
 const source=await readFile(new URL('./native-blur-probe.js',import.meta.url),'utf8');
+const guide=await readFile(new URL('./NATIVE-BLUR-PROBE.md',import.meta.url),'utf8');
+const loader=guide.match(/```js\n([\s\S]*?)\n```/)[1];
+
+for(const failure of [null,'fetch','http','write','compile','run','remove'])test('Documented blur loader: '+(failure||'success'),async()=>{
+  const files=new Map(),trace=[];
+  let copied,signal;
+  const payload='/* unchanged fetched script */',path='/tmp/zen-native-blur-probe-unique.js';
+  const w={AbortSignal:{timeout:ms=>signal={ms}},fetch:async(url,options)=>{
+    assert.match(url,/\/59ade980dd1a4d70daff6bfdb707cedcfbb227af\/tools\/native-blur-probe\.js$/);
+    assert.equal(options.signal,signal);assert.equal(signal.ms,15000);
+    if(failure==='fetch')throw Error('network fixture');
+    return {ok:failure!=='http',status:503,text:async()=>payload};
+  }};
+  const file={path,append(name){assert.equal(name,'zen-native-blur-probe.js');},createUnique(type,mode){
+    assert.equal(type,0);assert.equal(mode,0o600);files.set(path,'');trace.push('create');
+  }};
+  const Services={wm:{getMostRecentWindow:()=>w},dirsvc:{get:()=>file},io:{newFileURI:f=>({spec:'file://'+f.path})},
+    scriptloader:{loadSubScriptWithOptions(url,options){
+      assert.equal(url,'file://'+path);assert.equal(options.target,w);
+      assert.equal(options.allowUnsafeURL,true);assert.equal(options.ignoreCache,true);assert.equal(options.wantReturnValue,true);
+      assert.equal(files.get(path),payload);trace.push('load');
+      if(failure==='compile')throw SyntaxError('compile fixture');
+      return Promise.resolve().then(()=>{
+        assert.ok(files.has(path));trace.push('finished');
+        if(failure==='run')throw Error('run fixture');
+        return 'probe result';
+      });
+    }}};
+  const ctx=vm.createContext({Services,Ci:{nsIFile:{NORMAL_FILE_TYPE:0}},
+    Cc:{'@mozilla.org/widget/clipboardhelper;1':{getService:()=>({copyString:text=>copied=JSON.parse(text)})}},
+    IOUtils:{writeUTF8:async(p,text)=>{if(failure==='write')throw Error('write fixture');files.set(p,text);},
+      remove:async p=>{trace.push('remove');if(failure==='remove')throw Error('remove fixture');files.delete(p);}},
+    console:{error(){}}});
+  const result=await vm.runInContext(loader,ctx);
+  assert.equal(files.size,failure==='remove'?1:0);
+  if(failure){assert.equal(copied.probe,'native-blur-loader');assert.equal(copied.errors.length,1);}
+  else {assert.equal(result,'probe result');assert.equal(copied,undefined);assert.deepEqual(trace,['create','load','finished','remove']);}
+  if(['fetch','http'].includes(failure))assert.deepEqual(trace,[],'failed download never creates or executes a file');
+});
 
 async function run({failAt=0,cancelAt=0,closeAt=0,platform='WINNT',cleanupFailure=false}={}) {
   const prefs=new Map([['zen.theme.acrylic-sidebar',true],['zen.theme.acrylic-urlbar',false],['zzglass.sidebar.blur-transparent-pages',true]]);

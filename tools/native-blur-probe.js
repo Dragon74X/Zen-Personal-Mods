@@ -4,7 +4,7 @@
   const w = Services.wm.getMostRecentWindow('navigator:browser');
   if (!w) throw Error('No browser window');
   await w.__zzNativeBlurProbe?.stop?.('replaced');
-  const report = { probe: 'native-blur-v1', started: new Date().toISOString(),
+  const report = { probe: 'native-blur-v2', started: new Date().toISOString(),
     browser: Services.appinfo.version, platform: Services.appinfo.OS, cases: [], errors: [],
     limitations: 'Generated fixture only. Desktop GDI crops test presented pixels, not animation FPS. Native acrylic must be enabled before browser startup; its renderer startup latch is not observable here. Compare native-only against installed output, including transparent pages. A computed filter alone is not visual proof.' };
   const P = Services.prefs, doc = w.document, root = doc.documentElement;
@@ -51,6 +51,7 @@
   // refuses a different/occluded window, and never accesses browser/profile data.
   const capturePS = String.raw`param([Parameter(Mandatory=$true)][string]$Directory)
 $ErrorActionPreference = 'Stop'
+$stage = 'initialize'
 try {
 Add-Type -AssemblyName System.Drawing
 Add-Type -TypeDefinition @'
@@ -82,6 +83,7 @@ while ([DateTime]::UtcNow -lt $end -and !(Test-Path (Join-Path $Directory 'stop'
  $last = $q.id
  $answer = @{id=$q.id;files=@();error=$null}
  try {
+  $stage = 'verify-window'
   $handle = [BlurWindow]::GetForegroundWindow()
   [uint32]$owner = 0
   $null = [BlurWindow]::GetWindowThreadProcessId($handle,[ref]$owner)
@@ -91,17 +93,28 @@ while ([DateTime]::UtcNow -lt $end -and !(Test-Path (Join-Path $Directory 'stop'
   $client = New-Object BlurWindow+Rect
   $origin = New-Object BlurWindow+Point(0,0)
   if (![BlurWindow]::GetClientRect($handle,[ref]$client) -or ![BlurWindow]::ClientToScreen($handle,[ref]$origin)) { throw 'Cannot resolve physical client coordinates' }
+  $stage = 'coordinate-scale'
   $sx = ($client.R-$client.L)/[double]$q.width
   $sy = ($client.B-$client.T)/[double]$q.height
   if ([Math]::Abs($sx-$sy) -gt .03 -or $sx -lt .5 -or $sx -gt 4) { throw 'Client/CSS scale mismatch; capture refused' }
   foreach ($roi in $q.rois) {
+   $stage = 'crop-geometry'
    $x=[int][Math]::Round($origin.X+$roi.x*$sx); $y=[int][Math]::Round($origin.Y+$roi.y*$sy)
    $cw=[int][Math]::Round($roi.width*$sx); $ch=[int][Math]::Round($roi.height*$sy)
    if ($cw -lt 8 -or $ch -lt 8 -or $cw -gt 1600 -or $ch -gt 1600) { throw 'Invalid crop size' }
-   foreach ($point in @(@($x,$y),@($x+$cw-1,$y),@($x,$y+$ch-1),@($x+$cw-1,$y+$ch-1),@($x+[int]($cw/2),$y+[int]($ch/2)))) {
-    $hit=[BlurWindow]::GetAncestor([BlurWindow]::WindowFromPoint([BlurWindow+Point]::new($point[0],$point[1])),2)
+   $stage = 'check-occlusion'
+   # Typed points keep coordinate arithmetic out of comma-array expressions.
+   foreach ($point in @(
+    [BlurWindow+Point]::new($x, $y)
+    [BlurWindow+Point]::new(($x+$cw-1), $y)
+    [BlurWindow+Point]::new($x, ($y+$ch-1))
+    [BlurWindow+Point]::new(($x+$cw-1), ($y+$ch-1))
+    [BlurWindow+Point]::new(($x+[int]($cw/2)), ($y+[int]($ch/2)))
+   )) {
+    $hit=[BlurWindow]::GetAncestor([BlurWindow]::WindowFromPoint($point),2)
     if ($hit -ne $handle) { throw 'Fixture crop is occluded or outside its window; capture refused' }
    }
+   $stage = 'capture-pixels'
    $bitmap=New-Object System.Drawing.Bitmap($cw,$ch)
    $graphics=[System.Drawing.Graphics]::FromImage($bitmap)
    try {
@@ -112,13 +125,17 @@ while ([DateTime]::UtcNow -lt $end -and !(Test-Path (Join-Path $Directory 'stop'
    } finally { $graphics.Dispose(); $bitmap.Dispose() }
   }
   $answer.scale=$sx
- } catch { $answer.error=$_.Exception.Message }
+ } catch {
+  $answer.error=$_.Exception.Message
+  $answer.failure=@{stage=$stage;id=$_.FullyQualifiedErrorId;line=$_.InvocationInfo.ScriptLineNumber}
+ }
+ $stage = 'write-response'
  $tmp=Join-Path $Directory 'response.tmp'
  [IO.File]::WriteAllText($tmp,($answer|ConvertTo-Json -Depth 8),$utf8)
  Move-Item -Force -LiteralPath $tmp -Destination (Join-Path $Directory 'response.json')
 }
 } catch {
- [IO.File]::WriteAllText((Join-Path $Directory 'fatal.json'),(@{error=$_.Exception.Message}|ConvertTo-Json))
+ [IO.File]::WriteAllText((Join-Path $Directory 'fatal.json'),(@{error=$_.Exception.Message;failure=@{stage=$stage;id=$_.FullyQualifiedErrorId;line=$_.InvocationInfo.ScriptLineNumber}}|ConvertTo-Json))
  exit 1
 }
 `;
@@ -204,6 +221,7 @@ while ([DateTime]::UtcNow -lt $end -and !(Test-Path (Join-Path $Directory 'stop'
           if(response?.id===id)break;
           if(!worker.isRunning) {
             const fatal=await IOUtils.readJSON(PathUtils.join(directory,'fatal.json')).catch(()=>null);
+            if(fatal)report.workerFailure=fatal;
             throw Error(fatal?.error || 'Windows capture worker exited before replying');
           }
           await wait(50);

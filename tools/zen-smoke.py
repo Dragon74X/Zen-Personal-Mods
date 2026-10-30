@@ -1074,7 +1074,7 @@ def check_probe_loader(m, root):
             else:
                 report = clipboard()
                 if path == '/native-blur-probe.js':
-                    assert report['probe'] == 'native-blur-v1' and report['cases'] == [], report
+                    assert report['probe'] == 'native-blur-v2' and report['cases'] == [], report
                     assert report['finished'] == 'error' and len(report['errors']) == 1, report
                     assert any(s in report['errors'][0] for s in ['requires Windows', 'Enable native Zen acrylic']), report
                     assert m.script('return !window.__zzNativeBlurProbe;'), 'Probe lifecycle did not finish'

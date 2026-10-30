@@ -11,7 +11,7 @@ Console**, or run this loader there:
 (async () => {
   const w = Services.wm.getMostRecentWindow('navigator:browser');
   if (!w) throw Error('No browser window');
-  const response = await w.fetch('https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/a3406422745d32403458b8f551f6ca9c2e3402e7/tools/native-blur-probe.js',
+  const response = await w.fetch('https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/63ef36b76074ef56cf24ea58bd7006cc762ec0bb/tools/native-blur-probe.js',
     { signal: w.AbortSignal.timeout(15000) });
   if (!response.ok) throw Error('Probe download: HTTP ' + response.status);
   const code = await response.text();
@@ -40,14 +40,21 @@ or enable page `eval()`. The old fetch-then-eval loader was blocked by chrome CS
 before the probe could start. The temporary script is removed after execution;
 download/load errors are automatically copied too.
 
-The report identifies this revision as `native-blur-v2`. Version 1 failed before
+The report identifies this revision as `native-blur-v3`. Each case publishes its
+own request and reply exactly once. Neither side replaces a file the other side
+may still be reading. This removes version 2's Windows file-sharing race on the
+reused `request.json` and `response.json`. Malformed or mismatched messages fail
+explicitly instead of being silently polled until timeout.
+
+Version 1 failed before
 the first PNG: PowerShell's comma operator grouped a crop-coordinate expression
 into an array before subtraction. Version 2 constructs typed points directly.
 Worker failures now include the failing stage, PowerShell error identifier and
 script line, including startup failures.
 
-It starts immediately, brings the fixture window forward, and normally takes
-about 40 seconds. Leave that window unobscured while it runs. **Stop + copy** is
+It starts immediately, requests focus for the fixture window, and normally takes
+about 40 seconds. Keep that window in front and unobscured while it runs. The
+foreground check refuses other windows, including the Browser Console. **Stop + copy** is
 optional. There are no phase/start/rating buttons.
 
 The probe creates a generated striped tab, masks sidebar labels, and compares:
@@ -88,6 +95,13 @@ pixel results. A Windows policy that blocks PowerShell can prevent capture.
   occlusion, size and scale checks; the error-journal check verifies failure details.
   CI runs this on Windows PowerShell 5.1, the engine the probe launches. It also
   runs with `pwsh`. These are arithmetic/control-flow checks, not screen capture.
+- `node --test tools/native-blur-ipc.test.mjs` exercises the shipped PowerShell
+  transport in another process, substituting only desktop capture. On Windows it
+  holds prior request/reply files open without delete sharing, reproduces the
+  rejected replacement, then completes all 32 per-case exchanges. It also checks
+  partial temporary files, invalid JSON, wrong IDs and stopping. Windows CI uses
+  PowerShell 5.1; on other hosts set `PWSH` to a PowerShell executable. No screen
+  pixels or user data are used by this check.
 - `python3 tools/zen-smoke.py --zen /path/to/zen --probe-loader` exercises the
   documented loader through the actual Browser Console evaluation actor. It
   reproduces the old CSP failure, loads an unmodified probe from a local HTTP
@@ -98,8 +112,8 @@ pixel results. A Windows policy that blocks PowerShell can prevent capture.
   phases, preference/UI restoration and ZIP creation with a **simulated screen
   worker**. It caught a reference-selector conflict with the redraw rule before
   delivery.
-- Complete Windows worker/GDI capture is **not verified in the development runtime**.
-  The user's Windows run supplies that missing evidence. Neither headless
+- The Windows worker/GDI path has produced PNGs in a partial desktop run. The
+  complete 32-case Windows matrix remains **unverified**. Neither headless
   screenshots nor the simulated backend establish backdrop rendering.
 - The PNGs are settled-state crops, not a measurement of animation smoothness,
   GPU frame pacing or performance savings. Compare stripe detail and the outside

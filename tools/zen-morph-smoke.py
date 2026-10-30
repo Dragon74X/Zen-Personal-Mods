@@ -82,8 +82,9 @@ def record_hover(m,out):
 def check_hover_ab(m,out):
  """Automatic capture must finish without pointer, keyboard or start controls."""
  read_clip="const t=Cc['@mozilla.org/widget/transferable;1'].createInstance(Ci.nsITransferable);t.init(null);t.addDataFlavor('text/plain');Services.clipboard.getData(t,Services.clipboard.kGlobalClipboard);const v={};t.getTransferData('text/plain',v);return v.value.QueryInterface(Ci.nsISupportsString).data;"
- m.script("window.abPrefs=()=>JSON.stringify(Services.prefs.getChildList('zz').map(k=>[k,Services.prefs.prefHasUserValue(k),Services.prefs.getPrefType(k)===128?Services.prefs.getBoolPref(k):Services.prefs.getPrefType(k)===64?Services.prefs.getIntPref(k):Services.prefs.getStringPref(k)]));window.abSource='data:image/svg+xml,%3Csvg xmlns=\"http://www.w3.org/2000/svg\" width=\"300\" height=\"300\"%3E%3Ccircle cx=\"150\" cy=\"150\" r=\"120\" fill=\"red\"/%3E%3C/svg%3E';const h=document.querySelector('#zen-workspaces-button toolbarbutton');h.parentElement.removeAttribute('dont-show');h.removeAttribute('active');const i=h.querySelector('.zen-workspace-icon');i.removeAttribute('no-icon');i.textContent='🌐';gZenWorkspaces.onWindowResize();window.abFavorite=gBrowser.addTab('about:blank',{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});gBrowser.pinTab(abFavorite);gZenPinnedTabManager.addToEssentials(abFavorite,{replicating:true});gBrowser.setIcon(abFavorite,abSource);window.abPendingFavorite=gBrowser.addTab('about:blank',{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});gBrowser.pinTab(abPendingFavorite);gZenPinnedTabManager.addToEssentials(abPendingFavorite,{replicating:true});gBrowser.setIcon(abPendingFavorite,abSource);window.abPendingTab=gBrowser.addTab('about:blank',{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});gBrowser.setIcon(abPendingTab,abSource);Services.prefs.setIntPref('zzglass.workspaces.hover',1);Services.prefs.setIntPref('zzglass.tabs.essentials-icon-grow',2);return true;")
+ m.script("window.abPrefs=()=>JSON.stringify(Services.prefs.getChildList('zz').map(k=>[k,Services.prefs.prefHasUserValue(k),Services.prefs.getPrefType(k)===128?Services.prefs.getBoolPref(k):Services.prefs.getPrefType(k)===64?Services.prefs.getIntPref(k):Services.prefs.getStringPref(k)]));window.abSource='data:image/svg+xml,%3Csvg xmlns=\"http://www.w3.org/2000/svg\" width=\"300\" height=\"300\"%3E%3Ccircle cx=\"150\" cy=\"150\" r=\"120\" fill=\"red\"/%3E%3C/svg%3E';const h=document.querySelector('#zen-workspaces-button toolbarbutton');h.parentElement.removeAttribute('dont-show');h.removeAttribute('active');const i=h.querySelector('.zen-workspace-icon');i.removeAttribute('no-icon');i.textContent='🌐';gZenWorkspaces.onWindowResize();window.abFavorite=gBrowser.addTab('about:blank',{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});gBrowser.pinTab(abFavorite);gZenPinnedTabManager.addToEssentials(abFavorite,{replicating:true});gBrowser.setIcon(abFavorite,abSource);window.abPendingFavorite=gBrowser.addTab('about:blank',{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});gBrowser.pinTab(abPendingFavorite);gZenPinnedTabManager.addToEssentials(abPendingFavorite,{replicating:true});gBrowser.setIcon(abPendingFavorite,abSource);window.abPendingTab=gBrowser.addTab('about:blank',{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});gBrowser.setIcon(abPendingTab,abSource);window.abLoadedTab=gBrowser.addTab('about:blank',{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});gBrowser.setIcon(abLoadedTab,abSource);Services.prefs.setIntPref('zzglass.workspaces.hover',1);Services.prefs.setIntPref('zzglass.tabs.essentials-icon-grow',2);return true;")
  time.sleep(.7)
+ assert m.script("const h=document.querySelector('#zen-workspaces-button toolbarbutton'),i=document.createElementNS('http://www.w3.org/1999/xhtml','img');i.className='zen-workspace-icon';i.src=abSource;h.querySelector('.zen-workspace-icon').replaceWith(i);const clip=document.createElementNS('http://www.w3.org/1999/xhtml','div');clip.style.cssText='position:fixed;left:400px;top:300px;width:100px;height:100px;overflow:hidden';const t=document.createElementNS('http://www.w3.org/1999/xhtml','div');t.id='ab-clipped-tab';t.className='tabbrowser-tab';t.setAttribute('pending','true');t.style.cssText='position:absolute;left:200px;top:0;width:200px;height:40px';const icon=i.cloneNode();icon.className='tab-icon-image';t.append(icon);clip.append(t);document.getElementById('tabbrowser-tabs').prepend(clip);const r=t.getBoundingClientRect();return r.width>0&&r.left<innerWidth&&!t.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));"),'Clipped fixture must have a positive in-window box'
  m.script("abPendingFavorite.setAttribute('pending','true');abPendingTab.setAttribute('pending','true');InspectorUtils.addPseudoClassLock(abFavorite,':hover',false);return true;")
  before=m.script('return abPrefs();');selected=m.script('return gBrowser.selectedTab.id;')
  assert m.script("return [Services.vc.compare('1.0.0','9.9.9'),Services.vc.compare('9.9.9','1.0.0'),Services.vc.compare('1.0.0','1.0.0')].map(Math.sign);")==[-1,1,0]
@@ -94,19 +95,40 @@ def check_hover_ab(m,out):
   time.sleep(.5)
  else:raise AssertionError('Automatic probe did not finish')
  report=json.loads(m.script(read_clip));(out/'automatic-ab.json').write_text(json.dumps(report,indent=2))
- assert report['probe']=='hover-ab-v2' and report['automatic'] and report['finished']=='completed',report['finished']
+ assert report['probe']=='hover-ab-v3' and report['automatic'] and report['finished']=='completed',report['finished']
+ assert report['updater']['available'] and not report['updater']['autoUpdates'],report['updater']
+ assert report['prefs']['sine.auto-updates'] is False
+ assert all(t['host']!='ab-clipped-tab' for t in report['targets']),'Clipped target selected'
  kinds={t['kind'] for t in report['targets']};assert kinds=={'workspace','favorite-pending','favorite-loaded','tab-pending','tab-loaded'},kinds
  assert len(report['phases'])==17,len(report['phases'])
  for row in report['phases']:
   assert row['samples'] and row['rafIntervalsMs'],(row['target'],row['name'])
   assert len(row['samples'])<=12 and len(row['events'])<=100 and len(row['rafIntervalsMs'])<=2000
+  segments=row['compositorSegments'];assert len(segments)==9 and all(s['endMs']-s['startMs']<1000 for s in segments),segments
+  assert all(isinstance(s['intervalsMs'],list) for s in segments) and any(s['intervalsMs'] for s in segments),('Missing compositor capture',row['target'],row['name'])
+  assert all(s.get('unavailable') for s in segments if not s['intervalsMs']),'Empty timing segment reported as valid'
+  assert not [e for e in row['events'] if e['target']=='image' and e['property'] in ('scale','transform') and e['type']=='transitioncancel'],row['events']
+  if not row['target'].startswith('tab-'):
+   samples=row['samples'];base=samples[0]['style'];width=float(base['width'].removesuffix('px'));height=float(base['height'].removesuffix('px'))
+   for s in samples:
+    assert s['style']['width']==base['width'] and s['style']['height']==base['height'],'Layout size changed during scale'
+    origin=[float(v.removesuffix('px')) for v in s['style']['transform-origin'].split()];assert abs(origin[0]-width/2)<.01 and abs(origin[1]-height/2)<.01,origin
+    scale=float(s['style']['transform'].split('(')[1].split(',')[0]) if row['variant']==4 else 1 if s['style']['scale']=='none' else float(s['style']['scale'])
+    assert abs(s['imageBox'][2]-width*scale)<.04 and abs(s['imageBox'][3]-height*scale)<.04,(row['target'],s)
+   for axis in (0,1):
+    centers=[s['imageBox'][axis]+s['imageBox'][axis+2]/2 for s in samples]
+    assert max(centers)-min(centers)<.04,(row['target'],'Image center moved',centers)
   if row['variant'] in [1,4]:assert row['overrideVerified'],(row['target'],row['name'],row.get('unavailable'))
  assert m.script('return abPrefs();')==before,'Probe changed saved preferences'
  assert m.script('return gBrowser.selectedTab.id;')==selected,'Probe selected a tab'
  assert m.script("return InspectorUtils.hasPseudoClassLock(abFavorite,':hover')&&!abFavorite.matches(':hover');"),'Prior negative pseudo lock lost'
  assert m.script("return !window.__zzHoverABProbe&&!document.querySelector('#zz-hover-ab-panel,[data-zz-hover-ab]');"),'Probe leaked UI/markers'
- print('PASS automatic 17 phases / 5 targets; clipboard, preferences, selection and prior locks restored',flush=True)
- m.script((ROOT/'tools/icon-hover-ab-probe.js').read_text()+'\nreturn true;');time.sleep(5.5)
+ print('PASS automatic 17 phases / 5 targets; centered scaling, segmented timing, clipped-target exclusion, clipboard and restoration',flush=True)
+ m.script((ROOT/'tools/icon-hover-ab-probe.js').read_text()+'\nreturn true;')
+ for _ in range(60):
+  if m.script("return getComputedStyle(document.querySelector('#zen-workspaces-button .zen-workspace-icon')).transitionDuration.includes('0.45s');"):break
+  time.sleep(.2)
+ else:raise AssertionError('Cancellation fixture never reached its override')
  m.script("__zzHoverABProbe.stop();return true;")
  assert json.loads(m.script(read_clip))['finished']=='manual'
  assert m.script("return !window.__zzHoverABProbe&&!document.querySelector('#zz-hover-ab-panel,[data-zz-hover-ab]');")
@@ -122,7 +144,7 @@ with tempfile.TemporaryDirectory(prefix='zen-morph-') as d:
  (profile/'index.html').write_text('<title>Morph native state</title><video src="video.webm" preload="none" loop controls></video>')
  subprocess.run(['ffmpeg','-loglevel','error','-f','lavfi','-i','color=c=blue:s=160x90:r=10','-f','lavfi','-i','sine=frequency=440:sample_rate=48000','-t','12','-c:v','libvpx','-deadline','realtime','-b:v','30k','-c:a','libopus',str(profile/'video.webm')],check=True)
  with socket.socket() as sock:sock.bind(('127.0.0.1',0));port=sock.getsockname()[1]
- prefs={'marionette.port':port,'browser.shell.checkDefaultBrowser':False,'zen.welcome-screen.seen':True,'zen.welcome-screen.enabled':False,'sine.auto-update':False,'ui.prefersReducedMotion':0,'zzrouter.enabled':False,'media.cubeb.backend':'dummy','media.autoplay.default':0,'media.autoplay.blocking_policy':0,'svg.context-properties.content.enabled':False}
+ prefs={'marionette.port':port,'browser.shell.checkDefaultBrowser':False,'zen.welcome-screen.seen':True,'zen.welcome-screen.enabled':False,'sine.auto-updates':False,'ui.prefersReducedMotion':0,'zzrouter.enabled':False,'media.cubeb.backend':'dummy','media.autoplay.default':0,'media.autoplay.blocking_policy':0,'svg.context-properties.content.enabled':False}
  (profile/'user.js').write_text('\n'.join(f'user_pref({json.dumps(k)},{json.dumps(v)});' for k,v in prefs.items()))
  def start():
   log=(OUT/'browser.log').open('a');proc=subprocess.Popen([str(args.zen.resolve()),*([] if args.record_hover else ['--headless']),'--no-remote','--profile',d,'--marionette','--remote-allow-system-access','about:blank'],stdout=log,stderr=log)

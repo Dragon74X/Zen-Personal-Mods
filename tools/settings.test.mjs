@@ -43,7 +43,9 @@ for (const [mod, nav] of Object.entries(paged)) {
 // Storage contract captured from 7a1d2c8, before presentation changes. Navigation
 // choices are excluded. This release explicitly removes header arrows, adds
 // motion/relief controls, and defaults only NEW profiles to the shared shape.
-test('existing storage contracts remain unchanged except approved shape/arrow choices', async () => {
+// The native-blur pixel comparison also makes the existing fallback opt-in;
+// its key/type stay intact and the startup seeder preserves saved choices.
+test('existing storage contracts remain unchanged except documented choices', async () => {
   const { createHash } = await import('node:crypto');
   const navigation = new Set(['zzglass.ui.tab-state', 'zzgroup.ui.folder-state', 'zzicon.ui.button-category',
     'zzglass.edges.follow-pointer', 'zzglass.motion.enabled', 'zzglass.motion.profile', 'zzglass.motion.light', 'zzglass.edges.calculated', 'zzglass.edges.surface', 'zzglass.edges.depth']);
@@ -58,6 +60,9 @@ test('existing storage contracts remain unchanged except approved shape/arrow ch
   const icons=rows.find(r=>r[1]==='zzicon.set');
   assert.equal(icons[4],4); assert.deepEqual(icons[5],[4,0,2,3]);
   icons[4]=0;icons[5].shift();
+  const pageBlur=rows.find(r=>r[1]==='zzglass.sidebar.blur-transparent-pages');
+  assert.equal(pageBlur[4],false);
+  pageBlur[4]=true;
   rows.push(['groupflow','zzgroup.scroll-arrows','checkbox',null,true,null]);
   rows.sort((a,b) => a[1].localeCompare(b[1], 'en'));
   assert.equal(createHash('sha256').update(JSON.stringify(rows)).digest('hex'), '0316bd0c2a6cd4f0a3cc1f7873bfef32fa762ccb8058e7aaff2cf1b2c6c5a038');

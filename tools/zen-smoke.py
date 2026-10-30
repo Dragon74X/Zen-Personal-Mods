@@ -326,6 +326,9 @@ def check_sidebar_hover(m):
                     # blur. Count mutations, not just matching final geometry.
                     motion=m.script("""return (async()=>{
                       const wait=ms=>new Promise(r=>setTimeout(r,ms));
+                      // Updates are scheduled on rAF. A 100ms timer can fire
+                      // before a throttled headless chrome window runs one.
+                      const settle=()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
                       const toolbox=document.getElementById('navigator-toolbox'),filter=document.getElementById('zzg-strip'),box=document.getElementById('tabbrowser-tabbox');
                       const keys=['zzglass.workspaces.enabled','zzglass.workspaces.hover','zzglass.tabs.essentials-icon-grow'],S=Services.prefs;
                       const saved=keys.map(k=>[k,S.prefHasUserValue(k),S.getPrefType(k)===S.PREF_BOOL?S.getBoolPref(k):S.getIntPref(k)]);
@@ -343,17 +346,21 @@ def check_sidebar_hover(m):
                           if(scale!=='1.3'||writes.length)throw new Error(name+': '+JSON.stringify({scale,writes:writes.map(c=>c.attributeName)}));
                           cases.push({name,scale,filterWrites:writes.length});
                         }
-                        writes.length=0;window.dispatchEvent(new Event('resize'));await wait(100);
+                        writes.length=0;window.dispatchEvent(new Event('resize'));await settle();
                         if(writes.length)throw new Error('Unchanged geometry rewrote filter');
                         // Tab selection can change transparency without moving
                         // the sidebar. Re-evaluate it without relying on bubbling
                         // icon transitions; retain another owner's filter.
-                        document.documentElement.setAttribute('zzsmoke-opaque','');tab.dispatchEvent(new Event('TabSelect',{bubbles:true}));await wait(100);
+                        document.documentElement.setAttribute('zzsmoke-opaque','');tab.dispatchEvent(new Event('TabSelect',{bubbles:true}));await settle();
                         if(box.style.filter)throw new Error('Opaque selection retained strip filter');
                         document.documentElement.removeAttribute('zzsmoke-opaque');
-                        tab.dispatchEvent(new Event('TabSelect',{bubbles:true}));await wait(100);
-                        if(!box.style.filter.includes('zzg-strip'))throw new Error('Transparent selection lost strip filter');
-                        writes.length=0;toolbox.dispatchEvent(new TransitionEvent('transitioncancel',{propertyName:'translate'}));await wait(100);
+                        tab.dispatchEvent(new Event('TabSelect',{bubbles:true}));await settle();
+                        if(!box.style.filter.includes('zzg-strip'))throw new Error('Transparent selection lost strip filter: '+JSON.stringify({filter:box.style.filter,
+                          background:getComputedStyle(gBrowser.selectedBrowser).backgroundColor,
+                          backdrop:getComputedStyle(document.getElementById('zen-toolbar-background')).backdropFilter,
+                          compact:document.documentElement.getAttribute('zen-compact-mode'),attributes:toolbox.getAttributeNames(),
+                          enabled:S.getBoolPref('zzglass.sidebar.blur-transparent-pages'),svg:!!document.getElementById('zzg-strip')}));
+                        writes.length=0;toolbox.dispatchEvent(new TransitionEvent('transitioncancel',{propertyName:'translate'}));await settle();
                         if(writes.length)throw new Error('Cancelled slide rewrote unchanged geometry');
                         return cases;
                       } finally {
@@ -366,7 +373,9 @@ def check_sidebar_hover(m):
                     panel=m.script("const p=document.getElementById('zen-toolbar-background').getBoundingClientRect();return [p.left,p.top,p.right,p.bottom];")
                     blurred=m.shot();scale=blurred.width/m.script('return window.innerWidth;')
                     m.script("Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',false);return true;");time.sleep(.3)
-                    sharp=m.shot();m.script("Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',true);return true;")
+                    sharp=m.shot()
+                    assert m.script("return !document.getElementById('zzg-strip') && !document.getElementById('tabbrowser-tabbox').style.filter;"), 'Disabled compatibility retained its SVG or page filter'
+                    m.script("Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',true);return true;")
                     strip=tuple(round(v*scale) for v in (panel[0]+20,200,panel[2]-20,260))
                     detail=[max(ImageStat.Stat(im.crop(strip)).stddev) for im in (blurred,sharp)]
                     assert detail[0]<detail[1]/2,(name,'strip not blurred',detail)
@@ -430,6 +439,16 @@ def check(m, root, arc, transparent):
       download:DownloadPrompt.status()};""")
     assert all(present for _, present in result["apis"]), (result, m.script("return (Services.console.getMessageArray()||[]).map(m=>m.message).filter(m=>/TabRouter|tab-router/.test(m));"))
     result['iconPaintChecks'] = icon_paint_checks
+    # With compatibility off, native blur owns the surface without allocating
+    # a page filter. Saved On is still honoured after re-injection.
+    assert m.script("return !document.getElementById('zzg-strip') && !document.getElementById('tabbrowser-tabbox').style.filter;"), 'Default native path allocated a page filter'
+    m.script("Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',true);return true;")
+    m.script((root / 'glassflow/glassflow.uc.js').read_text() + "\nreturn true;")
+    assert m.script("return Services.prefs.getBoolPref('zzglass.sidebar.blur-transparent-pages') && document.querySelectorAll('#zzg-strip').length===1;"), 'Saved compatibility choice lost or duplicated on re-injection'
+    m.script("Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',false);return true;")
+    m.script((root / 'glassflow/glassflow.uc.js').read_text() + "\nreturn true;")
+    assert m.script("return !Services.prefs.getBoolPref('zzglass.sidebar.blur-transparent-pages') && !document.getElementById('zzg-strip') && !document.getElementById('tabbrowser-tabbox').style.filter;"), 'Off retained a page filter after re-injection'
+    result['pageBlurLifecycle'] = ['default-off', 'saved-on-reinjection-single-owner', 'saved-off-reinjection-no-filter']
     def settle():
         m.script("return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))));")
 

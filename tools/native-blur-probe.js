@@ -4,7 +4,7 @@
   const w = Services.wm.getMostRecentWindow('navigator:browser');
   if (!w) throw Error('No browser window');
   await w.__zzNativeBlurProbe?.stop?.('replaced');
-  const report = { probe: 'native-blur-v2', started: new Date().toISOString(),
+  const report = { probe: 'native-blur-v3', started: new Date().toISOString(),
     browser: Services.appinfo.version, platform: Services.appinfo.OS, cases: [], errors: [],
     limitations: 'Generated fixture only. Desktop GDI crops test presented pixels, not animation FPS. Native acrylic must be enabled before browser startup; its renderer startup latch is not observable here. Compare native-only against installed output, including transparent pages. A computed filter alone is not visual proof.' };
   const P = Services.prefs, doc = w.document, root = doc.documentElement;
@@ -44,6 +44,10 @@
     for(const [key] of saved)try { restorePref(key); } catch(e) { report.errors.push('Unload: '+String(e)); }
   };
   const localFile = path => { const file = Cc['@mozilla.org/file/local;1'].createInstance(Ci.nsIFile); file.initWithPath(path); return file; };
+  const readMessage = path => IOUtils.readJSON(path).catch(error => {
+    if(error.name==='NotFoundError')return null;
+    throw error;
+  });
   const api = { stop: async reason => { abort(reason || 'stopped by user'); await task; } };
   w.__zzNativeBlurProbe = api;
 
@@ -74,13 +78,15 @@ public static class BlurWindow {
 $null = [BlurWindow]::SetThreadDpiAwarenessContext([IntPtr](-4))
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 $end = [DateTime]::UtcNow.AddSeconds(170)
-$last = -1
+$nextId = 1
 while ([DateTime]::UtcNow -lt $end -and !(Test-Path (Join-Path $Directory 'stop'))) {
- $requestPath = Join-Path $Directory 'request.json'
+ # Publish each message once. Windows readers can hold a file against replacement.
+ $requestPath = Join-Path $Directory ('request-{0:D2}.json' -f $nextId)
+ $responsePath = Join-Path $Directory ('response-{0:D2}.json' -f $nextId)
  if (!(Test-Path $requestPath)) { Start-Sleep -Milliseconds 50; continue }
- try { $q = Get-Content -Raw -LiteralPath $requestPath | ConvertFrom-Json } catch { Start-Sleep -Milliseconds 50; continue }
- if ($q.id -eq $last) { Start-Sleep -Milliseconds 50; continue }
- $last = $q.id
+ $stage = 'read-request'
+ $q = Get-Content -Raw -Encoding UTF8 -LiteralPath $requestPath | ConvertFrom-Json
+ if ($q.id -ne $nextId) { throw 'Capture request id mismatch' }
  $answer = @{id=$q.id;files=@();error=$null}
  try {
   $stage = 'verify-window'
@@ -130,9 +136,10 @@ while ([DateTime]::UtcNow -lt $end -and !(Test-Path (Join-Path $Directory 'stop'
   $answer.failure=@{stage=$stage;id=$_.FullyQualifiedErrorId;line=$_.InvocationInfo.ScriptLineNumber}
  }
  $stage = 'write-response'
- $tmp=Join-Path $Directory 'response.tmp'
+ $tmp=Join-Path $Directory ('response-{0:D2}.tmp' -f $nextId)
  [IO.File]::WriteAllText($tmp,($answer|ConvertTo-Json -Depth 8),$utf8)
- Move-Item -Force -LiteralPath $tmp -Destination (Join-Path $Directory 'response.json')
+ [IO.File]::Move($tmp,$responsePath)
+ $nextId++
 }
 } catch {
  [IO.File]::WriteAllText((Join-Path $Directory 'fatal.json'),(@{error=$_.Exception.Message;failure=@{stage=$stage;id=$_.FullyQualifiedErrorId;line=$_.InvocationInfo.ScriptLineNumber}}|ConvertTo-Json))
@@ -213,14 +220,16 @@ while ([DateTime]::UtcNow -lt $end -and !(Test-Path (Join-Path $Directory 'stop'
           reduced:w.matchMedia('(prefers-reduced-transparency: reduce)').matches}};
         if(variant==='reference' && entry.computed.filter!=='none')throw Error('No-blur reference was overridden');
         if(variant!=='installed' && entry.computed.pageFilter.includes('zzg-strip'))throw Error('Page-filter owner did not release for native comparison');
-        await IOUtils.writeUTF8(PathUtils.join(directory,'request.json'),JSON.stringify({id,pid:Services.appinfo.processID,marker,width:w.innerWidth,height:w.innerHeight,rois}),{tmpPath:PathUtils.join(directory,'request.tmp')});
+        const messageId=String(id).padStart(2,'0');
+        const responsePath=PathUtils.join(directory,'response-'+messageId+'.json');
+        await IOUtils.writeUTF8(PathUtils.join(directory,'request-'+messageId+'.json'),JSON.stringify({id,pid:Services.appinfo.processID,marker,width:w.innerWidth,height:w.innerHeight,rois}),{tmpPath:PathUtils.join(directory,'request-'+messageId+'.tmp')});
         let response;
         for(let n=0;n<100;n++) {
           guard();
-          response=await IOUtils.readJSON(PathUtils.join(directory,'response.json')).catch(()=>null);
-          if(response?.id===id)break;
+          response=await readMessage(responsePath);
+          if(response){if(response.id!==id)throw Error('Capture response id mismatch');break;}
           if(!worker.isRunning) {
-            const fatal=await IOUtils.readJSON(PathUtils.join(directory,'fatal.json')).catch(()=>null);
+            const fatal=await readMessage(PathUtils.join(directory,'fatal.json'));
             if(fatal)report.workerFailure=fatal;
             throw Error(fatal?.error || 'Windows capture worker exited before replying');
           }

@@ -17,6 +17,11 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - name: Exercise embedded worker with Windows PowerShell 5.1
         shell: powershell
         run: ./tools/native-blur-worker.test.ps1
+      - name: Exercise real file handoff with reader-held Windows files
+        run: node --test tools/native-blur-ipc.test.mjs

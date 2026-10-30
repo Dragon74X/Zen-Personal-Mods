@@ -13,3 +13,10 @@ jobs:
         with:
           node-version: '22'
       - run: node --test tools/*.test.mjs
+  blur-worker:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exercise embedded worker with Windows PowerShell 5.1
+        shell: powershell
+        run: ./tools/native-blur-worker.test.ps1

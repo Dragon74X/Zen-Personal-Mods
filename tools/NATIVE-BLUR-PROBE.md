@@ -11,7 +11,7 @@ Console**, or run this loader there:
 (async () => {
   const w = Services.wm.getMostRecentWindow('navigator:browser');
   if (!w) throw Error('No browser window');
-  const response = await w.fetch('https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/59ade980dd1a4d70daff6bfdb707cedcfbb227af/tools/native-blur-probe.js',
+  const response = await w.fetch('https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/a3406422745d32403458b8f551f6ca9c2e3402e7/tools/native-blur-probe.js',
     { signal: w.AbortSignal.timeout(15000) });
   if (!response.ok) throw Error('Probe download: HTTP ' + response.status);
   const code = await response.text();
@@ -39,6 +39,12 @@ The loader uses a pinned revision and Firefox's local-file script loader. Its
 or enable page `eval()`. The old fetch-then-eval loader was blocked by chrome CSP
 before the probe could start. The temporary script is removed after execution;
 download/load errors are automatically copied too.
+
+The report identifies this revision as `native-blur-v2`. Version 1 failed before
+the first PNG: PowerShell's comma operator grouped a crop-coordinate expression
+into an array before subtraction. Version 2 constructs typed points directly.
+Worker failures now include the failing stage, PowerShell error identifier and
+script line, including startup failures.
 
 It starts immediately, brings the fixture window forward, and normally takes
 about 40 seconds. Leave that window unobscured while it runs. **Stop + copy** is
@@ -74,7 +80,14 @@ pixel results. A Windows policy that blocks PowerShell can prevent capture.
 ## Evidence and limits
 
 - Node lifecycle checks exercise all 32 cases, cancellation, capture failure, window closure,
-  unsupported OS and cleanup failure.
+  unsupported OS, worker startup failure and cleanup failure.
+- `powershell -NoProfile -File tools/native-blur-worker.test.ps1` executes the
+  shipped worker's geometry and occlusion code, with only Win32 calls substituted.
+  Five coordinate cases cover left/right crops, fractional scale, negative desktop
+  coordinates, rounding and minimum crop size. Nine rejection cases retain
+  occlusion, size and scale checks; the error-journal check verifies failure details.
+  CI runs this on Windows PowerShell 5.1, the engine the probe launches. It also
+  runs with `pwsh`. These are arithmetic/control-flow checks, not screen capture.
 - `python3 tools/zen-smoke.py --zen /path/to/zen --probe-loader` exercises the
   documented loader through the actual Browser Console evaluation actor. It
   reproduces the old CSP failure, loads an unmodified probe from a local HTTP
@@ -85,7 +98,7 @@ pixel results. A Windows policy that blocks PowerShell can prevent capture.
   phases, preference/UI restoration and ZIP creation with a **simulated screen
   worker**. It caught a reference-selector conflict with the redraw rule before
   delivery.
-- Windows PowerShell/GDI execution is **not verified in the development runtime**.
+- Complete Windows worker/GDI capture is **not verified in the development runtime**.
   The user's Windows run supplies that missing evidence. Neither headless
   screenshots nor the simulated backend establish backdrop rendering.
 - The PNGs are settled-state crops, not a measurement of animation smoothness,
@@ -97,4 +110,5 @@ pixel results. A Windows policy that blocks PowerShell can prevent capture.
 
 Primary APIs: [CopyFromScreen](https://learn.microsoft.com/en-us/dotnet/api/system.drawing.graphics.copyfromscreen),
 [ClientToScreen](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-clienttoscreen),
-[GetClientRect](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getclientrect).
+[GetClientRect](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getclientrect),
+[PowerShell operator precedence](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_operator_precedence).

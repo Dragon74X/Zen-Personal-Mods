@@ -189,14 +189,16 @@ test("question ownership remains visible after shared hook handoff", async () =>
   assert.equal(b.w.timers.size, 0);
 });
 
-async function turboEnv({ privateWindow = false, rows = Promise.resolve([]), failConnect = false } = {}) {
+async function turboEnv({ privateWindow = false, rows = Promise.resolve([]), failConnect = false, nativePrefs = {} } = {}) {
   const c = clock(), w = browser(), values = new Map(), connects = [];
+  const defaults = new Map(Object.entries(nativePrefs)), value = k => values.has(k)?values.get(k):defaults.get(k);
   let queries = 0, savedWrites = 0;
   const pref = {
     PREF_INVALID: 0, PREF_STRING: 32, PREF_INT: 64, PREF_BOOL: 128,
-    getPrefType: k => !values.has(k) ? 0 : ({ string: 32, number: 64, boolean: 128 })[typeof values.get(k)],
-    getStringPref: (k, d) => values.get(k) ?? d, getIntPref: (k, d) => values.get(k) ?? d,
-    getBoolPref: (k, d) => values.get(k) ?? d,
+    getPrefType: k => value(k)===undefined ? 0 : ({ string: 32, number: 64, boolean: 128 })[typeof value(k)],
+    getStringPref: (k, d) => value(k) ?? d, getIntPref: (k, d) => value(k) ?? d,
+    getBoolPref: (k, d) => value(k) ?? d,
+    getDefaultBranch: () => ({getIntPref:k=>defaults.get(k)}),
     setStringPref: (k, v) => { if (k === "zzturbo.saved-prefs") savedWrites++; values.set(k, v); }, setIntPref: (k, v) => values.set(k, v),
     setBoolPref: (k, v) => values.set(k, v), clearUserPref: k => values.delete(k),
     prefHasUserValue: k => values.has(k), addObserver() {}, removeObserver() {},
@@ -220,8 +222,31 @@ async function turboEnv({ privateWindow = false, rows = Promise.resolve([]), fai
       ? { PrivateBrowsingUtils: { isWindowPrivate: () => privateWindow } }
       : uri.includes("NetUtil") ? { NetUtil } : { PlacesUtils: { promiseDBConnection: async () => ({ executeCached() { queries++; return rows; } }) } } },
   });
-  return { h, w, c, root, scroller, toolbox, values, connects, tabContainer, get queries() { return queries; }, get savedWrites() { return savedWrites; } };
+  return { h, w, c, root, scroller, toolbox, values, defaults, connects, tabContainer, get queries() { return queries; }, get savedWrites() { return savedWrites; } };
 }
+
+test('Turbo leaves longer native/user session intervals intact',async()=>{
+  const key='browser.sessionstore.interval';
+  const e=await turboEnv({nativePrefs:{[key]:40000}});
+  e.h.syncPacks();assert.equal(e.values.has(key),false);assert.equal(e.savedWrites,0);
+  e.values.set(key,60000);e.h.syncPacks();assert.equal(e.values.get(key),60000);assert.equal(e.savedWrites,0);
+});
+for(const edited of [false,true])test('Turbo releases obsolete session override after native update, user edit='+edited,async()=>{
+  const key='browser.sessionstore.interval',e=await turboEnv({nativePrefs:{[key]:15000}});
+  e.h.syncPacks();assert.equal(e.values.get(key),30000);
+  e.defaults.set(key,40000);
+  if(edited)e.values.set(key,25000);
+  e.h.syncPacks();
+  assert.equal(e.values.has(key),edited);if(edited)assert.equal(e.values.get(key),25000);
+  assert.deepEqual(JSON.parse(e.values.get('zzturbo.saved-prefs')),{});
+});
+test('Turbo restores an older captured longer user interval and short overrides on disable',async()=>{
+  const key='browser.sessionstore.interval',e=await turboEnv({nativePrefs:{[key]:15000}});
+  e.values.set(key,30000);e.values.set('zzturbo.saved-prefs',JSON.stringify({[key]:{had:true,v:60000,applied:30000}}));
+  e.h.syncPacks();assert.equal(e.values.get(key),60000);
+  e.values.set(key,20000);e.h.syncPacks();assert.equal(e.values.get(key),30000);
+  e.values.set('zzturbo.pack-io-jank',false);e.h.syncPacks();assert.equal(e.values.get(key),20000);
+});
 
 test("Turbo re-sync and disable preserve a managed preference edited by the user", async () => {
   const e = await turboEnv();
@@ -595,6 +620,24 @@ test("Router leaves a tab in place when its rule names a missing group and creat
   assert.equal(e.t.getAttribute("zen-workspace-id"), "source", "no workspace move");
   assert.equal(e.added.length, 0, "no container reopen");
   assert.equal(e.groups.length, 1, "nothing created");
+});
+
+for(const skipGrouped of [false,true])for(const create of [false,true])
+test(`Router explicit workspace route respects grouped=${skipGrouped}, create=${create}`,async()=>{
+  const e=await immediateRouterEnv();
+  e.prefs.set('zzrouter.follow-containers',false);
+  await e.h.route(e.t,'initial');
+  const original=e.t.group;
+  original.setAttribute('zen-workspace-id','source');
+  e.t.setAttribute('zen-workspace-id','source');
+  e.prefs.set('zzrouter.skip-grouped',skipGrouped);
+  e.prefs.set('zzrouter.create-groups',create);
+  await e.h.route(e.t,'explicit route');
+  const moves=!skipGrouped && create;
+  assert.equal(e.t.getAttribute('zen-workspace-id'),moves?'destination':'source');
+  assert.equal(e.t.group===original,!moves);
+  assert.equal(e.t.group.label,'Target');
+  assert.equal(e.added.length,0,'workspace routing does not reopen the page');
 });
 
 test("Router coalesces navigation bursts at 0 ms without resetting or routing an older URL", async () => {

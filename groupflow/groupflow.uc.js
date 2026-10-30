@@ -1437,10 +1437,12 @@
   }
   const settles = new Map();                // box -> timer: pixel scrolling snaps once it pauses
   // Glides and snaps in flight, stopped when the mod retires or folders stop scrolling.
-  const stopScrolling = () => {
-    for (const { raf } of glides.values()) cancelAnimationFrame(raf);
-    for (const t of settles.values()) clearTimeout(t);
-    glides.clear(); settles.clear();
+  const stopScrolling = (boxes = new Set([...glides.keys(), ...settles.keys()])) => {
+    for (const box of boxes) {
+      cancelAnimationFrame(glides.get(box)?.raf);
+      clearTimeout(settles.get(box));
+      glides.delete(box); settles.delete(box);
+    }
   };
   const topBoxes = (root = document) => [...root.querySelectorAll("tab-group:not([split-view-group]) > .tab-group-container")]
     .filter(box => !box.parentElement.parentElement?.closest("tab-group") && !isCopy(box));
@@ -1557,6 +1559,17 @@
     }
     scrollBox(box, nearest(choices, y), !glide, measured);
   }
+  // Zen's button owns the outer list. Reveal our capped body first so its
+  // native click handler reads the selected tab's final layout coordinates.
+  function revealSelected(event) {
+    if (!event.target.closest?.('.zen-workspace-scroll-to-tab') ||
+        !Services.prefs.getBoolPref('zen.view.show-scroll-to-selected-tab', true) ||
+        !bool('connector-scroll', true)) return;
+    const box = topBoxes().find(body => body.contains(gBrowser.selectedTab));
+    if (!box) return;
+    stopScrolling([box]);
+    fitBox(box, false);
+  }
   let fitTimer = null, showSelected = false;
   function fitAll(keep = true) {
     watchLists();                           // the list's light needs no folder scrolling
@@ -1650,6 +1663,7 @@
     const iconEvents = atg ? EVENTS : ["SSTabRestored", "ZenTabIconChanged"];
     for (const ev of iconEvents) window.addEventListener(ev, schedule, true);
     window.addEventListener("click", toggleSubgroups, true);
+    window.addEventListener("click", revealSelected, true);
     window.addEventListener("TabGroupCreate", dressCopies, true);
     // Capture on the strip runs before tabbox.js's bubble listener there.
     const strip = gBrowser.tabContainer;
@@ -1718,6 +1732,7 @@
       try { delete window.Groupflow; } catch {}
       for (const ev of iconEvents) window.removeEventListener(ev, schedule, true);
       window.removeEventListener("click", toggleSubgroups, true);
+      window.removeEventListener("click", revealSelected, true);
       stopScrolling();
       for (const mark of document.querySelectorAll(".tab-group-label-container > .zzgf-count")) mark.remove();
       for (const box of document.querySelectorAll(".tab-group-container[zzgf-glow]")) markEdges(box, false);

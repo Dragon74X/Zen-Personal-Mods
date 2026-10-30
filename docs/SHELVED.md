@@ -1,5 +1,8 @@
 # Shelved work
 
+> Historical rationale only. Current Router picture recovery and file-backed
+> caches were subsequently implemented; see the [completion audit](FIXES-2026-10-30-COMPLETION-AUDIT.md).
+
 > **Record status, 9 October 2026:** restored from `57be003`. Commit `6f4ea93`
 > (9 September 2026) had emptied this file; the reasoning below is kept as a
 > record. Two ideas came back in other forms: creator subgrouping through

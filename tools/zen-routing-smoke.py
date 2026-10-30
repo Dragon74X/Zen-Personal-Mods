@@ -1195,6 +1195,35 @@ def check_subject_pictures(m, root, first):
       window.subjectFixture={route,placeInPath,skip,updatePicture,captureNexus,creatorMap,iconMap,stampIcons,saveNexus,fetchAnon,saveIcons,saveCreators,refreshPictures,toIcon};
       // ---- declared defaults""")
     m.script(source + "\nreturn true;")
+    contract = {}
+    if first:
+        contract=m.script("return (async()=>{"+HELPERS+"""
+          const checks={},manager=gZenSpaceRoutingManager,getRoutes=manager.getAllRoutes;
+          const keys=['zzrouter.skip-grouped','zzrouter.create-groups','zzrouter.follow-containers'];
+          const saved=keys.map(k=>Services.prefs.getBoolPref(k,true));
+          const source=gZenWorkspaces.activeWorkspace,dest=source===routeTarget.uuid?routeSourceID:routeTarget.uuid;
+          manager.getAllRoutes=()=>[{reference:'route-contract.invalid',matchType:'contains',openIn:dest}];
+          Services.prefs.setBoolPref(keys[2],false);
+          try {
+            for(const skip of [false,true])for(const create of [false,true]) {
+              const t=add('about:blank'),label='Explicit route '+skip+' '+create;
+              const original=gBrowser.addTabGroup([t],{label,insertBefore:t});
+              const nested=gBrowser.addTabGroup([t],{label:'Manual subgroup',insertBefore:t});
+              original.groupContainer.append(nested);
+              Object.defineProperty(t.linkedBrowser,'currentURI',{configurable:true,get:()=>Services.io.newURI('https://route-contract.invalid/')});
+              try {
+                Services.prefs.setBoolPref(keys[0],skip);Services.prefs.setBoolPref(keys[1],create);
+                await subjectFixture.placeInPath(t,[label]);
+                const moved=!skip && create;
+                checks['explicitRoute'+skip+create]=t.getAttribute('zen-workspace-id')===(moved?dest:source) &&
+                  (t.group===nested)===!moved && t.group.label==='Manual subgroup' &&
+                  t.group.parentElement.closest('tab-group')?.label===label && !t.closing;
+              } finally {delete t.linkedBrowser.currentURI;gBrowser.removeTab(t,{animate:false});}
+            }
+          } finally {manager.getAllRoutes=getRoutes;keys.forEach((k,i)=>Services.prefs.setBoolPref(k,saved[i]));}
+          return checks;
+        })();""")
+        assert all(contract.values()), contract
     m.script("""const ss=Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService);
       window.nexusArtSheet=Services.io.newURI(""" + json.dumps((root / 'glassflow/userChrome.css').as_uri()) + """);
       ss.loadAndRegisterSheet(nexusArtSheet,ss.USER_SHEET);return true;""")
@@ -1461,6 +1490,7 @@ def check_subject_pictures(m, root, first):
       });
     })();""")
     assert result['legacyCustomIconPreserved'], result
+    result.update(contract)
     m.script((root / "tab-router/tab-router.uc.js").read_text() + "\nreturn true;")
     return result
 

@@ -1427,11 +1427,12 @@
     // through addTab (skipRoute on), exactly like Zen's own space routing.
     const dest = resolveDestination(tab, parts);
     const tabWs = wsOf(tab) || window.gZenWorkspaces?.activeWorkspace;
+    const relocate = filed && !bool("skip-grouped", true) && dest.explicit && dest.ws && dest.ws !== tabWs;
     const haveCtx = parseInt(tab.getAttribute("usercontextid") || "0", 10);
     // With group creation off, a rule naming a missing group does nothing:
     // no container reopen, no workspace move, no leaving the current group.
     // An existing parent of a missing subgroup still receives the tab.
-    if (!filed && !canCreateGroups() && !findChild(parts[0], null, dest.ws || tabWs)) {
+    if ((!filed || relocate) && !canCreateGroups() && !findChild(parts[0], null, dest.ws || tabWs)) {
       note(`"${parts[0]}" does not exist and group creation is switched off`);
       return false;
     }
@@ -1451,7 +1452,7 @@
         }
       }
     } else deferredContainers.delete(tab);
-    if (filed) { healWorkspace(tab); return false; }
+    if (filed && !relocate) { healWorkspace(tab); return false; }
     if (dest.ws && dest.ws !== tabWs) {
       try {
         window.gZenWorkspaces.moveTabToWorkspace(tab, dest.ws);
@@ -1460,13 +1461,15 @@
         note(`workspace move failed: ${e}; filing in current workspace instead`);
       }
     }
-    return file(tab, parts);
+    // A workspace-only correction retains deeper manual subfolders in an
+    // already-matching path, just as container replacement does above.
+    return file(tab, filed ? chain : parts);
   }
 
   function resolveDestination(tab, parts) {
     const nx = nexusURL(tab), provenance = nx?.author && savedNexus(tab);
     if (nx?.author) return { ws: provenance?.ws || wsOf(tab), ctx: contextOf(tab), why: "the originating game" };
-    let ws = null, ctx = null, why = "", stay = false;
+    let ws = null, ctx = null, why = "", stay = false, explicit = false;
     // 1) Zen route for this URL (the "Add Route for Domain" rules).
     //    routeUri() returns "most-recent-space" both for an explicit
     //    stay-here rule AND for no rule at all, so the routes are matched
@@ -1482,6 +1485,7 @@
           if (route.openIn === "most-recent-space") { stay = true; break; }
           const w = window.gZenWorkspaces?.getWorkspaceFromId?.(route.openIn);
           if (w) {
+            explicit = true;
             ws = w.uuid ?? route.openIn;
             if (typeof w.containerTabId === "number") ctx = w.containerTabId;
             why = "the workspace named by a Zen route";
@@ -1511,7 +1515,7 @@
         if (typeof w?.containerTabId === "number") ctx = w.containerTabId;
       } catch {}
     }
-    return { ws, ctx, why };
+    return { ws, ctx, why, explicit };
   }
 
   // Most common usercontextid among the tabs already in the group. 0 is a
@@ -2434,7 +2438,7 @@
         } catch {}
 
         const r = {
-          version: "1.37.9",
+          version: "1.37.10",
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The

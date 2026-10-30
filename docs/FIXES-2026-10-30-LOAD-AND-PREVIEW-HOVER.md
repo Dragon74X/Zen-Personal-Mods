@@ -1,5 +1,9 @@
 # Page loading and preview hover ownership
 
+> Follow-up: [completion audit and native rendering checks](FIXES-2026-10-30-COMPLETION-AUDIT.md)
+> reconciles the older remaining-work entries below, including nested scrolling,
+> accessibility rendering, Router placement and the Turbo benchmark.
+
 ## Glassflow 3.74.18
 
 An already-open compact sidebar received no blur refresh when its selected page

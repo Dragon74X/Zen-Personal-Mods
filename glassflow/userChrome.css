@@ -1479,7 +1479,8 @@
   }
 }
 @media (-moz-pref("zzglass.overlays.enabled")) {
-  @media (-moz-windows-mica-popups) {
+  /* Native menus own their system palette in high contrast. */
+  @media (-moz-windows-mica-popups) and (not (forced-colors)) and (not (prefers-contrast)) {
     menupopup, panel[type="arrow"]:not(#feature-callout) {
       --panel-background-color: light-dark(rgb(255 255 255 / var(--zzglass-popups-opacity, 50%)),
                                            rgb(0 0 0 / var(--zzglass-popups-opacity, 50%))) !important;

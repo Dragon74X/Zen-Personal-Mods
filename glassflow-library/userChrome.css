@@ -30,7 +30,15 @@ zen-library .zen-library-space {
     color: CanvasText !important;
   }
   zen-library .zen-library-space::before,
-  zen-library .zen-library-space::after { display: none !important; }
+  zen-library .zen-library-space::after,
+  zen-library .zen-library-space-background { display: none !important; }
+  @media (forced-colors), (prefers-contrast) {
+    zen-library .zen-library-space {
+      --toolbar-color: CanvasText !important;
+      --toolbox-textcolor: CanvasText !important;
+      & .zen-library-space-header { color: inherit !important; }
+    }
+  }
 }
 
 zen-library .zen-library-space-header {

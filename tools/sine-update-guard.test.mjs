@@ -175,6 +175,29 @@ test("unknown APIs and already-fixed staging implementations are unchanged", () 
   assert.equal(installSineUpdateGuard({}, {}), false);
 });
 
+test("a rejected check reports only its current settings indicator; a closed or newer page owns its own state",async()=>{
+  const f=fixture(),gates=[];
+  f.manager.updateMods=()=>new Promise((ok,bad)=>gates.push({ok,bad}));
+  f.manager.loadMods=()=>{};
+  installSineUpdateGuard(f.manager,f.utils);
+  const page=()=>{
+    const ui={replaceChildren(p){this.firstElementChild=p;}},events={};
+    const win={document:{querySelector:()=>ui},addEventListener:(name,fn)=>events[name]=fn};
+    f.manager.loadMods(win);
+    return {ui,close:()=>events.unload(),start:()=>{
+      ui.firstElementChild={textContent:"...",classList:{contains:()=>false},setAttribute(){}};
+      return f.manager.updateMods("manual");
+    }};
+  };
+  const a=page(),b=page(),first=a.start(),second=a.start(),third=b.start();
+  await tick();gates[0].bad(Error("first"));await assert.rejects(first,/first/);
+  assert.equal(a.ui.firstElementChild.textContent,"...");assert.equal(b.ui.firstElementChild.textContent,"...");
+  b.close();await tick();gates[1].bad(Error("second"));await assert.rejects(second,/second/);
+  assert.match(a.ui.firstElementChild.textContent,/failed/);
+  await tick();gates[2].bad(Error("third"));await assert.rejects(third,/third/);
+  assert.equal(b.ui.firstElementChild.textContent,"...");
+});
+
 test("6 standalone manifests ship identical guards; all declared scripts exist", async () => {
   const canonical = await readFile(new URL(mods[0] + "/" + guardName, root), "utf8");
   for (const mod of mods) {

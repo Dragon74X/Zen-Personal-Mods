@@ -128,21 +128,28 @@
   // from: the load then ends with the icon still on, and the page's own
   // icon, usually the very same file, lands without a repaint. A
   // different site starts clean and never wears the previous icon.
-  const lastHost = new WeakMap();             // browser -> host of its last location
+  const lastIcon = new WeakMap();             // browser -> source accepted by tabbrowser, on its owning host
   const keepIconOn = () => { try { return Services.prefs.getBoolPref("zen.theme.hide-tab-throbber", false); } catch { return false; } };
   const hostOf = (uri) => { try { return /^https?$/.test(uri?.scheme) ? uri.host : null; } catch { return null; } };
   const iconKeeper = {
+    onLinkIconAvailable(browser, icon) {
+      const host = hostOf(browser.currentURI);
+      if (host && typeof icon === "string" && /^(?:data|chrome|resource|about):/.test(icon))
+        lastIcon.set(browser, { host, icon });
+      else lastIcon.delete(browser);
+    },
     onLocationChange(browser, webProgress, request, location) {
       // Subframes report here too -- tabbrowser.js says so in as many
       // words. An ad frame navigating would otherwise overwrite the tab's
       // host, and the next same-site load would look like a new site and
       // lose the icon: the hold quietly stopped working on half the web.
       if (!webProgress?.isTopLevel) return;
-      const prev = lastHost.get(browser), host = hostOf(location);
-      lastHost.set(browser, host);
-      if (!keepIconOn() || !host || host !== prev || browser.mIconURL) return;
-      const img = gBrowser.getTabForBrowser(browser)?.getAttribute("image");
-      if (img) browser.mIconURL = img;
+      const held = lastIcon.get(browser);
+      if (!held) return;
+      if (held.host !== hostOf(location)) { lastIcon.delete(browser); return; }
+      // The image attribute may be a process-bound moz-remote-image display
+      // URL. SessionStore saves mIconURL, so retain only Gecko's source.
+      if (keepIconOn() && !browser.mIconURL) browser.mIconURL = held.icon;
     },
   };
 
@@ -554,7 +561,13 @@
     Services.prefs.addObserver(PREFIX, prefVarObserver);
     try { syncOtherMods(); } catch (e) { console.error("[Glassflow] other mods failed:", e); }
     for (const branch of OTHER_WATCH) Services.prefs.addObserver(branch, otherModsObserver);
-    try { gBrowser.addTabsProgressListener(iconKeeper); } catch (e) { console.error("[Glassflow] favicon hold failed to start:", e); }
+    try {
+      gBrowser.addTabsProgressListener(iconKeeper);
+      for (const tab of gBrowser.tabs) {
+        if (tab.linkedPanel && tab.linkedBrowser?.mIconURL)
+          iconKeeper.onLinkIconAvailable(tab.linkedBrowser, tab.linkedBrowser.mIconURL);
+      }
+    } catch (e) { console.error("[Glassflow] favicon hold failed to start:", e); }
     syncPageBlur();
     const stopBackdrop = sidebarBackdrop();
     // Sine cleanup and window unload can both run; retire this copy once.

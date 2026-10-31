@@ -70,7 +70,7 @@ async function environment({ realMetadata = false, failArchive = new Set() } = {
     manifests[theme.id] = { ...theme, enabled: true };
   }
   const fs = new Map();
-  let registry = Object.fromEntries(Object.entries(manifests).map(([id, m]) => [id, { ...m, updatedAt: "2020-01-01T00:00:00Z" }]));
+  let registry = Object.fromEntries(Object.entries(manifests).map(([id, m]) => [id, { ...structuredClone(m), updatedAt: "2020-01-01T00:00:00Z" }]));
   const entries = p => [...fs].filter(([k]) => k === p || k.startsWith(p + "/"));
   const exists = p => entries(p).length > 0;
   const erase = p => { for (const [k] of entries(p)) fs.delete(k); };
@@ -151,10 +151,44 @@ async function environment({ realMetadata = false, failArchive = new Set() } = {
     lastLoad = Promise.all(Object.values(registry).map(mod => utils.getModPreferences(mod)));
     return lastLoad;
   };
-  return { manager, utils, IOUtils, ucAPI, fs, manifests, marketplace, metadataRequests, updatedMods, sharedRepoDate,
+  return { manager, utils, IOUtils, ucAPI, fs, repo, manifests, marketplace, metadataRequests, updatedMods, sharedRepoDate,
     get lastLoad() { return lastLoad; },
     get registry() { return registry; } };
 }
+
+test("native Sine: nested archive files commit, invalid or missing files roll back, and retry succeeds", { skip: !upstream }, async () => {
+  const env = await environment(), id = "zz-groupflow", mod = env.manifests[id];
+  const folder = env.utils.getModFolder(id), previous = structuredClone(env.registry[id]);
+  const diskBefore = () => [...env.fs].filter(([p]) => p.startsWith(folder + "/")).sort();
+  const prior = diskBefore();
+  for (const [from, to] of [["preferences.json","config/menu/preferences.json"],["userChrome.css","styles/sidebar/userChrome.css"],["groupflow.uc.js","scripts/icons/groupflow.uc.js"]]) {
+    env.repo.set("groupflow/"+to, env.repo.get("groupflow/"+from)); env.repo.delete("groupflow/"+from);
+  }
+  mod.preferences = "config/menu/preferences.json"; mod.style.chrome = "styles/sidebar/userChrome.css";
+  delete mod.scripts["groupflow.uc.js"];
+  const script = "./scripts/icons/groupflow.uc.js";
+  // Node's path.join accepts a nested second argument. Gecko's join rejects
+  // both separators inside a leaf on Windows. The upstream preferences reader
+  // and host-folder extraction already supply individual components.
+  const PathUtils = { join(base, ...leaves) {
+    if (leaves.some(p => /[\\/]/.test(p))) throw new DOMException("PathUtils.join: NS_ERROR_FILE_UNRECOGNIZED_PATH");
+    return path.posix.join(base, ...leaves);
+  } };
+  installSineUpdateGuard(env.manager, env.utils, { IOUtils: env.IOUtils, PathUtils });
+  for (const invalid of ["../outside","/absolute","C:/absolute","C:relative","//server/share","..\\outside","assets/.. /p","assets/p:stream","assets//file","assets/","assets/missing"]) {
+    mod.scripts[invalid] = {};
+    const list = await env.utils.getMods();
+    await assert.rejects(env.manager.processModUpdate(list[id],list,null), /(?:Invalid installed file path|Missing installed file)/, invalid);
+    assert.deepEqual(env.registry[id],previous); assert.deepEqual(diskBefore(),prior);
+    delete mod.scripts[invalid];
+  }
+  mod.scripts[script] = {}; const list = await env.utils.getMods();
+  assert.equal((await env.manager.processModUpdate(list[id],list,null)).changed,true);
+  assert.equal(env.registry[id].style.chrome,mod.style.chrome);
+  assert.equal(env.registry[id].preferences,mod.preferences);
+  assert.deepEqual(await env.utils.getModPreferences(env.registry[id]),JSON.parse(env.repo.get("groupflow/"+mod.preferences)));
+  assert.ok(env.fs.has(folder+"/scripts/icons/groupflow.uc.js"));
+});
 
 test("native Sine: newer version is skipped when the shared repository timestamp is unchanged", { skip: !upstream }, async () => {
   const env = await environment({ realMetadata: true });

@@ -1,6 +1,41 @@
 # Returned Windows pixels and popup accessibility
 
-## Returned v6 follow-up and Glassflow 3.74.21
+## Final Windows pixel check: Glassflow 3.74.22
+
+**Confirmed on Zen 1.24b:** all eight reduced-transparency and forced-colors
+menus painted the system background and text colors. All four normal menus kept
+their glass appearance. Both generated pages refreshed the blur with the sidebar
+already open. The archive passed its integrity check; all 88 PNGs decoded and
+its report matched the separate JSON. The 14 cases completed without errors.
+
+| Captured menu state | Result in the desktop pixels |
+| --- | --- |
+| Reduced transparency and contrast (8 cases) | All 2,880 sampled background pixels matched the system swatch exactly. Light and forced-color menus painted white; dark reduced-transparency menus painted RGB (28, 27, 34). The first enabled label contained pixels matching the system text color in every case. |
+| Normal glass (4 cases) | None of the 1,440 background samples equaled the opaque swatch. Both light and dark menus remained tinted; their computed fill was 50%. |
+| Ordinary, selected and disabled rows | In all six ordinary/selected pairs the second row gained a visible highlight; the disabled label remained visually distinct. Selection was set by the fixture, so this does not test physical keyboard input. |
+
+Method: in each menu PNG compare the text-free 20 × 18 px rectangle starting
+at (12, 12) to the RGB pixel 10 px in from the lower-right corner of its paired
+system swatch. The rectangle avoids text, borders and the selected row. These
+are comparisons of presented RGB values; the screenshot's alpha channel is
+not a measurement of CSS opacity.
+
+| Load with the sidebar open | Result in the 16 sidebar/control pairs |
+| --- | --- |
+| Transparent → opaque | The first sidebar sample was still cyan at +48 ms. The separately sampled outside band was already amber at +61 ms. The sidebar was blurred amber at +128 ms and stayed identical through the remaining samples. |
+| Opaque → transparent | The blurred band changed to amber at +71 ms. Both regions briefly showed a darker background; the sidebar reached its final appearance at +134 ms and stayed there. |
+
+The page-strip filter was off. Final mean horizontal luma differences
+(0–255 scale) were **0.158 vs 41.407** for the opaque sidebar vs outside control,
+and **0.132 vs 34.587** for the transparent pair. Fine stripes stayed visible
+outside the sidebar and blurred behind it. Median sidebar sampling interval
+was 62 ms; these are capture times, not exact latency or animation frame rates.
+
+This closes the requested Windows pixel check. No further capture or production
+change is indicated by these fixtures. They do not cover every site transition
+or OS accessibility theme. Raw screenshots, reports and local paths stay private.
+
+## Earlier v6 follow-up on Glassflow 3.74.20 and correction in 3.74.21
 
 The short run completed **14 cases, 88 PNG crops, zero errors** on Glassflow
 3.74.20. Raw reports, account paths and screenshots remain private.
@@ -57,11 +92,8 @@ Checks for 3.74.21:
   one-second lifecycle checks. The browser retry and serial gate passed without
   changing any timeout or product behavior to accommodate the test host.
 
-The unchanged [automatic short capture](../tools/NATIVE-BLUR-PROBE.md) can verify
-the corrected Windows menu pixels after Glassflow 3.74.21 is installed. Return its
-ZIP/copied JSON; no full blur matrix is needed. Linux native style checks do not
-substitute for those Windows pixels. Implementation and analysis remain owned by
-the implementer.
+The [automatic short capture](../tools/NATIVE-BLUR-PROBE.md) subsequently
+verified the correction on Windows with Glassflow 3.74.22, as recorded above.
 
 ## Completed v5 capture
 
@@ -123,8 +155,7 @@ The v6 [automatic short follow-up](../tools/NATIVE-BLUR-PROBE.md) collects two
 verified-background load sequences and 12 menu cases (88 crops), including native
 selection styling. That 3.74.20 capture has now been returned and analyzed above.
 It also runs on older installations for diagnosis, with the same native
-acrylic startup settings as the returned v5 run. This is a machine-data request;
-analysis and fixes remain implementer-owned. The full 108-case runner remains available.
+acrylic startup settings as the returned v5 run. The full 108-case runner remains available.
 
 ## V6 checks
 
@@ -144,7 +175,7 @@ analysis and fixes remain implementer-owned. The full 108-case runner remains av
 - The shipped short collector completes all 14 cases in Zen with a simulated
   Windows worker. Both document backgrounds are verified, both fixture palettes
   differ and every captured menu/item opacity is settled. The returned Windows
-  results and remaining system-color correction are above.
+  results and verification of the system-color correction are above.
 - The full 108-case collector also completes in native Zen with the simulated
   screen worker, creates its ZIP and restores preferences/selected tab/Library.
   Nested selected-tab return, independent Library copies and six existing
@@ -154,7 +185,7 @@ analysis and fixes remain implementer-owned. The full 108-case runner remains av
   stale hard-coded v4 expectation now follows the tested source's probe version.
 - The existing PowerShell 7.6.9 worker geometry, refusal, identity and journal
   checks pass; Win32 calls are substituted. Transport checks use real PowerShell
-  processes and file handoff. Windows screen pixels remain the explicit request.
+  processes and file handoff. The separate Windows capture above supplied screen pixels.
 - Concurrent browser/gate runs hit pre-existing short Sine/Library test limits.
   The final gate runs without concurrent browsers; no test timeout was relaxed.
   The new popup test also replaced a fixed wait with finite-animation settling
@@ -226,10 +257,6 @@ freshness or visual smoothness.
 - Analyzer self-checks passed against generated flat, striped and color-change
   images; analysis of the returned ZIP reproduced the counts and equalities above.
 
-Production mod files/defaults are unchanged by this collector repair. The redraw
-workaround and saved optional page-filter choice remain intact. The next Windows
-capture must establish changing backdrop pixels, plus the previously unreached
-overlay/menu phases, before another production decision follows.
-
-Both requested v5 and v6 captures have now been returned and analyzed above.
-Only the corrected menu pixels remain to be confirmed on Windows.
+This collector repair left the redraw workaround and saved optional page-filter
+choice intact. The subsequent v5/v6 captures above supplied the missing load,
+overlay and menu evidence.

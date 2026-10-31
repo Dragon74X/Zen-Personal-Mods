@@ -4,10 +4,13 @@ This reconciles earlier remaining-work notes with implementation and evidence.
 Requested implementation and verification remain the implementer's work. A device
 limitation is not permission to hand the implementation back to the user.
 
-Follow-up: [returned v5 pixels and popup correction](NATIVE-BLUR-2026-10-30-CAPTURE-ANALYSIS.md)
-show working generated-fixture loading/slide/overlay blur and expose a menu
-defect fixed in Glassflow 3.74.20. The requested opaque/transparent backgrounds
-painted alike; the short follow-up verifies their actual state and corrected menus. No other implementation is delegated.
+Follow-up: [returned v5/v6 pixels and popup corrections](NATIVE-BLUR-2026-10-30-CAPTURE-ANALYSIS.md)
+show working generated-fixture loading/slide/overlay blur. V6 verifies distinct
+opaque/transparent backgrounds and fresh blur while the sidebar stays open.
+It also exposes a second menu defect: Windows Mica's system Menu color itself
+has 60% alpha. Glassflow 3.74.21 uses Canvas/CanvasText for accessibility menus;
+the strengthened native check rejects the prior translucent result. No other
+implementation is delegated.
 
 ## Missed work completed in this change
 
@@ -109,11 +112,13 @@ budget and partition tests verify behavior, not time saved.
 
 ## Explicit machine-data request
 
-The full Windows v5 capture has been returned and analyzed. Run only the
-[automatic short follow-up](../tools/NATIVE-BLUR-PROBE.md) with Glassflow 3.74.20
-and return its ZIP plus copied JSON. It starts and advances by itself; the earlier
-loading/sliding/overlay matrix is not requested again. Analysis and resulting
-changes remain the implementer's work. No arbitrary page screenshots or uploads.
+The full Windows v5 capture and 14-case v6 follow-up have been returned and
+analyzed. The remaining machine-only check is the corrected menu pixels. Run the
+unchanged [automatic short capture](../tools/NATIVE-BLUR-PROBE.md) with Glassflow
+3.74.21 and return its ZIP plus copied JSON. It starts and advances by itself;
+the full loading/sliding/overlay matrix is not requested again. Analysis and
+resulting changes remain the implementer's work. No arbitrary page screenshots
+or uploads.
 
 If the unattributed exceptions recur, run the separate
 [60-second console-origin collector](../tools/CONSOLE-ORIGIN-PROBE.md) and return

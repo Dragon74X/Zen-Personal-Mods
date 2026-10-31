@@ -43,7 +43,7 @@ return (async () => {
     swatch.style.cssText='color-scheme:only '+scheme+';background:Menu;color:MenuText';
     const menu={fill:getComputedStyle(swatch).backgroundColor,color:getComputedStyle(swatch).color};
     swatch.style.cssText='color-scheme:only '+scheme+';background:Canvas;color:CanvasText';
-    return {menu,panel:{fill:getComputedStyle(swatch).backgroundColor,color:getComputedStyle(swatch).color}};
+    return {menu,canvas:{fill:getComputedStyle(swatch).backgroundColor,color:getComputedStyle(swatch).color}};
   };
   // Keep the root dark to reproduce a theme that ignores the old ui override.
   document.documentElement.style.setProperty('color-scheme','only dark','important');
@@ -53,14 +53,21 @@ return (async () => {
   for(const order of ['arc-first','arc-last']) {
     const sheets=(order==='arc-first'?[arc,popupTestCSS]:[popupTestCSS,arc]).map(sheet);
     try {
-      for(const mica of [false,true])for(const scheme of ['light','dark'])for(const mode of ['normal','reduced','contrast']) {
+      for(const mica of [true,false])for(const scheme of ['light','dark'])for(const mode of ['normal','reduced','contrast']) {
         Services.prefs.setBoolPref('test.mica',mica);
+        // Windows nsLookAndFeel returns alpha 153/255 for Menu with Mica.
+        // Exercise that native system-color input on Linux too; merely comparing
+        // the output to Menu would incorrectly accept a translucent fallback.
+        for(const [pref,color] of [['ui.menu','#ffffff99'],['ui.menu.dark','#00000099']]) {
+          if(mica)Services.prefs.setStringPref(pref,color);else Services.prefs.clearUserPref(pref);
+        }
         Services.prefs.setIntPref('ui.prefersReducedTransparency',mode==='reduced'?1:0);
         Services.prefs.setIntPref('ui.useAccessibilityTheme',mode==='contrast'?1:0);
         Services.prefs.setIntPref('browser.display.document_color_use',mode==='contrast'?2:0);
         for(const host of [popup,panel])host.style.setProperty('color-scheme','only '+scheme,'important');
         await wait(60);
         const colors=palette(scheme),outputs={};
+        if(mica)check(colors.menu.fill.endsWith(', 0.6)'),'Translucent Menu fixture not active',colors);
         for(const enabled of [false,true,false]) {
           Services.prefs.setBoolPref('zzglass.overlays.enabled',enabled);
           await wait(30);
@@ -75,11 +82,12 @@ return (async () => {
             if(!enabled&&outputs[key])check(JSON.stringify(paint)===JSON.stringify(outputs[key]),'Off did not release appearance',{order,mica,scheme,mode,name,paint,previous:outputs[key]});
             outputs[key]=paint;
             if(enabled&&mode!=='normal') {
-              check(paint.fill===colors[name].fill&&paint.color===colors[name].color,'Accessible painted palette mismatch',{order,mica,scheme,mode,name,paint,expected:colors[name]});
+              check(paint.fill.startsWith('rgb('),'Accessible painted background is translucent',{order,mica,scheme,mode,name,paint});
+              check(paint.fill===colors.canvas.fill&&paint.color===colors.canvas.color,'Accessible painted palette mismatch',{order,mica,scheme,mode,name,paint,expected:colors.canvas});
             }
             if(host===popup) {
               const before=[...popup.children].map(e=>getComputedStyle(e).color);
-              if(enabled&&mode!=='normal')check(before[0]===colors.menu.color,'Enabled item lost native menu text',before);
+              if(enabled&&mode!=='normal')check(before[0]===colors.canvas.color,'Enabled item lost accessible text',before);
               check(before[2]!==before[0],'Disabled item lost its native distinction',before);
               popup.children[1].setAttribute('_moz-menuactive','true');await settle(popup);
               const selected=getComputedStyle(popup.children[1]);
@@ -93,7 +101,10 @@ return (async () => {
         }
         result.cases.push({order,mica,scheme,mode,paint:outputs.menutrue,offRestored:true});
       }
-    } finally {for(const uri of sheets)ss.unregisterSheet(uri,1);}
+    } finally {
+      for(const uri of sheets)ss.unregisterSheet(uri,1);
+      for(const pref of ['ui.menu','ui.menu.dark'])Services.prefs.clearUserPref(pref);
+    }
   }
   check(Services.prefs.getStringPref('zzglass.popups.opacity')==='37%','Saved opacity changed');
   popup.remove();panel.remove();swatch.remove();

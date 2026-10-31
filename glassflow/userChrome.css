@@ -1400,10 +1400,9 @@
     --zzglass-popups-opacity: 100% !important;
   }
   @media (-moz-pref("zzglass.overlays.enabled")) {
-    menupopup {
-      --panel-background-color: Menu !important;
-      --panel-text-color: MenuText !important;
-    }
+    /* Windows Mica's Menu color is translucent (alpha 153/255). Use the
+       opaque system canvas pair for both accessible popup surfaces. */
+    menupopup,
     panel[type="arrow"]:not(#feature-callout) {
       --panel-background-color: Canvas !important;
       --panel-text-color: CanvasText !important;

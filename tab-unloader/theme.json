@@ -3,8 +3,8 @@
   "name": "Tab Unloader",
   "description": "Time-based tab unloading with per-category exclusions. Unloads, never closes.",
   "author": "Dragon74X",
-  "version": "1.15.6",
-  "updatedAt": "2026-10-30T03:33:38Z",
+  "version": "1.15.7",
+  "updatedAt": "2026-10-31T17:00:08Z",
   "homepage": "https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/tab-unloader",
   "readme": "https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/main/tab-unloader/README.md",
   "style": {

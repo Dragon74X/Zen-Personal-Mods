@@ -3,7 +3,7 @@
 The returned v5/v6 runs verify generated-fixture loading, sliding and overlay
 blur, including distinct opaque/transparent backgrounds. V6 exposed a remaining
 menu defect: Windows Mica's system Menu color is itself translucent. With
-Glassflow **3.74.21** installed, run the unchanged loader below in the **Browser Console**
+Glassflow **3.74.21 or newer** installed, run the unchanged loader below in the **Browser Console**
 and return its ZIP and automatically copied JSON. It runs **2 load sequences + 12 menu cases**,
 normally in about 20 seconds. No manual phases or theme changes are needed.
 Only the corrected Windows menu pixels remain to verify; the two load cases stay

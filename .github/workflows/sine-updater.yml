@@ -1,0 +1,45 @@
+name: Native Sine updater
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '**/sine-update-guard.sys.mjs'
+      - 'glassflow/glassflow.uc.js'
+      - 'tools/*sine*'
+      - 'tools/zen-update-checks.js'
+      - 'tools/zen-favicon-restore-checks.js'
+      - 'tools/zen-smoke.py'
+      - 'tools/upstream/zen-1.24b-invalid-pinned-target.patch'
+      - '.github/workflows/sine-updater.yml'
+permissions:
+  contents: read
+jobs:
+  windows-zen:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    env:
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: CosmoCreeper/Sine
+          ref: 31ed34f7a5b724757cff8b59a511d10313191f8d
+          path: .test-sine
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check nested files, retry, settings and session restore in Windows Zen
+        shell: pwsh
+        run: |
+          python -m pip install Pillow
+          $installer = Join-Path $env:RUNNER_TEMP zen-1.24b.exe
+          curl.exe -fsSL --retry 2 -o $installer https://github.com/zen-browser/desktop/releases/download/1.24b/zen.installer.exe
+          if ($LASTEXITCODE -or (Get-FileHash $installer).Hash -ne '2d55965f1952f2e5489dfaf954d613ebbf6361c5ca2bcad95ab8d3c0a481d6a4') { throw 'Zen download did not match the official release' }
+          $runtime = Join-Path $env:RUNNER_TEMP zen-runtime
+          7z x -y "-o$runtime" $installer | Out-Null
+          if ($LASTEXITCODE) { throw 'Could not extract Zen' }
+          $zen = Get-ChildItem $runtime -Filter zen.exe -File -Recurse | Select-Object -First 1
+          if (!$zen) { throw 'Zen executable missing' }
+          python tools/zen-smoke.py --zen $zen.FullName --sine-update .test-sine/src

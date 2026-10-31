@@ -9,10 +9,12 @@ import argparse
 import base64
 import io
 import json
+import os
 from pathlib import Path
 import re
 import socket
 import subprocess
+import sys
 import tempfile
 import time
 from urllib.parse import quote
@@ -1055,6 +1057,87 @@ def check_native_popups(m, root):
     return result
 
 
+def check_sine_update(m, root, sine):
+    """Real Gecko file APIs and Sine's actual updater and settings button."""
+    mappings = [['content', 'userscripts', sine.resolve().as_uri() + '/'],
+                ['content', 'locales', (sine.parent/'locales').resolve().as_uri() + '/']]
+    m.script('window.updateChrome=Cc["@mozilla.org/addons/addon-manager-startup;1"].getService(Ci.amIAddonManagerStartup).registerChrome(Services.io.newFileURI(Services.dirsvc.get("ProfD",Ci.nsIFile)),'+json.dumps(mappings)+');return true;')
+    settings=(sine/'core/settings.mjs').read_text()
+    button=settings[settings.index('const checkForUpdates ='):settings.index('document.querySelector("#sineModImport").addEventListener')]
+    # Only the fragment factory is adapted to its fixture window; the click
+    # listener, busy paragraph, await and native success labels are upstream.
+    m.script('window.bindUpdateButton=(document,installedGroup,manager)=>{const domUtils={appendXUL:(parent,xml)=>parent.append(document.defaultView.MozXULElement.parseXULToFragment(xml))};'+button+'};return true;')
+    m.script('window.updateSettingsTab=gBrowser.addTab("about:preferences",{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal()});gBrowser.selectedTab=updateSettingsTab;return true;')
+    result=m.script((root/'tools/zen-update-checks.js').read_text())
+    # Exercise the user launch action as shipped, including real ZIP/clipboard
+    # APIs. Only a known local guard copy can pass its on-disk hash check.
+    m.script('''return (async()=>{
+      const u=ChromeUtils.importESModule("chrome://userscripts/content/core/utils.sys.mjs").default;
+      const id="zz-download-prompt",name="sine-update-guard.sys.mjs",folder=u.getModFolder(id);
+      await IOUtils.makeDirectory(folder);const code=await (await fetch("chrome://sine/content/"+id+"/"+name)).text();
+      await IOUtils.writeUTF8(PathUtils.join(folder,name),code);const mods=await u.getMods();
+      mods[id]={id,enabled:true,"no-updates":true,scripts:{[name]:{}}};await IOUtils.writeJSON(u.modsDataFile,mods);
+      return true;
+    })();''')
+    recovery=m.script('return (\n'+(root/'tools/sine-update-recovery.js').read_text().rstrip().removesuffix(';')+'\n);')
+    assert recovery['fixedGuardActive'] and recovery['check']=='up-to-date' and recovery['verifiedCopies']==recovery['enabledCopies']==1,recovery
+    import zipfile
+    archive=Path(m.script('return PathUtils.tempDir;'))/recovery['archiveInTemp']
+    try:
+        with zipfile.ZipFile(archive) as z:
+            assert z.namelist()==['report.json'] and json.loads(z.read('report.json'))==recovery
+        assert m.script('return !window.__zzSineUpdateRecovery;')
+        result['recovery']={'verifiedLocalCopy':True,'archive':True}
+    finally:
+        import shutil
+        shutil.rmtree(archive.with_suffix(''),ignore_errors=True);archive.unlink(missing_ok=True)
+    if m.script('return !!window.gZenWorkspaces;'):
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+        from threading import Thread
+        class Page(BaseHTTPRequestHandler):
+            def do_GET(self):
+                body=('<title>'+self.path+'</title>Fixture').encode()
+                self.send_response(404 if self.path=='/favicon.ico' else 200)
+                self.send_header('Content-Type','text/html');self.end_headers();self.wfile.write(body)
+            def log_message(self,*args): pass
+        with ThreadingHTTPServer(('127.0.0.1',0),Page) as server:
+            thread=Thread(target=server.serve_forever,daemon=True);thread.start()
+            try:
+                m.script('window.faviconPort='+str(server.server_port)+';return gZenStartup.promiseInitialized.then(()=>true);')
+                m.script((root/'glassflow/glassflow.uc.js').read_text()+'\nreturn true;')
+                result['favicon']=m.script((root/'tools/zen-favicon-restore-checks.js').read_text())
+            finally:
+                server.shutdown();thread.join()
+        # The upstream private method cannot be repaired by a browser mod.
+        # Apply the proposed source patch only to a temporary copy and run
+        # that class against the same real tab and SessionStore.
+        original=m.script('return fetch("chrome://browser/content/zen-components/ZenPinnedTabManager.mjs").then(r=>r.text());')
+        if 'createNullPrincipal()' in original:
+            with tempfile.TemporaryDirectory() as checkout:
+                candidate=Path(checkout)/'src/zen/tabs/ZenPinnedTabManager.mjs'
+                candidate.parent.mkdir(parents=True);candidate.write_bytes(original.replace('\r\n','\n').encode('utf-8'))
+                patch=(root/'tools/upstream/zen-1.24b-invalid-pinned-target.patch').read_text(encoding='utf-8').encode('utf-8')
+                subprocess.run(['git','-c','core.autocrlf=false','apply','-'],cwd=checkout,input=patch,check=True)
+                code=candidate.read_text().replace('import { nsZenDOMOperatedFeature } from "chrome://browser/content/zen-components/ZenCommonUtils.mjs";','const { nsZenDOMOperatedFeature }=ChromeUtils.importESModule("chrome://browser/content/zen-components/ZenCommonUtils.mjs",{global:"current"});')
+                code=code.replace('window.gZenPinnedTabManager = new nsZenPinnedTabManager();','window.pinnedCandidate = new nsZenPinnedTabManager();')
+                m.script('(()=>{'+code+'})();return true;')
+            result['upstreamPinnedCandidate']=m.script('''return (async()=>{
+              const t=gBrowser.addTab("about:blank",{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal()});
+              gBrowser.pinTab(t);t._zenPinnedInitialState={entry:{url:":::invalid fixture"}};
+              const before=JSON.stringify(JSON.parse(SessionStore.getTabState(t)).entries);
+              let oldError;try{gZenPinnedTabManager.resetPinnedTab(t);}catch(e){oldError=e.result;}
+              if(oldError!==Cr.NS_ERROR_XPC_NOT_ENOUGH_ARGS)throw Error("Stock pinned failure not reproduced");
+              pinnedCandidate.resetPinnedTab(t);
+              if(JSON.stringify(JSON.parse(SessionStore.getTabState(t)).entries)!==before)throw Error("Invalid target changed tab history");
+              t._zenPinnedInitialState={entry:{url:"about:robots"}};
+              pinnedCandidate.resetPinnedTab(t);
+              const after=JSON.parse(SessionStore.getTabState(t));
+              if(after.entries?.[0]?.url!=="about:robots"||!after.entries[0].triggeringPrincipal_base64)throw Error("Valid pin did not reset with its principal");
+              gBrowser.removeTab(t,{animate:false});return {stockFailure:true,invalidPreserved:true,validReset:true,installed:false};
+            })();''')
+    return result
+
+
 def check_native_integration(m, root):
     m.script('return gZenStartup.promiseInitialized.then(()=>true);')
     mods = ['glassflow', 'glassflow-library', 'groupflow', 'iconflow', 'tab-router', 'mediaflow']
@@ -1286,6 +1369,7 @@ def main():
     parser.add_argument("--actions", action="store_true", help="Check native menus, snapshots, diagnostics and scoped actions")
     parser.add_argument("--native-integration", action="store_true", help="Check Zen 1.24 native ownership and accessibility")
     parser.add_argument("--popup-accessibility", action="store_true", help="Check native popup paint ownership against Arc and settled menu capture")
+    parser.add_argument("--sine-update", type=Path, help="Check the updater button, nested manifest paths and rollback against this Sine src directory")
     parser.add_argument("--probe-loader", action="store_true", help="Check the blur loader through the actual Browser Console actor with CSP enabled")
     parser.add_argument("--probe-fixture", action="store_true", help="Render the actual cyan/amber navigation challenge and document transparency")
     args = parser.parse_args()
@@ -1296,6 +1380,13 @@ def main():
         for theme in root.glob('*/theme.json'):
             mod_id = json.loads(theme.read_text())['id']
             target = profile / 'sine-mods' / mod_id
+            if args.sine_update:
+                # Never point an updater test at a source checkout via a link.
+                if mod_id == 'zz-download-prompt':
+                    import shutil
+                    target.mkdir()
+                    shutil.copyfile(theme.parent/'sine-update-guard.sys.mjs',target/'sine-update-guard.sys.mjs')
+                continue
             if not target.exists():
                 target.symlink_to(theme.parent, target_is_directory=True)
         with socket.socket() as sock:
@@ -1306,8 +1397,13 @@ def main():
                  "zen.welcome-screen.enabled": False, "browser.tabs.allow_transparent_browser": True}
         (profile / "user.js").write_text("\n".join(f"user_pref({json.dumps(k)}, {json.dumps(v)});" for k, v in prefs.items()))
         with (profile / "browser.log").open("w") as log:
-            process = subprocess.Popen([str(args.zen.resolve()), "--headless", "--no-remote", "--profile", directory,
-                                        "--marionette", "--remote-allow-system-access", "about:blank"], stdout=log, stderr=log)
+            win_update = args.sine_update and sys.platform == "win32"
+            # This one process runs against our new temporary profile only.
+            # Current Gecko requires both the switch and the environment opt-in.
+            native_env = {**os.environ, "MOZ_REMOTE_ALLOW_SYSTEM_ACCESS":"1"} if args.sine_update else None
+            process = subprocess.Popen([str(args.zen.resolve()), *(["-wait-for-browser"] if win_update else []), "--headless", "--no-remote", "--profile", directory,
+                                        "--marionette", "--remote-allow-system-access", "about:blank"], stdout=log, stderr=log, env=native_env)
+            m = None
             try:
                 for _ in range(100):
                     try:
@@ -1321,9 +1417,15 @@ def main():
                 m.script("""window.zzsmokeChrome=Cc['@mozilla.org/addons/addon-manager-startup;1']
                   .getService(Ci.amIAddonManagerStartup).registerChrome(Services.io.newURI(""" +
                   json.dumps((profile / 'chrome.manifest').as_uri()) + """),[['content','sine','sine-mods/']]);return true;""")
-                result = check_native_popups(m, root) if args.popup_accessibility else check_probe_fixture(m, root) if args.probe_fixture else check_probe_loader(m, root) if args.probe_loader else check_native_integration(m, root) if args.native_integration else check_actions(m, root) if args.actions else check_library_hover(m, root, args.arc) if args.library_hover else check(m, root, args.arc, args.transparent)
+                result = check_sine_update(m, root, args.sine_update) if args.sine_update else check_native_popups(m, root) if args.popup_accessibility else check_probe_fixture(m, root) if args.probe_fixture else check_probe_loader(m, root) if args.probe_loader else check_native_integration(m, root) if args.native_integration else check_actions(m, root) if args.actions else check_library_hover(m, root, args.arc) if args.library_hover else check(m, root, args.arc, args.transparent)
                 print(json.dumps(result, indent=2))
             finally:
+                if win_update and m:
+                    try:
+                        m.call("Marionette:Quit",{"flags":["eForceQuit"]})
+                        process.wait(timeout=10)
+                    except (ConnectionError, OSError, RuntimeError, subprocess.TimeoutExpired):
+                        pass
                 process.terminate()
                 try:
                     process.wait(timeout=5)

@@ -49,15 +49,62 @@ export function installSineUpdateGuard(manager, utils, { IOUtils, PathUtils, Ser
   const operations = serial();
   const updates = serial();
   let batchErrors = null;
+  // Sine's settings caller clears its busy paragraph only on success. Track
+  // its actual paragraph, so an older request cannot overwrite a newer one.
+  // ponytail: retire when the upstream settings caller handles rejection.
+  const indicators = new Map();
+  function attachSettings(win) {
+    const doc = win?.document;
+    const indicator = doc?.querySelector("#sineInstalledGroup .update-indicator");
+    if (!indicator || indicators.has(indicator)) return;
+    indicators.set(indicator, null);
+    win.addEventListener("unload", () => indicators.delete(indicator), { once: true });
+    // Sine registers only the initializer. Zen 1.24 also looks up the module
+    // when navigating. Use the native registrar and retain Sine's initializer.
+    const sine = win.gCategoryInits?.get("paneSineMods");
+    if (sine && win.gCategoryModules && !win.gCategoryModules.has("paneSineMods")) {
+      if (typeof win.register_module === "function") win.register_module("paneSineMods", sine);
+      else win.gCategoryModules.set("paneSineMods", sine);
+    }
+    // Search initializes every pane, including the marketplace Sine removed.
+    // Leave the real marketplace alone wherever its tab or backend still exists.
+    const retired = win.gCategoryInits?.get("paneZenMarketplace");
+    const browser = win.browsingContext?.topChromeWindow;
+    if (retired && browser && !browser.gZenMods && !win.gZenMods &&
+        doc.getElementById("category-sine-mods") && !doc.getElementById("category-zen-marketplace"))
+      retired._initted = true;
+  }
+  if (typeof manager.loadMods === "function") {
+    const load = manager.loadMods;
+    manager.loadMods = function (win, ...args) {
+      attachSettings(win);
+      return load.call(this, win, ...args);
+    };
+  }
   // Queue before updateMods/installMod read mods.json, preventing stale copies
   // from separate user actions overwriting each other's installed-mod entries.
   manager.updateMods = function (...args) {
+    const waiting = [];
+    for (const [indicator, previous] of indicators) {
+      const busy = indicator.firstElementChild;
+      if (busy && busy !== previous && !busy.classList.contains("checked") && busy.textContent.trim() === "...") {
+        indicators.set(indicator, busy);
+        waiting.push([indicator, busy]);
+      }
+    }
     return operations(async () => {
       batchErrors = [];
       try {
         const result = await original.updateMods.apply(this, args);
         if (batchErrors.length) throw batchErrors[0];
         return result;
+      } catch (error) {
+        for (const [indicator, busy] of waiting) if (indicators.get(indicator) === busy) {
+          busy.setAttribute("role", "alert");
+          busy.textContent = "Update check failed. You can retry.";
+          indicator.replaceChildren(busy);
+        }
+        throw error;
       } finally {
         await updates.drain();
         batchErrors = null;
@@ -158,16 +205,20 @@ export function installSineUpdateGuard(manager, utils, { IOUtils, PathUtils, Ser
           const mod = intended[transaction.id];
           if (mod !== transaction.theme && !equal(mod, transaction.theme)) continue;
           const folder = transaction.folder;
-          const required = [mod.preferences, ...Object.values(mod.style || {}), ...Object.keys(mod.scripts || {})].filter(Boolean);
+          const required = new Set([mod.preferences, ...Object.values(mod.style || {}), ...Object.keys(mod.scripts || {})].filter(Boolean));
           for (const name of required) {
-            if (typeof name !== "string" || name.startsWith("/") || name.split(/[\\/]/).includes("..") ||
-                !await IOUtils.exists(PathUtils.join(folder, name))) throw new Error(`Missing installed file: ${transaction.id}/${name}`);
+            // Sine stores archive-relative paths with '/'. Gecko join() takes
+            // individual components; passing a nested name as one leaf fails.
+            const parts = typeof name === "string" ? name.split("/") : [];
+            if (!parts.length || parts.at(-1) === "." || parts.some(p =>
+              !p || /[\\:\x00-\x1f]/.test(p) || (p !== "." && /[. ]$/.test(p))))
+              throw new Error(`Invalid installed file path: ${transaction.id}`);
+            const file = PathUtils.join(folder, ...parts.filter(p => p !== "."));
+            if (!await IOUtils.exists(file)) throw new Error(`Missing installed file: ${transaction.id}/${name}`);
+            if (name === mod.preferences && IOUtils.readJSON && !Array.isArray(await IOUtils.readJSON(file)))
+              throw new Error(`Invalid preferences: ${transaction.id}`);
           }
           if (transaction.hadPreferences && !mod.preferences) throw new Error(`Missing preferences: ${transaction.id}`);
-          if (mod.preferences && IOUtils.readJSON) {
-            const preferences = await IOUtils.readJSON(PathUtils.join(folder, mod.preferences));
-            if (!Array.isArray(preferences)) throw new Error(`Invalid preferences: ${transaction.id}`);
-          }
           // Updating code must not reset the user's install controls.
           for (const key of ["enabled", "no-updates"]) if (Object.hasOwn(current[transaction.id] || {}, key)) merged[transaction.id][key] = current[transaction.id][key];
         }
@@ -263,9 +314,10 @@ export function installSineUpdateGuard(manager, utils, { IOUtils, PathUtils, Ser
       finally { reasons(window).delete(id); }
     };
   }
-  // The shared manager makes 6 copies and multiple windows install just once.
+  // All standalone copies share one owner. The recovery check can distinguish
+  // this revision from an older guard still resident until browser restart.
   // Deliberately session-scoped: no window unload may abandon pending updates.
-  Object.defineProperty(manager, marker, { value: true });
+  Object.defineProperty(manager, marker, { value: 2 });
   return true;
 }
 

@@ -1,5 +1,68 @@
 # Returned Windows pixels and popup accessibility
 
+## Returned v6 follow-up and Glassflow 3.74.21
+
+The short run completed **14 cases, 88 PNG crops, zero errors** on Glassflow
+3.74.20. Raw reports, account paths and screenshots remain private.
+
+| Evidence | Finding |
+| --- | --- |
+| Two open-sidebar loads | Actual HTML/body backgrounds change between transparent and white. Both the sidebar and outside control change from cyan to amber without reopening the sidebar, with the page-strip filter disabled. |
+| Opaque destination | The first amber sidebar sample is 112ms after the load trigger; subsequent samples are identical. Final horizontal luma difference is 0.158 behind the sidebar versus 41.407 in the outside control, on the 0–255 scale. |
+| Transparent destination | Amber appears after 73ms. One intermediate sample has a darker background in both the sidebar and outside control; the final appearance is present after 136ms and remains identical thereafter. Final luma difference is 0.132 behind the sidebar versus 34.587 outside. The blurred band is present in that intermediate sample too. |
+| Twelve menus | Light/dark palettes differ correctly; entrance animations have settled, disabled text is distinct, and the selected item has a native highlight. Reduced-transparency and contrast menu fills still have alpha 0.6, while their Canvas control is opaque. |
+
+There are no capture identity gaps. Median sidebar sample spacing is 62ms; these
+samples establish refreshed blur in the two generated loads, not frame pacing or
+the absence of every intermediate paint. They do not cover every cross-process
+site transition. The finite redraw owner and saved optional page-filter choice
+remain intact. The earlier loading/slide/overlay matrix is not requested again.
+
+The remaining menu defect comes from the system color itself:
+[Firefox 159 Windows LookAndFeel](https://github.com/mozilla-firefox/firefox/blob/FIREFOX_159_0_RELEASE/widget/windows/nsLookAndFeel.cpp)
+returns Menu with alpha **153/255** when Mica popups use non-native menu colors.
+That is the exact 0.6 captured on Windows. An opaque host and a 100% custom opacity
+variable cannot make that translucent color opaque. The prior Linux test compared
+the fill with Menu, which accepted the wrong contract and missed this platform
+difference.
+
+Glassflow 3.74.21 uses the opaque **Canvas/CanvasText** pair for both menu and
+arrow-panel accessibility surfaces in the existing policy. This consolidates the
+two palette declarations; it adds no override block, setting or runtime work.
+Normal glass, native disabled/selection styling and Off release stay intact.
+
+The native regression now supplies the real 60% system Menu input through
+Gecko's documented-in-source `ui.menu` / `ui.menu.dark` color preferences in a
+disposable profile. It requires opaque painted content and matching system text,
+independently of the Menu token. The previous 3.74.20 stylesheet fails with the
+same `rgba(255, 255, 255, 0.6)` seen in the capture.
+
+Checks for 3.74.21:
+
+- Actual Zen 1.24 passes 24 popup configurations: two Arc stylesheet orders,
+  opaque/translucent native Menu inputs, light/dark schemes and normal/reduced/
+  contrast signals. Off restores its prior appearance, and native disabled/
+  selected colors remain distinct and unchanged by the correction.
+- The unchanged 14-case collector completes in native Zen with a simulated
+  Windows worker. Its accessible menu fills now match the opaque Canvas control;
+  foregrounds match CanvasText. Background verification and cleanup still pass.
+- The full repository gate with upstream Sine and PowerShell passes **292 tests,
+  zero failures/cancellations, one optional native entry skipped**. The native
+  checks above ran separately. The final gate uses `--test-concurrency=1`.
+- PowerShell 7.6.9 worker checks pass: five coordinate cases, nine refusals,
+  error journaling, transient identity recovery, owned menus and cancellation.
+  Win32 calls are substituted; this is not a Windows pixel test.
+- Analyzer self-checks and `git diff --check` pass. An initial browser startup
+  timed out, and the initial concurrent Node run cancelled three existing
+  one-second lifecycle checks. The browser retry and serial gate passed without
+  changing any timeout or product behavior to accommodate the test host.
+
+The unchanged [automatic short capture](../tools/NATIVE-BLUR-PROBE.md) can verify
+the corrected Windows menu pixels after Glassflow 3.74.21 is installed. Return its
+ZIP/copied JSON; no full blur matrix is needed. Linux native style checks do not
+substitute for those Windows pixels. Implementation and analysis remain owned by
+the implementer.
+
 ## Completed v5 capture
 
 The returned v5 run completed **102 cases, 1,628 PNG crops, zero errors**:
@@ -56,9 +119,9 @@ backgrounds through its title. Load readiness and capture completion verify
 those values. The settled matrix now loads the requested document too. No actor,
 profile script, external page content or new production polling is introduced.
 
-The [automatic short follow-up](../tools/NATIVE-BLUR-PROBE.md) collects two
+The v6 [automatic short follow-up](../tools/NATIVE-BLUR-PROBE.md) collects two
 verified-background load sequences and 12 menu cases (88 crops), including native
-selection styling. Run it with Glassflow 3.74.20 installed and return its ZIP/copied JSON for the remaining Windows pixel checks.
+selection styling. That 3.74.20 capture has now been returned and analyzed above.
 It also runs on older installations for diagnosis, with the same native
 acrylic startup settings as the returned v5 run. This is a machine-data request;
 analysis and fixes remain implementer-owned. The full 108-case runner remains available.
@@ -80,8 +143,8 @@ analysis and fixes remain implementer-owned. The full 108-case runner remains av
   Linux headless screenshots, so these are actual Gecko style/state checks.
 - The shipped short collector completes all 14 cases in Zen with a simulated
   Windows worker. Both document backgrounds are verified, both fixture palettes
-  differ and every captured menu/item opacity is settled. Full Windows pixel
-  confirmation remains the explicit data request above.
+  differ and every captured menu/item opacity is settled. The returned Windows
+  results and remaining system-color correction are above.
 - The full 108-case collector also completes in native Zen with the simulated
   screen worker, creates its ZIP and restores preferences/selected tab/Library.
   Nested selected-tab return, independent Library copies and six existing
@@ -168,5 +231,5 @@ workaround and saved optional page-filter choice remain intact. The next Windows
 capture must establish changing backdrop pixels, plus the previously unreached
 overlay/menu phases, before another production decision follows.
 
-That requested v5 capture has now been returned and analyzed above. The remaining
-targeted request is the v6 short follow-up, not another full v5 run.
+Both requested v5 and v6 captures have now been returned and analyzed above.
+Only the corrected menu pixels remain to be confirmed on Windows.

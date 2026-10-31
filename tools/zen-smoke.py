@@ -1043,10 +1043,13 @@ def check_native_popups(m, root):
         assert all(float(item['opacity'])==1 for item in computed['items']), case
         assert float(computed['menuOpacity'])==1 and float(computed['contentOpacity'])==1,case
         assert case['fixtureScheme'] in computed['colorScheme'],case
+        if case['mode']!='normal':
+            assert computed['menuFill'].startswith('rgb('),case
+            assert computed['menuFill']==computed['canvas'] and computed['menuText']==computed['canvasText'],case
         if case['mode']=='normal': palettes[case['fixtureScheme']]=computed['canvas']
     assert palettes['light']!=palettes['dark'],palettes
     assert m.script('return !window.__zzNativeBlurFollowUpOnly&&!window.__zzNativeBlurProbe&&!document.getElementById("zz-render-menu");')
-    result['collector']={'cases':len(capture['cases']),'verifiedBackgrounds':2,'opacitiesSettled':True,'distinctFixturePalettes':True,'backend':'simulated; no Windows pixels'}
+    result['collector']={'cases':len(capture['cases']),'verifiedBackgrounds':2,'opacitiesSettled':True,'accessibleBackgroundsOpaque':True,'distinctFixturePalettes':True,'backend':'simulated; no Windows pixels'}
     import shutil
     shutil.rmtree(capture['directory']);Path(capture['archive']).unlink()
     return result

@@ -8,9 +8,9 @@ Follow-up: [returned v5/v6 pixels and popup corrections](NATIVE-BLUR-2026-10-30-
 show working generated-fixture loading/slide/overlay blur. V6 verifies distinct
 opaque/transparent backgrounds and fresh blur while the sidebar stays open.
 It also exposes a second menu defect: Windows Mica's system Menu color itself
-has 60% alpha. Glassflow 3.74.21 uses Canvas/CanvasText for accessibility menus;
-the strengthened native check rejects the prior translucent result. No other
-implementation is delegated.
+has 60% alpha. Glassflow 3.74.21 uses Canvas/CanvasText for accessibility menus.
+The final Windows capture on 3.74.22 confirmed that all eight accessibility menus
+matched the opaque system swatches and the four normal menus retained glass.
 
 ## Missed work completed in this change
 
@@ -19,7 +19,7 @@ implementation is delegated.
 | Groupflow 1.75.5 | Zen's selected-tab indicator scrolled the outer list while the selected tab remained clipped inside Groupflow's capped folder body. The existing body owner now cancels that body's pending glide/snap and reveals selection before Zen reads its coordinates. Zen retains the indicator, setting and outer scrolling. |
 | Groupflow 1.75.5 | Saved label colors and collapsed dimming bypassed accessibility colors. Sidebar and Library headers now use opaque system backing; contrast mode uses system foreground and keeps keyboard focus visible. Normal saved appearance resumes when the signal clears. |
 | Glassflow Library 1.4.4 | The actual native workspace-background child covered the supposedly opaque accessible card. Rendering exposed light text on a pale background despite the card's correct computed color. Accessibility now removes that decorative child as well as the pseudo layers and uses the system foreground for card controls. |
-| Glassflow 3.74.19 | The Windows Mica popup tint could replace a high-contrast system palette with custom black/white. That tint now yields during chrome contrast/forced-color signals; normal and reduced-transparency behavior remain owned by their existing rules. Windows menu pixels require the capture below. |
+| Glassflow 3.74.19 | The Windows Mica popup tint could replace a high-contrast system palette with custom black/white. That tint now yields during chrome contrast/forced-color signals. The follow-up above covers the subsequent system-color fix and its Windows pixel check. |
 | Tab Router 1.37.10 | An already-matching folder path returned early even with **Tabs already in a group** Off and an explicit Zen route naming another workspace. Off now honors that route. On retains the existing group contract; a missing destination with group creation Off leaves membership and workspace intact. No additional container inference policy was introduced. |
 | Zen Turbo 1.13.6 | Zen 1.24's native session interval is 40000ms. Turbo forced 30000ms while describing fewer writes. The pack now raises only shorter intervals, releases its obsolete override after a native update, and preserves later manual edits and longer original user values. |
 
@@ -110,15 +110,11 @@ budget and partition tests verify behavior, not time saved.
 | Bare console exceptions | Still unattributed without an originating script/stack. The [automatic origin collector](../tools/CONSOLE-ORIGIN-PROBE.md) now captures those fields rather than guessing ownership from adjacent messages. Known SessionStore misuse was already fixed; native favicon warnings were separately identified. |
 | Windows OS drag/drop, complete blocked-download states, screen-reader traversal and success-animation appearance | Earlier notes left these device-level checks unverified, not the corresponding feature implementations absent. Native APIs, eligibility, focus semantics and finite-animation checks do not prove physical Windows behavior. No claim of complete device validation is made here. |
 
-## Explicit machine-data request
+## Windows evidence and separate console diagnostics
 
-The full Windows v5 capture and 14-case v6 follow-up have been returned and
-analyzed. The remaining machine-only check is the corrected menu pixels. Run the
-unchanged [automatic short capture](../tools/NATIVE-BLUR-PROBE.md) with Glassflow
-3.74.21 and return its ZIP plus copied JSON. It starts and advances by itself;
-the full loading/sliding/overlay matrix is not requested again. Analysis and
-resulting changes remain the implementer's work. No arbitrary page screenshots
-or uploads.
+The [final Windows pixels](NATIVE-BLUR-2026-10-30-CAPTURE-ANALYSIS.md)
+confirmed corrected menus and fresh sidebar blur during both generated loads.
+The blur capture request is complete.
 
 If the unattributed exceptions recur, run the separate
 [60-second console-origin collector](../tools/CONSOLE-ORIGIN-PROBE.md) and return

@@ -9,6 +9,7 @@ import argparse
 import base64
 import io
 import json
+import os
 from pathlib import Path
 import re
 import socket
@@ -1397,8 +1398,11 @@ def main():
         (profile / "user.js").write_text("\n".join(f"user_pref({json.dumps(k)}, {json.dumps(v)});" for k, v in prefs.items()))
         with (profile / "browser.log").open("w") as log:
             win_update = args.sine_update and sys.platform == "win32"
+            # This one process runs against our new temporary profile only.
+            # Current Gecko requires both the switch and the environment opt-in.
+            native_env = {**os.environ, "MOZ_REMOTE_ALLOW_SYSTEM_ACCESS":"1"} if args.sine_update else None
             process = subprocess.Popen([str(args.zen.resolve()), *(["-wait-for-browser"] if win_update else []), "--headless", "--no-remote", "--profile", directory,
-                                        "--marionette", "--remote-allow-system-access", "about:blank"], stdout=log, stderr=log)
+                                        "--marionette", "--remote-allow-system-access", "about:blank"], stdout=log, stderr=log, env=native_env)
             m = None
             try:
                 for _ in range(100):

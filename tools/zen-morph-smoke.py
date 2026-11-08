@@ -7,6 +7,99 @@ import argparse,base64,io,json,os,runpy,socket,subprocess,tempfile,time
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 M=runpy.run_path(str(ROOT/'tools/zen-smoke.py'))['Marionette']
+def check_tab_icon_compatibility(m,out):
+ """Real tab and Groupflow controls, preferences, frame pixels and native restoration."""
+ m.script('''return (async()=>{
+  const add=()=>gBrowser.addTab('about:blank',{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});
+  const prefs=['zzicon.set','zzicon.animate','zzicon.button.minus','ui.prefersReducedMotion'];
+  window.iconCompat={saved:prefs.map(k=>[k,Services.prefs.prefHasUserValue(k),Services.prefs.getPrefType(k)===128?Services.prefs.getBoolPref(k):Services.prefs.getIntPref(k)]),selected:gBrowser.selectedTab,created:[]};
+  const c=iconCompat;c.pin=add();c.created.push(c.pin);gBrowser.pinTab(c.pin);
+  c.groupTab=add();c.created.push(c.groupTab);c.group=gBrowser.addTabGroup([c.groupTab],{label:'Icon regression group',insertBefore:c.groupTab});
+  for(let i=0;i<60&&!c.group?.querySelector('.zzgf-close');i++)await nativeWait(50);
+  nativeCheck('actual Groupflow group has its close control',!!c.group?.querySelector('.zzgf-close'));
+  c.controls=[['close',nativeTab.querySelector('.tab-close-button'),nativeTab],['reset',c.pin.querySelector('.tab-reset-button'),c.pin],['group',c.group.querySelector('.zzgf-close'),c.group.labelContainerElement]];
+  for(const[,e,owner]of c.controls){nativeCheck('actual icon control exists',!!e);InspectorUtils.addPseudoClassLock(owner,':hover');}
+  c.record=e=>__zziconMorphInstance.records.get(e);
+  c.bounds=e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height];};
+  c.nativePaint=e=>{const s=getComputedStyle(e);return {image:s.listStyleImage,background:s.backgroundImage,pseudos:['::before','::after'].map(p=>{const q=getComputedStyle(e,p);return [q.content,q.width,q.height,q.rotate];})};};
+  c.noBars=e=>['::before','::after'].every(p=>['none','normal'].includes(getComputedStyle(e,p).content));
+  c.event=(e,t)=>e.dispatchEvent(new PointerEvent(t,{bubbles:true,pointerType:'mouse'}));
+  c.frame=e=>+getComputedStyle(e).getPropertyValue('--zzicon-frame');
+  Services.prefs.setIntPref('zzicon.set',0);Services.prefs.setBoolPref('zzicon.animate',false);Services.prefs.setIntPref('zzicon.button.minus',0);await nativeWait(500);
+  c.native=c.controls.slice(0,2).map(([,e])=>c.nativePaint(e));c.geometry=c.controls.map(([,e])=>c.bounds(e));
+  return c.controls.map(([name,e])=>({name,node:e.localName}));
+ })();''')
+ results={'modes':[],'pixels':[]}
+ try:
+  results['controls']=m.script("return iconCompat.controls.map(([name,e])=>({name,node:e.localName}));")
+  results['morph']=m.script('''return (async()=>{
+   const c=iconCompat;Services.prefs.setIntPref('zzicon.set',4);Services.prefs.setBoolPref('zzicon.animate',true);await nativeWait(500);
+   const results=[];
+   for(const [i,[name,e]]of c.controls.entries()){
+    const r=c.record(e),pseudo=name==='group'?'::before':null,s=getComputedStyle(e,pseudo),box=e.getBoundingClientRect();
+    const width=pseudo?parseFloat(s.width):box.width-parseFloat(s.paddingLeft)-parseFloat(s.paddingRight)-parseFloat(s.borderLeftWidth)-parseFloat(s.borderRightWidth);
+    const height=pseudo?parseFloat(s.height):box.height-parseFloat(s.paddingTop)-parseFloat(s.paddingBottom)-parseFloat(s.borderTopWidth)-parseFloat(s.borderBottomWidth);
+    nativeCheck(name+' replacement owns its original slot',r?.paint===e&&r.mode===(pseudo?'before':'image'));
+    nativeCheck(name+' sprite paints a square content box',width>=12&&height>=12&&Math.abs(width-height)<.1&&s.backgroundImage.includes('/icons/morph/'));
+    nativeCheck(name+' preserves its hit target',JSON.stringify(c.bounds(e))===JSON.stringify(c.geometry[i]));
+    nativeCheck(name+' has only its replacement glyph',pseudo?!['none','normal'].includes(s.content):c.noBars(e));
+    c.event(e,'pointerover');await nativeWait(60);const moving=c.frame(e);await nativeWait(230);const wound=c.frame(e);
+    nativeCheck(name+' hover advances then winds up',moving>0&&moving<31&&wound===31);
+    nativeCheck(name+' hover preserves its hit target',JSON.stringify(c.bounds(e))===JSON.stringify(c.geometry[i]));
+    c.event(e,'pointerout');await nativeWait(250);nativeCheck(name+' exit returns to rest',c.frame(e)===0&&!c.record(e).animation);
+    results.push({name,contentBox:[width,height],frames:[moving,wound,c.frame(e)]});
+   }
+   return results;
+  })();''')
+  for disabled in ['off','reduced']:
+   m.script("Services.prefs.setBoolPref('zzicon.animate',"+('false' if disabled=='off' else 'true')+");Services.prefs.setIntPref('ui.prefersReducedMotion',"+('1' if disabled=='reduced' else '0')+");return true;")
+   time.sleep(.25)
+   assert m.script('''return (async()=>{const c=iconCompat;for(const[name,e]of c.controls){c.event(e,'pointerover');await nativeWait(80);nativeCheck(name+' stays at rest with motion disabled',c.frame(e)===0&&!c.record(e).animation);c.event(e,'pointerout');}return true;})();'''),disabled
+  m.script("Services.prefs.setIntPref('ui.prefersReducedMotion',0);Services.prefs.setBoolPref('zzicon.animate',true);return true;")
+  # Global Circuit/clean and the two per-button overrides must replace the
+  # reset bars. Native choices must restore them, including older image markup.
+  for name,icon_set,choice,animate in [('circuit',2,0,True),('clean',3,0,True),('button-circuit',4,4,True),('button-still',4,5,True),('native-still',4,1,False),('native-animated',4,6,True)]:
+   values=json.dumps({'set':icon_set,'choice':choice,'animate':animate,'name':name})
+   mode=m.script('''return (async()=>{
+    const v=VALUES,c=iconCompat,e=c.controls[1][1];Services.prefs.setIntPref('zzicon.set',v.set);Services.prefs.setIntPref('zzicon.button.minus',v.choice);Services.prefs.setBoolPref('zzicon.animate',v.animate);await nativeWait(550);
+    const s=getComputedStyle(e),own=e.hasAttribute('zzicon-own'),custom=!v.name.startsWith('native')||own;
+    nativeCheck(v.name+' reset releases Morph',!c.record(e)&&!e.hasAttribute('zzicon-motion'));
+    nativeCheck(v.name+' reset preserves hit target',JSON.stringify(c.bounds(e))===JSON.stringify(c.geometry[1]));
+    if(custom){nativeCheck(v.name+' reset displays replacement artwork',s.backgroundImage!=='none');nativeCheck(v.name+' reset removes native bars only while painted',c.noBars(e));}
+    else nativeCheck(v.name+' reset restores native artwork',JSON.stringify(c.nativePaint(e))===JSON.stringify(c.native[1]));
+    const close=c.controls[0][1];if(v.set!==4)nativeCheck(v.name+' unpainted close retains native bars',JSON.stringify(c.nativePaint(close))===JSON.stringify(c.native[0]));
+    return {name:v.name,node:e.localName,custom,own,pseudos:['::before','::after'].map(p=>getComputedStyle(e,p).content)};
+   })();'''.replace('VALUES',values))
+   results['modes'].append(mode)
+  m.script("Services.prefs.setIntPref('zzicon.set',4);Services.prefs.setIntPref('zzicon.button.minus',0);Services.prefs.setBoolPref('zzicon.animate',true);return true;");time.sleep(.4)
+  from PIL import ImageChops,ImageStat
+  for name in ['close','reset','group']:
+   info=m.script("const c=iconCompat;window.iconPixel=c.controls.find(x=>x[0]==="+json.dumps(name)+")[1];const r=c.record(iconPixel);r.animation?.cancel();r.animation=null;return {box:iconPixel.getBoundingClientRect().toJSON(),width:innerWidth};")
+   cells=[]
+   for n in [0,31,65]:
+    m.script("iconPixel.style.setProperty('--zzicon-frame',"+json.dumps(str(n))+",'important');return new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>r(true))));")
+    shot=m.shot();scale=shot.width/info['width'];box=tuple(round(info['box'][k]*scale) for k in ['left','top','right','bottom']);cell=shot.crop(box);cells.append(cell)
+    cell.save(out/f'tab-icon-{name}-{n}.png')
+   amount=max(max(ImageStat.Stat(ImageChops.difference(a,b)).mean) for a,b in zip(cells,cells[1:]))
+   assert amount>0,(name,'native control frame pixels unchanged',amount)
+   results['pixels'].append({'name':name,'frames':[0,31,65],'distinct':len(set(cell.tobytes() for cell in cells)),'maxMeanDifference':amount})
+   m.script("iconPixel.style.removeProperty('--zzicon-frame');__zziconMorphInstance.refresh();return true;");time.sleep(.2)
+  results['restored']=m.script('''return (async()=>{
+   const c=iconCompat;Services.prefs.setBoolPref('zzicon.animate',false);await nativeWait(200);__zziconMorphInstance.retire();await nativeWait(200);
+   for(const [i,[name,e]]of c.controls.slice(0,2).entries())nativeCheck(name+' teardown restores native artwork',!e.hasAttribute('zzicon-motion')&&JSON.stringify(c.nativePaint(e))===JSON.stringify(c.native[i]));
+   nativeCheck('group teardown removes replacement owner',!c.controls[2][1].hasAttribute('zzicon-motion'));
+   Services.scriptloader.loadSubScript('chrome://sine/content/zz-iconflow/iconflow-morph.uc.js',window);await nativeWait(400);
+   nativeCheck('native controls reattach after teardown',c.controls.every(([,e])=>!!c.record(e)));return true;
+  })();''')
+  return results
+ finally:
+  m.script('''return (async()=>{
+   const c=iconCompat;for(const[,e,owner]of c.controls){InspectorUtils.removePseudoClassLock(owner,':hover');e.style.removeProperty('--zzicon-frame');}
+   for(const[k,user,v]of c.saved){if(user)Services.prefs[typeof v==='boolean'?'setBoolPref':'setIntPref'](k,v);else Services.prefs.clearUserPref(k);}
+   gBrowser.selectedTab=c.selected;for(const t of c.created)if(t.isConnected)gBrowser.removeTab(t,{animate:false});if(c.group.isConnected)c.group.remove();
+   delete window.iconPixel;delete window.iconCompat;await nativeWait(400);return true;
+  })();''')
+
 def check_icon_click(m,out):
  """Native CSS ownership and WebDriver input; not Windows physical-input certification."""
  m.script('''window.clickTabs=[];window.clickWait=ms=>new Promise(r=>setTimeout(r,ms));
@@ -332,6 +425,7 @@ with tempfile.TemporaryDirectory(prefix='zen-morph-') as d:
   m.script("for(const id of ['sidebar-button','zen-expand-sidebar-button'])CustomizableUI.addWidgetToArea(id,'nav-bar');return true;")
   m.script('window.nativeFixtureURL='+json.dumps((profile/'index.html').as_uri())+';return true;')
   result=m.script((ROOT/'tools/morph-native-regressions.js').read_text())
+  result['tabIconCompatibility']=check_tab_icon_compatibility(m,OUT)
   print('NATIVE',json.dumps(result),flush=True)
   # A relative SVG stroke using context-fill vanishes through a file import
   # with Gecko's default policy. Exercise the generated entrypoint correction.

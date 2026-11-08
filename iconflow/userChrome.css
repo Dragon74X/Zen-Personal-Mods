@@ -192,6 +192,12 @@
 /* Morph uses the same vector-strip engine as the original icon sets. Native
    images and existing pseudo-elements retain geometry, visibility and opacity.
    Only their paint changes. JavaScript starts/stops browser-owned frame runs. */
+/* Zen 1.24.1 draws tab close/reset boxes with two native lines. Replace both
+   only while our background owns their paint; retirement restores them. */
+:root :is(.tab-close-button, .tab-reset-button)[zzicon-motion="image"]::before,
+:root :is(.tab-close-button, .tab-reset-button)[zzicon-motion="image"]::after {
+  content: none !important;
+}
 :root:not([customizing]) :is(toolbarbutton, .urlbar-page-action, .identity-box-button)[zzicon-motion-host] {
   /* Arc scales this parent too. Keep the target fixed; Morph and press own
      the existing image. Removing the marker releases the native button. */

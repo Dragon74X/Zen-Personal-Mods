@@ -114,7 +114,9 @@ async function attach(binding,el){
   const menuClass=host.localName==='menu'?'menu-iconic':'menuitem-iconic';
   if(menuItem)addedClass=!host.classList.contains(menuClass);
   let mode='image',paint=slot;
-  if(slot.matches('.zen-library-sprite')||host.matches('.zzgf-close')||slot===host&&!['image','img'].includes(slot.localName)){mode='before';paint=slot===host?host:slot;}
+  // Zen 1.24.1 replaces tab images with boxes. Their padded content box is
+  // still the icon slot; native line pseudo-elements are not sprite slots.
+  if(slot.matches('.zen-library-sprite')||host.matches('.zzgf-close')||slot===host&&!slot.matches('image,img,.tab-close-button:not(.zzgf-close),.tab-reset-button')){mode='before';paint=slot===host?host:slot;}
   if(slot.localName==='svg')return;
   const definition=data.glyphs[glyph],model=snapshot(binding,host,definition),r={host,el,paint,mode,binding,definition,model,rows:index.glyphs[glyph].rows,row:0,state:stateKey(model),phase:'rest',hover:false,focus:false,consumed:false,animation:null,addedClass:addedClass?menuClass:null,
    saved:savedProperties.map(key=>[key,paint.style.getPropertyValue(key),paint.style.getPropertyPriority(key)])};

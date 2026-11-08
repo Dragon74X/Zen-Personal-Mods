@@ -86,6 +86,16 @@ security preference changes.
 
 See [engine comparison and native checks](../docs/CIRCUIT-MORPH.md).
 
+## Zen 1.24.1 compatibility (1.21.13)
+
+Tab close and pinned-tab reset now draw in the native control's padded icon
+area with both Zen's earlier image elements and its new box elements. While
+Iconflow paints the replacement, Zen's two CSS strokes are suppressed together;
+native artwork returns when that replacement is released. Circuit, Clean and
+successfully prepared native-icon strips follow the same ownership rule.
+Groupflow's group-header close keeps its existing glyph layer. Artwork,
+animation timing, settings, hit targets and native commands are retained.
+
 ## Icon set
 
 | Setting | Default | Notes |

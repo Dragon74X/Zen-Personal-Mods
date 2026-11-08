@@ -40,6 +40,12 @@ return (async()=>{
  Services.prefs.setBoolPref('zen.view.sidebar-expanded',true);document.documentElement.setAttribute('zen-sidebar-expanded','true');document.documentElement.setAttribute('zen-compact-mode','false');
  window.nativeTab=gBrowser.addTab('about:blank',{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});gBrowser.selectedTab=nativeTab;
  await wait(500);
+ // Zen 1.24.1 changed the native close slot from <image> to <box> and
+ // draws its own bars with two pseudos. The replacement must still paint
+ // the button's content box; the 1.24 image markup follows the same path.
+ const tabClose=nativeTab.querySelector('.tab-close-button'),closeRecord=__zziconMorphInstance.records.get(tabClose);
+ check('tab close uses the original content-box painter',closeRecord?.paint===tabClose&&closeRecord.mode==='image'&&getComputedStyle(tabClose).backgroundOrigin==='content-box');
+ check('tab close has no native bars over the custom glyph',['::before','::after'].every(p=>['none','normal'].includes(getComputedStyle(tabClose,p).content)));
  const reload=rec('#reload-button'),menu=rec('#PanelUI-menu-button'),slot=menu.paint,bounds=menu.host.getBoundingClientRect().toJSON();
  check('native image owns icon',slot===menu.host.querySelector('.toolbarbutton-icon'));
  const writes=[];const observe=new MutationObserver(changes=>writes.push(...changes));observe.observe(slot,{attributes:true});

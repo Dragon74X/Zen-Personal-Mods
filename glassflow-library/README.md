@@ -67,7 +67,7 @@ settings. This mod styles the cards around them.
 | Setting | Default | Notes |
 |---|---|---|
 | Card fill | `70%` | Zen draws `100%`; lower lets the window background through |
-| Space gradient strength | `1` | the space's own gradient; `0` hides it |
+| Space gradient strength | `1` | the space's own gradient and its grain; `0` hides them |
 | Glass rim | on | Glassflow's rim colours when installed |
 | Glass sheen | off | Glassflow's sheen when installed |
 | Card shadow | on | Zen's own |
@@ -77,6 +77,17 @@ settings. This mod styles the cards around them.
 
 There is no blur setting. The cards sit on the window background, a smooth
 gradient, so a backdrop blur would have nothing to blur.
+
+Zen 1.24b and later paint a card's gradient, grain and shadow on a child
+layer instead of the card itself, and in compact mode give that layer a
+solid base colour and, with Zen's sidebar blur on, a 42px blur (Zen
+1.24.1b adds an 80% tint). The settings above now act on that layer: the
+fill alone sets how see-through a card is, so in compact mode the base,
+tint and blur are left off the cards, and the shadow no longer fades with
+the gradient. With the rim on it also replaces the thin outline Zen draws
+inside compact-mode cards. Checked in Zen 1.24b and 1.24.1b on Linux with
+`tools/zen1241-glassflow-library-cards.py`; Windows acrylic was not
+checked.
 
 ## Install
 

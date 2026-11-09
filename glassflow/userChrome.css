@@ -1560,14 +1560,19 @@
       pointer-events: none;
       transition: opacity var(--zzg-motion-time) var(--zzg-motion-ease) !important;
     }
-    & .tab-close-button image {
+    /* The X grows in from its own centre; the target keeps its size. Zen 1.24.1
+       draws it as two lines (Zen's own rotate/width easing is kept). Iconflow
+       artwork replaces those lines; earlier Zen's X is the target itself. */
+    & .tab-close-button::before, & .tab-close-button::after {
       scale: .65;
-      transition: scale var(--zzg-motion-time) var(--zzg-motion-ease) !important;
+      @media (prefers-reduced-motion: no-preference) {
+        transition: scale var(--zzg-motion-time) var(--zzg-motion-ease), rotate .12s ease, width .12s ease !important;
+      }
     }
     & .tab-label-container { margin-inline-end: 0; transition: margin-inline-end var(--zzg-motion-time) var(--zzg-motion-ease) !important; }
     &:is(:hover, :focus-within, [multiselected][selected]) {
       & .tab-close-button { opacity: 1 !important; pointer-events: auto; }
-      & .tab-close-button image { scale: 1; }
+      & .tab-close-button::before, & .tab-close-button::after { scale: 1; }
       & .tab-label-container { margin-inline-end: var(--size-item-medium, 24px); }
     }
   }

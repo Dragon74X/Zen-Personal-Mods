@@ -194,6 +194,32 @@
     if (g.hasAttribute("zzgf-picture") !== !!picture) g.toggleAttribute("zzgf-picture", !!picture);
   }
 
+  // Zen 1.24.1b's getGradient() returns window-sized `background` layers whose
+  // base stops use variables only Zen's own backgrounds define, so a header
+  // drops the value. Lay the base stops across the header (Zen's angle formula
+  // gives ~90deg at header proportions) and keep the middle strip of a third
+  // colour's overlay. Older values pass through; unknown layers yield "".
+  function headerGradient(value) {
+    if (typeof value !== "string" || !value.includes("var(--zen-gradient-")) return value;
+    const images = [];
+    let depth = 0, start = 0, image = "";
+    for (let i = 0; i <= value.length; i++) {
+      const c = value[i];
+      if (c === "(") depth++;
+      else if (c === ")" && !--depth && !image) image = value.slice(start, i + 1).trim();
+      else if ((c === "," && !depth) || i === value.length) {
+        if (!/^linear-gradient\(/.test(image)) return "";
+        images.push(image); image = ""; start = i + 1;
+      }
+    }
+    // Zen paints overlay strips above its base layer, which comes last.
+    const base = images.pop().replace("var(--zen-gradient-base-angle)", "90deg").replace(
+      /calc\(var\(--zen-gradient-base-start\) \+ ([\d.e+-]+) \* var\(--zen-gradient-base-span\)\)/g,
+      (_match, position) => `${+(position * 100).toFixed(3)}%`);
+    const result = [images[images.length >> 1], base].filter(Boolean).join(", ");
+    return !result.includes("var(") && CSS.supports("background-image", result) ? result : "";
+  }
+
   function tintGradient(background) {
     // The browser serializes colour stops, including names and nested colour
     // functions, to flat computed colours. Keep every stop and gradient intact.
@@ -555,7 +581,7 @@
           const opacity = picker.currentOpacity, algorithm = picker.useAlgo;
           try {
             picker.currentOpacity = saved.opacity ?? 1;
-            value = picker.getGradient(saved.gradientColors);
+            value = headerGradient(picker.getGradient(saved.gradientColors));
           } finally {
             picker.currentOpacity = opacity;
             const theme = gZenWorkspaces.getWorkspaceFromId(gZenWorkspaces.activeWorkspace)?.theme;

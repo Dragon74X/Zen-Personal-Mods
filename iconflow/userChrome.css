@@ -18,11 +18,11 @@
 /* ---- Icon size -------------------------------------------------------- */
 /* Zen draws toolbar and sidebar icons at 16px in a 28px box (6px padding).
    A larger size takes it from the padding, so buttons keep their size. The
-   Library sprite keeps Zen's proportion to the others (18 to 16). */
-:root { --zzicon-box: 16px; }
-@media (-moz-pref("zzicon.size", 1)) { :root { --zzicon-box: 18px; } }
-@media (-moz-pref("zzicon.size", 2)) { :root { --zzicon-box: 20px; } }
-@media (-moz-pref("zzicon.size", 3)) { :root { --zzicon-box: 22px; } }
+   Library sprite keeps Zen's proportion to the others. */
+:root { --zzicon-box: 16px; --zzicon-scale: 1; }
+@media (-moz-pref("zzicon.size", 1)) { :root { --zzicon-box: 18px; --zzicon-scale: 1.125; } }
+@media (-moz-pref("zzicon.size", 2)) { :root { --zzicon-box: 20px; --zzicon-scale: 1.25; } }
+@media (-moz-pref("zzicon.size", 3)) { :root { --zzicon-box: 22px; --zzicon-scale: 1.375; } }
 @media not (-moz-pref("zzicon.size", 0)) {
   .toolbarbutton-1:not(#tabs-newtab-button, .zen-workspaces-actions) > .toolbarbutton-icon,
   .toolbarbutton-1 > .toolbarbutton-badge-stack {
@@ -33,7 +33,13 @@
     height: var(--zzicon-box) !important;
   }
   @media not (-moz-pref("zzicon.library.size")) {
-    #zen-library-button { --zen-library-sprite-size: calc(var(--zzicon-box) * 1.125) !important; }
+    /* Zen's own size grows with the icons: 18px scaled 8% in 1.24, 20px in 1.24.1. */
+    #zen-library-button .zen-library-sprite { zoom: var(--zzicon-scale) !important; }
+    /* Circuit stack draws its own strip and keeps its earlier size. */
+    @media (-moz-pref("zzicon.library.style", 12)) or ((-moz-pref("zzicon.library.style", 11)) and (-moz-pref("zzicon.set", 2))) or ((-moz-pref("zzicon.library.style", 11)) and (-moz-pref("zzicon.set", 3))) {
+      #zen-library-button { --zen-library-sprite-size: calc(var(--zzicon-box) * 1.125) !important; }
+      #zen-library-button .zen-library-sprite { zoom: 1 !important; }
+    }
   }
 }
 
@@ -197,6 +203,22 @@
 :root :is(.tab-close-button, .tab-reset-button)[zzicon-motion="image"]::before,
 :root :is(.tab-close-button, .tab-reset-button)[zzicon-motion="image"]::after {
   content: none !important;
+}
+/* Zen hides the Favorite minus; a theme may show it over the corner (Arc 2.0's
+   unload button). Zen 1.24.1's position: relative outranks the theme's
+   position: absolute, so the minus took a slot and pushed the icon aside. */
+:root .tabbrowser-tab[zen-essential] > .tab-stack > .tab-content > .tab-reset-button {
+  position: absolute !important;
+}
+/* That button's background shorthand also outranks the paint below and
+   blanked the Morph minus there. Its colour stays; only the strip is kept. */
+:root .tabbrowser-tab[zen-essential] .tab-reset-button[zzicon-motion="image"]:not(#zzicon-own) {
+  background-image: var(--zzicon-sprite) !important;
+  background-size: calc(var(--zzicon-columns) * 100%) calc(var(--zzicon-rows) * 100%) !important;
+  background-position: calc(mod(var(--zzicon-frame), var(--zzicon-columns)) * 100% / (var(--zzicon-columns) - 1)) var(--zzicon-row-position) !important;
+  background-repeat: no-repeat !important;
+  background-origin: content-box !important;
+  background-clip: content-box !important;
 }
 :root:not([customizing]) :is(toolbarbutton, .urlbar-page-action, .identity-box-button)[zzicon-motion-host] {
   /* Arc scales this parent too. Keep the target fixed; Morph and press own

@@ -96,6 +96,14 @@ successfully prepared native-icon strips follow the same ownership rule.
 Groupflow's group-header close keeps its existing glyph layer. Artwork,
 animation timing, settings, hit targets and native commands are retained.
 
+Favorites: a theme that shows the Essentials minus on hover (Arc 2.0's *unload
+button*) lost its placement to Zen 1.24.1's `position: relative`, so the minus
+took a slot and the icon slid 12px. It stays out of the layout again, and the
+Morph minus paints over the theme's button. Stock Zen hides that minus.
+
+Library: Zen 1.24.1 draws it 20px (1.24: 18px scaled 8%). A larger Icon size
+now grows Zen's own size by the same factor as the other icons.
+
 ## Icon set
 
 | Setting | Default | Notes |

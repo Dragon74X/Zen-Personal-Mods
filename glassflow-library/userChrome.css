@@ -1,5 +1,5 @@
 /* ============================================================
-   Glassflow Library -- Zen's Library space cards (Zen 1.23b).
+   Glassflow Library -- Zen's Library space cards (Zen 1.24b and later).
 
    The cards hold clones of each space's tab strip. Glassflow's tab glass
    and Groupflow's folder styling already reach those clones; this styles
@@ -7,6 +7,26 @@
    gradient, so a backdrop blur would have nothing to blur: the glass here
    is a translucent fill, a rim and a sheen. Rim and sheen use Glassflow's
    tokens when it is installed, with matching fallbacks.
+
+   Since 1.24 Zen paints a card's gradient on a child, Zen's generic
+   background (.zen-library-space-background: the gradient on its ::before
+   and ::after, the grain on .zen-browser-grain), and gives that child the
+   card's shadow and a fixed 14px radius. In compact mode the child is also
+   a toolbar background: an opaque base colour, and with Zen's acrylic
+   sidebar switch a 42px backdrop blur (1.24.1b adds an 80% tint to it;
+   Glassflow lays its own acrylic on every toolbar background). Behind the
+   card is the window background, so that blur only blurs the card's own
+   fill and a smooth gradient, once per card, and the tint and base hide the
+   fill. The fill owns the card's translucency, so the child keeps only the
+   space's gradient and grain.
+
+   Bottom to top:
+     the card's own background   Card fill
+     Zen's background child      the space's gradient and grain, at Space
+                                 gradient opacity
+     ::before                    Zen's shadow (Card shadow) and the sheen
+     the card's contents         (the header's hover pill is at this layer)
+     ::after                     the rim
    ============================================================ */
 
 zen-library .zen-library-spaces {
@@ -15,13 +35,35 @@ zen-library .zen-library-spaces {
 }
 
 zen-library .zen-library-space {
-  /* Zen paints the card fully opaque; the fill lets the window show through. */
+  /* Zen leaves the card itself unpainted; the fill lets the window show through. */
   background: color-mix(in srgb, var(--zen-branding-bg) var(--zzlib-card-fill, 70%), transparent) !important;
+  border-radius: var(--zzlib-card-radius, 14px) !important;
 
-  &, &::before { border-radius: var(--zzlib-card-radius, 14px) !important; }
+  /* The space's own gradient and grain, at the chosen strength. The class
+     pair outranks Glassflow's acrylic on every compact toolbar background. */
+  & > .zen-library-space-background.zen-browser-generic-background {
+    z-index: -2 !important;
+    opacity: var(--zzlib-card-gradient, 1) !important;
+    border-radius: inherit !important;
+    background: none !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+    &::before, &::after { border-radius: inherit !important; }
+  }
 
-  /* The space's own gradient, at the chosen strength. */
-  &::before { opacity: var(--zzlib-card-gradient, 1); }
+  /* Zen's shadow, off the gradient so it does not fade with it, and the
+     sheen, above the gradient and below everything on the card. */
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    box-shadow: 0 0 10px rgb(0 0 0 / 0.1);
+    transition: box-shadow 0.2s ease;
+  }
+  &[dragging]::before { box-shadow: 0 8px 16px rgb(0 0 0 / 0.3); }
 }
 
 @media (prefers-reduced-transparency: reduce), (forced-colors), (prefers-contrast) {
@@ -52,12 +94,12 @@ zen-library .zen-library-space-header {
 @media (-moz-pref("zzlib.card.sheen")) {
   zen-library .zen-library-space::before {
     background: var(--zzg-sheen, linear-gradient(to bottom,
-        rgb(255 255 255 / 0.2), rgb(255 255 255 / 0.05) 45%, rgb(255 255 255 / 0) 55%, rgb(0 0 0 / 0.05))),
-      var(--zen-library-space-gradient) !important;
+        rgb(255 255 255 / 0.2), rgb(255 255 255 / 0.05) 45%, rgb(255 255 255 / 0) 55%, rgb(0 0 0 / 0.05))) !important;
   }
 }
 
-/* The rim is drawn above the card's layers but never takes the pointer. */
+/* The rim is drawn above the card's layers but never takes the pointer.
+   It replaces the 1px outline Zen draws inside compact-mode cards. */
 @media (-moz-pref("zzlib.card.rim")) {
   zen-library .zen-library-space::after {
     content: "";
@@ -71,6 +113,8 @@ zen-library .zen-library-space-header {
       inset calc(cos(var(--zzg-follow-angle, 90deg)) * 1px) calc(sin(var(--zzg-follow-angle, 90deg)) * 1px) 0 var(--zzg-rim-top, rgb(255 255 255 / 0.42)),
       inset var(--zzg-follow-ring-x, 0px) var(--zzg-follow-ring-y, 0px) 0 1px var(--zzg-rim-all, rgb(255 255 255 / 0.12));
   }
+  zen-library .zen-library-space > .zen-library-space-background::before,
+  zen-library .zen-library-space > .zen-library-space-background::after { outline: none !important; }
 }
 
 /* ============================================================

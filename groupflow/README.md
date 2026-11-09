@@ -467,3 +467,16 @@ Tab-icon shape clips the image itself, including native, Router, manual and Libr
 copy icons. It overrides Arc’s `overflow: visible !important` inside the existing
 enabled geometry rule. Default / Match folder corners remains the default; icon
 size, transparent pixels and sibling loading/media overlays remain independent.
+
+## Zen 1.24.1b
+
+Zen 1.24.1b returns saved gradients (`tabGroupColors` gradient colours) as
+window-sized layers a header cannot draw, so such groups showed one colour
+fading out. Groupflow now lays Zen's colour stops across the header, first colour
+on the left; older Zen output is used unchanged.
+
+In Linux test runs, adding a tab from a nested folder or group to Essentials
+(new in 1.24.1b), restarting, and **Remove from Essentials** left the folders,
+nesting, counts and saved details unchanged, and the tab was not filed back into
+its folder (`tools/zen1241-groupflow-smoke.py`, synthetic commands). Windows is
+likely to behave the same, but physical input and Windows rendering were not tested.

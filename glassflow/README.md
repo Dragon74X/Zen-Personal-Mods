@@ -562,7 +562,8 @@ With state motion enabled, the closed URL bar stays anchored so Arc’s hover
 lift cannot repeatedly move its hit target away from the pointer. Zen’s open
 URL bar and search-mode motion keep their transforms.
 The close glyph fades into its fixed target (the favicon's slot on the left, Zen's
-own slot on the right) while the favicon and title, or the label end, make room.
+own slot on the right) while the favicon and title, or the label end, make room;
+Zen 1.24.1's two-line X also grows in from 65% without resizing the target.
 Loaded and unloaded tabs use the same **Motion feel** for that spacing, including
 hover exit. Unloaded opacity and greyscale remain independent appearance settings.
 Selection switches immediately; the existing title moves 4px sideways, rebounds

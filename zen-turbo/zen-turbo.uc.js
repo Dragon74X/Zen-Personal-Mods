@@ -405,10 +405,27 @@
   }
 
   // ---- wiring -------------------------------------------------------------
+  // Only the strips that move are marked. A single mark on :root restyled
+  // every workspace's tab strip twice per switch, which cost more main-thread
+  // and style time than the motion it was meant to spare.
   let smoothingObserver = null, smoothingTimer = null, smoothingMarked = false;
+  const smoothed = new Set();
+  // Zen moves "active" to the new space before it starts the slide, so the
+  // space being left is remembered from those records until the slide begins.
+  const leaving = new Set();
   function stopSmoothing() {
     clearTimeout(smoothingTimer); smoothingTimer = null;
-    document.documentElement.removeAttribute("zzturbo-smoothing");
+    for (const strip of smoothed) strip.removeAttribute("zzturbo-smoothing");
+    smoothed.clear();
+  }
+  // A click or shortcut moves the space being left and the one becoming
+  // active. A swipe can drag either neighbour, so it marks every strip.
+  function movingStrips() {
+    const all = swiping(), out = [...leaving];
+    for (const space of document.querySelectorAll("zen-workspace")) if (all || space.hasAttribute("active")) out.push(space);
+    for (const box of document.querySelectorAll(".zen-essentials-container")) if (all || !box.hasAttribute("hidden")) out.push(box);
+    leaving.clear();
+    return out.filter(strip => strip.isConnected);
   }
   // Zen marks a trackpad swipe on the tab scroller, the workspaces and the
   // grain layer (ZenSpacesSwipe.mjs), never on :root. A workspace slide is
@@ -416,16 +433,22 @@
   const swiping = () => !!document.getElementById?.("tabbrowser-arrowscrollbox")?.hasAttribute("swipe-gesture");
   const sliding = () => document.documentElement.hasAttribute("animating-background") ||
     !!document.getElementById?.("navigator-toolbox")?.hasAttribute("animating-background") || swiping();
-  function syncSmoothing() {
-    const root = document.documentElement;
+  function syncSmoothing(records) {
+    for (const record of records || [])
+      if (record.attributeName === "active" && record.target?.localName === "zen-workspace") leaving.add(record.target);
     const marked = sliding();
     if (!marked || !bool("smooth-workspace-switch", true)) {
       stopSmoothing(); smoothingMarked = false; return;
     }
+    // A stuck native animation marker must not freeze tab effects indefinitely:
+    // once the timer has released them, nothing is marked until it clears.
+    if (smoothingMarked && !smoothingTimer) return;
+    for (const strip of movingStrips()) {
+      if (smoothed.has(strip)) continue;
+      smoothed.add(strip); strip.setAttribute("zzturbo-smoothing", "");
+    }
     if (smoothingMarked) return;
     smoothingMarked = true;
-    root.setAttribute("zzturbo-smoothing", "");
-    // A stuck native animation marker must not freeze tab effects indefinitely.
     smoothingTimer = setTimeout(stopSmoothing, 1500);
   }
   const prefObserver = {
@@ -446,6 +469,8 @@
     if (toolbox) smoothingObserver.observe(toolbox, { attributes: true, attributeFilter: ["animating-background"] });
     const scroller = document.getElementById("tabbrowser-arrowscrollbox");
     if (scroller) smoothingObserver.observe(scroller, { attributes: true, attributeFilter: ["swipe-gesture"] });
+    const strips = document.getElementById("tabbrowser-tabs");
+    if (strips) smoothingObserver.observe(strips, { attributes: true, subtree: true, attributeFilter: ["active"] });
     syncSmoothing();
     Services.prefs.addObserver(P, prefObserver);
     syncPacks();
@@ -501,7 +526,7 @@
       retired = true;
       window.removeEventListener("unload", cleanup);
       smoothingObserver?.disconnect(); smoothingObserver = null;
-      stopSmoothing();
+      stopSmoothing(); leaving.clear();
       try { Services.prefs.removeObserver(P, prefObserver); } catch {}
       try { delete window.ZenTurbo; } catch {}
       try { Services.obs.removeObserver(forgetWarmups, "browser:purge-session-history"); } catch {}

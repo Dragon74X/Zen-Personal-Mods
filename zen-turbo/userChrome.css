@@ -1,9 +1,11 @@
 /* Suspend tab-strip motion during workspace motion. Zen's blur behind the
-   sidebar is left alone: it is the only blur, and it is not in the strip. */
+   sidebar is left alone: it is the only blur, and it is not in the strip.
+   Only the strips that move carry the mark (zen-turbo.uc.js), so the other
+   workspaces' strips are not restyled on every switch. */
 @media (-moz-pref("zzturbo.smooth-workspace-switch")) {
-  #main-window[zzturbo-smoothing]
-    #navigator-toolbox :is(#tabbrowser-tabs, .zen-essentials-container) {
-    & *, & *::before, & *::after {
+  #main-window #navigator-toolbox
+    :is(#tabbrowser-tabs zen-workspace, .zen-essentials-container)[zzturbo-smoothing] {
+    &, &::before, &::after, & *, & *::before, & *::after {
       transition: none !important;
       animation-play-state: paused !important;
     }

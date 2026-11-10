@@ -1485,7 +1485,11 @@
     const body = gutterOf(hit) || hit?.closest?.(bodySelector);
     if (body) return folderBox(body);
     if (hit?.closest?.(".tabbrowser-tab, .tab-group-label-container, toolbarbutton, button")) return null;
-    for (const box of topBoxes()) {
+    // Other workspaces retain layout while visually hidden. Only the space
+    // under this pointer can own its outer gutter; empty space stays in it too.
+    const workspace = hit?.closest?.("zen-workspace");
+    if (!workspace) return null;
+    for (const box of topBoxes(workspace)) {
       const r = box.getBoundingClientRect();
       if (event.clientY >= r.top && event.clientY < r.bottom &&
           event.clientX < r.left + (parseFloat(getComputedStyle(box).paddingLeft) || 0)) return box;

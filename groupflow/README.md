@@ -435,6 +435,10 @@ header roundness has always been its own value.
 
 ## Performance
 
+Pointer movement and folder-gutter wheel events resolve against the workspace
+under the pointer. This avoids geometry reads for inactive workspaces and
+prevents their overlapping hidden boxes from claiming the gutter.
+
 Nothing in Groupflow runs a blur of its own. Headers, lines and marks sit on
 the sidebar, and their see-through fills show Zen's own blur (Glassflow >
 Sidebar > Customise Zen's blur) behind the whole panel, so a folder costs no

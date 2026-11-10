@@ -1300,6 +1300,59 @@ test("Groupflow keeps tab-switch scrolling off group connector gutters only", as
   assert.equal(wheel(container(true)), false, "retirement removes the listener");
 });
 
+test("Groupflow pointer gutters measure only their workspace and wheel bursts follow the current hit", async () => {
+  const e = await groupflowStartupEnv();
+  e.Services.prefs.getBoolPref = (_k, fallback) => fallback;
+  await e.inject();
+  const reads = { first: 0, second: 0, copy: 0, document: 0 }, frames = [];
+  const box = (name, library = false) => ({
+    parentElement: { parentElement: { closest: () => null } },
+    closest: selector => selector === "zen-library" && library ? {} : null,
+    getBoundingClientRect() { reads[name]++; return { top: 100, bottom: 300, left: 30 }; },
+    computed: { paddingLeft: "8px" },
+  });
+  // Inactive spaces can keep the same on-screen geometry in Zen, so reading
+  // their boxes first can also select a folder from the wrong workspace.
+  const firstBox = box("first"), secondBox = box("second"), copyBox = box("copy", true);
+  const first = { querySelectorAll: () => [firstBox] }, second = { querySelectorAll: () => [secondBox] };
+  const library = { querySelectorAll: () => [copyBox] };
+  const hit = (workspace, row = false) => ({
+    closest: selector => selector === "zen-workspace" ? workspace
+      : row && selector.includes("toolbarbutton") ? {} : null,
+  });
+  const firstHit = hit(first), secondHit = hit(second), outside = hit(null);
+  e.document.querySelectorAll = () => { reads.document++; return [secondBox, copyBox, firstBox]; };
+  e.gBrowser.tabContainer.contains = () => true;
+  e.w.requestAnimationFrame = fn => frames.push(fn);
+  let screen = 0;
+  const move = (target, clientY = 150) => {
+    e.gNavToolbox.fire("mousemove", { target, clientX: 20, clientY, screenX: ++screen, screenY: clientY });
+    frames.shift()();                 // Run hit testing; the glow's later frame is separate.
+    frames.length = 0;
+  };
+  move(firstHit);
+  assert.deepEqual(reads, { first: 1, second: 0, copy: 0, document: 0 });
+  move(secondHit);
+  assert.deepEqual(reads, { first: 1, second: 1, copy: 0, document: 0 }, "a workspace change follows its actual pointer target");
+  move(outside);
+  move(hit(library));
+  move(hit(first, true));
+  assert.deepEqual(reads, { first: 1, second: 1, copy: 0, document: 0 }, "outside space, Library copies and controls measure no folder boxes");
+  const wheel = (target, current, clientY = 150) => {
+    e.document.hit = current;
+    let stopped = false;
+    e.gBrowser.tabContainer.fire("DOMMouseScroll", { target, clientX: 20, clientY,
+      stopPropagation() { stopped = true; } });
+    return stopped;
+  };
+  assert.equal(wheel(firstHit, secondHit), true, "a burst begun elsewhere uses elementFromPoint, not its stale target");
+  assert.deepEqual(reads, { first: 1, second: 2, copy: 0, document: 0 });
+  assert.equal(wheel(secondHit, firstHit, 350), false, "empty space below folders leaves native list scrolling available");
+  assert.equal(wheel(firstHit, outside), false, "leaving the workspace cannot select an overlapping hidden folder");
+  assert.equal(wheel(firstHit, hit(library)), false, "Library copies cannot intercept the folder gutter wheel");
+  assert.deepEqual(reads, { first: 2, second: 2, copy: 0, document: 0 });
+});
+
 test("Groupflow scrolls a top-level group's box from anywhere in its body and keeps headers on screen", async () => {
   const e = await groupflowStartupEnv();
   let enabled = true;

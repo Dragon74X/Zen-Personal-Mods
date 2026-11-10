@@ -20,7 +20,7 @@ function setup(saved) {
       style: { getPropertyValue: k => styles.get(k)?.[0] ?? '', getPropertyPriority: k => styles.get(k)?.[1] ?? '',
         setProperty: (k, v, p = '') => styles.set(k, [v, p]), removeProperty: k => styles.delete(k) },
       setAttribute(k, v) { attrs.set(k, v); this.writes.push(k); }, getAttribute: k => attrs.get(k),
-      removeAttribute: k => attrs.delete(k),
+      removeAttribute: k => attrs.delete(k), hasAttribute: k => attrs.has(k),
       append(child) { this.children.push(child); child.parent = this; },
       remove() { this.parent.children.splice(this.parent.children.indexOf(this), 1); },
       matches: () => true, getAnimations: () => [],
@@ -143,4 +143,26 @@ test('Hidden and docked sidebar loads do not toggle the backdrop filter', () => 
   listener.onStateChange(h.browser.selectedBrowser, { isTopLevel: true }, null, 0x40010); h.flush();
   assert.equal(h.toolbox.writes.length, 0);
   stop();
+});
+
+test('A sidebar redraw waits for a workspace switch to finish, then runs once', () => {
+  const h = setup(false), stop = h.api.sidebarBackdrop();
+  const select = () => { for (const fn of h.browser.tabContainer.listeners.get('TabSelect')) fn({}); };
+  const redraws = () => h.toolbox.writes.filter(k => k === 'zzg-redraw').length;
+  h.toolbox.setAttribute('animating-background', '');
+  select(); select(); h.flush();
+  assert.equal(redraws(), 0, 'Zen is already re-blurring the panel on every frame of the switch');
+  assert.equal(h.mutations.size, 1, 'one waiter for the switch to end');
+  const [waiter] = h.mutations;
+  waiter.callback([]); h.flush();
+  assert.equal(redraws(), 0, 'nothing while the switch is still running');
+  h.toolbox.removeAttribute('animating-background');
+  waiter.callback([]); h.flush();
+  assert.equal(redraws(), 1, 'one redraw after it');
+  assert.equal(h.mutations.size, 0, 'and the waiter is gone');
+  h.root.setAttribute('animating-background', '');
+  select();
+  assert.equal(h.mutations.size, 1);
+  stop();
+  assert.equal(h.mutations.size, 0, 'retiring drops a waiting redraw');
 });

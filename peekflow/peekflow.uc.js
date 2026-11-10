@@ -2,7 +2,7 @@
 // @name           Peekflow
 // @description    Places Zen's tab hover preview and remembers how unloaded tabs looked.
 // @include        chrome://browser/content/browser.xhtml
-// @version        1.3.6
+// @version        1.3.7
 // ==/UserScript==
 
 (() => {
@@ -291,9 +291,16 @@
   else {
     const obs = (subject) => {
       if (subject !== window) return;
-      Services.obs.removeObserver(obs, "browser-delayed-startup-finished");
+      stopWaiting();
       if (!retired) start();
     };
+    // A window closed before delayed startup never fires the topic, and the
+    // observer service would keep this whole window alive for the session.
+    const stopWaiting = () => {
+      window.removeEventListener("unload", stopWaiting);
+      try { Services.obs.removeObserver(obs, "browser-delayed-startup-finished"); } catch {}
+    };
     Services.obs.addObserver(obs, "browser-delayed-startup-finished");
+    window.addEventListener("unload", stopWaiting, { once: true });
   }
 })();

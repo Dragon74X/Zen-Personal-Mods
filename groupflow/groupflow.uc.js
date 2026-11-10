@@ -1194,6 +1194,10 @@
   function scrollBox(box, to, instant, measured) {
     instant ||= reducedMotion();
     if (!instant && glides.get(box)?.to === to) return;   // already gliding there
+    // Already there: settle in one frame. A glide to where the box already is
+    // re-lit every list for 240ms on each tab switch.
+    if (!instant && !glides.has(box) &&
+        Math.abs(Math.max(0, Math.min(to, box.scrollHeight - box.clientHeight)) - box.scrollTop) < 0.5) instant = true;
     cancelAnimationFrame(glides.get(box)?.raf);
     glides.delete(box);
     if (measured) box.style.setProperty("--zzgf-box-fit", measured.fitAt(to) + "px");
@@ -1363,7 +1367,11 @@
     const glow = bool("scroll-glow", true);
     const sel = glow && num("glow-follows", 1) === 1 ? gBrowser.selectedTab : null;
     const lit = [];
-    for (const host of document.querySelectorAll("zen-workspace arrowscrollbox")) {
+    // Only the space on screen. The others stay laid out, so measuring them
+    // cost a pass over every folder in every space on each frame of a glide;
+    // a space is lit again when it becomes active.
+    const shown = document.querySelectorAll("zen-workspace[active] arrowscrollbox");
+    for (const host of shown.length ? shown : document.querySelectorAll("zen-workspace arrowscrollbox")) {
       const port = host.scrollbox;
       if (!port) continue;
       const view = port.getBoundingClientRect();
@@ -1709,6 +1717,13 @@
     const tabArea = new ResizeObserver(() => fitSoon());
     const wrapper = document.getElementById("zen-tabs-wrapper");
     if (wrapper) tabArea.observe(wrapper);
+    // Lists are lit only in the active space; light a space as it becomes
+    // active, even when no tab is selected on the way (an Essential kept).
+    const spaceShown = new MutationObserver(records => {
+      if (records.some(r => r.target.localName === "zen-workspace" && r.target.hasAttribute("active"))) lightSoon();
+    });
+    const strips = document.getElementById("tabbrowser-tabs");
+    if (strips) spaceShown.observe(strips, { subtree: true, attributes: true, attributeFilter: ["active"] });
     try { Services.obs.addObserver(schedule, "contextual-identity-updated"); } catch {}
 
     window.Groupflow = {
@@ -1782,6 +1797,7 @@
       for (const ev of FIT_EVENTS) window.removeEventListener(ev, onFitEvent, true);
       window.removeEventListener("TabAttrModified", onStatusEvent, true);
       tabArea.disconnect();
+      spaceShown.disconnect();
       clearTimeout(fitTimer);
       try { Services.obs.removeObserver(schedule, "contextual-identity-updated"); } catch {}
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}
@@ -1935,6 +1951,9 @@
       if (topic === "browser-delayed-startup-finished" && subject === window) startOnce();
     };
     Services.obs.addObserver(obs, "browser-delayed-startup-finished");
+    // A window closed before delayed startup never fires the topic, and the
+    // observer service would keep this whole window alive for the session.
+    window.addEventListener("unload", stopWaiting, { once: true });
 
     // The backstop. In the failure above the window is ALREADY past delayed
     // startup, so the first tick starts the mod half a second later. Bounded,

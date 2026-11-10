@@ -46,6 +46,8 @@ Clearing browsing history clears this window's warmup counters, origin records, 
 
 `zzturbo.smooth-workspace-switch` pauses tab-strip transitions and animations and hides its videos during workspace motion. Zen's blur behind the sidebar stays on. Effects resume when the marker clears or after 1500 ms; a stale marker cannot freeze them indefinitely. Actual frame-time impact requires profiling the installed theme, browser, and hardware.
 
+Only the strips that move carry the mark: the space being left, the space becoming active and the visible Essentials. A trackpad swipe marks every strip, since it can drag either neighbour. Earlier versions marked the document root, which restyled every workspace's strip twice per switch. On Zen 1.24.1b under Linux/Xvfb with four spaces, that added about 30 ms of main-thread time per switch over stock Zen; marking only the moving strips brought it to about 8 ms and halved the style-thread time (synthetic switches; not a Windows, input or pixel measurement). The old cost grew with every space's strip; a click or shortcut now marks two strips however many spaces there are.
+
 ## Diagnostics and limits
 
 ```js

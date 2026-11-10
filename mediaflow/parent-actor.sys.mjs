@@ -223,11 +223,11 @@ export class ZzMediaflowParent extends JSWindowActorParent {
     }
 
     this._lastTickSentAt = this._now();
-    this._safetyTimeout = (this._timerWindow || this.browsingContext?.topChromeWindow)
-      ?.setTimeout(() => {
-        this._safetyTimeout = null;
-        if (this._tickScheduled) this._sendTick();
-      }, SAFETY_TICK_MS);
+    this._safetyWin = this._timerWindow || this.browsingContext?.topChromeWindow;
+    this._safetyTimeout = this._safetyWin?.setTimeout(() => {
+      this._safetyTimeout = null;
+      if (this._tickScheduled) this._sendTick();
+    }, SAFETY_TICK_MS);
 
     try {
       const tierDimension = parseInt(
@@ -253,6 +253,7 @@ export class ZzMediaflowParent extends JSWindowActorParent {
     if (!win) return;
     const elapsed = this._now() - this._lastTickSentAt;
     const delay = Math.max(0, this._frameBudgetMs - elapsed);
+    this._nextTickWin = win;
     this._nextTickTimer = win.setTimeout(() => {
       this._nextTickTimer = null;
       this._sendTick();
@@ -261,22 +262,28 @@ export class ZzMediaflowParent extends JSWindowActorParent {
 
   _clearNextTick() {
     if (this._nextTickTimer) {
-      const win = this._timerWindow || this.browsingContext?.topChromeWindow;
-      try { win?.clearTimeout(this._nextTickTimer); } catch (_) {}
+      try { this._nextTickWin?.clearTimeout(this._nextTickTimer); } catch (_) {}
       this._nextTickTimer = null;
     }
+    this._nextTickWin = null;
   }
 
   _clearSafetyTimeout() {
     if (this._safetyTimeout) {
-      const win = this._timerWindow || this.browsingContext?.topChromeWindow;
-      try { win?.clearTimeout(this._safetyTimeout); } catch (_) {}
+      try { this._safetyWin?.clearTimeout(this._safetyTimeout); } catch (_) {}
       this._safetyTimeout = null;
     }
+    this._safetyWin = null;
   }
 
+  // Each timer is cleared on the window that created it. The window is looked
+  // up again on every call, and ZenWindowSync can move this tab's browser to
+  // another window in between: clearing there missed the real 20Hz caption
+  // clock (which then ran on, with another added at each activation) and could
+  // cancel an unrelated timer that shared its id.
   _startCaptionClock() {
     const win = this._timerWindow || this.browsingContext?.topChromeWindow;
+    if (this._captionTimer && this._captionWin?.closed) this._captionTimer = null;
     if (!win || this._captionTimer) return;
     const tick = () => {
       if (!this._captionsActive) return;
@@ -285,14 +292,15 @@ export class ZzMediaflowParent extends JSWindowActorParent {
       } catch (_) {}
     };
     tick();
+    this._captionWin = win;
     this._captionTimer = win.setInterval(tick, CAPTION_TICK_MS);
   }
 
   _stopCaptionClock() {
     if (!this._captionTimer) return;
-    const win = this._timerWindow || this.browsingContext?.topChromeWindow;
-    try { win?.clearInterval(this._captionTimer); } catch (_) {}
+    try { this._captionWin?.clearInterval(this._captionTimer); } catch (_) {}
     this._captionTimer = null;
+    this._captionWin = null;
   }
 
   _onFrameDelivered() {

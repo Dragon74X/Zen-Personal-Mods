@@ -204,11 +204,16 @@ async function turboEnv({ privateWindow = false, rows = Promise.resolve([]), fai
     prefHasUserValue: k => values.has(k), addObserver() {}, removeObserver() {},
   };
   const tabContainer = element(), root = element(), scroller = element(), toolbox = element(), NetUtil = {};
+  // Four workspace strips (the first active) and one essentials strip.
+  const spaces = [0, 1, 2, 3].map(i => Object.assign(element(), { localName: "zen-workspace", id: "space" + i }));
+  spaces[0].setAttribute("active", "true");
+  const essentials = [Object.assign(element(), { localName: "hbox" })], observed = [];
   w.XULBrowserWindow = { setOverLink: (...args) => args };
   const h = await load("zen-turbo", "start, syncPacks, startupWarmup, forgetWarmups, syncSmoothing, syncMeasurement, navListener, note, warm, prefObserver, stats", {
     ...c, window: w, gBrowser: { tabContainer, addTabsProgressListener() {}, removeTabsProgressListener() {} },
-    document: { documentElement: root, getElementById: id => ({ "tabbrowser-arrowscrollbox": scroller, "navigator-toolbox": toolbox })[id] ?? null },
-    MutationObserver: class { observe() {} disconnect() {} },
+    document: { documentElement: root, getElementById: id => ({ "tabbrowser-arrowscrollbox": scroller, "navigator-toolbox": toolbox, "tabbrowser-tabs": tabContainer })[id] ?? null,
+      querySelectorAll: selector => ({ "zen-workspace": spaces, ".zen-essentials-container": essentials })[selector] ?? [] },
+    MutationObserver: class { observe(node, options) { observed.push([node, options]); } disconnect() {} },
     Services: { prefs: pref, wm: { getMostRecentWindow: () => w },
       obs: { addObserver() {}, removeObserver() {} },
       scriptSecurityManager: { createContentPrincipal: (uri, attrs) => ({ uri, originAttributes: attrs }) },
@@ -222,7 +227,7 @@ async function turboEnv({ privateWindow = false, rows = Promise.resolve([]), fai
       ? { PrivateBrowsingUtils: { isWindowPrivate: () => privateWindow } }
       : uri.includes("NetUtil") ? { NetUtil } : { PlacesUtils: { promiseDBConnection: async () => ({ executeCached() { queries++; return rows; } }) } } },
   });
-  return { h, w, c, root, scroller, toolbox, values, defaults, connects, tabContainer, get queries() { return queries; }, get savedWrites() { return savedWrites; } };
+  return { h, w, c, root, scroller, toolbox, spaces, essentials, observed, values, defaults, connects, tabContainer, get queries() { return queries; }, get savedWrites() { return savedWrites; } };
 }
 
 test('Turbo leaves longer native/user session intervals intact',async()=>{
@@ -1382,7 +1387,12 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
   const frames = [];
   e.w.requestAnimationFrame = fn => frames.push(fn);
   const run = () => { let now = 0; while (frames.length) { now += 16; frames.shift()(now); } };
-  e.document.querySelectorAll = selector => selector === "zen-workspace arrowscrollbox" ? [list] : [box];
+  // A second space's list, laid out but not on screen: it is never measured.
+  let idleReads = 0;
+  const idle = { localName: "arrowscrollbox", querySelectorAll: () => [box],
+    scrollbox: { ...port, getBoundingClientRect: () => (idleReads++, { top: 76 }) } };
+  e.document.querySelectorAll = selector => selector === "zen-workspace[active] arrowscrollbox" ? [list]
+    : selector === "zen-workspace arrowscrollbox" ? [list, idle] : [box];
   const wheel = (target, deltaY = 3, deltaMode = 1) => { const ev = { target, deltaY, deltaMode, DOM_DELTA_PIXEL: 0, DOM_DELTA_LINE: 1,
     DOM_DELTA_PAGE: 2, prevented: false, preventDefault() { this.prevented = true; }, stopPropagation() {} };
     e.document.hit = target; e.gNavToolbox.fire("wheel", ev); run(); return ev.prevented; };
@@ -1392,6 +1402,7 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
   assert.equal(box.style["--zzgf-box-fit"], "480px", "the box ends on a row");
   assert.deepEqual([...box.marks].filter(m => m !== "zzgf-glide").sort(), ["zzgf-glow", "zzgf-list-glow", "zzgf-more-above", "zzgf-more-below"], "rows hidden on both sides are marked, and the line is lit");
   assert.equal(box.style["--zzgf-glow"], 40 / 520 * 480 + "px", "the light sits as far down the line as the body is scrolled");
+  assert.equal(idleReads, 0, "only the active space's lists are lit");
   assert.equal(wheel(gutter, 1), true); assert.equal(box.scrollTop, 80, "a small notch still moves one row");
   assert.equal(wheel(gutter, -100), true); assert.equal(box.scrollTop, 0, "clamped at the top");
   assert.equal(wheel(gutter, -3), false, "and at its top an upward wheel scrolls the list");
@@ -1424,7 +1435,7 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
   assert.equal(stopped, false, "and Firefox's tab switch is let through there");
   e.Services.prefs.getBoolPref = prefs;
   // The body takes what the header leaves of the list: 375px, trimmed to rows.
-  e.document.querySelectorAll = selector => selector === "zen-workspace arrowscrollbox" ? [list] : [box];
+  e.document.querySelectorAll = selector => /^zen-workspace(\[active\])? arrowscrollbox$/.test(selector) ? [list] : [box];
   e.w.fire("TabOpen", { type: "TabOpen" });
   for (const [id, fn] of [...e.c.timers]) { e.c.clearTimeout(id); fn(); }
   assert.equal(box.style["--zzgf-box-fit"], "360px", "the body ends on a row inside the list, so the header stays on screen");
@@ -1752,21 +1763,62 @@ test("Router starts no creator or icon requests in private windows", async () =>
 
 test("Turbo resumes tab effects after a stuck workspace marker and on retirement", async () => {
   const e = await turboEnv(); e.values.set("zzturbo.startup-warmup", false); e.h.start();
+  const strips = [...e.spaces, ...e.essentials], marked = () => strips.filter(s => s.hasAttribute("zzturbo-smoothing")).length;
   e.root.setAttribute("animating-background", "true"); e.h.syncSmoothing();
-  assert.equal(e.root.hasAttribute("zzturbo-smoothing"), true);
+  assert.equal(marked(), 2, "the active strip and the visible essentials");
   [...e.c.timers.values()][0]();
-  assert.equal(e.root.hasAttribute("zzturbo-smoothing"), false);
-  e.h.syncSmoothing(); assert.equal(e.root.hasAttribute("zzturbo-smoothing"), false);
+  assert.equal(marked(), 0);
+  e.h.syncSmoothing(); assert.equal(marked(), 0);
+  e.h.syncSmoothing([{ attributeName: "active", target: e.spaces[1] }]);
+  assert.equal(marked(), 0, "a stuck marker stays released for later switches too");
   e.root.removeAttribute("animating-background"); e.h.syncSmoothing();
   e.root.setAttribute("swipe-gesture", "true"); e.h.syncSmoothing();
-  assert.equal(e.root.hasAttribute("zzturbo-smoothing"), false, "Zen never marks swipes on :root");
+  assert.equal(marked(), 0, "Zen never marks swipes on :root");
   e.scroller.setAttribute("swipe-gesture", "true"); e.h.syncSmoothing();
-  assert.equal(e.root.hasAttribute("zzturbo-smoothing"), true);
+  assert.equal(marked(), strips.length, "a swipe can drag either neighbour");
   e.scroller.removeAttribute("swipe-gesture"); e.root.removeAttribute("swipe-gesture"); e.h.syncSmoothing();
-  assert.equal(e.root.hasAttribute("zzturbo-smoothing"), false);
+  assert.equal(marked(), 0);
   e.toolbox.setAttribute("animating-background", ""); e.h.syncSmoothing();
-  assert.equal(e.root.hasAttribute("zzturbo-smoothing"), true);
-  e.w.__zzturboInstance.retire(); assert.equal(e.root.hasAttribute("zzturbo-smoothing"), false);
+  assert.equal(marked(), 2);
+  e.w.__zzturboInstance.retire(); assert.equal(marked(), 0);
+  assert.equal(e.root.hasAttribute("zzturbo-smoothing"), false, "the document root is never restyled");
+});
+
+test("Turbo marks only the strips a workspace switch moves", async () => {
+  // A mark on :root restyled every workspace's strip twice per switch
+  // (+22 ms main thread, style thread x7 per switch on Zen 1.24.1b).
+  const e = await turboEnv(); e.values.set("zzturbo.startup-warmup", false); e.h.start();
+  const [a, b, c, d] = e.spaces, [ess] = e.essentials;
+  const tabsWatch = e.observed.find(([node]) => node === e.tabContainer)?.[1];
+  assert.deepEqual({ ...tabsWatch, attributeFilter: [...tabsWatch.attributeFilter] },
+    { attributes: true, subtree: true, attributeFilter: ["active"] }, "workspace activation is observed");
+  // Zen moves "active" first (records arrive while nothing slides) ...
+  a.removeAttribute("active"); b.setAttribute("active", "true");
+  e.h.syncSmoothing([{ attributeName: "active", target: a }, { attributeName: "active", target: b }]);
+  assert.equal([a, b, c, d, ess].some(s => s.hasAttribute("zzturbo-smoothing")), false);
+  // ... then marks the slide.
+  e.toolbox.setAttribute("animating-background", ""); e.h.syncSmoothing([{ attributeName: "animating-background", target: e.toolbox }]);
+  assert.deepEqual([a, b, c, d, ess].map(s => s.hasAttribute("zzturbo-smoothing")), [true, true, false, false, true]);
+  // A second switch during the slide adds the next strip.
+  b.removeAttribute("active"); c.setAttribute("active", "true");
+  e.h.syncSmoothing([{ attributeName: "active", target: b }, { attributeName: "active", target: c }]);
+  assert.deepEqual([a, b, c, d].map(s => s.hasAttribute("zzturbo-smoothing")), [true, true, true, false]);
+  e.toolbox.removeAttribute("animating-background"); e.h.syncSmoothing([{ attributeName: "animating-background", target: e.toolbox }]);
+  assert.equal([a, b, c, d, ess].some(s => s.hasAttribute("zzturbo-smoothing")), false);
+  // Switches without the pref, or hidden essentials, mark nothing extra.
+  ess.setAttribute("hidden", "true"); c.removeAttribute("active"); d.setAttribute("active", "true");
+  e.h.syncSmoothing([{ attributeName: "active", target: c }, { attributeName: "active", target: d }]);
+  e.toolbox.setAttribute("animating-background", ""); e.h.syncSmoothing();
+  assert.deepEqual([a, b, c, d, ess].map(s => s.hasAttribute("zzturbo-smoothing")), [false, false, true, true, false]);
+  e.values.set("zzturbo.smooth-workspace-switch", false); e.h.prefObserver.observe(null, "", "zzturbo.smooth-workspace-switch");
+  assert.equal([a, b, c, d, ess].some(s => s.hasAttribute("zzturbo-smoothing")), false);
+  assert.equal(e.root.hasAttribute("zzturbo-smoothing"), false);
+});
+
+test("Turbo smoothing CSS keys on the marked strips, not on the document root", async () => {
+  const css = await readFile(new URL("../zen-turbo/userChrome.css", import.meta.url), "utf8");
+  assert.doesNotMatch(css, /#main-window\[zzturbo-smoothing\]|:root\[zzturbo-smoothing\]/);
+  assert.match(css, /:is\(#tabbrowser-tabs zen-workspace, \.zen-essentials-container\)\[zzturbo-smoothing\]/);
 });
 
 test("Every pref a mod's CSS queries is declared in its preferences.json", async () => {

@@ -1387,7 +1387,12 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
   const frames = [];
   e.w.requestAnimationFrame = fn => frames.push(fn);
   const run = () => { let now = 0; while (frames.length) { now += 16; frames.shift()(now); } };
-  e.document.querySelectorAll = selector => selector === "zen-workspace arrowscrollbox" ? [list] : [box];
+  // A second space's list, laid out but not on screen: it is never measured.
+  let idleReads = 0;
+  const idle = { localName: "arrowscrollbox", querySelectorAll: () => [box],
+    scrollbox: { ...port, getBoundingClientRect: () => (idleReads++, { top: 76 }) } };
+  e.document.querySelectorAll = selector => selector === "zen-workspace[active] arrowscrollbox" ? [list]
+    : selector === "zen-workspace arrowscrollbox" ? [list, idle] : [box];
   const wheel = (target, deltaY = 3, deltaMode = 1) => { const ev = { target, deltaY, deltaMode, DOM_DELTA_PIXEL: 0, DOM_DELTA_LINE: 1,
     DOM_DELTA_PAGE: 2, prevented: false, preventDefault() { this.prevented = true; }, stopPropagation() {} };
     e.document.hit = target; e.gNavToolbox.fire("wheel", ev); run(); return ev.prevented; };
@@ -1397,6 +1402,7 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
   assert.equal(box.style["--zzgf-box-fit"], "480px", "the box ends on a row");
   assert.deepEqual([...box.marks].filter(m => m !== "zzgf-glide").sort(), ["zzgf-glow", "zzgf-list-glow", "zzgf-more-above", "zzgf-more-below"], "rows hidden on both sides are marked, and the line is lit");
   assert.equal(box.style["--zzgf-glow"], 40 / 520 * 480 + "px", "the light sits as far down the line as the body is scrolled");
+  assert.equal(idleReads, 0, "only the active space's lists are lit");
   assert.equal(wheel(gutter, 1), true); assert.equal(box.scrollTop, 80, "a small notch still moves one row");
   assert.equal(wheel(gutter, -100), true); assert.equal(box.scrollTop, 0, "clamped at the top");
   assert.equal(wheel(gutter, -3), false, "and at its top an upward wheel scrolls the list");
@@ -1429,7 +1435,7 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
   assert.equal(stopped, false, "and Firefox's tab switch is let through there");
   e.Services.prefs.getBoolPref = prefs;
   // The body takes what the header leaves of the list: 375px, trimmed to rows.
-  e.document.querySelectorAll = selector => selector === "zen-workspace arrowscrollbox" ? [list] : [box];
+  e.document.querySelectorAll = selector => /^zen-workspace(\[active\])? arrowscrollbox$/.test(selector) ? [list] : [box];
   e.w.fire("TabOpen", { type: "TabOpen" });
   for (const [id, fn] of [...e.c.timers]) { e.c.clearTimeout(id); fn(); }
   assert.equal(box.style["--zzgf-box-fit"], "360px", "the body ends on a row inside the list, so the header stays on screen");

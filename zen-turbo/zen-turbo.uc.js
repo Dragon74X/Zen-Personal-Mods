@@ -633,6 +633,9 @@
       if (topic === "browser-delayed-startup-finished" && subject === window) startOnce();
     };
     Services.obs.addObserver(obs, "browser-delayed-startup-finished");
+    // A window closed before delayed startup never fires the topic, and the
+    // observer service would keep this whole window alive for the session.
+    window.addEventListener("unload", stopWaiting, { once: true });
 
     // The backstop. In the failure above the window is ALREADY past delayed
     // startup, so the first tick starts the mod half a second later. Bounded,

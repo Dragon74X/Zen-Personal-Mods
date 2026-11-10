@@ -267,12 +267,24 @@
   // completion, including the optional page filter's transparency decision.
   function sidebarBackdrop() {
     const root = document.documentElement, toolbox = document.getElementById("navigator-toolbox");
-    let frame = 0, retired = false;
+    let frame = 0, retired = false, waiter = null;
+    // Zen's workspace switch re-blurs this panel on every frame while it fades
+    // the background; a redraw then only adds another full blur. It waits for
+    // the switch to finish and runs once.
+    const switching = () => !!(toolbox?.hasAttribute?.("animating-background") || root.hasAttribute?.("animating-background"));
+    const dropWaiter = () => { waiter?.disconnect(); waiter = null; };
     const refresh = () => {
       if (retired) return;
       pageBlur?.refresh();
       cancelAnimationFrame(frame);
       toolbox?.removeAttribute("zzg-redraw");
+      if (switching()) {
+        if (!waiter && toolbox) {
+          waiter = new MutationObserver(() => { if (!switching()) { dropWaiter(); refresh(); } });
+          for (const node of [root, toolbox]) waiter.observe(node, { attributes: true, attributeFilter: ["animating-background"] });
+        }
+        return;
+      }
       frame = requestAnimationFrame(() => {
         frame = 0;
         if (retired || !toolbox || root.getAttribute("zen-compact-mode") !== "true" ||
@@ -300,6 +312,7 @@
     toolbox?.addEventListener("transitionend", slide);
     return () => {
       retired = true;
+      dropWaiter();
       cancelAnimationFrame(frame);
       toolbox?.removeAttribute("zzg-redraw");
       gBrowser.removeTabsProgressListener(progress);
@@ -811,6 +824,9 @@
       if (topic === "browser-delayed-startup-finished" && subject === window) startOnce();
     };
     Services.obs.addObserver(obs, "browser-delayed-startup-finished");
+    // A window closed before delayed startup never fires the topic, and the
+    // observer service would keep this whole window alive for the session.
+    window.addEventListener("unload", stopWaiting, { once: true });
 
     // The backstop. In the failure above the window is ALREADY past delayed
     // startup, so the first tick starts the mod half a second later. Bounded,

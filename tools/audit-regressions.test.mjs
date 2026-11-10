@@ -365,6 +365,33 @@ test("Mediaflow: inactive actor state, frames, and stops cannot change active co
   assert.equal(calls.at(-1), state);
 });
 
+test("Mediaflow: actor timers are cleared on the window that created them after the browser moves", () => {
+  const { actor } = mediaActor("parent-actor.sys.mjs", "ZzMediaflowParent", "JSWindowActorParent");
+  // Each window numbers its own timers, so ids collide across windows.
+  const chromeWindow = () => { const live = new Map(); let next = 0;
+    return { live, closed: false, performance: { now: () => 0 },
+      setTimeout(fn) { live.set(++next, fn); return next; }, setInterval(fn) { live.set(++next, fn); return next; },
+      clearTimeout(id) { live.delete(id); }, clearInterval(id) { live.delete(id); } }; };
+  const first = chromeWindow(), second = chromeWindow();
+  second.setTimeout(() => {});   // another mod's timer, sharing the caption clock's id
+  actor.browsingContext = { id: 7, topChromeWindow: first };
+  actor._setProcessingActive(true, "youtube", true);
+  actor._startTicking(first);
+  actor._stopTicking();
+  assert.equal(first.live.size, 1, "the caption clock keeps running for captions");
+  actor.browsingContext.topChromeWindow = second;   // ZenWindowSync moved the browser
+  actor._setProcessingActive(false, "off", false);
+  assert.equal(first.live.size, 0, "the caption clock is stopped where it runs");
+  assert.equal(second.live.size, 1, "and an unrelated timer with the same id survives");
+  actor._setProcessingActive(true, "youtube", true);
+  actor._setProcessingActive(true, "youtube", true);
+  assert.equal(second.live.size, 2, "one clock however often captions come back on");
+  second.closed = true;
+  actor.browsingContext.topChromeWindow = first;
+  actor._setProcessingActive(true, "youtube", true);
+  assert.equal(first.live.size, 1, "a clock whose window closed is started again");
+});
+
 test("Mediaflow measures Zen's visible front card rather than an earlier hidden card", () => {
   const sizes = [], native = { frontCard: null };
   const hidden = { getBoundingClientRect: () => ({ height: 0 }) };
@@ -433,4 +460,37 @@ test("Mediaflow: native range seeks once on commit and cancels preview state wit
   assert.equal(track.valueAsNumber, 0);
   assert.equal(track.attrs.has("aria-valuetext"), false);
   assert.match(mediaSource, /:is\(:hover, :focus-within, \[zzmf-paused\]\)/);
+});
+
+test("A window closed before delayed startup drops its startup observer", () => {
+  for (const file of ["glassflow/glassflow.uc.js", "groupflow/groupflow.uc.js", "tab-unloader/tab-unloader.uc.js",
+    "zen-turbo/zen-turbo.uc.js", "peekflow/peekflow.uc.js"]) {
+    const source = readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
+    const wait = source.slice(source.lastIndexOf('Services.obs.addObserver(obs, "browser-delayed-startup-finished")'));
+    assert.match(wait, /^[^]{0,300}window\.addEventListener\("unload", stopWaiting, \{ once: true \}\)/, file);
+    const stop = source.slice(source.indexOf("const stopWaiting"), source.indexOf("const stopWaiting") + 400);
+    assert.match(stop, /removeObserver\(obs, "browser-delayed-startup-finished"\)/, file);
+  }
+});
+
+test("Groupflow settles a folder already at its target without a glide", () => {
+  const source = readFileSync(new URL("../groupflow/groupflow.uc.js", import.meta.url), "utf8");
+  const frames = [], edges = [];
+  const env = vm.createContext({ performance: { now: () => 0 }, markEdges: box => edges.push(box.scrollTop),
+    window: { matchMedia: () => ({ matches: false }) },
+    requestAnimationFrame: fn => frames.push(fn), cancelAnimationFrame: () => {} });
+  vm.runInContext(source.slice(source.indexOf("  const glides = new Map();"), source.indexOf("  // What is out of view.")) +
+    "\nthis.scrollBox = scrollBox; this.glides = glides;", env);
+  const box = { top: 120, scrollHeight: 1000, clientHeight: 400, style: { setProperty() {} },
+    get scrollTop() { return this.top; }, set scrollTop(v) { this.top = Math.max(0, Math.min(600, v)); } };
+  env.scrollBox(box, 120);
+  assert.equal(frames.length, 0, "no glide to where it already is");
+  assert.deepEqual(edges, [120], "its edges and rails are set once");
+  box.top = 600;
+  env.scrollBox(box, 900);
+  assert.equal(frames.length, 0, "a target past its end counts as its end");
+  env.scrollBox(box, 200);
+  assert.equal(frames.length, 1, "a real move still glides");
+  env.scrollBox(box, 200);
+  assert.equal(frames.length, 1, "and is not restarted");
 });

@@ -267,7 +267,13 @@
   // completion, including the optional page filter's transparency decision.
   function sidebarBackdrop() {
     const root = document.documentElement, toolbox = document.getElementById("navigator-toolbox");
+    const page = document.getElementById("tabbrowser-tabbox");
     let frame = 0, retired = false, waiter = null;
+    // The first open after a page loaded (or a tab or launch) showed no blur
+    // on Windows until the next open: the renderer blurred a stale copy of
+    // the page, and changing the filter alone re-blurs that same copy. Once
+    // per changed page, the page itself is repainted for the same two frames.
+    let pageChanged = true;
     // Zen's workspace switch re-blurs this panel on every frame while it fades
     // the background; a redraw then only adds another full blur. It waits for
     // the switch to finish and runs once.
@@ -278,6 +284,7 @@
       pageBlur?.refresh();
       cancelAnimationFrame(frame);
       toolbox?.removeAttribute("zzg-redraw");
+      page?.removeAttribute("zzg-repaint");
       if (switching()) {
         if (!waiter && toolbox) {
           waiter = new MutationObserver(() => { if (!switching()) { dropWaiter(); refresh(); } });
@@ -294,8 +301,13 @@
         // ponytail: finite renderer invalidation, not a renderer repair. Retain
         // until Windows load/slide captures prove stale backdrops are fixed.
         toolbox.setAttribute("zzg-redraw", "");
+        const repaint = pageChanged && page;
+        if (repaint) { pageChanged = false; page.setAttribute("zzg-repaint", ""); }
         frame = requestAnimationFrame(() => {
-          frame = requestAnimationFrame(() => { frame = 0; toolbox.removeAttribute("zzg-redraw"); });
+          frame = requestAnimationFrame(() => {
+            frame = 0; toolbox.removeAttribute("zzg-redraw");
+            if (repaint) page.removeAttribute("zzg-repaint");
+          });
         });
       });
     };
@@ -303,21 +315,30 @@
       onStateChange(browser, wp, _request, flags) {
         const W = Ci.nsIWebProgressListener;
         if (browser === gBrowser.selectedBrowser && wp?.isTopLevel &&
-            (flags & W.STATE_STOP) && (flags & W.STATE_IS_NETWORK)) refresh();
+            (flags & W.STATE_STOP) && (flags & W.STATE_IS_NETWORK)) { pageChanged = true; refresh(); }
       },
     };
-    const slide = e => { if (e.target === toolbox && e.propertyName === "translate") refresh(); };
+    const selected = () => { pageChanged = true; refresh(); };
+    // Also as the sidebar starts to slide in, so a changed page is right for
+    // the whole slide rather than only once it has stopped.
+    const slide = e => {
+      if (e.target !== toolbox || e.propertyName !== "translate") return;
+      if (e.type === "transitionend" || (pageChanged && toolbox.matches(SHOWN))) refresh();
+    };
     gBrowser.addTabsProgressListener(progress);
-    gBrowser.tabContainer.addEventListener("TabSelect", refresh);
+    gBrowser.tabContainer.addEventListener("TabSelect", selected);
     toolbox?.addEventListener("transitionend", slide);
+    toolbox?.addEventListener("transitionrun", slide);
     return () => {
       retired = true;
       dropWaiter();
       cancelAnimationFrame(frame);
       toolbox?.removeAttribute("zzg-redraw");
+      page?.removeAttribute("zzg-repaint");
       gBrowser.removeTabsProgressListener(progress);
-      gBrowser.tabContainer.removeEventListener("TabSelect", refresh);
+      gBrowser.tabContainer.removeEventListener("TabSelect", selected);
       toolbox?.removeEventListener("transitionend", slide);
+      toolbox?.removeEventListener("transitionrun", slide);
     };
   }
 

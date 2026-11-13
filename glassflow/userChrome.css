@@ -128,6 +128,11 @@
   :root[zen-compact-mode="true"] #navigator-toolbox[zzg-redraw] #titlebar #zen-toolbar-background {
     backdrop-filter: var(--zzg-acrylic-flat) contrast(1.001) !important;
   }
+  /* Repaint (glassflow.uc.js): the page under it, for the same two frames,
+     once per changed page, so the blur is not made from a stale copy. */
+  :root[zen-compact-mode="true"] #tabbrowser-tabbox[zzg-repaint] {
+    opacity: 0.999 !important;
+  }
 }
 /* Arc still reads the retired acrylic-elements preference. When Glassflow
    owns the sidebar, honour the current native off/reduced-transparency choice. */

@@ -166,3 +166,22 @@ test('A sidebar redraw waits for a workspace switch to finish, then runs once', 
   stop();
   assert.equal(h.mutations.size, 0, 'retiring drops a waiting redraw');
 });
+
+test('A changed page is repainted once, as the sidebar starts to slide in', () => {
+  const h = setup(false), stop = h.api.sidebarBackdrop(), listener = [...h.progress][0];
+  const slide = type => { for (const fn of h.toolbox.listeners.get(type)) fn({ type, target: h.toolbox, propertyName: 'translate' }); };
+  const repaints = () => h.box.writes.filter(k => k === 'zzg-repaint').length;
+  slide('transitionrun'); h.flush();
+  assert.equal(repaints(), 1, 'the page after launch is repainted on the first open');
+  assert.equal(h.box.getAttribute('zzg-repaint'), undefined, 'for two frames only');
+  slide('transitionend'); slide('transitionrun'); h.flush();
+  assert.equal(repaints(), 1, 'an unchanged page is not repainted again');
+  assert.equal(h.toolbox.writes.filter(k => k === 'zzg-redraw').length, 2, 'the slide end still redraws; an unchanged open does not start one');
+  listener.onStateChange(h.browser.selectedBrowser, { isTopLevel: true }, null, 0x40010); h.flush();
+  slide('transitionrun'); h.flush();
+  assert.equal(repaints(), 2, 'a page load makes the next open repaint it');
+  for (const fn of h.browser.tabContainer.listeners.get('TabSelect')) fn({}); h.flush();
+  assert.equal(repaints(), 3, 'so does selecting another tab with the sidebar open');
+  stop();
+  assert.equal(h.toolbox.listeners.get('transitionrun').size, 0);
+});

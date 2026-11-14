@@ -345,6 +345,13 @@
      the tab stay off, as they were while this list replaced them. */
   transition: none !important;
 }
+/* The pointer-follow angle is set on the tab and does not inherit (see
+   @property --zzg-follow-angle). The rim is worked out on the background,
+   so it is handed down through the stack between them, and no further. */
+:is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab > .tab-stack,
+:is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab > .tab-stack > .tab-background {
+  --zzg-follow-angle: inherit;
+}
 :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab .tab-background {
   --zzg-ex: calc(cos(var(--zzg-follow-angle, var(--zzg-edge-angle))) * var(--zzg-edge-width) * var(--zzg-relief-depth) * var(--zzg-relief-sign));
   --zzg-ey: calc(sin(var(--zzg-follow-angle, var(--zzg-edge-angle))) * var(--zzg-edge-width) * var(--zzg-relief-depth) * var(--zzg-relief-sign));

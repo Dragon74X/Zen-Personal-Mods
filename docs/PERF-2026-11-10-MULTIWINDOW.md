@@ -125,6 +125,11 @@ elements styled, style time 48 → 39 ms; main thread about 5 ms lower, within t
 run-to-run spread. The remaining cost is spread across the tab-state rules and
 has no single cheap cause.
 
+Glassflow 3.74.27 corrects 3.74.26: the pointer-follow angle (**edges follow
+pointer**, off by default) is set on the tab and does not inherit, so the rim
+worked out on the background had stopped following it. The angle is now handed
+down through `.tab-stack` to the background; the rim matches 3.74.25 again.
+
 **Iconflow parts rescans (Iconflow 1.21.15).** Each tooltip and tab hover
 preview that opened during a sweep scheduled a full icon rescan (about 1 ms
 each, 51 per 8 sweeps); those popups hold none of its icons and are skipped.

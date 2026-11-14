@@ -682,7 +682,12 @@
   };
   const observer = { observe: () => soon(true) };
   const events = [["TabOpen", gBrowser.tabContainer], ["popupshown", window], ["ViewShown", window], ["aftercustomization", window]];
-  const onEvent = () => soon();
+  // Tooltips and the tab hover preview open on every tab the pointer crosses
+  // and hold none of these icons: rescanning for them cost a full scan each.
+  const onEvent = e => {
+    if (e?.type === "popupshown" && (e.target?.localName === "tooltip" || e.target?.id === "tab-preview-panel")) return;
+    soon();
+  };
   S.addObserver(PREFIX, observer);
   for (const [type, target] of events) target.addEventListener(type, onEvent);
   const onLoad = () => soon(true);

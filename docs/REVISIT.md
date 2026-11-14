@@ -12,7 +12,10 @@ Historical review entries from October 2026. The [completion audit](FIXES-2026-1
   covers 32 cases without capture errors. Native blur covers the tested opaque
   and transparent pages. Glassflow 3.74.17 defaults the existing compatibility
   filter off and removes its resources while off; saved choices remain intact.
-- **Still open:** transient redraw behavior and other renderer/theme combinations.
+- **Updated:** Glassflow 3.74.25 repaints the page under the compact sidebar once
+  per changed page as it opens, after a Windows report that the first open after
+  a page load showed no blur ([multi-window lag notes](PERF-2026-11-10-MULTIWINDOW.md)).
+- **Still open:** other transient redraw cases and other renderer/theme combinations.
   The retained fallback mask is a rectangle, so rounded panel corners may show
   a sliver of blurred page (the `ponytail:` note describes the limit).
 - **Recorded:** 9 October 2026 audit ([AUDIT-2026-10-09.md](AUDIT-2026-10-09.md)).

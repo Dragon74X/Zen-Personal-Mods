@@ -84,3 +84,58 @@ startup observer removal.
 3. Open two more windows, close them, open `about:memory`, click
    **Measure**, and note the `ghost-windows` count and the number of
    `window-objects/top(...)/detached` entries.
+
+## Follow-up, 13–14 November 2026
+
+**Blur missing on the first sidebar open after a page load (Glassflow 3.74.25).**
+On Windows the compact sidebar showed no blur on its first open after a page
+loaded and blurred from the second. The redraw nudge changed only the panel's
+filter, which re-blurs the renderer's copy of what is behind it; when that copy
+is stale it stays stale until the page repaints. Once per changed page (launch,
+a top-level load in the selected tab, a tab selection) the page area now also
+repaints for the same two frames (`opacity: 0.999` on `#tabbrowser-tabbox`), as
+the sidebar starts to slide in as well as when it stops. On Linux the repaint
+fires on exactly those opens; Windows pixels were not captured.
+
+**First page load.** Stock Zen against all mods, each twice, a 1,500-element
+page with a video loaded twice in the selected tab: mod scripts took 1–5 ms per
+load and parent main-thread time matched stock (about 140–280 ms either way).
+Renderer time with a blurred compact sidebar was about four times stock without
+blur, but stock Zen's own acrylic costs the same: it is the price of the blur,
+not of a mod. Sine reloads every stylesheet and the changed scripts at launch
+only when one of its update checks finds a new release (`updateMods("auto")` →
+`rebuildMods()`), so a launch right after a release does more work, once.
+
+**Window moves.** No mod listens for window position changes, and moving
+without resizing fires no resize observer. Focus changes restyle a handful of
+window-button rules.
+
+**Glassflow per-switch restyle (Glassflow 3.74.26).** Bisecting the stylesheet
+(199 top-level blocks) traced the switch cost to the base tab rule together
+with the tab-state rules. Profiler style markers showed 1,008 elements styled
+per switch against 595 with no Glassflow stylesheet, while elements matched
+stayed equal (272 against 277): the extra work was inherited restyles. The
+eleven registered state inputs (`--zzg-a`, `--zzg-edge-top`, …) animated on the
+tab, so every element inside the old and new selected tab (or a hovered one)
+was restyled on each frame. They now animate on `.tab-background`, the only
+element that paints them, with the derived shadow and sheen resolved there.
+Computed paint was identical for all 57 tab backgrounds at rest and after a
+selection change; the same four inputs still transition. Per switch: 664
+elements styled, style time 48 → 39 ms; main thread about 5 ms lower, within the
+run-to-run spread. The remaining cost is spread across the tab-state rules and
+has no single cheap cause.
+
+**Iconflow parts rescans (Iconflow 1.21.15).** Each tooltip and tab hover
+preview that opened during a sweep scheduled a full icon rescan (about 1 ms
+each, 51 per 8 sweeps); those popups hold none of its icons and are skipped.
+
+**Checked, not changed.** Peekflow recaptures the selected tab on each hover by
+design, so its picture is current. Iconflow Morph's pointer handlers cost about
+0.2 ms each. Glassflow showed no clash with Zen 1.24.2b's workspace pill,
+URL-bar text or grain in computed styles and captures. Groupflow's switch-time
+fitting cost about 3 ms per switch in the four-space fixture. The Mediaflow
+frame requests after a playing tab's browser moves windows and the cleanup
+ordering items remain unmeasured.
+
+Zen 1.24.2b (Firefox 160) results are in the
+[1.24.1b audit](AUDIT-2026-11-09-ZEN1241.md#firefox-160-next-zen-release).

@@ -18,6 +18,8 @@ test("Tab-state inputs animate on .tab-background, not on the tab", () => {
   assert.doesNotMatch(tab, /--zzg-state-shadow:|--zzg-state-sheen:/, "derived paint resolves where it animates");
   const bg = css.match(/\n:is\(#navigator-toolbox, \.zen-library-space-tabs\) \.tabbrowser-tab \.tab-background \{[^]*?\n\}/)[0];
   for (const name of ["--zzg-ex:", "--zzg-ey:", "--zzg-shade:", "--zzg-band:", "--zzg-state-shadow:", "--zzg-state-sheen:"]) assert.ok(bg.includes(name), name);
+  assert.match(css, /\.tabbrowser-tab > \.tab-stack,\n[^{]*\.tabbrowser-tab > \.tab-stack > \.tab-background \{\n  --zzg-follow-angle: inherit;\n\}/,
+    "the pointer-follow angle set on the tab still reaches the rim");
   const motion = css.match(/--zzg-state-motion: ([^;]+);/)[1];
   for (const name of animated) assert.match(motion, new RegExp(`${name} var\\(--zzg-motion-light\\) var\\(--zzg-motion-ease\\)`), name);
   const states = css.match(/transition: opacity var\(--zzg-motion-light\)[^;]*;/g);

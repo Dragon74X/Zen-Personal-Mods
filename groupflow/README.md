@@ -64,6 +64,9 @@ unloaded tabs and keeps the selected tab and all loaded tabs visible. **Keep eac
 (on for new/unset configurations) also keeps the tab last used in each folder/subfolder, even when unloaded. Existing false values remain unchanged.
 The next click shows all tabs in all subfolders.
 Nested headers and groups without subfolders still toggle individually.
+A collapsed group or folder stays folded when a tab opens in it or is moved
+into it (Firefox, and Zen's folder code, otherwise unfold it); the new tab shows
+like any other loaded or selected tab. Only unfolding it yourself opens it.
 Last-selected order uses Zen's native timestamps, including restored session history.
 History includes descendant tabs.
 If any split-view member remains visible, both member tabs retain their native row.

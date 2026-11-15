@@ -1066,9 +1066,58 @@
     });
     observer.observe(gBrowser.tabContainer, { subtree: true, attributes: true,
       attributeFilter: ["pending", "discarded", "hidden", "multiselected"] });
+
+    // Firefox unfolds a collapsed group whenever a tab is inserted into it
+    // (bug 1997096); Zen unfolds one when a tab joins it without an active
+    // tab, and a collapsed folder once every tab in it would show. A collapsed group now stays folded until it is unfolded by
+    // hand; the new tab shows through it like any loaded or selected tab.
+    const groupProto = customElements.get("tab-group").prototype;
+    const nativeCollapsed = Object.getOwnPropertyDescriptor(groupProto, "collapsed");
+    let automatic = 0;
+    const keptFolded = new WeakSet();
+    const keepFolded = { ...nativeCollapsed, set(value) {
+      if (!value && automatic && this.collapsed && !this.hasAttribute("split-view-group")) {
+        keptFolded.add(this);
+        changed({ type: "state" });
+        return;
+      }
+      nativeCollapsed.set.call(this, value);
+    } };
+    const holds = !!(nativeCollapsed?.configurable && nativeCollapsed.set);
+    if (holds) Object.defineProperty(groupProto, "collapsed", keepFolded);
+    const unwraps = [];
+    const wrap = (owner, name, after = result => result) => {
+      if (!holds || typeof owner?.[name] !== "function") return;
+      const own = Object.prototype.hasOwnProperty.call(owner, name), original = owner[name];
+      const wrapper = function (...args) {
+        automatic++;
+        try { return after(original.apply(this, args), args); } finally { automatic--; }
+      };
+      owner[name] = wrapper;
+      unwraps.push(() => {
+        if (owner[name] !== wrapper) return;
+        if (own) owner[name] = original; else delete owner[name];
+      });
+    };
+    wrap(gBrowser, "addTab");
+    // Zen sets a collapsed group's state from has-active when a tab joins it,
+    // which unfolds one with no active tab (tabs opened or moved into it).
+    wrap(window.gZenFolders, "on_TabGrouped");
+    // Zen asks again while this answers "expanded": a folder kept folded is
+    // reported as not expanded, so its loop ends.
+    wrap(window.gZenFolders, "animateSelect", (result, [group]) => {
+      if (!keptFolded.has(group)) return result;
+      keptFolded.delete(group);
+      return Promise.resolve(false);
+    });
+
     sync();
     return () => {
       retired = true;
+      for (const unwrap of unwraps) unwrap();
+      if (Object.getOwnPropertyDescriptor(groupProto, "collapsed")?.set === keepFolded.set) {
+        Object.defineProperty(groupProto, "collapsed", nativeCollapsed);
+      }
       observer.disconnect();
       try { Services.prefs.removeObserver(keepLastPref, changed); } catch {}
       for (const event of events) window.removeEventListener(event, changed, true);

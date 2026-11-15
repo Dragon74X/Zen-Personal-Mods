@@ -75,6 +75,26 @@ use `await TabRouter.sortAll()` when you need completion.
 
 `TabRouter.applyOrder()` re-runs just the ordering pass.
 
+## Switching to a page that is already open
+
+**Switch to a page that is already open** (on). Clicking a link to a page that
+is already open in another tab switches to that tab instead of opening a copy,
+whether the click would open it in place or in a new tab; a new tab whose first
+page is already open elsewhere (opened from a menu, a bookmark, another app or
+typed) closes and switches to it too. Tabs in other spaces and windows count;
+Zen changes space as needed.
+
+Only real link clicks and a new tab's first page are checked, so back and
+forward, reloads, form submissions (and their redirects), redirects in general,
+sign-in steps and pages that navigate by script are never switched. To open a
+copy on purpose, hold **Alt** while clicking (middle-click included), or use
+**Duplicate Tab**; session restore and reopening closed tabs make copies as
+before. The same page ignores `#anchors`, tracking parameters (`utm_*`,
+`fbclid`, `si`, …), `www.` and a trailing slash, and only counts within the
+same container. The page side is a small window actor
+(`links-child.sys.mjs`) that reacts to clicks only; the list of open pages it
+reads holds addresses reduced to that comparison key.
+
 ## Folder pages
 
 When it files a tab, Tab Router records each folder level's own page for

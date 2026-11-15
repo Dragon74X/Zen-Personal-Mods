@@ -68,6 +68,7 @@
   const prefObserver = { observe(_s, _t, data) {
     if (writing) return;
     updateOpenMenu();
+    if (data === P + "switch-to-open") { publishSoon(); return; }
     if (data === P + "learned-names") { learnedCache = null; targetGen++; return; }
     if (data === P + "creators") { creatorCache = null; targetGen++; return; }
     if (data === P + "avatars") {
@@ -1918,6 +1919,145 @@
     }
   }
 
+  // ---- switch to an open page ---------------------------------------------
+  // A link clicked in a page, or a new tab's first page, that is already
+  // open in another tab switches to that tab instead of opening a copy. The
+  // page side (links-child.sys.mjs) only acts on real link clicks, so back
+  // and forward, reloads, forms, redirects and script navigation never
+  // switch; Alt-click, Duplicate Tab and session restore always make copies.
+  const LINKS_VERSION = "1.39.0", OPEN_PAGES = "zzrouter:open-pages";
+  const TRACKING = /^(utm_[a-z]+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|igshid|si|ref_src|_hsenc|_hsmi)$/i;
+  function pageKey(url) {
+    try {
+      const u = new URL(url);
+      if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+      const query = [...u.searchParams].filter(([k]) => !TRACKING.test(k));
+      const search = query.length ? "?" + new URLSearchParams(query).toString() : "";
+      return u.hostname.toLowerCase().replace(/^www\./, "") + (u.port ? ":" + u.port : "") +
+        (u.pathname.replace(/\/+$/, "") || "") + search;
+    } catch { return null; }
+  }
+  const switchOn = () => bool("switch-to-open", true);
+  function tabURL(tab) {
+    let url = "";
+    try { url = tab.linkedBrowser?.currentURI?.spec || ""; } catch {}
+    if ((!url || url === "about:blank") && tab.hasAttribute("pending")) {
+      try { url = window.SessionStore.getLazyTabValue(tab, "url") || url; } catch {}
+    }
+    return url;
+  }
+  const eligibleTab = tab => tab && !tab.closing && tab.linkedBrowser && !tab.hasAttribute("zen-glance-tab") &&
+    !tab.hasAttribute("zen-empty-tab");
+  function* allWindowTabs() {
+    yield* gBrowser.tabs;                               // this window first
+    for (const w of Services.wm.getEnumerator("navigator:browser")) if (w !== window && !w.closed && w.gBrowser) yield* w.gBrowser.tabs;
+  }
+  function openTabFor(ctx, key, except = null) {
+    for (const tab of allWindowTabs()) {
+      if (tab === except || !eligibleTab(tab) || contextOf(tab) !== ctx) continue;
+      if (pageKey(tabURL(tab)) === key) return tab;
+    }
+    return null;
+  }
+  function switchTo(tab) {
+    const win = tab.ownerDocument?.defaultView || window;
+    if (win !== window) win.focus();
+    if (win.gZenWorkspaces?.switchTabIfNeeded) win.gZenWorkspaces.switchTabIfNeeded(tab);
+    else win.gBrowser.selectedTab = tab;
+  }
+  // Every window publishes the whole set, so the page side needs one lookup.
+  let publishTimer = null;
+  function publishOpen() {
+    publishTimer = null;
+    if (retired) return;
+    const open = new Set();
+    if (switchOn()) {
+      for (const tab of allWindowTabs()) {
+        if (!eligibleTab(tab)) continue;
+        const key = pageKey(tabURL(tab));
+        if (key) open.add(`${contextOf(tab)}|${key}`);
+      }
+    }
+    try { Services.ppmm.sharedData.set(OPEN_PAGES, open); Services.ppmm.sharedData.flush(); } catch {}
+  }
+  const publishSoon = () => { if (!retired && publishTimer === null) publishTimer = setTimeout(publishOpen, 250); };
+  // An Alt-clicked link opening a new tab is a deliberate copy.
+  const copyAllowed = () => lookupOwner().copies ??= new Map();
+  function takeCopy(ctx, key) {
+    const at = copyAllowed().get(`${ctx}|${key}`);
+    copyAllowed().delete(`${ctx}|${key}`);
+    return at && Date.now() - at < 10000;
+  }
+  function linkMessage(name, data, browser, principal) {
+    if (name === "ZzRouter:AllowCopy") {
+      if (typeof data.key === "string") copyAllowed().set(`${data.ctx | 0}|${data.key}`, Date.now());
+      return;
+    }
+    if (name !== "ZzRouter:SwitchTo" || typeof data.href !== "string") return;
+    const from = gBrowser.getTabForBrowser(browser), ctx = data.ctx | 0;
+    const target = switchOn() && openTabFor(ctx, pageKey(data.href), from);
+    if (target) { note(`switched to open "${target.label}"`); switchTo(target); return; }
+    // Closed in the meantime: do what the click would have done.
+    let uri;
+    try { uri = Services.io.newURI(data.href); } catch { return; }
+    if (!/^https?$/.test(uri.scheme)) return;
+    const triggeringPrincipal = principal || Services.scriptSecurityManager.createNullPrincipal({ userContextId: ctx });
+    if (data.newTab) window.openLinkIn(data.href, "tab", { triggeringPrincipal, userContextId: ctx, inBackground: false, relatedToCurrent: true });
+    else browser?.loadURI(uri, { triggeringPrincipal });
+  }
+  // A new tab whose first page is open elsewhere closes and switches there.
+  function switchFirstRequest(tab, channel) {
+    if (!switchOn() || tab.hasAttribute("zen-glance-tab")) return false;
+    const key = pageKey(channel.URI.spec), ctx = contextOf(tab);
+    if (!key || takeCopy(ctx, key)) return false;
+    const target = openTabFor(ctx, key, tab);
+    if (!target) return false;
+    channel.cancel(Components.results.NS_BINDING_ABORTED);
+    setTimeout(() => {
+      try { switchTo(target); } catch (e) { note(`switch failed: ${e}`); }
+      try { if (tab.isConnected && !tab.closing) gBrowser.removeTab(tab, { animate: false }); } catch {}
+      note(`switched a new tab to open "${target.label}"`);
+    }, 0);
+    return true;
+  }
+  function registerLinks() {
+    try {
+      const id = /^chrome:\/\/sine\/content\/([^/]+)\//.exec(Components.stack.filename)?.[1] || "zz-tab-router";
+      let modUri;
+      try {
+        modUri = Cc["@mozilla.org/chrome/chrome-registry;1"].getService(Ci.nsIChromeRegistry)
+          .convertChromeURL(Services.io.newURI(`chrome://sine/content/${id}/`));
+      } catch {
+        const dir = Services.dirsvc.get("ProfD", Ci.nsIFile);
+        for (const seg of ["chrome", "sine-mods", id]) dir.append(seg);
+        modUri = Services.io.newFileURI(dir);
+      }
+      const res = Services.io.getProtocolHandler("resource").QueryInterface(Ci.nsIResProtocolHandler);
+      if (!res.hasSubstitution("zz-tab-router")) res.setSubstitution("zz-tab-router", modUri);
+      ChromeUtils.registerWindowActor("ZzRouterLinks", {
+        parent: { esModuleURI: `resource://zz-tab-router/links-parent.sys.mjs?v=${LINKS_VERSION}` },
+        child: {
+          esModuleURI: `resource://zz-tab-router/links-child.sys.mjs?v=${LINKS_VERSION}`,
+          // Capture, ahead of the page's own handlers (sites that route
+          // clicks themselves) and of Firefox's link handling.
+          events: { click: { capture: true }, auxclick: { capture: true } },
+        },
+        messageManagerGroups: ["browsers"],
+        // Pages run in site-isolated processes; the parent side checks every
+        // message it acts on (an http(s) address and this tab's container).
+        safeForUntrustedWebProcess: true,
+      });
+    } catch (e) {
+      if (!/NotSupportedError|already registered/i.test(String(e))) note(`link actor failed: ${e}`);
+    }
+  }
+  function unregisterLinks() {
+    const others = [...Services.wm.getEnumerator("navigator:browser")].some(w => w !== window && w.TabRouter?.linkMessage);
+    if (others) return;
+    try { ChromeUtils.unregisterWindowActor("ZzRouterLinks"); } catch {}
+    try { Services.ppmm.sharedData.delete(OPEN_PAGES); Services.ppmm.sharedData.flush(); } catch {}
+  }
+
   // ---- events ------------------------------------------------------------
   // Zen's addTab preserves an inherited userContextId. target=_blank also
   // creates about:blank first, so the domain is unknown at tab creation.
@@ -1946,6 +2086,7 @@
       if (channel.requestMethod !== "GET" || info.isFormSubmission) {
         initialPosts.add(tab); return;
       }
+      if (!initialPosts.has(tab) && switchFirstRequest(tab, channel)) return;
       if (initialPosts.has(tab) || !bool("enabled", false) || !bool("follow-containers", true)) return;
       const why = skip(tab, []);
       if (why && !(why === "already in a group" && bool("refile-mismatched", true))) return;
@@ -2239,6 +2380,12 @@
     try { Services.prefs.addObserver(P, prefObserver); } catch {}
     try { Services.obs.addObserver(purgeObserver, "browser:purge-session-history"); } catch {}
     Services.obs.addObserver(initialRequest, "http-on-modify-request");
+    registerLinks();
+    const openEvents = ["TabOpen", "TabClose", "TabAttrModified", "SSTabRestored", "TabSelect"];
+    for (const ev of openEvents) window.addEventListener(ev, publishSoon, true);
+    const openProgress = { onLocationChange: (_b, wp) => { if (wp?.isTopLevel) publishSoon(); } };
+    gBrowser.addTabsProgressListener(openProgress);
+    publishSoon();
     // Groups made or removed by hand must invalidate the cache too.
     // TabGroupUngroup does not exist in Zen 1.22b -- it was a dead listener.
     // TabGroupUpdate and TabGroupRemovedFromDOM are the real Zen events for a
@@ -2248,6 +2395,7 @@
     for (const ev of groupEvents) window.addEventListener(ev, bustGroups, true);
 
     window.TabRouter = {
+      linkMessage, pageKey, republishOpen: () => publishSoon(),
       sortAll: () => sweepAll("manual"),
       setPlacementLock,
       pictureCounts: () => ({ creators: creatorMap().size, icons: iconMap().size, inFlight: inFlight.size, refreshOperations }),
@@ -2531,6 +2679,12 @@
       try { Services.prefs.removeObserver(P, prefObserver); } catch {}
       try { Services.obs.removeObserver(purgeObserver, "browser:purge-session-history"); } catch {}
       try { Services.obs.removeObserver(initialRequest, "http-on-modify-request"); } catch {}
+      for (const ev of openEvents) window.removeEventListener(ev, publishSoon, true);
+      try { gBrowser.removeTabsProgressListener(openProgress); } catch {}
+      clearTimeout(publishTimer); publishTimer = null;
+      unregisterLinks();
+      // The other windows republish without this one's tabs.
+      for (const w of Services.wm.getEnumerator("navigator:browser")) if (w !== window) try { w.TabRouter?.republishOpen?.(); } catch {}
       for (const ev of groupEvents) {
         try { window.removeEventListener(ev, bustGroups, true); } catch {}
       }

@@ -975,7 +975,8 @@
     const pages = saved || Object.create(null);         // group id -> page URL, "" when cleared by hand
     const groupSelector = "tab-group:not([split-view-group]), zen-folder";
     const live = g => g?.isConnected && !isCopy(g) && g.matches?.(groupSelector);
-    const urlOf = tab => { try { return tab.linkedBrowser?.currentURI?.spec || ""; } catch { return ""; } };
+    // Tab Router reads an unloaded restored tab's address from its session.
+    const urlOf = tab => { try { return window.TabRouter?.tabURL?.(tab) || tab.linkedBrowser?.currentURI?.spec || ""; } catch { return ""; } };
     const ctxOf = tab => parseInt(tab?.getAttribute("usercontextid") || "0", 10);
     let retired = false, frame = 0;
     const save = () => { if (saved !== null) writeGroupData(PAGE_KEY, pages); };
@@ -997,12 +998,15 @@
       try { SessionStore.deleteCustomTabValue(tab, PAGE_OF); } catch {}
     }
     const members = group => gBrowser.tabs.filter(t => t.group === group && !t.closing && !t.hasAttribute("zen-empty-tab"));
-    // The page tab: the member marked for it, else a member already showing it.
+    // The page tab: the member marked for it, else a member already showing
+    // it, else a Favorite (Essential) that is that page. A Favorite stays
+    // where it is; the header only stands for it.
     function pageTab(group, page = pageOf(group)) {
       if (!page) return null;
       const key = pageKey(page), own = members(group);
       return own.find(t => markedFor(t) === group.id) ||
-        own.find(t => pageKey(urlOf(t)) === key) || null;
+        own.find(t => pageKey(urlOf(t)) === key) ||
+        gBrowser.tabs.find(t => t.hasAttribute("zen-essential") && !t.closing && pageKey(urlOf(t)) === key) || null;
     }
     function refresh() {
       frame = 0;
@@ -1010,7 +1014,7 @@
       for (const group of document.querySelectorAll(groupSelector)) {
         if (isCopy(group)) continue;
         const page = pageOf(group), tab = page ? pageTab(group, page) : null;
-        if (tab && markedFor(tab) !== group.id) mark(tab, group);
+        if (tab && tab.group === group && markedFor(tab) !== group.id) mark(tab, group);
         group.toggleAttribute("zzgf-has-page", !!page);
         group.toggleAttribute("zzgf-page-open", !!tab);
         group.toggleAttribute("zzgf-page-selected", !!tab?.selected);
@@ -1105,8 +1109,33 @@
         parent.appendChild(item); items.add(item);
       }
     }
+    // A page tab is the folder itself: closing it (a shortcut, the menu,
+    // Close Other Tabs) unloads it, as a Favorite does, so a folder is never
+    // emptied or lost by accident. Closing the folder closes it with the rest.
+    const removing = new WeakSet();
+    const groupRemoving = event => removing.add(event.target);
+    function keepAsPage(tab) {
+      return enabled() && !retired && tab?.hasAttribute?.("zzgf-page-tab") && !tab.closing &&
+        live(tab.group) && !removing.has(tab.group) && ![...ancestorsOfGroup(tab.group)].some(g => removing.has(g));
+    }
+    function* ancestorsOfGroup(group) { for (let g = group?.group; g; g = g.group) yield g; }
+    function unloadPage(tab) {
+      if (tab.selected) {
+        const next = gBrowser._findTabToBlurTo?.(tab) || gBrowser.visibleTabs.find(t => t !== tab && !t.closing);
+        if (next) gBrowser.selectedTab = next;
+      }
+      if (!tab.selected && !tab.hasAttribute("pending")) { try { gBrowser.discardBrowser(tab); } catch {} }
+      soon();
+    }
+    const nativeRemoveTab = gBrowser.removeTab, ownRemoveTab = Object.prototype.hasOwnProperty.call(gBrowser, "removeTab");
+    const removeTab = function (tab, ...rest) {
+      if (keepAsPage(tab)) { unloadPage(tab); return; }
+      return nativeRemoveTab.call(this, tab, ...rest);
+    };
+    gBrowser.removeTab = removeTab;
     const events = ["TabSelect", "TabOpen", "TabClose", "TabGrouped", "TabUngrouped", "TabAttrModified",
-      "TabGroupCreate", "TabGroupRemoved", "FolderGrouped", "FolderUngrouped", "SSTabRestored"];
+      "TabGroupCreate", "TabGroupRemoved", "FolderGrouped", "FolderUngrouped", "SSTabRestored", "ZzRouterPagesChanged"];
+    window.addEventListener("TabGroupRemoveRequested", groupRemoving, true);
     for (const type of events) window.addEventListener(type, soon, true);
     window.addEventListener("click", click, true);
     window.addEventListener("popupshowing", menu);
@@ -1119,6 +1148,8 @@
       retired = true;
       cancelAnimationFrame(frame);
       for (const type of events) window.removeEventListener(type, soon, true);
+      window.removeEventListener("TabGroupRemoveRequested", groupRemoving, true);
+      if (gBrowser.removeTab === removeTab) { if (ownRemoveTab) gBrowser.removeTab = nativeRemoveTab; else delete gBrowser.removeTab; }
       window.removeEventListener("click", click, true);
       window.removeEventListener("popupshowing", menu);
       try { gBrowser.removeTabsProgressListener(progress); } catch {}

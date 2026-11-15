@@ -116,3 +116,16 @@ test("Tab Router, its page side and Groupflow agree on what the same page is", (
     assert.equal(new Set(keys.map(k => k(url))).size, 1, url);
   }
 });
+
+test("An unloaded tab restored after a restart is known by its saved address", () => {
+  const src = router.slice(router.indexOf("  const lazyURLs = new WeakMap();"), router.indexOf("  const forgetLazy ="));
+  let reads = 0;
+  const ctx = vm.createContext({ window: { SessionStore: { getTabState: () => { reads++; return JSON.stringify({ index: 2, entries: [{ url: "https://a.example/" }, { url: "https://b.example/page" }] }); } } } });
+  vm.runInContext(src + "\nthis.tabURL = tabURL;", ctx);
+  const tab = { linkedBrowser: { currentURI: { spec: "about:blank" } }, hasAttribute: n => n === "pending" };
+  assert.equal(ctx.tabURL(tab), "https://b.example/page", "the current entry of its history");
+  ctx.tabURL(tab);
+  assert.equal(reads, 1, "read once while it stays unloaded");
+  const loaded = { linkedBrowser: { currentURI: { spec: "https://c.example/" } }, hasAttribute: () => false };
+  assert.equal(ctx.tabURL(loaded), "https://c.example/");
+});

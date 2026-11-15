@@ -1024,28 +1024,30 @@
       }
     }
     const soon = () => { if (!retired) frame ||= requestAnimationFrame(refresh); };
+    // Opening tabs is Tab Router's: it switches to the page if it is open
+    // anywhere (changing space as needed), brings a loose copy in this space
+    // into the folder, or opens it there. Without Tab Router, it opens here.
     function open(group) {
       const page = pageOf(group);
       if (!page) return false;
       let tab = pageTab(group, page);
-      if (!tab) {
-        // Already open as a loose tab in this space and container: bring it in.
-        const key = pageKey(page), ctx = ctxOf(members(group)[0]), ws = group.closest("zen-workspace")?.id || group.getAttribute("zen-workspace-id");
-        tab = gBrowser.tabs.find(t => !t.closing && !t.group && pageKey(urlOf(t)) === key && ctxOf(t) === ctx &&
-          (!ws || t.getAttribute("zen-workspace-id") === ws) && !t.pinned && !t.hasAttribute("zen-essential"));
-        if (tab && tab.group !== group) { try { group.addTabs([tab]); } catch { tab = null; } }
-      }
-      if (!tab) {
+      if (tab) { gBrowser.selectedTab = tab; soon(); return true; }
+      const ctx = ctxOf(members(group)[0]);
+      const router = window.TabRouter?.openPage;
+      if (router) tab = router(page, group, ctx);
+      else {
         try {
           tab = gBrowser.addTab(page, { triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal(),
-            userContextId: ctxOf(members(group)[0]), tabGroup: group, skipRoute: true });
+            userContextId: ctx, tabGroup: group });
         } catch (error) { console.error("[Groupflow] Cannot open folder page:", error); return false; }
         if (tab && tab.group !== group) { try { group.addTabs([tab]); } catch {} }
-        if (tab) tab.zzgfFreshPage = true;
+        if (tab) gBrowser.selectedTab = tab;
       }
       if (!tab) return false;
-      mark(tab, group);
-      gBrowser.selectedTab = tab;
+      if (tab.group === group) {
+        if (pageKey(urlOf(tab)) !== pageKey(page)) tab.zzgfFreshPage = true;
+        mark(tab, group);
+      }
       soon();
       return true;
     }

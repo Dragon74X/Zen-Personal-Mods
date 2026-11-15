@@ -84,7 +84,15 @@ page is already open elsewhere (opened from a menu, a bookmark, another app or
 typed) closes and switches to it too. Tabs in other spaces and windows count;
 Zen changes space as needed.
 
-Only real link clicks and a new tab's first page are checked, so back and
+New tabs opened through Firefox's link opener -- middle- and Ctrl-clicks on
+links, **Open Link in New Tab**, bookmarks and history -- are checked before the
+tab exists, so an open page is switched to at once and no tab flashes in. With
+routing on, such a tab is also created in the container Zen's route asks for
+(rather than reopened in it afterwards) and filed into the deepest folder of its
+path that already exists, before it is drawn; any missing levels are created
+once it has loaded, as before. Tab Router also opens Groupflow's folder pages.
+
+Only real link clicks and new tabs are checked, so back and
 forward, reloads, form submissions (and their redirects), redirects in general,
 sign-in steps and pages that navigate by script are never switched. To open a
 copy on purpose, hold **Alt** while clicking (middle-click included), or use

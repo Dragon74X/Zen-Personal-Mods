@@ -90,7 +90,9 @@ stands for it, highlighted while it is the selected tab. If the page tab moves
 on to another page, it becomes an ordinary tab in the folder again and the next
 click on the name opens the page afresh. A loose tab already showing the page
 in the same space and container is brought into the folder instead of opening a
-copy.
+copy. Opening and switching are Tab Router's (it also changes space when
+the page is open in another one); without Tab Router the page simply opens in
+the folder.
 
 Tab Router gives the folders it files into their page: the site's front page,
 a subdomain's, or the channel, game, author or section page the folder is for.

@@ -20,23 +20,17 @@ export function pageKey(url) {
 
 export class ZzRouterLinksChild extends JSWindowActorChild {
   handleEvent(event) {
-    // Middle-clicks reach pages only as auxclick; the new tab they open is
-    // checked in the parent, so here they only mark an Alt copy.
-    const middle = event.type === "auxclick";
-    if (!event.isTrusted || event.defaultPrevented || event.button !== (middle ? 1 : 0)) return;
+    // Middle-clicks never reach this listener; Tab Router checks them in the
+    // parent, where Firefox opens the new tab, before the tab exists.
+    if (!event.isTrusted || event.defaultPrevented || event.button !== 0) return;
     const link = event.composedPath().find(node =>
       (node?.localName === "a" || node?.localName === "area") && typeof node.href === "string" && node.href);
     if (!link || link.hasAttribute("download") || event.shiftKey) return;
     const href = link.href, key = pageKey(href);
     if (!key || key === pageKey(this.document.documentURI)) return;   // same page, #anchor or not a web page
     const ctx = this.browsingContext.originAttributes?.userContextId || 0;
-    const newTab = middle || event.ctrlKey || event.metaKey || link.target === "_blank";
-    if (event.altKey) {
-      // A deliberate copy: let the new tab through the parent's check too.
-      if (newTab) this.sendAsyncMessage("ZzRouter:AllowCopy", { key, ctx });
-      return;
-    }
-    if (middle) return;
+    const newTab = event.ctrlKey || event.metaKey || link.target === "_blank";
+    if (event.altKey) return;            // a deliberate copy
     let open = null;
     try { open = Services.cpmm.sharedData.get(OPEN_PAGES); } catch {}
     if (!open?.has?.(`${ctx}|${key}`)) return;

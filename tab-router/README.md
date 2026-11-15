@@ -75,6 +75,15 @@ use `await TabRouter.sortAll()` when you need completion.
 
 `TabRouter.applyOrder()` re-runs just the ordering pass.
 
+## Folder pages
+
+When it files a tab, Tab Router records each folder level's own page for
+Groupflow's **Folders open their own page**: the site's front page for the
+domain level (`https://youtube.com/`), the subdomain's for a subdomain level,
+and the channel, Nexus game or author, music page or path section a level is
+for. A level keeps the first page it is given; groups named by your own rules
+get none. Pages set or cleared by hand in Groupflow win.
+
 ## Splitting YouTube by creator
 
 A watch address names the video and never the channel, so no path rule can

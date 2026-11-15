@@ -948,6 +948,186 @@
     };
   }
 
+  // ---- folder pages --------------------------------------------------------
+  // A folder can be a page itself: Tab Router's YouTube folder is youtube.com,
+  // a creator subfolder that creator's page, a Nexus game folder that game's
+  // page. Clicking the folder's name opens that page, or switches to it when it
+  // is already open; clicking anywhere else on the header still folds. The
+  // page's own tab row is hidden and its header shows it instead. A page tab
+  // that navigates elsewhere becomes an ordinary tab in the folder again.
+  const PAGE_KEY = "groupflowPages", PAGE_OF = "zzgfPageOf";
+  // Same page: address without #anchor, tracking parameters, www. or a
+  // trailing slash. Tab Router's duplicate check uses the same rule.
+  const TRACKING = /^(utm_[a-z]+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|igshid|si|ref_src|_hsenc|_hsmi)$/i;
+  function pageKey(url) {
+    try {
+      const u = new URL(url);
+      if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+      const query = [...u.searchParams].filter(([k]) => !TRACKING.test(k));
+      const search = query.length ? "?" + new URLSearchParams(query).toString() : "";
+      return u.hostname.toLowerCase().replace(/^www\./, "") + (u.port ? ":" + u.port : "") +
+        (u.pathname.replace(/\/+$/, "") || "") + search;
+    } catch { return null; }
+  }
+  function startFolderPages() {
+    const enabled = () => bool("folder-pages", true);
+    const saved = readGroupData(PAGE_KEY);
+    const pages = saved || Object.create(null);         // group id -> page URL, "" when cleared by hand
+    const groupSelector = "tab-group:not([split-view-group]), zen-folder";
+    const live = g => g?.isConnected && !isCopy(g) && g.matches?.(groupSelector);
+    const urlOf = tab => { try { return tab.linkedBrowser?.currentURI?.spec || ""; } catch { return ""; } };
+    const ctxOf = tab => parseInt(tab?.getAttribute("usercontextid") || "0", 10);
+    let retired = false, frame = 0;
+    const save = () => { if (saved !== null) writeGroupData(PAGE_KEY, pages); };
+    function pageOf(group) {
+      if (!enabled() || !live(group)) return null;
+      if (group.id in pages) return pages[group.id] || null;
+      const routed = group.getAttribute("data-zzrouter-page");
+      if (routed && pageKey(routed)) { pages[group.id] = routed; save(); return routed; }
+      return null;
+    }
+    const markedFor = tab => tab.getAttribute("zzgf-page-of") ||
+      (() => { try { return SessionStore.getCustomTabValue(tab, PAGE_OF) || ""; } catch { return ""; } })();
+    function mark(tab, group) {
+      tab.setAttribute("zzgf-page-of", group.id);
+      try { SessionStore.setCustomTabValue(tab, PAGE_OF, group.id); } catch {}
+    }
+    function unmark(tab) {
+      tab.removeAttribute("zzgf-page-of");
+      try { SessionStore.deleteCustomTabValue(tab, PAGE_OF); } catch {}
+    }
+    const members = group => gBrowser.tabs.filter(t => t.group === group && !t.closing && !t.hasAttribute("zen-empty-tab"));
+    // The page tab: the member marked for it, else a member already showing it.
+    function pageTab(group, page = pageOf(group)) {
+      if (!page) return null;
+      const key = pageKey(page), own = members(group);
+      return own.find(t => markedFor(t) === group.id) ||
+        own.find(t => pageKey(urlOf(t)) === key) || null;
+    }
+    function refresh() {
+      frame = 0;
+      if (retired) return;
+      for (const group of document.querySelectorAll(groupSelector)) {
+        if (isCopy(group)) continue;
+        const page = pageOf(group), tab = page ? pageTab(group, page) : null;
+        if (tab && markedFor(tab) !== group.id) mark(tab, group);
+        group.toggleAttribute("zzgf-has-page", !!page);
+        group.toggleAttribute("zzgf-page-open", !!tab);
+        group.toggleAttribute("zzgf-page-selected", !!tab?.selected);
+        group.toggleAttribute("zzgf-page-loaded", !!tab && !tab.hasAttribute("pending"));
+      }
+      for (const tab of gBrowser.tabs) {
+        const owner = tab.getAttribute("zzgf-page-of");
+        const group = owner && tab.group?.id === owner ? tab.group : null;
+        tab.toggleAttribute("zzgf-page-tab", !!group && !!pageOf(group));
+        if (owner && !group && !tab.closing) unmark(tab);
+      }
+    }
+    const soon = () => { if (!retired) frame ||= requestAnimationFrame(refresh); };
+    function open(group) {
+      const page = pageOf(group);
+      if (!page) return false;
+      let tab = pageTab(group, page);
+      if (!tab) {
+        // Already open as a loose tab in this space and container: bring it in.
+        const key = pageKey(page), ctx = ctxOf(members(group)[0]), ws = group.closest("zen-workspace")?.id || group.getAttribute("zen-workspace-id");
+        tab = gBrowser.tabs.find(t => !t.closing && !t.group && pageKey(urlOf(t)) === key && ctxOf(t) === ctx &&
+          (!ws || t.getAttribute("zen-workspace-id") === ws) && !t.pinned && !t.hasAttribute("zen-essential"));
+        if (tab && tab.group !== group) { try { group.addTabs([tab]); } catch { tab = null; } }
+      }
+      if (!tab) {
+        try {
+          tab = gBrowser.addTab(page, { triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal(),
+            userContextId: ctxOf(members(group)[0]), tabGroup: group, skipRoute: true });
+        } catch (error) { console.error("[Groupflow] Cannot open folder page:", error); return false; }
+        if (tab && tab.group !== group) { try { group.addTabs([tab]); } catch {} }
+        if (tab) tab.zzgfFreshPage = true;
+      }
+      if (!tab) return false;
+      mark(tab, group);
+      gBrowser.selectedTab = tab;
+      soon();
+      return true;
+    }
+    // The folder's name opens its page; the rest of the header folds.
+    function click(event) {
+      if (event.button !== 0 || event.defaultPrevented || !enabled()) return;
+      const label = event.target.closest?.(".tab-group-label");
+      const group = label?.closest(".tab-group-label-container")?.parentElement;
+      if (!live(group) || !pageOf(group) || label.matches("[editing], :focus-within input")) return;
+      event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation?.();
+      open(group);
+    }
+    // A redirect on first load fixes the page's address; any later move to
+    // another page releases the tab back into the folder as an ordinary tab.
+    const progress = {
+      onLocationChange(browser, webProgress, _request, location) {
+        if (!webProgress?.isTopLevel || retired) return;
+        const tab = gBrowser.getTabForBrowser(browser), owner = tab?.getAttribute("zzgf-page-of");
+        if (!owner || location?.spec === "about:blank") return;
+        const group = tab.group?.id === owner ? tab.group : null, page = group && pageOf(group);
+        if (!page) { soon(); return; }
+        if (tab.zzgfFreshPage) {
+          delete tab.zzgfFreshPage;
+          if (pageKey(location.spec) !== pageKey(page)) { pages[group.id] = location.spec; save(); }
+        } else if (pageKey(location.spec) !== pageKey(page)) unmark(tab);
+        soon();
+      },
+    };
+    function setPage(group, url) {
+      for (const t of members(group)) if (markedFor(t) === group.id) unmark(t);
+      pages[group.id] = url; save();
+      const tab = url && gBrowser.selectedTab;
+      if (tab && tab.group === group && pageKey(urlOf(tab)) === pageKey(url)) mark(tab, group);
+      soon();
+    }
+    const items = new Set();
+    function menu(event) {
+      const popup = event.target, panel = popup.matches?.(".tab-group-editor-panel");
+      if (!panel && popup.id !== "zenFolderActions") return;
+      for (const item of items) item.remove(); items.clear();
+      if (!enabled()) return;
+      const group = panel ? gBrowser.tabGroupMenu.activeGroup : popup.triggerNode?.closest?.("tab-group, zen-folder");
+      if (!live(group)) return;
+      const parent = panel ? popup.querySelector(".tab-group-edit-actions") : popup;
+      const selected = gBrowser.selectedTab, url = urlOf(selected);
+      const actions = [
+        ["use-page", "Use selected tab as folder page", selected?.group === group && !!pageKey(url), () => setPage(group, url)],
+        ["clear-page", "Clear folder page", !!pageOf(group), () => setPage(group, "")],
+      ];
+      for (const [id, label, eligible, action] of actions) {
+        if (!eligible || !parent) continue;
+        const item = document.createXULElement(panel ? "toolbarbutton" : "menuitem");
+        item.setAttribute("label", label); item.setAttribute("class", "subviewbutton"); item.setAttribute("data-zz-action", "groupflow--" + id);
+        item.addEventListener("command", () => { if (!retired && live(group)) action(); });
+        parent.appendChild(item); items.add(item);
+      }
+    }
+    const events = ["TabSelect", "TabOpen", "TabClose", "TabGrouped", "TabUngrouped", "TabAttrModified",
+      "TabGroupCreate", "TabGroupRemoved", "FolderGrouped", "FolderUngrouped", "SSTabRestored"];
+    for (const type of events) window.addEventListener(type, soon, true);
+    window.addEventListener("click", click, true);
+    window.addEventListener("popupshowing", menu);
+    gBrowser.addTabsProgressListener(progress);
+    const prefs = { observe: soon };
+    Services.prefs.addObserver(PREFIX + "folder-pages", prefs);
+    refresh();
+    if (window.Groupflow) Object.assign(window.Groupflow, { folderPage: g => pageOf(g), openFolderPage: g => open(g), setFolderPage: setPage, pageKey });
+    return () => {
+      retired = true;
+      cancelAnimationFrame(frame);
+      for (const type of events) window.removeEventListener(type, soon, true);
+      window.removeEventListener("click", click, true);
+      window.removeEventListener("popupshowing", menu);
+      try { gBrowser.removeTabsProgressListener(progress); } catch {}
+      try { Services.prefs.removeObserver(PREFIX + "folder-pages", prefs); } catch {}
+      for (const item of items) item.remove();
+      for (const el of document.querySelectorAll("[zzgf-has-page], [zzgf-page-tab]")) {
+        for (const a of ["zzgf-has-page", "zzgf-page-open", "zzgf-page-selected", "zzgf-page-loaded", "zzgf-page-tab"]) el.removeAttribute(a);
+      }
+    };
+  }
+
   function startCollapsedVisibility() {
     const groupsSelector = "tab-group:not([split-view-group]), zen-folder";
     const collapsedSelector = "tab-group[collapsed]:not([split-view-group]), zen-folder[collapsed]";
@@ -1811,6 +1991,7 @@
     let foldTimer = null;
     let cleanupGroups = null;
     let cleanupVisibility = null;
+    let cleanupPages = null;
     let groupDetails = null;
 
     // This script is injected per window and lives as long as the window
@@ -1854,6 +2035,7 @@
       clearTimeout(foldTimer);
       cleanupGroups?.();
       cleanupVisibility?.();
+      cleanupPages?.();
       groupDetails?.retire();
       for (const rim of document.querySelectorAll(".tab-group-label-container > .zzgf-rim")) {
         rim.parentElement.style.removeProperty("--zzgf-saved-tint-background");
@@ -1882,6 +2064,7 @@
         if (!atg) cleanupGroups = startStandaloneGroups(groupDetails.data);
         else restoreParents(readGroupData("tabGroupParents"), plainGroups(), groupDetails.data);
         cleanupVisibility = startCollapsedVisibility();
+        try { cleanupPages = startFolderPages(); } catch (error) { console.error("[Groupflow] folder pages failed to start:", error); }
         foldStartupGroups();
         groupDetails.save();
         refreshAll();

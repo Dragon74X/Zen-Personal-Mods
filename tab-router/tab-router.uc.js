@@ -1604,6 +1604,21 @@
   // reparents from anywhere; a group Zen empties removes itself after its
   // close animation, so nothing here removes groups -- and removeTabGroup()
   // is never called, because it closes the tabs.
+  // Each level's own page: an object part already is one (site section,
+  // channel, game, author, music page); the site level is its front page and
+  // a subdomain level that subdomain's. A rule's own group name has none.
+  function levelPages(tab, parts) {
+    const host = hostOf(tab), base = host && baseDomain(host);
+    const sub = host && host.length > base.length ? host.slice(0, host.length - base.length - 1).replace(/^www(\.|$)/i, "") : "";
+    const subs = sub ? sub.split(".").reverse() : [];
+    return parts.map((part, i) => {
+      if (typeof part === "object") return /^https:\/\/[^/]+/.test(part.key || "") ? part.key : null;
+      if (!base || typeof part !== "string") return null;
+      if (i === 0 && part.toLowerCase() === domainName(base).toLowerCase()) return `https://${base}/`;
+      const at = subs.findIndex(s => prettify(s).toLowerCase() === part.toLowerCase());
+      return at >= 0 ? `https://${subs.slice(0, at + 1).reverse().join(".")}.${base}/` : null;
+    });
+  }
   const canCreateGroups = () => bool("create-groups", true) && typeof gBrowser.addTabGroup === "function";
 
   function file(tab, parts) {
@@ -1612,10 +1627,11 @@
 
     // Deepest existing prefix of the path, root level scoped to the workspace.
     let parent = null, depth = 0;
+    const levels = [];
     for (const name of parts) {
       const g = findChild(name, parent, parent ? null : ws);
       if (!g) break;
-      parent = g; depth++;
+      parent = g; depth++; levels.push(g);
     }
 
     // Put the tab in the deepest existing level. addTabs() moves it out of
@@ -1649,8 +1665,13 @@
       if (parent && parentOf(g) !== parent) note(`"${name}" did not nest under "${parent.label}" on this build`);
       bustGroups();
       note(`created group "${name}"${parent ? ` under "${parent.label}"` : ""}`);
-      parent = g; depth++;
+      parent = g; depth++; levels.push(g);
     }
+    // Groupflow opens a folder's own page from its header. A level keeps the
+    // first page it is given, and a page set or cleared by hand there wins.
+    levelPages(tab, parts).forEach((page, i) => {
+      if (page && levels[i] && !levels[i].hasAttribute("data-zzrouter-page")) levels[i].setAttribute("data-zzrouter-page", page);
+    });
     captureNexus(tab);
     stampIcons(false, ancestorsOf(tab));
     return true;

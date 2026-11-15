@@ -79,6 +79,27 @@ Folder labels retain the theme's toolbar text colour when a tab inside is select
 The Label colour setting overrides this foreground without changing the header fill.
 Subfolder state labels can override that shared setting.
 
+## Folders as pages
+
+A folder can be a page itself: Tab Router's YouTube folder is youtube.com, a
+creator subfolder is that creator's page, a Nexus Mods game folder is that
+game's page. Clicking the folder's **name** opens its page inside the folder,
+or switches to it when it is already open; clicking anywhere else on the header
+still folds and unfolds it. The page's own tab row is hidden and the header
+stands for it, highlighted while it is the selected tab. If the page tab moves
+on to another page, it becomes an ordinary tab in the folder again and the next
+click on the name opens the page afresh. A loose tab already showing the page
+in the same space and container is brought into the folder instead of opening a
+copy.
+
+Tab Router gives the folders it files into their page: the site's front page,
+a subdomain's, or the channel, game, author or section page the folder is for.
+A folder named by one of your own rules has none. From a folder's menu, **Use
+selected tab as folder page** sets any folder's page and **Clear folder page**
+removes it; a cleared folder stays cleared. **Folders open their own page**
+(on) turns the whole behaviour off. "Same page" ignores `#anchors`, tracking
+parameters (`utm_*`, `fbclid`, `si`, …), `www.` and a trailing slash.
+
 ## Moving the window from under the tabs
 
 With Zen's *draggable sidebar* setting on, Zen lets the empty space under the

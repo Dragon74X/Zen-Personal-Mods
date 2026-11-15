@@ -49,7 +49,9 @@ test('existing storage contracts remain unchanged except documented choices', as
   const { createHash } = await import('node:crypto');
   const navigation = new Set(['zzglass.ui.tab-state', 'zzgroup.ui.folder-state', 'zzicon.ui.button-category',
     'zzglass.edges.follow-pointer', 'zzglass.motion.enabled', 'zzglass.motion.profile', 'zzglass.motion.light', 'zzglass.edges.calculated', 'zzglass.edges.surface', 'zzglass.edges.depth']);
-  const rows = (await Promise.all(mods.map(async mod => (await read(mod)).filter(p => p.property && !navigation.has(p.property))
+  // Keys added after the capture are new contracts, not changes to old ones.
+  const added = new Set(['zzgroup.folder-pages']);
+  const rows = (await Promise.all(mods.map(async mod => (await read(mod)).filter(p => p.property && !navigation.has(p.property) && !added.has(p.property))
     .map(p => [mod, p.property, p.type, p.value ?? null, p.defaultValue ?? null, p.options?.map(o => o.value) ?? null]))))
     .flat().sort((a,b) => a[1].localeCompare(b[1], 'en'));
   assert.equal(rows.length, 523);

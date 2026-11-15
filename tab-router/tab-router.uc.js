@@ -1165,11 +1165,18 @@
   }
   function updatePicture(tab, learn = true) {
     if (!presentable(tab)) return;
-    const enabled = !retired && picturesEnabled(hostOf(tab));
-    const record = enabled ? pictureSubject(tab, learn && !tab.zenStaticIcon) : null;
+    // An unloaded restored tab is pictured from its saved address, so its
+    // creator or game picture is there before it loads.
+    let subject = tab;
+    if (!hostOf(tab) && tab.hasAttribute("pending")) {
+      const url = tabURL(tab);
+      if (/^https?:/i.test(url)) { try { subject = previewTab(url, contextOf(tab), tab); learn = false; } catch {} }
+    }
+    const enabled = !retired && picturesEnabled(hostOf(subject));
+    const record = enabled ? pictureSubject(subject, learn && !tab.zenStaticIcon) : null;
     const key = record && scoped(record.key, contextOf(tab));
     if (record && learn && !tab.zenStaticIcon) fetchSectionIcon(record.key, record.key, contextOf(tab),
-      nexusURL(tab) ? "square" : "round");
+      nexusURL(subject) ? "square" : "round");
     const icon = !tab.zenStaticIcon && key ? iconMap().get(key)?.d : null;
     const bannerChanged = paintBanner(tab, !tab.zenStaticIcon && key && nexusURLFrom(record.key)?.game === record.key &&
       (bannerMode() & 2) ? iconMap().get(key)?.b : null);
@@ -1620,6 +1627,38 @@
       return at >= 0 ? `https://${subs.slice(0, at + 1).reverse().join(".")}.${base}/` : null;
     });
   }
+  // Folders made before pages existed: a level with its own subject already
+  // has one; a site or subdomain level named after its tabs' site gets that
+  // site's page. Groups named by your own rules get none.
+  function backfillPages() {
+    if (retired) return;
+    const hosts = new Map();                          // group -> Set of hosts in it
+    for (const tab of allTabs()) {
+      let host = null;
+      try { host = new URL(tabURL(tab)).hostname.toLowerCase(); } catch {}
+      if (!host) continue;
+      for (const g of ancestorsOf(tab)) { if (!hosts.has(g)) hosts.set(g, new Set()); hosts.get(g).add(host); }
+    }
+    let changed = false;
+    for (const g of groups()) {
+      if (g.hasAttribute("data-zzrouter-page") || nativeManaged(g)) continue;
+      const subject = g.getAttribute("data-zzrouter-subject");
+      let page = /^https:\/\/[^/]+/.test(subject || "") ? subject : null;
+      const label = (g.label || "").trim().toLowerCase();
+      if (!page && label) for (const host of hosts.get(g) || []) {
+        const base = baseDomain(host);
+        if (!parentOf(g) && domainName(base).toLowerCase() === label) { page = `https://${base}/`; break; }
+        const sub = host.length > base.length ? host.slice(0, host.length - base.length - 1).replace(/^www(\.|$)/i, "") : "";
+        const subs = sub ? sub.split(".").reverse() : [];
+        const at = subs.findIndex(x => prettify(x).toLowerCase() === label);
+        if (at >= 0 && parentOf(g)) { page = `https://${subs.slice(0, at + 1).reverse().join(".")}.${base}/`; break; }
+      }
+      if (page) { g.setAttribute("data-zzrouter-page", page); changed = true; }
+    }
+    if (changed) window.dispatchEvent(new CustomEvent("ZzRouterPagesChanged"));
+  }
+  let backfillTimer = null;
+  const backfillSoon = () => { if (!retired && backfillTimer === null) backfillTimer = setTimeout(() => { backfillTimer = null; backfillPages(); }, 400); };
   const canCreateGroups = () => bool("create-groups", true) && typeof gBrowser.addTabGroup === "function";
 
   function file(tab, parts) {
@@ -1670,9 +1709,11 @@
     }
     // Groupflow opens a folder's own page from its header. A level keeps the
     // first page it is given, and a page set or cleared by hand there wins.
+    let paged = false;
     levelPages(tab, parts).forEach((page, i) => {
-      if (page && levels[i] && !levels[i].hasAttribute("data-zzrouter-page")) levels[i].setAttribute("data-zzrouter-page", page);
+      if (page && levels[i] && !levels[i].hasAttribute("data-zzrouter-page")) { levels[i].setAttribute("data-zzrouter-page", page); paged = true; }
     });
+    if (paged) window.dispatchEvent(new CustomEvent("ZzRouterPagesChanged"));
     captureNexus(tab);
     stampIcons(false, ancestorsOf(tab));
     return true;
@@ -1938,14 +1979,26 @@
     } catch { return null; }
   }
   const switchOn = () => bool("switch-to-open", true);
+  // A tab restored unloaded (after a restart) reports about:blank until it
+  // loads; its address is in its saved session entry, read once.
+  const lazyURLs = new WeakMap();
   function tabURL(tab) {
     let url = "";
     try { url = tab.linkedBrowser?.currentURI?.spec || ""; } catch {}
-    if ((!url || url === "about:blank") && tab.hasAttribute("pending")) {
-      try { url = window.SessionStore.getLazyTabValue(tab, "url") || url; } catch {}
+    if ((!url || url === "about:blank") && tab.hasAttribute?.("pending")) {
+      let saved = lazyURLs.get(tab);
+      if (saved === undefined) {
+        try {
+          const state = JSON.parse(window.SessionStore.getTabState(tab));
+          saved = state.entries?.[(state.index || state.entries.length) - 1]?.url || "";
+        } catch { saved = ""; }
+        lazyURLs.set(tab, saved);
+      }
+      url = saved || url;
     }
     return url;
   }
+  const forgetLazy = event => lazyURLs.delete(event.target);
   const eligibleTab = tab => tab && !tab.closing && tab.linkedBrowser && !tab.hasAttribute("zen-glance-tab") &&
     !tab.hasAttribute("zen-empty-tab");
   function* allWindowTabs() {
@@ -2504,6 +2557,10 @@
     registerLinks();
     if (typeof nativeOpenLinkIn === "function") window.openLinkIn = openLinkIn;
     window.addEventListener("TabOpen", placeOpened, true);
+    const backfillEvents = ["TabGrouped", "TabGroupCreate", "TabGroupUpdate", "SSTabRestored", "GroupflowReady"];
+    for (const ev of backfillEvents) window.addEventListener(ev, backfillSoon, true);
+    backfillSoon();
+    window.addEventListener("SSTabRestoring", forgetLazy, true);
     patchClicks();
     const openEvents = ["TabOpen", "TabClose", "TabAttrModified", "SSTabRestored", "TabSelect"];
     for (const ev of openEvents) window.addEventListener(ev, publishSoon, true);
@@ -2519,7 +2576,7 @@
     for (const ev of groupEvents) window.addEventListener(ev, bustGroups, true);
 
     window.TabRouter = {
-      linkMessage, pageKey, republishOpen: () => publishSoon(), switchIfOpen, copyWhile, openPage,
+      linkMessage, pageKey, republishOpen: () => publishSoon(), switchIfOpen, copyWhile, openPage, tabURL,
       sortAll: () => sweepAll("manual"),
       setPlacementLock,
       pictureCounts: () => ({ creators: creatorMap().size, icons: iconMap().size, inFlight: inFlight.size, refreshOperations }),
@@ -2809,6 +2866,9 @@
       unregisterLinks();
       if (window.openLinkIn === openLinkIn) window.openLinkIn = nativeOpenLinkIn;
       window.removeEventListener("TabOpen", placeOpened, true);
+      for (const ev of backfillEvents) window.removeEventListener(ev, backfillSoon, true);
+      window.removeEventListener("SSTabRestoring", forgetLazy, true);
+      clearTimeout(backfillTimer); backfillTimer = null;
       unpatchClicks();
       // The other windows republish without this one's tabs.
       for (const w of Services.wm.getEnumerator("navigator:browser")) if (w !== window) try { w.TabRouter?.republishOpen?.(); } catch {}

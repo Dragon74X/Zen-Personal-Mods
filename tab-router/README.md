@@ -110,7 +110,14 @@ Groupflow's **Folders open their own page**: the site's front page for the
 domain level (`https://youtube.com/`), the subdomain's for a subdomain level,
 and the channel, Nexus game or author, music page or path section a level is
 for. A level keeps the first page it is given; groups named by your own rules
-get none. Pages set or cleared by hand in Groupflow win.
+get none. Pages set or cleared by hand in Groupflow win. Folders made before
+pages existed get theirs too: a level with its own channel, game or section
+keeps that, and a site or subdomain level named after its tabs' site gets that
+site's front page.
+
+A tab restored unloaded after a restart reports `about:blank` until it loads;
+Tab Router reads its real address from its saved session, so its creator or
+game picture, the open-page check and folder pages all work before it loads.
 
 ## Splitting YouTube by creator
 

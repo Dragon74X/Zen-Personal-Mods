@@ -94,6 +94,12 @@ copy. Opening and switching are Tab Router's (it also changes space when
 the page is open in another one); without Tab Router the page simply opens in
 the folder.
 
+Closing a page tab -- with a shortcut, the tab menu or Close Other Tabs --
+unloads it instead, as a Favorite does, so a folder is never emptied or lost
+by accident; closing or deleting the folder itself still closes everything in
+it. A page that is one of your Favorites (Essentials) stays there: the header
+shows it and clicking the name switches to it.
+
 Tab Router gives the folders it files into their page: the site's front page,
 a subdomain's, or the channel, game, author or section page the folder is for.
 A folder named by one of your own rules has none. From a folder's menu, **Use

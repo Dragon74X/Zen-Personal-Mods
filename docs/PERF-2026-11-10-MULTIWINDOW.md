@@ -97,6 +97,12 @@ repaints for the same two frames (`opacity: 0.999` on `#tabbrowser-tabbox`), as
 the sidebar starts to slide in as well as when it stops. On Linux the repaint
 fires on exactly those opens; Windows pixels were not captured.
 
+Glassflow 3.74.29 extends it: a page counts as changed from the moment its
+load starts or its address moves (in-page navigation included), so opening the
+sidebar mid-load repaints it, and an open sidebar repaints twice more, 0.4 s and
+1.5 s after a load finishes, for pages that keep painting (images, fonts,
+scripts).
+
 **First page load.** Stock Zen against all mods, each twice, a 1,500-element
 page with a video loaded twice in the selected tab: mod scripts took 1–5 ms per
 load and parent main-thread time matched stock (about 140–280 ms either way).

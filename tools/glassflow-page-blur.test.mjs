@@ -11,7 +11,8 @@ const key = 'zzglass.sidebar.blur-transparent-pages';
 function setup(saved) {
   const prefs = new Map([['zen.theme.acrylic-sidebar', true]]), prefObservers = new Set(), mutations = new Set(), frames = new Map();
   if (saved !== undefined) prefs.set(key, saved);
-  let frameID = 0, reads = 0, transparent = true;
+  let frameID = 0, reads = 0, transparent = true, timerID = 0;
+  const timers = new Map();
   const progress = new Set();
   const nodes = [];
   function node() {
@@ -38,13 +39,14 @@ function setup(saved) {
     removeObserver(branch, o) { for (const entry of prefObservers) if (entry.branch === branch && entry.o === o) prefObservers.delete(entry); },
   };
   const browser = { selectedBrowser: {}, tabContainer: tabs, addTabsProgressListener: p => progress.add(p), removeTabsProgressListener: p => progress.delete(p) };
-  const context = vm.createContext({ console, Ci: { nsIWebProgressListener: { STATE_STOP: 16, STATE_IS_NETWORK: 0x40000 } }, PREFIX: 'zzglass.', Services: { prefs: services },
+  const context = vm.createContext({ console, Ci: { nsIWebProgressListener: { STATE_START: 1, STATE_STOP: 16, STATE_IS_NETWORK: 0x40000 } }, PREFIX: 'zzglass.', Services: { prefs: services },
     document: { documentElement: root, createElementNS: node,
       getElementById: id => ({ 'navigator-toolbox': toolbox, 'tabbrowser-tabbox': box, 'zen-toolbar-background': panel })[id] },
     window: Object.assign(window, { matchMedia: () => transparency }), gBrowser: browser,
     getComputedStyle: () => ({ backgroundColor: transparent ? 'transparent' : 'white', backdropFilter: 'blur(15px)' }),
     requestAnimationFrame: fn => { frames.set(++frameID, fn); return frameID; }, cancelAnimationFrame: id => frames.delete(id),
     MutationObserver: class { constructor(fn) { this.callback = fn; } observe() { mutations.add(this); } disconnect() { mutations.delete(this); } },
+    setTimeout: (fn, ms) => { timers.set(++timerID, [fn, ms]); return timerID; }, clearTimeout: id => timers.delete(id),
   });
   vm.runInContext(observer + section + '\nglobalThis.api = { syncPageBlur, prefVarObserver, sidebarBackdrop };', context);
   services.addObserver('zzglass.', context.api.prefVarObserver);
@@ -53,7 +55,7 @@ function setup(saved) {
     // Deliver already queued notifications even after an observer is removed.
     for (const { branch, o } of [...prefObservers]) if (key.startsWith(branch)) o.observe(null, null, key);
   };
-  return { prefs, root, box, toolbox, frames, mutations, notify, api: context.api, browser, progress,
+  return { prefs, root, box, toolbox, frames, mutations, notify, api: context.api, browser, progress, timers,
     setTransparent: value => { transparent = value; },
     flush() { for (let n = 0; frames.size && n < 10; n++) { const batch = [...frames.values()]; frames.clear(); for (const fn of batch) fn(); } assert.equal(frames.size, 0, 'frame work must finish'); },
     reads: () => reads, prefObservers, listeners: () => nodes.reduce((n, e) => n + [...e.listeners.values()].reduce((n, s) => n + s.size, 0), 0) };
@@ -184,4 +186,27 @@ test('A changed page is repainted once, as the sidebar starts to slide in', () =
   assert.equal(repaints(), 3, 'so does selecting another tab with the sidebar open');
   stop();
   assert.equal(h.toolbox.listeners.get('transitionrun').size, 0);
+});
+
+test('A page still loading or still painting after its load is repainted under an open sidebar', () => {
+  const h = setup(false), stop = h.api.sidebarBackdrop(), listener = [...h.progress][0];
+  const slide = type => { for (const fn of h.toolbox.listeners.get(type)) fn({ type, target: h.toolbox, propertyName: 'translate' }); };
+  const repaints = () => h.box.writes.filter(k => k === 'zzg-repaint').length;
+  slide('transitionrun'); h.flush();                          // launch page
+  const base = repaints();
+  listener.onStateChange(h.browser.selectedBrowser, { isTopLevel: true }, null, 0x40001);   // START | IS_NETWORK
+  slide('transitionrun'); h.flush();
+  assert.equal(repaints(), base + 1, 'opening while the page loads repaints it');
+  listener.onLocationChange(h.browser.selectedBrowser, { isTopLevel: true });
+  slide('transitionrun'); h.flush();
+  assert.equal(repaints(), base + 2, 'and so does a move within the page');
+  listener.onStateChange(h.browser.selectedBrowser, { isTopLevel: true }, null, 0x40010);   // STOP | IS_NETWORK
+  h.flush();
+  assert.equal(repaints(), base + 3);
+  assert.deepEqual([...h.timers.values()].map(t => t[1]), [400, 1500], 'two follow-ups as it settles');
+  for (const [fn] of [...h.timers.values()]) { fn(); h.flush(); }
+  assert.equal(repaints(), base + 5);
+  listener.onStateChange(h.browser.selectedBrowser, { isTopLevel: true }, null, 0x40010);
+  stop();
+  assert.equal(h.timers.size, 0, 'retiring cancels pending follow-ups');
 });

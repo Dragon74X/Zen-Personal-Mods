@@ -311,11 +311,24 @@
         });
       });
     };
+    // A page keeps painting after its load finishes (images, fonts, scripts),
+    // and the sidebar may open while it is still loading: the page counts as
+    // changed from the moment it starts or moves, and an open sidebar redraws
+    // twice more as it settles.
+    let settleTimers = [];
+    const clearSettle = () => { for (const id of settleTimers) clearTimeout(id); settleTimers = []; };
     const progress = {
       onStateChange(browser, wp, _request, flags) {
         const W = Ci.nsIWebProgressListener;
-        if (browser === gBrowser.selectedBrowser && wp?.isTopLevel &&
-            (flags & W.STATE_STOP) && (flags & W.STATE_IS_NETWORK)) { pageChanged = true; refresh(); }
+        if (browser !== gBrowser.selectedBrowser || !wp?.isTopLevel || !(flags & W.STATE_IS_NETWORK)) return;
+        if (flags & W.STATE_START) { pageChanged = true; return; }
+        if (!(flags & W.STATE_STOP)) return;
+        pageChanged = true; refresh();
+        clearSettle();
+        settleTimers = [400, 1500].map(ms => setTimeout(() => { if (!retired) { pageChanged = true; refresh(); } }, ms));
+      },
+      onLocationChange(browser, wp) {
+        if (browser === gBrowser.selectedBrowser && wp?.isTopLevel) pageChanged = true;
       },
     };
     const selected = () => { pageChanged = true; refresh(); };
@@ -332,6 +345,7 @@
     return () => {
       retired = true;
       dropWaiter();
+      clearSettle();
       cancelAnimationFrame(frame);
       toolbox?.removeAttribute("zzg-redraw");
       page?.removeAttribute("zzg-repaint");

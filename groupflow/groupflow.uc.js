@@ -1000,14 +1000,13 @@
     }
     const members = group => gBrowser.tabs.filter(t => t.group === group && !t.closing && !t.hasAttribute("zen-empty-tab"));
     // The page tab: the member marked for it, else a member already showing
-    // it, else a Favorite (Essential) that is that page. A Favorite stays
-    // where it is; the header only stands for it.
+    // it. The folder always has its own: a Favorite (Essential) showing the
+    // same page stays a Favorite, and the header never stands for it.
     function pageTab(group, page = pageOf(group)) {
       if (!page) return null;
       const key = pageKey(page), own = members(group);
       return own.find(t => markedFor(t) === group.id) ||
-        own.find(t => pageKey(urlOf(t)) === key) ||
-        gBrowser.tabs.find(t => t.hasAttribute("zen-essential") && !t.closing && pageKey(urlOf(t)) === key) || null;
+        own.find(t => pageKey(urlOf(t)) === key) || null;
     }
     function refresh() {
       frame = 0;

@@ -1966,7 +1966,7 @@
   // page side (links-child.sys.mjs) only acts on real link clicks, so back
   // and forward, reloads, forms, redirects and script navigation never
   // switch; Alt-click, Duplicate Tab and session restore always make copies.
-  const LINKS_VERSION = "1.42.0", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
+  const LINKS_VERSION = "1.42.1", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
   const TRACKING = /^(utm_[a-z]+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|igshid|si|ref_src|_hsenc|_hsmi)$/i;
   function pageKey(url) {
     try {
@@ -2005,9 +2005,9 @@
     yield* gBrowser.tabs;                               // this window first
     for (const w of Services.wm.getEnumerator("navigator:browser")) if (w !== window && !w.closed && w.gBrowser) yield* w.gBrowser.tabs;
   }
-  function openTabFor(ctx, key, except = null) {
+  function openTabFor(ctx, key, except = null, accept = null) {
     for (const tab of allWindowTabs()) {
-      if (tab === except || !eligibleTab(tab) || contextOf(tab) !== ctx) continue;
+      if (tab === except || !eligibleTab(tab) || contextOf(tab) !== ctx || (accept && !accept(tab))) continue;
       if (pageKey(tabURL(tab)) === key) return tab;
     }
     return null;
@@ -2155,11 +2155,14 @@
     const key = pageKey(url);
     if (!key || !group?.isConnected) return null;
     const ws = group.closest("zen-workspace")?.id || group.getAttribute("zen-workspace-id");
-    let tab = switchOn() ? openTabFor(ctx, key) : null;
-    if (tab && !tab.group && !tab.pinned && !tab.hasAttribute("zen-essential") && (!ws || tab.getAttribute("zen-workspace-id") === ws)) {
+    // A Favorite (Essential) showing the page is not the folder's: the folder
+    // gets its own tab, which the new-tab check then lets through.
+    let tab = switchOn() ? openTabFor(ctx, key, null, t => !t.hasAttribute("zen-essential")) : null;
+    if (tab && !tab.group && !tab.pinned && (!ws || tab.getAttribute("zen-workspace-id") === ws)) {
       try { group.addTabs([tab]); } catch {}
     }
     if (!tab) {
+      copyAllowed().set(`${ctx}|${key}`, Date.now());
       try {
         tab = gBrowser.addTab(url, { triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal(),
           userContextId: ctx, tabGroup: group, skipRoute: true });

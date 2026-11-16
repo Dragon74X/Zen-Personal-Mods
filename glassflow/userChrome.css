@@ -1609,7 +1609,7 @@
   :root[zzgf-standalone] .tab-group-label-container:is(:hover, :focus-within) > .zzgf-close::before { scale: 1; }
   :root[zzgf-standalone] .zzgf-close { transition: opacity var(--zzg-motion-time) var(--zzg-motion-ease) !important; }
   :root[zzgf-standalone] .zzgf-icon {
-    transition: opacity var(--zzg-motion-time) var(--zzg-motion-ease), inset-inline-start var(--zzg-motion-time) var(--zzg-motion-ease) !important;
+    transition: opacity var(--zzg-motion-time) var(--zzg-motion-ease), translate var(--zzg-motion-time) var(--zzg-motion-ease) !important;
   }
 }
 /* The X is anchored on the favicon's resting slot (Zen's padding plus the
@@ -1628,6 +1628,7 @@
        its end as before. */
     --zzg-close-slide: var(--size-item-medium, 24px);
     &:-moz-locale-dir(rtl) { --zzg-close-slide: calc(-1 * var(--size-item-medium, 24px)); }
+    & :is(.tab-icon-stack, .tab-label) { translate: 0 0; }
     &:is(:hover, :focus-within, [multiselected][selected]) {
       & .tab-close-button { visibility: visible !important; }
       & :is(.tab-icon-stack, .tab-label) { translate: var(--zzg-close-slide) 0; }

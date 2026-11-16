@@ -1965,7 +1965,7 @@
   // page side (links-child.sys.mjs) only acts on real link clicks, so back
   // and forward, reloads, forms, redirects and script navigation never
   // switch; Alt-click, Duplicate Tab and session restore always make copies.
-  const LINKS_VERSION = "1.43.2", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
+  const LINKS_VERSION = "1.43.3", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
   const TRACKING = /^(utm_[a-z]+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|igshid|si|ref_src|_hsenc|_hsmi)$/i;
   function pageKey(url) {
     try {
@@ -2258,10 +2258,16 @@
     try { return fn(); } finally { copyNext = false; }
   }
   // A new tab whose first page is open elsewhere closes and switches there.
+  // A tab let through once (a copy, a folder's own page) stays let through
+  // for the rest of its first load, redirects included.
+  const passedTabs = new WeakSet();
   function switchFirstRequest(tab, channel) {
     if (!switchOn() || tab.hasAttribute("zen-glance-tab")) return false;
+    // A folder's page tab is the folder's: never switched away or closed.
+    if (tab.hasAttribute("zzgf-page-of") || passedTabs.has(tab)) return false;
     const key = pageKey(channel.URI.spec), ctx = contextOf(tab);
-    if (!key || takeCopy(ctx, key)) return false;
+    if (!key) return false;
+    if (takeCopy(ctx, key)) { passedTabs.add(tab); return false; }
     const target = openTargetFor(ctx, key, tab);
     if (!target) return false;
     channel.cancel(Components.results.NS_BINDING_ABORTED);
@@ -2341,6 +2347,9 @@
         initialPosts.add(tab); return;
       }
       if (!initialPosts.has(tab) && switchFirstRequest(tab, channel)) return;
+      // A folder's page tab opens in the folder's container; replacing it
+      // would leave the folder an unloaded page.
+      if (tab.hasAttribute("zzgf-page-of")) return;
       if (initialPosts.has(tab) || !bool("enabled", false) || !bool("follow-containers", true)) return;
       const why = skip(tab, []);
       if (why && !(why === "already in a group" && bool("refile-mismatched", true))) return;

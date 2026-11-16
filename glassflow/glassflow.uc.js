@@ -543,7 +543,7 @@
     }
     function cancelPresses() {
       for (const host of presses.keys()) clearPress(host);
-      if (folderIcon) { folderIcon.animation.cancel(); folderIcon = null; }
+      if (folderIcon) { folderIcon.animation.cancel(); folderIcon.icon.removeAttribute("zzg-folder-press"); folderIcon = null; }
     }
     function cancel() { for (const { animation } of active.values()) animation.cancel(); active.clear(); cancelPresses(); }
     // Native CSS remains the only scale owner. Hold a short tap for the 90ms
@@ -560,6 +560,10 @@
       if (!box?.width || event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) return false;
       if (!icon.closest("#navigator-toolbox, .zen-library-space-tabs")) return false;
       folderIcon?.animation?.cancel();
+      // Zen's open/close morph slides and skews the folder's panels; inside
+      // a press it read as a vertical bounce. While pressed the state swaps
+      // at once, so the press is only the zoom out and spring back.
+      icon.setAttribute("zzg-folder-press", "");
       const animation = icon.animate([{ scale: 1 }, { scale: .95 }], { duration: 90, easing: "cubic-bezier(.2,.7,.3,1)", fill: "forwards" });
       folderIcon = { icon, animation, at: performance.now() };
       return true;
@@ -571,7 +575,9 @@
       setTimeout(() => {
         if (!icon.isConnected) return;
         animation.cancel();
-        icon.animate([{ scale: .95 }, { scale: 1 }], { duration: 240, easing: spring });
+        const back = icon.animate([{ scale: .95 }, { scale: 1 }], { duration: 240, easing: spring });
+        const done = () => { if (folderIcon?.icon !== icon) icon.removeAttribute("zzg-folder-press"); };
+        back.finished.then(done, done);
       }, Math.max(0, 90 - (performance.now() - at)));
     }
     function press(event) {
@@ -603,17 +609,19 @@
     for (const [type, handler] of inputs) window.addEventListener(type, handler, true);
     function settle(label) {
       if (!label?.isConnected || !enabled()) return;
-      const old = active.get(label), from = getComputedStyle(label).translate;
+      const old = active.get(label);
       old?.animation.cancel();
       const style = getComputedStyle(document.documentElement);
       const duration = 90 + (parseFloat(style.getPropertyValue("--zzg-motion-ms")) || 150);
       const easing = style.getPropertyValue("--zzg-motion-ease").trim() || "cubic-bezier(.2,.85,.25,1)";
+      // Added on top of the label's own translate (the hover slide that
+      // makes room for a left close button), so a click never undoes it.
       const animation = label.animate([
-        { translate: from, offset: 0, easing: "cubic-bezier(.2,.7,.3,1)" },
+        { translate: "0px", offset: 0, easing: "cubic-bezier(.2,.7,.3,1)" },
         { translate: "4px", offset: .24, easing: "cubic-bezier(.3,0,.35,1)" },
         { translate: "-1px", offset: .65, easing },
-        { translate: "none", offset: 1 },
-      ], { duration });
+        { translate: "0px", offset: 1 },
+      ], { duration, composite: "add" });
       active.set(label, { animation });
       animation.finished.then(() => { if (active.get(label)?.animation === animation) active.delete(label); }, () => {});
     }

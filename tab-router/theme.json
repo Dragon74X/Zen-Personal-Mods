@@ -3,8 +3,8 @@
   "name": "Tab Router",
   "description": "Sorts tabs into nested tab groups (groups and subgroups) by domain and path, using your rules.",
   "author": "Dragon74X",
-  "version": "1.43.2",
-  "updatedAt": "2026-11-16T18:15:03Z",
+  "version": "1.43.3",
+  "updatedAt": "2026-11-16T18:49:01Z",
   "homepage": "https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/tab-router",
   "readme": "https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/main/tab-router/README.md",
   "style": {

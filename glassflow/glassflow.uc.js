@@ -312,23 +312,29 @@
       });
     };
     // A page keeps painting after its load finishes (images, fonts, scripts),
-    // and the sidebar may open while it is still loading: the page counts as
-    // changed from the moment it starts or moves, and an open sidebar redraws
-    // twice more as it settles.
+    // the sidebar may open while it is still loading, a site can change page
+    // in place (no load), and a switched-to tab shows its content only once
+    // Firefox finishes the switch: each counts the page as changed, redraws
+    // an open sidebar, and redraws it again as the page settles.
     let settleTimers = [];
     const clearSettle = () => { for (const id of settleTimers) clearTimeout(id); settleTimers = []; };
+    const settle = () => {
+      pageChanged = true; refresh();
+      clearSettle();
+      settleTimers = [400, 1500, 4000].map(ms => setTimeout(() => { if (!retired) { pageChanged = true; refresh(); } }, ms));
+    };
     const progress = {
       onStateChange(browser, wp, _request, flags) {
         const W = Ci.nsIWebProgressListener;
         if (browser !== gBrowser.selectedBrowser || !wp?.isTopLevel || !(flags & W.STATE_IS_NETWORK)) return;
         if (flags & W.STATE_START) { pageChanged = true; return; }
-        if (!(flags & W.STATE_STOP)) return;
-        pageChanged = true; refresh();
-        clearSettle();
-        settleTimers = [400, 1500].map(ms => setTimeout(() => { if (!retired) { pageChanged = true; refresh(); } }, ms));
+        if (flags & W.STATE_STOP) settle();
       },
-      onLocationChange(browser, wp) {
-        if (browser === gBrowser.selectedBrowser && wp?.isTopLevel) pageChanged = true;
+      onLocationChange(browser, wp, _request, _location, flags) {
+        if (browser !== gBrowser.selectedBrowser || !wp?.isTopLevel) return;
+        pageChanged = true;
+        // A load ends in STATE_STOP; a same-document change has no load.
+        if (flags & Ci.nsIWebProgressListener.LOCATION_CHANGE_SAME_DOCUMENT) settle();
       },
     };
     const selected = () => { pageChanged = true; refresh(); };
@@ -340,6 +346,7 @@
     };
     gBrowser.addTabsProgressListener(progress);
     gBrowser.tabContainer.addEventListener("TabSelect", selected);
+    window.addEventListener("TabSwitchDone", settle, true);
     toolbox?.addEventListener("transitionend", slide);
     toolbox?.addEventListener("transitionrun", slide);
     return () => {
@@ -351,6 +358,7 @@
       page?.removeAttribute("zzg-repaint");
       gBrowser.removeTabsProgressListener(progress);
       gBrowser.tabContainer.removeEventListener("TabSelect", selected);
+      window.removeEventListener("TabSwitchDone", settle, true);
       toolbox?.removeEventListener("transitionend", slide);
       toolbox?.removeEventListener("transitionrun", slide);
     };

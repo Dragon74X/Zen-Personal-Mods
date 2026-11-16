@@ -103,6 +103,12 @@ sidebar mid-load repaints it, and an open sidebar repaints twice more, 0.4 s and
 1.5 s after a load finishes, for pages that keep painting (images, fonts,
 scripts).
 
+Glassflow 3.74.30 adds the cases with no load: a site changing page in place
+(history.pushState, as YouTube and Nexus do) and a tab switch once Firefox
+reports it shown (TabSwitchDone). Each redraws an open sidebar at once and at
+0.4 s, 1.5 s and 4 s. Measured on Zen 1.24.2b (Linux): 4 redraws for an
+in-place change, 5 for a switch; Windows pixels not captured.
+
 **First page load.** Stock Zen against all mods, each twice, a 1,500-element
 page with a video loaded twice in the selected tab: mod scripts took 1–5 ms per
 load and parent main-thread time matched stock (about 140–280 ms either way).

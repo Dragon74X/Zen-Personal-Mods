@@ -34,7 +34,7 @@ function origin(el,returning=false){
 function schedule(){if(frame===null&&enabled()&&(dirty||moving.size||point&&layouts.size))frame=requestAnimationFrame(tick);}
 function release(r,time){if(!r.hover)return;r.hover=false;const o=origin(r.el,true);target(r.weight,0,time,o?8/(o.response/1000):r.angle.w);resize.unobserve(r.observed||r.el);if(o){target(r.angle,near(o.angle,sample(r.angle,time).x),time,8/(o.response/1000));target(r.shadow,near(o.shadow,sample(r.shadow,time).x),time,8/(o.response/1000));}moving.add(r);}
 function remove(r){for(const p of properties)r.el.style.removeProperty(p);resize.unobserve(r.observed||r.el);moving.delete(r);records.delete(r.el);}
-function clear(){layouts.clear();point=null;dirty=false;if(frame!==null)cancelAnimationFrame(frame);frame=null;for(const r of [...records.values()])remove(r);}
+function clear(){layouts.clear();point=null;watchOff();dirty=false;if(frame!==null)cancelAnimationFrame(frame);frame=null;for(const r of [...records.values()])remove(r);}
 function gather(time){
  dirty=false;const owners=new Set();
  let el=point?.target?.isConnected?point.target:null;
@@ -82,8 +82,8 @@ function tick(time){
 }
 const resize=new ResizeObserver(()=>layout());
 function layout(){if(point){point.resolve=true;dirty=true;schedule();}}
-function leave(){point=null;dirty=true;schedule();}
-listen(window,'pointermove',e=>{if(!enabled()||e.pointerType==='touch')return;point={x:e.clientX,y:e.clientY,target:e.target};dirty=true;schedule();},{passive:true});
+function leave(){point=null;watchOff();dirty=true;schedule();}
+listen(window,'pointermove',e=>{if(!enabled()||e.pointerType==='touch')return;point={x:e.clientX,y:e.clientY,target:e.target};watchOn();dirty=true;schedule();},{passive:true});
 listen(window,'pointerout',e=>{if(!e.relatedTarget)leave();});listen(window,'pointercancel',leave);listen(window,'blur',leave);
 for(const type of ['resize','scroll','popupshown','popuphidden','TabMove','TabSelect','TabAttrModified','ZenWorkspaceChanged','aftercustomization','animationend'])listen(window,type,layout,{capture:true,passive:true});
 for(const type of ['transitionrun','transitionend','transitioncancel'])listen(window,type,e=>{
@@ -104,7 +104,11 @@ const watch=new MutationObserver(changes=>{
   [...records.keys()].some(el=>c.target===el||c.target.contains(el)||el.contains(c.target))&&
   (c.attributeName!=='style'||externalStyle(c.oldValue)!==externalStyle(c.target.getAttribute('style')))))layout();
 });
-watch.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeOldValue:true,attributeFilter:['style','hidden','collapsed','zen-sidebar-expanded','zen-compact-mode','class','selected','visuallyselected','pending','zen-folder','zzgf-active']});
+// Connected only while a pointer owns edges: with the feature off (the
+// default) or the pointer away, chrome's style writes are not observed.
+let watching=false;
+function watchOn(){if(watching||retired)return;watching=true;watch.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeOldValue:true,attributeFilter:['style','hidden','collapsed','zen-sidebar-expanded','zen-compact-mode','class','selected','visuallyselected','pending','zen-folder','zzgf-active']});}
+function watchOff(){if(!watching)return;watching=false;watch.disconnect();}
 const changed={observe(){if(!enabled())clear();else layout();}};
 for(const p of ['zzglass.','zzgroup.','zzlib.','zzmedia.','zzicon.'])Services.prefs.addObserver(p,changed);
 listen(reduced,'change',clear);listen(forced,'change',clear);listen(document,'visibilitychange',clear);

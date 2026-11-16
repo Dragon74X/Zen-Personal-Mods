@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.8.12
+// @version        2.8.13
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==
@@ -17,7 +17,7 @@
   const LOG_PREFIX = "[Mediaflow]";
   // Gecko caches actor modules across unregister/re-register. Bump with actor
   // changes so Sine updates load replacement code without a browser restart.
-  const ACTOR_VERSION = "2.8.12";
+  const ACTOR_VERSION = "2.8.13";
   const CAPTIONS_PREF = "zzmedia.preview.captions";
   const CAPTIONS_WHEN_PIP_HIDDEN_PREF =
     "zzmedia.preview.captions-when-hidden";
@@ -1039,9 +1039,11 @@
       }
       const source = sourceForToggle(nativeButton);
       const showing = source?.bc.id === sourceBC?.id && !userHidden;
-      toggle.setAttribute("data-zz-video-visible", String(showing));
+      // Runs on every media card update: write only what changed.
+      const put = (name, value) => { if (toggle.getAttribute(name) !== value) toggle.setAttribute(name, value); };
+      put("data-zz-video-visible", String(showing));
       const label = showing ? "Hide sidebar video" : "Show this video in sidebar";
-      toggle.setAttribute("aria-label", label); toggle.setAttribute("tooltiptext", label);
+      put("aria-label", label); put("tooltiptext", label);
       const icon = showing ? EYE_URL : EYE_OFF_URL;
       if (toggle.style.listStyleImage !== icon) {
         toggle.style.listStyleImage = icon;

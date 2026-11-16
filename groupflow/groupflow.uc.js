@@ -1097,7 +1097,8 @@
       onLocationChange(browser, webProgress, _request, location) {
         if (!webProgress?.isTopLevel || retired) return;
         const tab = gBrowser.getTabForBrowser(browser), owner = tab?.getAttribute("zzgf-page-of");
-        if (!owner || location?.spec === "about:blank") return;
+        if (!owner) { if (tab?.group) soon(); return; }     // a folder member may now show its page
+        if (location?.spec === "about:blank") return;
         const group = tab.group?.id === owner ? tab.group : null, page = group && pageOf(group);
         if (!page) { soon(); return; }
         if (tab.zzgfFreshPage) {
@@ -1160,9 +1161,13 @@
       return nativeRemoveTab.call(this, tab, ...rest);
     };
     gBrowser.removeTab = removeTab;
-    const events = ["TabSelect", "TabOpen", "TabClose", "TabGrouped", "TabUngrouped", "TabAttrModified",
+    const events = ["TabSelect", "TabOpen", "TabClose", "TabGrouped", "TabUngrouped",
       "TabGroupCreate", "TabGroupRemoved", "FolderGrouped", "FolderUngrouped", "SSTabRestored", "ZzRouterPagesChanged"];
+    // Of a tab's attribute changes only these move folder pages; addresses
+    // come through the progress listener.
+    const attrChanged = event => { if (event.detail?.changed?.some(name => name === "pending" || name === "usercontextid")) soon(); };
     window.addEventListener("TabGroupRemoveRequested", groupRemoving, true);
+    window.addEventListener("TabAttrModified", attrChanged, true);
     for (const type of events) window.addEventListener(type, soon, true);
     window.addEventListener("popupshowing", menu);
     gBrowser.addTabsProgressListener(progress);
@@ -1174,6 +1179,7 @@
       retired = true;
       cancelAnimationFrame(frame);
       for (const type of events) window.removeEventListener(type, soon, true);
+      window.removeEventListener("TabAttrModified", attrChanged, true);
       window.removeEventListener("TabGroupRemoveRequested", groupRemoving, true);
       if (gBrowser.removeTab === removeTab) { if (ownRemoveTab) gBrowser.removeTab = nativeRemoveTab; else delete gBrowser.removeTab; }
       if (pageHeaderClick === headerClick) pageHeaderClick = null;
@@ -1739,9 +1745,10 @@
       const header = g.labelContainerElement;
       if (!header) continue;
       const text = `${n.loaded}/${n.total} loaded${n.playing ? ` · ${n.playing} playing` : ""}`;
-      header.setAttribute("tooltiptext", text);
-      header.setAttribute("aria-description", text);
-      g.labelElement?.setAttribute("aria-description", text);
+      // Unchanged text is not rewritten (each write fires mutation and
+      // accessibility events).
+      const put = (el, name) => { if (el && el.getAttribute(name) !== text) el.setAttribute(name, text); };
+      put(header, "tooltiptext"); put(header, "aria-description"); put(g.labelElement, "aria-description");
       let badge = header.querySelector(":scope > .zzgf-count");
       if (!on) { badge?.remove(); continue; }
       if (!badge) {

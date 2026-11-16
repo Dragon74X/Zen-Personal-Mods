@@ -39,7 +39,7 @@ function setup(saved) {
     removeObserver(branch, o) { for (const entry of prefObservers) if (entry.branch === branch && entry.o === o) prefObservers.delete(entry); },
   };
   const browser = { selectedBrowser: {}, tabContainer: tabs, addTabsProgressListener: p => progress.add(p), removeTabsProgressListener: p => progress.delete(p) };
-  const context = vm.createContext({ console, Ci: { nsIWebProgressListener: { STATE_START: 1, STATE_STOP: 16, STATE_IS_NETWORK: 0x40000 } }, PREFIX: 'zzglass.', Services: { prefs: services },
+  const context = vm.createContext({ console, Ci: { nsIWebProgressListener: { STATE_START: 1, STATE_STOP: 16, STATE_IS_NETWORK: 0x40000, LOCATION_CHANGE_SAME_DOCUMENT: 1 } }, PREFIX: 'zzglass.', Services: { prefs: services },
     document: { documentElement: root, createElementNS: node,
       getElementById: id => ({ 'navigator-toolbox': toolbox, 'tabbrowser-tabbox': box, 'zen-toolbar-background': panel })[id] },
     window: Object.assign(window, { matchMedia: () => transparency }), gBrowser: browser,
@@ -55,7 +55,7 @@ function setup(saved) {
     // Deliver already queued notifications even after an observer is removed.
     for (const { branch, o } of [...prefObservers]) if (key.startsWith(branch)) o.observe(null, null, key);
   };
-  return { prefs, root, box, toolbox, frames, mutations, notify, api: context.api, browser, progress, timers,
+  return { prefs, root, box, toolbox, frames, mutations, notify, api: context.api, browser, progress, timers, window,
     setTransparent: value => { transparent = value; },
     flush() { for (let n = 0; frames.size && n < 10; n++) { const batch = [...frames.values()]; frames.clear(); for (const fn of batch) fn(); } assert.equal(frames.size, 0, 'frame work must finish'); },
     reads: () => reads, prefObservers, listeners: () => nodes.reduce((n, e) => n + [...e.listeners.values()].reduce((n, s) => n + s.size, 0), 0) };
@@ -203,10 +203,29 @@ test('A page still loading or still painting after its load is repainted under a
   listener.onStateChange(h.browser.selectedBrowser, { isTopLevel: true }, null, 0x40010);   // STOP | IS_NETWORK
   h.flush();
   assert.equal(repaints(), base + 3);
-  assert.deepEqual([...h.timers.values()].map(t => t[1]), [400, 1500], 'two follow-ups as it settles');
+  assert.deepEqual([...h.timers.values()].map(t => t[1]), [400, 1500, 4000], 'three follow-ups as it settles');
   for (const [fn] of [...h.timers.values()]) { fn(); h.flush(); }
-  assert.equal(repaints(), base + 5);
+  assert.equal(repaints(), base + 6);
   listener.onStateChange(h.browser.selectedBrowser, { isTopLevel: true }, null, 0x40010);
   stop();
   assert.equal(h.timers.size, 0, 'retiring cancels pending follow-ups');
+});
+
+test('A site changing page in place, and a finished tab switch, repaint an open sidebar without any load', () => {
+  const h = setup(false), stop = h.api.sidebarBackdrop(), listener = [...h.progress][0];
+  const repaints = () => h.box.writes.filter(k => k === 'zzg-repaint').length;
+  h.flush(); const base = repaints();
+  listener.onLocationChange(h.browser.selectedBrowser, { isTopLevel: true }, null, {}, 1);   // same document (pushState)
+  h.flush();
+  assert.equal(repaints(), base + 1, 'an in-place page change repaints at once');
+  assert.equal(h.timers.size, 3, 'and as it settles');
+  listener.onLocationChange(h.browser.selectedBrowser, { isTopLevel: true }, null, {}, 0);   // a load: STATE_STOP repaints
+  h.flush();
+  assert.equal(repaints(), base + 1);
+  for (const fn of h.window.listeners.get('TabSwitchDone')) fn({});
+  h.flush();
+  assert.equal(repaints(), base + 2, 'the switched-to tab is repainted once it is shown');
+  stop();
+  assert.equal(h.window.listeners.get('TabSwitchDone').size, 0);
+  assert.equal(h.timers.size, 0);
 });

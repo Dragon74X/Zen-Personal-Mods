@@ -1966,7 +1966,7 @@
   // page side (links-child.sys.mjs) only acts on real link clicks, so back
   // and forward, reloads, forms, redirects and script navigation never
   // switch; Alt-click, Duplicate Tab and session restore always make copies.
-  const LINKS_VERSION = "1.40.0", OPEN_PAGES = "zzrouter:open-pages";
+  const LINKS_VERSION = "1.42.0", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
   const TRACKING = /^(utm_[a-z]+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|igshid|si|ref_src|_hsenc|_hsmi)$/i;
   function pageKey(url) {
     try {
@@ -2023,15 +2023,20 @@
   function publishOpen() {
     publishTimer = null;
     if (retired) return;
-    const open = new Set();
-    if (switchOn()) {
-      for (const tab of allWindowTabs()) {
-        if (!eligibleTab(tab)) continue;
-        const key = pageKey(tabURL(tab));
-        if (key) open.add(`${contextOf(tab)}|${key}`);
-      }
+    const open = new Set(), pageTabs = new Set();
+    for (const tab of allWindowTabs()) {
+      if (!eligibleTab(tab)) continue;
+      // Groupflow's folder pages: links clicked there open in their own tab.
+      if (tab.hasAttribute("zzgf-page-tab") && tab.linkedBrowser?.browserId) pageTabs.add(tab.linkedBrowser.browserId);
+      if (!switchOn()) continue;
+      const key = pageKey(tabURL(tab));
+      if (key) open.add(`${contextOf(tab)}|${key}`);
     }
-    try { Services.ppmm.sharedData.set(OPEN_PAGES, open); Services.ppmm.sharedData.flush(); } catch {}
+    try {
+      Services.ppmm.sharedData.set(OPEN_PAGES, open);
+      Services.ppmm.sharedData.set(PAGE_TABS, pageTabs);
+      Services.ppmm.sharedData.flush();
+    } catch {}
   }
   const publishSoon = () => { if (!retired && publishTimer === null) publishTimer = setTimeout(publishOpen, 250); };
   // An Alt-clicked link opening a new tab is a deliberate copy.
@@ -2042,6 +2047,21 @@
     return at && Date.now() - at < 10000;
   }
   function linkMessage(name, data, browser, principal) {
+    if (name === "ZzRouter:OpenFromPage" && typeof data.href === "string") {
+      // A folder's page stays on its page: the link opens in its own tab next
+      // to it, under the folder, through the same checks as any new tab.
+      let uri;
+      try { uri = Services.io.newURI(data.href); } catch { return; }
+      if (!/^https?$/.test(uri.scheme)) return;
+      // Zen opens a folder tab's links outside the folder; this one goes in
+      // it, unless routing files it somewhere more specific.
+      openInto = gBrowser.getTabForBrowser(browser)?.group || null;
+      try {
+        window.openLinkIn(data.href, "tab", { triggeringPrincipal: principal || Services.scriptSecurityManager.createNullPrincipal({ userContextId: data.ctx | 0 }),
+          userContextId: data.ctx | 0, openerBrowser: browser, relatedToCurrent: true, inBackground: false });
+      } finally { openInto = null; }
+      return;
+    }
     if (name !== "ZzRouter:SwitchTo" || typeof data.href !== "string") return;
     const from = gBrowser.getTabForBrowser(browser), ctx = data.ctx | 0;
     const target = switchOn() && openTabFor(ctx, pageKey(data.href), from);
@@ -2101,7 +2121,7 @@
       return plan;
     } catch (e) { note(`new tab plan failed: ${e}`); return null; }
   }
-  let placing = null;
+  let placing = null, openInto = null;
   function placeOpened(event) {
     const tab = event.target, plan = placing;
     if (!plan || plan.claimed || tab.pinned || tab.hasAttribute("zen-essential")) return;
@@ -2125,7 +2145,7 @@
         if (plan?.ctx != null) params = { ...params, userContextId: plan.ctx };
       }
     } catch (e) { note(`open check failed: ${e}`); }
-    placing = plan?.group ? plan : null;
+    placing = plan?.group ? plan : openInto?.isConnected ? { group: openInto } : null;
     try { return nativeOpenLinkIn.call(this, url, where, params); }
     finally { placing = null; }
   }
@@ -2229,7 +2249,7 @@
     const others = [...Services.wm.getEnumerator("navigator:browser")].some(w => w !== window && w.TabRouter?.linkMessage);
     if (others) return;
     try { ChromeUtils.unregisterWindowActor("ZzRouterLinks"); } catch {}
-    try { Services.ppmm.sharedData.delete(OPEN_PAGES); Services.ppmm.sharedData.flush(); } catch {}
+    try { Services.ppmm.sharedData.delete(OPEN_PAGES); Services.ppmm.sharedData.delete(PAGE_TABS); Services.ppmm.sharedData.flush(); } catch {}
   }
 
   // ---- events ------------------------------------------------------------
@@ -2562,7 +2582,7 @@
     backfillSoon();
     window.addEventListener("SSTabRestoring", forgetLazy, true);
     patchClicks();
-    const openEvents = ["TabOpen", "TabClose", "TabAttrModified", "SSTabRestored", "TabSelect"];
+    const openEvents = ["TabOpen", "TabClose", "TabAttrModified", "SSTabRestored", "TabSelect", "GroupflowPageTabs"];
     for (const ev of openEvents) window.addEventListener(ev, publishSoon, true);
     const openProgress = { onLocationChange: (_b, wp) => { if (wp?.isTopLevel) publishSoon(); } };
     gBrowser.addTabsProgressListener(openProgress);

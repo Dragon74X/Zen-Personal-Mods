@@ -92,6 +92,9 @@ routing on, such a tab is also created in the container Zen's route asks for
 path that already exists, before it is drawn; any missing levels are created
 once it has loaded, as before. Tab Router also opens Groupflow's folder pages.
 
+A link clicked inside one of Groupflow's folder pages opens in its own tab in
+that folder (or wherever routing files it), so the page tab stays on its page.
+
 Only real link clicks and new tabs are checked, so back and
 forward, reloads, form submissions (and their redirects), redirects in general,
 sign-in steps and pages that navigate by script are never switched. To open a

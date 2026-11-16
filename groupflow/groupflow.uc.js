@@ -956,6 +956,7 @@
   // page's own tab row is hidden and its header shows it instead. A page tab
   // that navigates elsewhere becomes an ordinary tab in the folder again.
   const PAGE_KEY = "groupflowPages", PAGE_OF = "zzgfPageOf";
+  let pageHeaderClick = null;
   // Same page: address without #anchor, tracking parameters, www. or a
   // trailing slash. Tab Router's duplicate check uses the same rule.
   const TRACKING = /^(utm_[a-z]+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|igshid|si|ref_src|_hsenc|_hsmi)$/i;
@@ -1020,12 +1021,16 @@
         group.toggleAttribute("zzgf-page-selected", !!tab?.selected);
         group.toggleAttribute("zzgf-page-loaded", !!tab && !tab.hasAttribute("pending"));
       }
+      let pageTabsChanged = false;
       for (const tab of gBrowser.tabs) {
         const owner = tab.getAttribute("zzgf-page-of");
         const group = owner && tab.group?.id === owner ? tab.group : null;
-        tab.toggleAttribute("zzgf-page-tab", !!group && !!pageOf(group));
+        const isPage = !!group && !!pageOf(group);
+        if (tab.hasAttribute("zzgf-page-tab") !== isPage) { tab.toggleAttribute("zzgf-page-tab", isPage); pageTabsChanged = true; }
         if (owner && !group && !tab.closing) unmark(tab);
       }
+      // Tab Router opens links clicked in a page tab in their own tab.
+      if (pageTabsChanged) window.dispatchEvent(new CustomEvent("GroupflowPageTabs"));
     }
     const soon = () => { if (!retired) frame ||= requestAnimationFrame(refresh); };
     // Opening tabs is Tab Router's: it switches to the page if it is open
@@ -1055,15 +1060,26 @@
       soon();
       return true;
     }
-    // The folder's name opens its page; the rest of the header folds.
-    function click(event) {
-      if (event.button !== 0 || event.defaultPrevented || !enabled()) return;
-      const label = event.target.closest?.(".tab-group-label");
-      const group = label?.closest(".tab-group-label-container")?.parentElement;
-      if (!live(group) || !pageOf(group) || label.matches("[editing], :focus-within input")) return;
+    // The header is the folder's page: clicking it switches to the page, or
+    // folds the folder when you are already on it. The icon always folds.
+    // Called first by toggleSubgroups, so folders with subfolders behave alike.
+    function headerClick(event) {
+      if (event.button !== 0 || event.defaultPrevented || !enabled()) return false;
+      const header = event.target.closest?.(".tab-group-label-container");
+      const group = header?.parentElement;
+      if (!live(group) || !pageOf(group)) return false;
+      if (event.target.closest(".zzgf-icon, .tab-group-folder-icon, .zzgf-close, .tab-close-button, .tab-reset-button, button, input, [editing]")) return false;
+      // The icon slides over the name on hover, where the name wins the hit
+      // test: go by where the icon is drawn now.
+      const icon = header.querySelector(":scope > :is(.zzgf-icon, .tab-group-folder-icon)")?.getBoundingClientRect();
+      if (icon?.width && event.clientX >= icon.left && event.clientX <= icon.right &&
+          event.clientY >= icon.top && event.clientY <= icon.bottom) return false;
+      if (pageTab(group)?.selected) return false;          // on the page: fold as usual
       event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation?.();
       open(group);
+      return true;
     }
+    pageHeaderClick = headerClick;
     // A redirect on first load fixes the page's address; any later move to
     // another page releases the tab back into the folder as an ordinary tab.
     const progress = {
@@ -1137,7 +1153,6 @@
       "TabGroupCreate", "TabGroupRemoved", "FolderGrouped", "FolderUngrouped", "SSTabRestored", "ZzRouterPagesChanged"];
     window.addEventListener("TabGroupRemoveRequested", groupRemoving, true);
     for (const type of events) window.addEventListener(type, soon, true);
-    window.addEventListener("click", click, true);
     window.addEventListener("popupshowing", menu);
     gBrowser.addTabsProgressListener(progress);
     const prefs = { observe: soon };
@@ -1150,7 +1165,7 @@
       for (const type of events) window.removeEventListener(type, soon, true);
       window.removeEventListener("TabGroupRemoveRequested", groupRemoving, true);
       if (gBrowser.removeTab === removeTab) { if (ownRemoveTab) gBrowser.removeTab = nativeRemoveTab; else delete gBrowser.removeTab; }
-      window.removeEventListener("click", click, true);
+      if (pageHeaderClick === headerClick) pageHeaderClick = null;
       window.removeEventListener("popupshowing", menu);
       try { gBrowser.removeTabsProgressListener(progress); } catch {}
       try { Services.prefs.removeObserver(PREFIX + "folder-pages", prefs); } catch {}
@@ -1351,6 +1366,7 @@
   }
 
   function toggleSubgroups(event) {
+    if (pageHeaderClick?.(event)) return;
     if (event.button !== 0 || event.defaultPrevented || event.target.closest?.(
       "button, toolbarbutton, input, textarea, a, [contenteditable], .tab-close-button, .tab-reset-button, .tab-group-folder-button, .group-marker")) return;
     const group = event.target.closest?.(".tab-group-label-container")?.parentElement;

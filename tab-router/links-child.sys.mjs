@@ -2,7 +2,7 @@
 // Runs in each page's top frame. Only a real click on a link is considered:
 // back/forward, reloads, form submissions, redirects and script navigation
 // never pass through here. Holding Alt opens a copy as usual.
-const OPEN_PAGES = "zzrouter:open-pages";
+const OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
 const TRACKING = /^(utm_[a-z]+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|igshid|si|ref_src|_hsenc|_hsmi)$/i;
 
 // Same page: address without #anchor, tracking parameters, www. or a
@@ -31,11 +31,19 @@ export class ZzRouterLinksChild extends JSWindowActorChild {
     const ctx = this.browsingContext.originAttributes?.userContextId || 0;
     const newTab = event.ctrlKey || event.metaKey || link.target === "_blank";
     if (event.altKey) return;            // a deliberate copy
-    let open = null;
-    try { open = Services.cpmm.sharedData.get(OPEN_PAGES); } catch {}
-    if (!open?.has?.(`${ctx}|${key}`)) return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    this.sendAsyncMessage("ZzRouter:SwitchTo", { key, ctx, href, newTab });
+    let open = null, pageTabs = null;
+    try { open = Services.cpmm.sharedData.get(OPEN_PAGES); pageTabs = Services.cpmm.sharedData.get(PAGE_TABS); } catch {}
+    if (open?.has?.(`${ctx}|${key}`)) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      this.sendAsyncMessage("ZzRouter:SwitchTo", { key, ctx, href, newTab });
+      return;
+    }
+    // A folder's own page stays on it: the link opens in its own tab.
+    if (!newTab && pageTabs?.has?.(this.browsingContext.browserId)) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      this.sendAsyncMessage("ZzRouter:OpenFromPage", { key, ctx, href });
+    }
   }
 }

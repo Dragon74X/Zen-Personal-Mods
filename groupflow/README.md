@@ -83,16 +83,14 @@ Subfolder state labels can override that shared setting.
 
 A folder can be a page itself: Tab Router's YouTube folder is youtube.com, a
 creator subfolder is that creator's page, a Nexus Mods game folder is that
-game's page. Clicking the folder's **name** opens its page inside the folder,
-or switches to it when it is already open; clicking anywhere else on the header
-still folds and unfolds it. The page's own tab row is hidden and the header
-stands for it, highlighted while it is the selected tab. If the page tab moves
-on to another page, it becomes an ordinary tab in the folder again and the next
-click on the name opens the page afresh. A loose tab already showing the page
-in the same space and container is brought into the folder instead of opening a
-copy. Opening and switching are Tab Router's (it also changes space when
-the page is open in another one); without Tab Router the page simply opens in
-the folder.
+game's page. Clicking the folder's header switches to its page when you are not
+on it; when you are already on it, the same click folds and unfolds the folder.
+The folder's **icon** always folds and unfolds, with the same press spring as
+other icons (Glassflow). The page's own tab row is hidden and the header keeps
+its usual look. Links you click inside the page open in their own tab in the
+folder (Tab Router), so the page tab stays on its page; a page tab that moves on
+by other means (a form, a script) becomes an ordinary tab in the folder again
+and the next header click opens the page afresh.
 
 Closing a page tab -- with a shortcut, the tab menu or Close Other Tabs --
 unloads it instead, as a Favorite does, so a folder is never emptied or lost

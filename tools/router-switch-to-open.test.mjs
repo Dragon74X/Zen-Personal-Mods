@@ -65,6 +65,8 @@ function opener({ open = new Map(), enabled = false, plan = null, native = null 
     bool: (k, d) => k === "enabled" ? enabled : k === "follow-containers" ? true : d, switchOn: () => true, isPrivate: () => false,
     pageKey: u => { try { return new URL(u).host + new URL(u).pathname; } catch { return null; } },
     contextOf: () => 0, copyAllowed: () => copies, openTabFor: (c, key) => open.get(key) || null,
+    openTargetFor: (c, key) => open.has(key) ? { tab: open.get(key) } : null,
+    goTo: target => { log.switched.push(target.tab.id); return target.tab.id; },
     switchTo: tab => log.switched.push(tab.id),
     hostOf: t => t.linkedBrowser.currentURI.host, targetPath: () => (plan ? ["Local"] : null),
     resolveDestination: () => ({ ws: "ws1", ctx: plan?.ctx ?? null }), findChild: name => groups[name] || null,
@@ -142,4 +144,33 @@ test("A link clicked in a folder's own page opens in its own tab; elsewhere it n
   const other = child([], [99]);
   e = other.click("https://example.com/next");
   assert.ok(!e.prevented && other.sent.length === 0, "an ordinary tab navigates");
+});
+
+test("A link to a folder's page goes to the folder, ahead of a Favorite showing it, even before the folder's tab exists", () => {
+  const fn = name => { const i = router.indexOf(`  function ${name}(`); return router.slice(i, router.indexOf("\n  }\n", i) + 4); };
+  const gen = router.slice(router.indexOf("  const FOLDERS ="), router.indexOf("  function folderFor("));
+  const opened = [], switched = [];
+  const memberTab = { getAttribute: a => (a === "usercontextid" ? "0" : null), hasAttribute: () => false, closing: false };
+  const folder = { id: "e33", label: "E33", tabs: [memberTab], closest: () => null };
+  const favorite = { id: "fav", label: "Nexus", url: "https://nexusmods.com/games/e33" };
+  const win = { closed: false, document: { querySelectorAll: () => [folder] },
+    Groupflow: { folderPage: g => (g === folder ? "https://www.nexusmods.com/games/e33/" : null), openFolderPage: g => { opened.push(g.id); return true; } } };
+  const ctx = vm.createContext({ window: win, Services: { wm: { getEnumerator: () => [win] } },
+    pageKey: u => u.replace(/^https:\/\/(www\.)?/, "").replace(/\/$/, ""), contextOf: t => +(t.getAttribute("usercontextid") || 0),
+    openTabFor: (c, key) => (key === "nexusmods.com/games/e33" || key === "nexusmods.com/other" ? favorite : null),
+    switchTo: t => switched.push(t.id), note: () => {}, openPage: () => null });
+  vm.runInContext(`${gen}\n${fn("folderFor")}\n${fn("openTargetFor")}\n${fn("goTo")}\nthis.openTargetFor = openTargetFor; this.goTo = goTo;`, ctx);
+  const target = ctx.openTargetFor(0, "nexusmods.com/games/e33", favorite);
+  assert.equal(target.folder?.group, folder, "the folder, not the Favorite");
+  ctx.goTo(target);
+  assert.deepEqual(opened, ["e33"], "Groupflow opens the folder's own tab, hidden as its header from the start");
+  assert.equal(ctx.openTargetFor(0, "nexusmods.com/other").tab, favorite, "pages no folder stands for still go to their tab");
+  assert.equal(ctx.openTargetFor(0, "nowhere.example"), null, "and pages open nowhere navigate as usual");
+});
+
+test("A folder's page tab stays its page when the site moves on, and is hidden from the moment it is marked", () => {
+  const listener = groupflow.slice(groupflow.indexOf("    const progress = {"), groupflow.indexOf("    function setPage("));
+  assert.ok(!/unmark\(/.test(listener), "no navigation releases the page tab as a visible row");
+  const mark = groupflow.slice(groupflow.indexOf("    function mark(tab, group) {"), groupflow.indexOf("    function unmark(tab) {"));
+  assert.match(mark, /setAttribute\("zzgf-page-tab"/);
 });

@@ -26,6 +26,7 @@ Every sweep, each tab is checked in order and kept if any rule matches:
 | Already unloaded | `pending` attribute | always |
 | Closing, or has no browser | `tab.closing`, no `linkedBrowser` | always |
 | Zen's blank placeholder tab | `zen-empty-tab`, `_forZenEmptyTab` | always |
+| You chose **Keep Loaded** on its tab menu (until the window closes) | Firefox's `undiscardable`, which its low-memory unloader honours too | always |
 | Not idle long enough | `tab.lastAccessed` vs the idle threshold in seconds | always |
 | Last tab you used in its workspace | recorded on `TabSelect`, per workspace | on |
 | Playing audio or video | `soundplaying` attribute | on |

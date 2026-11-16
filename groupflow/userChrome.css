@@ -2051,16 +2051,11 @@
 }
 
 /* Folder pages (groupflow.uc.js): a folder can be a page itself. Its page
-   tab's own row is hidden and the header stands for it: the folder's name
-   opens it, the rest of the header folds. Shown as selected while it is. */
+   tab's own row is hidden and the header stands for it with its usual look.
+   The icon is its own click target (it folds), following its hover slide. */
 :root:root :is(#navigator-toolbox, .zen-library-space-tabs) :is(tab-group, zen-folder):not([split-view-group]) .tabbrowser-tab[zzgf-page-tab][zzgf-page-of] {
   display: none !important;
 }
-:root :is(#navigator-toolbox, .zen-library-space-tabs) :is(tab-group, zen-folder)[zzgf-has-page] > .tab-group-label-container .tab-group-label {
-  cursor: pointer;
-}
-:root :is(#navigator-toolbox, .zen-library-space-tabs) :is(tab-group, zen-folder)[zzgf-page-selected] > .tab-group-label-container .tab-group-label {
-  background-color: color-mix(in srgb, currentColor 14%, transparent) !important;
-  border-radius: 6px;
-  font-weight: 600;
+:root[zzgf-standalone] :is(#navigator-toolbox, .zen-library-space-tabs) tab-group[zzgf-has-page] > .tab-group-label-container > .zzgf-icon {
+  pointer-events: auto;
 }

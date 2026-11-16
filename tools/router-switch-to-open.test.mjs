@@ -8,15 +8,15 @@ const childSource = (await readFile(new URL("../tab-router/links-child.sys.mjs",
 const router = await readFile(new URL("../tab-router/tab-router.uc.js", import.meta.url), "utf8");
 const groupflow = await readFile(new URL("../groupflow/groupflow.uc.js", import.meta.url), "utf8");
 
-function child(open = ["0|example.com/b"]) {
+function child(open = ["0|example.com/b"], pageTabs = []) {
   const sent = [];
   const ctx = vm.createContext({ URL, URLSearchParams,
-    Services: { cpmm: { sharedData: { get: () => new Set(open) } } },
+    Services: { cpmm: { sharedData: { get: key => new Set(key === "zzrouter:page-tabs" ? pageTabs : open) } } },
     JSWindowActorChild: class { sendAsyncMessage(name, data) { sent.push(JSON.parse(JSON.stringify([name, data]))); } } });
   vm.runInContext(childSource + "\nthis.Child = ZzRouterLinksChild; this.pageKey = pageKey;", ctx);
   const actor = new ctx.Child();
   actor.document = { documentURI: "https://example.com/a" };
-  actor.browsingContext = { originAttributes: { userContextId: 0 } };
+  actor.browsingContext = { originAttributes: { userContextId: 0 }, browserId: 7 };
   const click = (href, extra = {}) => {
     const link = { localName: "a", href, target: "", hasAttribute: () => false, ...(extra.link || {}) };
     const event = { type: "click", button: 0, isTrusted: true, defaultPrevented: false, altKey: false, shiftKey: false,
@@ -128,4 +128,18 @@ test("An unloaded tab restored after a restart is known by its saved address", (
   assert.equal(reads, 1, "read once while it stays unloaded");
   const loaded = { linkedBrowser: { currentURI: { spec: "https://c.example/" } }, hasAttribute: () => false };
   assert.equal(ctx.tabURL(loaded), "https://c.example/");
+});
+
+test("A link clicked in a folder's own page opens in its own tab; elsewhere it navigates as usual", () => {
+  const { sent, click } = child([], [7]);
+  let e = click("https://example.com/next");
+  assert.ok(e.prevented);
+  assert.deepEqual(sent.pop(), ["ZzRouter:OpenFromPage", { key: "example.com/next", ctx: 0, href: "https://example.com/next" }]);
+  e = click("https://example.com/a#part");
+  assert.ok(!e.prevented, "an anchor on the page itself stays");
+  e = click("https://example.com/next", { altKey: true });
+  assert.ok(!e.prevented, "Alt navigates the page itself");
+  const other = child([], [99]);
+  e = other.click("https://example.com/next");
+  assert.ok(!e.prevented && other.sent.length === 0, "an ordinary tab navigates");
 });

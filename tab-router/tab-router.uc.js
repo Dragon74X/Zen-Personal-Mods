@@ -1966,7 +1966,7 @@
   // page side (links-child.sys.mjs) only acts on real link clicks, so back
   // and forward, reloads, forms, redirects and script navigation never
   // switch; Alt-click, Duplicate Tab and session restore always make copies.
-  const LINKS_VERSION = "1.43.0", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
+  const LINKS_VERSION = "1.43.1", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
   const TRACKING = /^(utm_[a-z]+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|igshid|si|ref_src|_hsenc|_hsmi)$/i;
   function pageKey(url) {
     try {
@@ -2082,6 +2082,13 @@
       if (key) open.add(`${contextOf(tab)}|${key}`);
     }
     if (switchOn()) for (const f of folderPages()) open.add(`${f.ctx}|${f.key}`);
+    // Sending reaches every content process: only when the sets changed.
+    // Every window sends the same all-window sets, so the last one sent is
+    // shared between windows.
+    const signature = [...open].sort().join("\n") + "\n\n" + [...pageTabs].sort().join(",");
+    const owner = lookupOwner();
+    if (signature === owner.published) return;
+    owner.published = signature;
     try {
       Services.ppmm.sharedData.set(OPEN_PAGES, open);
       Services.ppmm.sharedData.set(PAGE_TABS, pageTabs);
@@ -2303,6 +2310,7 @@
     if (others) return;
     try { ChromeUtils.unregisterWindowActor("ZzRouterLinks"); } catch {}
     try { Services.ppmm.sharedData.delete(OPEN_PAGES); Services.ppmm.sharedData.delete(PAGE_TABS); Services.ppmm.sharedData.flush(); } catch {}
+    try { delete lookupOwner().published; } catch {}
   }
 
   // ---- events ------------------------------------------------------------

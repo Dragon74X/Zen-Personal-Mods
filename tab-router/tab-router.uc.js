@@ -304,7 +304,8 @@
     "web,app,apps,dashboard,login,signin,logout,account,accounts,myaccount,portal," +
     "settings,profile,mail,inbox,folders,products,product,item,items,shop,store,cart," +
     "checkout,docs,doc,help,support,about,blog,news,article,articles,page,pages,view," +
-    "share,embed,api,static,assets,cdn,images,img,media,files,download,downloads")
+    "share,embed,api,static,assets,cdn,images,img,media,files,download,downloads," +
+    "comments,comment,status,statuses,directory,replies,reply,p,r,u,c,s,amp")
     .split(","));
 
   function pathEnabled(tab) {
@@ -361,7 +362,8 @@
       let seg;
       try { seg = decodeURIComponent(raw[i]).trim(); } catch { continue; }
       const low = seg.toLowerCase();
-      if (low.length < 3 || BUILTIN_IGNORE.has(low) || skipWords.has(low) ||
+      // Locale segments (de-de, pt-br, zh-hans) are not sections.
+      if (low.length < 3 || BUILTIN_IGNORE.has(low) || skipWords.has(low) || /^[a-z]{2}(?:[-_][a-z]{2,4})?$/.test(low) ||
           /^\d+$/.test(seg) || /\.[a-z0-9]{2,4}$/i.test(seg) || /[=?&]/.test(seg)) continue;
       const page = `https://${host}/${raw.slice(0, i + 1).join("/")}`;
       const record = { key: page, label: segName(tab, seg, learn) };
@@ -642,6 +644,171 @@
     if (!key) return null;
     const known = creatorMap().get(scoped(key, contextOf(tab)));
     return known || { key, label: null };
+  }
+
+  // ---- creators on any site ----------------------------------------------
+  // YouTube and Nexus keep their own adapters above. Everywhere else a
+  // creator is read two ways, and neither skips a site for what it shows:
+  // - a profile address by its shape (/@name, /channel/x, /user/x, ...), or
+  //   on a site whose profiles live at the root (twitch.tv/name);
+  // - for any other page, who made it, read from the page you are viewing
+  //   (structured data, author links, the site's oEmbed). That is your own
+  //   signed-in, age-checked page, so nothing has to be fetched to know it.
+  // The page side is untrusted: names are bounded and a creator must be on
+  // the page's own site.
+  const PROFILE_SEGMENTS = new Set(["channel", "channels", "c", "user", "users", "u", "profile", "profiles",
+    "creator", "creators", "author", "authors", "member", "members", "people", "streamer", "streamers", "r",
+    "model", "models", "pornstar", "pornstars", "artist", "artists", "performer", "performers", "star", "stars"]);
+  // Shared words: a match on these is kept only once the page itself says
+  // it is a person or profile (structured data or og:type).
+  const WEAK_SEGMENTS = new Set(["c", "model", "models", "artist", "artists", "star", "stars", "people", "member", "members"]);
+  const ROOT_HANDLE_SITES = ["twitch.tv", "kick.com", "x.com", "twitter.com", "instagram.com", "threads.net",
+    "patreon.com", "github.com", "gitlab.com", "ko-fi.com", "buymeacoffee.com", "soundcloud.com", "vimeo.com",
+    "dailymotion.com", "facebook.com", "pinterest.com", "deviantart.com", "artstation.com", "behance.net",
+    "dribbble.com", "onlyfans.com", "fansly.com", "chaturbate.com", "stripchat.com", "bongacams.com",
+    "cam4.com", "myfreecams.com", "fanvue.com", "gumroad.com", "linktr.ee", "substack.com", "medium.com",
+    "tumblr.com", "bilibili.com", "nicovideo.jp", "trovo.live", "rumble.com", "odysee.com", "bsky.app",
+    "linkedin.com", "steamcommunity.com", "itch.io", "codepen.io", "huggingface.co", "kaggle.com"];
+  const PROFILE_RESERVED = new Set(["home", "explore", "search", "settings", "login", "logout", "signin", "signup",
+    "register", "join", "about", "help", "support", "directory", "videos", "video", "watch", "p", "reel", "reels",
+    "stories", "story", "hashtag", "hashtags", "tag", "tags", "i", "messages", "inbox", "notifications",
+    "following", "followers", "jobs", "marketplace", "groups", "events", "pages", "trending", "popular",
+    "categories", "category", "browse", "privacy", "terms", "legal", "features", "pricing", "topics",
+    "collections", "sponsors", "orgs", "organizations", "new", "shorts", "feed", "live", "clips", "subscriptions",
+    "downloads", "download", "upload", "dashboard", "account", "admin", "api", "blog", "news", "shop", "store",
+    "cart", "checkout", "wallet", "status", "share", "intent", "embed", "oembed", "static", "assets", "cdn",
+    "en", "de", "fr", "es", "pt", "ja", "ko", "zh", "ru", "it", "nl", "pl", "tr", "games", "game", "apps",
+    "app", "docs", "wiki", "forum", "forums", "community", "contact", "careers", "press", "creators", "c"]);
+  const CREATOR_ADAPTED = /(^|\.)(youtube\.com|youtu\.be|nexusmods\.com)$/;
+  const handleOk = seg => typeof seg === "string" && seg.length >= 2 && seg.length <= 64 &&
+    !/[\s<>"'\\]/.test(seg) && !/\.(?:html?|php|aspx?|jpe?g|png|gif|webp|svg|mp4|json|xml|txt)$/i.test(seg);
+  // The profile an address points at: { key, weak } or null.
+  function profileOf(url) {
+    let u;
+    try { u = new URL(url); } catch { return null; }
+    if (!/^https?:$/.test(u.protocol)) return null;
+    const host = u.hostname.toLowerCase().replace(/^(?:www|m|mobile)\./, "");
+    if (CREATOR_ADAPTED.test(host)) return null;
+    const segs = u.pathname.split("/").filter(Boolean).map(seg => { try { return decodeURIComponent(seg); } catch { return seg; } });
+    if (!segs.length) return null;
+    const first = segs[0].toLowerCase(), key = path => `https://${host}/${path}`;
+    const at = /^@([\w.~%+-]{2,64})$/.exec(segs[0]);
+    if (at) return { key: key("@" + at[1].toLowerCase()), weak: false };
+    if (host === "linkedin.com" && (first === "in" || first === "company") && handleOk(segs[1]))
+      return { key: key(`${first}/${segs[1].toLowerCase()}`), weak: false };
+    if (PROFILE_SEGMENTS.has(first) && handleOk(segs[1]) && !PROFILE_RESERVED.has(segs[1].toLowerCase()))
+      return { key: key(`${first}/${first === "channel" ? segs[1] : segs[1].toLowerCase()}`), weak: WEAK_SEGMENTS.has(first) };
+    const rooted = ROOT_HANDLE_SITES.some(d => host === d || host.endsWith("." + d));
+    if (rooted && handleOk(segs[0]) && !PROFILE_RESERVED.has(first) && !/^\d+$/.test(segs[0]))
+      return { key: key(first), weak: false };
+    return null;
+  }
+  const sameSite = (a, b) => { try { return baseDomain(new URL(a).hostname) === baseDomain(new URL(b).hostname); } catch { return false; } };
+  const handleLabel = key => { try { return decodeURIComponent(key.split("/").pop()).replace(/^@/, "").slice(0, 80); } catch { return null; } };
+  // A page's title without the site's name, separators or "(@handle)".
+  function creatorName(title, site) {
+    if (typeof title !== "string") return null;
+    let name = title.replace(/[\u0000-\u001f\u007f]/g, "").trim();
+    const parts = name.split(/\s+[|\-–—·•:]\s+/).map(p => p.trim()).filter(Boolean);
+    if (parts.length > 1) {
+      const low = (site || "").toLowerCase();
+      name = (parts.find(p => p.toLowerCase() !== low && !low.includes(p.toLowerCase())) || parts[0]);
+    }
+    name = name.replace(/\s*\(@[^)]*\)\s*/g, " ").replace(/\s+(?:on|en|auf|sur)\s+\S+$/i, "").replace(/^Watch\s+/i, "").trim();
+    return name && name.length <= 80 ? name : null;
+  }
+  const PROFILE_TYPES = /^(?:Person|ProfilePage|profile|Organization|MusicGroup)$/i;
+  const metaAsked = new WeakMap();
+  function askMeta(tab) {
+    if (retired || tab.closing || tab.hasAttribute("pending")) return;
+    const spec = tab.linkedBrowser?.currentURI?.spec, mark = `${spec}\n${tab.label}`;
+    if (!/^https?:/i.test(spec || "") || metaAsked.get(tab) === mark) return;
+    let actor = null;
+    try { actor = tab.linkedBrowser.browsingContext?.currentWindowGlobal?.getActor("ZzRouterLinks"); } catch {}
+    if (!actor) return;
+    metaAsked.set(tab, mark);
+    actor.sendQuery("ZzRouter:Meta").then(meta => {
+      if (!retired && tab.isConnected && tab.linkedBrowser?.currentURI?.spec === spec) learnCreator(tab, spec, meta);
+    }, () => {});
+  }
+  const bounded = (value, max = 500) => typeof value === "string" && value.length <= max ? value : "";
+  function rememberCreator(ctx, slot, record) {
+    const old = creatorMap().get(scoped(slot, ctx));
+    if (old?.key === record.key && old.label === record.label) return false;
+    creatorMap().set(scoped(slot, ctx), record);
+    return true;
+  }
+  // Live page metadata for the creator's own page, so its picture does not
+  // need an anonymous fetch (which a sign-in or age check would turn away).
+  function seedPicture(ctx, key, title, image) {
+    if (!/^https:\/\/[^\s"'<>\\]+$/.test(image || "")) return;
+    lookupOwner().metadata.set(scoped(key, ctx), { title, canonical: key, image, at: Date.now() });
+    failed.delete("icon:" + scoped(key, ctx));
+  }
+  function learnCreator(tab, spec, meta) {
+    if (!meta || typeof meta !== "object") return;
+    const ctx = contextOf(tab), site = bounded(meta.siteName, 120), title = bounded(meta.ogTitle) || bounded(meta.title);
+    const types = [bounded(meta.ogType, 60), ...(Array.isArray(meta.types) ? meta.types.slice(0, 20).map(t => bounded(t, 60)) : [])];
+    let changed = false;
+    const own = profileOf(spec);
+    if (own) {
+      const label = creatorName(title, site) || handleLabel(own.key);
+      if (label && (!own.weak || types.some(t => PROFILE_TYPES.test(t)))) {
+        changed = rememberCreator(ctx, own.key, { key: own.key, label }) || changed;
+        seedPicture(ctx, own.key, label, bounded(meta.ogImage, 2000));
+      }
+    } else {
+      const page = pageKey(spec);
+      const authors = Array.isArray(meta.authors) ? meta.authors.slice(0, 8) : [];
+      for (const author of authors) {
+        let url = bounded(author?.url, 2000), name = creatorName(bounded(author?.name, 200), site);
+        try { url = url ? new URL(url, spec).href : ""; } catch { url = ""; }
+        if (!url || !sameSite(url, spec)) continue;
+        const profile = profileOf(url);
+        if (!profile || profile.weak && !name) continue;
+        name ||= creatorMap().get(scoped(profile.key, ctx))?.label || handleLabel(profile.key);
+        if (!name) continue;
+        changed = rememberCreator(ctx, "page:" + page, { key: profile.key, label: name }) || changed;
+        if (!creatorMap().has(scoped(profile.key, ctx))) rememberCreator(ctx, profile.key, { key: profile.key, label: name });
+        seedPicture(ctx, profile.key, name, bounded(author.image, 2000));
+        break;
+      }
+      // Sites that publish oEmbed (Vimeo, SoundCloud, Flickr, Reddit, TikTok
+      // and many more) name the author there when the page itself does not.
+      const oembed = bounded(meta.oembed, 2000);
+      if (!creatorMap().has(scoped("page:" + page, ctx)) && oembed && !isPrivate()) {
+        try {
+          const href = new URL(oembed, spec).href;
+          if (sameSite(href, spec)) fetchAnon(href, ctx, body => {
+            try {
+              const j = JSON.parse(utf8(body)), url = new URL(String(j.author_url || ""), spec).href;
+              const profile = sameSite(url, spec) && profileOf(url), name = creatorName(String(j.author_name || ""), site);
+              if (!profile || !name || retired) return;
+              rememberCreator(ctx, "page:" + page, { key: profile.key, label: name });
+              if (!creatorMap().has(scoped(profile.key, ctx))) rememberCreator(ctx, profile.key, { key: profile.key, label: name });
+              saveCreators(); targetGen++; queueRoute(tab, "creator");
+            } catch {}
+          }, 64 * 1024);
+        } catch {}
+      }
+    }
+    if (changed) { saveCreators(); targetGen++; queueRoute(tab, "creator"); }
+  }
+  function genericCreator(tab, learn) {
+    const spec = tab.linkedBrowser?.currentURI?.spec;
+    if (!/^https?:/i.test(spec || "")) return null;
+    const ctx = contextOf(tab), own = profileOf(spec);
+    if (own) {
+      const known = creatorMap().get(scoped(own.key, ctx));
+      if (learn && !known) askMeta(tab);
+      if (known?.label) return known;
+      return own.weak ? null : { key: own.key, label: handleLabel(own.key) };
+    }
+    const page = pageKey(spec), known = page && creatorMap().get(scoped("page:" + page, ctx));
+    if (learn && !known) askMeta(tab);
+    if (!known) return null;
+    const label = creatorMap().get(scoped(known.key, ctx))?.label || known.label;
+    return { key: known.key, label };
   }
 
   // Read only bounded, inert metadata; no page execution or content polling.
@@ -1144,7 +1311,7 @@
       return channel;
     }
     const id = videoId(tab);
-    if (!id) return null;
+    if (!id) return genericCreator(tab, learn);
     const known = creatorMap().get(scoped(id, contextOf(tab)));
     if (!known?.key && learn) fetchCreator(tab, id);
     if (!known?.key) return null;
@@ -1965,7 +2132,7 @@
   // page side (links-child.sys.mjs) only acts on real link clicks, so back
   // and forward, reloads, forms, redirects and script navigation never
   // switch; Alt-click, Duplicate Tab and session restore always make copies.
-  const LINKS_VERSION = "1.43.3", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
+  const LINKS_VERSION = "1.44.0", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
   const TRACKING = /^(utm_[a-z]+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|igshid|si|ref_src|_hsenc|_hsmi)$/i;
   function pageKey(url) {
     try {

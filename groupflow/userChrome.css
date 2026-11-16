@@ -1404,9 +1404,14 @@
   overflow-anchor: none;
 }
 :root[zzgf-standalone][zen-sidebar-expanded="true"] :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-label-container {
-  & > .zzgf-icon { position: relative; inset-inline-start: 0; }
+  /* The icon slides with translate (compositor; inset reflowed the header
+     every frame). An identity translate at rest keeps the same render path,
+     so it does not snap when it lands. */
+  --zzgf-icon-slide: calc(var(--zzgroup-icon-size, 14px) + 14px);
+  &:-moz-locale-dir(rtl) { --zzgf-icon-slide: calc(-1 * (var(--zzgroup-icon-size, 14px) + 14px)); }
+  & > .zzgf-icon { position: relative; translate: 0 0; }
   &:is(:hover, :focus-within) {
-    & > .zzgf-icon { inset-inline-start: calc(var(--zzgroup-icon-size, 14px) + 14px); }
+    & > .zzgf-icon { translate: var(--zzgf-icon-slide) 0; }
     & > .tab-group-label { text-indent: calc(var(--zzgroup-icon-size, 14px) + 14px); }
   }
 }

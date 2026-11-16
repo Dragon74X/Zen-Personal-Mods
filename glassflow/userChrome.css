@@ -393,7 +393,7 @@
   :is(#navigator-toolbox, .zen-library-space-tabs) .tab-group-label-container { --zzgf-calculated-rim: initial; }
 }
 :is(#navigator-toolbox, .zen-library-space-tabs) :is(.tab-label, .tab-group-label, .tab-icon-stack) {
-  transition: color var(--zzg-motion-light) var(--zzg-motion-ease), opacity var(--zzg-motion-time) var(--zzg-motion-ease), filter var(--zzg-motion-time) var(--zzg-motion-ease), margin-inline-start var(--zzg-motion-time) var(--zzg-motion-ease), text-indent var(--zzg-motion-time) var(--zzg-motion-ease) !important;
+  transition: color var(--zzg-motion-light) var(--zzg-motion-ease), opacity var(--zzg-motion-time) var(--zzg-motion-ease), filter var(--zzg-motion-time) var(--zzg-motion-ease), margin-inline-start var(--zzg-motion-time) var(--zzg-motion-ease), text-indent var(--zzg-motion-time) var(--zzg-motion-ease), translate var(--zzg-motion-time) var(--zzg-motion-ease) !important;
 }
 
 /* ---------- Selected tab ---------- */
@@ -1623,9 +1623,14 @@
       inset-inline-end: auto !important;
     }
     & .tab-label-container { margin-inline-end: 0 !important; }
+    /* Slid, not resized: translate runs on the compositor, where a margin
+       reflowed the tab every frame. The title's container clips and fades
+       its end as before. */
+    --zzg-close-slide: var(--size-item-medium, 24px);
+    &:-moz-locale-dir(rtl) { --zzg-close-slide: calc(-1 * var(--size-item-medium, 24px)); }
     &:is(:hover, :focus-within, [multiselected][selected]) {
       & .tab-close-button { visibility: visible !important; }
-      & .tab-icon-stack { margin-inline-start: var(--size-item-medium, 24px) !important; }
+      & :is(.tab-icon-stack, .tab-label) { translate: var(--zzg-close-slide) 0; }
     }
   }
 }
@@ -1654,6 +1659,11 @@
   :is(.tabbrowser-tab[zen-essential="true"], #zen-workspaces-button toolbarbutton)[zzg-icon-click] {
     --zzg-icon-ms: 240;
     --zzg-icon-ease: var(--zzg-spring-ease);
+  }
+  /* A pressed folder icon swaps open/closed at once (glassflow.uc.js), so
+     the press reads as a zoom spring, not Zen's sliding panel morph. */
+  .tab-group-folder-icon[zzg-folder-press] :is(svg, svg *) {
+    transition: none !important;
   }
   :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[zen-essential="true"]:is(:active, [zzg-icon-pressed]) .tab-icon-image {
     scale: .95;

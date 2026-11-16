@@ -174,3 +174,22 @@ test("A folder's page tab stays its page when the site moves on, and is hidden f
   const mark = groupflow.slice(groupflow.indexOf("    function mark(tab, group) {"), groupflow.indexOf("    function unmark(tab) {"));
   assert.match(mark, /setAttribute\("zzgf-page-tab"/);
 });
+
+test("A folder's page tab is never switched away on its first load, redirects included", () => {
+  const i = router.indexOf("  const passedTabs = new WeakSet();");
+  const body = router.slice(i, router.indexOf("\n  }\n", router.indexOf("  function switchFirstRequest(", i)) + 4);
+  const copies = new Map(), cancelled = [], favorite = { id: "fav" };
+  const ctx = vm.createContext({ switchOn: () => true, contextOf: () => 0, pageKey: u => u.replace(/^https:\/\/(www\.)?/, "").replace(/\/$/, ""),
+    takeCopy: (c, key) => { const at = copies.get(`${c}|${key}`); copies.delete(`${c}|${key}`); return !!at; },
+    openTargetFor: () => ({ tab: favorite }), goTo: () => "", note: () => {}, setTimeout: fn => fn(), Components: { results: {} },
+    gBrowser: { removeTab: () => { throw new Error("the folder's tab must not be closed"); } } });
+  vm.runInContext(body + "\nthis.first = switchFirstRequest;", ctx);
+  const tab = attrs => ({ hasAttribute: a => attrs.includes(a), isConnected: true, closing: false });
+  const channel = url => ({ URI: { spec: url }, cancel: () => cancelled.push(url) });
+  assert.equal(ctx.first(tab(["zzgf-page-of"]), channel("https://www.nexusmods.com/")), false, "a folder's own page tab loads");
+  const copy = tab([]);
+  copies.set("0|nexusmods.com", Date.now());
+  assert.equal(ctx.first(copy, channel("https://nexusmods.com/")), false);
+  assert.equal(ctx.first(copy, channel("https://www.nexusmods.com/")), false, "and its redirect is let through too");
+  assert.deepEqual(cancelled, []);
+});

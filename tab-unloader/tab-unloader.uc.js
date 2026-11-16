@@ -463,7 +463,11 @@
     const tabs = menuTabs().filter(t => !t.closing);
     keepItem.hidden = !tabs.length;
     if (!tabs.length) return;
-    keepItem.setAttribute("checked", String(tabs.every(kept)));
+    // The state reads in the label as well as the check, which some menu
+    // themes do not draw.
+    const on = tabs.every(kept), some = !on && tabs.some(kept);
+    keepItem.setAttribute("checked", String(on));
+    keepItem.setAttribute("label", `Keep Loaded: ${on ? "On" : some ? "Some" : "Off"}`);
     // Firefox or another add-on may hold a tab loaded itself; leave those be.
     keepItem.disabled = tabs.every(t => t.undiscardable && !t.hasAttribute(KEEP));
   }
@@ -482,7 +486,7 @@
     keepItem = document.createXULElement("menuitem");
     keepItem.id = "zzunload-keep-loaded";
     keepItem.setAttribute("type", "checkbox");
-    keepItem.setAttribute("label", "Keep Loaded");
+    keepItem.setAttribute("label", "Keep Loaded: Off");
     keepItem.setAttribute("data-zz-action", "tab-unloader--keep-loaded");
     keepItem.addEventListener("command", toggleKeep);
     const after = document.getElementById("context_unloadTab");

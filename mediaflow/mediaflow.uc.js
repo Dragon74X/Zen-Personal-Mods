@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.8.13
+// @version        2.8.14
 // @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
 // ==/UserScript==
@@ -17,7 +17,7 @@
   const LOG_PREFIX = "[Mediaflow]";
   // Gecko caches actor modules across unregister/re-register. Bump with actor
   // changes so Sine updates load replacement code without a browser restart.
-  const ACTOR_VERSION = "2.8.13";
+  const ACTOR_VERSION = "2.8.14";
   const CAPTIONS_PREF = "zzmedia.preview.captions";
   const CAPTIONS_WHEN_PIP_HIDDEN_PREF =
     "zzmedia.preview.captions-when-hidden";
@@ -1501,7 +1501,7 @@
     if (event.target.id !== "tabContextMenu") return;
     for (const item of sourceItems) item.remove(); sourceItems.clear();
     const tab = event.target.triggerNode?.closest?.(".tabbrowser-tab") || event.target.anchorNode?.closest?.(".tabbrowser-tab") || window.TabContextMenu?.contextTab;
-    if (!tab?.isConnected || tab.closing || tab.closest?.("zen-library")) return;
+    if (!tab?.isConnected || tab.closing || tab.closest?.("zen-library, [zen-library-copy]")) return;
     const sources = [...availableSources.values()].filter(source => usableSource(source, tab));
     for (const [i, source] of sources.entries()) {
       const owner = actorRegistry.get(source.bc.id)?.owner;

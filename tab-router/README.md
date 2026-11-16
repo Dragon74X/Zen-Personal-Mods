@@ -146,6 +146,25 @@ What the request is, exactly, because it is a network request:
   entries. Missing avatars can repeat the oEmbed lookup for the channel URL.
   Failed requests or unusable metadata have a 10-minute retry cooldown.
 
+### Creators on any other site
+
+The same setting files creators everywhere else, without a list of sites to
+keep up:
+
+- **Profile addresses** by their shape on any site (`/@name`, `/channel/`,
+  `/user/`, `/u/`, `/profile/`, `/creator/`, `/r/` and similar), and at the root
+  of sites that keep profiles there (Twitch, Kick, X, Instagram, Patreon,
+  GitHub, OnlyFans, Fansly and others). Shared words such as `/model/` or
+  `/artist/` count only once the page says it is a person or profile.
+- **Who made a page**, read from the page you are viewing when Tab Router
+  asks: its structured data (`author`/`creator`), microdata, author link or
+  `meta name=author`, and otherwise the site's own oEmbed. Because it is your
+  page, signed-in and age-checked content is read like any other; no site is
+  skipped for what it shows. Only inert markup is read, never page scripts.
+- The page side is untrusted: names are bounded and cleaned, and a creator
+  must live on the page's own site. A profile's live preview image is used for
+  its picture, so the picture needs no anonymous fetch.
+
 **Pictures on tabs and subgroups** operates independently of movement and
 **Subgroup by creator**. It includes pinned tabs, Essentials and already-grouped
 tabs. Enable Groupflow to render the pictures. Zen's manual tab icons take

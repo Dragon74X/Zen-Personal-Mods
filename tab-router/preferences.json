@@ -160,7 +160,7 @@
   {
     "type": "checkbox",
     "property": "zzrouter.media-subgroups",
-    "label": "Subgroup by creator (YouTube) *Resolve the verified channel through anonymous, container-partitioned oEmbed requests. Private windows start no requests and persist no new metadata. Channel identity stays separate from folder names. Pictures work independently of creator grouping. Cached metadata is bounded to 300 records; failed requests retry on activity after 10 minutes.*",
+    "label": "Subgroup by creator *YouTube channels, plus creators on any site: profile addresses (/@name, /channel/, /user/, /u/, /profile/, /model/ and similar, or the root of sites like Twitch, X, Instagram, Patreon, GitHub, OnlyFans, Fansly), and the author a page names in its own structured data, author link or oEmbed. Read from the page you are viewing, so signed-in and age-checked pages work. YouTube resolves the verified channel through anonymous, container-partitioned oEmbed requests. Private windows start no requests and persist no new metadata. Channel identity stays separate from folder names. Pictures work independently of creator grouping. Cached metadata is bounded to 300 records; failed requests retry on activity after 10 minutes.*",
     "defaultValue": false,
     "conditions": [{"if": {"property": "zzrouter.enabled", "value": true}}]
   },

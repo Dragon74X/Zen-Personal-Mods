@@ -497,7 +497,7 @@ def check_sidebar_modes(m, atg):
                 assert m.script(HELPERS + """
                   const h=group('Root').labelContainerElement,icon=h.querySelector('.zzgf-icon');
                   const a=icon.getBoundingClientRect(),b=h.querySelector('.zzgf-close').getBoundingClientRect();
-                  return Math.abs(a.x-(parseFloat(getComputedStyle(icon).insetInlineStart)||0)-b.x)<1 && Math.abs(a.y-b.y)<1 &&
+                  return Math.abs(a.x-(parseFloat(getComputedStyle(icon).translate)||0)-b.x)<1 && Math.abs(a.y-b.y)<1 &&
                     Math.abs(a.width-b.width)<1 && Math.abs(a.height-b.height)<1;
                 """), ('Close button left the icon slot', compact, expanded)
         return {"compactSidebar": True, "expandedSidebar": True, "iconOnlySidebar": True, "overflowHeaderControls": True}

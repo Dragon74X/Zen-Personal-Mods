@@ -1432,21 +1432,34 @@
   // below three rows. Returns the scroll positions and the height for each.
   const shares = new WeakMap();             // box -> height its list gives it
   const prefCap = box => parseFloat(getComputedStyle(box).getPropertyValue("--zzgf-box-cap")) || Infinity;
+  // Reads only: null when the body fits (releaseBox then clears it).
   function measureBox(box) {
     const end = box.scrollHeight;
     const stops = rowStops(box), ends = [...stops, end];
     // A registered <length> | none, so it computes to pixels without touching
     // the box's own height (which would clamp its scroll position).
     const cap = Math.max(shares.get(box) ?? prefCap(box), ends[Math.min(3, ends.length - 1)]);
-    if (end <= cap) {
-      for (const v of ["fit", "scroll"]) box.style.removeProperty("--zzgf-box-" + v);
-      markEdges(box, false);
-      return null;
-    }
+    if (end <= cap) return null;
     const last = stops.find(y => end - y <= cap) ?? end - cap;
     const positions = stops.filter(y => y < last).concat(last);
     const fitAt = y => ends.filter(e => e > y && e - y <= cap).reduce((a, e) => Math.max(a, e - y), 0);
     return { positions, fitAt };
+  }
+  function releaseBox(box, max) {
+    for (const v of ["fit", "scroll"]) box.style.removeProperty("--zzgf-box-" + v);
+    markEdges(box, false, max);
+  }
+  // One measurement per wheel gesture, mouse notches as much as touchpads:
+  // rows and caps change only with tabs, folders or sizes, which clear it
+  // (onFitEvent, fitAll, the tab area's size), as does a pause in the wheel.
+  const measures = new Map();
+  let measureTimer = null;
+  const forgetMeasures = () => { measures.clear(); clearTimeout(measureTimer); measureTimer = null; };
+  function gestureMeasure(box) {
+    clearTimeout(measureTimer);
+    measureTimer = setTimeout(forgetMeasures, 400);
+    if (!measures.has(box)) measures.set(box, measureBox(box));
+    return measures.get(box);
   }
   // Everything in a list but the folder bodies keeps its height; the bodies
   // share what is left, smallest first, so a folder that fits keeps its full
@@ -1496,13 +1509,17 @@
     cancelAnimationFrame(glides.get(box)?.raf);
     glides.delete(box);
     if (measured) box.style.setProperty("--zzgf-box-fit", measured.fitAt(to) + "px");
+    let max;
     const set = y => {
       box.scrollTop = y;
-      setTops.set(box, box.scrollTop);
-      box.style.setProperty("--zzgf-box-scroll", box.scrollTop + "px");
-      markEdges(box, true);
+      const top = box.scrollTop;
+      setTops.set(box, top);
+      box.style.setProperty("--zzgf-box-scroll", top + "px");
+      markEdges(box, true, max);
     };
     if (instant) { set(to); return; }
+    // Measured once: each frame then writes without forcing a layout.
+    max = box.scrollHeight - box.clientHeight;
     const from = box.scrollTop, start = performance.now(), ms = 240;
     const step = now => {
       const k = Math.min(1, (now - start) / ms);
@@ -1517,14 +1534,9 @@
   // at its top, sliding to the bottom as it reaches its end. Subfolder
   // lines get the same light, measured from their own tops.
   const HTML = "http://www.w3.org/1999/xhtml";
-  function markEdges(box, scrolls) {
-    for (const item of scrollItems) {
-      if (!item.isConnected || item.zzgfEligible()) continue;
-      const popup = item.closest("menupopup, panel"), focused = document.activeElement === item;
-      item.remove(); scrollItems.delete(item);
-      if (focused) ([...popup.querySelectorAll("menuitem, toolbarbutton")].find(n => !n.hidden && !n.disabled) || popup.anchorNode)?.focus();
-    }
-    const max = box.scrollHeight - box.clientHeight, y = box.scrollTop;
+  function markEdges(box, scrolls, max = box.scrollHeight - box.clientHeight) {
+    if (scrollItems.size) pruneScrollItems();
+    const y = box.scrollTop;
     scrolls &&= max > 0.5;
     box.toggleAttribute("zzgf-more-above", scrolls && y > 0.5);
     box.toggleAttribute("zzgf-more-below", scrolls && y < max - 0.5);
@@ -1539,13 +1551,22 @@
   function pageFolder(box, dir) {
     if (!canScroll(box, dir)) return;
     const measured = measureBox(box);
-    if (!measured) return;
+    if (!measured) { releaseBox(box); return; }
     showWhere(box, true);
     const from = glides.get(box)?.to ?? box.scrollTop, down = dir === "down";
     const ahead = measured.positions.filter(y => down ? y > from + 0.5 : y < from - 0.5);
     if (ahead.length) scrollBox(box, nearest(ahead, from + (down ? 1 : -1) * box.clientHeight), false, measured);
   }
   const scrollItems = new Set();
+  // An open folder menu drops a scroll item the folder can no longer follow.
+  function pruneScrollItems() {
+    for (const item of scrollItems) {
+      if (!item.isConnected || item.zzgfEligible()) continue;
+      const popup = item.closest("menupopup, panel"), focused = document.activeElement === item;
+      item.remove(); scrollItems.delete(item);
+      if (focused) ([...popup.querySelectorAll("menuitem, toolbarbutton")].find(n => !n.hidden && !n.disabled) || popup.anchorNode)?.focus();
+    }
+  }
   function scrollMenu(event) {
     const popup = event.target, panel = popup.matches?.(".tab-group-editor-panel");
     if (!panel && popup.id !== "zenFolderActions") return;
@@ -1804,8 +1825,8 @@
   function scrollFolder(event, hit) {
     const box = boxAt(event, hit);
     if (!box || box.scrollHeight <= box.clientHeight) return false;   // fits: the list scrolls (see below)
-    const measured = measureBox(box);
-    if (!measured) return false;
+    const measured = gestureMeasure(box);
+    if (!measured) { releaseBox(box); return false; }
     const { positions } = measured;
     const from = glides.get(box)?.to ?? box.scrollTop;
     // At its end in the wheel's direction the folder passes the wheel on, so
@@ -1878,10 +1899,10 @@
   // Refit a resting box after tabs, folders or the window change: nearest row,
   // keeping a selected tab inside the box fully in view unless told to keep
   // the rows where they are.
-  function fitBox(box, keep, glide = false) {
-    if (glides.has(box) && !glide) return;
+  // Where a resting box should sit (reads only): null when it fits.
+  function planFit(box, keep) {
     const measured = measureBox(box);
-    if (!measured) return;
+    if (!measured) return null;
     const y = box.scrollTop;
     let choices = measured.positions;
     const selected = box.querySelector(".tabbrowser-tab[selected]");
@@ -1891,7 +1912,13 @@
       const showing = choices.filter(p => top >= p && bottom <= p + measured.fitAt(p));
       if (showing.length) choices = showing;
     }
-    scrollBox(box, nearest(choices, y), !glide, measured);
+    return { measured, to: nearest(choices, y) };
+  }
+  function fitBox(box, keep, glide = false) {
+    if (glides.has(box) && !glide) return;
+    const plan = planFit(box, keep);
+    if (plan) scrollBox(box, plan.to, !glide, plan.measured);
+    else releaseBox(box);
   }
   // Zen's button owns the outer list. Reveal our capped body first so its
   // native click handler reads the selected tab's final layout coordinates.
@@ -1916,12 +1943,27 @@
       }
       return;
     }
-    for (const host of document.querySelectorAll("zen-workspace arrowscrollbox")) shareList(host);
-    for (const box of topBoxes()) fitBox(box, keep);
+    // The space on screen; another is fitted as it becomes active.
+    const spaces = document.querySelectorAll("zen-workspace[active]");
+    const roots = spaces.length ? [...spaces] : [document];
+    for (const root of roots) for (const host of root.querySelectorAll("arrowscrollbox")) shareList(host);
+    // Every read, then every write, then the edges' one read: a refit costs a
+    // few layout passes in all rather than a few per folder.
+    const plans = roots.flatMap(root => topBoxes(root)).filter(box => !glides.has(box))
+      .map(box => [box, planFit(box, keep)]);
+    for (const [box, plan] of plans) {
+      if (plan) box.style.setProperty("--zzgf-box-fit", plan.measured.fitAt(plan.to) + "px");
+      else for (const v of ["fit", "scroll"]) box.style.removeProperty("--zzgf-box-" + v);
+    }
+    for (const [box, plan] of plans) if (plan) { box.scrollTop = plan.to; setTops.set(box, box.scrollTop); }
+    for (const [box, plan] of plans) if (plan) box.style.setProperty("--zzgf-box-scroll", setTops.get(box) + "px");
+    const maxes = plans.map(([box]) => box.scrollHeight - box.clientHeight);
+    plans.forEach(([box, plan], i) => markEdges(box, !!plan, maxes[i]));
   }
   // A refit keeps each body's rows where they are, unless a tab was selected
   // or brought into view: then that tab is kept fully inside its body.
   const fitSoon = (select = false) => {
+    forgetMeasures();                       // whatever asked for a refit moved rows or sizes
     showSelected ||= select === true;
     if (fitTimer === null) fitTimer = setTimeout(() => { fitTimer = null; const keep = !showSelected; showSelected = false; countTabs(); fitAll(keep); }, 150);
   };
@@ -2016,7 +2058,7 @@
     // Lists are lit only in the active space; light a space as it becomes
     // active, even when no tab is selected on the way (an Essential kept).
     const spaceShown = new MutationObserver(records => {
-      if (records.some(r => r.target.localName === "zen-workspace" && r.target.hasAttribute("active"))) lightSoon();
+      if (records.some(r => r.target.localName === "zen-workspace" && r.target.hasAttribute("active"))) { lightSoon(); fitSoon(); }
     });
     const strips = document.getElementById("tabbrowser-tabs");
     if (strips) spaceShown.observe(strips, { subtree: true, attributes: true, attributeFilter: ["active"] });
@@ -2075,7 +2117,7 @@
       for (const ev of iconEvents) window.removeEventListener(ev, schedule, true);
       window.removeEventListener("click", toggleSubgroups, true);
       window.removeEventListener("click", revealSelected, true);
-      stopScrolling();
+      stopScrolling(); forgetMeasures();
       for (const mark of document.querySelectorAll(".tab-group-label-container > .zzgf-count")) mark.remove();
       for (const box of document.querySelectorAll(".tab-group-container[zzgf-glow]")) markEdges(box, false);
       for (const port of listPorts) port.removeEventListener("scroll", onListScroll);

@@ -388,6 +388,7 @@
     warmIdle = null;
     if (gBrowser.selectedTab?.hasAttribute("busy")) { warmDue = true; return; }
     warmDue = false;
+    window.removeEventListener("TabAttrModified", warmReady, true);   // warms once
     const how = pref("zzlib.warm", 2);
     if (window[INSTANCE_KEY] !== instance || !how || !pref("zen.library.enabled", true) || libraryNode()) return;
     const load = url => ChromeUtils.importESModule(url, { global: "current" });

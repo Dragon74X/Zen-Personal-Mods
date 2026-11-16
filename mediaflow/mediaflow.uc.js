@@ -1138,8 +1138,13 @@
   }
 
   placeToggles();
-  watching(new MutationObserver(() => {
-    placeToggles();
+  // The bar's own ticking (time and title text) and this mod's writes to its
+  // toggles change nothing a toggle depends on.
+  const affectsToggles = r => r.type === "childList"
+    ? [...r.addedNodes, ...r.removedNodes].some(n => n.nodeType === 1)
+    : !r.target.hasAttribute?.("zzmf-toggle");
+  watching(new MutationObserver(records => {
+    if (records.some(affectsToggles)) placeToggles();
   })).observe(musicPlayerUI, {
     attributes: true,
     attributeFilter: ["hidden", "style", "class", "collapsed"],

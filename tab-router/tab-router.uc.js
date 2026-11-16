@@ -1978,12 +1978,10 @@
     }
   }
 
-  // Zen marks a trackpad swipe on the tab scroller, the workspaces and the
-  // grain layer (ZenSpacesSwipe.mjs), never on :root. A workspace slide is
-  // marked on #navigator-toolbox since Zen 1.23b, on :root before it.
+  // Zen marks a trackpad swipe on the tab scroller (ZenSpacesSwipe.mjs) and a
+  // workspace slide on #navigator-toolbox, never on :root.
   const swiping = () => !!document.getElementById?.("tabbrowser-arrowscrollbox")?.hasAttribute("swipe-gesture");
-  const sliding = () => document.documentElement.hasAttribute("animating-background") ||
-    !!document.getElementById?.("navigator-toolbox")?.hasAttribute("animating-background") || swiping();
+  const sliding = () => !!document.getElementById?.("navigator-toolbox")?.hasAttribute("animating-background") || swiping();
   let orderTimer = null;
   const startupTimers = [];
   const MAX_ORDER_DEFER_MS = 10000;
@@ -2232,6 +2230,33 @@
     if (win !== window) win.focus();
     if (win.gZenWorkspaces?.switchTabIfNeeded) win.gZenWorkspaces.switchTabIfNeeded(tab);
     else win.gBrowser.selectedTab = tab;
+    if (win !== window) win.requestAnimationFrame(() => markArrival(win, tab));
+  }
+  // A switch into another window that is already in view gives no sign of
+  // its own: a soft ring in Zen's accent fades in and out around that
+  // window's page, and around the tab when its sidebar shows it. Opacity
+  // only (compositor); each ring removes itself when it ends.
+  function markArrival(win, tab) {
+    const doc = win.document, root = doc.documentElement;
+    if (!root || tab.closing) return;
+    const accent = win.getComputedStyle(root).getPropertyValue("--zen-primary-color").trim() || "AccentColor";
+    const brief = win.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const ring = (el, radius) => {
+      const r = el?.getBoundingClientRect();
+      if (!r?.width || !r.height || r.right <= 0 || r.bottom <= 0 || r.left >= win.innerWidth || r.top >= win.innerHeight) return;
+      const glow = doc.createElementNS("http://www.w3.org/1999/xhtml", "div");
+      glow.setAttribute("aria-hidden", "true");
+      Object.assign(glow.style, { position: "fixed", left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px`,
+        borderRadius: radius, pointerEvents: "none", zIndex: "2147483647", opacity: "0",
+        boxShadow: `inset 0 0 0 2px ${accent}, inset 0 0 28px color-mix(in srgb, ${accent} 40%, transparent)` });
+      root.appendChild(glow);
+      const fade = glow.animate([{ opacity: 0 }, { opacity: 1, offset: 0.3 }, { opacity: 0 }],
+        { duration: brief ? 500 : 900, easing: "ease-in-out" });
+      fade.finished.then(() => glow.remove(), () => glow.remove());
+    };
+    const page = tab.linkedBrowser?.closest(".browserSidebarContainer") || doc.getElementById("tabbrowser-tabpanels");
+    ring(page, page ? win.getComputedStyle(page).borderRadius : "0");
+    ring(tab.querySelector(".tab-background") || tab, win.getComputedStyle(tab.querySelector(".tab-background") || tab).borderRadius);
   }
   // Every window publishes the whole set, so the page side needs one lookup.
   let publishTimer = null;

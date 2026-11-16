@@ -1880,7 +1880,7 @@
 @media (-moz-pref("zzgroup.glow-spread", 3)) { :root { --zzgroup-glow-half: 0.65; } }
 @media (-moz-pref("zzgroup.scroll-glow")) {
   #navigator-toolbox tab-group:not([split-view-group]) > .tab-group-container:is([zzgf-glow], [zzgf-list-glow], :is([zzgf-glow], [zzgf-list-glow]) .tab-group-container)::before {
-    --zzgf-glow-floor: var(--zzgroup-glow-floor, 0.35);
+    --zzgf-glow-floor: 0.35;
     /* Halfway points of each fade, this far out from the light. */
     --zzgf-glow-half: var(--zzgroup-glow-half, 0.3);
     --zzgf-glow-up: calc(var(--zzgf-glow-at) * (1 - var(--zzgf-glow-half)));
@@ -1905,8 +1905,8 @@
     #navigator-toolbox tab-group:not([split-view-group]):not(tab-group tab-group) > .tab-group-container:is([zzgf-more-above], [zzgf-more-below]) {
       mask-image: linear-gradient(to bottom, transparent 0, #000 var(--zzgf-fade-above, 0px),
         #000 calc(100% - var(--zzgf-fade-below, 0px)), transparent 100%);
-      &[zzgf-more-above] { --zzgf-fade-above: var(--zzgroup-scroll-fade-size, 22px); }
-      &[zzgf-more-below] { --zzgf-fade-below: var(--zzgroup-scroll-fade-size, 22px); }
+      &[zzgf-more-above] { --zzgf-fade-above: 22px; }
+      &[zzgf-more-below] { --zzgf-fade-below: 22px; }
     }
   }
 
@@ -1923,8 +1923,8 @@
 @media (-moz-pref("zzgroup.scroll-fade")) {
   #navigator-toolbox .workspace-arrowscrollbox[overflowing] {
     transition: --zzgf-list-fade-above 0.15s ease-out, --zzgf-list-fade-below 0.15s ease-out;
-    &:not([scrolledtostart]) { --zzgf-list-fade-above: var(--zzgroup-scroll-fade-size, 22px); }
-    &:not([scrolledtoend]) { --zzgf-list-fade-below: var(--zzgroup-scroll-fade-size, 22px); }
+    &:not([scrolledtostart]) { --zzgf-list-fade-above: 22px; }
+    &:not([scrolledtoend]) { --zzgf-list-fade-below: 22px; }
     mask-image: linear-gradient(to bottom, transparent 0, #000 var(--zzgf-list-fade-above),
       #000 calc(100% - var(--zzgf-list-fade-below)), transparent 100%);
   }

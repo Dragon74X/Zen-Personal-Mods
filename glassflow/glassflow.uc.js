@@ -277,7 +277,7 @@
     // Zen's workspace switch re-blurs this panel on every frame while it fades
     // the background; a redraw then only adds another full blur. It waits for
     // the switch to finish and runs once.
-    const switching = () => !!(toolbox?.hasAttribute?.("animating-background") || root.hasAttribute?.("animating-background"));
+    const switching = () => !!toolbox?.hasAttribute?.("animating-background");
     const dropWaiter = () => { waiter?.disconnect(); waiter = null; };
     const refresh = () => {
       if (retired) return;
@@ -288,7 +288,7 @@
       if (switching()) {
         if (!waiter && toolbox) {
           waiter = new MutationObserver(() => { if (!switching()) { dropWaiter(); refresh(); } });
-          for (const node of [root, toolbox]) waiter.observe(node, { attributes: true, attributeFilter: ["animating-background"] });
+          waiter.observe(toolbox, { attributes: true, attributeFilter: ["animating-background"] });
         }
         return;
       }
@@ -510,7 +510,9 @@
       if (records.some(r => r.type === "attributes" || [...r.addedNodes, ...r.removedNodes].some(n => n.nodeType === 1 &&
         (n.matches(".tab-icon-image,.zen-workspace-icon") || n.querySelector(".tab-icon-image,.zen-workspace-icon"))))) schedule();
     });
-    mutations.observe(document.documentElement, { childList: true, subtree: true });
+    // Icons live in Zen's app area (sidebar, Library); menus and popups,
+    // the window's busiest children, sit outside it.
+    mutations.observe(document.getElementById("zen-main-app-wrapper") || document.documentElement, { childList: true, subtree: true });
     if (toolbox) {
       mutations.observe(toolbox, { attributes: true, attributeFilter: ["zen-has-hover", "zen-user-show", "zen-has-empty-tab", "flash-popup", "has-popup-menu", "movingtab", "zen-compact-mode-active"] });
       const moved = event => { if (event.target === toolbox && event.propertyName === "translate") schedule(); };
@@ -818,28 +820,6 @@
     }
     return wrote > 0;
   }
-
-  // Repair 3.74.2's combined switch once: pointer tracking is separate from
-  // ordinary state/spacing motion. Other explicit choices remain intact.
-  try {
-    const S = Services.prefs, done = PREFIX + "migrated.motion-controls";
-    if (!S.getBoolPref(done, false)) {
-      if (S.getBoolPref(PREFIX + "migrated.motion-opt-in", false)) S.setBoolPref(PREFIX + "motion.enabled", true);
-      S.setBoolPref(done, true);
-    }
-  } catch {}
-
-  // Preserve the existing sidebar switch once; keep the old value for rollback.
-  // An explicit new native choice, including Off, always wins.
-  try {
-    const S = Services.prefs, done = PREFIX + "migrated.acrylic-sidebar";
-    if (!S.getBoolPref(done, false)) {
-      if (S.prefHasUserValue("zen.theme.acrylic-elements") && !S.prefHasUserValue("zen.theme.acrylic-sidebar")) {
-        S.setBoolPref("zen.theme.acrylic-sidebar", S.getBoolPref("zen.theme.acrylic-elements"));
-      }
-      S.setBoolPref(done, true);
-    }
-  } catch {}
 
   // Written the moment this script is injected, not from start(). These
   // variables need only Services.prefs and the document element -- never

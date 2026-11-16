@@ -162,7 +162,7 @@ test('A sidebar redraw waits for a workspace switch to finish, then runs once', 
   waiter.callback([]); h.flush();
   assert.equal(redraws(), 1, 'one redraw after it');
   assert.equal(h.mutations.size, 0, 'and the waiter is gone');
-  h.root.setAttribute('animating-background', '');
+  h.toolbox.setAttribute('animating-background', '');
   select();
   assert.equal(h.mutations.size, 1);
   stop();

@@ -72,9 +72,9 @@ async function functions(mod, names, context={}) {
   const env=vm.createContext({console,...context});vm.runInContext(source,env);return env.harness;
 }
 test('Unloader reaches its ten-second deadline independently of the sweep interval', async () => {
-  let now=1000,id=0;const timers=new Map(),root={hasAttribute:()=>true};
+  let now=1000,id=0;const timers=new Map(),toolbox={hasAttribute:name=>name==='animating-background'};
   const h=await functions('tab-unloader','sweep, retire:()=>retired=true',{
-    window:{},document:{documentElement:root,querySelectorAll:()=>[]},
+    window:{},document:{documentElement:{hasAttribute:()=>false},getElementById:id=>id==='navigator-toolbox'?toolbox:null,querySelectorAll:()=>[]},
     Date:class extends Date { static now(){return now;} },setTimeout:(fn,delay)=>{timers.set(++id,{fn,delay});return id;},clearTimeout:id=>timers.delete(id),
     Services:{prefs:{getBoolPref:(_k,d)=>d===false?true:d,getPrefType:()=>0}},gBrowser:{tabs:[]},
   });

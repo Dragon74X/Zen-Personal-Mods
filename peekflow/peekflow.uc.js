@@ -21,7 +21,8 @@
 
   // ---- Firefox's own switches ----------------------------------------------
   // The preview and its picture are Firefox prefs. Peekflow sets them from its
-  // own settings. The final window restores only overrides still owned by us.
+  // own settings; when Peekflow is removed or turned off, the last window
+  // restores only the overrides still owned by us.
   const OWNED = { "browser.tabs.hoverPreview.enabled": "show", "browser.tabs.hoverPreview.showThumbnails": "pictures" };
   function syncFirefox(release) {
     if (release) for (const w of Services.wm.getEnumerator("navigator:browser")) if (w[INSTANCE_KEY]?.active) return;
@@ -29,21 +30,16 @@
       const saved = P + "saved." + key, had = saved + ".had", applied = saved + ".applied";
       try {
         const wanted = bool(key, true), now = S.getBoolPref(pref, false), owned = S.prefHasUserValue(saved);
-        // ponytail: pre-1.2.1 snapshots lack user-value presence; preserve their
-        // saved value until released, then new snapshots record presence exactly.
         const last = S.getBoolPref(applied, wanted);
         if (release) {
           if (owned && S.prefHasUserValue(pref) && now === last) {
-            if (S.getBoolPref(had, true)) S.setBoolPref(pref, S.getBoolPref(saved));
+            if (S.getBoolPref(had, false)) S.setBoolPref(pref, S.getBoolPref(saved));
             else S.clearUserPref(pref);
           }
           for (const name of [saved, had, applied]) S.clearUserPref(name);
           continue;
         }
-        if (owned && last === wanted) {
-          if (!S.prefHasUserValue(applied)) S.setBoolPref(applied, last);
-          continue; // Unrelated settings must not overwrite a later manual edit.
-        }
+        if (owned && last === wanted) continue; // Unrelated settings must not overwrite a later manual edit.
         if (!owned || now !== last || !S.prefHasUserValue(pref)) {
           S.setBoolPref(had, S.prefHasUserValue(pref));
           S.setBoolPref(saved, now);
@@ -284,8 +280,9 @@
   }
   instance.retire = cleanup;
   window.addEventListener("unload", cleanup, { once: true });
-  // Sine turning the mod off: also hand Firefox's switches back.
-  try { window.addUnloadListener?.(() => { cleanup(); syncFirefox(true); }); } catch {}
+  // Sine turning the mod off or removing it (not a window or the browser
+  // closing): also hand Firefox's switches back.
+  try { window.addUnloadListener?.(() => { cleanup(); if (!window.__zzSineWindowClosing && window.__zzSineUnloadReasons?.get("zz-peekflow") === "release") syncFirefox(true); }); } catch {}
 
   if (window.gBrowserInit?.delayedStartupFinished) start();
   else {

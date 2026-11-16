@@ -5,56 +5,6 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import { test } from "node:test";
 
-test("Glassflow separates pointer tracking and repairs only the 3.74.2 reset once", async () => {
-  const source = await readFile(new URL("../glassflow/glassflow.uc.js", import.meta.url), "utf8");
-  const migration = source.slice(source.indexOf("  // Repair 3.74.2's combined switch once:"), source.indexOf("  // Preserve the existing sidebar switch once;"));
-  for (const upgraded of [false, true]) for (const initial of [undefined, false, true]) {
-    const prefs = new Map([["zzglass.motion.profile", 3], ["zzglass.hover.tint", "35%"], ["zzglass.migrated.motion-opt-in", upgraded]]);
-    if (initial !== undefined) prefs.set("zzglass.motion.enabled", initial);
-    const context = vm.createContext({ PREFIX: "zzglass.", Services: { prefs: {
-      getBoolPref: (key, fallback) => prefs.has(key) ? prefs.get(key) : fallback,
-      setBoolPref: (key, value) => prefs.set(key, value),
-    } } });
-    vm.runInContext(migration, context);
-    assert.equal(prefs.get("zzglass.motion.enabled"), upgraded ? true : initial);
-    assert.equal(prefs.has("zzglass.edges.follow-pointer"), false, "migration never enables pointer tracking");
-    prefs.set("zzglass.motion.enabled", false);
-    vm.runInContext(migration, context);
-    assert.equal(prefs.get("zzglass.motion.enabled"), false, "later explicit Off survives reinjection");
-    assert.equal(prefs.get("zzglass.motion.profile"), 3);
-    assert.equal(prefs.get("zzglass.hover.tint"), "35%");
-  }
-});
-
-test("Glassflow upgrades legacy sidebar blur once and preserves explicit native choices", async () => {
-  const source = await readFile(new URL("../glassflow/glassflow.uc.js", import.meta.url), "utf8");
-  const migration = source.slice(source.indexOf("  // Preserve the existing sidebar switch once;"), source.indexOf("  // Written the moment this script is injected,"));
-  const old = "zen.theme.acrylic-elements", native = "zen.theme.acrylic-sidebar", urlbar = "zen.theme.acrylic-urlbar";
-  function run(entries) {
-    const prefs = new Map(entries);
-    const context = vm.createContext({ PREFIX: "zzglass.", Services: { prefs: {
-      getBoolPref: (key, fallback) => prefs.has(key) ? prefs.get(key) : fallback,
-      prefHasUserValue: key => prefs.has(key), setBoolPref: (key, value) => prefs.set(key, value),
-    } } });
-    const migrate = () => vm.runInContext(migration, context);
-    migrate();
-    return { prefs, migrate };
-  }
-  for (const value of [false, true]) {
-    const { prefs, migrate } = run([[old, value]]);
-    assert.equal(prefs.get(native), value);
-    assert.equal(prefs.get(old), value, "rollback retains the old choice");
-    assert.equal(prefs.has(urlbar), false);
-    prefs.delete(native);
-    migrate();
-    assert.equal(prefs.has(native), false, "later reset to native default wins");
-    const explicit = run([[old, value], [native, !value], [urlbar, true]]).prefs;
-    assert.equal(explicit.get(native), !value);
-    assert.equal(explicit.get(urlbar), true);
-  }
-  assert.equal(run([]).prefs.has(native), false, "fresh installs keep native defaults");
-});
-
 test("Library batches bounded history and fills only slots not occupied by native session rows", async () => {
   const source = await readFile(new URL("../glassflow-library/glassflow-library.uc.js", import.meta.url), "utf8");
   let view, flushes = 0, copied = 0, count = 8, nativeCount = 4;

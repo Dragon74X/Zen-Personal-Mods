@@ -254,12 +254,10 @@
   // far better failure than never unloading again.
   const MAX_DEFER_MS = 10000;
   let deferredSince = 0, deferredTimer = null;
-  // Zen marks a trackpad swipe on the tab scroller, the workspaces and the
-  // grain layer (ZenSpacesSwipe.mjs), never on :root. A workspace slide is
-  // marked on #navigator-toolbox since Zen 1.23b, on :root before it.
+  // Zen marks a trackpad swipe on the tab scroller (ZenSpacesSwipe.mjs) and a
+  // workspace slide on #navigator-toolbox, never on :root.
   const swiping = () => !!document.getElementById?.("tabbrowser-arrowscrollbox")?.hasAttribute("swipe-gesture");
-  const sliding = () => document.documentElement.hasAttribute("animating-background") ||
-    !!document.getElementById?.("navigator-toolbox")?.hasAttribute("animating-background") || swiping();
+  const sliding = () => !!document.getElementById?.("navigator-toolbox")?.hasAttribute("animating-background") || swiping();
 
   async function sweep(scope = null) {
     const manual = !!scope;

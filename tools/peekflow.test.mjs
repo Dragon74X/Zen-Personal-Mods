@@ -36,7 +36,8 @@ function environment(initial = {}, defaults = { [SHOW]: false, [PICTURES]: true 
     const panel = { ...events(), querySelector: selector => selector === ".tab-preview-thumbnail-container" ? box : null,
       querySelectorAll: () => [] };
     const tabPanel = Object.create({ get popupOptions() { return {}; }, activate() {} });
-    const window = { ...events(), gBrowserInit: { delayedStartupFinished: true },
+    // Sine's reason for unloading: "release" is the mod being turned off or removed.
+    const window = { ...events(), gBrowserInit: { delayedStartupFinished: true }, __zzSineUnloadReasons: new Map([["zz-peekflow", "release"]]),
       addUnloadListener: fn => unloaders.push(fn), requestIdleCallback: fn => idle.push(fn),
       PageThumbs: { captureTabPreviewThumbnail: (_, canvas) => new Promise(resolve => pending.push({ resolve, canvas })) } };
     const document = { getElementById: () => panel, createElementNS: (_, tag) => ({ tag, isConnected: false,
@@ -110,12 +111,12 @@ test("reinjection keeps ownership until the replacement unloads", () => {
   assert.equal(e.user.has("zzpeek.saved.show"), false);
 });
 
-test("legacy snapshots retain their saved value across upgrade", () => {
-  const e = environment({ [SHOW]: true, "zzpeek.saved.show": false }), w = e.add();
-  e.set("zzpeek.show", false);
-  e.set("zzpeek.show", true);
+test("closing the browser keeps the settings applied; only turning Peekflow off hands them back", () => {
+  const e = environment({ [SHOW]: false }), w = e.add();
+  w.window.__zzSineWindowClosing = true;
   w.unload();
-  assert.equal(e.user.get(SHOW), false);
+  assert.equal(e.get(SHOW), true, "no restore and re-apply at every quit and start");
+  assert.equal(e.user.has("zzpeek.saved.show"), true);
 });
 
 test("disabling pictures immediately removes selected-tab canvas", async () => {

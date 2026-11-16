@@ -363,17 +363,17 @@ test("Turbo passes a content principal with container/private attributes", async
   assert.deepEqual({ ...e.connects[0].attrs }, { userContextId: 7, privateBrowsingId: 1 });
 });
 
-test("Turbo orphan restoration preserves manual changes and removes retired prefetch overrides", async () => {
+test("Turbo gives back prefs a retired pack still holds, unless they were changed since", async () => {
   const e = await turboEnv(), key = "layout.css.corner-shape.enabled";
   e.values.set(key, true);
-  e.values.set("zzturbo.saved-prefs", JSON.stringify({ [key]: { had: true, v: false } }));
+  e.values.set("zzturbo.saved-prefs", JSON.stringify({ [key]: { had: true, v: false, applied: false } }));
   e.h.syncPacks();
-  assert.equal(e.values.get(key), true);
+  assert.equal(e.values.get(key), true, "changed since the pack set it: kept");
   assert.deepEqual(JSON.parse(e.values.get("zzturbo.saved-prefs")), {});
   e.values.set("network.predictor.enable-prefetch", true);
-  e.values.set("zzturbo.saved-prefs", JSON.stringify({ "network.predictor.enable-prefetch": { had: false } }));
+  e.values.set("zzturbo.saved-prefs", JSON.stringify({ "network.predictor.enable-prefetch": { had: false, applied: true } }));
   e.h.syncPacks();
-  assert.equal(e.values.has("network.predictor.enable-prefetch"), false);
+  assert.equal(e.values.has("network.predictor.enable-prefetch"), false, "still as the pack left it: restored");
 });
 
 test("Router rejects image targets and redirects to local or non-HTTPS URLs", async () => {
@@ -1379,7 +1379,8 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
     set scrollTop(v) { this.top = Math.max(0, Math.min(1000 - (parseFloat(this.style["--zzgf-box-fit"]) || 480), v)); },
     getBoundingClientRect() { const height = parseFloat(this.style["--zzgf-box-fit"]) || 480; return { top: 100, height, bottom: 100 + height }; },
     querySelector: () => rows[0], querySelectorAll: selector => selector.includes("tab-group-container") ? [] : rows };
-  const rows = Array.from({ length: 25 }, (_, i) => ({ getBoundingClientRect: () => ({ top: 100 + i * 40 - box.top, height: 40 }) }));
+  let rowReads = 0;
+  const rows = Array.from({ length: 25 }, (_, i) => ({ getBoundingClientRect: () => (rowReads++, { top: 100 + i * 40 - box.top, height: 40 }) }));
   const top = { tagName: "tab-group", hasAttribute: () => false, parentElement: { closest: () => null }, querySelector: () => box, querySelectorAll: () => [], contains: () => false };
   box.parentElement = top;
   const sub = { tagName: "tab-group", hasAttribute: () => false, matches: () => true, parentElement: { closest: () => top } };
@@ -1391,7 +1392,10 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
   let idleReads = 0;
   const idle = { localName: "arrowscrollbox", querySelectorAll: () => [box],
     scrollbox: { ...port, getBoundingClientRect: () => (idleReads++, { top: 76 }) } };
-  e.document.querySelectorAll = selector => selector === "zen-workspace[active] arrowscrollbox" ? [list]
+  // The active space holds the list and the box; refits search inside it.
+  const space = { querySelectorAll: selector => selector === "arrowscrollbox" ? [list] : [box] };
+  e.document.querySelectorAll = selector => selector === "zen-workspace[active]" ? [space]
+    : selector === "zen-workspace[active] arrowscrollbox" ? [list]
     : selector === "zen-workspace arrowscrollbox" ? [list, idle] : [box];
   const wheel = (target, deltaY = 3, deltaMode = 1) => { const ev = { target, deltaY, deltaMode, DOM_DELTA_PIXEL: 0, DOM_DELTA_LINE: 1,
     DOM_DELTA_PAGE: 2, prevented: false, preventDefault() { this.prevented = true; }, stopPropagation() {} };
@@ -1403,7 +1407,9 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
   assert.deepEqual([...box.marks].filter(m => m !== "zzgf-glide").sort(), ["zzgf-glow", "zzgf-list-glow", "zzgf-more-above", "zzgf-more-below"], "rows hidden on both sides are marked, and the line is lit");
   assert.equal(box.style["--zzgf-glow"], 40 / 520 * 480 + "px", "the light sits as far down the line as the body is scrolled");
   assert.equal(idleReads, 0, "only the active space's lists are lit");
+  const readsAfterFirst = rowReads;
   assert.equal(wheel(gutter, 1), true); assert.equal(box.scrollTop, 80, "a small notch still moves one row");
+  assert.equal(rowReads, readsAfterFirst, "one gesture measures its rows once, however many notches it has");
   assert.equal(wheel(gutter, -100), true); assert.equal(box.scrollTop, 0, "clamped at the top");
   assert.equal(wheel(gutter, -3), false, "and at its top an upward wheel scrolls the list");
   assert.ok(!box.marks.has("zzgf-more-above") && box.marks.has("zzgf-more-below"), "at the top only the bottom is marked");
@@ -1435,7 +1441,8 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
   assert.equal(stopped, false, "and Firefox's tab switch is let through there");
   e.Services.prefs.getBoolPref = prefs;
   // The body takes what the header leaves of the list: 375px, trimmed to rows.
-  e.document.querySelectorAll = selector => /^zen-workspace(\[active\])? arrowscrollbox$/.test(selector) ? [list] : [box];
+  e.document.querySelectorAll = selector => selector === "zen-workspace[active]" ? [space]
+    : /^zen-workspace(\[active\])? arrowscrollbox$/.test(selector) ? [list] : [box];
   e.w.fire("TabOpen", { type: "TabOpen" });
   for (const [id, fn] of [...e.c.timers]) { e.c.clearTimeout(id); fn(); }
   assert.equal(box.style["--zzgf-box-fit"], "360px", "the body ends on a row inside the list, so the header stays on screen");
@@ -1764,14 +1771,14 @@ test("Router starts no creator or icon requests in private windows", async () =>
 test("Turbo resumes tab effects after a stuck workspace marker and on retirement", async () => {
   const e = await turboEnv(); e.values.set("zzturbo.startup-warmup", false); e.h.start();
   const strips = [...e.spaces, ...e.essentials], marked = () => strips.filter(s => s.hasAttribute("zzturbo-smoothing")).length;
-  e.root.setAttribute("animating-background", "true"); e.h.syncSmoothing();
+  e.toolbox.setAttribute("animating-background", "true"); e.h.syncSmoothing();
   assert.equal(marked(), 2, "the active strip and the visible essentials");
   [...e.c.timers.values()][0]();
   assert.equal(marked(), 0);
   e.h.syncSmoothing(); assert.equal(marked(), 0);
   e.h.syncSmoothing([{ attributeName: "active", target: e.spaces[1] }]);
   assert.equal(marked(), 0, "a stuck marker stays released for later switches too");
-  e.root.removeAttribute("animating-background"); e.h.syncSmoothing();
+  e.toolbox.removeAttribute("animating-background"); e.h.syncSmoothing();
   e.root.setAttribute("swipe-gesture", "true"); e.h.syncSmoothing();
   assert.equal(marked(), 0, "Zen never marks swipes on :root");
   e.scroller.setAttribute("swipe-gesture", "true"); e.h.syncSmoothing();
@@ -1887,28 +1894,27 @@ test("Glassflow Library seeds unset defaults and writes its string prefs as vari
   assert.equal(style.get("--zzlib-card-fill"), "70%", "changes are written live");
 });
 
-test("Library code-only warming includes routing on 1.24 without constructing the Library", async () => {
+test("Library code-only warming loads every section, once, without constructing the Library", async () => {
   const source = await readFile(new URL("../glassflow-library/glassflow-library.uc.js", import.meta.url), "utf8");
   const warm = source.slice(source.indexOf('  const SECTIONS ='), source.indexOf('  const warmReady ='));
-  for (const modern of [true]) {   // 1.24+: every section, including routing and search
-    const imports = [], links = [], instance = {}, window = { instance };
-    const ctx = vm.createContext({ window, instance, INSTANCE_KEY: 'instance',
-      gBrowser: { selectedTab: { hasAttribute: () => false } },
-      pref: (name, fallback) => name === 'zzlib.warm' ? 1 : fallback,
-      libraryNode: () => null, Library: () => { throw Error('Library constructor touched'); },
-      Services: { appinfo: { version: modern ? '1.24b' : '1.23.4b' }, vc: { compare: () => modern ? 0 : -1 } },
-      ChromeUtils: { importESModule: url => { imports.push(url); if(url.endsWith('/ZenLibrary.mjs'))throw Error('Native entry constructs observers'); } },
-      document: { createElementNS: () => ({}), documentElement: { appendChild: link => links.push(link) } },
-      console: { error: error => { throw error; } },
-    });
-    vm.runInContext(warm+'warmLibrary();', ctx);
-    assert.equal(imports.length, 7);
-    assert.ok(imports.some(url => url.includes('SpaceRouting')) && imports.some(url => url.includes('Search')));
-    assert.equal(links.length, 1);
-    window.instance = {}; // retired while its idle callback was queued
-    vm.runInContext('warmLibrary();', ctx);
-    assert.equal(imports.length, 7);
-  }
+  const imports = [], links = [], removed = [], instance = {};
+  const window = { instance, removeEventListener: type => removed.push(type) };
+  const ctx = vm.createContext({ window, instance, INSTANCE_KEY: 'instance', warmReady: () => {},
+    gBrowser: { selectedTab: { hasAttribute: () => false } },
+    pref: (name, fallback) => name === 'zzlib.warm' ? 1 : fallback,
+    libraryNode: () => null, Library: () => { throw Error('Library constructor touched'); },
+    ChromeUtils: { importESModule: url => { imports.push(url); if (url.endsWith('/ZenLibrary.mjs')) throw Error('Native entry constructs observers'); } },
+    document: { createElementNS: () => ({}), documentElement: { appendChild: link => links.push(link) } },
+    console: { error: error => { throw error; } },
+  });
+  vm.runInContext(warm + 'warmLibrary();', ctx);
+  assert.equal(imports.length, 7);
+  assert.ok(imports.some(url => url.includes('SpaceRouting')) && imports.some(url => url.includes('Search')));
+  assert.equal(links.length, 1);
+  assert.deepEqual(removed, ['TabAttrModified'], "it stops listening once it has warmed");
+  window.instance = {}; // retired while its idle callback was queued
+  vm.runInContext('warmLibrary();', ctx);
+  assert.equal(imports.length, 7);
 });
 
 // A preference store with Firefox's typed API, for the other-mods switches.

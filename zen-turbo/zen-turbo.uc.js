@@ -198,23 +198,16 @@
     return changed;
   }
 
-  // A pack that no longer exists can still own prefs in the snapshot written by
-  // an earlier version. The squircle pack, which moved to Glassflow where
-  // appearance belongs, is exactly that case: 1.3.0 shipped it, so a profile
-  // that enabled it holds layout.css.corner-shape.enabled = false plus a
-  // snapshot entry, and with the pack gone nothing would ever revert it. Give
-  // back anything the current packs no longer claim.
+  // A pack that no longer exists can still own prefs in the snapshot written
+  // while it did; with the pack gone nothing would revert them. Give back
+  // anything the current packs no longer claim, unless it was changed since.
   function reclaimOrphans(saved) {
     const owned = new Set();
     for (const list of Object.values(PACKS)) for (const [name] of list) owned.add(name);
     let changed = false;
     for (const name of Object.keys(saved)) {
       if (owned.has(name)) continue;
-      const s = saved[name];
-      // Older builds only recorded the original value. The removed
-      // squircle pack's applied value is known; other unknown entries stay.
-      const legacyApplied = { "layout.css.corner-shape.enabled": false, "network.predictor.enable-prefetch": true };
-      const applied = s?.applied ?? legacyApplied[name];
+      const s = saved[name], applied = s?.applied;
       if (applied === undefined) continue;
       if (getAny(name) !== applied) { delete saved[name]; changed = true; continue; }
       try {
@@ -427,12 +420,10 @@
     leaving.clear();
     return out.filter(strip => strip.isConnected);
   }
-  // Zen marks a trackpad swipe on the tab scroller, the workspaces and the
-  // grain layer (ZenSpacesSwipe.mjs), never on :root. A workspace slide is
-  // marked on #navigator-toolbox since Zen 1.23b, on :root before it.
+  // Zen marks a trackpad swipe on the tab scroller (ZenSpacesSwipe.mjs) and a
+  // workspace slide on #navigator-toolbox, never on :root.
   const swiping = () => !!document.getElementById?.("tabbrowser-arrowscrollbox")?.hasAttribute("swipe-gesture");
-  const sliding = () => document.documentElement.hasAttribute("animating-background") ||
-    !!document.getElementById?.("navigator-toolbox")?.hasAttribute("animating-background") || swiping();
+  const sliding = () => !!document.getElementById?.("navigator-toolbox")?.hasAttribute("animating-background") || swiping();
   function syncSmoothing(records) {
     for (const record of records || [])
       if (record.attributeName === "active" && record.target?.localName === "zen-workspace") leaving.add(record.target);
@@ -463,8 +454,6 @@
 
   function start() {
     smoothingObserver = new MutationObserver(syncSmoothing);
-    smoothingObserver.observe(document.documentElement, { attributes: true,
-      attributeFilter: ["animating-background"] });
     const toolbox = document.getElementById("navigator-toolbox");
     if (toolbox) smoothingObserver.observe(toolbox, { attributes: true, attributeFilter: ["animating-background"] });
     const scroller = document.getElementById("tabbrowser-arrowscrollbox");

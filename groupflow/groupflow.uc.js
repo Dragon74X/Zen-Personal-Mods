@@ -979,7 +979,7 @@
     // Tab Router reads an unloaded restored tab's address from its session.
     const urlOf = tab => { try { return window.TabRouter?.tabURL?.(tab) || tab.linkedBrowser?.currentURI?.spec || ""; } catch { return ""; } };
     const ctxOf = tab => parseInt(tab?.getAttribute("usercontextid") || "0", 10);
-    let retired = false, frame = 0;
+    let retired = false, frame = 0, lastSignature = "";
     const save = () => { if (saved !== null) writeGroupData(PAGE_KEY, pages); };
     function pageOf(group) {
       if (!enabled() || !live(group)) return null;
@@ -990,9 +990,14 @@
     }
     const markedFor = tab => tab.getAttribute("zzgf-page-of") ||
       (() => { try { return SessionStore.getCustomTabValue(tab, PAGE_OF) || ""; } catch { return ""; } })();
+    // Hidden from the moment it is the page tab, so it never shows as a row.
     function mark(tab, group) {
       tab.setAttribute("zzgf-page-of", group.id);
       try { SessionStore.setCustomTabValue(tab, PAGE_OF, group.id); } catch {}
+      if (!tab.hasAttribute("zzgf-page-tab") && pageOf(group)) {
+        tab.setAttribute("zzgf-page-tab", "");
+        window.dispatchEvent(new CustomEvent("GroupflowPageTabs"));
+      }
     }
     function unmark(tab) {
       tab.removeAttribute("zzgf-page-of");
@@ -1011,16 +1016,20 @@
     function refresh() {
       frame = 0;
       if (retired) return;
+      let signature = "";
       for (const group of document.querySelectorAll(groupSelector)) {
         if (isCopy(group)) continue;
         const page = pageOf(group), tab = page ? pageTab(group, page) : null;
+        if (page) signature += `${group.id}=${page}\n`;
         if (tab && tab.group === group && markedFor(tab) !== group.id) mark(tab, group);
         group.toggleAttribute("zzgf-has-page", !!page);
         group.toggleAttribute("zzgf-page-open", !!tab);
         group.toggleAttribute("zzgf-page-selected", !!tab?.selected);
         group.toggleAttribute("zzgf-page-loaded", !!tab && !tab.hasAttribute("pending"));
       }
-      let pageTabsChanged = false;
+      // Tab Router counts folder pages as open, with or without their tab.
+      let pageTabsChanged = signature !== lastSignature;
+      lastSignature = signature;
       for (const tab of gBrowser.tabs) {
         const owner = tab.getAttribute("zzgf-page-of");
         const group = owner && tab.group?.id === owner ? tab.group : null;
@@ -1028,7 +1037,8 @@
         if (tab.hasAttribute("zzgf-page-tab") !== isPage) { tab.toggleAttribute("zzgf-page-tab", isPage); pageTabsChanged = true; }
         if (owner && !group && !tab.closing) unmark(tab);
       }
-      // Tab Router opens links clicked in a page tab in their own tab.
+      // Tab Router opens links clicked in a page tab in their own tab, and
+      // goes to a folder whose page is opened anywhere.
       if (pageTabsChanged) window.dispatchEvent(new CustomEvent("GroupflowPageTabs"));
     }
     const soon = () => { if (!retired) frame ||= requestAnimationFrame(refresh); };
@@ -1079,8 +1089,10 @@
       return true;
     }
     pageHeaderClick = headerClick;
-    // A redirect on first load fixes the page's address; any later move to
-    // another page releases the tab back into the folder as an ordinary tab.
+    // A redirect on first load fixes the page's address. Later moves (a
+    // site's own in-page navigation, redirects, back/forward) keep the tab as
+    // the folder's page, so it never pops out as a row; links clicked in it
+    // open in their own tab (Tab Router).
     const progress = {
       onLocationChange(browser, webProgress, _request, location) {
         if (!webProgress?.isTopLevel || retired) return;
@@ -1091,7 +1103,7 @@
         if (tab.zzgfFreshPage) {
           delete tab.zzgfFreshPage;
           if (pageKey(location.spec) !== pageKey(page)) { pages[group.id] = location.spec; save(); }
-        } else if (pageKey(location.spec) !== pageKey(page)) unmark(tab);
+        }
         soon();
       },
     };

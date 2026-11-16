@@ -447,12 +447,62 @@
     });
     add("unload-folder", "Unload eligible tabs in folder", () => canUnloadFolder(group), () => sweep(group));
   }
+  // "Keep loaded" on the tab menu: Firefox's own undiscardable flag, which
+  // this mod's sweeps and Firefox's low-memory unloader both honour. It is
+  // not saved with the session, so it lasts until the window closes. An
+  // explicit unload you choose yourself still unloads.
+  const KEEP = "zzunload-keep";
+  let keepItem = null;
+  const menuTabs = () => {
+    const tab = window.TabContextMenu?.contextTab;
+    if (!tab) return [];
+    return tab.multiselected ? gBrowser.selectedTabs : [tab];
+  };
+  const kept = tab => tab.hasAttribute(KEEP) && tab.undiscardable;
+  function keepMenu(event) {
+    if (event.target.id !== "tabContextMenu" || !keepItem) return;
+    const tabs = menuTabs().filter(t => !t.closing);
+    keepItem.hidden = !tabs.length;
+    if (!tabs.length) return;
+    keepItem.setAttribute("checked", String(tabs.every(kept)));
+    // Firefox or another add-on may hold a tab loaded itself; leave those be.
+    keepItem.disabled = tabs.every(t => t.undiscardable && !t.hasAttribute(KEEP));
+  }
+  function toggleKeep() {
+    const tabs = menuTabs().filter(t => !t.closing && !(t.undiscardable && !t.hasAttribute(KEEP)));
+    const on = !tabs.every(kept);
+    for (const tab of tabs) {
+      tab.toggleAttribute(KEEP, on);
+      tab.undiscardable = on;
+      note(`${on ? "keeping" : "no longer keeping"} loaded: ${tab.label}`);
+    }
+  }
+  function addKeepItem() {
+    const menu = document.getElementById("tabContextMenu");
+    if (!menu || keepItem) return;
+    keepItem = document.createXULElement("menuitem");
+    keepItem.id = "zzunload-keep-loaded";
+    keepItem.setAttribute("type", "checkbox");
+    keepItem.setAttribute("label", "Keep Loaded");
+    keepItem.setAttribute("data-zz-action", "tab-unloader--keep-loaded");
+    keepItem.addEventListener("command", toggleKeep);
+    const after = document.getElementById("context_unloadTab");
+    if (after?.parentNode === menu) after.after(keepItem); else menu.appendChild(keepItem);
+    menu.addEventListener("popupshowing", keepMenu);
+  }
+  function removeKeepItem(release) {
+    document.getElementById("tabContextMenu")?.removeEventListener("popupshowing", keepMenu);
+    keepItem?.remove(); keepItem = null;
+    if (!release) return;
+    for (const tab of allTabs()) if (tab.hasAttribute(KEEP)) { tab.removeAttribute(KEEP); tab.undiscardable = false; }
+  }
   const LOADED_EVENTS = ["TabOpen", "TabClose", "TabSelect", "TabAttrModified", "SSTabRestored", "TabBrowserDiscarded"];
 
   function start() {
     for (const tab of allTabs()) if (!tab.closing && !tab.hasAttribute("pending")) loadedTabs.add(tab);
     for (const event of LOADED_EVENTS) window.addEventListener(event, loadedChanged, true);
     window.addEventListener("popupshowing", folderMenu);
+    try { addKeepItem(); } catch (e) { note(`keep-loaded menu failed: ${e}`); }
     Services.prefs.addObserver(P, observer);
     try { syncArc(); } catch (e) { note(`arc sync failed: ${e}`); }
     // Seed from the tab that is already selected, so the current
@@ -497,6 +547,7 @@
       retired = true;
       clearTimeout(deferredTimer); deferredTimer = null;
       window.removeEventListener("popupshowing", folderMenu);
+      try { removeKeepItem(false); } catch {}
       for (const event of LOADED_EVENTS) window.removeEventListener(event, loadedChanged, true);
       loadedTabs.clear();
       for (const item of folderItems) item.remove(); folderItems.clear();
@@ -517,7 +568,7 @@
     // releases everything when the window closes.
     // Sine's own unload (disable, removal or update) also gives Arc its
     // settings back; closing a window does not. An update re-applies them.
-    try { window.addUnloadListener?.(() => { cleanup(); if (!window.__zzSineWindowClosing && window.__zzSineUnloadReasons?.get("zz-tab-unloader") === "release") try { syncArc(true); } catch {} }); } catch {}
+    try { window.addUnloadListener?.(() => { cleanup(); if (!window.__zzSineWindowClosing && window.__zzSineUnloadReasons?.get("zz-tab-unloader") === "release") { try { syncArc(true); } catch {} try { removeKeepItem(true); } catch {} } }); } catch {}
     instance.retire = cleanup;
   }
 

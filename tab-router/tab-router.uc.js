@@ -1966,7 +1966,7 @@
   // page side (links-child.sys.mjs) only acts on real link clicks, so back
   // and forward, reloads, forms, redirects and script navigation never
   // switch; Alt-click, Duplicate Tab and session restore always make copies.
-  const LINKS_VERSION = "1.42.1", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
+  const LINKS_VERSION = "1.43.0", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
   const TRACKING = /^(utm_[a-z]+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|igshid|si|ref_src|_hsenc|_hsmi)$/i;
   function pageKey(url) {
     try {
@@ -2012,6 +2012,55 @@
     }
     return null;
   }
+  // Groupflow's folder pages count as open even before their tab exists: a
+  // folder showing the page wins over any other copy (a Favorite, a loose
+  // tab), so going to it lands in the folder.
+  const FOLDERS = "tab-group:not([split-view-group]), zen-folder";
+  function* folderPages() {
+    const wins = new Set([window, ...Services.wm.getEnumerator("navigator:browser")]);
+    for (const w of wins) {
+      if (w.closed || !w.Groupflow?.folderPage) continue;
+      for (const group of w.document.querySelectorAll(FOLDERS)) {
+        if (group.closest("zen-library")) continue;
+        let page = null;
+        try { page = w.Groupflow.folderPage(group); } catch {}
+        const key = page && pageKey(page);
+        if (!key) continue;
+        const first = group.tabs?.find?.(t => !t.hasAttribute("zen-empty-tab"));
+        yield { win: w, group, page, key, ctx: first ? contextOf(first) : 0 };
+      }
+    }
+  }
+  function folderFor(ctx, key) {
+    for (const f of folderPages()) if (f.ctx === ctx && f.key === key) return f;
+    return null;
+  }
+  // Where an open page lives: its folder first, else any tab showing it.
+  function openTargetFor(ctx, key, except = null) {
+    const folder = folderFor(ctx, key);
+    if (folder && except?.getAttribute?.("zzgf-page-of") !== folder.group.id) return { folder };
+    const tab = openTabFor(ctx, key, except);
+    return tab ? { tab } : null;
+  }
+  // A folder goes to its page tab, back on the page if it moved on; with no
+  // tab yet, Groupflow opens it (hidden as the header's tab from the start).
+  function goTo(target) {
+    if (target.tab) { switchTo(target.tab); return target.tab.label; }
+    const { win, group, page, key, ctx } = target.folder;
+    const own = group.tabs?.find?.(t => t.getAttribute("zzgf-page-of") === group.id && !t.closing);
+    if (own) {
+      switchTo(own);
+      if (!own.hasAttribute("pending") && pageKey(own.linkedBrowser?.currentURI?.spec || "") !== key) {
+        try { own.linkedBrowser.fixupAndLoadURIString(page, { triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal() }); }
+        catch (e) { note(`folder page load failed: ${e}`); }
+      }
+      return group.label;
+    }
+    try {
+      if (!win.Groupflow?.openFolderPage?.(group)) (win.TabRouter?.openPage || openPage)(page, group, ctx);
+    } catch (e) { note(`folder page failed: ${e}`); }
+    return group.label;
+  }
   function switchTo(tab) {
     const win = tab.ownerDocument?.defaultView || window;
     if (win !== window) win.focus();
@@ -2032,6 +2081,7 @@
       const key = pageKey(tabURL(tab));
       if (key) open.add(`${contextOf(tab)}|${key}`);
     }
+    if (switchOn()) for (const f of folderPages()) open.add(`${f.ctx}|${f.key}`);
     try {
       Services.ppmm.sharedData.set(OPEN_PAGES, open);
       Services.ppmm.sharedData.set(PAGE_TABS, pageTabs);
@@ -2064,8 +2114,8 @@
     }
     if (name !== "ZzRouter:SwitchTo" || typeof data.href !== "string") return;
     const from = gBrowser.getTabForBrowser(browser), ctx = data.ctx | 0;
-    const target = switchOn() && openTabFor(ctx, pageKey(data.href), from);
-    if (target) { note(`switched to open "${target.label}"`); switchTo(target); return; }
+    const target = switchOn() && openTargetFor(ctx, pageKey(data.href), from);
+    if (target) { note(`switched to open "${goTo(target)}"`); return; }
     // Closed in the meantime: do what the click would have done.
     let uri;
     try { uri = Services.io.newURI(data.href); } catch { return; }
@@ -2084,10 +2134,9 @@
     const key = pageKey(url);
     if (!key) return false;
     if (copyNext) { copyAllowed().set(`${ctx}|${key}`, Date.now()); return false; }
-    const target = openTabFor(ctx, key, except);
+    const target = openTargetFor(ctx, key, except);
     if (!target) return false;
-    switchTo(target);
-    note(`switched to open "${target.label}"`);
+    note(`switched to open "${goTo(target)}"`);
     return true;
   }
   // Where a new tab for this address belongs, worked out before it exists:
@@ -2207,13 +2256,14 @@
     if (!switchOn() || tab.hasAttribute("zen-glance-tab")) return false;
     const key = pageKey(channel.URI.spec), ctx = contextOf(tab);
     if (!key || takeCopy(ctx, key)) return false;
-    const target = openTabFor(ctx, key, tab);
+    const target = openTargetFor(ctx, key, tab);
     if (!target) return false;
     channel.cancel(Components.results.NS_BINDING_ABORTED);
     setTimeout(() => {
-      try { switchTo(target); } catch (e) { note(`switch failed: ${e}`); }
+      let label = "";
+      try { label = goTo(target); } catch (e) { note(`switch failed: ${e}`); }
       try { if (tab.isConnected && !tab.closing) gBrowser.removeTab(tab, { animate: false }); } catch {}
-      note(`switched a new tab to open "${target.label}"`);
+      note(`switched a new tab to open "${label}"`);
     }, 0);
     return true;
   }
@@ -2585,7 +2635,8 @@
     backfillSoon();
     window.addEventListener("SSTabRestoring", forgetLazy, true);
     patchClicks();
-    const openEvents = ["TabOpen", "TabClose", "TabAttrModified", "SSTabRestored", "TabSelect", "GroupflowPageTabs"];
+    const openEvents = ["TabOpen", "TabClose", "TabAttrModified", "SSTabRestored", "TabSelect", "GroupflowPageTabs",
+      "ZzRouterPagesChanged", "TabGroupCreate", "TabGroupRemoved"];
     for (const ev of openEvents) window.addEventListener(ev, publishSoon, true);
     const openProgress = { onLocationChange: (_b, wp) => { if (wp?.isTopLevel) publishSoon(); } };
     gBrowser.addTabsProgressListener(openProgress);

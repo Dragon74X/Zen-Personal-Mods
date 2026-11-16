@@ -215,7 +215,6 @@
     if (tab.hasAttribute("pending")) return "already unloaded";
     if (!tab.linkedBrowser) return "no browser";
     if (tab.hasAttribute("zen-empty-tab")) return "empty tab";
-    if (tab.hasAttribute("_forZenEmptyTab")) return "empty tab";
 
     const idleFor = (now - (tab.lastAccessed || now)) / 1000;
     if (idleFor < cfg.idleSec) return `idle ${Math.round(idleFor)}s of ${cfg.idleSec}s`;
@@ -228,7 +227,7 @@
     if (cfg.essentials && tab.getAttribute("zen-essential") === "true") return "essential";
     if (cfg.pinned && tab.pinned) return "pinned";
     if (cfg.glance && tab.hasAttribute("zen-glance-tab")) return "glance";
-    if (cfg.split && (tab.splitView || tab.hasAttribute("split-view") ||
+    if (cfg.split && (tab.hasAttribute("split-view") ||
         tab.group?.hasAttribute("split-view-group"))) return "split view";
     if (urlExcluded(tab)) return "url excluded";
     // Last: SessionStore.getTabState() serialises the tab's whole state.
@@ -402,10 +401,10 @@
   };
 
   const loadedTabs = new Set();
-  const liveFolder = group => !retired && !!group?.isConnected && group.matches?.("tab-group:not([split-view-group]), zen-folder") && !group.closest("zen-library");
+  const liveFolder = group => !retired && !!group?.isConnected && group.matches?.("tab-group:not([split-view-group]), zen-folder") && !group.closest("zen-library, [zen-library-copy]");
   function loadedChanged(event) {
     const tab = event.detail?.tab || (event.target?.linkedBrowser ? event.target : gBrowser.getTabForBrowser(event.target));
-    if (!tab || tab.closest?.("zen-library")) return;
+    if (!tab || tab.closest?.("zen-library, [zen-library-copy]")) return;
     if (event.type === "TabClose" || !tab.isConnected || tab.closing || tab.hasAttribute("pending")) loadedTabs.delete(tab);
     else loadedTabs.add(tab);
     updateFolderMenu();

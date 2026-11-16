@@ -516,7 +516,7 @@
       const moved = event => { if (event.target === toolbox && event.propertyName === "translate") schedule(); };
       for (const type of ["transitionend", "transitioncancel"]) toolbox.addEventListener(type, moved, { signal: abort.signal });
     }
-    for (const type of ["resize", "TabOpen", "TabClose", "TabPinned", "TabUnpinned", "ZenWorkspacesUIUpdate", "ZenWorkspaceChanged", "aftercustomization"])
+    for (const type of ["resize", "TabOpen", "TabClose", "TabPinned", "TabUnpinned", "ZenWorkspacesUIUpdate", "aftercustomization"])
       window.addEventListener(type, schedule, { signal: abort.signal });
     const prefs = { observe: schedule }; Services.prefs.addObserver(PREFIX, prefs);
     schedule();

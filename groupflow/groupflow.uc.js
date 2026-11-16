@@ -422,7 +422,7 @@
 
   // Zen's library (1.23b) shows clones of every space's strip. A clone is a
   // picture of a real group: never one to save, nest, file, edit or close.
-  const isCopy = el => !!el?.closest?.("zen-library");
+  const isCopy = el => !!el?.closest?.("zen-library, [zen-library-copy]");
   const plainShape = g => g?.tagName === "tab-group" && !g.isZenFolder && !g.hasAttribute("split-view-group");
   const plainGroup = g => plainShape(g) && !isCopy(g);
   const plainGroups = () => [...document.querySelectorAll("tab-group")].filter(plainGroup);

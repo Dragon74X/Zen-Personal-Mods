@@ -166,7 +166,7 @@ function activated(e){
  }
 }
 listen(window,'command',activated,{capture:true});listen(window,'click',activated,{capture:true});
-for(const type of ['popupshown','popuphidden','fullscreen','TabSelect','TabAttrModified','ZenWorkspaceChanged'])listen(window,type,queue);
+for(const type of ['popupshown','popuphidden','fullscreen','TabSelect','TabAttrModified'])listen(window,type,queue);
 listen(window,'aftercustomization',sync);listen(reduced,'change',sync);listen(forced,'change',sync);
 listen(document,'visibilitychange',()=>{if(document.hidden)for(const r of records.values())finish(r);});
 const watch=new MutationObserver(changes=>{

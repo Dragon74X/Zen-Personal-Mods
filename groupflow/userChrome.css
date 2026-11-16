@@ -68,9 +68,15 @@
 @media (-moz-pref("zzgroup.gradient-direction", 5)) { :root { --zzgf-rimA: 135deg; --zzgf-rimB: -45deg; } }
 @media (-moz-pref("zzgroup.gradient-direction", 6)) { :root { --zzgf-rimA: 45deg; --zzgf-rimB: 225deg; } }
 
-/* Follow Glassflow's root edge axis and reach. Its per-state rim strengths
-   live on individual tabs and do not propagate into group headers. */
+/* Follow Glassflow's edge: the side its unselected tabs carry their rim line
+   on (Top, Bottom, Left, Right) becomes the side the header's rim fades from.
+   Glassflow has no fade reach of its own; the header keeps its 60%. Its
+   per-state rim strengths live on tabs and do not reach group headers. */
 @media (-moz-pref("zzgroup.match-glassflow-edges")) {
+  :root { --zzg-edge-dir: 180deg; }
+  @media (-moz-pref("zzglass.edges.unselected-edge", 1)) { :root { --zzg-edge-dir: 0deg; } }
+  @media (-moz-pref("zzglass.edges.unselected-edge", 2)) { :root { --zzg-edge-dir: 90deg; } }
+  @media (-moz-pref("zzglass.edges.unselected-edge", 3)) { :root { --zzg-edge-dir: 270deg; } }
   :root {
     --zzgf-rimA: var(--zzg-edge-dir, var(--zzg-dir, 135deg));
     --zzgf-rimB: var(--zzg-edge-dir, var(--zzg-dir, 135deg));
@@ -81,8 +87,8 @@
         color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-header-tint, 25%), transparent) 0%,
         color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-end-tint, 0%), transparent)
           var(--zzgroup-spread, 50%)),
-      linear-gradient(var(--zzg-follow-gradient, var(--zzg-edge-dir, var(--zzg-dir, 135deg))), var(--zzgf-rim-top) 0%, transparent var(--zzglass-edges-reach, 60%)),
-      linear-gradient(var(--zzg-follow-gradient, var(--zzg-edge-dir, var(--zzg-dir, 135deg))), var(--zzgf-rim-all) 0%, transparent var(--zzglass-edges-reach, 60%)), var(--zzrouter-banner, none) !important;
+      linear-gradient(var(--zzg-follow-gradient, var(--zzg-edge-dir, var(--zzg-dir, 135deg))), var(--zzgf-rim-top) 0%, transparent 60%),
+      linear-gradient(var(--zzg-follow-gradient, var(--zzg-edge-dir, var(--zzg-dir, 135deg))), var(--zzgf-rim-all) 0%, transparent 60%), var(--zzrouter-banner, none) !important;
     background-size: auto, 100% var(--zzgroup-rim-thickness, 1px), auto !important;
     background-position: center center, top, center center !important;
     background-repeat: repeat, no-repeat, repeat !important;

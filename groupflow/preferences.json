@@ -212,7 +212,7 @@
   {
     "type": "checkbox",
     "property": "zzgroup.match-glassflow-edges",
-    "label": "Follow Glassflow's edge fade *Uses Glassflow's shared edge axis and reach for the shared header style. Folder state profiles have independent rim direction and reach, with shared rim colours.*",
+    "label": "Follow Glassflow's edge side *The header's rim fades from the side Glassflow's unselected tabs draw their rim line on. Folder state profiles have independent rim direction and reach, with shared rim colours.*",
     "defaultValue": false,
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "headers"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
     "operator": "AND"

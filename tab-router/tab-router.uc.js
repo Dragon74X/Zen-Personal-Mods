@@ -1153,7 +1153,7 @@
   }
 
   function presentable(tab) {
-    return tab?.isConnected && !tab.closing && !tab.closest?.("zen-library") && !heldElsewhere(tab);
+    return tab?.isConnected && !tab.closing && !tab.closest?.("zen-library, [zen-library-copy]") && !heldElsewhere(tab);
   }
   // Live Folder providers own placement and artwork, regardless of the user's
   // ordinary pinned/grouped routing choices. Also cover items during reparenting.
@@ -1878,7 +1878,7 @@
     return false;
   }
   function setPlacementLock(scope, locked) {
-    if (retired || !scope?.isConnected || scope.closest?.("zen-library")) return;
+    if (retired || !scope?.isConnected || scope.closest?.("zen-library, [zen-library-copy]")) return;
     if (scope.matches?.("tab-group, zen-folder")) {
       scope.toggleAttribute("data-zzrouter-locked", locked);
       scope.dispatchEvent(new CustomEvent("TabGroupUpdate", { bubbles: true }));
@@ -1898,8 +1898,7 @@
     // Zen's blank placeholder tabs cannot be grouped; addTabGroup returns
     // null for them rather than throwing.
     if (tab.hasAttribute("zen-empty-tab")) return "empty tab";
-    if (tab.hasAttribute("_forZenEmptyTab")) return "empty tab";
-    if (tab.splitView || tab.hasAttribute("split-view") ||
+    if (tab.hasAttribute("split-view") ||
         tab.group?.hasAttribute("split-view-group")) return "split view";
     if (bool("skip-essentials", true) && tab.getAttribute("zen-essential") === "true") return "essential";
     if (bool("skip-pinned", true) && tab.pinned) return "pinned";
@@ -1966,7 +1965,7 @@
   // page side (links-child.sys.mjs) only acts on real link clicks, so back
   // and forward, reloads, forms, redirects and script navigation never
   // switch; Alt-click, Duplicate Tab and session restore always make copies.
-  const LINKS_VERSION = "1.43.1", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
+  const LINKS_VERSION = "1.43.2", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
   const TRACKING = /^(utm_[a-z]+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|igshid|si|ref_src|_hsenc|_hsmi)$/i;
   function pageKey(url) {
     try {
@@ -2021,7 +2020,7 @@
     for (const w of wins) {
       if (w.closed || !w.Groupflow?.folderPage) continue;
       for (const group of w.document.querySelectorAll(FOLDERS)) {
-        if (group.closest("zen-library")) continue;
+        if (group.closest("zen-library, [zen-library-copy]")) continue;
         let page = null;
         try { page = w.Groupflow.folderPage(group); } catch {}
         const key = page && pageKey(page);
@@ -2369,6 +2368,7 @@
     }, 0);
     pendingRoute.set(tab, id);
   }
+  let progressAttached = false;
   const progress = {
     onStateChange(browser, wp, _req, flags) {
       if (!wp?.isTopLevel || !(flags & Ci.nsIWebProgressListener.STATE_STOP) ||
@@ -2404,7 +2404,7 @@
   // change with an unchanged target path no-ops in placeInPath.
   function onTabEvent(event) {
     const tab = event.detail?.tab || event.target;
-    if (!tab || tab.closest?.("zen-library")) return;
+    if (!tab || tab.closest?.("zen-library, [zen-library-copy]")) return;
     updateOpenMenu();
     if (event.type === "TabClose") {
       for (const request of inFlight.values()) request?.waiters?.delete(tab);
@@ -2519,7 +2519,7 @@
     log = [];
   }
 
-  const liveScope = scope => !retired && !!scope?.isConnected && !scope.closing && !scope.closest?.("zen-library") && !nativeManaged(scope) &&
+  const liveScope = scope => !retired && !!scope?.isConnected && !scope.closing && !scope.closest?.("zen-library, [zen-library-copy]") && !nativeManaged(scope) &&
     (scope.matches?.("tab-group:not([split-view-group]), zen-folder") || !!scope.linkedBrowser && gBrowser.getTabForBrowser(scope.linkedBrowser) === scope);
   function refreshSubject(scope) {
     if (!liveScope(scope) || isPrivate()) return null;
@@ -2628,7 +2628,7 @@
     window.addEventListener("DOMContentLoaded", watchRuleSettings, true);
     for (const browser of gBrowser.browsers) { try { watchRuleSettings({target: browser.contentDocument}); } catch {} }
     window.gURLBar?.controller.addListener(searchPictures);
-    gBrowser.addTabsProgressListener(progress);
+    gBrowser.addTabsProgressListener(progress); progressAttached = true;
     gBrowser.tabContainer.addEventListener("TabAttrModified", onAttrModified);
     const tabEvents = ["TabOpen", "TabClose", "SSTabRestored", "ZenTabIconChanged", "TabGrouped", "TabUngrouped"];
     for (const event of tabEvents) window.addEventListener(event, onTabEvent, true);
@@ -2863,14 +2863,11 @@
         // Report "unknown" rather than false when the collection is not
         // where it is expected: a diagnostic that invents a detached
         // listener sends you hunting the wrong bug.
-        let listenerAttached = "unknown";
-        try {
-          const set = gBrowser.mTabsProgressListeners;
-          if (typeof set?.has === "function") listenerAttached = set.has(progress);
-        } catch {}
+        // Tabbrowser keeps its listeners private: this copy records its own.
+        const listenerAttached = progressAttached;
 
         const r = {
-          version: "1.37.11",
+          version: LINKS_VERSION,
           zen: Services.appinfo?.version,
           enabled: bool("enabled", false),
           // >1 means this window has loaded the script more than once. The
@@ -2937,7 +2934,7 @@
       pendingRoute.clear();
       for (const id of startupTimers) clearTimeout(id);
       startupTimers.length = 0;
-      try { gBrowser.removeTabsProgressListener(progress); } catch {}
+      try { gBrowser.removeTabsProgressListener(progress); progressAttached = false; } catch {}
       try { gBrowser.tabContainer.removeEventListener("TabAttrModified", onAttrModified); } catch {}
       try { Services.prefs.removeObserver(P, prefObserver); } catch {}
       try { Services.obs.removeObserver(purgeObserver, "browser:purge-session-history"); } catch {}

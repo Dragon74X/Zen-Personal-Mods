@@ -85,7 +85,7 @@ function layout(){if(point){point.resolve=true;dirty=true;schedule();}}
 function leave(){point=null;watchOff();dirty=true;schedule();}
 listen(window,'pointermove',e=>{if(!enabled()||e.pointerType==='touch')return;point={x:e.clientX,y:e.clientY,target:e.target};watchOn();dirty=true;schedule();},{passive:true});
 listen(window,'pointerout',e=>{if(!e.relatedTarget)leave();});listen(window,'pointercancel',leave);listen(window,'blur',leave);
-for(const type of ['resize','scroll','popupshown','popuphidden','TabMove','TabSelect','TabAttrModified','ZenWorkspaceChanged','aftercustomization','animationend'])listen(window,type,layout,{capture:true,passive:true});
+for(const type of ['resize','scroll','popupshown','popuphidden','TabMove','TabSelect','TabAttrModified','aftercustomization','animationend'])listen(window,type,layout,{capture:true,passive:true});
 for(const type of ['transitionrun','transitionend','transitioncancel'])listen(window,type,e=>{
  if(e.target.closest?.('.zzicon-morph-glyph')||!geometry.test(e.propertyName))return;
  const key=e.pseudoElement+':'+e.propertyName;

@@ -1258,7 +1258,7 @@ async function groupflowStartupEnv() {
   } };
   function group(name, { parent = null, folder = false, collapsed = false, split = false } = {}) {
     const g = { ...element(), tagName: folder ? "zen-folder" : "tab-group",
-      id: name, label: name, tabs: [], closest: selector => selector === "zen-library" ? null : { id: "workspace" },
+      id: name, label: name, tabs: [], closest: selector => selector.startsWith("zen-library") ? null : { id: "workspace" },
       isZenFolder: folder, parentElement: { closest: () => parent },
       get collapsed() { return collapsed; },
       set collapsed(value) { writes.push(name); collapsed = value; },
@@ -1312,7 +1312,7 @@ test("Groupflow pointer gutters measure only their workspace and wheel bursts fo
   const reads = { first: 0, second: 0, copy: 0, document: 0 }, frames = [];
   const box = (name, library = false) => ({
     parentElement: { parentElement: { closest: () => null } },
-    closest: selector => selector === "zen-library" && library ? {} : null,
+    closest: selector => selector.startsWith("zen-library") && library ? {} : null,
     getBoundingClientRect() { reads[name]++; return { top: 100, bottom: 300, left: 30 }; },
     computed: { paddingLeft: "8px" },
   });
@@ -1680,7 +1680,7 @@ test("Groupflow restores saved parents without cycles, cross-workspace moves or 
   const groups = new Map();
   function group(id, workspace = "one", split = false) {
     const g = { ...element(), id, tagName: "tab-group", group: null,
-      closest: selector => selector === "zen-library" ? null : { id: workspace },
+      closest: selector => selector.startsWith("zen-library") ? null : { id: workspace },
       contains(other) { for (let p = other; p; p = p.group) if (p === this) return true; return false; },
       groupContainer: { appendChild(child) { child.group = g; } },
     };
@@ -1721,7 +1721,7 @@ test("Groupflow saves and restores display-only pictures without acquiring routi
   const saved = new Map(), w = { ...element(), ...clock() };
   const groups = ["https://www.youtube.com/@channel", "https://www.nexusmods.com/games/baldursgate3"].map((picture,i) => {
     const g = { ...element(), id: "legacy-"+i, tagName: "tab-group", label: "Original "+i, color: "blue",
-      closest: selector => selector === "zen-library" ? null : {id:"workspace"} };
+      closest: selector => selector.startsWith("zen-library") ? null : {id:"workspace"} };
     g.setAttribute("data-zzrouter-picture",picture);g.setAttribute("data-zzrouter-context","2");return g;
   });
   saved.set("tabGroupIcons",JSON.stringify({"legacy-0":"🦊"}));
@@ -1841,7 +1841,7 @@ test("Library clones stay out of saved state and filing, and get only visual hea
   const header = (tint = "") => ({ children: [], style: { v: tint, getPropertyValue() { return this.v; }, setProperty(k, v) { if (k === "--zzgf-saved-tint-background") this.v = v; } },
     appendChild(c) { this.children.push(c); }, querySelector(sel) { return this.children.find(c => sel === "." + c.className) || null; } });
   const group = (id, inLibrary, label = header()) => ({ id, tagName: "tab-group", labelContainerElement: label,
-    hasAttribute: () => false, closest: sel => sel === "zen-library" && inLibrary ? library : null });
+    hasAttribute: () => false, closest: sel => sel.startsWith("zen-library") && inLibrary ? library : null });
   const real = group("g1", false, header("tinted")), copy = group("g1-copy", true);
   const h = await load("groupflow", "plainGroups, dressCopy", {
     window: {}, document: { querySelectorAll: () => [real, copy], getElementById: id => id === "g1" ? real : null,
@@ -1890,7 +1890,7 @@ test("Glassflow Library seeds unset defaults and writes its string prefs as vari
 test("Library code-only warming includes routing on 1.24 without constructing the Library", async () => {
   const source = await readFile(new URL("../glassflow-library/glassflow-library.uc.js", import.meta.url), "utf8");
   const warm = source.slice(source.indexOf('  const SECTIONS ='), source.indexOf('  const warmReady ='));
-  for (const modern of [false, true]) {
+  for (const modern of [true]) {   // 1.24+: every section, including routing and search
     const imports = [], links = [], instance = {}, window = { instance };
     const ctx = vm.createContext({ window, instance, INSTANCE_KEY: 'instance',
       gBrowser: { selectedTab: { hasAttribute: () => false } },
@@ -1902,12 +1902,12 @@ test("Library code-only warming includes routing on 1.24 without constructing th
       console: { error: error => { throw error; } },
     });
     vm.runInContext(warm+'warmLibrary();', ctx);
-    assert.equal(imports.length, modern ? 6 : 5);
-    assert.equal(imports.some(url => url.includes('SpaceRouting')), modern);
+    assert.equal(imports.length, 7);
+    assert.ok(imports.some(url => url.includes('SpaceRouting')) && imports.some(url => url.includes('Search')));
     assert.equal(links.length, 1);
     window.instance = {}; // retired while its idle callback was queued
     vm.runInContext('warmLibrary();', ctx);
-    assert.equal(imports.length, modern ? 6 : 5);
+    assert.equal(imports.length, 7);
   }
 });
 

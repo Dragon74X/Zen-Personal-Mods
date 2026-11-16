@@ -123,6 +123,7 @@
 
   // ---- Recent downloads ----
   const foot = () => document.getElementById("zen-sidebar-foot-buttons");
+  let stackOpenedHere = false;
   const stackOpen = () => !!foot()?.hasAttribute("zen-library-stack-open");
   const stackMode = () => pref("zzlib.stack.open", 0);   // 0 hover (Zen's), 1 click, 2 never
   let letEnter = false;
@@ -153,6 +154,7 @@
       const wrapper = document.getElementById("TabsToolbar-customization-target");
       wrapper.removeAttribute("zen-library-stack-closing");
       for (const host of [foot(), wrapper]) host.setAttribute("zen-library-stack-open", "true");
+      stackOpenedHere = true;
     }
   }
   // On click the button drops Zen's command, so its click arrives here first.
@@ -380,7 +382,7 @@
   // ponytail: native entry import upgrades the Library element and starts its
   // observers. Keep this bounded list for code-only warming until Zen exports
   // a side-effect-free preload/section registry; review it on Zen releases.
-  const SECTIONS = ["History", "Downloads", "Boosts", "Media", "Spaces"];
+  const SECTIONS = ["History", "Downloads", "Boosts", "Media", "Spaces", "Search", "SpaceRouting"];
   let warmTimer = null, warmIdle = null, preload = null, warmDue = false;
   function warmLibrary() {
     warmIdle = null;
@@ -394,9 +396,9 @@
         (Library() ?? load("moz-src:///zen/library/ZenLibrary.mjs").ZenLibrary).getInstance();
         return;
       }
-      for (const name of SECTIONS) load(`moz-src:///zen/library/sections/ZenLibrary${name}Section.mjs`);
-      if (Services.vc.compare(Services.appinfo.version, "1.24b") >= 0)
-        load("moz-src:///zen/library/sections/ZenLibrarySpaceRoutingSection.mjs");
+      for (const name of SECTIONS) {
+        try { load(`moz-src:///zen/library/sections/ZenLibrary${name}Section.mjs`); } catch {}   // a section a later Zen renames
+      }
       preload = document.createElementNS("http://www.w3.org/1999/xhtml", "link");
       Object.assign(preload, { rel: "preload", as: "style", href: "chrome://browser/content/zen-styles/zen-library.css" });
       document.documentElement.appendChild(preload);
@@ -444,6 +446,10 @@
       lib.style.removeProperty("opacity");
       lib.openProgress = lib.openProgress;
     }
+    // The stack this copy opened for its own rows, and its root variables.
+    if (stackOpenedHere && !document.querySelector("#zen-library-download-list > .zen-library-download-list-download:not([hidden])"))
+      for (const host of [foot(), document.getElementById("TabsToolbar-customization-target")]) host?.removeAttribute("zen-library-stack-open");
+    for (const name of [...root.style].filter(n => n.startsWith("--zzlib-"))) root.style.removeProperty(name);
     if (window[INSTANCE_KEY] === instance) delete window[INSTANCE_KEY];
   };
   instance.retire = cleanup;

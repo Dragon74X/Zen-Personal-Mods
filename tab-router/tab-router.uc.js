@@ -2205,7 +2205,7 @@
   const unloaded = t => t.hasAttribute("pending") || (t.linkedBrowser?.currentURI?.spec || "about:blank") === "about:blank";
   function liveTwin(tab) {
     if (!tab?.id || !unloaded(tab)) return tab;
-    const home = tab.ownerGlobal;
+    const home = tab.ownerDocument?.defaultView;
     for (const w of Services.wm.getEnumerator("navigator:browser")) {
       if (w === home || w.closed || !w.gBrowser) continue;
       for (const t of windowTabs(w)) if (t.id === tab.id && !t.closing && !unloaded(t)) return t;

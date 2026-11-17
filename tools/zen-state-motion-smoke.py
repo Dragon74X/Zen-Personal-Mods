@@ -116,15 +116,15 @@ with tempfile.TemporaryDirectory(prefix='zen-state-motion-') as d:
               InspectorUtils.removePseudoClassLock(tab,':hover');
               Services.prefs.setBoolPref('zzglass.edges.enabled',false);await motionPause(650);const off=getComputedStyle(bg).boxShadow;
               Services.prefs.setBoolPref('zzglass.edges.enabled',true);
-              gBrowser.selectedTab=motionOutside;await motionPause(400);gBrowser.selectedTab=tab;Services.prefs.setIntPref('ui.prefersReducedMotion',1);await motionPause(50);
-              const reduced={translate:getComputedStyle(label).translate,animations:label.getAnimations().length};Services.prefs.setIntPref('ui.prefersReducedMotion',0);
+              gBrowser.selectedTab=motionOutside;await motionPause(400);const idle=getComputedStyle(label).translate;gBrowser.selectedTab=tab;Services.prefs.setIntPref('ui.prefersReducedMotion',1);await motionPause(50);
+              const reduced={idle,translate:getComputedStyle(label).translate,animations:label.getAnimations().length};Services.prefs.setIntPref('ui.prefersReducedMotion',0);
               return {profiles:results,off,reduced};
             })();''')
             (OUT/'motion.json').write_text(json.dumps(results,indent=2));print('MOTION',[(r['profile'],r['moved'],r['settled']) for r in results['profiles']],flush=True)
             for row in results['profiles']:
                 assert row['before']['image'] != row['during']['image'] != row['after']['image'], row
                 assert row['moved']!=row['rest'] and row['settled']==row['rest'] and row['boxStable'] and row['iconStable'],row  # the jiggle rides on the label's resting translate (the hover slide)
-            assert results['reduced']['translate']=='none' and results['reduced']['animations']==0,results['reduced']
+            assert results['reduced']['translate']==results['reduced']['idle'] and results['reduced']['animations']==0,results['reduced']  # no jiggle: the title stays at its resting translate
             # Freeze actual CSS transitions for repeatable before/mid/after pixels.
             m.script("Services.prefs.setIntPref('zzglass.motion.profile',1);gBrowser.selectedTab=motionOutside;InspectorUtils.removePseudoClassLock(motionTab,':hover');return true;");time.sleep(.65)
             box=m.script("return motionTab.querySelector('.tab-background').getBoundingClientRect().toJSON();")

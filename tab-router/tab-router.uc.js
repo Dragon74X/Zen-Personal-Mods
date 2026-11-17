@@ -2189,14 +2189,37 @@
   const forgetLazy = event => lazyURLs.delete(event.target);
   const eligibleTab = tab => tab && !tab.closing && tab.linkedBrowser && !tab.hasAttribute("zen-glance-tab") &&
     !tab.hasAttribute("zen-empty-tab");
+  // Zen 1.24's gBrowser.tabs holds only the space on show (and the
+  // Favorites); a window's tabs in every space are its stored tabs.
+  const windowTabs = w => w.gZenWorkspaces?.allStoredTabs ?? w.gBrowser.tabs;
   function* allWindowTabs() {
-    yield* gBrowser.tabs;                               // this window first
-    for (const w of Services.wm.getEnumerator("navigator:browser")) if (w !== window && !w.closed && w.gBrowser) yield* w.gBrowser.tabs;
+    yield* windowTabs(window);                          // this window first
+    for (const w of Services.wm.getEnumerator("navigator:browser")) if (w !== window && !w.closed && w.gBrowser) yield* windowTabs(w);
+  }
+  // Zen keeps a copy of every tab in each synced window, with its page in
+  // one of them; the others hold about:blank, or, not loaded yet (every copy
+  // after a restart, and a window's copies of tabs opened before it), the
+  // page's address. Picking such a copy pulls the page out of the window
+  // showing it, so a copy whose page is loaded in another window stands for
+  // that window's.
+  const unloaded = t => t.hasAttribute("pending") || (t.linkedBrowser?.currentURI?.spec || "about:blank") === "about:blank";
+  function liveTwin(tab) {
+    if (!tab?.id || !unloaded(tab)) return tab;
+    const home = tab.ownerGlobal;
+    for (const w of Services.wm.getEnumerator("navigator:browser")) {
+      if (w === home || w.closed || !w.gBrowser) continue;
+      for (const t of windowTabs(w)) if (t.id === tab.id && !t.closing && !unloaded(t)) return t;
+    }
+    return tab;
   }
   function openTabFor(ctx, key, except = null, accept = null) {
     for (const tab of allWindowTabs()) {
       if (tab === except || !eligibleTab(tab) || contextOf(tab) !== ctx || (accept && !accept(tab))) continue;
-      if (pageKey(tabURL(tab)) === key) return tab;
+      if (pageKey(tabURL(tab)) !== key) continue;
+      const live = liveTwin(tab);
+      // A copy whose page has moved on in the other window no longer shows it.
+      if (live === tab) return tab;
+      if (live !== except && pageKey(tabURL(live)) === key) return live;
     }
     return null;
   }
@@ -2244,9 +2267,10 @@
     const tabs = folderTabs(group), own = tabs.find(t => t.getAttribute("zzgf-page-of") === group.id);
     const stray = own && contextOf(own) !== ctx && !tabs.some(t => t !== own && contextOf(t) === contextOf(own));
     if (own && !stray) {
-      switchTo(own);
-      if (!own.hasAttribute("pending") && pageKey(own.linkedBrowser?.currentURI?.spec || "") !== key) {
-        try { own.linkedBrowser.fixupAndLoadURIString(page, { triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal() }); }
+      const tab = liveTwin(own);
+      switchTo(tab);
+      if (!tab.hasAttribute("pending") && pageKey(tab.linkedBrowser?.currentURI?.spec || "") !== key) {
+        try { tab.linkedBrowser.fixupAndLoadURIString(page, { triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal() }); }
         catch (e) { note(`folder page load failed: ${e}`); }
       }
       return group.label;
@@ -2280,7 +2304,11 @@
     Promise.resolve(switching).catch(() => {}).then(() => requestAnimationFrame(() => {
       const root = document.documentElement;
       if (retired || !root || tab.closing || !tab.isConnected) return;
-      const accent = getComputedStyle(root).getPropertyValue("--zen-primary-color").trim() || "AccentColor";
+      const zen = getComputedStyle(root).getPropertyValue("--zen-primary-color").trim() || "AccentColor";
+      // Zen's accent is the theme's own colour, which on a dark window can be
+      // as dark as the window itself: keep its hue, at a lightness that shows.
+      const lifted = `light-dark(oklch(from ${zen} min(l, 0.62) c h), oklch(from ${zen} max(l, 0.74) c h))`;
+      const accent = typeof CSS !== "undefined" && CSS.supports("color", lifted) ? lifted : zen;
       const brief = matchMedia("(prefers-reduced-motion: reduce)").matches;
       const ring = (el, holder) => {
         const r = el?.getBoundingClientRect(), h = holder?.getBoundingClientRect();
@@ -2534,6 +2562,13 @@
   const workspaces = window.gZenWorkspaces, nativeSwitchIfNeeded = workspaces?.switchIfNeeded;
   function switchIfNeeded(browser) {
     const from = loadingHelper().switchToTabHavingURI.switchingFrom;
+    // Firefox looks in the window you are in first, where an unloaded copy
+    // can carry the address of a page loaded in another window: go there.
+    const own = from === window && gBrowser.getTabForBrowser(browser), live = own && liveTwin(own);
+    if (live && live !== own && live.linkedBrowser?.currentURI?.spec === browser.currentURI?.spec) {
+      switchTo(live);
+      return Promise.resolve();
+    }
     const switching = nativeSwitchIfNeeded.apply(this, arguments);
     const tab = from && from !== window && gBrowser.getTabForBrowser(browser);
     if (tab) markArrival(tab, switching);

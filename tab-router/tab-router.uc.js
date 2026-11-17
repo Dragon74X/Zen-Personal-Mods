@@ -88,6 +88,7 @@
       cancelLookups(); stampIcons(true); refreshPictures(); return;
     }
     if (data === P + "nexus-banner-opacity") { stampIcons(); refreshPictures(false); return; }
+    if (["video-covers", "nexus-page-covers", "page-covers"].some(k => data === P + k)) { refreshPictures(); return; }
     for (const k of Object.keys(parsed)) delete parsed[k]; learnedCache = null; targetGen++;
     stampIcons(); refreshPictures();
   } };
@@ -1107,7 +1108,8 @@
     return text;
   }
 
-  // Decode to raster WebP: 64px square icons or 384px-wide game banners.
+  // Decode to raster WebP: 64px square icons, or 384px-wide game banners and
+  // tab covers.
   // Reject unsupported aspects and oversized sources before drawing.
   async function toIcon(bytes, banner = false) {
     const bmp = await createImageBitmap(new Blob([Uint8Array.from(bytes, c => c.charCodeAt(0))]));
@@ -1115,7 +1117,9 @@
     // is about to become 64 square anyway.
     if (bmp.width > 4096 || bmp.height > 4096) { bmp.close(); return null; }
     const aspect = bmp.width / bmp.height;
-    const bounds = banner ? [2, 8] : ICON_ASPECT;
+    // A tab's own cover (a 16:9 thumbnail, a page's preview picture) is less
+    // wide than a game's banner; both fill the tab cropped to fit.
+    const bounds = banner === "cover" ? [0.5, 8] : banner ? [2, 8] : ICON_ASPECT;
     if (aspect < bounds[0] || aspect > bounds[1]) { bmp.close(); return null; }
     const side = Math.min(bmp.width, bmp.height);
     const width = banner ? 384 : ICON_PX, height = banner ? Math.round(width / aspect) : ICON_PX;
@@ -1168,6 +1172,118 @@
       node.removeAttribute("data-zzrouter-banner"); node.style?.removeProperty("--zzrouter-banner-data");
     }
     return true;
+  }
+
+  // A tab's own cover art, in place of its game's banner: a video's
+  // thumbnail (**Video thumbnails on tabs**), a Nexus page's own picture, such
+  // as a mod's (**Nexus page covers on tabs**), or any other page's preview
+  // picture (**Cover art on other tabs**). Each is its own setting, apart
+  // from **Nexus game banners**. Fetched anonymously like the other pictures
+  // and decoded to a 384px raster. The covers of tabs still open are saved
+  // with the profile, so a restart shows them without fetching them again.
+  const COVER_SETTINGS = { video: "video-covers", nexus: "nexus-page-covers", page: "page-covers" };
+  const covers = new Map(), coverFailed = new Set(), coverAsked = new WeakMap(), coverFetching = new Set();
+  const coversOn = () => Object.values(COVER_SETTINGS).some(k => bool(k, false));
+  const coverSlot = tab => { const key = pageKey(tabURL(tab)); return key && scoped(key, contextOf(tab)); };
+  function coverFor(tab) {
+    const slot = coverSlot(tab), cover = slot && covers.get(slot);
+    return cover && bool(COVER_SETTINGS[cover.kind], false) ? cover.d : null;
+  }
+  // A Nexus game's own page keeps its banner; its mods and collections have
+  // pictures of their own.
+  function coverKind(tab, meta) {
+    const host = hostOf(tab) || "";
+    if (/(^|\.)nexusmods\.com$/.test(host)) {
+      let path = "";
+      try { path = new URL(tabURL(tab)).pathname; } catch {}
+      return /\/mods\/\d+|\/collections\//.test(path) ? "nexus" : null;
+    }
+    return /^video/i.test(bounded(meta?.ogType, 60)) ? "video" : "page";
+  }
+  // Three at a time, so a session of unloaded video tabs does not ask for
+  // all of their thumbnails at once.
+  const coverQueue = [];
+  let coverRunning = 0;
+  function fetchCover(slot, kind, url, ctx) {
+    if (coverFetching.has(slot)) return;
+    coverFetching.add(slot);
+    coverQueue.push({ slot, kind, url, ctx });
+    nextCover();
+  }
+  function nextCover() {
+    while (coverRunning < 3 && coverQueue.length) {
+      const { slot, kind, url, ctx } = coverQueue.shift();
+      coverRunning++;
+      fetchPicture(url, ctx, "cover", data => {
+        coverRunning--; coverFetching.delete(slot);
+        if (retired) return;
+        if (!data) coverFailed.add(slot);
+        else {
+          covers.delete(slot); covers.set(slot, { d: data, kind });
+          while (covers.size > 240) covers.delete(covers.keys().next().value);
+          for (const tab of allTabs()) if (coverSlot(tab) === slot) updatePicture(tab, false);
+          saveCoversSoon();
+        }
+        nextCover();
+      });
+    }
+  }
+  // One file for every window: each merges its covers into what is saved,
+  // keeps those of tabs open in any window (in any space), at most 160.
+  const coverFile = () => PathUtils.join(PathUtils.profileDir, "zzrouter-covers.json");
+  const savedCover = c => c && typeof c === "object" && Object.hasOwn(COVER_SETTINGS, c.kind) &&
+    typeof c.d === "string" && c.d.length < 200000 && /^data:image\/webp;base64,[A-Za-z0-9+/=]+$/.test(c.d);
+  let coverSaveTimer = null;
+  function saveCoversSoon() {
+    if (retired || privateWindow || coverSaveTimer) return;
+    coverSaveTimer = setTimeout(async () => {
+      coverSaveTimer = null;
+      let saved = {};
+      try { saved = await IOUtils.readJSON(coverFile()); } catch {}
+      if (retired) return;
+      const open = new Set();
+      for (const tab of allWindowTabs()) { const slot = coverSlot(tab); if (slot) open.add(slot); }
+      const merged = Object.entries(saved).filter(([slot, c]) => savedCover(c) && !covers.has(slot));
+      merged.push(...covers);
+      const kept = merged.filter(([slot]) => open.has(slot)).slice(-160);
+      try { await IOUtils.writeJSON(coverFile(), Object.fromEntries(kept), { tmpPath: coverFile() + ".tmp" }); }
+      catch (e) { note(`saving covers failed: ${e}`); }
+    }, 2000);
+  }
+  // Covers are asked for only once the saved ones are in, so a restart
+  // fetches just those it has not kept.
+  let coversLoaded = false;
+  async function loadCovers() {
+    let saved = {};
+    if (!privateWindow) try { saved = await IOUtils.readJSON(coverFile()); } catch {}
+    if (retired) return;
+    for (const [slot, c] of Object.entries(saved)) if (savedCover(c) && !covers.has(slot)) covers.set(slot, { d: c.d, kind: c.kind });
+    coversLoaded = true;
+    if (coversOn()) for (const tab of allTabs()) updatePicture(tab, false);
+  }
+  function wantCover(tab) {
+    if (retired || privateWindow || !coversLoaded || tab.closing || !coversOn()) return;
+    const slot = coverSlot(tab), ctx = contextOf(tab);
+    if (!slot || covers.has(slot) || coverFailed.has(slot)) return;
+    // A YouTube video's thumbnail is known from its address, loaded or not.
+    const id = videoId(tab);
+    if (id && /^[\w-]{6,20}$/.test(id)) {
+      if (bool("video-covers", false)) fetchCover(slot, "video", `https://i.ytimg.com/vi/${id}/mqdefault.jpg`, ctx);
+      return;
+    }
+    // Others from the page's own preview picture, once it has loaded.
+    if (tab.hasAttribute("pending") || tab.hasAttribute("busy")) return;
+    const spec = tab.linkedBrowser?.currentURI?.spec, mark = `${spec}\n${tab.label}`;
+    if (!/^https?:/i.test(spec || "") || coverAsked.get(tab) === mark) return;
+    let actor = null;
+    try { actor = tab.linkedBrowser.browsingContext?.currentWindowGlobal?.getActor("ZzRouterLinks"); } catch {}
+    if (!actor) return;
+    coverAsked.set(tab, mark);
+    actor.sendQuery("ZzRouter:Meta").then(meta => {
+      if (retired || !tab.isConnected || tab.linkedBrowser?.currentURI?.spec !== spec || !meta || typeof meta !== "object") return;
+      const kind = coverKind(tab, meta), image = bounded(meta.ogImage);
+      if (kind && bool(COVER_SETTINGS[kind], false) && /^https:\/\/[^\s"'<>\\]+$/.test(image)) fetchCover(slot, kind, image, ctx);
+    }, () => {});
   }
 
   // label is the canonical subject URL, never a folder display name.
@@ -1363,8 +1479,9 @@
     if (record && learn && !tab.zenStaticIcon) fetchSectionIcon(record.key, record.key, contextOf(tab),
       nexusURL(subject) ? "square" : "round");
     const icon = !tab.zenStaticIcon && key ? iconMap().get(key)?.d : null;
-    const bannerChanged = paintBanner(tab, !tab.zenStaticIcon && key && nexusURLFrom(record.key)?.game === record.key &&
-      (bannerMode() & 2) ? iconMap().get(key)?.b : null);
+    wantCover(tab);
+    const bannerChanged = paintBanner(tab, coverFor(tab) || (!tab.zenStaticIcon && key && nexusURLFrom(record.key)?.game === record.key &&
+      (bannerMode() & 2) ? iconMap().get(key)?.b : null));
     updateOpenMenu();
     const old = tab.getAttribute("data-zzrouter-tab-icon");
     if (icon && /^data:image\/(?:webp|png);base64,[A-Za-z0-9+/=]+$/.test(icon)) {
@@ -3189,6 +3306,7 @@
     for (const ev of backfillEvents) window.addEventListener(ev, backfillSoon, true);
     backfillSoon();
     learnSearchHomes();
+    loadCovers();
     window.addEventListener("SSTabRestoring", forgetLazy, true);
     gBrowser.tabContainer.addEventListener("TabSelect", tabSwitchCue);
     patchClicks();
@@ -3491,6 +3609,7 @@
       gBrowser.tabContainer.removeEventListener("TabSelect", tabSwitchCue);
       following?.end(false);
       clearTimeout(backfillTimer); backfillTimer = null;
+      clearTimeout(coverSaveTimer); coverSaveTimer = null;
       unpatchClicks();
       unpatchSwitchToTab();
       // Zen's own switchIfNeeded lives on its prototype: removing ours shows it again.

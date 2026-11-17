@@ -247,12 +247,54 @@
     "placeholder": false
   },
   {
+    "type": "checkbox",
+    "property": "zzrouter.video-covers",
+    "label": "Video thumbnails on tabs *A video's tab shows its own thumbnail behind its styling: YouTube's from the video's address, so unloaded tabs too; other video sites' from the page's preview picture once it loads. Takes the place of a Nexus game banner on that tab. Off by default; requires Groupflow.*",
+    "defaultValue": false,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzrouter.section-icons",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
+    "type": "checkbox",
+    "property": "zzrouter.nexus-page-covers",
+    "label": "Nexus page covers on tabs *A Nexus mod's or collection's tab shows that page's own picture instead of its game's banner, once the page loads. Separate from Nexus game banners, which stay on game pages and folders. Off by default; requires Groupflow.*",
+    "defaultValue": false,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzrouter.section-icons",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
+    "type": "checkbox",
+    "property": "zzrouter.page-covers",
+    "label": "Cover art on other tabs *Any other page's tab shows the page's own preview picture (the one sites give for sharing), once it loads. Off by default; requires Groupflow.*",
+    "defaultValue": false,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzrouter.section-icons",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
     "type": "string",
     "property": "zzrouter.nexus-banner-opacity",
-    "label": "Banner opacity (%) *0–100; default 25. Changes artwork opacity only, below existing tint, sheen and rim. Text, controls and selection states retain their styling. Changes reuse cached artwork without downloading again.*",
+    "label": "Cover art opacity (%) *0–100; default 25. For Nexus game banners and tab covers alike. Changes artwork opacity only, below existing tint, sheen and rim. Text, controls and selection states retain their styling. Changes reuse cached artwork without downloading again.*",
     "defaultValue": "25",
     "placeholder": "25",
-    "conditions": [{"if": {"property": "zzrouter.section-icons", "value": true}}, {"not": {"property": "zzrouter.nexus-banners", "value": 0}}],
+    "conditions": [{"if": {"property": "zzrouter.section-icons", "value": true}}],
     "operator": "AND"
   },
   {

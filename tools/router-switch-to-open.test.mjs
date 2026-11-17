@@ -633,3 +633,60 @@ test("Release restores Zen's switchIfNeeded and removes live bars", () => {
   assert.ok(!Object.hasOwn(workspaces, "switchIfNeeded") && workspaces.switchIfNeeded === proto.switchIfNeeded, "Zen's own method shows through again");
   assert.ok(glow.gone && ctx.arrivals.size === 0);
 });
+
+test("A tab's own cover art: video thumbnails, Nexus page pictures and other pages' previews, each by its own setting", async () => {
+  const settings = { "video-covers": true, "nexus-page-covers": false, "page-covers": false };
+  const fetched = [], finish = [], repainted = [], settle = () => new Promise(setImmediate);
+  const tabs = [];
+  const make = (url, { busy = false, pending = false, meta = null } = {}) => {
+    const tab = { url, label: url, closing: false, isConnected: true, attrs: { busy, pending },
+      hasAttribute(n) { return !!this.attrs[n]; },
+      linkedBrowser: { currentURI: { spec: url }, browsingContext: { currentWindowGlobal: { getActor: () => ({ sendQuery: async () => meta }) } } } };
+    tabs.push(tab);
+    return tab;
+  };
+  const ctx = vm.createContext({ retired: false, privateWindow: false, bool: (k, d) => settings[k] ?? d,
+    pageKey: url => url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, ""), tabURL: t => t.url, contextOf: () => 0,
+    scoped: (k, c) => `${c}|${k}`, hostOf: t => new URL(t.url).hostname.replace(/^www\./, ""),
+    videoId: t => /youtube\.com\/watch\?v=([\w-]+)/.exec(t.url)?.[1] ?? null,
+    bounded: (v, max = 500) => typeof v === "string" && v.length <= max ? v : "",
+    fetchPicture: (url, c, kind, done) => { fetched.push([url, kind]); finish.push(done); },
+    allTabs: () => tabs, allWindowTabs: () => tabs, updatePicture: t => repainted.push(t.url), URL,
+    setTimeout: () => 0, clearTimeout: () => {}, PathUtils: { profileDir: "/p", join: (...a) => a.join("/") },
+    IOUtils: { readJSON: async () => ({}), writeJSON: async () => {} } });
+  vm.runInContext(between("  // A tab's own cover art, in place of its game's banner", "  // label is the canonical subject URL")
+    + "\ncoversLoaded = true; this.wantCover = wantCover; this.coverFor = coverFor;", ctx);
+  // A YouTube video's thumbnail comes from its address, loaded or not.
+  const video = make("https://www.youtube.com/watch?v=abcdef12345", { pending: true });
+  ctx.wantCover(video);
+  assert.deepEqual(fetched, [["https://i.ytimg.com/vi/abcdef12345/mqdefault.jpg", "cover"]], "fetched as a cover, decoded to fit a tab");
+  finish.shift()("data:image/webp;base64,AAAA");
+  assert.equal(ctx.coverFor(video), "data:image/webp;base64,AAAA");
+  assert.deepEqual(repainted, [video.url], "its tab is repainted with it");
+  settings["video-covers"] = false;
+  assert.equal(ctx.coverFor(video), null, "its own setting off, none");
+  // A Nexus mod's tab: its page's own picture, by its own setting; a game's own page keeps its banner.
+  const mod = make("https://www.nexusmods.com/skyrimspecialedition/mods/266", { meta: { ogImage: "https://staticdelivery.nexusmods.com/mod.jpg" } });
+  const game = make("https://www.nexusmods.com/games/skyrimspecialedition", { meta: { ogImage: "https://staticdelivery.nexusmods.com/game.jpg" } });
+  ctx.wantCover(mod); await settle();
+  assert.equal(fetched.length, 1, "nothing while Nexus page covers is off");
+  settings["nexus-page-covers"] = true;
+  mod.label += " "; ctx.wantCover(mod); ctx.wantCover(game); await settle();
+  assert.deepEqual(fetched.slice(1), [["https://staticdelivery.nexusmods.com/mod.jpg", "cover"]], "the mod's picture; the game page left to its banner");
+  // Any other page: its preview picture, by its own setting, once it has loaded.
+  settings["page-covers"] = true;
+  const page = make("https://example.com/article", { busy: true, meta: { ogImage: "https://example.com/share.png" } });
+  ctx.wantCover(page); await settle();
+  assert.equal(fetched.length, 2, "not while it is still loading");
+  page.attrs.busy = false; ctx.wantCover(page); await settle();
+  assert.equal(fetched.at(-1)[0], "https://example.com/share.png");
+  // Three at a time; a failed one is not asked for again.
+  for (let i = 0; i < 4; i++) ctx.wantCover(make(`https://www.youtube.com/watch?v=queued${i}000`));
+  settings["video-covers"] = true;
+  for (let i = 0; i < 4; i++) ctx.wantCover(tabs.at(-4 + i));
+  assert.equal(fetched.length, 4, "only the first runs while two are still fetching");
+  finish.shift()(null);
+  assert.equal(fetched.length, 5, "the next starts as one ends");
+  mod.label += " "; ctx.wantCover(mod); await settle();
+  assert.equal(fetched.filter(([url]) => url.endsWith("mod.jpg")).length, 1, "a failed cover is not fetched again");
+});

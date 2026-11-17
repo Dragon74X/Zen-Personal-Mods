@@ -482,15 +482,15 @@ test("Two pills run in from the sides along the bottom of the page once the swit
   assert.ok(probes.length && probes.every(p => p.removed && p.style.color.startsWith("var(--zen-loading-progress-bar-color, color-mix(in srgb, var(--zen-primary-color), ")),
     "read inside the indicator, from its variable or Zen's own mix, and nothing left behind");
   assert.deepEqual([left.style.left, right.style.right, left.style.width, merged.style.left, merged.style.width],
-    ["-160px", "-160px", "160px", "258px", "224px"], "each starts just beyond its side; they merge into one centred pill");
+    ["-184px", "-184px", "160px", "258px", "224px"], "each starts beyond its side, glow and all off screen; they merge into one centred pill");
   for (const [gleam, sign] of [[left, 1], [right, -1]]) {
     const [run] = gleam.anims;
     assert.deepEqual(Array.from(run.keyframes, props), ["transform,opacity", "transform,opacity", "transform,opacity", "transform,opacity"],
       "transform and opacity only");
-    assert.equal(shift(run.keyframes[1]), sign * 374, "its head runs just past the middle, into the other");
+    assert.equal(shift(run.keyframes[1]), sign * 398, "its head runs from off screen to just past the middle, into the other");
     const at = valueByMs(run.keyframes, run.options, k => Math.abs(shift(k))).slice(0, 501);
     const speed = at.slice(1).map((v, ms) => v - at[ms]);
-    assert.ok(at[0] < 1e-6 && Math.abs(at.at(-1) - 374) < 1e-6, "from its side to the middle in 500 ms");
+    assert.ok(at[0] < 1e-6 && Math.abs(at.at(-1) - 398) < 1e-6, "from off its side to the middle in 500 ms");
     assert.ok(speed.slice(-50).reduce((a, b) => a + b) > 2 * speed.slice(0, 50).reduce((a, b) => a + b), "gathering speed, like a wave");
     assert.deepEqual(Array.from(run.keyframes, k => k.opacity), [1, 1, 0, 0], "then gone into the merged pill");
   }
@@ -556,7 +556,7 @@ test("Two pills run in from the sides along the bottom of the page once the swit
   assert.ok(riseAt > 120 && riseAt <= 180 && riseUntil >= 239 && risen[360] < 1e-6, `whole from ${riseAt} to ${riseUntil} ms, parted by 360`);
   for (const [gleam, sign] of [[outLeft, 1], [outRight, -1]]) {
     const [run] = gleam.anims, at = valueByMs(run.keyframes, run.options, k => Math.abs(shift(k)));
-    assert.ok(shift(run.keyframes[0]) === sign * 374 && at[320] === 374 && at[880] < 1e-6 && run.options.duration === 1000,
+    assert.ok(shift(run.keyframes[0]) === sign * 398 && at[320] === 398 && at[880] < 1e-6 && run.options.duration === 1000,
       "each leaves the pill as it parts and runs out past its side");
     assert.deepEqual(Array.from(run.keyframes, k => k.opacity), [0, 0, 1, 1, 0], "unseen until the pill parts");
     const speed = at.slice(321, 881).map((v, i) => at[320 + i] - v);
@@ -572,35 +572,56 @@ test("Two pills run in from the sides along the bottom of the page once the swit
   assert.match(readme, /two pill-shaped gleams in the loading bar's colour \(Blended Addressbar's or the Deta Loading Bar's when one draws it, else Zen's own loading indicator's\) run in from the sides/);
 });
 
-test("Switching tabs plays the pills by Tab switch animation: out then in by default, in, out or none", async () => {
-  const drawn = [], settle = () => new Promise(setImmediate);
-  let mode = 3, now = 0;
-  const tab = { linkedBrowser: {}, id: "t" }, other = { linkedBrowser: {}, id: "o" };
+test("Switching tabs plays the pills by Tab switch animation: in by default, following the load, out then in, out or none", async () => {
+  const drawn = [], settle = () => new Promise(setImmediate), timers = [];
+  let mode = 1, listener = null;
+  const tab = { linkedBrowser: {}, id: "t", busy: false, hasAttribute(n) { return n === "busy" && this.busy; } };
+  const other = { ...tab, id: "o" };
   const stale = { remove() { this.gone = true; } };
-  const ctx = vm.createContext({ retired: false, num: (k, d) => (k === "tab-switch-cue" ? mode : d),
-    performance: { now: () => now }, setTimeout: (fn, ms) => { if (ms < 1000) fn(); return 0; },
-    gBrowser: { selectedTab: tab }, arrivals: new Set([stale]), tabSwitched: () => Promise.resolve(),
-    requestAnimationFrame: fn => fn(), drawGleams: (t, out) => drawn.push([t.id, out ? "out" : "in"]) });
+  const handle = { places: [], finished: false, progress(p) { this.places.push(p); }, finish() { this.finished = true; }, cancel() { this.cancelled = true; } };
+  const ctx = vm.createContext({ retired: false, num: (k, d) => (k === "tab-switch-cue" ? mode : d), performance,
+    Ci: { nsIWebProgressListener: { STATE_STOP: 16, STATE_IS_WINDOW: 0x80000 } },
+    setTimeout: (fn, ms) => { if (ms < 1000) timers.push(fn); return 0; }, clearTimeout() {}, setInterval: () => 0, clearInterval() {},
+    gBrowser: { selectedTab: tab, addTabsProgressListener: l => { listener = l; }, removeTabsProgressListener: () => { listener = null; } },
+    arrivals: new Set([stale]), tabSwitched: () => Promise.resolve(), requestAnimationFrame: fn => fn(),
+    drawGleams: (t, kind) => { drawn.push([t.id, kind]); return kind === "follow" ? handle : null; } });
   vm.runInContext(between("  const arriving = new WeakMap();", "  // The window you leave plays it the other way at once")
     + "\nthis.tabSwitchCue = tabSwitchCue; this.markArrival = markArrival;", ctx);
-  const switchTo = async t => { ctx.gBrowser.selectedTab = t; ctx.tabSwitchCue({ target: t }); await settle(); await settle(); };
+  const flush = async () => { while (timers.length) { timers.shift()(); await settle(); } };
+  const switchTo = async t => { ctx.gBrowser.selectedTab = t; ctx.tabSwitchCue({ target: t }); await flush(); };
   await switchTo(tab);
-  assert.deepEqual(drawn, [["t", "out"], ["t", "in"]], "out over the page you leave, then in on the new one");
+  assert.deepEqual(drawn, [["t", "in"]], "In by default, at once: no waiting for the page");
   assert.ok(stale.gone && ctx.arrivals.size === 0, "a quick run of switches shows only the latest");
-  for (const [m, want] of [[1, [["t", "in"]]], [2, [["t", "out"]]], [0, []]]) {
+  for (const [m, want] of [[3, [["t", "out"], ["t", "in"]]], [2, [["t", "out"]]], [0, []]]) {
     mode = m; drawn.length = 0;
     await switchTo(tab);
     assert.deepEqual(drawn, want, `mode ${m}`);
   }
+  // Following the load: a loading page's pills run in with its progress and merge once it is done.
+  mode = 4; drawn.length = 0;
+  await switchTo(tab);
+  assert.deepEqual(drawn, [["t", "in"]], "a page already loaded plays In");
+  drawn.length = 0; tab.busy = true;
+  await switchTo(tab);
+  assert.deepEqual(drawn, [["t", "follow"]]);
+  assert.equal(handle.places[0], 0.08, "starting where a load starts");
+  listener.onProgressChange(tab.linkedBrowser, {}, null, 0, 0, 60, 100);
+  assert.equal(handle.places.at(-1), 0.6, "following real progress");
+  listener.onProgressChange(tab.linkedBrowser, {}, null, 0, 0, 99, 100);
+  assert.equal(handle.places.at(-1), 0.95, "to 95% at most before it is done");
+  assert.ok(!handle.finished);
+  listener.onStateChange(tab.linkedBrowser, { isTopLevel: true }, null, 16 | 0x80000);
+  assert.ok(handle.finished && handle.places.at(-1) === 1 && listener === null, "done: met, merged, and no longer listening");
+  tab.busy = false;
   // A switch that lands here from another window is that one's to mark.
   mode = 3; drawn.length = 0;
   ctx.markArrival(other, Promise.resolve());
   await switchTo(other);
   assert.deepEqual(drawn.filter(([, kind]) => kind === "out"), [], "no tab-switch cue over a cross-window arrival");
-  // The setting is offered, out then in by default.
+  // The setting is offered, In by default.
   const prefs = JSON.parse(await readFile(new URL("../tab-router/preferences.json", import.meta.url), "utf8"));
   const setting = prefs.find(p => p.property === "zzrouter.tab-switch-cue");
-  assert.deepEqual([setting?.type, setting?.defaultValue, setting?.options.map(o => o.value)], ["dropdown", 3, [3, 1, 2, 0]]);
+  assert.deepEqual([setting?.type, setting?.defaultValue, setting?.options.map(o => o.value)], ["dropdown", 1, [1, 4, 3, 2, 0]]);
 });
 
 test("Release restores Zen's switchIfNeeded and removes live bars", () => {

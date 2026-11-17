@@ -2177,7 +2177,7 @@
   // page side (links-child.sys.mjs) only acts on real link clicks, so back
   // and forward, reloads, forms, redirects and script navigation never
   // switch; Alt-click, Duplicate Tab and session restore always make copies.
-  const LINKS_VERSION = "1.45.4", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
+  const LINKS_VERSION = "1.45.5", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
   const TRACKING = /^(utm_[a-z]+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|igshid|si|ref_src|_hsenc|_hsmi)$/i;
   function pageKey(url) {
     try {
@@ -2376,36 +2376,72 @@
   function markArrival(tab, switching) {
     arriving.set(tab, performance.now());
     Promise.resolve(switching).catch(() => {}).then(tabSwitched).then(() => new Promise(r => setTimeout(r, 120)))
-      .then(() => requestAnimationFrame(() => drawGleams(tab, false)));
+      .then(() => requestAnimationFrame(() => drawGleams(tab, "in")));
   }
   // Switching tabs in this window plays them too, by **Tab switch animation**:
-  // 1 in, 2 out, 3 out then in (the default), 0 none. Out plays at once over
-  // the page you leave; in plays once the new page shows, and after out has
-  // carried its pills most of the way out. A quick run of switches shows
-  // only the latest. A switch from another window is that one's to mark.
+  // 1 in (the default), 2 out, 3 out then in, 4 in following the load, 0
+  // none. In plays at once; out plays at once over the page you leave, and
+  // after it in waits until out has carried its pills most of the way out.
+  // Following the load, a loading page's pills run in with its progress
+  // (Blended Addressbar's model: 8%, creeping to 90%, real progress to 95%)
+  // and merge once it is done; a page already loaded plays in. A quick run
+  // of switches shows only the latest. A switch from another window is that
+  // one's to mark.
+  let following = null;
+  function followLoad(tab) {
+    const handle = tab.hasAttribute("busy") && drawGleams(tab, "follow");
+    if (!handle) { if (!tab.hasAttribute("busy")) drawGleams(tab, "in"); return; }
+    const { STATE_STOP, STATE_IS_WINDOW } = Ci.nsIWebProgressListener, browser = tab.linkedBrowser;
+    let progress = 0.08, ended = false;
+    const end = finished => {
+      if (ended) return;
+      ended = true;
+      clearInterval(creep); clearTimeout(limit);
+      try { gBrowser.removeTabsProgressListener(listener); } catch {}
+      if (following?.end === end) following = null;
+      if (finished) { handle.progress(1); handle.finish(); } else handle.cancel();
+    };
+    const listener = {
+      onStateChange(b, webProgress, request, flags) {
+        if (b === browser && webProgress.isTopLevel && flags & STATE_IS_WINDOW && flags & STATE_STOP) end(true);
+      },
+      onProgressChange(b, webProgress, request, curSelf, maxSelf, curTotal, maxTotal) {
+        if (b === browser && maxTotal > 0) handle.progress(progress = Math.max(progress, Math.min(0.95, curTotal / maxTotal)));
+      },
+    };
+    const creep = setInterval(() => handle.progress(progress += Math.max(0, 0.9 - progress) * 0.08), 250);
+    const limit = setTimeout(() => end(true), 30000);
+    gBrowser.addTabsProgressListener(listener);
+    handle.progress(progress);
+    following = { end };
+  }
   function tabSwitchCue(event) {
-    const tab = event.target, mode = num("tab-switch-cue", 3);
+    const tab = event.target, mode = num("tab-switch-cue", 1);
     if (!mode || retired || !tab?.linkedBrowser) return;
-    const started = performance.now();
     setTimeout(() => {
       if (performance.now() - (arriving.get(tab) ?? -1e9) < 500 || gBrowser.selectedTab !== tab) return;
+      following?.end(false);
       for (const line of arrivals) line.remove();
       arrivals.clear();
-      if (mode & 2) requestAnimationFrame(() => drawGleams(tab, true));
-      if (!(mode & 1)) return;
-      tabSwitched().then(() => new Promise(r => setTimeout(r, Math.max(120, (mode & 2 ? 600 : 0) - (performance.now() - started)))))
-        .then(() => requestAnimationFrame(() => { if (gBrowser.selectedTab === tab) drawGleams(tab, false); }));
+      requestAnimationFrame(() => {
+        if (gBrowser.selectedTab !== tab) return;
+        if (mode === 4) { followLoad(tab); return; }
+        drawGleams(tab, mode === 1 ? "in" : "out");
+        if (mode === 3) setTimeout(() => { if (gBrowser.selectedTab === tab) drawGleams(tab, "in"); }, 600);
+      });
     }, 0);
   }
   // The window you leave plays it the other way at once: the pill wells up
   // from underneath in the middle, parts, and the two run out to the sides.
   function markDeparture() {
     const tab = gBrowser.selectedTab;
-    if (tab) requestAnimationFrame(() => drawGleams(tab, true));
+    if (tab) requestAnimationFrame(() => drawGleams(tab, "out"));
   }
-  function drawGleams(tab, out) {
-    const root = document.documentElement;
-    if (retired || !root || tab.closing || !tab.isConnected) return;
+  // kind: "in", "out", or "follow" (in, placed by follow.progress(p) and
+  // merged by follow.finish(); returns that handle).
+  function drawGleams(tab, kind) {
+    const root = document.documentElement, out = kind === "out", follow = kind === "follow";
+    if (retired || !root || tab.closing || !tab.isConnected) return null;
     const [light, head] = loadingColours(tab.linkedBrowser?.closest(".browserSidebarContainer"));
     const brief = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const div = () => document.createElementNS("http://www.w3.org/1999/xhtml", "div");
@@ -2419,6 +2455,8 @@
       const style = getComputedStyle(el), room = gap ? Math.max(gap, 10) : 6;
       const inset = Math.min(r.width / 4, Math.max(parseFloat(style.borderBottomLeftRadius) || 0, parseFloat(style.borderBottomRightRadius) || 0));
       const width = r.width - 2 * inset, mid = width / 2, length = Math.round(Math.min(160, Math.max(28, width * 0.22)));
+      // Each starts, and leaves to, this far beyond its side: off screen, glow and all.
+      const lead = 24;
       const line = div();
       line.setAttribute("aria-hidden", "true");
       Object.assign(line.style, { position: "absolute", left: `${r.left - h.left - holder.clientLeft + inset}px`,
@@ -2432,12 +2470,18 @@
       pill({ left: `${mid - merged / 2}px`, width: `${merged}px`, opacity: brief ? "1" : "0",
         background: `linear-gradient(to right, transparent, ${light} 25%, ${head}, ${light} 75%, transparent)` });
       const splash = line.lastChild;
+      const runners = [];
       if (!brief) {
         for (const [side, sign] of [["left", 1], ["right", -1]]) {
-          pill({ [side]: `${-length}px`, width: `${length}px`, transformOrigin: side === "left" ? "right" : "left",
+          pill({ [side]: `${-length - lead}px`, width: `${length}px`, transformOrigin: side === "left" ? "right" : "left",
             background: `linear-gradient(to ${side === "left" ? "right" : "left"}, transparent, ${light} 60%, ${head})` });
           // The head runs just past the middle, into the other.
-          const end = `translateX(${sign * (mid + thickness)}px)`;
+          const travel = sign * (mid + thickness + lead), end = `translateX(${travel}px)`;
+          runners.push({ el: line.lastChild, travel });
+          if (follow) {
+            Object.assign(line.lastChild.style, { transform: "translateX(0)", transition: "transform .3s ease-out" });
+            continue;
+          }
           line.lastChild.animate(out ? [
             // Out of the parting pill, fast at first, easing as they leave.
             { transform: `${end} scaleX(.6)`, opacity: 0 },
@@ -2454,6 +2498,27 @@
       holder.appendChild(line);
       arrivals.add(line);
       const done = () => { arrivals.delete(line); line.remove(); };
+      if (follow && !brief) {
+        // Placed by the load: off screen as it starts (8%), met at 95%;
+        // done, they run in the rest of the way and merge.
+        const merge = [{ opacity: 0, transform: "scaleX(.3)", easing: "cubic-bezier(.2, .8, .3, 1)" },
+          { opacity: 1, transform: "scaleX(1)", offset: 0.27 }, { opacity: 1, transform: "scaleX(1)", offset: 0.54, easing: "ease-in-out" },
+          { opacity: 0, transform: "scaleX(1.08)" }];
+        return {
+          progress(p) {
+            const share = Math.min(1, Math.max(0, (p - 0.08) / 0.87));
+            for (const { el, travel } of runners) el.style.transform = `translateX(${travel * share}px)`;
+          },
+          finish() {
+            for (const { el, travel } of runners) el.style.transform = `translateX(${travel}px)`;
+            setTimeout(() => {
+              for (const { el } of runners) el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, fill: "forwards" });
+              splash.animate(merge, { duration: 520, easing: "linear" }).finished.then(done, done);
+            }, 280);
+          },
+          cancel: done,
+        };
+      }
       // In: met at 500 ms, merged and swollen by 620, held to 750, gone at
       // 1000. Out: the pill wells up from underneath by 180 ms, parts as
       // the two leave it at 240, gone from the sides by 1000. With reduced
@@ -2475,8 +2540,7 @@
     const container = tab.linkedBrowser?.closest(".browserSidebarContainer");
     const page = container || document.getElementById("tabbrowser-tabpanels");
     const below = innerHeight - (page?.getBoundingClientRect().bottom ?? innerHeight);
-    if (below >= 4 && tabbox) gleams(page, tabbox, 4, Math.min(below, 16));
-    else gleams(page, container || tabbox, 3);
+    return below >= 4 && tabbox ? gleams(page, tabbox, 4, Math.min(below, 16)) : gleams(page, container || tabbox, 3);
   }
   // Every window publishes the whole set, so the page side needs one lookup.
   let publishTimer = null;
@@ -3425,6 +3489,7 @@
       for (const ev of backfillEvents) window.removeEventListener(ev, backfillSoon, true);
       window.removeEventListener("SSTabRestoring", forgetLazy, true);
       gBrowser.tabContainer.removeEventListener("TabSelect", tabSwitchCue);
+      following?.end(false);
       clearTimeout(backfillTimer); backfillTimer = null;
       unpatchClicks();
       unpatchSwitchToTab();

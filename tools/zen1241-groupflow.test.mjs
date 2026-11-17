@@ -7,8 +7,8 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
-import vm from "node:vm";
 import { test } from "node:test";
+import { load } from "./harness.mjs";
 
 const source = await readFile(new URL("../groupflow/groupflow.uc.js", import.meta.url), "utf8");
 
@@ -30,11 +30,7 @@ const OLDER = ["linear-gradient(-30deg, #336699 0%, #993366 100%)", "linear-grad
 // Gecko rejects a background-image with var() left in it or a layer position/size.
 const supports = (property, value) => property === "background-image" && !/var\(|no-repeat|\//.test(value) &&
   /^(?:linear|radial)-gradient\(.*\)$/.test(value);
-const marker = "  // ---- declared defaults";
-assert.ok(source.includes(marker));
-const sandbox = vm.createContext({ console, window: {}, CSS: { supports } });
-vm.runInContext(source.replace(marker, `  globalThis.headerGradient = headerGradient; return;\n${marker}`), sandbox);
-const { headerGradient } = sandbox;
+const { headerGradient } = await load("groupflow", "headerGradient", { window: {}, CSS: { supports } });
 const colours = value => value.match(/rgba?\([^()]*\)/g);
 
 test("a saved two-colour Zen 1.24.1b gradient is laid across the header with every stop", () => {

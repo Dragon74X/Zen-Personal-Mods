@@ -161,15 +161,17 @@ def check_restored_chrome(m, root):
             assert painted(info['box'],shown,hidden),(motion,left,'close glyph did not paint',info)
             m.script("restoreClose.removeAttribute('zzsmoke-hidden');if(restoreCloseStyle===null)restoreClose.removeAttribute('style');else restoreClose.setAttribute('style',restoreCloseStyle);InspectorUtils.removePseudoClassLock(restoreTab,':hover');return true;")
             time.sleep(.3);checks.append({'closeMotion':motion,'closeLeft':left,'painted':True})
-    # Discard a real background tab: its pending fade used to replace the
-    # spacing transition. Sample native animation times and rendered geometry.
+    # Discard a real background tab: its pending fade must keep the close
+    # spacing transition. With the X on the right the title's container gives
+    # way by margin; on the left the favicon and title slide by translate.
+    # Sample native animation times and rendered geometry.
     close_motion=m.script("""return (async()=>{
       const S=Services.prefs,wait=ms=>new Promise(r=>setTimeout(r,ms));
       const keys=['zzglass.motion.enabled','zzglass.instant-ui','zzglass.pending.enabled','zzglass.motion.profile','zzglass.tabs.close-left','ui.prefersReducedMotion'];
       const saved=keys.map(k=>{const had=S.prefHasUserValue(k);return [k,had,had?(S.getPrefType(k)===S.PREF_BOOL?S.getBoolPref(k):S.getIntPref(k)):null];});
       S.setBoolPref(keys[0],true);S.setBoolPref(keys[1],false);S.setBoolPref(keys[2],true);S.setIntPref(keys[5],0);
       const tab=gBrowser.addTab('data:text/html,<title>Close spacing test</title>',{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});
-      const stack=tab.querySelector('.tab-icon-stack'),label=tab.querySelector('.tab-label-container'),close=tab.querySelector('.tab-close-button');
+      const stack=tab.querySelector('.tab-icon-stack'),label=tab.querySelector('.tab-label-container'),title=tab.querySelector('.tab-label'),close=tab.querySelector('.tab-close-button');
       const cases=[],gates=[],rect=e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height];};
       try {
         await wait(800);
@@ -177,25 +179,27 @@ def check_restored_chrome(m, root):
           if(pending){gBrowser.discardBrowser(tab);await wait(200);if(!tab.hasAttribute('pending'))throw new Error('Native discard failed');}
           for(const [profile,duration]of [150,210,240,270,290].entries())for(const left of [false,true]){
             S.setIntPref(keys[3],profile);S.setBoolPref(keys[4],left);await wait(350);
-            const el=left?stack:label,property=left?'marginInlineStart':'marginInlineEnd';
-            const anchor=rect(close),origin=rect(label),directions=[];
+            // A transition reports margin-inline-end by its physical side.
+            const property=left?'translate':'marginInlineEnd',isSlide=a=>left?a.transitionProperty==='translate':a.transitionProperty?.startsWith('margin-');
+            const sliding=left?[stack,title]:[label],moved=left?title:label;
+            const anchor=rect(close),origin=rect(moved),directions=[];
             for(const hover of [true,false]){
               InspectorUtils[hover?'addPseudoClassLock':'removePseudoClassLock'](tab,':hover');
-              const slide=el.getAnimations().find(a=>a.transitionProperty?.startsWith('margin-'));
+              const slides=sliding.map(e=>e.getAnimations().find(isSlide));
               const fade=close.getAnimations().find(a=>a.transitionProperty==='opacity');
-              if(!slide||!fade||Math.abs(slide.effect.getTiming().duration-duration)>.01)throw new Error('Missing close transition '+JSON.stringify({pending,profile,left,hover,duration:slide?.effect.getTiming().duration,fade:!!fade,transition:getComputedStyle(el).transition}));
-              const animations=[slide,fade];animations.forEach(a=>a.pause());
+              if(!slides.every(a=>a&&Math.abs(a.effect.getTiming().duration-duration)<=.01)||!fade)throw new Error('Missing close transition '+JSON.stringify({pending,profile,left,hover,durations:slides.map(a=>a?.effect.getTiming().duration),fade:!!fade,transition:getComputedStyle(sliding[0]).transition}));
+              const animations=[...slides,fade];animations.forEach(a=>a.pause());
               const frames=[];
               for(const fraction of [0,.25,.5,.75,1]){
                 animations.forEach(a=>a.currentTime=duration*fraction);
-                const margin=parseFloat(getComputedStyle(el)[property]),box=rect(label),hit=rect(close);
+                const offset=parseFloat(getComputedStyle(sliding[0])[property]),box=rect(moved),hit=rect(close);
                 if(hit.some((v,i)=>Math.abs(v-anchor[i])>.02))throw new Error('Close target moved');
                 const travel=left?box[0]-origin[0]:origin[2]-box[2];
-                if(Math.abs(travel-margin)>.05)throw new Error('Label did not follow spacing');
-                frames.push({margin,opacity:+getComputedStyle(close).opacity});
+                if(Math.abs(travel-offset)>.05)throw new Error('Label did not follow spacing');
+                frames.push({offset,opacity:+getComputedStyle(close).opacity});
               }
               const end=hover?24:0;
-              if(Math.abs(frames.at(-1).margin-end)>.02||new Set(frames.map(f=>f.margin.toFixed(2))).size<3)throw new Error('Spacing jumped');
+              if(Math.abs(frames.at(-1).offset-end)>.02||new Set(frames.map(f=>f.offset.toFixed(2))).size<3)throw new Error('Spacing jumped');
               animations.forEach(a=>a.finish());directions.push({hover,frames});
             }
             cases.push({pending,profile,left,duration,directions});
@@ -205,7 +209,7 @@ def check_restored_chrome(m, root):
         for(const [name,key,value]of [['disabled',keys[0],false],['instant',keys[1],true],['reduced',keys[5],1]]){
           const set=v=>S[typeof v==='boolean'?'setBoolPref':'setIntPref'](key,v);set(value);await wait(350);
           InspectorUtils.addPseudoClassLock(tab,':hover');
-          if(stack.getAnimations().some(a=>a.transitionProperty?.startsWith('margin-'))||parseFloat(getComputedStyle(stack).marginInlineStart)!==24)throw new Error(name+' did not disable spacing motion');
+          if(stack.getAnimations().some(a=>a.transitionProperty==='translate')||parseFloat(getComputedStyle(stack).translate)!==24)throw new Error(name+' did not disable spacing motion');
           InspectorUtils.removePseudoClassLock(tab,':hover');set(name==='disabled'?true:name==='instant'?false:0);gates.push(name);
         }
         return {cases,gates};
@@ -423,7 +427,8 @@ def check_sidebar_hover(m):
 
 
 def check(m, root, arc, transparent):
-    mods = ["download-prompt", "glassflow", "glassflow-library", "groupflow", "iconflow", "tab-router", "tab-unloader", "zen-turbo", "mediaflow"]
+    # Every mod but zenslop, which only forwards old installs to Mediaflow.
+    mods = sorted(theme.parent.name for theme in root.glob("*/theme.json") if theme.parent.name != "zenslop")
     prefs = {}
     pref_files = [p / "preferences.json" for p in [arc, transparent] if p] + [root / mod / "preferences.json" for mod in mods]
     for path in pref_files:
@@ -433,10 +438,10 @@ def check(m, root, arc, transparent):
     prefs.update({"zzglass.sidebar.enabled": True, "zzglass.sidebar.blur": True,
                   "zzglass.sidebar.blur-radius": "12px", "zzglass.sidebar.panel-opacity": "0%",
                   "zzrouter.enabled": False, "zzunload.enabled": False,
-                  "zzturbo.startup-warmup": False, "zzturbo.hover-warmup": False,
+                  "zzturbo.startup-warmup": False,
                   "zen.view.compact.hide-tabbar": True, "zen.theme.acrylic-sidebar": True,
                   "arc.force-blur-rendering": False})
-    for pack in ["network", "predictor", "io-jank", "media", "gfx"]:
+    for pack in ["network", "predictor", "media", "gfx"]:
         prefs["zzturbo.pack-" + pack] = False
     m.script("for (const [k,v] of Object.entries(" + json.dumps(prefs) + ")) {"
              "Services.prefs[typeof v==='boolean'?'setBoolPref':typeof v==='number'?'setIntPref':'setStringPref'](k,v); } return true;")
@@ -544,7 +549,7 @@ def check(m, root, arc, transparent):
       const ss=Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService);
       ss.unregisterSheet(zzsmokeMediaSheet,ss.USER_SHEET);
       delete window.zzsmokeMediaEvents;delete window.zzsmokeMediaListen;delete window.zzsmokeMediaSheet;return true;""")
-    m.script("document.documentElement.removeAttribute('animating-background'); DownloadPrompt.preview(); return true;")
+    m.script("DownloadPrompt.preview(); return true;")
     modal = m.script("""let d=document.getElementById('zzdl-ask');return {modal:d.matches(':modal'),
       focus:d.contains(document.activeElement),name:d.getAttribute('aria-labelledby')};""")
     assert modal == {"modal": True, "focus": True, "name": "zzdl-title"}, modal
@@ -1298,7 +1303,7 @@ def check_probe_loader(m, root):
         result['consoleOrigin']={'nativeScriptErrorSource':True,'clipboard':True,
           'cleaned':m.script('return !window.__zzConsoleOriginProbe;')}
         m.script('''for(const k of ['network','predictor','media','gfx'])Services.prefs.setBoolPref('zzturbo.pack-'+k,false);
-          Services.prefs.setBoolPref('zzturbo.pack-io-jank',true);Services.prefs.setBoolPref('zzturbo.startup-warmup',false);
+          Services.prefs.setBoolPref('zzturbo.startup-warmup',false);
           Services.prefs.setStringPref('zzturbo.saved-prefs',JSON.stringify({'browser.sessionstore.interval':{had:false,applied:30000}}));
           Services.prefs.setIntPref('browser.sessionstore.interval',30000);return true;''')
         m.script((root/'zen-turbo/zen-turbo.uc.js').read_text()+'\nreturn true;')

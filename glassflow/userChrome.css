@@ -1,26 +1,14 @@
 /* ============================================================
-   Glassflow v3.1
+   Glassflow
 
    Injected as a USER_SHEET, so !important here outranks author
    !important from Arc, SuperPins and Advanced Tab Groups regardless of
    specificity.
 
-   v3.1 fixes:
-     - Direction defaults are declared BEFORE the media-query overrides.
-       In 3.0 the default came last and silently won every time.
-     - End tint is an absolute percentage. 3.0 multiplied two
-       percentages in calc(), which is invalid CSS and made the whole
-       background-image invalid, so nothing rendered.
-     - Sidebar rules no longer require #navigator-toolbox as an ancestor.
-     - Glass can be fully colourless: blur without saturate/brightness.
-     - Folder styling removed, to be revisited.
-
-   v3.10: font-size is now set, deliberately, behind its own master switch
-   (zzglass.font.size.enabled), replicating and extending Customize Font
-   Size's exact scope so this can replace it. Every other version of this
-   file left font-size alone specifically so CFS kept ownership; that
-   ownership model is retired in favour of one mod doing the whole job.
-   Turn CFS off if you enable this, rather than running both.
+   Each setting's default value is declared before the media queries that
+   override it. Font sizes have their own switch (zzglass.font.size.enabled)
+   covering Customize Font Size's surfaces; turn that mod off rather than
+   running both.
    ============================================================ */
 
 :root {
@@ -160,24 +148,15 @@
 
 :root {
   /* ---- base values for every gated token ----------------------------
-     Each of these was previously set ONLY inside a pref media query. Sine
-     does not inject pref variables until something triggers a rebuild
-     (measured on a live profile: absent on every launch), and a media
-     query keyed on an absent pref does not match -- so the token stayed
-     undefined, its var() had no fallback, and the whole declaration was
-     invalid at computed-value time. That is why the sidebar had no
-     background until a mod reload: --zzg-sdir was undefined, so the
-     gradient and then --zzg-sb-img were invalid.
-
-     These defaults reproduce the shipped look exactly; a matching media
-     query still overrides any of them. ------------------------------- */
+     A media query keyed on an unset pref does not match, so each token a
+     query sets has a value here too; without one its var() would leave the
+     whole declaration invalid. A matching media query overrides any of them.
+     ------------------------------------------------------------------- */
   --zzg-sdir: to right;          /* sidebar gradient direction */
   --zzg-dir: 135deg;             /* tab gradient direction */
   --zzg-spread: 50%;             /* tab gradient spread */
   --zzg-a: var(--zzg-fallback);  /* gradient stop A */
   --zzg-b: transparent;          /* gradient stop B */
-  --zzg-rim-t: 1px;              /* rim highlight thickness */
-  --zzg-rim-w: 1px;              /* rim ring thickness */
   --zzg-btn-size: 12px;
   --zzg-btn-gap: 8px;
   --zzg-btn-op: 1;
@@ -393,19 +372,18 @@
   :is(#navigator-toolbox, .zen-library-space-tabs) .tab-group-label-container { --zzgf-calculated-rim: initial; }
 }
 :is(#navigator-toolbox, .zen-library-space-tabs) :is(.tab-label, .tab-group-label, .tab-icon-stack) {
-  transition: color var(--zzg-motion-light) var(--zzg-motion-ease), opacity var(--zzg-motion-time) var(--zzg-motion-ease), filter var(--zzg-motion-time) var(--zzg-motion-ease), margin-inline-start var(--zzg-motion-time) var(--zzg-motion-ease), text-indent var(--zzg-motion-time) var(--zzg-motion-ease), translate var(--zzg-motion-time) var(--zzg-motion-ease) !important;
+  transition: color var(--zzg-motion-light) var(--zzg-motion-ease), opacity var(--zzg-motion-time) var(--zzg-motion-ease), filter var(--zzg-motion-time) var(--zzg-motion-ease), text-indent var(--zzg-motion-time) var(--zzg-motion-ease), translate var(--zzg-motion-time) var(--zzg-motion-ease) !important;
 }
 
 /* ---------- Selected tab ---------- */
 @media (-moz-pref("zzglass.selected.enabled")) {
-  /* defaults first, overrides after -- reversing this was the 3.0 bug */
+  /* defaults first; the settings below override them */
   :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) {
     --zzg-a: color-mix(in srgb, var(--zzg-accent) var(--zzglass-selected-tint, 42%), transparent);
     --zzg-b: transparent;
     --zzg-spread: var(--zzglass-selected-spread, 100%);
     --zzg-dir: 90deg;
   }
-  @media (-moz-pref("zzglass.selected.direction", 0)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-dir: 90deg; } }
   @media (-moz-pref("zzglass.selected.direction", 1)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-dir: 270deg; } }
   @media (-moz-pref("zzglass.selected.direction", 2)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-dir: 180deg; } }
   @media (-moz-pref("zzglass.selected.direction", 3)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-dir: 0deg; } }
@@ -448,9 +426,6 @@
       --zzg-ring-width: var(--zzglass-edges-selected-ring-width, 1px); }
     }
   }
-  @media (-moz-pref("zzglass.selected.rim")) and (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.edges.selected-edge", 0)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-edge-angle: 90deg; }
-  }
   @media (-moz-pref("zzglass.selected.rim")) and (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.edges.selected-edge", 1)) {
     :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-edge-angle: 270deg; }
   }
@@ -470,14 +445,13 @@
 
 /* ---------- Unselected tab ---------- */
 @media (-moz-pref("zzglass.unselected.enabled")) {
-  /* defaults first, overrides after -- reversing this was the 3.0 bug */
+  /* defaults first; the settings below override them */
   :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) {
     --zzg-a: color-mix(in srgb, var(--zzg-accent) var(--zzglass-unselected-tint, 12%), transparent);
     --zzg-b: transparent;
     --zzg-spread: var(--zzglass-unselected-spread, 100%);
     --zzg-dir: 90deg;
   }
-  @media (-moz-pref("zzglass.unselected.direction", 0)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-dir: 90deg; } }
   @media (-moz-pref("zzglass.unselected.direction", 1)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-dir: 270deg; } }
   @media (-moz-pref("zzglass.unselected.direction", 2)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-dir: 180deg; } }
   @media (-moz-pref("zzglass.unselected.direction", 3)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-dir: 0deg; } }
@@ -520,9 +494,6 @@
       --zzg-ring-width: var(--zzglass-edges-unselected-ring-width, 1px); }
     }
   }
-  @media (-moz-pref("zzglass.unselected.rim")) and (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.edges.unselected-edge", 0)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-edge-angle: 90deg; }
-  }
   @media (-moz-pref("zzglass.unselected.rim")) and (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.edges.unselected-edge", 1)) {
     :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-edge-angle: 270deg; }
   }
@@ -542,14 +513,13 @@
 
 /* ---------- Hovered tab ---------- */
 @media (-moz-pref("zzglass.hover.enabled")) {
-  /* defaults first, overrides after -- reversing this was the 3.0 bug */
+  /* defaults first; the settings below override them */
   :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover {
     --zzg-a: color-mix(in srgb, var(--zzg-accent) var(--zzglass-hover-tint, 24%), transparent);
     --zzg-b: transparent;
     --zzg-spread: var(--zzglass-hover-spread, 100%);
     --zzg-dir: 90deg;
   }
-  @media (-moz-pref("zzglass.hover.direction", 0)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-dir: 90deg; } }
   @media (-moz-pref("zzglass.hover.direction", 1)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-dir: 270deg; } }
   @media (-moz-pref("zzglass.hover.direction", 2)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-dir: 180deg; } }
   @media (-moz-pref("zzglass.hover.direction", 3)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-dir: 0deg; } }
@@ -592,6 +562,8 @@
       --zzg-ring-width: var(--zzglass-edges-hover-ring-width, 1px); }
     }
   }
+  /* Restates the default because a hovered unloaded tab also matches the
+     Unloaded rules below, which would otherwise give it their edge. */
   @media (-moz-pref("zzglass.hover.rim")) and (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.edges.hover-edge", 0)) {
     :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-edge-angle: 90deg; }
   }
@@ -614,7 +586,7 @@
 
 /* ---------- Unloaded tab ---------- */
 @media (-moz-pref("zzglass.pending.enabled")) {
-  /* defaults first, overrides after -- reversing this was the 3.0 bug */
+  /* defaults first; the settings below override them */
   :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] {
     --zzg-a: color-mix(in srgb, var(--zzg-accent) var(--zzglass-pending-tint, 7%), transparent);
     --zzg-b: transparent;
@@ -622,7 +594,6 @@
     --zzg-dir: 270deg;
   }
   @media (-moz-pref("zzglass.pending.direction", 0)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-dir: 90deg; } }
-  @media (-moz-pref("zzglass.pending.direction", 1)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-dir: 270deg; } }
   @media (-moz-pref("zzglass.pending.direction", 2)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-dir: 180deg; } }
   @media (-moz-pref("zzglass.pending.direction", 3)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-dir: 0deg; } }
   @media (-moz-pref("zzglass.pending.direction", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-dir: 135deg; } }
@@ -657,9 +628,9 @@
      tab's own colours (tint, rim, marks) stay as the state draws them. */
   :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] :is(.tab-icon-stack, .tab-label-container) {
     opacity: var(--zzglass-pending-opacity, 0.62) !important;
-    /* Keep close-button spacing in the transition list while unloaded. */
+    /* The favicon keeps its close-left slide while unloaded. */
     transition: opacity 180ms ease-out, filter 180ms ease-out,
-      margin-inline-start var(--zzg-motion-time) var(--zzg-motion-ease) !important;
+      translate var(--zzg-motion-time) var(--zzg-motion-ease) !important;
   }
   @media (-moz-pref("zzglass.pending.greyscale")) {
     :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] .tab-icon-stack { filter: grayscale(1) !important; }
@@ -693,9 +664,6 @@
       --zzg-ring-width: var(--zzglass-edges-pending-ring-width, 1px); }
     }
   }
-  @media (-moz-pref("zzglass.pending.rim")) and (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.edges.pending-edge", 0)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-edge-angle: 90deg; }
-  }
   @media (-moz-pref("zzglass.pending.rim")) and (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.edges.pending-edge", 1)) {
     :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-edge-angle: 270deg; }
   }
@@ -716,8 +684,7 @@
 /* ============================================================
    TAB STRIP
    ============================================================ */
-:root { --zzg-tdir: to right; --zzg-sdir: to right; }
-@media (-moz-pref("zzglass.strip.direction", 0)) { :root { --zzg-tdir: to right; } }
+:root { --zzg-tdir: to right; }
 @media (-moz-pref("zzglass.strip.direction", 1)) { :root { --zzg-tdir: to left; } }
 @media (-moz-pref("zzglass.strip.direction", 2)) { :root { --zzg-tdir: to bottom; } }
 @media (-moz-pref("zzglass.strip.direction", 3)) { :root { --zzg-tdir: to top; } }
@@ -725,7 +692,6 @@
 @media (-moz-pref("zzglass.strip.direction", 5)) { :root { --zzg-tdir: 315deg; } }
 @media (-moz-pref("zzglass.strip.direction", 6)) { :root { --zzg-tdir: 45deg; } }
 @media (-moz-pref("zzglass.strip.direction", 7)) { :root { --zzg-tdir: 225deg; } }
-@media (-moz-pref("zzglass.sidebar.direction", 0)) { :root { --zzg-sdir: to right; } }
 @media (-moz-pref("zzglass.sidebar.direction", 1)) { :root { --zzg-sdir: to left; } }
 @media (-moz-pref("zzglass.sidebar.direction", 2)) { :root { --zzg-sdir: to bottom; } }
 @media (-moz-pref("zzglass.sidebar.direction", 3)) { :root { --zzg-sdir: to top; } }
@@ -873,7 +839,7 @@
 }
 
 /* ============================================================
-   SIDEBAR (v3.35)
+   SIDEBAR
 
    Two states, two surfaces, no guessing. Docked: #navigator-toolbox is
    the sidebar, and it gets the tint gradient. Compact: Zen floats
@@ -931,7 +897,6 @@
   @media (-moz-pref("zzglass.sidebar.panel-end-mode", 3)) { :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background { --zzg-pb: var(--zzg-pa); } }
   @media (-moz-pref("zzglass.sidebar.panel-direction", 0)) { :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background { --zzg-pdir: to right; } }
   @media (-moz-pref("zzglass.sidebar.panel-direction", 1)) { :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background { --zzg-pdir: to left; } }
-  @media (-moz-pref("zzglass.sidebar.panel-direction", 2)) { :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background { --zzg-pdir: to bottom; } }
   @media (-moz-pref("zzglass.sidebar.panel-direction", 3)) { :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background { --zzg-pdir: to top; } }
   @media (-moz-pref("zzglass.sidebar.panel-direction", 4)) { :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background { --zzg-pdir: 135deg; } }
   @media (-moz-pref("zzglass.sidebar.panel-direction", 5)) { :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background { --zzg-pdir: 315deg; } }
@@ -1247,12 +1212,10 @@
 
 /* ============================================================
    INTERFACE FONT
-   Chrome only, never web content. Sets no font-size, so the
-   Customize Font Size mod keeps ownership of sizing.
+   Chrome only, never web content. Font sizes have their own switch.
    ============================================================ */
 
 :root { --zzg-font: var(--zzglass-font-custom, system-ui); }
-@media (-moz-pref("zzglass.font.preset", 0)) { :root { --zzg-font: var(--zzglass-font-custom, system-ui); } }
 @media (-moz-pref("zzglass.font.preset", 1)) { :root { --zzg-font: system-ui; } }
 @media (-moz-pref("zzglass.font.preset", 20)) { :root { --zzg-font: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui; } }
 @media (-moz-pref("zzglass.font.preset", 31)) { :root { --zzg-font: "Atkinson Hyperlegible", system-ui; } }
@@ -1307,23 +1270,17 @@
 }
 
 @media (-moz-pref("zzglass.font.enabled")) {
+  /* The sidebar, the Library's copies of tabs and folders, the URL bar
+     wherever Zen places it, and popups. */
   :root,
   #navigator-toolbox,
   #navigator-toolbox *,
-  #titlebar,
-  #titlebar *,
   .tabbrowser-tab,
   .tabbrowser-tab *,
-  .tab-label,
-  .tab-label-container,
   .tab-group-label,
   .tab-group-label-container,
   #urlbar,
   #urlbar *,
-  #zen-sidebar-foot-buttons,
-  #zen-sidebar-foot-buttons *,
-  .zen-essentials-container,
-  .zen-essentials-container *,
   panel, panel *,
   menupopup, menupopup *,
   menuitem, toolbarbutton, label, description {
@@ -1338,13 +1295,11 @@
 
 
 /* ============================================================
-   Page blur that follows the sidebar (v3.26)
+   Page blur that follows the sidebar
 
-   The page strip in userContent.css cannot see the browser, so its
-   bounds have to be typed in and it never quite matches. This does the
-   opposite: it blurs the page from CHROME, where the sidebar's state IS
-   known, so it turns on and off exactly with the sidebar and needs no
-   measurements at all.
+   The page is blurred from chrome, where the sidebar's state is known,
+   so it turns on and off exactly with the sidebar and needs no
+   measurements.
 
    The mechanism is `filter` on the content container, not
    `backdrop-filter` on the sidebar -- a filter applies to the rendered
@@ -1364,11 +1319,7 @@
   :root[zen-compact-mode="true"] #navigator-toolbox:is(
     [zen-has-hover], [zen-user-show], [zen-has-empty-tab],
     [flash-popup], [has-popup-menu], [movingtab], [zen-compact-mode-active]
-  ) ~ #zen-appcontent-wrapper .browserSidebarContainer,
-  :root[zen-compact-mode="true"] #navigator-toolbox:is(
-    [zen-has-hover], [zen-user-show], [zen-has-empty-tab],
-    [flash-popup], [has-popup-menu], [movingtab], [zen-compact-mode-active]
-  ) ~ * .browserSidebarContainer {
+  ) ~ #zen-appcontent-wrapper .browserSidebarContainer {
     filter: blur(var(--zzglass-sidebar-page-follow-radius, 6px))
             saturate(var(--zzglass-sidebar-page-follow-saturate, 1)) !important;
   }
@@ -1377,8 +1328,7 @@
    there; this covers people who keep compact off but still want the
    page to soften whenever the sidebar is interacted with. */
 @media (-moz-pref("zzglass.sidebar.page-follow")) and (-moz-pref("zzglass.sidebar.page-follow-always")) {
-  #navigator-toolbox:hover ~ #zen-appcontent-wrapper .browserSidebarContainer,
-  #navigator-toolbox:hover ~ * .browserSidebarContainer {
+  #navigator-toolbox:hover ~ #zen-appcontent-wrapper .browserSidebarContainer {
     filter: blur(var(--zzglass-sidebar-page-follow-radius, 6px))
             saturate(var(--zzglass-sidebar-page-follow-saturate, 1)) !important;
   }
@@ -1869,7 +1819,7 @@
   --zzg-follow-angle: inherit; --zzg-follow-gradient: inherit;
 }
 
-@media (-moz-pref("zzglass.sidebar.enabled")) and (-moz-pref("zzglass.sidebar.rim")) { #navigator-toolbox { --zzg-edge-owner: plain; } }
+@media (-moz-pref("zzglass.sidebar.enabled")) and (-moz-pref("zzglass.sidebar.rim")) { :root:not([zen-compact-mode="true"]) #navigator-toolbox { --zzg-edge-owner: plain; } }
 @media (-moz-pref("zzglass.sidebar.enabled")) and (-moz-pref("zzglass.sidebar.panel-border", 2)) { #zen-toolbar-background { --zzg-edge-owner: plain; } }
 @media (-moz-pref("zzglass.buttons.enabled")) and (-moz-pref("zzglass.buttons.rim")) { .titlebar-button { --zzg-edge-owner: plain; } }
 @media (-moz-pref("zzglass.workspaces.enabled")) {

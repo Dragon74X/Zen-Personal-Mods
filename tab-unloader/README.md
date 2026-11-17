@@ -25,7 +25,7 @@ Every sweep, each tab is checked in order and kept if any rule matches:
 | Active tab | `tab.selected` | always |
 | Already unloaded | `pending` attribute | always |
 | Closing, or has no browser | `tab.closing`, no `linkedBrowser` | always |
-| Zen's blank placeholder tab | `zen-empty-tab`, `_forZenEmptyTab` | always |
+| Zen's blank placeholder tab | `zen-empty-tab` attribute | always |
 | You chose **Keep Loaded** on its tab menu (until the window closes) | Firefox's `undiscardable`, which its low-memory unloader honours too | always |
 | Not idle long enough | `tab.lastAccessed` vs the idle threshold in seconds | always |
 | Last tab you used in its workspace | recorded on `TabSelect`, per workspace | on |
@@ -36,7 +36,7 @@ Every sweep, each tab is checked in order and kept if any rule matches:
 | Essential | `zen-essential="true"` | on |
 | Pinned | `tab.pinned` | on |
 | Glance | `zen-glance-tab` | on |
-| Split view | `splitView`, `split-view`, or a `split-view-group` parent | on |
+| Split view | `split-view` attribute, or a `split-view-group` parent | on |
 | Native browser protection | `undiscardable` or `zenModeActive` | always |
 | Unsubmitted form data | a real field entry in `SessionStore.getTabState().formdata`, unless the site is exempted | on |
 | URL matches your exclusion list | substring match | list is empty by default |
@@ -74,7 +74,7 @@ Each discard is wrapped individually, so one failure cannot abort the sweep.
 
 ## Cost
 
-The sweep is an attribute scan over open tabs on a `setInterval`. There is no per-tab observer, no MutationObserver, and no work at all while disabled -- the interval is not scheduled until the master switch is on, and a pref observer reschedules it rather than polling.
+The sweep is an attribute scan over open tabs on a `setInterval`, scheduled only while the master switch is on; a pref observer reschedules it rather than polling. There is no per-tab observer and no MutationObserver. While automatic unloading is off, what still runs is the record of each workspace's last tab on `TabSelect` and `TabClose`, and the Keep Loaded and folder menu entries when those menus open.
 
 The form-data check serializes tab state and runs after URL and attribute checks. An eligible tab also incurs a native asynchronous state flush before discard.
 

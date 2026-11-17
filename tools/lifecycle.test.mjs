@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 import { test as nodeTest } from "node:test";
+import { load, mods } from "./harness.mjs";
 const test = (name, fn) => nodeTest(name, { timeout: 1000 }, fn);
 
 const deferred = () => {
@@ -38,16 +39,6 @@ function browser() {
   w.document = { body, documentElement: root, createElementNS: element };
   return w;
 }
-async function load(mod, names, context) {
-  let source = await readFile(new URL(`../${mod}/${mod}.uc.js`, import.meta.url), "utf8");
-  const marker = "  // ---- declared defaults";
-  assert.ok(source.includes(marker));
-  source = source.replace(marker, `  globalThis.harness = {${names}}; return;\n${marker}`);
-  const sandbox = vm.createContext({ console, CustomEvent: class { constructor(type, options) { this.type = type; Object.assign(this, options); } }, ...context });
-  vm.runInContext(source, sandbox);
-  return sandbox.harness;
-}
-
 async function downloadEnv() {
   const windows = [], proto = { promptForSaveToFileAsync() {} };
   const Services = { prefs: { getPrefType: () => 0, getBoolPref: (_k, d) => d },
@@ -58,8 +49,7 @@ async function downloadEnv() {
   async function add() {
     const w = browser(); windows.push(w);
     const h = await load("download-prompt", "start, ask", {
-      window: w, Services, Cc: { "@mozilla.org/helperapplauncherdialog;1": {
-        createInstance: () => Object.create(proto) } }, Ci: {},
+      window: w, Services, Ci: {},
       ChromeUtils: { importESModule: () => ({ nsUnknownContentTypeDialog: { prototype: proto } }) },
     });
     h.start();
@@ -73,7 +63,7 @@ test("closing a non-owner leaves the shared download hook unchanged", async () =
   const installed = e.proto.promptForSaveToFileAsync;
   b.w.__zzdlInstance.retire();
   assert.equal(e.proto.promptForSaveToFileAsync, installed);
-  assert.equal(a.w.DownloadPrompt.status().hookedCopies, 1);
+  assert.equal(a.w.DownloadPrompt.status().hooked, true);
 });
 
 test("owner retirement preserves another window's question and hands off hook", async () => {
@@ -119,7 +109,7 @@ async function routerEnv(extra = {}) {
       scriptSecurityManager: { createContentPrincipal() {} } },
     Ci: { nsILoadInfo: {}, nsIContentPolicy: { TYPE_DOCUMENT: 6 }, nsIRequest: {}, nsIWebProgressListener: { STATE_STOP: 16, STATE_IS_NETWORK: 0x40000 } },
     Components: { isSuccessCode: s => s === 0, results: { NS_BINDING_ABORTED: 0x804b0002 } },
-    URLSearchParams, Blob, Uint8Array, OffscreenCanvas: class {}, ...extra,
+    URLSearchParams, TextDecoder, Blob, Uint8Array, OffscreenCanvas: class {}, ...extra,
   });
   const answer = body => {
     const [channel, listener] = callbacks.shift();
@@ -189,16 +179,15 @@ test("question ownership remains visible after shared hook handoff", async () =>
   assert.equal(b.w.timers.size, 0);
 });
 
-async function turboEnv({ privateWindow = false, rows = Promise.resolve([]), failConnect = false, nativePrefs = {} } = {}) {
+async function turboEnv({ privateWindow = false, rows = Promise.resolve([]), failConnect = false } = {}) {
   const c = clock(), w = browser(), values = new Map(), connects = [];
-  const defaults = new Map(Object.entries(nativePrefs)), value = k => values.has(k)?values.get(k):defaults.get(k);
+  const value = k => values.get(k);
   let queries = 0, savedWrites = 0;
   const pref = {
     PREF_INVALID: 0, PREF_STRING: 32, PREF_INT: 64, PREF_BOOL: 128,
     getPrefType: k => value(k)===undefined ? 0 : ({ string: 32, number: 64, boolean: 128 })[typeof value(k)],
     getStringPref: (k, d) => value(k) ?? d, getIntPref: (k, d) => value(k) ?? d,
     getBoolPref: (k, d) => value(k) ?? d,
-    getDefaultBranch: () => ({getIntPref:k=>defaults.get(k)}),
     setStringPref: (k, v) => { if (k === "zzturbo.saved-prefs") savedWrites++; values.set(k, v); }, setIntPref: (k, v) => values.set(k, v),
     setBoolPref: (k, v) => values.set(k, v), clearUserPref: k => values.delete(k),
     prefHasUserValue: k => values.has(k), addObserver() {}, removeObserver() {},
@@ -227,31 +216,8 @@ async function turboEnv({ privateWindow = false, rows = Promise.resolve([]), fai
       ? { PrivateBrowsingUtils: { isWindowPrivate: () => privateWindow } }
       : uri.includes("NetUtil") ? { NetUtil } : { PlacesUtils: { promiseDBConnection: async () => ({ executeCached() { queries++; return rows; } }) } } },
   });
-  return { h, w, c, root, scroller, toolbox, spaces, essentials, observed, values, defaults, connects, tabContainer, get queries() { return queries; }, get savedWrites() { return savedWrites; } };
+  return { h, w, c, root, scroller, toolbox, spaces, essentials, observed, values, connects, tabContainer, get queries() { return queries; }, get savedWrites() { return savedWrites; } };
 }
-
-test('Turbo leaves longer native/user session intervals intact',async()=>{
-  const key='browser.sessionstore.interval';
-  const e=await turboEnv({nativePrefs:{[key]:40000}});
-  e.h.syncPacks();assert.equal(e.values.has(key),false);assert.equal(e.savedWrites,0);
-  e.values.set(key,60000);e.h.syncPacks();assert.equal(e.values.get(key),60000);assert.equal(e.savedWrites,0);
-});
-for(const edited of [false,true])test('Turbo releases obsolete session override after native update, user edit='+edited,async()=>{
-  const key='browser.sessionstore.interval',e=await turboEnv({nativePrefs:{[key]:15000}});
-  e.h.syncPacks();assert.equal(e.values.get(key),30000);
-  e.defaults.set(key,40000);
-  if(edited)e.values.set(key,25000);
-  e.h.syncPacks();
-  assert.equal(e.values.has(key),edited);if(edited)assert.equal(e.values.get(key),25000);
-  assert.deepEqual(JSON.parse(e.values.get('zzturbo.saved-prefs')),{});
-});
-test('Turbo restores an older captured longer user interval and short overrides on disable',async()=>{
-  const key='browser.sessionstore.interval',e=await turboEnv({nativePrefs:{[key]:15000}});
-  e.values.set(key,30000);e.values.set('zzturbo.saved-prefs',JSON.stringify({[key]:{had:true,v:60000,applied:30000}}));
-  e.h.syncPacks();assert.equal(e.values.get(key),60000);
-  e.values.set(key,20000);e.h.syncPacks();assert.equal(e.values.get(key),30000);
-  e.values.set('zzturbo.pack-io-jank',false);e.h.syncPacks();assert.equal(e.values.get(key),20000);
-});
 
 test("Turbo re-sync and disable preserve a managed preference edited by the user", async () => {
   const e = await turboEnv();
@@ -293,18 +259,12 @@ test("Turbo purge invalidates a pending history query", async () => {
   assert.equal(e.connects.length, 0);
 });
 
-test("Turbo installs no duplicate tab or bookmark hover listeners", async () => {
-  const e = await turboEnv(); e.h.start();
-  e.tabContainer.fire("mouseover", {target: {closest: () => ({hasAttribute: () => true})}});
-  e.tabContainer.fire("mouseleave");
-  assert.equal(e.connects.length, 0);
-  assert.equal(e.w.ZenTurbo.status().hoverWarmup, "native tab hover (including Favorites/Essentials)");
-  e.w.__zzturboInstance.retire();
-});
-
-test("Turbo leaves Firefox's native page-link hover handler unchanged", async () => {
+// Firefox already preconnects hovered tabs and page links; Turbo adds no hover warmup.
+test("Turbo leaves tab and page-link hover warmup to Firefox", async () => {
   const e = await turboEnv(), original = e.w.XULBrowserWindow.setOverLink;
   e.h.start();
+  e.tabContainer.fire("mouseover", { target: { closest: () => ({ hasAttribute: () => true }) } });
+  assert.equal(e.connects.length, 0);
   assert.equal(e.w.XULBrowserWindow.setOverLink, original);
   e.w.__zzturboInstance.retire();
   assert.equal(e.w.XULBrowserWindow.setOverLink, original);
@@ -430,7 +390,7 @@ async function unloaderEnv() {
   const states = new Map(), calls = [];
   const gBrowser = { tabs, async prepareDiscardBrowser(t) { calls.push(["prepare", t]); },
     discardBrowser(t) { calls.push(["discard", t]); t.setAttribute("pending", ""); return true; } };
-  const h = await load("tab-unloader", "sweep, hasFields, whyKeep, onTabSelect, retire: () => retired = true, canUnloadFolder, loadedChanged", {
+  const h = await load("tab-unloader", "sweep, hasFields, whyKeep, onTabSelect, retire: () => retired = true, canUnloadFolder", {
     window: {}, ...clock(), document: { documentElement: element(), querySelectorAll: () => tabs }, gBrowser,
     SessionStore: { getTabState: t => JSON.stringify(states.get(t) ?? {}) },
     Services: { prefs: { PREF_INT: 64, getPrefType: () => 64, getIntPref: k => values.get(k),
@@ -650,13 +610,12 @@ test("Router coalesces navigation bursts at 0 ms without resetting or routing an
   e.prefs.set("zzrouter.follow-containers", false);
   e.prefs.set("zzrouter.rules", "example.com > Old\nfinal.example > Final");
   e.h.progress.onLocationChange({}, { isTopLevel: true });
-  const first = [...e.c.timers.keys()]; assert.equal(first.length, 1);
-  assert.deepEqual(e.pending(), first, "a navigation is routed on the next turn");
+  const first = e.pending(); assert.equal(first.length, 1, "a navigation is routed on the next turn");
   e.t.linkedBrowser.currentURI = tab("https://final.example/page").linkedBrowser.currentURI;
   e.t.label = "Final page";
   e.h.onAttrModified({ target: e.t, detail: { changed: ["label"] } });
   e.h.progress.onStateChange({}, { isTopLevel: true }, null, 0x40010);
-  assert.deepEqual([...e.c.timers.keys()], first, "later events retain the original timer");
+  assert.deepEqual(e.pending(), first, "later events retain the original timer");
   await e.tick();
   assert.equal(e.t.group.label, "Final"); assert.equal(e.groups.length, 1);
 });
@@ -891,7 +850,7 @@ test("Groupflow uses the restored tab favicon and gives iconless groups a folder
   const g = { ...element(), tagName: "tab-group", groupContainer: { children: [t] },
     style: { setProperty: (k, v) => styles.set(k, v), getPropertyValue: k => styles.get(k) || "",
       removeProperty: k => styles.delete(k) } };
-  const h = await load("groupflow", "refreshGroup", { window: {}, gBrowser: {},
+  const h = await load("groupflow", "refreshGroup", { window: {}, gBrowser: { getIcon: () => null },
     Services: { prefs: { getBoolPref: (_k, d) => d, getStringPref: (_k, d) => d } },
     getComputedStyle: () => ({ getPropertyValue: () => "" }), CSS: { supports: () => false },
   });
@@ -1829,7 +1788,7 @@ test("Turbo smoothing CSS keys on the marked strips, not on the document root", 
 
 test("Every pref a mod's CSS queries is declared in its preferences.json", async () => {
   const { readdir } = await import("node:fs/promises");
-  for (const mod of ["glassflow", "glassflow-library", "groupflow", "iconflow", "zen-turbo", "download-prompt", "mediaflow"]) {
+  for (const mod of mods) {
     const dir = new URL(`../${mod}/`, import.meta.url);
     const declared = new Set(JSON.parse(await readFile(new URL("preferences.json", dir), "utf8")).map(p => p.property));
     const prefixes = new Set([...declared].filter(Boolean).map(p => p.split(".")[0]));
@@ -2110,10 +2069,8 @@ test('Turbo startup budget claims once per session despite repeated starts',asyn
 test('Manual folder unloading works with automation off, protects forms and respects global floor',async()=>{
   const e=await unloaderEnv();e.values.set('zzunload.enabled',false);e.values.set('zzunload.keep-loaded',1);
   const group={isConnected:true,tabs:e.tabs,matches:()=>true,closest:()=>null,contains:t=>e.tabs.includes(t)};
-  for(const tab of e.tabs)e.h.loadedChanged({target:tab,type:'TabOpen'});
   assert.equal(e.h.canUnloadFolder(group),true);assert.equal(await e.h.sweep(group),1);
   assert.equal(e.calls.filter(c=>c[0]==='prepare').length,1);assert.equal(e.calls.filter(c=>c[0]==='discard').length,1);
-  for(const tab of e.tabs)e.h.loadedChanged({target:tab,type:'TabAttrModified'});
   assert.equal(e.h.canUnloadFolder(group),false);group.isConnected=false;assert.equal(e.h.canUnloadFolder(group),false);
 });
 

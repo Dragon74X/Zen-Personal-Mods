@@ -154,7 +154,7 @@ with tempfile.TemporaryDirectory(prefix='zen-state-motion-') as d:
                 im=m.shot();im.save(OUT/f'surface-{surface}.png');crop=im.crop((round(box['x']),round(box['y']),round(box['right']),round(box['bottom'])))
                 hashes.append(hashlib.sha256(crop.tobytes()).hexdigest())
             assert len(set(hashes))==5,hashes
-            actions=m.script('''return (async()=>{
+            actions=m.script(r'''return (async()=>{
               const checks={};
               const group=motionGroup,tab=group.tabs[0];
               Groupflow.editGradient(group);

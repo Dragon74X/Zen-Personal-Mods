@@ -3,8 +3,8 @@ import { readFile, readdir } from "node:fs/promises";
 import { setImmediate as tick } from "node:timers/promises";
 import { test } from "node:test";
 import { installSineUpdateGuard } from "../download-prompt/sine-update-guard.sys.mjs";
+import { mods } from "./harness.mjs";
 
-const mods = ["download-prompt", "glassflow", "glassflow-library", "groupflow", "iconflow", "tab-router", "tab-unloader", "zen-turbo", "mediaflow", "peekflow"];
 const guardName = "sine-update-guard.sys.mjs";
 const root = new URL("../", import.meta.url);
 const deferred = () => {

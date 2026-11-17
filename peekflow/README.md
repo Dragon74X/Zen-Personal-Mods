@@ -31,14 +31,13 @@ you have visited them in this session.
 
 ## Turning it off
 
-Peekflow sets the two Firefox switches above from its own settings. When Sine
-turns Peekflow off in the final active window, it restores the previous values
-and removes user overrides that did not exist before. Later manual edits to
-the native switches survive settings refreshes and shutdown. Changing the
-corresponding Peekflow setting applies that choice again.
-
-Snapshots from versions before 1.2.1 lack the original override-presence flag;
-their saved values are restored as user overrides on the first disable.
+Peekflow sets the two Firefox switches above from its own settings. They are
+handed back only when Peekflow is turned off or removed: the last window
+running it restores the previous values and removes user overrides that did
+not exist before. Closing windows or quitting the browser leaves them as
+Peekflow set them. Later manual edits to the native switches survive settings
+refreshes and shutdown. Changing the corresponding Peekflow setting applies
+that choice again.
 
 ## Not included
 

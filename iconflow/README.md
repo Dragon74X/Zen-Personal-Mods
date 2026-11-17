@@ -177,9 +177,7 @@ text.
 
 The style and colour can also be switched in the picker; both places set the
 same settings. In the workspace switcher Iconflow's icons draw at 18px, a
-little larger than Zen's 14px slot for emoji, since they fill their box. Site
-icons picked under 1.17.0 had a glass plate of their own; it is taken off on
-startup, keeping the picture.
+little larger than Zen's 14px slot for emoji, since they fill their box.
 
 ## Hover motion
 
@@ -228,7 +226,8 @@ The choices are:
 - **Layers, still.**
 
 The shapes use Zen's own 36-frame sprite format, so Zen's hover animation
-plays them. **Same size as the other buttons** draws the icon at 16px.
+plays them. **Same size as the other buttons** draws it at the Icon size,
+like the other buttons.
 
 Releases up to 1.18.0 carried settings chosen in Glassflow 3.50 over once;
 that step was retired in the 9 October 2026 audit

@@ -34,7 +34,7 @@ The question is a labelled native HTML modal dialog appended to `document.body`,
 
 ## Hook ownership and diagnostics
 
-The mod probes both the component wrapper's prototype and the imported module prototype. Distinct objects are patched separately. Candidate count cannot establish which object Firefox invokes; that requires runtime tracing on the installed browser.
+The mod patches the prototype of the module's `nsUnknownContentTypeDialog` class. The download dialog component is an instance of that class, so its method lookup reaches the patch.
 
 Only a window that owns a patch removes it during cleanup. When that window retires, another loaded window can install the replacement. A method wrapped by another patch is left intact.
 
@@ -47,11 +47,11 @@ DownloadPrompt.preview()
 DownloadPrompt.install()
 ```
 
-`status()` reports candidate count, active patch count, each candidate's hook state, and the download-folder setting. These fields inspect JavaScript objects; they do not prove that a real download reached the hook. Repeated `preview()` calls resolve the previous preview before displaying another.
+`status()` reports whether the hook is installed and which window owns it, and the download-folder setting. These fields inspect JavaScript objects; they do not prove that a real download reached the hook. Repeated `preview()` calls resolve the previous preview before displaying another.
 
 ## Verification
 
-Run `node --test tools/lifecycle.test.mjs` from the repository root for mocked lifecycle checks. Actual download behavior, file replacement, styling, and XPConnect prototype identity require testing in Zen.
+Run `node --test tools/lifecycle.test.mjs` from the repository root for mocked lifecycle checks. Actual download behavior, file replacement, and styling require testing in Zen.
 
 ## License
 

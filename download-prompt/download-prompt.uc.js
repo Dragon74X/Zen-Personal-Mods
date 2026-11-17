@@ -17,7 +17,6 @@
   const instance = { generation: (previous?.generation | 0) + 1, retire: () => {} };
   window[INSTANCE_KEY] = instance;
 
-  const MOD_ID = "zz-download-prompt";
   const P = "zzdl.";
 
   // Where the browser decides a download's file name. With "Save files to
@@ -28,7 +27,6 @@
   // path opens the system save dialog, which asks about replacing on its
   // own and is left alone.
   const MODULE = "resource://gre/modules/HelperAppDlg.sys.mjs";
-  const CONTRACT = "@mozilla.org/helperapplauncherdialog;1";
   const MARK = "__zzdlPatch";                 // our patch's marker on the shared prototype
 
   const ASK = 0, REPLACE = 1, KEEP = 2, CANCEL = 3;
@@ -203,58 +201,50 @@
   // ---- the patch ---------------------------------------------------------
   const mine = new Set();                     // the patches this window installed
 
-  // Probe the component wrapper and imported prototype. Distinct candidates
-  // do not prove which one Firefox invokes; keep both until runtime tracing.
-  function targets() {
-    const found = [];
-    const keep = (p) => {
-      if (p && typeof p.promptForSaveToFileAsync === "function" && !found.includes(p)) found.push(p);
-    };
-    try {
-      const inst = Cc[CONTRACT].createInstance(Ci.nsIHelperAppLauncherDialog);
-      keep(Object.getPrototypeOf(inst.wrappedJSObject ?? inst));
-    } catch (e) { note(`could not create the download dialog component: ${e}`); }
-    try { keep(ChromeUtils.importESModule(MODULE)?.nsUnknownContentTypeDialog?.prototype); }
+  // The download dialog component is an instance of this module's class, so
+  // the class prototype is the one every dialog's method lookup reaches.
+  function target() {
+    let proto = null;
+    try { proto = ChromeUtils.importESModule(MODULE)?.nsUnknownContentTypeDialog?.prototype; }
     catch (e) { note(`could not read ${MODULE}: ${e}`); }
-    if (!found.length) note("no hook: this browser's download code is not shaped the way the mod expects");
-    return found;
+    if (typeof proto?.promptForSaveToFileAsync === "function") return proto;
+    note("no hook: this browser's download code is not shaped the way the mod expects");
+    return null;
   }
 
   function install() {
-    let done = 0, held = 0;
-    for (const proto of targets()) {
-      if (proto[MARK]) { held++; continue; }            // this window's copy, or another window's
-      const orig = proto.promptForSaveToFileAsync;
-      const fn = async function (launcher, context, name, ext, forcePrompt) {
-        let handled = false;
-        try { handled = await preflight(this, launcher, context, name, ext, forcePrompt); }
-        catch (e) { note(`failed while deciding: ${e}`); }
-        if (handled) return undefined;
-        try {
-          return orig.apply(this, arguments);
-        } catch (e) {
-          // Inside an async function this would be a rejected promise
-          // nobody reads, where the browser used to see the failure and
-          // cancel: the download would sit forever with no destination.
-          console.error("[DownloadPrompt] the browser's own save handler threw:", e);
-          try { launcher?.saveDestinationAvailable(null); } catch {}
-          return undefined;
-        }
-      };
-      Object.defineProperty(proto, MARK, { value: { fn, orig }, configurable: true });
-      proto.promptForSaveToFileAsync = fn;
-      mine.add(fn);
-      done++;
-    }
-    note(`install: ${done} patched, ${held} already had one`);
-    return done ? "installed" : held ? "already installed" : "no hook";
+    const proto = target();
+    if (!proto) return "no hook";
+    if (proto[MARK]) return "already installed";     // this window's patch, or another window's
+    const orig = proto.promptForSaveToFileAsync;
+    const fn = async function (launcher, context, name, ext, forcePrompt) {
+      let handled = false;
+      try { handled = await preflight(this, launcher, context, name, ext, forcePrompt); }
+      catch (e) { note(`failed while deciding: ${e}`); }
+      if (handled) return undefined;
+      try {
+        return orig.apply(this, arguments);
+      } catch (e) {
+        // Inside an async function this would be a rejected promise
+        // nobody reads, where the browser used to see the failure and
+        // cancel: the download would sit forever with no destination.
+        console.error("[DownloadPrompt] the browser's own save handler threw:", e);
+        try { launcher?.saveDestinationAvailable(null); } catch {}
+        return undefined;
+      }
+    };
+    Object.defineProperty(proto, MARK, { value: { fn, orig }, configurable: true });
+    proto.promptForSaveToFileAsync = fn;
+    mine.add(fn);
+    note("install: patched");
+    return "installed";
   }
 
   function uninstall() {
     let removed = false;
-    for (const proto of targets()) {
-      const held = proto[MARK];
-      if (!held || !mine.has(held.fn) || proto.promptForSaveToFileAsync !== held.fn) continue;   // gone, or something on top
+    const proto = target(), held = proto?.[MARK];
+    // Only this window's patch, and only while nothing sits on top of it.
+    if (held && mine.has(held.fn) && proto.promptForSaveToFileAsync === held.fn) {
       proto.promptForSaveToFileAsync = held.orig;
       delete proto[MARK];
       removed = true;
@@ -274,29 +264,9 @@
   }
 
   // ---- declared defaults --------------------------------------------------
-  // Sine does not write the defaults declared in preferences.json into the
-  // profile, so a row whose condition names an unset pref never shows.
-  async function seedDefaults() {
-    let declared;
-    try {
-      const res = await fetch(`chrome://sine/content/${MOD_ID}/preferences.json`);
-      const json = await res.json();
-      declared = Array.isArray(json) ? json : (json.preferences ?? []);
-    } catch { return false; }
-
-    const S = Services.prefs;
-    for (const pref of declared) {
-      const name = pref?.property;
-      const value = pref?.defaultValue;
-      if (!name || !name.startsWith(P) || value === undefined || value === null) continue;
-      try {
-        if (S.getPrefType(name) !== S.PREF_INVALID) continue;   // already chosen
-        if (typeof value === "boolean") S.setBoolPref(name, value);
-        else if (typeof value === "number") S.setIntPref(name, value);
-        else if (typeof value === "string") S.setStringPref(name, value);
-      } catch {}
-    }
-  }
+  // None are written. The one setting has no dependent rows and no CSS
+  // reader, the settings page shows its declared default while it is unset,
+  // and mode() falls back to that same ASK.
 
   function start() {
     install();
@@ -304,21 +274,17 @@
     window.DownloadPrompt = {
       // Is the hook in, and would a download reach it at all?
       status: () => {
-        const found = targets();
-        const hooks = found.map(proto => {
-          const held = proto[MARK];
-          return !held ? "not installed"
-            : held.fn !== proto.promptForSaveToFileAsync ? "installed, but another patch sits on top"
-            : mine.has(held.fn) ? "installed (this window)" : "installed (another window)";
-        });
+        const proto = target(), held = proto?.[MARK];
         const m = mode();
         let toFolder = null;
         try { toFolder = Services.prefs.getBoolPref("browser.download.useDownloadDir", true); } catch {}
         return {
           setting: m === REPLACE ? "always replace" : m === KEEP ? "always keep both" : "ask",
-          candidateCopies: found.length,
-          hookedCopies: found.filter(proto => proto[MARK]?.fn === proto.promptForSaveToFileAsync).length,
-          hook: hooks.length ? hooks.join("; ") : "the browser's download module could not be read",
+          hooked: !!held && held.fn === proto.promptForSaveToFileAsync,
+          hook: !proto ? "the browser's download module could not be read"
+            : !held ? "not installed"
+            : held.fn !== proto.promptForSaveToFileAsync ? "installed, but another patch sits on top"
+            : mine.has(held.fn) ? "installed (this window)" : "installed (another window)",
           // With this off the browser opens the system save dialog for every
           // download, that dialog asks about replacing itself, and nothing
           // here ever runs.
@@ -350,6 +316,5 @@
     instance.retire = cleanup;
   }
 
-  seedDefaults().catch(() => {});
   try { start(); } catch (e) { console.error("[DownloadPrompt] failed to start:", e); }
 })();

@@ -1,7 +1,12 @@
-const MAX_FRAME_DIMENSION = 480;
+// The longest captured edge when a tick names no size.
+const FALLBACK_FRAME_DIMENSION = 480;
 const CAPTION_TRACK_CHECK_MS = 2000;
+// A video taken out of its document is paused there, and events at a detached
+// element never reach the window's listeners.
+const DETACHED_STOP_EVENTS = ["pause", "ended", "emptied"];
 
-const DEBUG = false;
+// youtube.com and youtube-nocookie.com, and their subdomains.
+const isYouTubeHost = host => /(?:^|\.)youtube(?:-nocookie)?\.com$/.test(host);
 
 export class ZzMediaflowChild extends JSWindowActorChild {
   actorCreated() {
@@ -14,47 +19,10 @@ export class ZzMediaflowChild extends JSWindowActorChild {
     this._captionTrackKey = "";
     this._captionTrackCheckAt = 0;
     this._captionLoadSerial = 0;
-    this._captionLoadPendingKey = "";
-    this._debug(
-      "[Mediaflow/content] actorCreated",
-      this.contentWindow?.location?.href,
-    );
-    // Sine can register this actor after session-restore has already resumed a
-    // video. In that case none of the media events below are replayed, so do
-    // an immediate scan as soon as the actor is forced into existence.
-    this._scanForPlayingVideo();
-
-    const win = this.contentWindow;
-    const doc = win?.document;
-    if (!win || !doc || this._videoObserver) return;
-
-    try {
-      // Only a video arriving can change what plays; the media events below
-      // cover everything else. Scanning the whole page on every DOM change
-      // cost a full query per mutation on pages with no video at all.
-      this._videoObserver = new win.MutationObserver(records => {
-        if (this._video) return;
-        for (const r of records) for (const n of r.addedNodes) {
-          if (n.localName === "video" || n.querySelector?.("video")) { this._scanForPlayingVideo(); return; }
-        }
-      });
-      this._videoObserver.observe(doc, { childList: true, subtree: true });
-    } catch (_) {
-      this._videoObserver = null;
-    }
+    this._captionMissKey = "";
   }
 
-  _debug(...args) {
-    if (!DEBUG) return;
-    try {
-      this.sendAsyncMessage("ZenPiP:Debug", { args: args.map(a => {
-        try { return typeof a === "object" ? JSON.stringify(a) : String(a); }
-        catch (_) { return String(a); }
-      }) });
-    } catch (_) {}
-  }
-
-  _encodeSize(w, h, maxDim = MAX_FRAME_DIMENSION) {
+  _encodeSize(w, h, maxDim) {
     const scale = Math.min(1, maxDim / Math.max(w, h));
     let tw = Math.max(2, Math.round(w * scale));
     let th = Math.max(2, Math.round(h * scale));
@@ -65,7 +33,6 @@ export class ZzMediaflowChild extends JSWindowActorChild {
 
   handleEvent(event) {
     const target = event.target;
-    this._debug("[Mediaflow/content]", event.type, target?.tagName, "muted=", target?.muted, "vw=", target?.videoWidth);
     if (event.type === "DOMContentLoaded" || event.type === "pageshow") {
       this._scanForPlayingVideo();
       return;
@@ -91,7 +58,6 @@ export class ZzMediaflowChild extends JSWindowActorChild {
     }
 
     if (event.type === "volumechange") {
-      if (target === this._video) this._sendPlaybackState();
       if (this._isAudible(target)) {
         if (!this._video && !target.paused && !target.ended) {
           this._tryStart(target);
@@ -142,7 +108,6 @@ export class ZzMediaflowChild extends JSWindowActorChild {
   }
 
   _tryStart(target) {
-    this._debug("[Mediaflow/content] tryStart readyState=", target.readyState, "vw=", target.videoWidth, "audible=", this._isAudible(target), "hasVideo=", !!this._video);
     if (this._video) return;
     if (target.paused || target.ended) return;
     if (target.readyState < 2 || target.videoWidth === 0) return;
@@ -153,10 +118,11 @@ export class ZzMediaflowChild extends JSWindowActorChild {
   }
 
   _attachVideoListeners(video) {
-    const onEnd = (e) => this._stopAndNotify("listener:" + e.type);
-    video.addEventListener("ended", onEnd, { once: true });
-    video.addEventListener("emptied", onEnd, { once: true });
-    this._videoListeners = { onEnd };
+    const onDetached = e => {
+      if (!video.isConnected) this._stopAndNotify("detached:" + e.type);
+    };
+    for (const type of DETACHED_STOP_EVENTS) video.addEventListener(type, onDetached);
+    this._videoListeners = { onDetached };
 
     if (!this._pageHideBound) {
       this._pageHideBound = () => this._stopAndNotify("pagehide");
@@ -188,19 +154,11 @@ export class ZzMediaflowChild extends JSWindowActorChild {
     if (doc) {
       this.sendAsyncMessage("ZenPiP:SourceVisibility", { hidden: doc.hidden });
     }
-
-    if (this._captionsActive) this._startCaptionTracking();
   }
 
   _isYouTubeDocument() {
     try {
-      const host = this.contentWindow?.location?.hostname || "";
-      return (
-        host === "youtube.com" ||
-        host.endsWith(".youtube.com") ||
-        host === "youtube-nocookie.com" ||
-        host.endsWith(".youtube-nocookie.com")
-      );
+      return isYouTubeHost(this.contentWindow?.location?.hostname || "");
     } catch (_) {
       return false;
     }
@@ -214,7 +172,6 @@ export class ZzMediaflowChild extends JSWindowActorChild {
     if (this._captionRootObserver) {
       this._refreshCaptionRoot();
       this._syncCaption();
-      this._ensureCaptionTrack();
       return;
     }
 
@@ -251,7 +208,6 @@ export class ZzMediaflowChild extends JSWindowActorChild {
     }
     this._refreshCaptionRoot();
     this._syncCaption();
-    this._ensureCaptionTrack();
   }
 
   _refreshCaptionRoot() {
@@ -281,8 +237,10 @@ export class ZzMediaflowChild extends JSWindowActorChild {
     this._queueCaptionSync();
   }
 
+  // Loaded timed cues drive the caption from the clock; the page's caption
+  // text is read only without them.
   _queueCaptionSync() {
-    if (this._captionSyncQueued || !this._captionsActive) return;
+    if (this._captionSyncQueued || !this._captionsActive || this._captionCues?.length) return;
     const win = this.contentWindow;
     if (!win) return;
     this._captionSyncQueued = true;
@@ -335,22 +293,11 @@ export class ZzMediaflowChild extends JSWindowActorChild {
     if (this._captionMode === "on") return true;
     if (this._captionMode !== "youtube") return false;
 
-    const doc = this.contentWindow?.document;
-    const ccButton = doc?.querySelector(".ytp-subtitles-button");
-    if (ccButton) {
-      return (
-        ccButton.getAttribute("aria-pressed") === "true" ||
-        ccButton.classList.contains("ytp-button-active")
-      );
-    }
-
-    try {
-      const player = doc?.querySelector(".html5-video-player");
-      const track = player?.getOption?.("captions", "track");
-      return Boolean(track?.languageCode);
-    } catch (_) {
-      return false;
-    }
+    const ccButton = this.contentWindow?.document?.querySelector(".ytp-subtitles-button");
+    return !!ccButton && (
+      ccButton.getAttribute("aria-pressed") === "true" ||
+      ccButton.classList.contains("ytp-button-active")
+    );
   }
 
   _appendCaptionText(previous, next) {
@@ -482,7 +429,7 @@ export class ZzMediaflowChild extends JSWindowActorChild {
       for (let i = resources.length - 1; i >= 0; i--) {
         try {
           const url = new win.URL(resources[i].name);
-          if (url.hostname.endsWith("youtube.com") &&
+          if (isYouTubeHost(url.hostname) &&
               url.pathname.endsWith("/api/timedtext")) {
             const resourceVideoId = url.searchParams.get("v") || "";
             if (currentVideoId && resourceVideoId &&
@@ -510,15 +457,12 @@ export class ZzMediaflowChild extends JSWindowActorChild {
       try {
         globalResponse = pageWindow.ytInitialPlayerResponse || null;
       } catch (_) {}
-      const responses = [
-        playerResponse,
-        globalResponse,
-        this._getInlinePlayerResponse(doc),
-      ];
-      const response = responses.find(candidate =>
+      // The page's inline scripts are walked only when neither response
+      // lists any tracks.
+      const response = [playerResponse, globalResponse].find(candidate =>
         candidate?.captions?.playerCaptionsTracklistRenderer
           ?.captionTracks?.length,
-      );
+      ) || this._getInlinePlayerResponse(doc);
       const renderer = response?.captions?.playerCaptionsTracklistRenderer;
       const tracks = Array.from(renderer?.captionTracks || []);
       if (!tracks.length) return null;
@@ -661,31 +605,31 @@ export class ZzMediaflowChild extends JSWindowActorChild {
     return cues;
   }
 
+  // Called from the caption clock while captions are wanted from this video.
+  // A track that loaded, is loading or failed is not fetched again; another
+  // track (the player's own request, a new language) is. A video with no
+  // tracks is not looked at again until it plays something else.
   async _ensureCaptionTrack() {
-    if (!this._video || !this._captionsActive || this._captionMode === "off" ||
-        !this._isYouTubeDocument()) {
-      return;
-    }
     const now = this.contentWindow?.performance?.now?.() ?? Date.now();
     if (now < this._captionTrackCheckAt) return;
     this._captionTrackCheckAt = now + CAPTION_TRACK_CHECK_MS;
+    const sourceKey = `${this.contentWindow.location.href}|${this._video.currentSrc}`;
+    if (sourceKey === this._captionMissKey) return;
 
     const track = this._getCaptionTrackInfo();
-    if (!track) return;
-    if (track.key === this._captionTrackKey && this._captionCues) return;
-    if (track.key === this._captionLoadPendingKey) return;
+    if (!track) {
+      this._captionMissKey = sourceKey;
+      return;
+    }
+    if (track.key === this._captionTrackKey) return;
 
     const serial = ++this._captionLoadSerial;
     this._captionTrackKey = track.key;
-    this._captionLoadPendingKey = track.key;
     this._captionCues = null;
     const video = this._video;
     try {
       const url = new this.contentWindow.URL(track.baseUrl);
-      if (!url.hostname.endsWith("youtube.com") &&
-          !url.hostname.endsWith("youtube-nocookie.com")) {
-        throw new Error("Unexpected caption host");
-      }
+      if (!isYouTubeHost(url.hostname)) throw new Error("Unexpected caption host");
       if (track.translationCode) {
         url.searchParams.set("tlang", track.translationCode);
       }
@@ -712,15 +656,10 @@ export class ZzMediaflowChild extends JSWindowActorChild {
       }
       if (!cues.length) throw new Error("Caption track contained no cues");
       if (serial !== this._captionLoadSerial || video !== this._video) return;
-      this._captionLoadPendingKey = "";
       this._captionCues = cues;
       this._updateCaptionFromClock();
-    } catch (error) {
-      if (serial !== this._captionLoadSerial) return;
-      this._captionLoadPendingKey = "";
-      this._captionTrackKey = "";
-      this._captionCues = null;
-      this._debug("[Mediaflow/content] caption track load failed:", error);
+    } catch (_) {
+      // The caption is read from the page instead.
     }
   }
 
@@ -773,9 +712,9 @@ export class ZzMediaflowChild extends JSWindowActorChild {
         !this._isYouTubeDocument()) {
       return;
     }
-    this._ensureCaptionTrack();
     let text = "";
     if (this._sourceCaptionsEnabled()) {
+      this._ensureCaptionTrack();
       text = this._captionCues
         ? this._timedCaptionAt(this._video.currentTime * 1000)
         : this._syncCaption();
@@ -808,9 +747,9 @@ export class ZzMediaflowChild extends JSWindowActorChild {
       this._captionCues = null;
       this._captionTrackKey = "";
       this._captionTrackCheckAt = 0;
-      this._captionLoadPendingKey = "";
+      this._captionMissKey = "";
+      this._sendCaption("");
     }
-    if (clear) this._sendCaption("");
   }
 
   _setProcessingActive(
@@ -844,29 +783,11 @@ export class ZzMediaflowChild extends JSWindowActorChild {
 
   _ensureScaleContext(tw, th) {
     if (this._scaleCtx) return this._scaleCtx;
-    const win = this.contentWindow;
-    const ctxOpts = { alpha: false, willReadFrequently: true };
     try {
-      if (typeof win.OffscreenCanvas === "function") {
-        this._scaleCanvas = new win.OffscreenCanvas(tw, th);
-      } else {
-        this._scaleCanvas = win.document.createElement("canvas");
-        this._scaleCanvas.width = tw;
-        this._scaleCanvas.height = th;
-      }
-      this._scaleCtx = this._scaleCanvas.getContext("2d", ctxOpts);
-    } catch (e) {
-      try {
-        this._scaleCanvas = win.document.createElement("canvas");
-        this._scaleCanvas.width = tw;
-        this._scaleCanvas.height = th;
-        this._scaleCtx = this._scaleCanvas.getContext("2d", ctxOpts);
-      } catch (err2) {
-        this._debug("[Mediaflow/content] canvas creation failed:", err2);
-        this._scaleCanvas = null;
-        this._scaleCtx = null;
-        this._stopAndNotify("canvas:construct");
-      }
+      this._scaleCanvas = new this.contentWindow.OffscreenCanvas(tw, th);
+      this._scaleCtx = this._scaleCanvas.getContext("2d", { alpha: false, willReadFrequently: true });
+    } catch (_) {
+      this._stopAndNotify("canvas:construct");
     }
     return this._scaleCtx;
   }
@@ -884,7 +805,7 @@ export class ZzMediaflowChild extends JSWindowActorChild {
     // parent's keepalive tick is all that runs.
     if (video.paused && this._sentAt === video.currentTime) return;
 
-    const maxDim = parseInt(quality, 10) || MAX_FRAME_DIMENSION;
+    const maxDim = parseInt(quality, 10) || FALLBACK_FRAME_DIMENSION;
     const { tw, th } = this._encodeSize(video.videoWidth, video.videoHeight, maxDim);
 
     const ctx = this._ensureScaleContext(tw, th);
@@ -912,13 +833,9 @@ export class ZzMediaflowChild extends JSWindowActorChild {
         time: video.currentTime,
         duration: video.duration,
         paused: video.paused,
-        volume: video.volume,
-        muted: video.muted,
       }, [img.data.buffer]);
       this._sentAt = video.seeking ? undefined : video.currentTime;
-    } catch (e) {
-      this._debug("[Mediaflow/content] _captureFrame threw:", String(e), e?.name, e?.message);
-    }
+    } catch (_) {}
   }
 
   _sendPlaybackState() {
@@ -929,13 +846,10 @@ export class ZzMediaflowChild extends JSWindowActorChild {
       time: video.currentTime,
       duration: video.duration,
       paused: video.paused,
-      volume: video.volume,
-      muted: video.muted,
     });
   }
 
   _stopAndNotify(reason) {
-    this._debug("[Mediaflow/content] stopAndNotify reason=", reason, "hadVideo=", !!this._video);
     if (!this._video) return;
     this._teardown();
     try {
@@ -947,8 +861,9 @@ export class ZzMediaflowChild extends JSWindowActorChild {
     this._stopCaptionTracking(true);
     if (this._video && this._videoListeners) {
       try {
-        this._video.removeEventListener("ended", this._videoListeners.onEnd);
-        this._video.removeEventListener("emptied", this._videoListeners.onEnd);
+        for (const type of DETACHED_STOP_EVENTS) {
+          this._video.removeEventListener(type, this._videoListeners.onDetached);
+        }
       } catch (_) {}
     }
     if (this._pageHideBound) {
@@ -969,6 +884,10 @@ export class ZzMediaflowChild extends JSWindowActorChild {
     this._videoListeners = null;
     this._scaleCanvas = null;
     this._scaleCtx = null;
+    // The parent sends no state to a stopped source; the next video here
+    // waits for its own.
+    this._processingActive = false;
+    this._captionsActive = false;
   }
 
   async receiveMessage(msg) {
@@ -983,15 +902,17 @@ export class ZzMediaflowChild extends JSWindowActorChild {
       this._updateCaptionFromClock();
       return;
     }
-    if (msg.name === "ZenPiP:Stop") {
-      this._stopAndNotify("parent:stop");
+    // Sent as Mediaflow starts: a video already playing then sends no event.
+    if (msg.name === "ZenPiP:Scan") {
+      this._scanForPlayingVideo();
       return;
     }
     if (msg.name === "ZenPiP:Control") {
       this._control(msg.data?.action, msg.data?.value);
       return;
     }
-    if (msg.name === "ZenPiP:SetProcessingState") {
+    // A state sent before the parent heard of the stop is stale.
+    if (msg.name === "ZenPiP:SetProcessingState" && this._video) {
       this._setProcessingActive(
         msg.data?.active,
         msg.data?.captionMode,
@@ -1026,10 +947,6 @@ export class ZzMediaflowChild extends JSWindowActorChild {
   }
 
   didDestroy() {
-    try {
-      this._videoObserver?.disconnect();
-    } catch (_) {}
-    this._videoObserver = null;
     this._teardown();
   }
 }

@@ -1,13 +1,13 @@
 # Native settings presentation
 
-Baseline: `7a1d2c85575ea10a6a1b626c46eab7e2da56ddfe`.
+The 10 menus hold 534 controls: 183 switches, 180 dropdowns and 171 text
+fields, plus 74 separators. Seven of the dropdowns are page pickers
+(`*.ui.*`), which only choose what is shown. `tools/settings.test.mjs` checks
+that every row after a picker belongs to a page, and hashes every other
+setting's key, row type, value type, default and options, so a storage change
+has to be deliberate.
 
-The 10 menus previously contained 524 controls: 180 booleans, 174 dropdowns,
-170 text fields, plus 74 separators. They now contain 527 controls: the same
-524 functional settings plus three navigation dropdowns. An order-independent
-contract digest verifies every original key, type, default, and option value.
-
-## Changes
+## Changes from `7a1d2c8`, 23 October 2026
 
 - One shared wrapper, packaged identically with all 10 independently installable
   mods. Exact mod IDs and preference namespaces gate presentation changes.
@@ -46,7 +46,10 @@ contract digest verifies every original key, type, default, and option value.
 - Router rules use a native multiline field and the shipped `TabRouter.validateRules`
   validator. Invalid edits retain stored rules.
 
-## Verification
+## Verification, 23 October 2026
+
+Run for those changes, when the menus held 527 controls (180 switches); the
+counts below are from that run.
 
 ```sh
 SINE_MANAGER_SOURCE=../Sine/src/core/manager.sys.mjs node --test tools/*.test.mjs

@@ -8,10 +8,10 @@ import vm from "node:vm";
 import { setImmediate as tick } from "node:timers/promises";
 import { test } from "node:test";
 import { installSineUpdateGuard, fixChromeStylesheetImports } from "../download-prompt/sine-update-guard.sys.mjs";
+import { mods } from "./harness.mjs";
 
 const upstream = process.env.SINE_MANAGER_SOURCE;
 const root = new URL("../", import.meta.url);
-const mods = ["download-prompt", "glassflow", "glassflow-library", "groupflow", "iconflow", "tab-router", "tab-unloader", "zen-turbo", "mediaflow", "peekflow"];
 
 test("native Sine: chrome imports retain SVG context paint without changing content imports or enable gates", { skip: !upstream }, async () => {
   const source = await readFile(path.resolve(path.dirname(upstream), "../services/stylesheets.sys.mjs"), "utf8");

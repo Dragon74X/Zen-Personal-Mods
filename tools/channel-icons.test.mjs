@@ -20,15 +20,16 @@ function element(extra = {}) {
     dispatchEvent() {}, ...extra,
   };
 }
-async function environment(options = {}) {
+// A window is private, or not, from the start, as a real one is.
+async function environment(options = {}, privateWindow = false) {
   const prefs = new Map(Object.entries({
     "zzrouter.enabled": true, "zzrouter.rules": "youtube.com > Youtube\nnexusmods.com > Nexus",
     "zzrouter.media-subgroups": true, "zzrouter.follow-containers": false,
     "zzrouter.auto-path-depth": 1, "zzrouter.auto-path-domains": "youtube.com,nexusmods.com",
-    "zzrouter.creators": "{}", ...options,
+    "zzrouter.auto-path-aliases": "", "zzrouter.creators": "{}", ...options,
   }));
   const tabs = [], groups = [], pending = [], requests = [], timers = new Map(), refreshes = [], values = new Map();
-  let now = 1000000, serial = 0, scans = 0, privateWindow = false, moves = 0;
+  let now = 1000000, serial = 0, scans = 0, moves = 0;
   function navigate(tab, spec) {
     const url = new URL(spec);
     tab.linkedBrowser = { currentURI: { spec, scheme: url.protocol.slice(0,-1), host: url.hostname,
@@ -89,7 +90,7 @@ async function environment(options = {}) {
     Cc: { "@mozilla.org/io/string-input-stream;1": { createInstance:()=>({}) } },
     Components: { isSuccessCode:status=>status===0 },
     Date: { now:()=>now }, setTimeout:fn=>{timers.set(++serial,fn);return serial;}, clearTimeout:id=>timers.delete(id),
-    URLSearchParams, Blob, Uint8Array, CustomEvent: class { constructor(type, options) { Object.assign(this, {type}, options); } },
+    URLSearchParams, TextDecoder, Blob, Uint8Array, CustomEvent: class { constructor(type, options) { Object.assign(this, {type}, options); } },
     createImageBitmap:async blob=>{
       const bytes=await blob.text();
       if(bytes==='invalid')throw new Error('decode failed');
@@ -101,7 +102,7 @@ async function environment(options = {}) {
   });
   vm.runInContext(source, context);
   return { h:context.harness,prefs,tabs,groups,requests,pending,timers,refreshes,values,addTab,addGroup,navigate,window,
-    advance:ms=>now+=ms,makePrivate:()=>privateWindow=true,get scans(){return scans;},get moves(){return moves;},
+    advance:ms=>now+=ms,get scans(){return scans;},get moves(){return moves;},
     answer(body) { body=Buffer.from(body).toString("latin1"); const [channel,listener]=pending.shift();listener.onStartRequest(channel);
       listener.onDataAvailable(channel,{body},0,body.length);listener.onStopRequest(channel,0); },
   };
@@ -228,7 +229,7 @@ test('banner lookup is opt-in, partitioned, deduplicated and inactive in private
       assert.ok(e.tabs.every(t=>t.hasAttribute('data-zzrouter-banner')));
     }
   }
-  const e=await environment({'zzrouter.nexus-banners':3});e.makePrivate();
+  const e=await environment({'zzrouter.nexus-banners':3},true);
   e.h.iconMap().set('0:'+GAME,{d:ICON,s:'square',n:'thumbnail',g:'3474'});
   e.h.updatePicture(e.addTab(GAME));assert.equal(e.requests.length,0);
 });
@@ -421,7 +422,7 @@ test("manual icons, navigation, disable/re-enable and exclusion restore native f
   e.navigate(t,"https://example.com/");e.h.updatePicture(t);assert.equal(t.getAttribute("image"),"native");assert.equal(e.moves,0);
 });
 test("private windows initiate no metadata/image requests or persist new context",async()=>{
-  const e=await environment();e.makePrivate();const t=e.addTab(GAME);
+  const e=await environment({},true),t=e.addTab(GAME);
   e.h.captureNexus(t);e.h.updatePicture(t);e.h.fetchCreator(t,"video");e.h.fetchSectionIcon(GAME,GAME,0,"square");
   assert.equal(e.requests.length,0);assert.equal(e.values.size,0);
 });
@@ -630,5 +631,6 @@ test('Targeted refresh retains a verified picture on failure and leaves unrelate
   e.advance(11*60*1000);assert.equal(e.h.refreshSubject(tab).key,CHANNEL);
   tab.zenStaticIcon='manual';assert.equal(e.h.refreshSubject(tab),null);delete tab.zenStaticIcon;
   e.prefs.set('zzrouter.section-icons',false);assert.equal(e.h.refreshSubject(tab),null);e.prefs.set('zzrouter.section-icons',true);
-  e.makePrivate();assert.equal(e.h.refreshSubject(tab),null);
+  const p=await environment({},true),own=p.addTab(CHANNEL);p.h.iconMap().set('0:'+CHANNEL,{d:ICON,s:'round'});
+  assert.equal(p.h.refreshSubject(own),null,'private windows refresh nothing');
 });

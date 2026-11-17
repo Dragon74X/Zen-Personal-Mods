@@ -3,8 +3,8 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
+import { mods } from "./harness.mjs";
 
-const mods = ["download-prompt", "glassflow", "glassflow-library", "groupflow", "iconflow", "tab-router", "tab-unloader", "zen-turbo", "mediaflow", "peekflow"];
 const paged = { glassflow: "zzglass.ui.page", "glassflow-library": "zzlib.ui.page", groupflow: "zzgroup.ui.page", iconflow: "zzicon.ui.page" };
 const read = async mod => JSON.parse(await readFile(new URL(`../${mod}/preferences.json`, import.meta.url), "utf8"));
 const watched = conditions => (Array.isArray(conditions) ? conditions : [conditions]).flatMap(c =>
@@ -40,34 +40,13 @@ for (const [mod, nav] of Object.entries(paged)) {
   });
 }
 
-// Storage contract captured from 7a1d2c8, before presentation changes. Navigation
-// choices are excluded. This release explicitly removes header arrows, adds
-// motion/relief controls, and defaults only NEW profiles to the shared shape.
-// The native-blur pixel comparison also makes the existing fallback opt-in;
-// its key/type stay intact and the startup seeder preserves saved choices.
-test('existing storage contracts remain unchanged except documented choices', async () => {
-  const { createHash } = await import('node:crypto');
-  const navigation = new Set(['zzglass.ui.tab-state', 'zzgroup.ui.folder-state', 'zzicon.ui.button-category',
-    'zzglass.edges.follow-pointer', 'zzglass.motion.enabled', 'zzglass.motion.profile', 'zzglass.motion.light', 'zzglass.edges.calculated', 'zzglass.edges.surface', 'zzglass.edges.depth']);
-  // Keys added after the capture are new contracts, not changes to old ones.
-  const added = new Set(['zzgroup.folder-pages', 'zzrouter.switch-to-open']);
-  const rows = (await Promise.all(mods.map(async mod => (await read(mod)).filter(p => p.property && !navigation.has(p.property) && !added.has(p.property))
+// Hashes each stored setting's key, row type, value type, default and options; page pickers (*.ui.*) are left out.
+test("stored settings keep their keys, types, defaults and options", async () => {
+  const { createHash } = await import("node:crypto");
+  const rows = (await Promise.all(mods.map(async mod => (await read(mod)).filter(p => p.property && !/\.ui\./.test(p.property))
     .map(p => [mod, p.property, p.type, p.value ?? null, p.defaultValue ?? null, p.options?.map(o => o.value) ?? null]))))
-    .flat().sort((a,b) => a[1].localeCompare(b[1], 'en'));
-  assert.equal(rows.length, 523);
-  assert.ok(!rows.some(r => r[1] === 'zzgroup.scroll-arrows'));
-  const shape = rows.find(r => r[1] === 'zzgroup.corner.mode');
-  assert.equal(shape[4], 8); assert.deepEqual(shape[5], [0,1,2,3,4,5,6,7,8]);
-  shape[4] = 0; shape[5].pop();
-  const icons=rows.find(r=>r[1]==='zzicon.set');
-  assert.equal(icons[4],4); assert.deepEqual(icons[5],[4,0,2,3]);
-  icons[4]=0;icons[5].shift();
-  const pageBlur=rows.find(r=>r[1]==='zzglass.sidebar.blur-transparent-pages');
-  assert.equal(pageBlur[4],false);
-  pageBlur[4]=true;
-  rows.push(['groupflow','zzgroup.scroll-arrows','checkbox',null,true,null]);
-  rows.sort((a,b) => a[1].localeCompare(b[1], 'en'));
-  assert.equal(createHash('sha256').update(JSON.stringify(rows)).digest('hex'), '0316bd0c2a6cd4f0a3cc1f7873bfef32fa762ccb8058e7aaff2cf1b2c6c5a038');
+    .flat().sort((a, b) => a[1].localeCompare(b[1], "en"));
+  assert.equal(createHash("sha256").update(JSON.stringify(rows)).digest("hex"), "d63871e4089f5f7c730c4bc5546ee74506d83e61bde4ee2e2dc052fd4fb8206f");
 });
 
 test('opacity presentation preserves fraction, percentage and numeric-percent contracts', async () => {

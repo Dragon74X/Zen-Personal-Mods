@@ -18,9 +18,9 @@
 
 :root {
   /* Inherit Glassflow wholesale; each fallback IS Glassflow's default. */
-  /* Zen 1.22b reshapes every corner via corner-shape: superellipse(); see
-     Glassflow's CORNER SHAPE block. Default mirrors Zen, so nothing changes
-     out of the box; the 1 fallback is a plain round corner on older builds. */
+  /* Zen reshapes every corner via corner-shape: superellipse(); see
+     Glassflow's CORNER SHAPE block. The default mirrors Zen; the 1 fallback
+     is a plain round corner where Zen sets no squircle value. */
   --zzgf-corner: superellipse(var(--zen-squircle-value, 1));
   --zzgf-rscale: 1;
   --zzgf-rbase: var(--zzgroup-header-roundness, 12px);
@@ -44,7 +44,6 @@
   --zzgf-fade: min(var(--zzgroup-line-fade, 12%), 45%);
   --zzgf-glass: var(--zzg-glass, 1);
   --zzgf-cap: 99px;
-  --zzgf-railmask: linear-gradient(black, black); /* opaque: 'none' would intersect to nothing */
   --zzgf-r: max(10px, calc(var(--zzgf-w) * 3));
   /* Padding reserves room for the widest thing that must fit between the
      rail and the row: the elbow radius or the mark. Without this a large
@@ -63,36 +62,23 @@
 :root { --zzgf-rimA: to right; --zzgf-rimB: to left; }
 @media (-moz-pref("zzgroup.gradient-direction", 1)) { :root { --zzgf-rimA: to bottom; --zzgf-rimB: to top; } }
 @media (-moz-pref("zzgroup.gradient-direction", 2)) { :root { --zzgf-rimA: to top; --zzgf-rimB: to bottom; } }
-@media (-moz-pref("zzgroup.gradient-direction", 3)) { :root { --zzgf-rimA: to right; --zzgf-rimB: to left; } }
 @media (-moz-pref("zzgroup.gradient-direction", 4)) { :root { --zzgf-rimA: to left; --zzgf-rimB: to right; } }
 @media (-moz-pref("zzgroup.gradient-direction", 5)) { :root { --zzgf-rimA: 135deg; --zzgf-rimB: -45deg; } }
 @media (-moz-pref("zzgroup.gradient-direction", 6)) { :root { --zzgf-rimA: 45deg; --zzgf-rimB: 225deg; } }
 
 /* Follow Glassflow's edge: the side its unselected tabs carry their rim line
-   on (Top, Bottom, Left, Right) becomes the side the header's rim fades from.
-   Glassflow has no fade reach of its own; the header keeps its 60%. Its
+   on (Top, Bottom, Left, Right) becomes the side the header's rim (Rim light
+   on headers, below) and the rail's rim and sheen fade from. Glassflow has
+   no fade reach of its own, so the header's rim fades over 60%. Its
    per-state rim strengths live on tabs and do not reach group headers. */
 @media (-moz-pref("zzgroup.match-glassflow-edges")) {
-  :root { --zzg-edge-dir: 180deg; }
+  :root { --zzg-edge-dir: 180deg; --zzgf-edge-reach: 60%; }
   @media (-moz-pref("zzglass.edges.unselected-edge", 1)) { :root { --zzg-edge-dir: 0deg; } }
   @media (-moz-pref("zzglass.edges.unselected-edge", 2)) { :root { --zzg-edge-dir: 90deg; } }
   @media (-moz-pref("zzglass.edges.unselected-edge", 3)) { :root { --zzg-edge-dir: 270deg; } }
   :root {
     --zzgf-rimA: var(--zzg-edge-dir, var(--zzg-dir, 135deg));
     --zzgf-rimB: var(--zzg-edge-dir, var(--zzg-dir, 135deg));
-  }
-  :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-label-container {
-    background-image:
-      linear-gradient(var(--zzgf-dir),
-        color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-header-tint, 25%), transparent) 0%,
-        color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-end-tint, 0%), transparent)
-          var(--zzgroup-spread, 50%)),
-      linear-gradient(var(--zzg-follow-gradient, var(--zzg-edge-dir, var(--zzg-dir, 135deg))), var(--zzgf-rim-top) 0%, transparent 60%),
-      linear-gradient(var(--zzg-follow-gradient, var(--zzg-edge-dir, var(--zzg-dir, 135deg))), var(--zzgf-rim-all) 0%, transparent 60%), var(--zzrouter-banner, none) !important;
-    background-size: auto, 100% var(--zzgroup-rim-thickness, 1px), auto !important;
-    background-position: center center, top, center center !important;
-    background-repeat: repeat, no-repeat, repeat !important;
-    background-clip: padding-box, border-box, border-box !important;
   }
 }
 
@@ -101,7 +87,6 @@
 @media (-moz-pref("zzgroup.gradient-direction", 0)) { :root { --zzgf-dir: var(--zzg-dir, 135deg); } }
 @media (-moz-pref("zzgroup.gradient-direction", 1)) { :root { --zzgf-dir: to bottom; } }
 @media (-moz-pref("zzgroup.gradient-direction", 2)) { :root { --zzgf-dir: to top; } }
-@media (-moz-pref("zzgroup.gradient-direction", 3)) { :root { --zzgf-dir: to right; } }
 @media (-moz-pref("zzgroup.gradient-direction", 4)) { :root { --zzgf-dir: to left; } }
 @media (-moz-pref("zzgroup.gradient-direction", 5)) { :root { --zzgf-dir: 135deg; } }
 @media (-moz-pref("zzgroup.gradient-direction", 6)) { :root { --zzgf-dir: 45deg; } }
@@ -257,11 +242,6 @@
   }
 }
 
-/* Rim on an overlay rather than an inset shadow on the pill itself: a
-   shadow rings the whole box at even strength, which fights a gradient
-   that fades. The overlay carries the same fade as the background, so
-   the lit edge is bright where the accent is and gone where it is not.
-   ::before is free here -- subgroup marks use this element's ::after. */
 @media (-moz-pref("zzgroup.header.rim")) {
   /* The rim is painted BY THE HEADER, not by an element laid over it. A
      box-shadow cannot hold a gradient, so the rim becomes part of the
@@ -276,8 +256,8 @@
         color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-header-tint, 25%), transparent) 0%,
         color-mix(in srgb, var(--zzgf-accent) var(--zzgroup-end-tint, 0%), transparent)
           var(--zzgroup-spread, 50%)),
-      linear-gradient(var(--zzg-follow-gradient, var(--zzgf-dir)), var(--zzgf-rim-top) 0%, transparent var(--zzgroup-rim-reach, var(--zzgroup-spread, 50%))),
-      linear-gradient(var(--zzg-follow-gradient, var(--zzgf-dir)), var(--zzgf-rim-all) 0%, transparent var(--zzgroup-rim-reach, var(--zzgroup-spread, 50%))), var(--zzrouter-banner, none) !important;
+      linear-gradient(var(--zzg-follow-gradient, var(--zzg-edge-dir, var(--zzgf-dir))), var(--zzgf-rim-top) 0%, transparent var(--zzgf-edge-reach, var(--zzgroup-rim-reach, var(--zzgroup-spread, 50%)))),
+      linear-gradient(var(--zzg-follow-gradient, var(--zzg-edge-dir, var(--zzgf-dir))), var(--zzgf-rim-all) 0%, transparent var(--zzgf-edge-reach, var(--zzgroup-rim-reach, var(--zzgroup-spread, 50%)))), var(--zzrouter-banner, none) !important;
     background-size: auto, 100% var(--zzgroup-rim-thickness, 1px), auto !important;
     background-position: center center, top, center center !important;
     background-repeat: repeat, no-repeat, repeat !important;
@@ -356,17 +336,10 @@
   }
 }
 
-/* ---- nesting ------------------------------------------------------ */
-
-/* Nested groups are display:contents on this build -- the element
-   generates NO box, so margins, width and position on it are ignored
-   entirely. The indent is applied to the boxes it actually produces: its
-   header row and its body. Placed after the connector rules below so it
-   wins on the body, whose margin they also set. */
-
 /* ---- connectors --------------------------------------------------- */
-/* How group membership is drawn. 0 none / 1 line / 2 branches /
-   3 fill / 4 fill + line. */
+/* How group membership is drawn. 0 None / 1 Line / 2 Line + marks /
+   3 Fill / 4 Fill + Line / 5 Flowing. The marks themselves follow the
+   Marks settings (per-item marks, below). */
 
 /* Line: an accent rail down the left of every group body. */
 @media (-moz-pref("zzgroup.connector", 1)), (-moz-pref("zzgroup.connector", 2)),
@@ -532,7 +505,6 @@
   --zzgf-mark-arrow-neon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 24'%3E%3Cpath d='M2 12 L9.5 12 M6.5 9 L9.5 12 L6.5 15' fill='none' stroke='black' stroke-width='3.40' stroke-opacity='0.16' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M2 12 L9.5 12 M6.5 9 L9.5 12 L6.5 15' fill='none' stroke='black' stroke-width='2.50' stroke-opacity='0.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M2 12 L9.5 12 M6.5 9 L9.5 12 L6.5 15' fill='none' stroke='black' stroke-width='1.70' stroke-opacity='1' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   --zzgf-mark-wave: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 24'%3E%3Cpath d='M2.5 15 Q5 7.5 7 12 Q9 16.5 10.5 10' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   --zzgf-mark-wave-neon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 24'%3E%3Cpath d='M2.5 15 Q5 7.5 7 12 Q9 16.5 10.5 10' fill='none' stroke='black' stroke-width='3.74' stroke-opacity='0.16' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M2.5 15 Q5 7.5 7 12 Q9 16.5 10.5 10' fill='none' stroke='black' stroke-width='2.75' stroke-opacity='0.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M2.5 15 Q5 7.5 7 12 Q9 16.5 10.5 10' fill='none' stroke='black' stroke-width='1.87' stroke-opacity='1' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  --zzgf-shape: linear-gradient(transparent, transparent);
   --zzgf-railshape: linear-gradient(black, black);
   --zzgf-maskgrad: linear-gradient(black, black);
 }
@@ -583,9 +555,6 @@
 @media (-moz-pref("zzgroup.marker-gradient", 3)) {
   :root { --zzgf-maskgrad: linear-gradient(to left, black 25%, transparent 100%); }
 }
-/* Rounded (4) is not a mask at all -- it swaps in a shape whose alpha
-   falls off ACROSS the stroke, everywhere along it, so the shading
-   follows the path's own direction rather than one flat axis. */
 @media (not (-moz-pref("zzgroup.marker", 0))) or ((not (-moz-pref("zzgroup.marker-sub", 0))) and (not (-moz-pref("zzgroup.marker-sub", 1)))) {
   /* Marks sit in the negative space left of each row, so clipping has to
      be lifted -- Zen and the glass mods clip tabs for rounded corners. */
@@ -623,10 +592,6 @@
     transform: translateY(-50%) !important;
     background: var(--zzgf-line) !important;
     border: none !important;
-    /* An unset shape must render nothing, not a bare rectangle: the base
-       rule covers tabs and subgroups together, so whichever one has no
-       shape selected would otherwise show the unmasked box. */
-    --zzgf-shape: linear-gradient(transparent, transparent);
     mask-image: var(--zzgf-shape), var(--zzgf-maskgrad);
     mask-composite: intersect;
     mask-size: contain, 100% 100%;
@@ -648,8 +613,9 @@
 /* Mark styles. Each names its flat shape and its Rounded (3D) one; the
    shared rules at the end give tabs and subgroups their shape. Lituus,
    coil and serpentine have no Rounded shape and stay flat. Subgroup
-   values count one higher (0 is Same as tabs, 1 is None). They come after
-   the drawing rule above, which resets the shape at the same specificity. */
+   values count one higher (0 is Same as tabs, 1 is None). An unset shape
+   masks to nothing: the drawing rule above covers tabs and subgroups
+   together, so whichever has no shape would otherwise show a bare box. */
 /* 1. Chevron: a soft arrow aimed at the item. */
 @media (-moz-pref("zzgroup.marker", 1)) { :root { --zzgf-tab-flat: var(--zzgf-mark-chevron); --zzgf-tab-neon: var(--zzgf-mark-chevron-neon); } }
 @media (-moz-pref("zzgroup.marker-sub", 2)) { :root { --zzgf-sub-flat: var(--zzgf-mark-chevron); --zzgf-sub-neon: var(--zzgf-mark-chevron-neon); } }
@@ -719,6 +685,9 @@
 @media (-moz-pref("zzgroup.marker-sub", 0)) { :root { --zzgf-sub-flat: var(--zzgf-tab-flat); --zzgf-sub-neon: var(--zzgf-tab-neon); } }
 :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-tab-flat, linear-gradient(transparent, transparent)); }
 :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-sub-flat, linear-gradient(transparent, transparent)); }
+/* Rounded (4) is not a mask at all -- it swaps in a shape whose alpha
+   falls off ACROSS the stroke, everywhere along it, so the shading
+   follows the path's own direction rather than one flat axis. */
 @media (-moz-pref("zzgroup.marker-gradient", 4)) {
   :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > .tabbrowser-tab::after { --zzgf-shape: var(--zzgf-tab-neon, var(--zzgf-tab-flat, linear-gradient(transparent, transparent))); }
   :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-container > tab-group > .tab-group-label-container::after { --zzgf-shape: var(--zzgf-sub-neon, var(--zzgf-sub-flat, linear-gradient(transparent, transparent))); }
@@ -737,12 +706,11 @@
   }
 }
 
-/* Each nesting level slightly smaller header, so depth reads at a
-   glance without shouting. Two levels covered; deeper inherits. */
-/* Each nesting level steps the label down by the same factor. !important
-   because Zen sets the label's font-size with it, which is why the plain
-   declarations here did nothing. CSS has no exponent, so the factor is
-   simply multiplied once more per level. */
+/* Each nesting level steps the label down by the same factor, so depth
+   reads at a glance without shouting. Three levels are covered; deeper
+   ones match the third. !important because Zen sets the label's
+   font-size with it. CSS has no exponent, so the factor is simply
+   multiplied once more per level. */
 @media (-moz-pref("zzgroup.depth-scale")) {
   :is(#navigator-toolbox, .zen-library-space-tabs) tab-group tab-group > .tab-group-label-container .tab-group-label {
     font-size: calc(var(--zzgroup-label-size, 1em) * var(--zzgroup-depth-step, 0.92)) !important;
@@ -872,10 +840,9 @@
     box-shadow: none !important;
   }
 }
-/* ATG appends its close button at the right; this moves it to the far
-   left, before the favicon. */
-/* True left: the favicon (on the label) takes the first slot, where the
-   old icon chip sat; ATG's collapse marker moves to the right edge. */
+/* Header order: the label (carrying the favicon) first, where ATG's icon
+   chip sat, then ATG's icon container with its collapse marker, then the
+   close button at the right edge. Close on the left (below) moves it first. */
 :is(#navigator-toolbox, .zen-library-space-tabs) tab-group .tab-group-label-container {
   padding-inline-start: 6px !important;
 }
@@ -1103,8 +1070,6 @@
    you set; only its final few percent are steered. */
 @media (-moz-pref("zzgroup.connector", 5)) and (-moz-pref("zzgroup.flow-seamless")) {
   :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) {
-    --zzgf-junction: color-mix(in srgb, var(--zzgf-accent)
-      var(--zzgroup-junction-tint, 25%), transparent);
     --zzgf-grad: linear-gradient(to bottom, var(--zzgf-junction) 0%,
       color-mix(in srgb, var(--zzgf-accent)
         var(--zzgroup-flow-end-tint, 8%), transparent) 100%);
@@ -1291,14 +1256,10 @@
   }
 }
 
-/* Alignment lives LAST on purpose: the favicon block above pins the
-   header to flex-start to seat the icon in the old chip's slot, and at
-   equal specificity the later rule is the one that applies.
-
-   The label is itself display:flex and flex-grow:1 (measured: it fills
-   the whole header), so justify-content on the HEADER has no free space
-   to distribute and text-align does not position a flex child. The
-   label's OWN justify-content is what moves the text. */
+/* Alignment. The label is itself display:flex and flex-grow:1 (measured:
+   it fills the whole header), so justify-content on the HEADER has no
+   free space to distribute and text-align does not position a flex child.
+   The label's OWN justify-content is what moves the text. */
 :is(#navigator-toolbox, .zen-library-space-tabs) tab-group:not([split-view-group]) > .tab-group-label-container {
   justify-content: flex-start !important;
 }
@@ -1960,7 +1921,7 @@
   }
 }
 
-/* Icon-only headers have one icon-width column. Count and scroll chips
+/* Icon-only headers have one icon-width column; the count chip would
    overlap its close/collapse targets or extend beyond the sidebar. */
 :root:not([zen-sidebar-expanded="true"]) #navigator-toolbox .tab-group-label-container > .zzgf-count {
   display: none !important;

@@ -30,13 +30,12 @@ Anything without a matching rule is left alone, unless **Sort everything automat
 
 Glance tabs, split-view tabs and Zen's blank placeholder tabs are skipped unconditionally — they are not toggles. Placeholders in particular cannot be grouped at all; `addTabGroup` returns null for them.
 
-**Re-file tabs that drifted** (on) is the one exception to *skip grouped*. A link opened from a grouped tab inherits that group even when it goes somewhere unrelated, so a tab whose group path no longer matches where it belongs gets re-filed rather than stranded. A tab that ends up suffix-filed under junk gets exactly one repair attempt, then is left alone.
+**Re-file tabs that drifted** (on) is the one exception to *skip grouped*. A link opened from a grouped tab inherits that group even when it goes somewhere unrelated, so a tab whose group path no longer matches where it belongs gets re-filed rather than stranded. A tab in a deeper subgroup of its path stays there, and so does one in a folder made by hand where its path would add a section, creator, channel or game subfolder; a tab in any other folder off its path is re-filed.
 
 Routing starts as soon as the tab's URL is known, without waiting for page load.
 Events within one event-loop turn share a single route using the latest URL;
 title changes cannot postpone it. Redirects and SPA navigation route again as
-their destination becomes known. The old **Wait before routing** setting is
-removed; saved values no longer add a delay. Group ordering has its own timer.
+their destination becomes known. Group ordering has its own timer.
 
 Only `http` and `https` tabs are considered. `about:`, `file:` and `chrome:` are ignored.
 
@@ -161,14 +160,19 @@ keep up:
   `meta name=author`, and otherwise the site's own oEmbed. Because it is your
   page, signed-in and age-checked content is read like any other; no site is
   skipped for what it shows. Only inert markup is read, never page scripts.
-- The page side is untrusted: names are bounded and cleaned, and a creator
-  must live on the page's own site. A profile's live preview image is used for
-  its picture, so the picture needs no anonymous fetch.
+- The page side is untrusted: names are bounded and cleaned of control and
+  bidi formatting characters, and a creator must live on the page's own site.
+  A profile's live preview image is used for its picture, so the picture needs
+  no anonymous fetch. A site's oEmbed answer that names no usable author is
+  not asked for again for 10 minutes.
 
 **Pictures on tabs and subgroups** operates independently of movement and
 **Subgroup by creator**. It includes pinned tabs, Essentials and already-grouped
-tabs. Enable Groupflow to render the pictures. Zen's manual tab icons take
-precedence; loading/audio/PiP controls and native favicons remain native.
+tabs. To picture creators on other sites it reads each page's creator as above,
+asking the site's oEmbed endpoint where needed, even with routing and
+**Subgroup by creator** off. Enable Groupflow to render the pictures. Zen's
+manual tab icons take precedence; loading/audio/PiP controls and native
+favicons remain native.
 Navigation, picture disable and Router unload remove owned overrides. Library
 copies display the same token but never route.
 
@@ -282,8 +286,7 @@ moment something looks off, and it copies itself to the clipboard.
 Its **stalled** list is the one to read first: tabs that are not skipped, do
 have a target, and are still not under it. Those are the tabs the mod was
 supposed to file and did not. Everything else in the report explains why —
-the skip histogram, whether the navigation listener is still attached, and the
-last forty log lines.
+the skip histogram and the last forty log lines.
 
 `instanceGeneration` above 1 means this window loaded the script more than
 once. The mod retires the older copy when that happens, so a high number is a
@@ -301,17 +304,17 @@ group, and it copies the result to the clipboard.
 
 ## Subgroups
 
-Nesting uses real tab groups, never Zen folders, so nothing gets pinned. Automatic mode builds the path for you: `docs.proton.me` becomes **Proton / Docs**, and with path depth on, `nexusmods.com/games/stalker2` becomes **Nexusmods / Stalker 2**. Slugs are prettified (`crimson-desert` → Crimson Desert); slugs without word boundaries need an alias (`baldursgate3 = Baldur's Gate 3`) — `TabRouter.suggestAliases()` writes those from your page titles.
+Nesting uses real tab groups, never Zen folders, so nothing gets pinned. Automatic mode builds the path for you: `docs.proton.me` becomes **Proton / Docs**, and with URL path subgroups on for `nexusmods.com`, `nexusmods.com/games/stalker2` becomes **Nexusmods / Stalker 2**. Slugs are prettified (`crimson-desert` → Crimson Desert); slugs without word boundaries need an alias (`baldursgate3 = Baldur's Gate 3`) — `TabRouter.suggestAliases()` writes those from your page titles.
 
-Path subgroups are opt-in per site: **Sites that get path subgroups** lists which domains they apply to (`youtube.com` by default), so a deep path on every other site does not explode into subgroups. **Nesting limit** caps the total depth regardless of what the rules ask for.
+Path subgroups are off by default (**Use URL path as subgroups**). When on, **Site list mode** applies them to **only the listed sites** (the default; the list holds `youtube.com`) or to **every site except the listed ones**, so a deep path on other sites does not explode into subgroups. **Nesting limit** caps the total depth regardless of what the rules ask for.
 
 `TabRouter.groupTree()` prints the current nesting.
 
 ## Notes
 
-Uses `gBrowser.tabGroups` and `gBrowser.addTabGroup`. Subgroup creation relies on `addTabGroup({ insertBefore: tab })` placing the new group at the tab's position — a tab already inside a group therefore produces a group nested inside it. If a level refuses to nest on your build, the log says so and the group is kept flat rather than lost. Group matching is by label, case-insensitive, so a rule pointing at a group you already made will use it rather than creating a duplicate.
+Creates groups with `gBrowser.addTabGroup` and moves tabs with each group's `addTabs`. Subgroup creation relies on `addTabGroup({ insertBefore: tab })` placing the new group at the tab's position — a tab already inside a group therefore produces a group nested inside it. If a level refuses to nest on your build, the log says so and the group is kept flat rather than lost. Group matching is by label, case-insensitive, so a rule pointing at a group you already made will use it rather than creating a duplicate.
 
-If group creation is unavailable on your build, the log says so explicitly rather than failing silently. Turn off **Create groups that do not exist yet** to only ever use groups you made by hand. A rule naming a group that does not exist then leaves the tab where it is: no container reopen, no workspace move, no leaving its current group. If only a subgroup is missing, the tab still goes into the existing parent.
+Turn off **Create groups that do not exist yet** to only ever use groups you made by hand. A rule naming a group that does not exist then leaves the tab where it is: no container reopen, no workspace move, no leaving its current group. If only a subgroup is missing, the tab still goes into the existing parent.
 
 ## When Sine says it cannot read a mod's preferences
 
@@ -359,10 +362,9 @@ Only the game's `hero.jpg` is used—not promotional strips or mod-author images
 Nexus documents [V2 artwork](https://graphql.nexusmods.com/#definition-ArtworkSchemaV2)
 and [thumbnail/cover URLs](https://github.com/Nexus-Mods/Vortex/blob/master/docs/game-art-assets.md).
 The downloaded banner is decoded, limited to 4096 pixels per source dimension,
-and scaled to 384 pixels wide. Icons and optional banners share the existing
-100-subject, 900000-character cache; banners are discarded before icons at the
-size limit. A failed request retries on activity after 10 minutes. Off starts
-no banner requests; private windows start no artwork requests. Container
+and scaled to 384 pixels wide. Icons and optional banners share the
+100-subject cache. A failed request retries on activity after 10 minutes. Off
+starts no banner requests; private windows start no artwork requests. Container
 partitioning, anonymous requests and the 15-second timeout remain in force.
 
 Recovered display associations continue through Groupflow's session mechanism.
@@ -371,11 +373,14 @@ tabs. Opacity changes reuse cached raster bytes without fetching another image.
 
 ## Cache storage
 
-Creators, avatars and learned names now use
+Creators, avatars and learned names use
 `zen-personal-mods-router-cache.json` in the profile, shared by browser windows.
+If that file cannot be opened they fall back to one preference each, where the
+avatars are kept under 900000 characters, banners discarded before icons.
 Existing cache preferences are migrated only after the replacement file is
 written successfully. A failed migration retains their original bytes. Native
-JSONFile batches writes and flushes at shutdown; container/resource keys and
-existing cache limits are preserved. Routing rules and user settings remain
-preferences. This addresses the large `zzrouter.creators`/`zzrouter.avatars`
-preference warnings, not unrelated browser or extension console exceptions.
+JSONFile batches writes and flushes at shutdown; entries keep their
+container/resource keys and the 100-picture, 200-name and 300-creator limits.
+Routing rules and user settings remain preferences. This addresses the large
+`zzrouter.creators`/`zzrouter.avatars` preference warnings, not unrelated
+browser or extension console exceptions.

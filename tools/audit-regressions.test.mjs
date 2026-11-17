@@ -10,7 +10,7 @@ test("Library batches bounded history and fills only slots not occupied by nativ
   let view, flushes = 0, copied = 0, count = 8, nativeCount = 4;
   const rows = [], style = { setProperty() {}, removeProperty() {} };
   function row() {
-    const badge = { style, toggleAttribute() {}, firstElementChild: { style } }, title = {}, subtitle = {}, action = { addEventListener() {} };
+    const badge = { style, toggleAttribute() {}, querySelector: () => ({ style }) }, title = {}, subtitle = {}, action = { addEventListener() {} };
     return { style, setAttribute() {}, addEventListener() {}, toggleAttribute() {},
       remove() { rows.splice(rows.indexOf(this), 1); },
       querySelector(s) { return s.includes("action") ? action : s.includes("badge") ? badge : s.endsWith("subtitle") ? subtitle : title; } };
@@ -193,7 +193,7 @@ test("Mediaflow: native state survives same-time pause and hidden capture; PiP t
   const { actor, messages } = mediaActor("content-actor.sys.mjs", "ZzMediaflowChild", "JSWindowActorChild");
   const video = {
     tagName: "VIDEO", currentTime: 30, duration: 100, readyState: 3,
-    videoWidth: 640, videoHeight: 360, paused: false, seeking: false, volume: .37, muted: false,
+    videoWidth: 640, videoHeight: 360, paused: false, seeking: false,
     pause() { this.paused = true; actor.handleEvent({ type: "pause", target: this }); },
     play() { this.paused = false; actor.handleEvent({ type: "play", target: this }); },
   };
@@ -202,9 +202,6 @@ test("Mediaflow: native state survives same-time pause and hidden capture; PiP t
   actor._scaleCanvas = { width: 2, height: 2 };
   actor._ensureScaleContext = () => ({ drawImage() {}, getImageData() { return { data: new Uint8ClampedArray(4) }; } });
   actor._captureFrame("240");
-  assert.equal(messages.at(-1)[1].volume, .37);
-  video.volume = .18;actor.handleEvent({ type: "volumechange", target: video });
-  assert.equal(messages.at(-1)[1].volume, .18, "external numeric volume is delivered without capture polling");
   actor._control("toggle");
   actor._captureFrame("240");
   assert.equal(messages.filter(([name]) => name === "ZenPiP:Frame").length, 1);
@@ -244,21 +241,21 @@ function mediaController() {
     window: {}, on() {}, reducedMotion: { matches: false }, undo: [], retired: false, chosenSource: null, downloadsCovering: () => false, placeToggles() {}, syncToggleIcons() {}, actorRegistry: registry, sourceBC: null, availableSources: new Map(),
     isStreaming: false, playerSeen: true, userHidden: false, sourceTabActive: false,
     browserWindowActive: true, captionMode: "youtube", captionsWhenPipHidden: false,
-    animateOutTimer: null, animating: false, dragging: false,
+    animating: false, dragging: false,
     gBrowser: { selectedBrowser: { browsingContext: { id: 99 } }, tabs: [] },
     pipContainer: { style: {}, getBoundingClientRect() {} },
-    setSourceDimensions() {}, clearCaptionImmediately() {}, resetPreview() {}, log() {}, updateControls() {},
+    setSourceDimensions() {}, clearCaptionImmediately() {}, clearCanvas() {}, resetPreview() {}, log() {}, updateControls() {},
     requestAnimationFrame() {}, cancelAnimationFrame() {}, setTimeout(fn) { timers.set(++timerId, fn); return timerId; },
     clearTimeout(id) { timers.delete(id); }, CONFIG: { ANIM_MS: 220 },
     lastOpacity: 0, lastCaptionOpacity: 0,
     startTracking() { vm.runInContext("_notifyTickState()", env); }, stopTracking() {},
   });
   vm.runInContext(mediaSource.slice(mediaSource.indexOf("  function isTabPlaying(bc)"), mediaSource.indexOf('  on(window, "popupshowing", event => {')), env);
-  return { env, calls, controller: env.window.ZzMediaflowController, runTimer(id) { const fn = timers.get(id); timers.delete(id); fn(); } };
+  return { env, calls, controller: env.window.ZzMediaflowController, runTimers() { for (const [id, fn] of timers) { timers.delete(id); fn(); } } };
 }
 
 test("Mediaflow: source pre-emption stops both clocks and restores the retained source", () => {
-  const { env, calls, controller, runTimer } = mediaController();
+  const { env, calls, controller, runTimers } = mediaController();
   const a = { id: 11, top: { id: 1 } }, b = { id: 22, top: { id: 2 } };
   controller.offerVideo(640, 360, a);
   calls.length = 0;
@@ -268,7 +265,7 @@ test("Mediaflow: source pre-emption stops both clocks and restores the retained 
   assert.equal(controller.getActiveBC(), b);
   controller.unregisterSource(22);
   controller.notifySourceStopped(b);
-  runTimer(env.animateOutTimer);
+  runTimers();
   assert.equal(controller.getActiveBC(), a);
   assert.equal(calls.at(-1), "11.start");
   assert.equal(env.availableSources.has(22), false);
@@ -347,9 +344,9 @@ test("Mediaflow measures Zen's front card and writes nothing while it is absent,
   const visible = { matches: () => false, getBoundingClientRect: () => ({ height: 80 }) };
   const bar = { hidden: false, matches: () => false,
     style: { setProperty: (_name, value) => sizes.push(value) } };
-  const env = vm.createContext({ retired: false, mediaBar: bar, window: { gZenMediaController: native } });
+  const env = vm.createContext({ retired: false, musicPlayerUI: bar, window: { gZenMediaController: native } });
   vm.runInContext(mediaSource.slice(mediaSource.indexOf('  const remeasure ='),
-    mediaSource.indexOf('\n  if (mediaBar)')) + '\nthis.measure = remeasure;', env);
+    mediaSource.indexOf('\n  let remeasureTimer')) + '\nthis.measure = remeasure;', env);
   native.frontCard = { element: visible };
   env.measure();
   assert.deepEqual(sizes, ['80px']);
@@ -364,7 +361,7 @@ test("Mediaflow measures Zen's front card and writes nothing while it is absent,
 });
 
 test("Mediaflow: native range seeks once on commit and cancels preview state without seeking", () => {
-  const nodes = [], sent = [], attrs = new Map(), writes = [];
+  const nodes = [], sent = [], attrs = new Map();
   const node = tag => {
     const n = { tag, handlers: {}, attrs: new Map(), style: {}, dataset: {},
       addEventListener(event, fn) { this.handlers[event] = fn; }, append() {}, appendChild() {},
@@ -375,7 +372,7 @@ test("Mediaflow: native range seeks once on commit and cancels preview state wit
     return n;
   };
   const env = vm.createContext({
-    document: { createElement: node }, pipContainer: { appendChild() {}, getAttribute(k){return attrs.get(k)??null;}, setAttribute(k,v){attrs.set(k,v);writes.push(k);}, removeAttribute(k){attrs.delete(k);}, toggleAttribute(k, v) { attrs.set(k, v); } },
+    document: { createElement: node }, pipContainer: { appendChild() {}, toggleAttribute(k, v) { attrs.set(k, v); } },
     holdPreview() {}, releasePreview() {}, safe: fn => fn(), on: (n, event, fn) => n.addEventListener(event, fn), undo: [],
     Services: { prefs: { getBoolPref: () => true, getStringPref: () => "10", addObserver() {} } },
     sourceBC: { id: 11, top: { embedderElement: {} } },
@@ -387,10 +384,7 @@ test("Mediaflow: native range seeks once on commit and cancels preview state wit
   const track = nodes.find(n => n.tag === "input");
   assert.equal(track.type, "range");
   assert.equal(track.attrs.get("aria-label"), "Video position");
-  env.update({ time: 20, duration: 100, paused: false, volume: .37, muted: false });
-  assert.equal(attrs.get("data-zz-volume"), "37");
-  for (let i=0;i<60;i++) env.update({time:20,duration:100,paused:false,volume:.37,muted:false});
-  assert.equal(writes.filter(k=>k==="data-zz-volume").length,1,"unchanged frames do not wake Morph through the volume attribute");
+  env.update({ time: 20, duration: 100, paused: false });
   assert.equal(track.valueAsNumber, 0.2);
   track.value = "0.65";
   track.handlers.input();
@@ -416,7 +410,9 @@ test("A window closed before delayed startup drops its startup observer", () => 
     "zen-turbo/zen-turbo.uc.js", "peekflow/peekflow.uc.js", "tab-router/tab-router.uc.js"]) {
     const source = readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
     const wait = source.slice(source.lastIndexOf('Services.obs.addObserver(obs, "browser-delayed-startup-finished")'));
-    assert.match(wait, /^[^]{0,300}window\.addEventListener\("unload", stopWaiting, \{ once: true \}\)/, file);
+    // Peekflow runs cleanup() on unload from the start, and cleanup() stops the wait.
+    if (file === "peekflow/peekflow.uc.js") assert.match(source.slice(source.indexOf("function cleanup()")), /^[^]{0,120}stopWaiting\(\);/, file);
+    else assert.match(wait, /^[^]{0,300}window\.addEventListener\("unload", stopWaiting, \{ once: true \}\)/, file);
     const stop = source.slice(source.indexOf("const stopWaiting"), source.indexOf("const stopWaiting") + 400);
     assert.match(stop, /removeObserver\(obs, "browser-delayed-startup-finished"\)/, file);
   }

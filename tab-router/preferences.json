@@ -167,7 +167,7 @@
   {
     "type": "checkbox",
     "property": "zzrouter.section-icons",
-    "label": "Pictures on tabs and subgroups *YouTube tabs use verified channel avatars; Nexus game/mod/profile tabs use the associated square game thumbnail (cover optional). No Nexus author portraits. Tabs can show pictures with routing disabled, including pinned tabs and Essentials. Manual Zen icons win. Pictures require Groupflow. Anonymous requests use the tab container, stop after 15 seconds, and never run in private windows. Pictures reuse one bounded cache: 100 subjects, 64-pixel icons; optional banners share the cache. Failed lookups retry on activity after 10 minutes.*",
+    "label": "Pictures on tabs and subgroups *YouTube tabs use verified channel avatars; Nexus game/mod/profile tabs use the associated square game thumbnail (cover optional). No Nexus author portraits. Creators on other sites get pictures too: each page's own metadata (structured data, author links) is read and, where a site offers it, its oEmbed endpoint is asked, also with routing and Subgroup by creator off. Tabs can show pictures with routing disabled, including pinned tabs and Essentials. Manual Zen icons win. Pictures require Groupflow. Anonymous requests use the tab container, stop after 15 seconds, and never run in private windows. Pictures reuse one bounded cache: 100 subjects, 64-pixel icons; optional banners share the cache. Failed lookups retry on activity after 10 minutes.*",
     "defaultValue": true
   },
   {

@@ -16,7 +16,9 @@ test('Morph retains 107 action IDs, 64 drawings and 6 controls; media and window
   assert.equal(signatures(v.d),signatures(c.states[0].values[i].d));assert.equal(signatures(s.wind[i].d),signatures(v.d));
  }
  for(const id of Object.keys(data.actions))assert.ok(data.bindings.some(b=>b.action===id),id);
- for(const b of data.bindings){assert.ok(data.actions[b.action]);assert.doesNotMatch(b.selector,/\[label|::before|::after/);}
+ for(const b of data.bindings){assert.ok(data.actions[b.action]);assert.doesNotMatch(b.selector,/\[label|::before|::after/);
+  // The binding index keys each selector by its leading compound, which must be the element or an ancestor.
+  assert.doesNotMatch(b.selector,/[,+~]/,'one selector, no sibling combinator: '+b.selector);}
  for(const id of ['context_undoCloseTab','toolbar-context-undoCloseTab'])assert.ok(data.bindings.some(b=>b.selector==='#'+id));
 });
 test('approved Library, Reload, Extensions and History geometry and paint remain byte-identical',()=>{
@@ -28,13 +30,16 @@ test('approved Library, Reload, Extensions and History geometry and paint remain
 });
 test('all six state adapters read their own authorities, including background command targets',()=>{
  const node=(attrs={})=>({attrs,id:'',getAttribute(k){return this.attrs[k]??null;},hasAttribute(k){return k in this.attrs;},closest(){return null;}});
- const root=node({'zen-compact-mode':'false','zen-sidebar-expanded':'false'}),star=node({starred:''});star.id='star-button';
+ const root=node({'zen-compact-mode':'false','zen-sidebar-expanded':'false'}),star=node({starred:''});
  const ids={'appMenu-popup':{state:'closed'}},win={windowState:1,STATE_MAXIMIZED:2,fullScreen:false,SidebarController:{isOpen:false}};
- const targets=new WeakMap(),env=vm.createContext({data,window:win,document:{documentElement:root,getElementById:id=>ids[id]},downloadTargets:targets});
- vm.runInContext(source.slice(source.indexOf('function snapshot('),source.indexOf('function stateKey(')),env);
- const read=(id,host=node(),binding={})=>env.snapshot(binding,host,{controlId:id});
- assert.equal(read('bookmark-toggle',star).state,'saved');assert.equal(read('bookmark-toggle',star,{state:'bookmark-launcher'}).state,'unsaved');
- const starBox=node();starBox.id='star-button-box';starBox.querySelector=()=>star;assert.equal(read('bookmark-toggle',starBox).state,'saved');delete star.attrs.starred;assert.equal(read('bookmark-toggle',starBox).state,'unsaved');
+ const targets=new WeakMap(),env=vm.createContext({window:win,document:{documentElement:root,getElementById:id=>ids[id]},downloadTargets:targets});
+ vm.runInContext(source.slice(source.indexOf('function snapshot('),source.indexOf('function rowFor(')),env);
+ const read=(control,host=node(),binding={})=>({state:env.snapshot({control,host,binding})});
+ // The star's owner is its box; the starred image inside it is the authority.
+ const starBox=node();starBox.id='star-button-box';starBox.querySelector=s=>{assert.equal(s,'#star-button');return star;};
+ assert.equal(read('bookmark-toggle',starBox).state,'saved');assert.equal(read('bookmark-toggle',starBox,{state:'bookmark-launcher'}).state,'unsaved');
+ delete star.attrs.starred;assert.equal(read('bookmark-toggle',starBox).state,'unsaved');
+ assert.equal(read('bookmark-toggle',node({starred:''})).state,'saved','Bookmark Page carries starred itself');
  const background=node();background.zziconBookmarked=false;assert.equal(read('bookmark-toggle',background).state,'unsaved','context target does not inherit selected tab bookmark');background.zziconBookmarked=true;assert.equal(read('bookmark-toggle',background).state,'saved');
  const popup=node(),download={stopped:false},pause=node();targets.set(popup,download);pause.closest=()=>popup;
  assert.equal(read('download-playback',pause).state,'downloading');download.stopped=true;assert.equal(read('download-playback',pause).state,'paused');
@@ -47,12 +52,36 @@ test('all six state adapters read their own authorities, including background co
 
 
 test('menu opt-out applies before native paint in menu and panel owners',()=>{
- const prefs=new Map(),scope=vm.createContext({forced:{matches:false},S:{getBoolPref:(k,f)=>prefs.get(k)??f},int:(k,f=0)=>k==='set'?4:f});
- vm.runInContext(source.slice(source.indexOf('const enabled='),source.indexOf('const still='))+';globalThis.enabled=enabled;',scope);
- const binding={setting:null},menu={closest:s=>{assert.equal(s,'menupopup,panelview,menu,menuitem');return {};}},toolbar={closest:()=>null};
- assert.equal(scope.enabled(binding),true);assert.equal(scope.enabled(binding,toolbar),true);
- assert.equal(scope.enabled(binding,menu),false);prefs.set('zzicon.menu.animate',true);assert.equal(scope.enabled(binding,menu),true);
- prefs.set('zzicon.menu.animate',false);assert.equal(scope.enabled(binding,menu),false);
+ const prefs=new Map(),scope=vm.createContext({cfg:{menus:false},int:(k,f=0)=>prefs.get(k)??f});
+ vm.runInContext(source.slice(source.indexOf('const allowed='),source.indexOf('const listen='))+';Object.assign(globalThis,{allowed,placed});',scope);
+ const menu={closest:s=>{assert.equal(s,'menupopup,panelview,menu,menuitem');return {};}},toolbar={closest:()=>null};
+ assert.equal(scope.placed(toolbar),true);assert.equal(scope.placed(menu),false);
+ scope.cfg.menus=true;assert.equal(scope.placed(menu),true);
+ // Per-button and Library choices other than following the set keep the native icon.
+ assert.equal(scope.allowed({setting:null}),true);assert.equal(scope.allowed({setting:'reload'}),true);
+ prefs.set('button.reload',1);assert.equal(scope.allowed({setting:'reload'}),false);
+ assert.equal(scope.allowed({setting:'library'}),true);prefs.set('library.style',3);assert.equal(scope.allowed({setting:'library'}),false);
+});
+
+test('the binding index returns the first matching binding, as a full scan would',()=>{
+ const env=vm.createContext({bindings:data.bindings});
+ vm.runInContext('let keyed,unkeyed,keyAttrs;'+source.slice(source.indexOf('function indexBindings('),source.indexOf('function discover('))+';indexBindings();',env);
+ // An element under ancestors carrying each binding's leading key, matching exactly the chosen selectors.
+ const chain=chosen=>{
+  let parent=null;
+  for(const b of chosen){
+   const [,id,name,value]=/^(?:#([\w-]+)|\[([\w-]+)="([^"]*)"\])/.exec(b.selector)||[];
+   const attrs=name?{[name]:value}:{};parent={id:id||'',parentElement:parent,getAttribute:k=>attrs[k]??null};
+  }
+  const wanted=new Set(chosen.map(b=>b.selector));
+  return {id:'',parentElement:parent,getAttribute:()=>null,matches:s=>wanted.has(s)};
+ };
+ const picks=[0,5,22,78,80,100,107,110,116,158,161,174].map(i=>data.bindings[i]);
+ for(const a of picks)for(const b of picks){
+  const el=chain([a,b]),want=data.bindings.find(x=>el.matches(x.selector));
+  assert.equal(env.bindingFor(el),want,a.selector+' / '+b.selector);
+ }
+ assert.equal(env.bindingFor(chain([])),undefined);
 });
 
 test('native frame sheets reproduce the approved motion definitions',()=>{

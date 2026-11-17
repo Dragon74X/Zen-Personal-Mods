@@ -1,13 +1,16 @@
-// Paste this complete IIFE into Zen's Browser Console (Ctrl+Shift+J). Recording starts at once.
-// About 15 s of automatic switches between two browser windows (with one window, a
+// Run in Zen's Browser Console (Ctrl+Shift+J): the loader in ARRIVAL-PROBE.md, or this complete
+// IIFE pasted. Recording starts at once.
+// Up to about 15 s of automatic switches between two browser windows (with one window, a
 // temporary second window opens and closes again), then 40 s in which you switch
 // windows your usual way once or twice. The report is copied and logged at the end,
 // 75 s at most. window.__zzArrivalProbe.stop() ends early, restores and copies.
 (async () => {
   'use strict';
-  const PROBE = 'zen-arrival-v1', DEADLINE = 75000, PASSIVE = 40000, XHTML = 'http://www.w3.org/1999/xhtml';
+  const PROBE = 'zen-arrival-v2', DEADLINE = 75000, PASSIVE = 40000, XHTML = 'http://www.w3.org/1999/xhtml';
   const LIMITS = { events: 200, rings: 24, opacity: 40, pixels: 8, windows: 16 };
   const MARK = Symbol.for('zzrouter.switchToTabHavingURI'), OWN = Symbol('zzArrivalProbe'), ENDED = Symbol('ended');
+  // The automatic switches: Firefox's switch to an open tab, Tab Router's own, then one of them again for pixels.
+  const PATHS = ['switchToTabHavingURI', 'tabRouterSwitchIfOpen'], PIXELS = 'pixels';
   const browsers = () => [...Services.wm.getEnumerator('navigator:browser')].filter(w => !w.closed);
   const first = Services.wm.getMostRecentWindow('navigator:browser');
   if (!first) return { probe: PROBE, status: 'no-browser-window' };
@@ -39,7 +42,9 @@
     evidence: 'auto: direct calls from this probe (synthetic). They test the switch code, window activation and Gecko rendering, not physical input or the physical screen. ' +
       'passive: your own switches. markArrival: calls through window.TabRouter.markArrival; Tab Router 1.45.1 draws Switch to Tab from its own switchIfNeeded instead ' +
       '(switchingFrom names the window you came from). pixels: drawSnapshot, a fresh Gecko rendering of the ring edge at its peak against the same area after it, ' +
-      'not a screen capture. frames/paints/framesIn1s: refresh ticks and paints of that window, not proof that the screen showed them.',
+      'not a screen capture, taken only in the extra auto "pixels" switch because each snapshot stalls the window for a moment. ' +
+      'frames/paints/framesIn1s: refresh ticks and paints of that window, not proof that the screen showed them. ' +
+      'opacity: worked out each frame from the ring animation\'s keyframes and progress, with no style read that would slow the ring it measures.',
     env: {}, mods: {}, runtime: {}, auto: { paths: [] }, passive: null, rings: [], events: [], dropped: { events: 0, rings: 0 }, cleanup: {}, failures: [] };
   const fail = code => { if (!report.failures.includes(code) && report.failures.length < 16) report.failures.push(code); };
   const event = (type, win, extra = {}) => {
@@ -63,7 +68,8 @@
   const PREFS = ['widget.windows.window_occlusion_tracking.enabled', 'widget.windows.window_occlusion_tracking_display_state.enabled',
     'widget.windows.window_occlusion_tracking_session_lock.enabled', 'gfx.webrender.all', 'gfx.webrender.software', 'gfx.webrender.compositor',
     'layers.acceleration.disabled', 'layout.frame_rate', 'ui.prefersReducedMotion', 'toolkit.cosmeticAnimations.enabled',
-    'browser.urlbar.switchTabs.adoptIntoActiveWindow', 'browser.urlbar.switchTabs.searchAllContainers', 'zzrouter.enabled', 'zzrouter.switch-to-open'];
+    'browser.urlbar.switchTabs.adoptIntoActiveWindow', 'browser.urlbar.switchTabs.searchAllContainers', 'browser.tabs.splitView.enabled',
+    'zzrouter.enabled', 'zzrouter.switch-to-open'];
   const pref = key => attempt(() => {
     const p = Services.prefs, type = p.getPrefType(key), text = type === 32 ? p.getStringPref(key) : '';
     return type === 128 ? p.getBoolPref(key) : type === 64 ? p.getIntPref(key) : type === 32 ? (/^[\w.,: -]{0,40}$/.test(text) ? text : '<text>') : null;
@@ -103,8 +109,11 @@
     switchToTabPatched: !!attempt(() => helper.switchToTabHavingURI[MARK]), windows: browsers().slice(0, LIMITS.windows).map(runtime) };
 
   // ---- rings: Tab Router's arrival glow, found by its shape in any version ----
+  // An inert positioned overlay drawn as a 2 px inset shadow (1.45.0, 1.45.1) or a solid border.
+  const ringStyle = n => /0px 0px 0px 2px inset|inset 0px 0px 0px 2px/.test(n.style.boxShadow || '') ? 'box-shadow'
+    : /^\d+(?:\.\d+)?px solid /.test(n.style.border || '') ? 'border' : null;
   const ringLike = n => n?.localName === 'div' && n.namespaceURI === XHTML && n.getAttribute?.('aria-hidden') === 'true' &&
-    /0px 0px 0px 2px inset|inset 0px 0px 0px 2px/.test(n.style?.boxShadow || '');
+    /^(?:absolute|fixed)$/.test(n.style?.position || '') && n.style.pointerEvents === 'none' && !!ringStyle(n);
   const rectOf = n => attempt(() => { const r = n.getBoundingClientRect(); return [r.left, r.top, r.width, r.height].map(Math.round); });
   const HOLDERS = ['browserSidebarContainer', 'tab-stack', 'tab-group-label-container'];
   const holderOf = n => attempt(() => n.parentNode === n.ownerDocument.documentElement ? 'root' : n.parentNode.id === 'tabbrowser-tabpanels' ? 'tabpanels'
@@ -132,16 +141,44 @@
     }
     return out;
   }
+  // A keyframe's easing: the CSS keywords and cubic-bezier(); anything else counts as linear.
+  const BEZIER = { ease: [0.25, 0.1, 0.25, 1], 'ease-in': [0.42, 0, 1, 1], 'ease-out': [0, 0, 0.58, 1], 'ease-in-out': [0.42, 0, 0.58, 1] };
+  function easing(text) {
+    const p = BEZIER[text] || /^cubic-bezier\(([^)]*)\)$/.exec(text || '')?.[1].split(',').map(Number);
+    if (!p || p.length !== 4 || !p.every(Number.isFinite)) return t => t;
+    const at = (a, b, t) => 3 * a * t * (1 - t) * (1 - t) + 3 * b * t * t * (1 - t) + t * t * t;
+    return x => { let lo = 0, hi = 1, t = x; for (let i = 0; i < 24; i++) { t = (lo + hi) / 2; if (at(p[0], p[2], t) < x) lo = t; else hi = t; } return at(p[1], p[3], t); };
+  }
+  // The ring's opacity from its animation: keyframes read once, progress per frame. Reading
+  // computed style every frame cut a box-shadow ring's window from about 60 to about 10
+  // refresh ticks a second (Linux, software WebRender).
+  function opacityCurve(anim) {
+    const keys = attempt(() => anim.effect.getKeyframes().map(k => ({ at: k.computedOffset, value: Number(k.opacity), ease: easing(k.easing) }))
+      .filter(k => Number.isFinite(k.at) && k.opacity !== '' && Number.isFinite(k.value)), []);
+    if (keys.length < 2) return null;
+    return () => {
+      const p = attempt(() => anim.effect.getComputedTiming().progress);
+      if (typeof p !== 'number') return null;
+      let i = 0; while (i < keys.length - 2 && p > keys[i + 1].at) i++;
+      const a = keys[i], b = keys[i + 1], span = b.at - a.at;
+      return span > 0 ? a.value + (b.value - a.value) * a.ease(Math.min(1, Math.max(0, (p - a.at) / span))) : b.value;
+    };
+  }
   function ringAdded(win, n) {
     if (ended) return;
     if (report.rings.length >= LIMITS.rings) { report.dropped.rings++; return; }
-    const anim = attempt(() => n.getAnimations()[0]), duration = attempt(() => anim.effect.getTiming().duration);
-    const ring = { ms: now(), phase, win: id(win), holder: holderOf(n), position: n.style.position || null, zIndex: n.style.zIndex || null, rect: rectOf(n),
+    const anim = attempt(() => n.getAnimations()[0]), duration = attempt(() => anim.effect.getTiming().duration), curve = anim && opacityCurve(anim);
+    // Snapshots stall the window, so only the extra pixels switch takes them: every other ring keeps clean frame counts.
+    const sample = phase === 'auto:' + PIXELS;
+    const ring = { ms: now(), phase, win: id(win), holder: holderOf(n), style: ringStyle(n), position: n.style.position || null, zIndex: n.style.zIndex || null, rect: rectOf(n),
       durationMs: typeof duration === 'number' ? Math.round(duration) : null, afterCallMs: phase.startsWith('auto:') ? now() - callAt : null,
       afterActivateMs: lastActivate.has(win) ? now() - lastActivate.get(win) : null, atAdd: state(win),
-      frames: 0, paints: 0, opacity: [], maxOpacity: 0, removedAfterMs: null, connectedAtEnd: null, pixels: null };
+      frames: 0, paints: 0, opacitySource: curve ? 'animation' : 'none', opacity: [], maxOpacity: 0, removedAfterMs: null, connectedAtEnd: null, pixels: null };
     report.rings.push(ring);
-    const accent = attempt(() => win.getComputedStyle(n).boxShadow.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/).slice(1, 4).map(Number));
+    // Computed style once, at add: the accent comes from the shadow or the border, whichever draws the ring.
+    const accent = attempt(() => { const cs = win.getComputedStyle(n);
+      return (ring.style === 'border' ? cs.borderTopColor : cs.boxShadow).match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/).slice(1, 4).map(Number); });
+    ring.accent = accent;
     const paint = () => { ring.paints++; };
     win.addEventListener('MozAfterPaint', paint);
     let frame = 0, peak = null;
@@ -149,6 +186,7 @@
       if (!live.has(ring)) return;
       live.delete(ring); attempt(() => win.removeEventListener('MozAfterPaint', paint)); attempt(() => win.cancelAnimationFrame(frame));
       ring.connectedAtEnd = !!n.isConnected;
+      if (!sample) return;
       if (!peak) { ring.pixels = { skipped: pixelBudget ? (ring.frames ? 'peak-not-sampled' : 'no-frames') : 'budget' }; return; }
       if (n.isConnected) { ring.pixels = { skipped: 'ring-still-attached' }; return; }
       const job = Promise.all([peak, snapshot(win, ring.rect)]).then(([a, b]) => { ring.pixels = compare(a, b, accent); }, () => { ring.pixels = { error: 'snapshot-failed' }; });
@@ -159,11 +197,11 @@
     const step = () => {
       if (!live.has(ring)) return;
       ring.frames++;
-      const o = Number(attempt(() => win.getComputedStyle(n).opacity, 0)) || 0;
-      ring.maxOpacity = Math.max(ring.maxOpacity, Math.round(o * 100) / 100);
-      if (ring.opacity.length < LIMITS.opacity) ring.opacity.push(Math.round(o * 100) / 100);
-      if (!peak && pixelBudget > 0 && (o >= 0.9 || attempt(() => anim.currentTime >= 0.3 * duration, false))) {
-        pixelBudget--; ring.peakOpacity = Math.round(o * 100) / 100; peak = snapshot(win, ring.rect); peak.catch(() => {});
+      const value = curve?.(), o = value == null ? null : Math.round(Math.min(1, Math.max(0, value)) * 100) / 100;
+      if (o != null) ring.maxOpacity = Math.max(ring.maxOpacity, o);
+      if (ring.opacity.length < LIMITS.opacity) ring.opacity.push(o);
+      if (sample && !peak && pixelBudget > 0 && (o >= 0.9 || attempt(() => anim.currentTime >= 0.3 * duration, false))) {
+        pixelBudget--; ring.peakOpacity = o; peak = snapshot(win, ring.rect); peak.catch(() => {});
       }
       frame = win.requestAnimationFrame(step);
     };
@@ -255,7 +293,7 @@
 
   // ---- automatic phase: two windows, a page live in one, each switch from the other ----
   const temp = { win: null, tab: null, id: null, url: null }, selected = new Map();
-  let origin = null, destination = null;
+  let origin = null, destination = null, autoDone = false;
   const webURI = tab => attempt(() => { const u = tab.linkedBrowser.currentURI; return /^https?$/.test(u.scheme) ? u : null; });
   const pageOf = uri => attempt(() => uri.host.replace(/^www\./, '') + uri.filePath.replace(/\/+$/, ''));
   async function activate(win) {
@@ -297,7 +335,10 @@
     }
     destination = D;
     for (const w of [O, D]) selected.set(w, w.gBrowser.selectedTab);
-    Object.assign(report.auto, { origin: id(O), destination: id(D), temporaryWindow: !!temp.win, originSplitView: !!attempt(() => O.gBrowser.selectedTab.splitView) });
+    // The address bar hands switchToTabHavingURI the current tab's `splitview`: Firefox's own split
+    // view, locked off in Zen 1.24.2b. Zen's split view (`splitView`) never reaches it.
+    Object.assign(report.auto, { origin: id(O), destination: id(D), temporaryWindow: !!temp.win,
+      originNativeSplitView: !!attempt(() => O.gBrowser.selectedTab.splitview), originZenSplitView: !!attempt(() => O.gBrowser.selectedTab.splitView) });
     report.auto.firstActivation = await activate(O);
     const target = pickTarget(O, D) || await temporaryTab(D), tab = target.tab;
     const uri = webURI(tab), ctx = parseInt(tab.getAttribute('usercontextid') || '0', 10);
@@ -307,13 +348,21 @@
       originCopy: copy ? { pending: copy.hasAttribute('pending'), web: !!webURI(copy) } : null };
     const paths = [
       // As the address bar's Switch to Tab calls it, without adopting and never opening a new tab.
-      ['switchToTabHavingURI', typeof O.switchToTabHavingURI === 'function' && (() => O.switchToTabHavingURI(uri, false, {}, ctx, null))],
+      [PATHS[0], typeof O.switchToTabHavingURI === 'function' && (() => O.switchToTabHavingURI(uri, false, {}, ctx, null))],
       // Tab Router's own switch to an open page (link clicks, new tabs, folder pages).
-      ['tabRouterSwitchIfOpen', typeof O.TabRouter?.switchIfOpen === 'function' && (() => O.TabRouter.switchIfOpen(uri.spec, ctx))],
+      [PATHS[1], typeof O.TabRouter?.switchIfOpen === 'function' && (() => O.TabRouter.switchIfOpen(uri.spec, ctx))],
+      // Once more by the first switch that drew a ring, Tab Router's preferred: this time the ring edge is snapshotted.
+      [PIXELS, () => { const [, call] = paths[pixelsVia === PATHS[1] ? 1 : 0]; return call(); }],
     ];
+    let pixelsVia = null;
     for (const [path, call] of paths) {
       const row = { path };
       report.auto.paths.push(row);
+      if (path === PIXELS) {
+        pixelsVia = [PATHS[1], PATHS[0]].find(p => report.auto.paths.find(r => r.path === p)?.rings?.length) || null;
+        if (!pixelsVia) { row.skipped = 'no-ring'; continue; }
+        row.via = pixelsVia;
+      }
       if (!call) { row.skipped = 'api-absent'; continue; }
       if (O.closed || D.closed) { row.skipped = 'window-closed'; continue; }
       row.activation = await activate(O);
@@ -325,6 +374,7 @@
       row.callMs = now() - callAt;
       row.destinationActiveMs = await until(() => Services.focus.activeWindow === D, 2000) ? now() - callAt : null;
       await until(() => now() - callAt >= 1500 && !live.size, 4000);
+      if (path === PIXELS) await until(() => !pending.size, 3000);
       row.after = { origin: state(O), destination: state(D),
         landed: O.gBrowser.selectedTab?.id === tab.id ? 'origin' : D.gBrowser.selectedTab === tab ? 'destination' : 'neither' };
       const events = report.events.slice(fromEvent), of = type => events.filter(e => e.type === type);
@@ -334,6 +384,16 @@
       row.rings = report.rings.slice(fromRing).map((_, i) => fromRing + i);
       phase = 'auto';
     }
+    autoDone = true;
+  }
+  // A Stop, the deadline or a closed window during the automatic phase: every switch that has
+  // no result says why. (Its pending wait is cancelled with the timers, so this runs in finish.)
+  function markUnfinished(reason) {
+    const a = report.auto;
+    if (autoDone || a.skipped) return;
+    a.unfinished = reason;
+    for (const path of [...PATHS, PIXELS]) if (!a.paths.some(row => row.path === path)) a.paths.push({ path });
+    for (const row of a.paths) if (!row.after && !row.skipped) row.skipped = reason;
   }
   // The temporary tab and its synced copies: closing a window hands its live tabs to another window.
   const strays = () => temp.tab ? browsers().flatMap(w => w.gBrowser.tabs.filter(t => !t.closing &&
@@ -357,6 +417,7 @@
   async function finish(reason = 'completed') {
     if (ended) return done;
     ended = true; report.status = reason;
+    attempt(() => markUnfinished(reason));
     attempt(restoreAuto);
     for (const end of [...live.values()]) attempt(end);
     for (const undo of [...tracked.values()]) for (const fn of undo.reverse()) attempt(fn);
@@ -392,7 +453,7 @@
     try { Cc['@mozilla.org/widget/clipboardhelper;1'].getService(Ci.nsIClipboardHelper).copyString(json); }
     catch { fail('clipboard-unavailable'); json = JSON.stringify(report); }
     console.log('[Zen arrival report]', json);
-    resolveDone(report);
+    resolveDone(JSON.parse(json)); // the copied report, whatever settles later
     return done;
   }
 

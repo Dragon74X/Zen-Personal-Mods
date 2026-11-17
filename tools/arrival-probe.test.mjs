@@ -3,14 +3,19 @@ import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import { test } from 'node:test';
 const source = await readFile(new URL('./arrival-probe.js', import.meta.url), 'utf8');
+const guide = await readFile(new URL('./ARRIVAL-PROBE.md', import.meta.url), 'utf8');
 const XHTML = 'http://www.w3.org/1999/xhtml', MARK = Symbol.for('zzrouter.switchToTabHavingURI'), ACCENT = [10, 20, 250];
 const secret = 'PRIVATE_PERSON';
 
 // A small Zen: windows with synced tab copies, Firefox's switch to an open tab,
 // and Tab Router 1.45.1 (exposed markArrival, shared switch patch, own
-// switchIfNeeded) or 1.45.0 (an internal fixed ring, nothing exposed).
-function zen({ router = '1.45.1', windows: count = 2, lateRouter = false } = {}) {
-  let time = 0, serial = 0, active = null, copied, syncing = false;
+// switchIfNeeded) or 1.45.0 (an internal fixed ring, nothing exposed). Rings are
+// drawn with inset shadows as released, or with borders (ring: 'border') as the
+// Windows ring fix draws them. styleReads counts getComputedStyle calls.
+// entry: the code the Browser Console runs (the probe itself, or the loader that fetches it).
+function zen({ router = '1.45.1', windows: count = 2, lateRouter = false, ring: ringKind = 'shadow', zenSplitView = false, entry = source } = {}) {
+  let time = 0, serial = 0, active = null, copied, syncing = false, styleReads = 0, snapshots = 0;
+  const files = new Map(), fetched = [];
   const queue = new Map(), observers = new Map(), logs = [], windows = [];
   const clock = { setTimeout(fn, ms) { const id = ++serial; queue.set(id, { at: time + ms, fn }); return id; }, clearTimeout(id) { queue.delete(id); } };
   const flush = async () => { for (let i = 0; i < 3; i++) await new Promise(resolve => setImmediate(resolve)); };
@@ -67,9 +72,14 @@ function zen({ router = '1.45.1', windows: count = 2, lateRouter = false } = {})
       screen: { left: 0, top: 0, width: 1920, height: 1080 }, toolbar: { visible: true }, windowUtils: { layerManagerType: 'WebRender' }, gZenWorkspaces: ws,
       gBrowserInit: { delayedStartupFinished: true }, gZenStartup: { promiseInitialized: Promise.resolve() }, rings, mutationObservers, listeners, docListeners, page,
       SessionStore: { setCustomTabValue(tab, k, v) { tab.custom[k] = v; } }, DOMRect: class { constructor(x, y, w, h) { Object.assign(this, { x, y, width: w, height: h }); } },
-      browsingContext: { isActive: true, currentWindowGlobal: { drawSnapshot: async (rect) => ({ ring: [...rings].some(r => r.opacity() > 0.2), width: rect.width, close() {} }) } },
-      matchMedia: () => ({ matches: false }), fetch: async url => ({ json: async () => ({ version: url.includes('tab-router') ? router : secret }) }),
-      getComputedStyle: el => ({ opacity: String(el.opacity ? el.opacity() : 1), boxShadow: el.style.boxShadow || 'none', getPropertyValue: () => 'rgb(10, 20, 250)' }),
+      // A snapshot holds the main thread for a moment (150 ms here), as it does in Zen.
+      browsingContext: { isActive: true, currentWindowGlobal: { drawSnapshot: async (rect) => { const ring = [...rings].some(r => r.opacity() > 0.2); snapshots++; time += 150;
+        return { ring, width: rect.width, close() {} }; } } },
+      matchMedia: () => ({ matches: false }), AbortSignal: { timeout: ms => ({ timeout: ms }) },
+      fetch: async url => { fetched.push(url); if (url.startsWith('https://')) return { ok: true, status: 200, text: async () => source };
+        return { json: async () => ({ version: url.includes('tab-router') ? router : secret }) }; },
+      getComputedStyle: el => { styleReads++; return { opacity: String(el.opacity ? el.opacity() : 1), boxShadow: el.style.boxShadow || 'none',
+        borderTopColor: /rgb\([^)]*\)/.exec(el.style.border || '')?.[0] || 'rgb(0, 0, 0)', getPropertyValue: () => 'rgb(10, 20, 250)' }; },
       addEventListener: (t, f) => on(listeners).add(t, f), removeEventListener: (t, f) => on(listeners).remove(t, f),
       requestAnimationFrame: fn => clock.setTimeout(() => { fn(time); win.emit('MozAfterPaint'); }, 16), cancelAnimationFrame: id => clock.clearTimeout(id),
       emit(type, data = {}) { for (const fn of [...listeners.get(type) || []]) fn({ type, target: doc, ...data }); },
@@ -102,16 +112,24 @@ function zen({ router = '1.45.1', windows: count = 2, lateRouter = false } = {})
       } };
     win.addTab = url => gBrowser.addTab(url);
     doc.defaultView = win;
+    // Tab Router's ring: 1.45.1's inset shadow over 900 ms, or the border ring (full
+    // strength at 12 %, held to 55 %, 1100 ms). Opacity is the animation's alone.
     win.ring = (holder, position) => {
-      const node = element(doc), born = time;
+      const node = element(doc), born = time, border = ringKind === 'border', duration = border ? 1100 : 900;
+      const keys = border ? [[0, 0, 'ease-out'], [0.12, 1, 'linear'], [0.55, 1, 'ease-in-out'], [1, 0, 'linear']] : [[0, 0, 'linear'], [0.3, 1, 'linear'], [1, 0, 'linear']];
       node.setAttribute('aria-hidden', 'true');
-      Object.assign(node.style, { position, zIndex: '1', boxShadow: 'rgb(10, 20, 250) 0px 0px 0px 2px inset, color-mix(in srgb, rgb(10, 20, 250) 40%, transparent) 0px 0px 28px 0px inset' });
+      Object.assign(node.style, { position, zIndex: '1', pointerEvents: 'none', opacity: '0' }, border ? { border: '2px solid rgb(10, 20, 250)', boxSizing: 'border-box' }
+        : { boxShadow: 'rgb(10, 20, 250) 0px 0px 0px 2px inset, color-mix(in srgb, rgb(10, 20, 250) 40%, transparent) 0px 0px 28px 0px inset' });
       node.parentNode = holder; node.getBoundingClientRect = () => ({ left: 10, top: 20, width: 300, height: 500 });
-      node.opacity = () => { const t = (time - born) / 900; return node.isConnected ? (t < 0.3 ? t / 0.3 : Math.max(0, (1 - t) / 0.7)) : 0; };
-      node.getAnimations = () => [{ get currentTime() { return time - born; }, effect: { getTiming: () => ({ duration: 900 }) } }];
+      const progress = () => { const t = (time - born) / duration; return node.isConnected && t >= 0 && t <= 1 ? t : null; };
+      node.opacity = () => { const p = progress(); if (p === null) return 0; let i = 0; while (i < keys.length - 2 && p > keys[i + 1][0]) i++;
+        const [a, b] = [keys[i], keys[i + 1]]; return a[1] + (b[1] - a[1]) * (p - a[0]) / (b[0] - a[0]); };
+      node.getAnimations = () => [{ get currentTime() { return time - born; }, effect: { getTiming: () => ({ duration, easing: 'linear' }),
+        getComputedTiming: () => ({ progress: progress() }),
+        getKeyframes: () => keys.map(([offset, opacity, easing]) => ({ offset, computedOffset: offset, easing, composite: 'auto', opacity: String(opacity) })) } }];
       node.remove = () => { if (!node.isConnected) return; node.isConnected = false; rings.delete(node); win.mutate({ addedNodes: [], removedNodes: [node] }); };
       rings.add(node); win.mutate({ addedNodes: [node], removedNodes: [] });
-      clock.setTimeout(() => node.remove(), 900);
+      clock.setTimeout(() => node.remove(), duration);
     };
     return win;
   }
@@ -141,6 +159,7 @@ function zen({ router = '1.45.1', windows: count = 2, lateRouter = false } = {})
   for (let i = 1; i <= count; i++) windows.push(makeWindow(i));
   const [O, D] = windows;
   O.gBrowser.selectedTab = O.addTab(`https://user:${secret}@origin.example/${secret}/a?q=${secret}`);
+  if (zenSplitView) O.gBrowser.selectedTab.splitView = true; // Zen's own split view (Firefox's is `splitview`)
   if (D) {
     // Synced copies: the live page b is in D; O's copy of it is blank.
     D.addTab(`https://user:${secret}@origin.example/${secret}/a?q=${secret}`).linkedBrowser.currentURI = uri('about:blank');
@@ -157,7 +176,15 @@ function zen({ router = '1.45.1', windows: count = 2, lateRouter = false } = {})
     wm: { getEnumerator: () => windows.filter(w => !w.closed), getMostRecentWindow: () => O, getZOrderDOMWindowEnumerator() { throw Error('not implemented'); } },
     appinfo: { OS: 'WINNT', version: '1.24.2b', platformVersion: '160.0' }, sysinfo: { getProperty: () => '10.0' },
     obs: { addObserver(o, topic) { observers.set(topic, o); }, removeObserver(o, topic) { if (observers.get(topic) === o) observers.delete(topic); } },
-    scriptSecurityManager: { getSystemPrincipal: () => ({}) }, dirsvc: { get: () => ({ path: '/home/' + secret + '/profile' }) } };
+    scriptSecurityManager: { getSystemPrincipal: () => ({}) },
+    dirsvc: { get: key => key === 'TmpD' ? { path: '/tmp', append(name) { this.path += '/' + name; }, createUnique() { this.path = this.path.replace(/\.js$/, '-1.js'); } }
+      : { path: '/home/' + secret + '/profile' } },
+    io: { newFileURI: file => ({ spec: 'file://' + file.path }) },
+    // Firefox's local-file script loader: runs the file into the target window, returning its value.
+    scriptloader: { loadSubScriptWithOptions(spec, options) {
+      assert.ok(windows.includes(options.target) && options.wantReturnValue && options.allowUnsafeURL, 'loaded into a browser window, with its value');
+      return vm.runInContext(files.get(spec.replace(/^file:\/\//, '')), context);
+    } } };
   const ChromeUtils = { now: () => time, importESModule(path) {
     if (path.endsWith('Timer.sys.mjs')) return clock;
     if (path.endsWith('URILoadingHelper.sys.mjs')) return { URILoadingHelper: helper };
@@ -165,13 +192,13 @@ function zen({ router = '1.45.1', windows: count = 2, lateRouter = false } = {})
     if (path.endsWith('WindowsVersionInfo.sys.mjs')) return { WindowsVersionInfo: { get: () => ({ buildNumber: 22631 }) } };
     throw Error(secret);
   } };
-  const IOUtils = { readJSON: async () => ({ 'zz-tab-router': { version: router, updatedAt: '2026-11-17T07:12:54Z', enabled: true, homepage: secret }, [secret]: { version: secret } }) };
+  const IOUtils = { writeUTF8: async (path, text) => { files.set(path, text); }, remove: async path => { files.delete(path); }, readJSON: async () => ({ 'zz-tab-router': { version: router, updatedAt: '2026-11-17T07:12:54Z', enabled: true, homepage: secret }, [secret]: { version: secret } }) };
   const Cc = { '@mozilla.org/widget/clipboardhelper;1': { getService: () => ({ copyString: text => { copied = text; } }) } };
   const context = vm.createContext({ Services, ChromeUtils, IOUtils, Cc, Ci: { nsIFile: {}, nsIClipboardHelper: {} }, PathUtils: { join: (...p) => p.join('/') },
     console: { log: (...args) => logs.push(args) }, Math, JSON, Promise, Symbol, Object, Number, String, Error, URL, Uint8ClampedArray, queueMicrotask });
-  const result = vm.runInContext(source, context);
+  const result = vm.runInContext(entry, context);
   return { windows, O, D, helper, original, originals, queue, observers, logs, result, advance, flush, uri, jump: ms => { time += ms; },
-    get time() { return time; }, get copied() { return copied; }, get active() { return active; } };
+    get time() { return time; }, get copied() { return copied; }, get active() { return active; }, get styleReads() { return styleReads; }, get snapshots() { return snapshots; }, files, fetched };
 }
 const plain = value => JSON.parse(JSON.stringify(value));
 function clean(z, result) {
@@ -192,9 +219,9 @@ function clean(z, result) {
   }
 }
 
-test('Tab Router 1.45.1: both automatic switches reach the other window, ring and paint; your own switches are recorded within bounds', async () => {
+test('Tab Router 1.45.1: the automatic switches reach the other window and ring, only the pixels switch snapshots; your own switches are recorded within bounds', async () => {
   const z = zen();
-  await z.advance(6000);
+  await z.advance(9000);
   assert.equal(z.O.__zzArrivalProbe.phase, 'passive');
   // Your switch: a link to a page open in the other window, then a burst of selections.
   z.O.TabRouter.switchIfOpen(z.D.gBrowser.tabs[1].linkedBrowser.currentURI.spec);
@@ -212,20 +239,33 @@ test('Tab Router 1.45.1: both automatic switches reach the other window, ring an
   assert.equal(result.env.osBuild, 22631);
   assert.equal(result.env.prefs['zzrouter.rules'], undefined);
   assert.deepEqual(result.auto.target, { source: 'selected', host: 'www.dest.example', container: 0, originCopy: { pending: false, web: false } });
-  const [uri, routed] = result.auto.paths;
+  assert.deepEqual([result.auto.originNativeSplitView, result.auto.originZenSplitView], [false, false]);
+  const [uri, routed, pixels] = result.auto.paths;
+  assert.deepEqual(result.auto.paths.map(row => row.path), ['switchToTabHavingURI', 'tabRouterSwitchIfOpen', 'pixels']);
   assert.deepEqual(uri.calls.switchToTabHavingURI, ['W1']);
   assert.deepEqual(uri.calls.switchIfNeeded.map(c => [c.win, c.switchingFrom]), [['W2', 'W1']]);
   assert.deepEqual(routed.calls.markArrival.map(c => c.win), ['W2']);
-  for (const row of [uri, routed]) {
+  assert.equal(pixels.via, 'tabRouterSwitchIfOpen'); assert.deepEqual(pixels.calls.markArrival.map(c => c.win), ['W2']);
+  for (const row of [uri, routed, pixels]) {
     assert.equal(row.returned, true); assert.equal(row.after.landed, 'destination'); assert.equal(row.after.destination.active, true);
     assert.equal(row.rings.length, 1);
     const ring = result.rings[row.rings[0]];
     assert.equal(ring.win, 'W2'); assert.equal(ring.holder, 'browserSidebarContainer'); assert.equal(ring.position, 'absolute');
     assert.ok(ring.frames > 40 && ring.maxOpacity > 0.9 && ring.removedAfterMs >= 880, 'ring tracked through its fade');
     assert.equal(ring.opacity.length, 40, 'opacity samples bounded');
-    assert.equal(ring.pixels.method, 'drawSnapshot'); assert.equal(ring.pixels.towardAccent, ring.pixels.total);
+    assert.equal(ring.style, 'box-shadow'); assert.equal(ring.opacitySource, 'animation'); assert.deepEqual(ring.accent, ACCENT);
   }
+  // Only the pixels switch snapshots (a snapshot stalls the window): the others keep every frame.
+  for (const ring of [uri, routed].map(row => result.rings[row.rings[0]])) { assert.equal(ring.pixels, null); assert.ok(ring.frames >= 54, 'clean frames: ' + ring.frames); }
+  const sampled = result.rings[pixels.rings[0]];
+  assert.equal(sampled.pixels.method, 'drawSnapshot'); assert.equal(sampled.pixels.towardAccent, sampled.pixels.total);
+  assert.equal(z.snapshots, 2, 'the peak and the area after it, once');
+  assert.equal(result.rings.filter(r => r.phase === 'passive').every(r => r.pixels === null && r.frames >= 54), true, 'your own switches are not slowed');
   assert.equal(result.passive.markArrival, 1); assert.equal(result.passive.rings, 1); assert.equal(result.passive.plainActivations, 1, 'the Alt+Tab back, not the switch');
+  // Reading the ring's computed style each frame restyles it on the main thread and slows
+  // the window being measured: once for the accent at start, then once per ring when it is added.
+  assert.ok(result.rings.reduce((sum, r) => sum + r.frames, 0) > 120);
+  assert.ok(z.styleReads <= 1 + result.rings.length, `computed style read ${z.styleReads} times for ${result.rings.length} rings`);
   assert.ok(result.events.some(e => e.type === 'activate' && e.win === 'W2' && e.framesIn1s > 30), 'refresh ticks after activation');
   assert.equal(result.events.length, 200); assert.ok(result.dropped.events > 100);
   assert.deepEqual(result.cleanup.leftovers, []); assert.equal(result.cleanup.selectionRestored, true); assert.equal(result.cleanup.refocused, 'W1');
@@ -234,7 +274,7 @@ test('Tab Router 1.45.1: both automatic switches reach the other window, ring an
 
 test('Tab Router 1.45.0: no markArrival or switch patch, so Switch to Tab draws nothing; Stop + copy restores', async () => {
   const z = zen({ router: '1.45.0' });
-  await z.advance(6000);
+  await z.advance(9000);
   assert.equal(z.O.__zzArrivalProbe.phase, 'passive');
   const stopping = z.D.__zzArrivalProbe.stop();
   await z.flush();
@@ -243,13 +283,14 @@ test('Tab Router 1.45.0: no markArrival or switch patch, so Switch to Tab draws 
   assert.equal(result.runtime.switchToTabPatched, false);
   assert.deepEqual(result.runtime.windows.map(w => [w.markArrival, w.switchIfOpen, w.switchIfNeededWrapped]), [[false, true, false], [false, true, false]]);
   assert.equal(result.runtime.routerApi.includes('markArrival'), false);
-  const [uri, routed] = result.auto.paths;
+  const [uri, routed, pixels] = result.auto.paths;
   assert.deepEqual(uri.calls.switchToTabHavingURI, ['W1'], 'the unpatched switch is observed by a temporary wrapper');
   assert.deepEqual(uri.calls.switchIfNeeded.map(c => [c.win, c.switchingFrom]), [['W2', 'none']]);
   assert.equal(uri.after.landed, 'destination'); assert.deepEqual(uri.rings, []);
   assert.deepEqual(routed.calls.markArrival, []);
   assert.deepEqual(routed.rings.map(i => [result.rings[i].holder, result.rings[i].position]), [['root', 'fixed']]);
-  assert.ok(result.rings[routed.rings[0]].pixels.towardAccent > 0);
+  assert.equal(pixels.via, 'tabRouterSwitchIfOpen', 'the switch that drew a ring');
+  assert.ok(result.rings[pixels.rings[0]].pixels.towardAccent > 0);
   assert.equal(result.passive.rings, 0);
   clean(z, result);
 });
@@ -278,7 +319,7 @@ test('One window: a temporary window and tab are used, and the deadline closes b
 
 test('A window opened during the probe is watched, and wrapped only after its own Tab Router', async () => {
   const z = zen({ lateRouter: true });
-  await z.advance(6000);
+  await z.advance(9000);
   const W3 = z.O.OpenBrowserWindow();
   await z.advance(1000);
   W3.gBrowser.selectedTab = W3.gBrowser.addTab('https://third.example/page');
@@ -293,4 +334,58 @@ test('A window opened during the probe is watched, and wrapped only after its ow
   assert.equal(W3.gZenWorkspaces.switchIfNeeded.name, 'switchIfNeeded', 'Tab Router\'s own wrapper is back on top');
   assert.equal(W3.__zzArrivalProbe, undefined);
   clean(z, result);
+});
+
+test('Border rings (the Windows ring fix) are found, followed through their animation and compared in their accent', async () => {
+  const z = zen({ ring: 'border' });
+  await z.advance(9000);
+  z.O.TabRouter.switchIfOpen(z.D.gBrowser.tabs[1].linkedBrowser.currentURI.spec);
+  await z.advance(2000);
+  const result = plain(await z.O.__zzArrivalProbe.stop());
+  assert.equal(result.rings.length, 4, 'the three automatic switches and your own');
+  assert.deepEqual(result.auto.paths.map(row => row.rings.length), [1, 1, 1]);
+  assert.equal(result.passive.rings, 1);
+  for (const ring of result.rings) {
+    assert.equal(ring.style, 'border'); assert.equal(ring.durationMs, 1100); assert.deepEqual(ring.accent, ACCENT);
+    assert.equal(ring.maxOpacity, 1, 'held at full strength'); assert.ok(ring.removedAfterMs >= 1080);
+    assert.equal(ring.opacity[0] < 0.5 && ring.opacity.filter(o => o === 1).length > 20, true, 'fades in, then holds');
+  }
+  const sampled = result.rings[result.auto.paths[2].rings[0]];
+  assert.equal(sampled.pixels.method, 'drawSnapshot'); assert.equal(sampled.pixels.towardAccent, sampled.pixels.total);
+  assert.ok(z.styleReads <= 1 + result.rings.length, `computed style read ${z.styleReads} times`);
+  clean(z, result);
+});
+
+test('Zen\'s own split view is reported apart from Firefox\'s, which the address bar passes to Switch to Tab', async () => {
+  const z = zen({ zenSplitView: true });
+  await z.advance(9000);
+  const result = plain(await z.O.__zzArrivalProbe.stop());
+  assert.equal(result.auto.originZenSplitView, true);
+  assert.equal(result.auto.originNativeSplitView, false, 'tab.splitview, Firefox\'s split view, locked off in Zen');
+  assert.equal('originSplitView' in result.auto, false);
+  assert.ok('browser.tabs.splitView.enabled' in result.env.prefs);
+  assert.equal(result.auto.paths[0].after.landed, 'destination');
+  clean(z, result);
+});
+
+test('Stop during the automatic phase: every switch without a result says it was stopped', async () => {
+  const seen = new Set();
+  for (const at of [0, 300, 900, 1500, 2100, 2700, 3300, 3900]) {
+    const z = zen();
+    await z.advance(at);
+    const result = plain(await z.O.__zzArrivalProbe.stop());
+    assert.equal(result.status, 'stopped');
+    const { paths } = result.auto;
+    assert.deepEqual(paths.map(row => row.path), ['switchToTabHavingURI', 'tabRouterSwitchIfOpen', 'pixels'], 'at ' + at + ' ms');
+    for (const row of paths) {
+      assert.ok(row.after || row.skipped === 'stopped', `at ${at} ms ${row.path} has no result and no reason: ${JSON.stringify(row)}`);
+      seen.add(row.after ? 'done' : row.activation || row.returned !== undefined ? 'mid-switch' : 'not-started');
+    }
+    assert.equal(result.auto.unfinished, paths.some(row => row.skipped) ? 'stopped' : undefined);
+    assert.deepEqual(result.cleanup.leftovers, []);
+    assert.equal(z.queue.size <= 1, true, 'at most Zen\'s own ring or frame for a switch in flight');
+    await z.advance(2000); // which then ends by itself
+    clean(z, result);
+  }
+  assert.deepEqual([...seen].sort(), ['done', 'mid-switch', 'not-started'], 'stops before, during and after a switch');
 });

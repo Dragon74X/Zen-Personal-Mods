@@ -276,7 +276,7 @@ test("Firefox's Switch to Tab marks the arrival in the window it lands in, and o
   marked.length = 0;
   focus.activeWindow = null;
   helper.switchToTabHavingURI(A, B);
-  assert.deepEqual(marked, [], "asked from another app, the window is raised with no ring");
+  assert.deepEqual(marked, [], "asked from another app, the window is raised with no cue");
   assert.equal(helper.switchToTabHavingURI.switchingFrom, undefined, "the note lasts only as long as the call");
   A.TabRouter = null;
   B.ctx.unpatch();
@@ -373,7 +373,7 @@ test("Tab Router's switch raises the window holding the tab, and marks the arriv
   reset();
   focus.activeWindow = null;
   A.ctx.switchTo(A.tab);
-  assert.deepEqual([raised, marked], [["A"], []], "from another app: raised, as Firefox would, with no ring");
+  assert.deepEqual([raised, marked], [["A"], []], "from another app: raised, as Firefox would, with no cue");
 });
 
 // The opacity Web Animations computes at each millisecond: the effect's easing
@@ -382,13 +382,14 @@ test("Tab Router's switch raises the window holding the tab, and marks the arriv
 const BEZIER = { linear: [0, 0, 1, 1], ease: [0.25, 0.1, 0.25, 1], "ease-in": [0.42, 0, 1, 1],
   "ease-out": [0, 0, 0.58, 1], "ease-in-out": [0.42, 0, 0.58, 1] };
 function ease(name = "linear", x) {
-  assert.ok(BEZIER[name], `known easing ${name}`);
-  const [x1, y1, x2, y2] = BEZIER[name], at = (a, b, t) => 3 * a * t * (1 - t) ** 2 + 3 * b * t * t * (1 - t) + t ** 3;
+  const curve = BEZIER[name] || /^cubic-bezier\(([^)]*)\)$/.exec(name)?.[1].split(",").map(Number);
+  assert.ok(curve?.length === 4, `known easing ${name}`);
+  const [x1, y1, x2, y2] = curve, at = (a, b, t) => 3 * a * t * (1 - t) ** 2 + 3 * b * t * t * (1 - t) + t ** 3;
   let lo = 0, hi = 1;
   for (let i = 0; i < 60; i++) { const mid = (lo + hi) / 2; if (at(x1, x2, mid) < x) lo = mid; else hi = mid; }
   return at(y1, y2, (lo + hi) / 2);
 }
-function opacityByMs(keyframes, { duration, easing }) {
+function valueByMs(keyframes, { duration, easing }, read) {
   const offsets = keyframes.map((k, i) => k.offset ?? (i === 0 ? 0 : i === keyframes.length - 1 ? 1 : null));
   assert.ok(!offsets.includes(null), "every middle keyframe names its offset");
   return Array.from({ length: duration + 1 }, (_, ms) => {
@@ -396,9 +397,11 @@ function opacityByMs(keyframes, { duration, easing }) {
     let i = 0;
     while (i < keyframes.length - 2 && p > offsets[i + 1]) i++;
     const local = (p - offsets[i]) / (offsets[i + 1] - offsets[i]);
-    return keyframes[i].opacity + (keyframes[i + 1].opacity - keyframes[i].opacity) * ease(keyframes[i].easing, local);
+    return read(keyframes[i]) + (read(keyframes[i + 1]) - read(keyframes[i])) * ease(keyframes[i].easing, local);
   });
 }
+const opacityByMs = (keyframes, options) => valueByMs(keyframes, options, k => k.opacity);
+const scaleByMs = (keyframes, options) => valueByMs(keyframes, options, k => Number(/scaleX\(([\d.]+)\)/.exec(k.transform)[1]));
 const atFullStrength = curve => [curve.findIndex(o => o >= 0.99), curve.findLastIndex(o => o >= 0.99)];
 
 test("The timing model matches Web Animations: an effect's easing bends the time to every keyframe", () => {
@@ -411,31 +414,34 @@ test("The timing model matches Web Animations: an effect's easing bends the time
   assert.ok(Math.abs(straight - 131) <= 1, `linear: full at ${straight} ms`);
 });
 
-test("The arrival ring fades on the compositor once the switch is done, removes itself, and goes on release", async () => {
+test("Two gleams slide in from the sides along the page's and the tab's bottom once the switch is done, meet, hold, and go", async () => {
   const appended = [], frames = [], settle = () => new Promise(setImmediate);
   let reduced = false;
   const element = () => ({ style: {}, children: [], setAttribute() {}, remove() { this.removed = true; },
-    appendChild(child) { this.children.push(child); },
+    appendChild(child) { this.children.push(child); return child; },
     animate(keyframes, options) {
       let finish;
       const finished = new Promise(r => { finish = r; });
-      this.fade = { keyframes, options, finish };
+      (this.anims ||= []).push({ keyframes, options, finish });
       return { finished };
     } });
-  // Boxes with a place on screen; a holder takes rings as children.
-  const box = (left, top, width, height, position = "relative") => ({ position, clientLeft: 0, clientTop: 0,
+  // Boxes with a place on screen and rounded bottom corners; a holder takes gleams as children.
+  const box = (left, top, width, height, position = "relative", radius = "0px") => ({ position, radius, clientLeft: 0, clientTop: 0,
     getBoundingClientRect: () => ({ left, top, width, height, right: left + width, bottom: top + height }),
     appendChild(el) { appended.push(el); el.holder = this; } });
-  const page = box(200, 8, 760, 1064, "absolute"), stack = box(4, 156, 180, 44);
-  const background = { ...box(8, 160, 172, 36, "static"), parentNode: stack };
-  const ctx = vm.createContext({ retired: false, innerWidth: 960, innerHeight: 1080,
-    document: { documentElement: {}, createElementNS: element, getElementById: () => page },
-    getComputedStyle: el => ({ getPropertyValue: () => " rgb(1, 2, 3) ", borderRadius: "8px", position: el.position }),
+  const page = box(200, 8, 760, 1064, "absolute", "10px"), tabbox = box(200, 8, 760, 1064), panels = box(200, 8, 760, 1064);
+  const stack = box(4, 156, 180, 44), background = { ...box(8, 160, 172, 36, "static", "6px"), parentNode: stack };
+  const ctx = vm.createContext({ retired: false, innerHeight: 1080,
+    document: { documentElement: {}, createElementNS: element, getElementById: id => ({ "tabbrowser-tabbox": tabbox, "tabbrowser-tabpanels": panels })[id] },
+    getComputedStyle: el => ({ getPropertyValue: () => " rgb(1, 2, 3) ", position: el.position,
+      borderBottomLeftRadius: el.radius, borderBottomRightRadius: el.radius }),
     matchMedia: () => ({ matches: reduced }), requestAnimationFrame: fn => frames.push(fn) });
   vm.runInContext(between("  // A switch that lands you in another window gives", "  // Every window publishes the whole set")
     + "\nthis.markArrival = markArrival; this.arrivals = arrivals;", ctx);
   const tab = { isConnected: true, closing: false, hasAttribute: () => false, linkedBrowser: { closest: () => page },
     querySelector: () => background };
+  const draw = async (which = tab) => { ctx.markArrival(which); await settle(); frames.shift()(); };
+  const props = k => Object.keys(k).filter(p => p !== "offset" && p !== "easing").join();
   let switched;
   ctx.markArrival(tab, new Promise(r => { switched = r; }));
   await settle();
@@ -443,80 +449,87 @@ test("The arrival ring fades on the compositor once the switch is done, removes 
   switched();
   await settle();
   frames.shift()();
-  assert.equal(appended.length, 2, "one ring around the page, one around the tab");
-  const [pageRing, tabRing] = appended;
-  assert.ok(pageRing.holder === page && pageRing.style.left === "0px" && pageRing.style.height === "1064px", "the page's ring fills the page");
-  assert.ok(tabRing.holder === stack && tabRing.style.left === "4px" && tabRing.style.top === "4px" && tabRing.style.width === "172px",
-    "the tab's ring sits in the tab, over its background, and moves with it");
-  assert.equal(tabRing.style.position, "absolute");
-  assert.deepEqual(Array.from(appended[0].fade.keyframes, k => Object.keys(k).filter(p => p !== "offset" && p !== "easing").join() + k.opacity),
-    ["opacity0", "opacity1", "opacity1", "opacity0"], "opacity only");
-  assert.equal(appended[0].fade.options.duration, 1100);
+  assert.equal(appended.length, 2, "one pair below the page, one along the tab");
+  const [pageLine, tabLine] = appended;
+  // The tab panels are a deck that paints only the selected panel: the tab box holds it.
+  assert.deepEqual([pageLine.holder === tabbox, pageLine.style.left, pageLine.style.top, pageLine.style.width, pageLine.style.height],
+    [true, "10px", "1063px", "740px", "10px"], "the page's gleams run on the window's margin below it, centred in it, between the corners");
+  assert.deepEqual([tabLine.holder === stack, tabLine.style.left, tabLine.style.top, tabLine.style.width, tabLine.style.height],
+    [true, "10px", "32px", "160px", "8px"], "the tab's run along its bottom, in the tab, and move with it");
+  assert.deepEqual([pageLine.style.position, pageLine.style.overflow, pageLine.style.pointerEvents], ["absolute", "clip", "none"]);
+  const [left, right] = pageLine.children;
+  assert.deepEqual([left.style.left, right.style.right, left.style.width, left.style.height, left.style.bottom],
+    ["-220px", "-220px", "220px", "2px", "4px"], "each starts just beyond its side, a thin line centred in the margin");
+  assert.match(left.style.background, /^linear-gradient\(to right, transparent, /, "brightest at its head");
+  assert.match(right.style.background, /^linear-gradient\(to left, transparent, /);
+  assert.ok(tabLine.children[0].style.width === "48px" && tabLine.children[0].style.bottom === "1px", "a tab's are shorter, at its edge");
+  for (const [gleam, sign] of [[left, 1], [right, -1]]) {
+    const [slide] = gleam.anims;
+    assert.deepEqual(Array.from(slide.keyframes, props), ["transform", "transform", "transform"], "transform only");
+    assert.equal(slide.keyframes[1].transform, `translateX(${sign * 370}px)`, "its head reaches the middle");
+    const at = valueByMs(slide.keyframes, slide.options, k => Math.abs(Number(/translateX\((-?[\d.]+)(?:px)?\)/.exec(k.transform)[1]))),
+      met = at.findIndex(v => v >= 369.9);
+    assert.ok(at[0] < 1e-6 && met > 380 && met <= 450, `slides in and meets the other at ${met} ms`);
+    assert.ok(at.every((v, ms) => !ms || v >= at[ms - 1] - 1e-9), "never slides back");
+  }
+  const [fade] = pageLine.anims;
+  assert.deepEqual(Array.from(fade.keyframes, props), ["opacity", "opacity", "opacity"], "they fade together: opacity only");
   // Real times, as Web Animations runs them: a window drawing few frames as it
-  // comes forward (software WebRender) still catches it at full strength.
-  const curve = opacityByMs(appended[0].fade.keyframes, appended[0].fade.options), [fullAt, fullUntil] = atFullStrength(curve);
-  assert.ok(fullAt > 0 && fullAt <= 150, `in fast: full strength at ${fullAt} ms`);
-  assert.ok(fullUntil - fullAt >= 450, `then held: full strength from ${fullAt} to ${fullUntil} ms`);
-  assert.ok(curve[0] < 1e-6 && curve.at(-1) < 1e-6 && curve.every((o, ms) => !ms || (ms <= fullAt ? o >= curve[ms - 1] : ms > fullUntil ? o <= curve[ms - 1] : true)),
-    "rises, holds, then fades away, with no flicker");
-  assert.equal(appended[0].style.border, "2px solid rgb(1, 2, 3)", "a line in Zen's accent");
-  assert.equal(appended[0].style.boxSizing, "border-box", "inside what it rings");
-  assert.equal(appended[0].children[0].style.inset, "-2px", "the soft band shares the ring's shape");
-  assert.match(appended[0].children[0].style.border, /^8px solid color-mix\(in srgb, rgb\(1, 2, 3\) 22%, transparent\)$/);
-  // A window-sized inset shadow costs software WebRender hundreds of ms a frame (Windows CI, real pixels).
-  for (const el of [appended[0], appended[0].children[0], appended[1]])
-    assert.ok(!el.style.boxShadow && !el.style.filter && !el.style.backdropFilter, "no shadows or filters");
-  assert.equal(appended[0].style.pointerEvents, "none");
-  appended[0].fade.finish();
+  // comes forward (software WebRender) still catches them while they hold.
+  const curve = opacityByMs(fade.keyframes, fade.options), [, fullUntil] = atFullStrength(curve);
+  assert.equal(fade.options.duration, 900);
+  assert.ok(curve[0] === 1 && fullUntil >= 600 && curve.at(-1) < 1e-6, `whole until ${fullUntil} ms, then gone at 900`);
+  assert.ok(curve.every((o, ms) => !ms || o <= curve[ms - 1] + 1e-9), "fades once, with no flicker");
+  // A page-sized blurred shadow costs software WebRender hundreds of ms a frame (Windows CI, real pixels).
+  for (const el of [pageLine, tabLine]) assert.ok(!el.style.boxShadow && !el.style.filter && !el.style.backdropFilter, "nothing page-sized is blurred");
+  fade.finish();
   await settle();
-  assert.ok(appended[0].removed && !ctx.arrivals.has(appended[0]), "a ring removes itself when it ends");
-  assert.equal(ctx.arrivals.size, 1, "the other is still live, for release to remove");
+  assert.ok(pageLine.removed && !ctx.arrivals.has(pageLine), "they remove themselves when they end");
+  assert.equal(ctx.arrivals.size, 1, "the other pair is still live, for release to remove");
   reduced = true;
-  ctx.markArrival(tab);
-  await settle();
-  frames.shift()();
-  assert.equal(appended[2].fade.options.duration, 700, "shorter with reduced motion");
-  assert.deepEqual(Array.from(appended[2].fade.keyframes, k => k.opacity), [1, 1, 0], "with reduced motion it shows at once, holds, and fades out");
-  const still = opacityByMs(appended[2].fade.keyframes, appended[2].fade.options), [stillAt, stillUntil] = atFullStrength(still);
-  assert.ok(stillAt === 0 && stillUntil >= 450 && still.at(-1) < 1e-6, `reduced motion: full strength from 0 to ${stillUntil} ms`);
+  await draw();
+  const still = appended[2];
+  assert.ok(still.children.every(g => !g.anims && g.style.transform === `translateX(${g.style.left ? 370 : -370}px)`), "with reduced motion they do not move: met at once");
+  assert.equal(still.anims[0].options.duration, 700, "and fade");
+  const quiet = opacityByMs(still.anims[0].keyframes, still.anims[0].options), [quietAt, quietUntil] = atFullStrength(quiet);
+  assert.ok(quietAt === 0 && quietUntil >= 450 && quiet.at(-1) < 1e-6, `reduced motion: whole from 0 to ${quietUntil} ms`);
+  reduced = false;
+  // A page that reaches the window's bottom keeps them along its own edge.
+  ctx.innerHeight = 1072;
+  await draw();
+  assert.ok(appended[4].holder === page && appended[4].style.top === "1056px" && appended[4].children[0].style.bottom === "1px",
+    "with no margin below, along the page's own bottom edge");
+  ctx.innerHeight = 1080;
   stack.position = "static";
-  ctx.markArrival(tab);
-  await settle();
-  frames.shift()();
-  assert.equal(appended.length, 5, "a holder that cannot place it gets no ring");
+  await draw();
+  assert.equal(appended.length, 7, "a holder that cannot place them gets none");
   stack.position = "relative";
-  // Below the fold: selecting it scrolls it into view, and its ring rides along.
-  const far = { ...tab, querySelector: () => ({ ...box(8, 1808, 172, 36, "static"), parentNode: stack }) };
-  ctx.markArrival(far);
-  await settle();
-  frames.shift()();
-  assert.ok(appended.length === 7 && appended[6].holder === stack && appended[6].style.top === "1652px",
-    "a tab still scrolling into view gets its ring, in the tab");
-  // A folder's page tab is hidden behind its header, which takes the ring.
+  // Below the fold: selecting it scrolls it into view, and its gleams ride along.
+  await draw({ ...tab, querySelector: () => ({ ...box(8, 1808, 172, 36, "static", "6px"), parentNode: stack }) });
+  assert.ok(appended.length === 9 && appended[8].holder === stack && appended[8].style.top === "1680px",
+    "a tab still scrolling into view gets its gleams, in the tab");
+  // A folder's page tab is hidden behind its header, which takes them.
   const header = box(5, 122, 176, 40);
-  const pageTab = { ...tab, hasAttribute: name => name === "zzgf-page-tab", group: { querySelector: () => header },
-    querySelector: () => ({ ...box(0, 0, 0, 0, "static"), parentNode: stack }) };
-  ctx.markArrival(pageTab);
-  await settle();
-  frames.shift()();
-  assert.ok(appended.length === 9 && appended[8].holder === header && appended[8].style.left === "0px",
-    "a folder's page is ringed at its header");
+  await draw({ ...tab, hasAttribute: name => name === "zzgf-page-tab", group: { querySelector: () => header },
+    querySelector: () => ({ ...box(0, 0, 0, 0, "static"), parentNode: stack }) });
+  assert.ok(appended.length === 11 && appended[10].holder === header && appended[10].style.left === "0px" && appended[10].style.top === "32px",
+    "a folder's page is marked along its header's bottom");
   ctx.retired = true;
   ctx.markArrival(tab);
   await settle();
   frames.shift()();
-  assert.equal(appended.length, 9, "a released copy draws nothing");
+  assert.equal(appended.length, 11, "a released copy draws nothing");
 });
 
-test("The arrival ring keeps Zen's accent hue at a lightness that shows on a light or a dark window", async () => {
-  const rings = [], frames = [];
-  const element = () => ({ style: {}, children: [], setAttribute() {}, remove() {}, appendChild(child) { this.children.push(child); },
+test("The arrival gleams are white on a dark window and the accent's hue at a lightness that shows on a light one", async () => {
+  const bars = [], frames = [];
+  const element = () => ({ style: {}, children: [], setAttribute() {}, remove() {}, appendChild(child) { this.children.push(child); return child; },
     animate: () => ({ finished: new Promise(() => {}) }) });
-  const box = position => ({ position, clientLeft: 0, clientTop: 0, appendChild(el) { rings.push(el); },
+  const box = position => ({ position, clientLeft: 0, clientTop: 0, appendChild(el) { bars.push(el); },
     getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 40 }) });
   const page = box("absolute"), background = { ...box("static"), parentNode: box("relative") };
   let relative = true;
-  const ctx = vm.createContext({ retired: false, CSS: { supports: (p, v) => relative && p === "color" && v.startsWith("light-dark(") },
+  const ctx = vm.createContext({ retired: false, innerHeight: 40, CSS: { supports: (p, v) => relative && p === "color" && v.startsWith("light-dark(") },
     document: { documentElement: {}, createElementNS: element, getElementById: () => page },
     getComputedStyle: el => ({ getPropertyValue: () => " rgb(1, 2, 3) ", borderRadius: "8px", position: el.position }),
     matchMedia: () => ({ matches: false }), requestAnimationFrame: fn => frames.push(fn) });
@@ -524,31 +537,30 @@ test("The arrival ring keeps Zen's accent hue at a lightness that shows on a lig
     + "\nthis.markArrival = markArrival;", ctx);
   const tab = { isConnected: true, closing: false, hasAttribute: () => false, linkedBrowser: { closest: () => page },
     querySelector: () => background };
-  const draw = async () => { ctx.markArrival(tab); await new Promise(setImmediate); frames.shift()(); return rings.splice(0); };
-  // Every colour a ring is drawn with, however it is drawn (its own lines
-  // and any band inside it).
+  const draw = async () => { ctx.markArrival(tab); await new Promise(setImmediate); frames.shift()(); return bars.splice(0); };
+  // Every colour a bar is drawn with, however it is drawn (its own fill and
+  // any part inside it).
   const colours = el => [el, ...el.children].flatMap(e => Object.values(e.style).map(String)).filter(v => v.includes("rgb(1, 2, 3)"));
-  // Zen hands a dark window its theme colour as it is, and a grey one, or a
-  // pale custom accent, as it is to a light window: darken on light, lighten
-  // on dark.
-  const lifted = "light-dark(oklch(from rgb(1, 2, 3) min(l, 0.62) c h), oklch(from rgb(1, 2, 3) max(l, 0.74) c h))";
+  // White light on a dark window, as a loading bar's; Zen hands a light
+  // window a grey or pale accent as it is, so there it is darkened enough to show.
+  const lifted = "light-dark(oklch(from rgb(1, 2, 3) min(l, 0.62) c h), white)";
   const drawn = await draw();
   assert.equal(drawn.length, 2, "page and tab");
-  for (const ring of drawn) {
-    const used = colours(ring);
+  for (const bar of drawn) {
+    const used = colours(bar);
     assert.ok(used.length && used.every(v => v.includes(lifted) && !v.replaceAll(lifted, "").includes("rgb(1, 2, 3)")),
-      `every colour is the accent's hue at a lightness that shows: ${used.join(" | ")}`);
+      `every colour is white on dark, the accent's hue at a lightness that shows on light: ${used.join(" | ")}`);
   }
   relative = false;
-  for (const ring of await draw())
-    assert.ok(colours(ring).length && colours(ring).every(v => !v.includes("oklch(")), "Zen's accent as it is without relative colour");
-  // The README says what the ring does on both kinds of window.
+  for (const bar of await draw())
+    assert.ok(colours(bar).length && colours(bar).every(v => !v.includes("oklch(")), "Zen's accent as it is without relative colour");
+  // The README says what the bar does on both kinds of window.
   const readme = (await readFile(new URL("../tab-router/README.md", import.meta.url), "utf8")).replace(/\s+/g, " ");
-  const note = readme.match(/a soft ring in Zen's accent.*?\)\./)?.[0] || "";
+  const note = readme.match(/two gleams.*?\)\./)?.[0] || "";
   assert.ok(/dark window/.test(note) && /light (one|window)/.test(note), `the README names both windows: ${note}`);
 });
 
-test("Release restores Zen's switchIfNeeded and removes live rings", () => {
+test("Release restores Zen's switchIfNeeded and removes live bars", () => {
   const release = between("      // Zen's own switchIfNeeded lives on its prototype", "      // The other windows republish without this one's tabs.");
   const proto = { switchIfNeeded() {} }, workspaces = Object.create(proto), ours = () => {}, glow = { remove() { this.gone = true; } };
   workspaces.switchIfNeeded = ours;

@@ -2291,60 +2291,82 @@
       : (win.gBrowser.selectedTab = tab);
     if (here && win !== here) win.TabRouter?.markArrival?.(tab, switching);
   }
-  // A switch that lands you in another window gives no sign of its own: a
-  // soft ring in Zen's accent fades in and out around this window's page,
-  // and around the tab, or the folder header that stands for a folder's
-  // page, once the switch (and any change of space) is done. Each ring sits
-  // inside a positioned box that holds what it rings, so it moves with it
-  // (the tab list shifts when a tab opened and closed for the switch leaves,
-  // and scrolls a tab out of view into it). Opacity only (compositor); each
-  // ring removes itself when it ends, and on release.
-  // Drawn with borders, not inset box-shadows: under software WebRender (as
-  // on Windows without a usable GPU) a window-sized inset shadow costs
-  // hundreds of milliseconds a frame, so the fade reached the screen late or
-  // not at all. The effect runs linear, so each offset is a real time and the
-  // easing lives on the keyframes: full strength within 132 ms, held to
-  // 605 ms, gone at 1100 ms. A window that draws few frames as it comes
-  // forward still shows it at full strength.
+  // A switch that lands you in another window gives no sign of its own:
+  // once the switch (and any change of space) is done, two gleams like a
+  // loading bar's slide in from the sides along the bottom of this window's
+  // page, and of the tab or the folder header that stands for a folder's
+  // page, meet in the middle, hold, and fade. Each sits inside a positioned
+  // box that holds what it marks, so it moves with it (the tab list shifts
+  // when a tab opened and closed for the switch leaves, and scrolls a tab out
+  // of view into it). Transform and opacity only, with no window-sized
+  // shadows or filters: under software WebRender a page-sized blurred shadow
+  // cost hundreds of milliseconds a frame, and a window drawing few frames
+  // as it comes forward still catches the gleams while they hold. The
+  // effects run linear, so each offset is a real time and the easing lives
+  // on the keyframes. Each removes itself when it ends, and on release.
   const arrivals = new Set();
   function markArrival(tab, switching) {
     Promise.resolve(switching).catch(() => {}).then(() => requestAnimationFrame(() => {
       const root = document.documentElement;
       if (retired || !root || tab.closing || !tab.isConnected) return;
       const zen = getComputedStyle(root).getPropertyValue("--zen-primary-color").trim() || "AccentColor";
-      // Zen's accent is the theme's own colour, which on a dark window can be
-      // as dark as the window itself: keep its hue, at a lightness that shows.
-      const lifted = `light-dark(oklch(from ${zen} min(l, 0.62) c h), oklch(from ${zen} max(l, 0.74) c h))`;
-      const accent = typeof CSS !== "undefined" && CSS.supports("color", lifted) ? lifted : zen;
+      // White light on a dark window, as a loading bar's; on a light one,
+      // where white would not show, the accent's hue at a lightness that does.
+      const tinted = `light-dark(oklch(from ${zen} min(l, 0.62) c h), white)`;
+      const light = typeof CSS !== "undefined" && CSS.supports("color", tinted) ? tinted : zen;
       const brief = matchMedia("(prefers-reduced-motion: reduce)").matches;
-      const ring = (el, holder) => {
+      const div = () => document.createElementNS("http://www.w3.org/1999/xhtml", "div");
+      // Along the bottom edge of el, inside it, or, given a gap, on the window
+      // just below it, centred in the gap (where a loading bar's light shows
+      // whatever the page).
+      const gleams = (el, holder, thickness, gap = 0) => {
         const r = el?.getBoundingClientRect(), h = holder?.getBoundingClientRect();
         if (!r?.width || !r.height || !h || getComputedStyle(holder).position === "static") return;
-        const glow = document.createElementNS("http://www.w3.org/1999/xhtml", "div");
-        glow.setAttribute("aria-hidden", "true");
-        Object.assign(glow.style, { position: "absolute", left: `${r.left - h.left - holder.clientLeft}px`,
-          top: `${r.top - h.top - holder.clientTop}px`, width: `${r.width}px`, height: `${r.height}px`,
-          borderRadius: getComputedStyle(el).borderRadius, pointerEvents: "none", zIndex: "1", opacity: "0",
-          border: `2px solid ${accent}`, boxSizing: "border-box" });
-        // A softer band just inside the line, the same shape.
-        const soft = document.createElementNS("http://www.w3.org/1999/xhtml", "div");
-        Object.assign(soft.style, { position: "absolute", inset: "-2px", borderRadius: "inherit",
-          border: `8px solid color-mix(in srgb, ${accent} 22%, transparent)` });
-        glow.appendChild(soft);
-        holder.appendChild(glow);
-        arrivals.add(glow);
-        const done = () => { arrivals.delete(glow); glow.remove(); };
-        glow.animate(brief ? [{ opacity: 1 }, { opacity: 1, offset: 0.7, easing: "ease-in-out" }, { opacity: 0 }]
-          : [{ opacity: 0, easing: "ease-out" }, { opacity: 1, offset: 0.12 }, { opacity: 1, offset: 0.55, easing: "ease-in-out" }, { opacity: 0 }],
-          { duration: brief ? 700 : 1100, easing: "linear" }).finished.then(done, done);
+        // Between the bottom corners' curves, with room for the glow.
+        const style = getComputedStyle(el), room = gap ? Math.max(gap, 10) : 8;
+        const inset = Math.min(r.width / 4, Math.max(parseFloat(style.borderBottomLeftRadius) || 0, parseFloat(style.borderBottomRightRadius) || 0));
+        const width = r.width - 2 * inset, length = Math.round(Math.min(220, Math.max(40, width * 0.3)));
+        const line = div();
+        line.setAttribute("aria-hidden", "true");
+        Object.assign(line.style, { position: "absolute", left: `${r.left - h.left - holder.clientLeft + inset}px`,
+          top: `${r.bottom - h.top - holder.clientTop + (gap ? (gap - room) / 2 : -room)}px`, width: `${width}px`, height: `${room}px`,
+          overflow: "clip", pointerEvents: "none", zIndex: "1" });
+        // Each gleam is brightest at its head, which reaches the middle.
+        const travel = width / 2;
+        for (const [side, sign] of [["left", 1], ["right", -1]]) {
+          const gleam = line.appendChild(div());
+          Object.assign(gleam.style, { position: "absolute", bottom: `${gap ? (room - thickness) / 2 : 1}px`, [side]: `${-length}px`,
+            width: `${length}px`, height: `${thickness}px`, borderRadius: `${thickness}px`,
+            background: `linear-gradient(to ${side === "left" ? "right" : "left"}, transparent, ${light})`,
+            boxShadow: `0 0 6px 1px color-mix(in srgb, ${light} 55%, transparent)`,
+            transform: brief ? `translateX(${sign * travel}px)` : "none" });
+          if (!brief) gleam.animate([{ transform: "translateX(0)", easing: "cubic-bezier(.45, 0, .2, 1)" },
+            { transform: `translateX(${sign * travel}px)`, offset: 0.5 }, { transform: `translateX(${sign * travel}px)` }],
+            { duration: 900, easing: "linear" });
+        }
+        holder.appendChild(line);
+        arrivals.add(line);
+        const done = () => { arrivals.delete(line); line.remove(); };
+        // In: met in the middle by 450 ms, held to 630 ms, gone at 900 ms.
+        // With reduced motion they do not move: met at once, held, faded.
+        line.animate([{ opacity: 1 }, { opacity: 1, offset: 0.7, easing: "ease-in-out" }, { opacity: 0 }],
+          { duration: brief ? 700 : 900, easing: "linear" }).finished.then(done, done);
       };
-      const page = tab.linkedBrowser?.closest(".browserSidebarContainer") || document.getElementById("tabbrowser-tabpanels");
-      ring(page, page);
+      // The page: on the window's margin below it (Zen's element separation),
+      // or along its own bottom edge when it reaches the window's. The tab
+      // panels are a deck that paints only the selected panel, so the box
+      // around them holds what goes outside a page.
+      const tabbox = document.getElementById("tabbrowser-tabbox");
+      const container = tab.linkedBrowser?.closest(".browserSidebarContainer");
+      const page = container || document.getElementById("tabbrowser-tabpanels");
+      const below = innerHeight - (page?.getBoundingClientRect().bottom ?? innerHeight);
+      if (below >= 4 && tabbox) gleams(page, tabbox, 2, Math.min(below, 16));
+      else gleams(page, container || tabbox, 2);
       // A folder's page tab is hidden (Groupflow): its header stands for it.
       const header = tab.hasAttribute("zzgf-page-tab") && tab.group?.querySelector(":scope > .tab-group-label-container");
       const background = tab.querySelector(".tab-background");
-      if (header) ring(header, header);
-      else ring(background, background?.parentNode);
+      if (header) gleams(header, header, 2);
+      else gleams(background, background?.parentNode, 2);
     }));
   }
   // Every window publishes the whole set, so the page side needs one lookup.
@@ -3297,7 +3319,7 @@
         delete workspaces.switchIfNeeded;
         if (workspaces.switchIfNeeded !== nativeSwitchIfNeeded) workspaces.switchIfNeeded = nativeSwitchIfNeeded;
       }
-      for (const glow of arrivals) glow.remove();
+      for (const line of arrivals) line.remove();
       arrivals.clear();
       // The other windows republish without this one's tabs.
       for (const w of Services.wm.getEnumerator("navigator:browser")) if (w !== window) try { w.TabRouter?.republishOpen?.(); } catch {}

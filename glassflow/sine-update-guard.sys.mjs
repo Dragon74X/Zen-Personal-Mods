@@ -444,24 +444,47 @@ function settingsDocument(window, retire) {
   // Original help stays visually hidden in each control's accessible description.
   const tooltip = document.createElementNS("http://www.w3.org/1999/xhtml", "div");
   tooltip.className = "zzsettings-tooltip"; tooltip.popover = "auto"; tooltip.setAttribute("aria-hidden", "true");
-  const hideHelp = () => { if (tooltip.matches(":popover-open")) tooltip.hidePopover(); tooltip.remove(); };
+  let hideTimer = 0;
+  const hideHelp = () => { window.clearTimeout(hideTimer); hideTimer = 0; if (tooltip.matches(":popover-open")) tooltip.hidePopover(); tooltip.remove(); };
   const helpRow = node => node?.closest?.(".zzsettings-dialog .zzsettings-described");
+  const labelOf = row => row.querySelector(".zzsettings-name") || row.querySelector("moz-toggle")?.labelEl;
+  // The "i" (CSS-drawn after the name) sits just past the end of the name's
+  // last line: 6px out, 13px wide. Hovering it, with 4px to spare, is what
+  // shows the help; the rest of the row is left to its controls.
+  const iconOf = row => {
+    const label = labelOf(row);
+    if (!label) return null;
+    const range = document.createRange();
+    range.selectNodeContents(label);
+    const last = [...range.getClientRects()].filter(r => r.width).at(-1);
+    if (!last) return null;
+    const middle = last.top + last.height / 2;
+    return { left: last.right + 2, right: last.right + 23, top: middle - 11, bottom: middle + 11 };
+  };
+  const within = (box, event) => !!box && event.clientX >= box.left && event.clientX <= box.right &&
+    event.clientY >= box.top && event.clientY <= box.bottom;
+  const stay = () => { window.clearTimeout(hideTimer); hideTimer = 0; };
+  // Leaving the "i" for the help itself keeps it open; leaving both closes it.
+  const hideSoon = () => { if (!hideTimer && tooltip.isConnected) hideTimer = window.setTimeout(() => { hideTimer = 0; hideHelp(); }, 250); };
   const showHelp = row => {
+    stay();
     if (!row || tooltip.parentElement === row) return;
     hideHelp();
     tooltip.textContent = row.querySelector(".zzsettings-help").textContent;
     row.append(tooltip); tooltip.showPopover();
-    const label = row.querySelector(".zzsettings-name") || row.querySelector("moz-toggle").labelEl;
-    const anchor = label.getBoundingClientRect(), box = tooltip.getBoundingClientRect();
-    tooltip.style.left = `${Math.max(12, Math.min(anchor.left, window.innerWidth - box.width - 12))}px`;
-    const top = anchor.bottom + box.height <= window.innerHeight - 12 ? anchor.bottom : anchor.top - box.height;
+    const icon = iconOf(row) || labelOf(row).getBoundingClientRect(), box = tooltip.getBoundingClientRect();
+    tooltip.style.left = `${Math.max(12, Math.min(icon.left, window.innerWidth - box.width - 12))}px`;
+    const top = icon.bottom + box.height <= window.innerHeight - 12 ? icon.bottom : icon.top - box.height;
     tooltip.style.top = `${Math.max(12, Math.min(top, window.innerHeight - box.height - 12))}px`;
   };
   const helpEvents = [
-    ["pointerover", event => { const row = helpRow(event.target); if (row && !row.contains(event.relatedTarget)) showHelp(row); }],
-    ["pointerout", event => { const row = helpRow(event.target); if (row && !row.contains(event.relatedTarget) && !row.matches(":focus-within")) hideHelp(); }],
-    ["focusin", event => showHelp(helpRow(event.target))],
-    ["focusout", event => { const row = helpRow(event.target); if (row && !row.contains(event.relatedTarget) && !row.matches(":hover")) hideHelp(); }],
+    ["pointermove", event => {
+      if (tooltip.contains(event.target)) { stay(); return; }
+      const row = helpRow(event.target);
+      if (row && within(iconOf(row), event)) showHelp(row);
+      else hideSoon();
+    }],
+    ["pointerout", event => { if (!event.relatedTarget) hideSoon(); }],
     ["scroll", event => { if (event.target !== tooltip) hideHelp(); }],
     ["close", hideHelp],
   ];

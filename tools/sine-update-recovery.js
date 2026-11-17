@@ -5,7 +5,7 @@
   const report = { tool: "sine-update-recovery-1", check: "not-started", readyToRestart: false };
   const known = new Set(["download-prompt","glassflow","glassflow-library","groupflow","iconflow",
     "mediaflow","peekflow","tab-router","tab-unloader","zen-turbo","zenslop"].map(n=>"zz-"+n));
-  const guard = "sine-update-guard.sys.mjs", hash = "41cde009efbf677cb2f233f03611ca8c20650c097acd22bb3a287d14a2155af1";
+  const guard = "sine-update-guard.sys.mjs", hash = "cf2e32e8897906ba86638fe480d0d9881559de570057b542bc6fa6f39a309fe0";
   const clock = ChromeUtils.importESModule("resource://gre/modules/Timer.sys.mjs");
   if (w?.__zzSineUpdateRecovery) return w.__zzSineUpdateRecovery;
   const run = async () => {

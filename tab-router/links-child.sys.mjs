@@ -95,7 +95,8 @@ export class ZzRouterLinksChild extends JSWindowActorChild {
     const newTab = event.ctrlKey || event.metaKey || link.target === "_blank";
     let open = null, pageTabs = null;
     try { open = Services.cpmm.sharedData.get(OPEN_PAGES); pageTabs = Services.cpmm.sharedData.get(PAGE_TABS); } catch {}
-    if (open?.has?.(`${ctx}|${key}`)) {
+    // Open in this container, or in any other.
+    if (open?.has?.(`${ctx}|${key}`) || open?.has?.(`*|${key}`)) {
       event.preventDefault();
       event.stopImmediatePropagation();
       this.sendAsyncMessage("ZzRouter:SwitchTo", { href, newTab });

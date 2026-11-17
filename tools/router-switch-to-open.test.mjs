@@ -231,7 +231,7 @@ test("A folder's page tab is never switched away on its first load, redirects in
 // holding the tab, then show it there through Zen's switchIfNeeded.
 const between = (start, end) => router.slice(router.indexOf(start), router.indexOf(end));
 function windows(slice, extra = () => ({})) {
-  const focus = { activeWindow: null }, marked = [], raised = [], all = [];
+  const focus = { activeWindow: null }, marked = [], raised = [], departed = [], all = [];
   const helper = { switchToTabHavingURI: (source, target) => {
     target.focus(); target.gZenWorkspaces.switchIfNeeded(target.tab.linkedBrowser); return true; } };
   const native = helper.switchToTabHavingURI;
@@ -242,7 +242,7 @@ function windows(slice, extra = () => ({})) {
       gZenWorkspaces: { selected: null,
         switchIfNeeded(browser) { return this.switchTabIfNeeded(win.gBrowser.getTabForBrowser(browser)); },
         async switchTabIfNeeded(t) { this.selected = t; } },
-      TabRouter: { copyWhile() {}, markArrival: t => marked.push([name, t.id]) } };
+      TabRouter: { copyWhile() {}, markArrival: t => marked.push([name, t.id]), markDeparture: () => departed.push(name) } };
     tab.ownerDocument = { defaultView: win };
     const ctx = vm.createContext({ window: win, gBrowser: win.gBrowser, note: () => {},
       Services: { focus, wm: { getEnumerator: () => all } },
@@ -252,18 +252,19 @@ function windows(slice, extra = () => ({})) {
     all.push(win);
     return Object.assign(win, { tab, ctx });
   };
-  return { A: make("A"), B: make("B"), focus, marked, raised, helper, native };
+  return { A: make("A"), B: make("B"), focus, marked, raised, departed, helper, native };
 }
 
 test("Firefox's Switch to Tab marks the arrival in the window it lands in, and only there", () => {
   const patch = between("  // Firefox's own switch to an open tab", "  function copyWhile(fn) {");
-  const { A, B, focus, marked, raised, helper, native } = windows(patch
+  const { A, B, focus, marked, raised, departed, helper, native } = windows(patch
     + "\npatchSwitchToTab(); window.gZenWorkspaces.switchIfNeeded = switchIfNeeded; this.unpatch = unpatchSwitchToTab;");
   assert.notEqual(helper.switchToTabHavingURI, native, "patched once, for every window");
   focus.activeWindow = A;
   assert.equal(helper.switchToTabHavingURI(A, B), true, "Firefox's answer is passed through");
   assert.deepEqual(raised, ["B"]);
   assert.deepEqual(marked, [["B", "B-tab"]], "the address bar in A lands in B: B marks its tab");
+  assert.deepEqual(departed, ["A"], "and A, the window you leave, its departure");
   assert.equal(B.gZenWorkspaces.selected, B.tab);
   marked.length = 0;
   helper.switchToTabHavingURI(A, A);
@@ -273,6 +274,7 @@ test("Firefox's Switch to Tab marks the arrival in the window it lands in, and o
   focus.activeWindow = { name: "Library" };
   helper.switchToTabHavingURI(A, A);
   assert.deepEqual(marked, [["A", "A-tab"]], "asked from another window (a Library window), the browser window marks it");
+  assert.deepEqual(departed, ["A"], "a Library window has no departure to show");
   marked.length = 0;
   focus.activeWindow = null;
   helper.switchToTabHavingURI(A, B);
@@ -358,15 +360,15 @@ test("Firefox's Switch to Tab to an unloaded copy in your window goes to the win
 });
 
 test("Tab Router's switch raises the window holding the tab, and marks the arrival when it is not the one you are in", () => {
-  const { A, B, focus, marked, raised } = windows(between("  // The window you are in is the active one", "  // A switch that lands you in another window gives")
+  const { A, B, focus, marked, raised, departed } = windows(between("  // The window you are in is the active one", "  // A switch that lands you in another window gives")
     + "\nthis.switchTo = switchTo;");
-  const reset = () => { raised.length = 0; marked.length = 0; };
+  const reset = () => { raised.length = 0; marked.length = 0; departed.length = 0; };
   focus.activeWindow = A;
   A.ctx.switchTo(B.tab);
-  assert.deepEqual([raised, marked], [["B"], [["B", "B-tab"]]], "a link in A to a page open in B");
+  assert.deepEqual([raised, marked, departed], [["B"], [["B", "B-tab"]], ["A"]], "a link in A to a page open in B: B marks the arrival, A the departure");
   reset();
   A.ctx.switchTo(A.tab);
-  assert.deepEqual([raised, marked], [[], []], "a page open in the window you are in");
+  assert.deepEqual([raised, marked, departed], [[], [], []], "a page open in the window you are in");
   focus.activeWindow = { name: "Library" };
   A.ctx.switchTo(A.tab);
   assert.deepEqual([raised, marked], [["A"], [["A", "A-tab"]]], "a bookmark opened from the Library brings its browser window forward");
@@ -414,7 +416,7 @@ test("The timing model matches Web Animations: an effect's easing bends the time
   assert.ok(Math.abs(straight - 131) <= 1, `linear: full at ${straight} ms`);
 });
 
-test("Two pills run in from the sides along the page's and the tab's bottom once the switch is done, merge in the middle, and go", async () => {
+test("Two pills run in from the sides along the bottom of the page once the switch is done, merge in the middle, and go", async () => {
   const appended = [], frames = [], settle = () => new Promise(setImmediate);
   let reduced = false;
   const element = () => ({ style: {}, children: [], setAttribute() {}, remove() { this.removed = true; },
@@ -432,14 +434,28 @@ test("Two pills run in from the sides along the page's and the tab's bottom once
     appendChild(el) { appended.push(el); el.holder = this; } });
   const page = box(200, 8, 760, 1064, "absolute", "10px"), tabbox = box(200, 8, 760, 1064), panels = box(200, 8, 760, 1064);
   const stack = box(4, 156, 180, 44), background = { ...box(8, 160, 172, 36, "static", "6px"), parentNode: stack };
-  const ctx = vm.createContext({ retired: false, innerHeight: 1080,
-    document: { documentElement: {}, createElementNS: element, getElementById: id => ({ "tabbrowser-tabbox": tabbox, "tabbrowser-tabpanels": panels })[id] },
-    getComputedStyle: el => ({ position: el.position, borderBottomLeftRadius: el.radius, borderBottomRightRadius: el.radius }),
+  // Zen's loading indicator, which carries its colour variable; the Deta
+  // Loading Bar mod's colours when it is on.
+  let switchDone = null;
+  const vars = {};
+  const probes = [], indicator = { appendChild(el) { probes.push(el); el.remove = () => { el.removed = true; }; return el; } };
+  const colourOf = value => value.startsWith("var(--zen-loading-progress-bar-color") ? "rgba(200, 180, 230, 0.65)"
+    : value.startsWith("var(--blended-addressbar-dynamic-loadbar-color") ? "rgb(50, 29, 70)"
+    : value === "color-mix(in srgb, rgb(50, 29, 70) 25%, white)" ? "rgb(204, 199, 209)"
+    : value.startsWith("var(--mod-detaloadingbar-primarycolor-final") ? "rgb(140, 80, 200)" : value.startsWith("var(--mod-detaloadingbar-secondarycolor-final") ? "rgb(255, 255, 255)" : "?";
+  const gBrowser = { _switcher: null, addEventListener: (type, fn) => { if (type === "TabSwitchDone") switchDone = fn; }, removeEventListener() {} };
+  const ctx = vm.createContext({ retired: false, innerHeight: 1080, gBrowser,
+    setTimeout: (fn, ms) => { if (ms < 1000) fn(); return 0; }, clearTimeout() {},
+    document: { documentElement: indicator, createElementNS: element,
+      getElementById: id => ({ "tabbrowser-tabbox": tabbox, "tabbrowser-tabpanels": panels, "zen-loading-progress-bar": indicator })[id] },
+    getComputedStyle: el => (el.style?.color ? { color: colourOf(el.style.color) }
+      : { position: el.position, borderBottomLeftRadius: el.radius, borderBottomRightRadius: el.radius, getPropertyValue: name => vars[name] || "" }),
     matchMedia: () => ({ matches: reduced }), requestAnimationFrame: fn => frames.push(fn) });
-  vm.runInContext(between("  // A switch that lands you in another window gives", "  // Every window publishes the whole set")
-    + "\nthis.markArrival = markArrival; this.arrivals = arrivals;", ctx);
+  vm.runInContext(between("  // A window that has to show another page first is still painting it", "  // Every window publishes the whole set")
+    + "\nthis.markArrival = markArrival; this.markDeparture = markDeparture; this.arrivals = arrivals;", ctx);
   const tab = { isConnected: true, closing: false, hasAttribute: () => false, linkedBrowser: { closest: () => page },
     querySelector: () => background };
+  gBrowser.selectedTab = tab;
   const draw = async (which = tab) => { ctx.markArrival(which); await settle(); frames.shift()(); };
   const props = k => Object.keys(k).filter(p => p !== "offset" && p !== "easing").join();
   const shift = k => Number(/translateX\((-?[\d.]+)(?:px)?\)/.exec(k.transform)?.[1] ?? 0);
@@ -450,25 +466,23 @@ test("Two pills run in from the sides along the page's and the tab's bottom once
   switched();
   await settle();
   frames.shift()();
-  assert.equal(appended.length, 2, "one pair below the page, one along the tab");
-  const [pageLine, tabLine] = appended;
+  assert.equal(appended.length, 1, "one pair, below the page; none on the tab");
+  const [pageLine] = appended;
   // The tab panels are a deck that paints only the selected panel: the tab box holds it.
   assert.deepEqual([pageLine.holder === tabbox, pageLine.style.left, pageLine.style.top, pageLine.style.width, pageLine.style.height],
     [true, "10px", "1063px", "740px", "10px"], "the page's run on the window's margin below it, centred in it, between the corners");
-  assert.deepEqual([tabLine.holder === stack, tabLine.style.left, tabLine.style.top, tabLine.style.width, tabLine.style.height],
-    [true, "10px", "34px", "160px", "6px"], "the tab's run along its bottom, in the tab, and move with it");
   assert.deepEqual([pageLine.style.position, pageLine.style.overflow, pageLine.style.pointerEvents], ["absolute", "clip", "none"]);
   const [merged, left, right] = pageLine.children;
-  // Pills: rounded ends front and back, in the colour of Zen's loading indicator.
+  // Pills: rounded ends front and back, in the colour Zen's loading indicator is drawn in, read inside it.
   for (const pill of [merged, left, right]) {
     assert.deepEqual([pill.style.height, pill.style.borderRadius, pill.style.bottom], ["4px", "4px", "3px"], "a pill, centred in the margin");
-    assert.match(pill.style.background, /var\(--zen-loading-progress-bar-color, color-mix\(in srgb, var\(--zen-primary-color\), light-dark\(rgba\(0, 0, 0, 0\.5\), rgba\(255, 255, 255, 0\.5\)\) 70%\)\)/,
-      "Zen's loading indicator's colour, from its own variable or its own mix");
+    assert.ok(pill.style.background.includes("rgba(200, 180, 230, 0.65)") && !pill.style.background.includes("var("),
+      `Zen's loading indicator's own colour: ${pill.style.background}`);
   }
+  assert.ok(probes.length && probes.every(p => p.removed && p.style.color.startsWith("var(--zen-loading-progress-bar-color, color-mix(in srgb, var(--zen-primary-color), ")),
+    "read inside the indicator, from its variable or Zen's own mix, and nothing left behind");
   assert.deepEqual([left.style.left, right.style.right, left.style.width, merged.style.left, merged.style.width],
     ["-160px", "-160px", "160px", "258px", "224px"], "each starts just beyond its side; they merge into one centred pill");
-  assert.ok(tabLine.children[1].style.width === "35px" && tabLine.children[1].style.bottom === "1px" && !tabLine.children[1].style.boxShadow,
-    "a tab's are shorter, at its edge, with no glow");
   for (const [gleam, sign] of [[left, 1], [right, -1]]) {
     const [run] = gleam.anims;
     assert.deepEqual(Array.from(run.keyframes, props), ["transform,opacity", "transform,opacity", "transform,opacity", "transform,opacity"],
@@ -487,14 +501,14 @@ test("Two pills run in from the sides along the page's and the tab's bottom once
   assert.ok(curve[470] < 1e-6 && fullAt > 500 && fullAt <= 630 && fullUntil >= 740 && curve.at(-1) < 1e-6,
     `appears as they meet, whole from ${fullAt} to ${fullUntil} ms, gone at 1000`);
   // A page-sized blurred shadow costs software WebRender hundreds of ms a frame (Windows CI, real pixels).
-  for (const el of [pageLine, tabLine]) assert.ok(!el.style.boxShadow && !el.style.filter && !el.style.backdropFilter, "nothing page-sized is blurred");
+  for (const el of [pageLine]) assert.ok(!el.style.boxShadow && !el.style.filter && !el.style.backdropFilter, "nothing page-sized is blurred");
   swell.finish();
   await settle();
   assert.ok(pageLine.removed && !ctx.arrivals.has(pageLine), "they remove themselves when they end");
-  assert.equal(ctx.arrivals.size, 1, "the other pair is still live, for release to remove");
+  assert.equal(ctx.arrivals.size, 0, "nothing left live");
   reduced = true;
   await draw();
-  const still = appended[2];
+  const still = appended[1];
   assert.ok(still.children.length === 1 && still.children[0].style.opacity === "1", "with reduced motion nothing runs: only the merged pill");
   assert.equal(still.children[0].anims[0].options.duration, 700, "which fades");
   const quiet = opacityByMs(still.children[0].anims[0].keyframes, still.children[0].anims[0].options), [quietAt, quietUntil] = atFullStrength(quiet);
@@ -503,31 +517,59 @@ test("Two pills run in from the sides along the page's and the tab's bottom once
   // A page that reaches the window's bottom keeps them along its own edge.
   ctx.innerHeight = 1072;
   await draw();
-  assert.ok(appended[4].holder === page && appended[4].style.top === "1058px" && appended[4].children[0].style.bottom === "1px",
+  assert.ok(appended[2].holder === page && appended[2].style.top === "1058px" && appended[2].children[0].style.bottom === "1px",
     "with no margin below, along the page's own bottom edge");
   ctx.innerHeight = 1080;
-  stack.position = "static";
+  // A window still switching to the page waits for it to show.
+  gBrowser._switcher = {};
+  ctx.markArrival(tab);
+  await settle();
+  assert.equal(frames.length, 0, "nothing while the window still paints the page it switches to");
+  gBrowser._switcher = null;
+  switchDone();
+  await settle();
+  frames.shift()();
+  assert.equal(appended.length, 4, "then the pills");
+  // An address bar mod that draws a loading bar gives the colours, known by the variable its stylesheet sets
+  // (a disabled mod's leftover settings set none): Blended Addressbar's, its head whitened as it draws it.
+  vars["--blended-addressbar-dynamic-loadbar-color"] = " rgb(50, 29, 70)";
   await draw();
-  assert.equal(appended.length, 7, "a holder that cannot place them gets none");
-  stack.position = "relative";
-  // Below the fold: selecting it scrolls it into view, and its pills ride along.
-  await draw({ ...tab, querySelector: () => ({ ...box(8, 1808, 172, 36, "static", "6px"), parentNode: stack }) });
-  assert.ok(appended.length === 9 && appended[8].holder === stack && appended[8].style.top === "1682px",
-    "a tab still scrolling into view gets its pills, in the tab");
-  // A folder's page tab is hidden behind its header, which takes them.
-  const header = box(5, 122, 176, 40);
-  await draw({ ...tab, hasAttribute: name => name === "zzgf-page-tab", group: { querySelector: () => header },
-    querySelector: () => ({ ...box(0, 0, 0, 0, "static"), parentNode: stack }) });
-  assert.ok(appended.length === 11 && appended[10].holder === header && appended[10].style.left === "0px" && appended[10].style.top === "34px",
-    "a folder's page is marked along its header's bottom");
+  assert.match(appended[4].children[1].style.background, /^linear-gradient\(to right, transparent, rgb\(50, 29, 70\) 60%, rgb\(204, 199, 209\)\)$/);
+  delete vars["--blended-addressbar-dynamic-loadbar-color"];
+  // The Deta Loading Bar's: its main colour, brightest at the head in its middle one.
+  vars["--mod-detaloadingbar-primarycolor-final"] = " rgb(140, 80, 200)";
+  await draw();
+  assert.match(appended[5].children[1].style.background, /^linear-gradient\(to right, transparent, rgb\(140, 80, 200\) 60%, rgb\(255, 255, 255\)\)$/);
+  delete vars["--mod-detaloadingbar-primarycolor-final"];
+  // The window you leave plays it the other way, at once: even mid-switch, after one frame.
+  gBrowser._switcher = {};
+  ctx.markDeparture();
+  assert.equal(frames.length, 1, "no waiting for any switch");
+  frames.shift()();
+  gBrowser._switcher = null;
+  const leaving = appended[6], [parting, outLeft, outRight] = leaving.children;
+  assert.ok(appended.length === 7 && leaving.holder === tabbox, "below the page you leave, and not on its tab");
+  const [rise] = parting.anims, risen = opacityByMs(rise.keyframes, rise.options), [riseAt, riseUntil] = atFullStrength(risen);
+  const lift = valueByMs(rise.keyframes, rise.options, k => Number(/translateY\((-?[\d.]+)(?:px)?\)/.exec(k.transform)[1]));
+  assert.ok(parting.style.opacity === "0" && risen[0] < 1e-6 && lift[0] === 7 && lift[180] < 1e-6,
+    "the merged pill wells up from underneath, not popping in");
+  assert.ok(riseAt > 120 && riseAt <= 180 && riseUntil >= 239 && risen[360] < 1e-6, `whole from ${riseAt} to ${riseUntil} ms, parted by 360`);
+  for (const [gleam, sign] of [[outLeft, 1], [outRight, -1]]) {
+    const [run] = gleam.anims, at = valueByMs(run.keyframes, run.options, k => Math.abs(shift(k)));
+    assert.ok(shift(run.keyframes[0]) === sign * 374 && at[320] === 374 && at[880] < 1e-6 && run.options.duration === 1000,
+      "each leaves the pill as it parts and runs out past its side");
+    assert.deepEqual(Array.from(run.keyframes, k => k.opacity), [0, 0, 1, 1, 0], "unseen until the pill parts");
+    const speed = at.slice(321, 881).map((v, i) => at[320 + i] - v);
+    assert.ok(speed.slice(0, 50).reduce((a, b) => a + b) > 2 * speed.slice(-50).reduce((a, b) => a + b), "fast out of the middle, easing as it leaves");
+  }
   ctx.retired = true;
   ctx.markArrival(tab);
   await settle();
   frames.shift()();
-  assert.equal(appended.length, 11, "a released copy draws nothing");
+  assert.equal(appended.length, 7, "a released copy draws nothing");
   // The README says what it looks like.
   const readme = (await readFile(new URL("../tab-router/README.md", import.meta.url), "utf8")).replace(/\s+/g, " ");
-  assert.match(readme, /two pill-shaped gleams in the colour of Zen's loading indicator run in from the sides/);
+  assert.match(readme, /two pill-shaped gleams in the loading bar's colour \(Blended Addressbar's or the Deta Loading Bar's when one draws it, else Zen's own loading indicator's\) run in from the sides/);
 });
 
 test("Release restores Zen's switchIfNeeded and removes live bars", () => {

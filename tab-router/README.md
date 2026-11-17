@@ -83,16 +83,18 @@ is already open in another tab switches to that tab instead of opening a copy,
 whether the click would open it in place or in a new tab; a new tab whose first
 page is already open elsewhere (opened from a menu, a bookmark, another app or
 typed) closes and switches to it too. Tabs in every space of every window
-count; Zen changes space as needed.
+count, in whichever container the page is open (the link's own first); Zen
+changes space as needed.
 
 When a switch lands you in another window -- one of these, or the address
-bar's **Switch to Tab** -- that window comes forward and two pill-shaped
-gleams in the colour of Zen's loading indicator run in from the sides along
-the bottom of its page (on the window's margin just below it) and of the tab
-(a folder's header, for a folder's page), gathering speed like waves, then run
+bar's **Switch to Tab** -- that window comes forward and, once it shows the
+page, two pill-shaped gleams in the loading bar's colour (Blended Addressbar's or the Deta Loading Bar's
+when one draws it, else Zen's own loading indicator's) run in from the sides along
+the bottom of its page (on the window's margin just below it), gathering speed like waves, then run
 into each other in the middle and merge into one pill that swells and fades,
-so the eye finds it (with reduced motion only the merged pill appears and
-fades). Moving
+so the eye finds it; the window you leave plays it the other way at once,
+the pill welling up in the middle, parting and running out to the sides (with reduced
+motion only the merged pill appears and fades). Moving
 between windows yourself shows nothing, nor does picking a tab whose page Zen
 brings into the window you are in. Zen keeps a copy of each tab in every
 window; a copy that has not loaded yet (every copy after a restart, and a
@@ -117,8 +119,8 @@ sign-in steps and pages that navigate by script are never switched. To open a
 copy on purpose, hold **Alt** while clicking (middle-click included), or use
 **Duplicate Tab**; session restore and reopening closed tabs make copies as
 before. The same page ignores `#anchors`, tracking parameters (`utm_*`,
-`fbclid`, `si`, …), `www.` and a trailing slash, and only counts within the
-same container. The page side is a small window actor
+`fbclid`, `si`, …), `www.` and a trailing slash; one open in the link's own
+container is preferred, else one in any other. The page side is a small window actor
 (`links-child.sys.mjs`) that reacts to clicks only; the list of open pages it
 reads holds addresses reduced to that comparison key.
 

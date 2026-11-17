@@ -668,8 +668,97 @@
     };
   }
 
+  // Blended Addressbar's "glow" loading bar (kkugot/blended-addressbar, along
+  // its address bar), on every loading tab and on a folder header whose own
+  // page (Groupflow) is loading: its progress model (scripts/loadbar.js) and
+  // its drawing (styles/loadbar.css, in userChrome.css). A load starts at 8%;
+  // every 250ms it creeps a share of the way to 90%, or follows the page's
+  // real progress up to 95%; done, it runs to the end and fades after 450ms.
+  // Each is drawn by an element of its own, behind the tab's content.
+  function tabLoading() {
+    const { STATE_START, STATE_STOP, STATE_IS_WINDOW } = Ci.nsIWebProgressListener;
+    const loads = new Map();
+    let timer = 0;
+    // Where a tab's load shows: its background, and the header of the folder
+    // its own page stands for.
+    const hosts = tab => [tab.querySelector(".tab-background"),
+      tab.hasAttribute("zzgf-page-tab") && tab.group?.querySelector(":scope > .tab-group-label-container")].filter(Boolean);
+    const bars = new Set();
+    function paint(tab, load) {
+      const showing = load.loading || Date.now() < load.hideAt;
+      for (const host of hosts(tab)) {
+        let bar = host.querySelector(":scope > .zzg-loadbar");
+        if (!bar && !showing) continue;
+        if (!bar) {
+          bar = host.ownerDocument.createElementNS("http://www.w3.org/1999/xhtml", "div");
+          bar.className = "zzg-loadbar";
+          bar.setAttribute("aria-hidden", "true");
+          host.prepend(bar);
+          bars.add(bar);
+        }
+        bar.style.setProperty("--zzg-load-progress", `${(load.progress * 100).toFixed(2)}%`);
+        if (showing) bar.setAttribute("loading", "true");
+        else fade(bar);
+      }
+    }
+    function fade(bar) {
+      if (!bar.hasAttribute("loading")) return;
+      bar.removeAttribute("loading");
+      setTimeout(() => { if (!bar.hasAttribute("loading")) { bar.remove(); bars.delete(bar); } }, 250);
+    }
+    function tick() {
+      for (const [tab, load] of loads) {
+        if (!tab.isConnected || (!load.loading && Date.now() >= load.hideAt)) { paint(tab, { ...load, loading: false, hideAt: 0 }); loads.delete(tab); }
+        else { advance(load); paint(tab, load); }
+      }
+      if (!loads.size) { clearInterval(timer); timer = 0; }
+    }
+    function advance(load, fraction) {
+      if (!load.loading) return;
+      const next = Number.isFinite(fraction) ? Math.min(0.95, Math.max(0, fraction)) : load.progress + Math.max(0, 0.9 - load.progress) * 0.08;
+      load.progress = Math.max(load.progress, next);
+    }
+    function track(tab, phase, fraction) {
+      let load = loads.get(tab);
+      if (phase === "start") loads.set(tab, load = { progress: 0.08, loading: true, hideAt: 0 });
+      else if (!load) return;
+      else if (phase === "stop") { if (load.loading) Object.assign(load, { progress: 1, loading: false, hideAt: Date.now() + 450 }); }
+      else advance(load, fraction);
+      paint(tab, load);
+      timer ||= setInterval(tick, 250);
+    }
+    const listener = {
+      onStateChange(browser, webProgress, request, flags) {
+        if (!webProgress.isTopLevel || !(flags & STATE_IS_WINDOW)) return;
+        const tab = gBrowser.getTabForBrowser(browser);
+        if (!tab) return;
+        if (flags & STATE_START) track(tab, "start");
+        else if (flags & STATE_STOP) track(tab, "stop");
+      },
+      onProgressChange(browser, webProgress, request, curSelf, maxSelf, curTotal, maxTotal) {
+        const tab = maxTotal > 0 && gBrowser.getTabForBrowser(browser);
+        if (tab) track(tab, "progress", curTotal / maxTotal);
+      },
+    };
+    const closed = event => { const load = loads.get(event.target); if (load) { loads.delete(event.target); paint(event.target, { ...load, loading: false, hideAt: 0 }); } };
+    gBrowser.addTabsProgressListener(listener);
+    gBrowser.tabContainer.addEventListener("TabClose", closed);
+    // Tabs already loading when this starts.
+    for (const tab of gBrowser.tabs) if (tab.hasAttribute("busy")) track(tab, "start");
+    return () => {
+      try { gBrowser.removeTabsProgressListener(listener); } catch {}
+      gBrowser.tabContainer.removeEventListener("TabClose", closed);
+      clearInterval(timer); timer = 0;
+      loads.clear();
+      for (const bar of bars) bar.remove();
+      bars.clear();
+    };
+  }
+
   function start() {
     const stopMotion = tabMotion();
+    let stopLoading = () => {};
+    try { stopLoading = tabLoading(); } catch (e) { console.error("[Glassflow] tab loading bar failed to start:", e); }
     const stopAlignment = iconAlignment();
     window.addEventListener("popupshowing", toolsMenu);
     syncInstantUI();
@@ -691,6 +780,7 @@
       if (retired) return;
       retired = true;
       stopMotion();
+      stopLoading();
       stopAlignment();
       window.removeEventListener("popupshowing", toolsMenu);
       for (const item of toolItems) item.remove(); toolItems.clear();

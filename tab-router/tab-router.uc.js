@@ -1739,6 +1739,9 @@
   // must keep its container -- or null to stop: the page is still loading,
   // changed address (routed again) or routing was switched off meanwhile.
   async function reopenInContainer(tab, wantCtx, targetWs) {
+    // A folder's page tab (Groupflow) only unloads when closed, so replacing
+    // it would reload it over and over; Groupflow keeps it in the folder's container.
+    if (tab.hasAttribute("zzgf-page-of")) return tab;
     const url = (() => { try { return tab.linkedBrowser?.currentURI?.spec; } catch { return null; } })();
     if (!url || !/^https?:/i.test(url)) return tab;
     // Only container replacement waits for network STOP and session state.
@@ -2211,7 +2214,10 @@
         try { page = w.Groupflow.folderPage(group); } catch {}
         const key = page && pageKey(page);
         if (!key) continue;
-        const first = group.tabs?.find?.(t => !t.hasAttribute("zen-empty-tab"));
+        // The folder's container: its tabs', subfolders included, its own
+        // page tab last (Groupflow opens the page there by the same rule).
+        const tabs = group.tabs?.filter?.(t => !t.closing && !t.hasAttribute("zen-empty-tab")) || [];
+        const first = tabs.find(t => t.getAttribute("zzgf-page-of") !== group.id) || tabs[0];
         yield { win: w, group, page, key, ctx: first ? contextOf(first) : 0 };
       }
     }
@@ -2229,10 +2235,11 @@
   }
   // A folder goes to its page tab, back on the page if it moved on; with no
   // tab yet, Groupflow opens it (hidden as the header's tab from the start).
+  // A page tab in another container than the folder's is Groupflow's to replace.
   function goTo(target) {
     if (target.tab) { switchTo(target.tab); return target.tab.label; }
     const { win, group, page, key, ctx } = target.folder;
-    const own = group.tabs?.find?.(t => t.getAttribute("zzgf-page-of") === group.id && !t.closing);
+    const own = group.tabs?.find?.(t => t.getAttribute("zzgf-page-of") === group.id && !t.closing && contextOf(t) === ctx);
     if (own) {
       switchTo(own);
       if (!own.hasAttribute("pending") && pageKey(own.linkedBrowser?.currentURI?.spec || "") !== key) {

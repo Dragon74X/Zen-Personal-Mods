@@ -95,8 +95,11 @@ and the next header click opens the page afresh.
 Closing a page tab -- with a shortcut, the tab menu or Close Other Tabs --
 unloads it instead, as a Favorite does, so a folder is never emptied or lost
 by accident; closing or deleting the folder itself still closes everything in
-it. A page that is one of your Favorites (Essentials) stays there: the header
-shows it and clicking the name switches to it.
+it. A page that is also one of your Favorites (Essentials) stays a Favorite:
+the folder opens its own tab for it. The page tab opens in the container the
+folder's tabs use, subfolders included, so the site is signed in as it is in
+them; a page tab left in another container is replaced the next time you click
+the name.
 
 Tab Router gives the folders it files into their page: the site's front page,
 a subdomain's, or the channel, game, author or section page the folder is for.

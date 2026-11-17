@@ -171,6 +171,29 @@ test("A link to a folder's page goes to the folder, ahead of a Favorite showing 
   assert.equal(ctx.openTargetFor(0, "nowhere.example"), null, "and pages open nowhere navigate as usual");
 });
 
+test("A folder's container is its other tabs'; a page tab left in another container is Groupflow's to replace", () => {
+  const fn = name => { const i = router.indexOf(`  function ${name}(`); return router.slice(i, router.indexOf("\n  }\n", i) + 4); };
+  const gen = router.slice(router.indexOf("  const FOLDERS ="), router.indexOf("  function folderFor("));
+  const opened = [], switched = [];
+  const tab = (id, ctx, attrs = {}) => ({ id, closing: false, linkedBrowser: { currentURI: { spec: "https://www.youtube.com/" } },
+    getAttribute: a => (a === "usercontextid" ? String(ctx) : attrs[a] ?? null), hasAttribute: a => a in attrs });
+  const page = tab("page", 0, { "zzgf-page-of": "yt" }), video = tab("video", 6);
+  const folder = { id: "yt", label: "Youtube", tabs: [page, video], closest: () => null };
+  const win = { closed: false, document: { querySelectorAll: () => [folder] },
+    Groupflow: { folderPage: () => "https://youtube.com/", openFolderPage: g => { opened.push(g.id); return true; } } };
+  const ctx = vm.createContext({ window: win, Services: { wm: { getEnumerator: () => [win] } },
+    pageKey: u => u.replace(/^https:\/\/(www\.)?/, "").replace(/\/$/, ""), contextOf: t => +(t.getAttribute("usercontextid") || 0),
+    openTabFor: () => null, switchTo: t => switched.push(t.id), note: () => {}, openPage: () => null });
+  vm.runInContext(`${gen}\n${fn("folderFor")}\n${fn("openTargetFor")}\n${fn("goTo")}\nthis.openTargetFor = openTargetFor; this.goTo = goTo;`, ctx);
+  const target = ctx.openTargetFor(6, "youtube.com");
+  assert.equal(target?.folder?.ctx, 6, "the folder counts in its signed-in tabs' container, not its page tab's");
+  ctx.goTo(target);
+  assert.deepEqual([switched, opened], [[], ["yt"]], "the page tab in no container is not shown: Groupflow replaces it");
+  page.getAttribute = a => (a === "usercontextid" ? "6" : a === "zzgf-page-of" ? "yt" : null);
+  ctx.goTo(ctx.openTargetFor(6, "youtube.com"));
+  assert.deepEqual(switched, ["page"], "one in the folder's container is gone to directly");
+});
+
 test("A folder's page tab is never switched away on its first load, redirects included", () => {
   const i = router.indexOf("  const passedTabs = new WeakSet();");
   const body = router.slice(i, router.indexOf("\n  }\n", router.indexOf("  function switchFirstRequest(", i)) + 4);

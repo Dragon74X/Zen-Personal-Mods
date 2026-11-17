@@ -1007,6 +1007,13 @@
       try { SessionStore.deleteCustomTabValue(tab, PAGE_OF); } catch {}
     }
     const members = group => group.tabs.filter(t => t.group === group && !t.closing && !t.hasAttribute("zen-empty-tab"));
+    // The folder's container: its tabs', subfolders included (a site's
+    // top-level folder can hold only subfolders), its own page tab last.
+    // Tab Router finds folders by the same rule.
+    function folderContext(group) {
+      const tabs = group.tabs.filter(t => !t.closing && !t.hasAttribute("zen-empty-tab"));
+      return ctxOf(tabs.find(t => t.getAttribute("zzgf-page-of") !== group.id) || tabs[0]);
+    }
     // The page tab: the member marked for it, else a member already showing
     // it. The folder always has its own: a Favorite (Essential) showing the
     // same page stays a Favorite, and the header never stands for it.
@@ -1051,9 +1058,18 @@
     function open(group) {
       const page = pageOf(group);
       if (!page) return false;
+      const ctx = folderContext(group);
       let tab = pageTab(group, page);
+      // A page tab in another container is signed out of the site (earlier
+      // versions opened a folder of subfolders' page in none): it closes, and
+      // the page opens again in the folder's container.
+      if (tab && ctxOf(tab) !== ctx) {
+        unmark(tab);
+        tab.removeAttribute("zzgf-page-tab");
+        gBrowser.removeTab(tab, { animate: false });
+        tab = null;
+      }
       if (tab) { gBrowser.selectedTab = tab; soon(); return true; }
-      const ctx = ctxOf(members(group)[0]);
       const router = window.TabRouter?.openPage;
       if (router) tab = router(page, group, ctx);
       else {

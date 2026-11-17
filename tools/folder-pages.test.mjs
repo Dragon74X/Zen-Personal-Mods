@@ -12,9 +12,11 @@ function node(attrs = {}, extra = {}) {
     getAttribute: k => a.get(k) ?? null, hasAttribute: k => a.has(k), setAttribute: (k, v) => a.set(k, String(v)),
     removeAttribute: k => a.delete(k), toggleAttribute: (k, on = !a.has(k)) => { if (on) a.set(k, ""); else a.delete(k); return on; }, ...extra };
 }
-// Groupflow's folder pages, run with their tabs and groups.
-function folderPages(tabs, groups, TabRouter = null) {
-  for (const g of groups) Object.defineProperty(g, "tabs", { get: () => tabs.filter(t => t.group === g) });
+// Groupflow's folder pages, run with their tabs and groups. A group's tabs
+// include its subfolders' tabs, as Zen's do.
+function folderPages(tabs, groups, TabRouter = null, removeTab = () => {}) {
+  const inside = (t, g) => { for (let p = t.group; p; p = p.group) if (p === g) return true; return false; };
+  for (const g of groups) Object.defineProperty(g, "tabs", { get: () => tabs.filter(t => inside(t, g)) });
   const start = groupflow.indexOf("  const PAGE_KEY =");
   const source = groupflow.slice(start, groupflow.indexOf("\n  }\n", groupflow.indexOf("  function startFolderPages() {")) + 4);
   const frames = [], events = [];
@@ -25,11 +27,11 @@ function folderPages(tabs, groups, TabRouter = null) {
     Services: { prefs: { addObserver() {}, removeObserver() {} } }, CustomEvent: class { constructor(type) { this.type = type; } },
     requestAnimationFrame: fn => frames.push(fn), cancelAnimationFrame() {},
     document: { querySelectorAll: () => groups },
-    gBrowser: { tabs, removeTab() {}, addTabsProgressListener: listener => { progress = listener; },
+    gBrowser: { tabs, removeTab, addTabsProgressListener: listener => { progress = listener; },
       getTabForBrowser: browser => tabs.find(t => t.linkedBrowser === browser) },
     window: { Groupflow: {}, TabRouter, addEventListener() {}, removeEventListener() {}, dispatchEvent: event => events.push(event.type) } });
   vm.runInContext(source + "\nstartFolderPages();", ctx);
-  return { events, progress, groupflow: ctx.window.Groupflow, settle: () => { while (frames.length) frames.shift()(); } };
+  return { events, progress, gBrowser: ctx.gBrowser, groupflow: ctx.window.Groupflow, settle: () => { while (frames.length) frames.shift()(); } };
 }
 const tabAt = (spec, extra = {}) => node(extra.attrs, { linkedBrowser: { currentURI: { spec } }, ...extra });
 
@@ -96,6 +98,40 @@ test("A Favorite showing a folder's page never stands for the folder", () => {
   assert.ok(group.hasAttribute("zzgf-has-page") && !member.hasAttribute("zzgf-page-of"), "the folder has no page tab yet");
   assert.equal(f.groupflow.openFolderPage(group), true);
   assert.ok(opened, "opening the folder's page opens its own tab, not the Favorite");
+});
+
+test("A folder holding only subfolders opens its page in their container, and replaces a page tab left in another", () => {
+  // YouTube's top-level folder in a space with a container: its tabs are all
+  // in creator subfolders, signed in to container 6, like the Favorite.
+  const setup = stale => {
+    const top = node({ "data-zzrouter-page": "https://youtube.com/" }, { id: "yt" });
+    const creator = node({}, { id: "creator", group: top });
+    const video = tabAt("https://www.youtube.com/watch?v=x", { group: creator, attrs: { usercontextid: "6" } });
+    const tabs = [video], opened = [], closed = [];
+    if (stale) tabs.unshift(tabAt("https://www.youtube.com/", { group: top, attrs: { usercontextid: stale, "zzgf-page-of": "yt" } }));
+    const f = folderPages(tabs, [top, creator], { openPage: (url, group, ctx) => {
+      opened.push(ctx);
+      const t = tabAt(url, { group, attrs: { usercontextid: String(ctx) } });
+      tabs.push(t);
+      return t;
+    } }, t => { closed.push(t); tabs.splice(tabs.indexOf(t), 1); });
+    return { f, top, tabs, opened, closed, page: stale && tabs[0] };
+  };
+  let s = setup(null);
+  assert.equal(s.f.groupflow.openFolderPage(s.top), true);
+  assert.deepEqual(s.opened, [6], "opened in the subfolders' container, where the site is signed in, not in none");
+
+  s = setup("0");
+  assert.ok(s.page.hasAttribute("zzgf-page-tab"), "an earlier version's page tab, in no container");
+  assert.equal(s.f.groupflow.openFolderPage(s.top), true);
+  assert.deepEqual(s.closed, [s.page], "it closes for real (a page tab's close is otherwise only an unload)");
+  assert.ok(!s.page.hasAttribute("zzgf-page-of") && !s.page.hasAttribute("zzgf-page-tab"));
+  assert.deepEqual(s.opened, [6], "and the page opens again in the folder's container");
+
+  s = setup("6");
+  assert.equal(s.f.groupflow.openFolderPage(s.top), true);
+  assert.equal(s.f.gBrowser.selectedTab, s.page, "a page tab in the folder's container is simply shown");
+  assert.deepEqual([s.closed, s.opened], [[], []]);
 });
 
 test("A folder whose page is also a Favorite opens its own tab; the Favorite is never the folder's", () => {

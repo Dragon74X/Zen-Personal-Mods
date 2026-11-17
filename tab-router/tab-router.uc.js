@@ -2304,7 +2304,11 @@
     Promise.resolve(switching).catch(() => {}).then(() => requestAnimationFrame(() => {
       const root = document.documentElement;
       if (retired || !root || tab.closing || !tab.isConnected) return;
-      const accent = getComputedStyle(root).getPropertyValue("--zen-primary-color").trim() || "AccentColor";
+      const zen = getComputedStyle(root).getPropertyValue("--zen-primary-color").trim() || "AccentColor";
+      // Zen's accent is the theme's own colour, which on a dark window can be
+      // as dark as the window itself: keep its hue, at a lightness that shows.
+      const lifted = `light-dark(oklch(from ${zen} min(l, 0.62) c h), oklch(from ${zen} max(l, 0.74) c h))`;
+      const accent = typeof CSS !== "undefined" && CSS.supports("color", lifted) ? lifted : zen;
       const brief = matchMedia("(prefers-reduced-motion: reduce)").matches;
       const ring = (el, holder) => {
         const r = el?.getBoundingClientRect(), h = holder?.getBoundingClientRect();

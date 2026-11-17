@@ -88,7 +88,8 @@ count; Zen changes space as needed.
 When a switch lands you in another window -- one of these, or the address
 bar's **Switch to Tab** -- that window comes forward and a soft ring in Zen's
 accent fades in and out around its page and the tab (a folder's header, for a
-folder's page), so the eye finds it (briefer with reduced motion). Moving
+folder's page), so the eye finds it (briefer with reduced motion; lighter on
+a dark window, where a dark theme colour would not show). Moving
 between windows yourself shows nothing, nor does picking a tab whose page Zen
 brings into the window you are in. Zen keeps a copy of each tab in every
 window; a copy that has not loaded yet (every copy after a restart, and a

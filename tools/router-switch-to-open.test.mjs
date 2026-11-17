@@ -410,6 +410,15 @@ test("The arrival ring fades on the compositor once the switch is done, removes 
     ["opacity0", "opacity1", "opacity0"], "opacity only");
   assert.equal(appended[0].fade.options.duration, 900);
   assert.match(appended[0].style.boxShadow, /^inset 0 0 0 2px rgb\(1, 2, 3\)/, "in Zen's accent");
+  ctx.CSS = { supports: (p, v) => p === "color" && v.startsWith("light-dark(") };
+  ctx.markArrival(tab);
+  await settle();
+  frames.shift()();
+  assert.match(appended[2].style.boxShadow, /^inset 0 0 0 2px light-dark\(oklch\(from rgb\(1, 2, 3\) min\(l, 0\.62\) c h\), oklch\(from rgb\(1, 2, 3\) max\(l, 0\.74\) c h\)\)/,
+    "its hue at a lightness that shows on a light or a dark window");
+  for (const ring of appended.splice(2)) { ring.fade.finish(); }
+  await settle();
+  delete ctx.CSS;
   assert.equal(appended[0].style.pointerEvents, "none");
   appended[0].fade.finish();
   await settle();

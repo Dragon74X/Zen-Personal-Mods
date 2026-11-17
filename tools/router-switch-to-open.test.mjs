@@ -289,7 +289,8 @@ test("The arrival ring fades on the compositor once the switch is done, removes 
     matchMedia: () => ({ matches: reduced }), requestAnimationFrame: fn => frames.push(fn) });
   vm.runInContext(between("  // A switch that lands you in another window gives", "  // Every window publishes the whole set")
     + "\nthis.markArrival = markArrival; this.arrivals = arrivals;", ctx);
-  const tab = { isConnected: true, closing: false, linkedBrowser: { closest: () => page }, querySelector: () => background };
+  const tab = { isConnected: true, closing: false, hasAttribute: () => false, linkedBrowser: { closest: () => page },
+    querySelector: () => background };
   let switched;
   ctx.markArrival(tab, new Promise(r => { switched = r; }));
   await settle();
@@ -322,11 +323,28 @@ test("The arrival ring fades on the compositor once the switch is done, removes 
   await settle();
   frames.shift()();
   assert.equal(appended.length, 5, "a holder that cannot place it gets no ring");
+  stack.position = "relative";
+  // Below the fold: selecting it scrolls it into view, and its ring rides along.
+  const far = { ...tab, querySelector: () => ({ ...box(8, 1808, 172, 36, "static"), parentNode: stack }) };
+  ctx.markArrival(far);
+  await settle();
+  frames.shift()();
+  assert.ok(appended.length === 7 && appended[6].holder === stack && appended[6].style.top === "1652px",
+    "a tab still scrolling into view gets its ring, in the tab");
+  // A folder's page tab is hidden behind its header, which takes the ring.
+  const header = box(5, 122, 176, 40);
+  const pageTab = { ...tab, hasAttribute: name => name === "zzgf-page-tab", group: { querySelector: () => header },
+    querySelector: () => ({ ...box(0, 0, 0, 0, "static"), parentNode: stack }) };
+  ctx.markArrival(pageTab);
+  await settle();
+  frames.shift()();
+  assert.ok(appended.length === 9 && appended[8].holder === header && appended[8].style.left === "0px",
+    "a folder's page is ringed at its header");
   ctx.retired = true;
   ctx.markArrival(tab);
   await settle();
   frames.shift()();
-  assert.equal(appended.length, 5, "a released copy draws nothing");
+  assert.equal(appended.length, 9, "a released copy draws nothing");
 });
 
 test("Release restores Zen's switchIfNeeded and removes live rings", () => {

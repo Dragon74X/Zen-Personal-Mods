@@ -2151,7 +2151,7 @@
   // page side (links-child.sys.mjs) only acts on real link clicks, so back
   // and forward, reloads, forms, redirects and script navigation never
   // switch; Alt-click, Duplicate Tab and session restore always make copies.
-  const LINKS_VERSION = "1.45.0", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
+  const LINKS_VERSION = "1.45.1", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
   const TRACKING = /^(utm_[a-z]+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|igshid|si|ref_src|_hsenc|_hsmi)$/i;
   function pageKey(url) {
     try {
@@ -2259,11 +2259,12 @@
   }
   // A switch that lands you in another window gives no sign of its own: a
   // soft ring in Zen's accent fades in and out around this window's page,
-  // and around the tab when the sidebar shows it, once the switch (and any
-  // change of space) is done. Each ring sits inside a positioned box that
-  // holds what it rings, so it moves with it (the tab list shifts when a
-  // tab opened and closed for the switch leaves). Opacity only
-  // (compositor); each ring removes itself when it ends, and on release.
+  // and around the tab, or the folder header that stands for a folder's
+  // page, once the switch (and any change of space) is done. Each ring sits
+  // inside a positioned box that holds what it rings, so it moves with it
+  // (the tab list shifts when a tab opened and closed for the switch leaves,
+  // and scrolls a tab out of view into it). Opacity only (compositor); each
+  // ring removes itself when it ends, and on release.
   const arrivals = new Set();
   function markArrival(tab, switching) {
     Promise.resolve(switching).catch(() => {}).then(() => requestAnimationFrame(() => {
@@ -2273,8 +2274,7 @@
       const brief = matchMedia("(prefers-reduced-motion: reduce)").matches;
       const ring = (el, holder) => {
         const r = el?.getBoundingClientRect(), h = holder?.getBoundingClientRect();
-        if (!r?.width || !r.height || r.right <= 0 || r.bottom <= 0 || r.left >= innerWidth || r.top >= innerHeight) return;
-        if (!h || getComputedStyle(holder).position === "static") return;
+        if (!r?.width || !r.height || !h || getComputedStyle(holder).position === "static") return;
         const glow = document.createElementNS("http://www.w3.org/1999/xhtml", "div");
         glow.setAttribute("aria-hidden", "true");
         Object.assign(glow.style, { position: "absolute", left: `${r.left - h.left - holder.clientLeft}px`,
@@ -2289,8 +2289,11 @@
       };
       const page = tab.linkedBrowser?.closest(".browserSidebarContainer") || document.getElementById("tabbrowser-tabpanels");
       ring(page, page);
+      // A folder's page tab is hidden (Groupflow): its header stands for it.
+      const header = tab.hasAttribute("zzgf-page-tab") && tab.group?.querySelector(":scope > .tab-group-label-container");
       const background = tab.querySelector(".tab-background");
-      ring(background, background?.parentNode);
+      if (header) ring(header, header);
+      else ring(background, background?.parentNode);
     }));
   }
   // Every window publishes the whole set, so the page side needs one lookup.

@@ -82,8 +82,8 @@ use `await TabRouter.sortAll()` when you need completion.
 is already open in another tab switches to that tab instead of opening a copy,
 whether the click would open it in place or in a new tab; a new tab whose first
 page is already open elsewhere (opened from a menu, a bookmark, another app or
-typed) closes and switches to it too. Tabs in other spaces and windows count;
-Zen changes space as needed.
+typed) closes and switches to it too. Tabs in every space of every window
+count; Zen changes space as needed.
 
 When a switch lands you in another window -- one of these, or the address
 bar's **Switch to Tab** -- that window comes forward and a soft ring in Zen's

@@ -292,7 +292,8 @@ test("An unloaded copy of a synced tab stands for the copy whose page is loaded 
   const ctx = vm.createContext({ window: A, Services: { wm: { getEnumerator: () => [A, B] } },
     allWindowTabs: function* () { yield* A.gBrowser.tabs; yield* B.gBrowser.tabs; },
     eligibleTab: () => true, contextOf: () => 0, tabURL: t => t.url, pageKey: u => u });
-  vm.runInContext(`${fn("liveTwin")}\n${fn("openTabFor")}\nthis.openTabFor = openTabFor; this.liveTwin = liveTwin;`, ctx);
+  const line = start => { const i = router.indexOf(start); return router.slice(i, router.indexOf("\n", i) + 1); };
+  vm.runInContext(`${line("  const windowTabs =")}${line("  const unloaded =")}${fn("liveTwin")}\n${fn("openTabFor")}\nthis.openTabFor = openTabFor; this.liveTwin = liveTwin;`, ctx);
   assert.equal(ctx.openTabFor(0, "b"), liveB, "the window showing the page, not A's unloaded copy");
   assert.equal(ctx.openTabFor(0, "b", liveB), null, "the tab asking is never its own answer");
   liveB.url = "c";
@@ -306,6 +307,28 @@ test("An unloaded copy of a synced tab stands for the copy whose page is loaded 
   tab(B, "z", "about:blank");
   assert.equal(ctx.openTabFor(0, "d"), loadedA, "a loaded copy is itself");
   assert.equal(ctx.liveTwin(copyA), copyA, "copies elsewhere unloaded or blank: a copy stands for itself");
+});
+
+test("Pages open in any space of any window count, and a blank copy stands for the copy showing its page", () => {
+  const fn = name => { const i = router.indexOf(`  function ${name}(`); return router.slice(i, router.indexOf("\n  }\n", i) + 4); };
+  const gen = router.slice(router.indexOf("  const windowTabs ="), router.indexOf("  // Zen keeps a copy of every tab"));
+  const line = start => { const i = router.indexOf(start); return router.slice(i, router.indexOf("\n", i) + 1); };
+  const tab = (win, id, url, attrs = {}) => ({ id, url, closing: false, ownerGlobal: win,
+    get linkedBrowser() { return { currentURI: { spec: this.url } }; }, hasAttribute: a => !!attrs[a], getAttribute: () => null });
+  // Zen 1.24: gBrowser.tabs is the space on show; stored tabs are every space's.
+  const A = { name: "A", closed: false, gBrowser: { tabs: [] }, gZenWorkspaces: { allStoredTabs: [] } };
+  const B = { name: "B", closed: false, gBrowser: { tabs: [] }, gZenWorkspaces: { allStoredTabs: [] } };
+  const hub = tab(A, "h", "hub");
+  A.gBrowser.tabs.push(hub);
+  const blankA = tab(A, "p", "about:blank"), otherSpaceB = tab(B, "p", "page");
+  A.gZenWorkspaces.allStoredTabs.push(hub, blankA);
+  B.gZenWorkspaces.allStoredTabs.push(tab(B, "h", "about:blank"), otherSpaceB);
+  const ctx = vm.createContext({ window: A, Services: { wm: { getEnumerator: () => [A, B] } },
+    eligibleTab: () => true, contextOf: () => 0, tabURL: t => t.url, pageKey: u => u });
+  vm.runInContext(`${gen}${line("  const unloaded =")}${fn("liveTwin")}\n${fn("openTabFor")}\nthis.openTabFor = openTabFor; this.liveTwin = liveTwin;`, ctx);
+  assert.equal(ctx.openTabFor(0, "page"), otherSpaceB, "a page in a space B is not showing is still open");
+  assert.equal(ctx.liveTwin(blankA), otherSpaceB, "A's blank copy (a folder's page tab, say) stands for B's");
+  assert.equal(ctx.liveTwin(hub), hub, "a copy showing its page is itself");
 });
 
 test("Firefox's Switch to Tab to an unloaded copy in your window goes to the window showing its page", () => {

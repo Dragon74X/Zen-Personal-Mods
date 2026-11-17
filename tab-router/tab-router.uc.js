@@ -2189,26 +2189,26 @@
   const forgetLazy = event => lazyURLs.delete(event.target);
   const eligibleTab = tab => tab && !tab.closing && tab.linkedBrowser && !tab.hasAttribute("zen-glance-tab") &&
     !tab.hasAttribute("zen-empty-tab");
+  // Zen 1.24's gBrowser.tabs holds only the space on show (and the
+  // Favorites); a window's tabs in every space are its stored tabs.
+  const windowTabs = w => w.gZenWorkspaces?.allStoredTabs ?? w.gBrowser.tabs;
   function* allWindowTabs() {
-    yield* gBrowser.tabs;                               // this window first
-    for (const w of Services.wm.getEnumerator("navigator:browser")) if (w !== window && !w.closed && w.gBrowser) yield* w.gBrowser.tabs;
+    yield* windowTabs(window);                          // this window first
+    for (const w of Services.wm.getEnumerator("navigator:browser")) if (w !== window && !w.closed && w.gBrowser) yield* windowTabs(w);
   }
   // Zen keeps a copy of every tab in each synced window, with its page in
-  // one of them (the others hold about:blank). A copy that has not loaded
-  // (every copy after a restart, and a window's copies of tabs opened before
-  // it) still carries the page's address. Picking it pulls the page out of
-  // the window showing it, so a copy whose page is loaded in another window
-  // stands for that window's.
+  // one of them; the others hold about:blank, or, not loaded yet (every copy
+  // after a restart, and a window's copies of tabs opened before it), the
+  // page's address. Picking such a copy pulls the page out of the window
+  // showing it, so a copy whose page is loaded in another window stands for
+  // that window's.
+  const unloaded = t => t.hasAttribute("pending") || (t.linkedBrowser?.currentURI?.spec || "about:blank") === "about:blank";
   function liveTwin(tab) {
-    if (!tab?.id || !tab.hasAttribute?.("pending")) return tab;
+    if (!tab?.id || !unloaded(tab)) return tab;
     const home = tab.ownerGlobal;
     for (const w of Services.wm.getEnumerator("navigator:browser")) {
       if (w === home || w.closed || !w.gBrowser) continue;
-      for (const t of w.gBrowser.tabs) {
-        if (t.id !== tab.id || t.closing || t.hasAttribute("pending")) continue;
-        const url = t.linkedBrowser?.currentURI?.spec;
-        if (url && url !== "about:blank") return t;
-      }
+      for (const t of windowTabs(w)) if (t.id === tab.id && !t.closing && !unloaded(t)) return t;
     }
     return tab;
   }

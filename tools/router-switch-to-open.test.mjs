@@ -298,7 +298,8 @@ test("Tab Router's switch raises the window holding the tab, and marks the arriv
 test("The arrival ring fades on the compositor once the switch is done, removes itself, and goes on release", async () => {
   const appended = [], frames = [], settle = () => new Promise(setImmediate);
   let reduced = false;
-  const element = () => ({ style: {}, setAttribute() {}, remove() { this.removed = true; },
+  const element = () => ({ style: {}, children: [], setAttribute() {}, remove() { this.removed = true; },
+    appendChild(child) { this.children.push(child); },
     animate(keyframes, options) {
       let finish;
       const finished = new Promise(r => { finish = r; });
@@ -333,9 +334,17 @@ test("The arrival ring fades on the compositor once the switch is done, removes 
     "the tab's ring sits in the tab, over its background, and moves with it");
   assert.equal(tabRing.style.position, "absolute");
   assert.deepEqual(Array.from(appended[0].fade.keyframes, k => Object.keys(k).filter(p => p !== "offset").join() + k.opacity),
-    ["opacity0", "opacity1", "opacity0"], "opacity only");
-  assert.equal(appended[0].fade.options.duration, 900);
-  assert.match(appended[0].style.boxShadow, /^inset 0 0 0 2px rgb\(1, 2, 3\)/, "in Zen's accent");
+    ["opacity0", "opacity1", "opacity1", "opacity0"], "opacity only");
+  const offsets = Array.from(appended[0].fade.keyframes, k => k.offset);
+  assert.ok(offsets[1] <= 0.15 && offsets[2] >= 0.5, "in fast, then held at full strength before the fade: a window drawing few frames still shows it");
+  assert.equal(appended[0].fade.options.duration, 1100);
+  assert.equal(appended[0].style.border, "2px solid rgb(1, 2, 3)", "a line in Zen's accent");
+  assert.equal(appended[0].style.boxSizing, "border-box", "inside what it rings");
+  assert.equal(appended[0].children[0].style.inset, "-2px", "the soft band shares the ring's shape");
+  assert.match(appended[0].children[0].style.border, /^8px solid color-mix\(in srgb, rgb\(1, 2, 3\) 22%, transparent\)$/);
+  // A window-sized inset shadow costs software WebRender hundreds of ms a frame (Windows CI, real pixels).
+  for (const el of [appended[0], appended[0].children[0], appended[1]])
+    assert.ok(!el.style.boxShadow && !el.style.filter && !el.style.backdropFilter, "no shadows or filters");
   assert.equal(appended[0].style.pointerEvents, "none");
   appended[0].fade.finish();
   await settle();
@@ -345,7 +354,8 @@ test("The arrival ring fades on the compositor once the switch is done, removes 
   ctx.markArrival(tab);
   await settle();
   frames.shift()();
-  assert.equal(appended[2].fade.options.duration, 500, "shorter with reduced motion");
+  assert.equal(appended[2].fade.options.duration, 700, "shorter with reduced motion");
+  assert.deepEqual(Array.from(appended[2].fade.keyframes, k => k.opacity), [1, 1, 0], "with reduced motion it shows at once, holds, and fades out");
   stack.position = "static";
   ctx.markArrival(tab);
   await settle();

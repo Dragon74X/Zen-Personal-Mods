@@ -2275,6 +2275,11 @@
   // (the tab list shifts when a tab opened and closed for the switch leaves,
   // and scrolls a tab out of view into it). Opacity only (compositor); each
   // ring removes itself when it ends, and on release.
+  // Drawn with borders, not inset box-shadows: a window-sized inset shadow
+  // costs WebRender (software, as on Windows without a usable GPU) hundreds
+  // of milliseconds a frame, so the fade reached the screen late or not at
+  // all. It comes in fast and holds at full strength before it fades, so
+  // even a window that draws few frames as it comes forward shows it.
   const arrivals = new Set();
   function markArrival(tab, switching) {
     Promise.resolve(switching).catch(() => {}).then(() => requestAnimationFrame(() => {
@@ -2290,12 +2295,18 @@
         Object.assign(glow.style, { position: "absolute", left: `${r.left - h.left - holder.clientLeft}px`,
           top: `${r.top - h.top - holder.clientTop}px`, width: `${r.width}px`, height: `${r.height}px`,
           borderRadius: getComputedStyle(el).borderRadius, pointerEvents: "none", zIndex: "1", opacity: "0",
-          boxShadow: `inset 0 0 0 2px ${accent}, inset 0 0 28px color-mix(in srgb, ${accent} 40%, transparent)` });
+          border: `2px solid ${accent}`, boxSizing: "border-box" });
+        // A softer band just inside the line, the same shape.
+        const soft = document.createElementNS("http://www.w3.org/1999/xhtml", "div");
+        Object.assign(soft.style, { position: "absolute", inset: "-2px", borderRadius: "inherit",
+          border: `8px solid color-mix(in srgb, ${accent} 22%, transparent)` });
+        glow.appendChild(soft);
         holder.appendChild(glow);
         arrivals.add(glow);
         const done = () => { arrivals.delete(glow); glow.remove(); };
-        glow.animate([{ opacity: 0 }, { opacity: 1, offset: 0.3 }, { opacity: 0 }],
-          { duration: brief ? 500 : 900, easing: "ease-in-out" }).finished.then(done, done);
+        glow.animate(brief ? [{ opacity: 1 }, { opacity: 1, offset: 0.7 }, { opacity: 0 }]
+          : [{ opacity: 0 }, { opacity: 1, offset: 0.12 }, { opacity: 1, offset: 0.55 }, { opacity: 0 }],
+          { duration: brief ? 700 : 1100, easing: "ease-in-out" }).finished.then(done, done);
       };
       const page = tab.linkedBrowser?.closest(".browserSidebarContainer") || document.getElementById("tabbrowser-tabpanels");
       ring(page, page);

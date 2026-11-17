@@ -297,7 +297,7 @@ const now = () => performance.timeOrigin + performance.now();
 const R = window.__arr = { rec: null, wraps: [], A: window, B: null, log: [] };
 const tag = w => !w ? "none" : w === R.A ? "A" : w === R.B ? "B" : "other";
 const RING = /0px 0px 0px 2px inset|inset 0px 0px 0px 2px/;
-const isRing = n => n?.localName === "div" && n.getAttribute?.("aria-hidden") === "true" && RING.test(n.style?.boxShadow || "");
+const isRing = n => n?.localName === "div" && n.getAttribute?.("aria-hidden") === "true" && (RING.test(n.style?.boxShadow || "") || n.hasAttribute("data-arr-probe"));
 const st = w => {
   let bc = null; try { bc = w.browsingContext.isActive; } catch {}
   return [Services.focus.activeWindow === w ? 1 : 0, w.isFullyOccluded ? 1 : 0, w.document.hidden ? 1 : 0, bc ? 1 : 0,
@@ -333,6 +333,59 @@ R.wrap = () => {
       R.wraps.push(() => { if (had) ws[name] = orig; else delete ws[name]; });
     }
   }
+};
+
+// Cost probes in B: the same kind of element markArrival draws, animated the same way.
+R.probe = variant => {
+  const w = R.B, doc = w.document, tab = w.gBrowser.selectedTab;
+  const accent = w.getComputedStyle(doc.documentElement).getPropertyValue("--zen-primary-color").trim() || "AccentColor";
+  const page = tab.linkedBrowser.closest(".browserSidebarContainer"), bg = tab.querySelector(".tab-background");
+  const SOLID = `inset 0 0 0 2px ${accent}`, GLOW = `inset 0 0 28px color-mix(in srgb, ${accent} 40%, transparent)`;
+  const made = [];
+  const mk = (el, holder, style) => {
+    const r = el.getBoundingClientRect(), h = holder.getBoundingClientRect();
+    const d = doc.createElementNS("http://www.w3.org/1999/xhtml", "div");
+    d.setAttribute("aria-hidden", "true"); d.setAttribute("data-arr-probe", variant);
+    Object.assign(d.style, { position: "absolute", left: `${r.left - h.left - holder.clientLeft}px`, top: `${r.top - h.top - holder.clientTop}px`,
+      width: `${r.width}px`, height: `${r.height}px`, borderRadius: w.getComputedStyle(el).borderRadius, pointerEvents: "none", zIndex: "1", opacity: "0", ...style });
+    holder.appendChild(d); made.push(d); return d;
+  };
+  const both = style => { mk(page, page, style); mk(bg, bg.parentNode, style); };
+  if (variant === "full" || variant === "static" || variant === "hold") both({ boxShadow: `${SOLID}, ${GLOW}` });
+  else if (variant === "solid") both({ boxShadow: SOLID });
+  else if (variant === "glow") mk(page, page, { boxShadow: GLOW });
+  else if (variant === "tab") mk(bg, bg.parentNode, { boxShadow: `${SOLID}, ${GLOW}` });
+  else if (variant === "border") both({ border: `2px solid ${accent}`, boxSizing: "border-box" });
+  else if (variant === "fix") for (const d of [mk(page, page, {}), mk(bg, bg.parentNode, {})]) {
+    Object.assign(d.style, { border: `2px solid ${accent}`, boxSizing: "border-box" });
+    const g = doc.createElementNS("http://www.w3.org/1999/xhtml", "div");
+    Object.assign(g.style, { position: "absolute", inset: "0", borderRadius: "inherit", border: `6px solid color-mix(in srgb, ${accent} 22%, transparent)` });
+    d.appendChild(g);
+  }
+  else if (variant === "tiny") { const d = mk(page, page, { background: accent }); Object.assign(d.style, { width: "40px", height: "40px", left: "300px", top: "300px" }); }
+  const done = () => made.forEach(d => d.remove());
+  if (variant === "static") { made.forEach(d => { d.style.opacity = "1"; }); w.setTimeout(done, 700); return made.length; }
+  const frames = variant === "hold" ? [{ opacity: 1 }, { opacity: 1, offset: 0.6 }, { opacity: 0 }]
+    : variant === "fix" ? [{ opacity: 0 }, { opacity: 1, offset: 0.12 }, { opacity: 1, offset: 0.55 }, { opacity: 0 }]
+    : [{ opacity: 0 }, { opacity: 1, offset: 0.3 }, { opacity: 0 }];
+  let last; for (const d of made) last = d.animate(frames, { duration: variant === "fix" ? 1100 : 900, easing: "ease-in-out" });
+  last.finished.then(done, done);
+  return made.length;
+};
+R.inventory = () => {
+  const out = [];
+  for (const w of [R.A, R.B]) for (const e of w.document.querySelectorAll("*")) for (const pseudo of [null, "::before", "::after"]) {
+    const s = w.getComputedStyle(e, pseudo);
+    if (pseudo && s.content === "none") continue;
+    const bf = s.backdropFilter, f = s.filter;
+    if ((bf && bf !== "none") || /blur|url/.test(f || "")) {
+      const r = e.getBoundingClientRect();
+      if (r.width * r.height < 1 || s.display === "none" || s.visibility === "hidden") continue;
+      out.push([R.tag(w), e.localName + (e.id ? "#" + e.id : "") + (pseudo || ""), String(e.className || "").slice(0, 40), [r.left, r.top, r.width, r.height].map(Math.round), bf.slice(0, 120), f.slice(0, 60)]);
+    }
+  }
+  const root = R.B.document.documentElement, cs = R.B.getComputedStyle(root);
+  return { blur: out.slice(0, 80), count: out.length, rootBg: cs.backgroundColor, rootAttrs: [...root.attributes].map(a => a.name + "=" + a.value.slice(0, 40)).filter(a => /zen|zz|glass|theme|lwt|acrylic|mica|transparent/i.test(a)) };
 };
 R.unwrap = () => { for (const f of R.wraps.splice(0)) try { f(); } catch {} for (const w of [R.A, R.B]) if (w) delete w.__arrWrapped; };
 R.arm = ms => {
@@ -684,7 +737,7 @@ def run_capture(m, secs, act, pre=0.25):
 
 def scenario(m, name, mode, action, out_dir):
     result = {'name': name, 'mode': mode, 'action': action}
-    front = 'B' if action == 'direct' else 'A'
+    front = 'B' if action == 'direct' or action.startswith('p') else 'A'
     info, prep = prepare(m, mode, front)
     result['prepare'] = prep
     result['before'] = info
@@ -723,6 +776,9 @@ def scenario(m, name, mode, action, out_dir):
         result['linkPoint'] = [x, y]
         result['hover'] = m.js('''const b=window.__arr.A.gBrowser.selectedBrowser;return [window.__arr.A.XULBrowserWindow?.overLink||null];''')
         act = lambda: (send([mouse_input(x, y, 0x0002)]), time.sleep(0.04), send([mouse_input(x, y, 0x0004)]))  # noqa: E731
+    elif action.startswith('p'):  # cost probe in B, B in front and visible
+        variant = action[1:]
+        act = lambda: m.js('return window.__arr.probe(%s);' % json.dumps(variant))  # noqa: E731
     else:  # direct API call: calibrates the pixel detector with B in front.
         act = lambda: m.js('''const R=window.__arr,ids=window.__arrIds,t=R.B.gBrowser.tabs.find(t=>t.id===ids.b);
           R.B.gBrowser.selectedTab=t;R.B.TabRouter.markArrival(t);return true;''')  # noqa: E731
@@ -746,7 +802,7 @@ def main():
     ap.add_argument('--zen', type=Path, required=True)
     ap.add_argument('--sine', type=Path, required=True)
     ap.add_argument('--out', type=Path, required=True)
-    ap.add_argument('--scenarios', default='direct-max,urlbar-max,link-max,urlbar-side,link-side')
+    ap.add_argument('--scenarios', default='direct-max,pfull-max,psolid-max,pglow-max,ptab-max,pborder-max,ptiny-max,pstatic-max,phold-max,pfix-max,urlbar-max,link-max,urlbar-side')
     args = ap.parse_args()
     out = args.out
     out.mkdir(parents=True, exist_ok=True)
@@ -782,7 +838,8 @@ def main():
                 'browser.sessionstore.resume_from_crash': False, 'app.update.enabled': False,
                 'app.update.disabledForTesting': True, 'browser.startup.homepage_override.mstone': 'ignore',
                 'datareporting.policy.dataSubmissionEnabled': False, 'toolkit.telemetry.enabled': False,
-                'browser.tabs.allow_transparent_browser': True,
+                # Windows Server has animation effects off; a desktop user normally has them on.
+                'ui.prefersReducedMotion': 0,
                 # What a user's Zen runs with (Marionette's recommended prefs change both).
                 'focusmanager.testmode': False, 'widget.windows.window_occlusion_tracking.enabled': True}
         base.update(prefs)
@@ -816,6 +873,7 @@ def main():
             m.js(RECORDER)
             report['setup'] = m.js(SETUP)
             report['info'] = m.js(INFO)
+            report['inventory'] = m.js('return window.__arr.inventory();')
             report['scenarios'] = []
             for spec in args.scenarios.split(','):
                 action, mode = spec.split('-')

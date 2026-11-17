@@ -1611,8 +1611,9 @@
     --zzg-icon-ms: 240;
     --zzg-icon-ease: var(--zzg-spring-ease);
   }
-  /* A pressed folder icon swaps open/closed at once (glassflow.uc.js), so
-     the press reads as a zoom spring, not Zen's sliding panel morph. */
+  /* While a folder's header is pressed its icon swaps open/closed at once
+     (glassflow.uc.js), so the press reads as a zoom spring, not Zen's
+     sliding panel morph. */
   .tab-group-folder-icon[zzg-folder-press] :is(svg, svg *) {
     transition: none !important;
   }

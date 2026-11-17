@@ -82,15 +82,23 @@ use `await TabRouter.sortAll()` when you need completion.
 is already open in another tab switches to that tab instead of opening a copy,
 whether the click would open it in place or in a new tab; a new tab whose first
 page is already open elsewhere (opened from a menu, a bookmark, another app or
-typed) closes and switches to it too. Tabs in other spaces and windows count;
-Zen changes space as needed.
+typed) closes and switches to it too. Tabs in every space of every window
+count; Zen changes space as needed.
 
 When a switch lands you in another window -- one of these, or the address
-bar's **Switch to Tab** -- that window comes forward and a soft ring in Zen's
-accent fades in and out around its page and the tab (a folder's header, for a
-folder's page), so the eye finds it (briefer with reduced motion). Moving
+bar's **Switch to Tab** -- that window comes forward and two pill-shaped
+gleams in the colour of Zen's loading indicator run in from the sides along
+the bottom of its page (on the window's margin just below it) and of the tab
+(a folder's header, for a folder's page), gathering speed like waves, then run
+into each other in the middle and merge into one pill that swells and fades,
+so the eye finds it (with reduced motion only the merged pill appears and
+fades). Moving
 between windows yourself shows nothing, nor does picking a tab whose page Zen
-brings into the window you are in.
+brings into the window you are in. Zen keeps a copy of each tab in every
+window; a copy that has not loaded yet (every copy after a restart, and a
+new window's copies of tabs that were already open) counts as the window
+whose page is loaded, so these switches go there instead of pulling the page
+out of it.
 
 New tabs opened through Firefox's link opener -- middle- and Ctrl-clicks on
 links, **Open Link in New Tab**, bookmarks and history -- are checked before the

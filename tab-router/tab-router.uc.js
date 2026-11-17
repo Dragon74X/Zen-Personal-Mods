@@ -2154,7 +2154,7 @@
   // page side (links-child.sys.mjs) only acts on real link clicks, so back
   // and forward, reloads, forms, redirects and script navigation never
   // switch; Alt-click, Duplicate Tab and session restore always make copies.
-  const LINKS_VERSION = "1.45.1", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
+  const LINKS_VERSION = "1.45.2", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
   const TRACKING = /^(utm_[a-z]+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|igshid|si|ref_src|_hsenc|_hsmi)$/i;
   function pageKey(url) {
     try {
@@ -2189,14 +2189,37 @@
   const forgetLazy = event => lazyURLs.delete(event.target);
   const eligibleTab = tab => tab && !tab.closing && tab.linkedBrowser && !tab.hasAttribute("zen-glance-tab") &&
     !tab.hasAttribute("zen-empty-tab");
+  // Zen 1.24's gBrowser.tabs holds only the space on show (and the
+  // Favorites); a window's tabs in every space are its stored tabs.
+  const windowTabs = w => w.gZenWorkspaces?.allStoredTabs ?? w.gBrowser.tabs;
   function* allWindowTabs() {
-    yield* gBrowser.tabs;                               // this window first
-    for (const w of Services.wm.getEnumerator("navigator:browser")) if (w !== window && !w.closed && w.gBrowser) yield* w.gBrowser.tabs;
+    yield* windowTabs(window);                          // this window first
+    for (const w of Services.wm.getEnumerator("navigator:browser")) if (w !== window && !w.closed && w.gBrowser) yield* windowTabs(w);
+  }
+  // Zen keeps a copy of every tab in each synced window, with its page in
+  // one of them; the others hold about:blank, or, not loaded yet (every copy
+  // after a restart, and a window's copies of tabs opened before it), the
+  // page's address. Picking such a copy pulls the page out of the window
+  // showing it, so a copy whose page is loaded in another window stands for
+  // that window's.
+  const unloaded = t => t.hasAttribute("pending") || (t.linkedBrowser?.currentURI?.spec || "about:blank") === "about:blank";
+  function liveTwin(tab) {
+    if (!tab?.id || !unloaded(tab)) return tab;
+    const home = tab.ownerDocument?.defaultView;
+    for (const w of Services.wm.getEnumerator("navigator:browser")) {
+      if (w === home || w.closed || !w.gBrowser) continue;
+      for (const t of windowTabs(w)) if (t.id === tab.id && !t.closing && !unloaded(t)) return t;
+    }
+    return tab;
   }
   function openTabFor(ctx, key, except = null, accept = null) {
     for (const tab of allWindowTabs()) {
       if (tab === except || !eligibleTab(tab) || contextOf(tab) !== ctx || (accept && !accept(tab))) continue;
-      if (pageKey(tabURL(tab)) === key) return tab;
+      if (pageKey(tabURL(tab)) !== key) continue;
+      const live = liveTwin(tab);
+      // A copy whose page has moved on in the other window no longer shows it.
+      if (live === tab) return tab;
+      if (live !== except && pageKey(tabURL(live)) === key) return live;
     }
     return null;
   }
@@ -2244,9 +2267,10 @@
     const tabs = folderTabs(group), own = tabs.find(t => t.getAttribute("zzgf-page-of") === group.id);
     const stray = own && contextOf(own) !== ctx && !tabs.some(t => t !== own && contextOf(t) === contextOf(own));
     if (own && !stray) {
-      switchTo(own);
-      if (!own.hasAttribute("pending") && pageKey(own.linkedBrowser?.currentURI?.spec || "") !== key) {
-        try { own.linkedBrowser.fixupAndLoadURIString(page, { triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal() }); }
+      const tab = liveTwin(own);
+      switchTo(tab);
+      if (!tab.hasAttribute("pending") && pageKey(tab.linkedBrowser?.currentURI?.spec || "") !== key) {
+        try { tab.linkedBrowser.fixupAndLoadURIString(page, { triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal() }); }
         catch (e) { note(`folder page load failed: ${e}`); }
       }
       return group.label;
@@ -2267,43 +2291,94 @@
       : (win.gBrowser.selectedTab = tab);
     if (here && win !== here) win.TabRouter?.markArrival?.(tab, switching);
   }
-  // A switch that lands you in another window gives no sign of its own: a
-  // soft ring in Zen's accent fades in and out around this window's page,
-  // and around the tab, or the folder header that stands for a folder's
-  // page, once the switch (and any change of space) is done. Each ring sits
-  // inside a positioned box that holds what it rings, so it moves with it
-  // (the tab list shifts when a tab opened and closed for the switch leaves,
-  // and scrolls a tab out of view into it). Opacity only (compositor); each
-  // ring removes itself when it ends, and on release.
+  // A switch that lands you in another window gives no sign of its own:
+  // once the switch (and any change of space) is done, two pill-shaped
+  // gleams in the colour of Zen's loading indicator run in from the sides along the
+  // bottom of this window's page, and of the tab or the folder header that
+  // stands for a folder's page, gathering speed and stretching like waves;
+  // they run into each other in the middle, merge into one pill that swells,
+  // holds and fades. Each sits inside a positioned box that holds what it
+  // marks, so it moves with it (the tab list shifts when a tab opened and
+  // closed for the switch leaves, and scrolls a tab out of view into it).
+  // Transform and opacity only, with nothing page-sized blurred: under
+  // software WebRender a page-sized blurred shadow cost hundreds of
+  // milliseconds a frame, and a window drawing few frames as it comes forward
+  // still catches the merged pill while it holds. The effects run linear, so
+  // each offset is a real time and the easing lives on the keyframes. Each
+  // removes itself when it ends, and on release.
   const arrivals = new Set();
   function markArrival(tab, switching) {
     Promise.resolve(switching).catch(() => {}).then(() => requestAnimationFrame(() => {
       const root = document.documentElement;
       if (retired || !root || tab.closing || !tab.isConnected) return;
-      const accent = getComputedStyle(root).getPropertyValue("--zen-primary-color").trim() || "AccentColor";
+      // The colour of Zen's own loading indicator, from the same place: its
+      // variable, else Zen's own mix of the accent with white on a dark
+      // window and black on a light one.
+      const light = "var(--zen-loading-progress-bar-color, color-mix(in srgb, var(--zen-primary-color), " +
+        "light-dark(rgba(0, 0, 0, 0.5), rgba(255, 255, 255, 0.5)) 70%))";
       const brief = matchMedia("(prefers-reduced-motion: reduce)").matches;
-      const ring = (el, holder) => {
+      const div = () => document.createElementNS("http://www.w3.org/1999/xhtml", "div");
+      // Along the bottom edge of el, inside it, or, given a gap, on the window
+      // just below it, centred in the gap (where the light shows whatever the
+      // page). A soft glow only where there is room for it.
+      const gleams = (el, holder, thickness, gap = 0) => {
         const r = el?.getBoundingClientRect(), h = holder?.getBoundingClientRect();
         if (!r?.width || !r.height || !h || getComputedStyle(holder).position === "static") return;
-        const glow = document.createElementNS("http://www.w3.org/1999/xhtml", "div");
-        glow.setAttribute("aria-hidden", "true");
-        Object.assign(glow.style, { position: "absolute", left: `${r.left - h.left - holder.clientLeft}px`,
-          top: `${r.top - h.top - holder.clientTop}px`, width: `${r.width}px`, height: `${r.height}px`,
-          borderRadius: getComputedStyle(el).borderRadius, pointerEvents: "none", zIndex: "1", opacity: "0",
-          boxShadow: `inset 0 0 0 2px ${accent}, inset 0 0 28px color-mix(in srgb, ${accent} 40%, transparent)` });
-        holder.appendChild(glow);
-        arrivals.add(glow);
-        const done = () => { arrivals.delete(glow); glow.remove(); };
-        glow.animate([{ opacity: 0 }, { opacity: 1, offset: 0.3 }, { opacity: 0 }],
-          { duration: brief ? 500 : 900, easing: "ease-in-out" }).finished.then(done, done);
+        // Between the bottom corners' curves.
+        const style = getComputedStyle(el), room = gap ? Math.max(gap, 10) : 6;
+        const inset = Math.min(r.width / 4, Math.max(parseFloat(style.borderBottomLeftRadius) || 0, parseFloat(style.borderBottomRightRadius) || 0));
+        const width = r.width - 2 * inset, mid = width / 2, length = Math.round(Math.min(160, Math.max(28, width * 0.22)));
+        const line = div();
+        line.setAttribute("aria-hidden", "true");
+        Object.assign(line.style, { position: "absolute", left: `${r.left - h.left - holder.clientLeft + inset}px`,
+          top: `${r.bottom - h.top - holder.clientTop + (gap ? (gap - room) / 2 : -room)}px`, width: `${width}px`, height: `${room}px`,
+          overflow: "clip", pointerEvents: "none", zIndex: "1" });
+        const glow = gap ? `0 0 5px color-mix(in srgb, ${light} 50%, transparent)` : "";
+        const pill = props => Object.assign(line.appendChild(div()).style, { position: "absolute",
+          bottom: `${gap ? (room - thickness) / 2 : 1}px`, height: `${thickness}px`, borderRadius: `${thickness}px`, boxShadow: glow, ...props });
+        // The pill they merge into, centred.
+        const merged = Math.round(length * 1.4);
+        pill({ left: `${mid - merged / 2}px`, width: `${merged}px`, opacity: brief ? "1" : "0",
+          background: `linear-gradient(to right, transparent, ${light} 30%, ${light} 70%, transparent)` });
+        const splash = line.lastChild;
+        if (!brief) {
+          for (const [side, sign] of [["left", 1], ["right", -1]]) {
+            pill({ [side]: `${-length}px`, width: `${length}px`, transformOrigin: side === "left" ? "right" : "left",
+              background: `linear-gradient(to ${side === "left" ? "right" : "left"}, transparent, ${light} 75%)` });
+            // The head runs just past the middle, into the other.
+            const end = `translateX(${sign * (mid + thickness)}px)`;
+            line.lastChild.animate([
+              { transform: "translateX(0) scaleX(.55)", opacity: 1, easing: "cubic-bezier(.4, .05, .75, .4)" },
+              { transform: `${end} scaleX(1.1)`, opacity: 1, offset: 0.5, easing: "ease-out" },
+              { transform: `${end} scaleX(.6)`, opacity: 0, offset: 0.62 },
+              { transform: `${end} scaleX(.6)`, opacity: 0 }], { duration: 1000, easing: "linear" });
+          }
+        }
+        holder.appendChild(line);
+        arrivals.add(line);
+        const done = () => { arrivals.delete(line); line.remove(); };
+        // In: met at 500 ms, merged and swollen by 620, held to 750, gone at
+        // 1000. With reduced motion nothing moves: the merged pill, held, faded.
+        splash.animate(brief ? [{ opacity: 1 }, { opacity: 1, offset: 0.7, easing: "ease-in-out" }, { opacity: 0 }]
+          : [{ opacity: 0, transform: "scaleX(.3)" }, { opacity: 0, transform: "scaleX(.3)", offset: 0.48, easing: "cubic-bezier(.2, .8, .3, 1)" },
+            { opacity: 1, transform: "scaleX(1)", offset: 0.62 }, { opacity: 1, transform: "scaleX(1)", offset: 0.75, easing: "ease-in-out" },
+            { opacity: 0, transform: "scaleX(1.08)" }], { duration: brief ? 700 : 1000, easing: "linear" }).finished.then(done, done);
       };
-      const page = tab.linkedBrowser?.closest(".browserSidebarContainer") || document.getElementById("tabbrowser-tabpanels");
-      ring(page, page);
+      // The page: on the window's margin below it (Zen's element separation),
+      // or along its own bottom edge when it reaches the window's. The tab
+      // panels are a deck that paints only the selected panel, so the box
+      // around them holds what goes outside a page.
+      const tabbox = document.getElementById("tabbrowser-tabbox");
+      const container = tab.linkedBrowser?.closest(".browserSidebarContainer");
+      const page = container || document.getElementById("tabbrowser-tabpanels");
+      const below = innerHeight - (page?.getBoundingClientRect().bottom ?? innerHeight);
+      if (below >= 4 && tabbox) gleams(page, tabbox, 4, Math.min(below, 16));
+      else gleams(page, container || tabbox, 3);
       // A folder's page tab is hidden (Groupflow): its header stands for it.
       const header = tab.hasAttribute("zzgf-page-tab") && tab.group?.querySelector(":scope > .tab-group-label-container");
       const background = tab.querySelector(".tab-background");
-      if (header) ring(header, header);
-      else ring(background, background?.parentNode);
+      if (header) gleams(header, header, 3);
+      else gleams(background, background?.parentNode, 3);
     }));
   }
   // Every window publishes the whole set, so the page side needs one lookup.
@@ -2534,6 +2609,13 @@
   const workspaces = window.gZenWorkspaces, nativeSwitchIfNeeded = workspaces?.switchIfNeeded;
   function switchIfNeeded(browser) {
     const from = loadingHelper().switchToTabHavingURI.switchingFrom;
+    // Firefox looks in the window you are in first, where an unloaded copy
+    // can carry the address of a page loaded in another window: go there.
+    const own = from === window && gBrowser.getTabForBrowser(browser), live = own && liveTwin(own);
+    if (live && live !== own && live.linkedBrowser?.currentURI?.spec === browser.currentURI?.spec) {
+      switchTo(live);
+      return Promise.resolve();
+    }
     const switching = nativeSwitchIfNeeded.apply(this, arguments);
     const tab = from && from !== window && gBrowser.getTabForBrowser(browser);
     if (tab) markArrival(tab, switching);
@@ -3249,7 +3331,7 @@
         delete workspaces.switchIfNeeded;
         if (workspaces.switchIfNeeded !== nativeSwitchIfNeeded) workspaces.switchIfNeeded = nativeSwitchIfNeeded;
       }
-      for (const glow of arrivals) glow.remove();
+      for (const line of arrivals) line.remove();
       arrivals.clear();
       // The other windows republish without this one's tabs.
       for (const w of Services.wm.getEnumerator("navigator:browser")) if (w !== window) try { w.TabRouter?.republishOpen?.(); } catch {}

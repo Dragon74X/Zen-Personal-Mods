@@ -89,10 +89,13 @@ test("A Favorite showing a folder's page never stands for the folder", () => {
   const group = node({ "data-zzrouter-page": "https://www.nexusmods.com/" }, { id: "g2" });
   const favorite = tabAt("https://nexusmods.com/", { group: null, pinned: true, attrs: { "zen-essential": "true" } });
   const member = tabAt("https://other.example/", { group });
-  folderPages([favorite, member], [group]);
+  let opened = null;
+  const f = folderPages([favorite, member], [group], { openPage: url => opened = tabAt(url, { group }) });
   assert.ok(!favorite.hasAttribute("zzgf-page-of") && !favorite.hasAttribute("zzgf-page-tab"));
   assert.ok(!member.hasAttribute("zzgf-page-tab"));
   assert.ok(group.hasAttribute("zzgf-has-page") && !member.hasAttribute("zzgf-page-of"), "the folder has no page tab yet");
+  assert.equal(f.groupflow.openFolderPage(group), true);
+  assert.ok(opened, "opening the folder's page opens its own tab, not the Favorite");
 });
 
 test("A folder whose page is also a Favorite opens its own tab; the Favorite is never the folder's", () => {

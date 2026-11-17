@@ -1,8 +1,7 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.8.15
-// @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
+// @include        chrome://browser/content/browser.xhtml
 // ==/UserScript==
 
 (function () {

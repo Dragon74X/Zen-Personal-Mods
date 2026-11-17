@@ -7,7 +7,7 @@ export async function collectReport(W, { timedMedia = false } = {}) {
   // path names the Windows user, spaces and all) shrink to their file name.
   const strip = value => String(value).replace(/url\([^)]*\)/gi, "url()")
     .replace(/\b(?:https?|wss?|ftp):\/\/[^\s'"`()]*/gi, "<address>")
-    .replace(/[^\s'"`()\\/]*[\\/](?:[^'"`()\\/\n]*[\\/])*[^\s'"`()\\/]*/g, path => path.split(/[\\/]/).pop());
+    .replace(/[^\s'"`()\\/]*[\\/](?:[^'"`\\/\n]*[\\/])*[^\s'"`()\\/]*/g, path => path.split(/[\\/]/).pop());
 
   const MODS = [
     ["zz-download-prompt", "Download Prompt", "DownloadPrompt"],
@@ -62,8 +62,9 @@ export async function collectReport(W, { timedMedia = false } = {}) {
   try {
     const manager = ChromeUtils.importESModule(
       "chrome://userscripts/content/core/manager.sys.mjs").default;
-    report.sineUpdateGuard = manager.__zenPersonalModsUpdateGuardV1 === true
-      ? "active (session-scoped)" : "not active (restart, or engine no longer matches)";
+    const guard = manager.__zenPersonalModsUpdateGuardV1;
+    report.sineUpdateGuard = Number(guard) >= 2 ? "active (session-scoped)"
+      : guard ? "older revision active until restart" : "not active (restart, or engine no longer matches)";
   } catch (e) { report.sineUpdateGuard = "could not inspect: " + strip(e); }
   try {
     const utils = ChromeUtils.importESModule(

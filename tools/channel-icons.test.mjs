@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
-import vm from "node:vm";
 import { test } from "node:test";
+import { load } from "./harness.mjs";
 
 const CHANNEL = "https://www.youtube.com/@channel";
 const GAME = "https://www.nexusmods.com/games/baldursgate3";
@@ -61,15 +60,13 @@ async function environment(options = {}, privateWindow = false) {
       asyncOpen(listener) { pending.push([this, listener]); requests.push({ url: uri, ctx: loadingPrincipal.userContextId, body: this.body }); } }),
     readInputStreamToString: (stream, count) => stream.body.slice(0, count),
   };
-  let source = await readFile(process.env.ROUTER_SOURCE || new URL("../tab-router/tab-router.uc.js", import.meta.url), "utf8");
-  const names = "fetchCreator,fetchSectionIcon,stampIcons,route,iconMap,creatorMap,updatePicture,pictureSubject,refreshPictures,targetPath,file,captureNexus,nexusGame,nexusURLFrom,musicPage,onTabEvent,prefObserver,inFlight,savedNexus,cancelLookups,forgetAll,refreshSubject,saveIcons,flushWrites,toIcon";
-  source = source.replace("  // ---- declared defaults", `globalThis.harness = {${names}, observeQueues: cb => queueRoute=cb}; return;\n  // ---- declared defaults`);
+  const names = "fetchCreator,fetchSectionIcon,stampIcons,route,iconMap,creatorMap,updatePicture,pictureSubject,refreshPictures,targetPath,file,captureNexus,nexusGame,nexusURLFrom,musicPage,onTabEvent,prefObserver,inFlight,savedNexus,cancelLookups,forgetAll,refreshSubject,saveIcons,flushWrites,toIcon,observeQueues: cb => queueRoute=cb";
   const window = { Groupflow: { refresh: defer => refreshes.push(defer), automaticPictureAllowed: g => !g.customIcon },
     SessionStore: { getCustomTabValue: (t,k) => values.get(t)?.[k] || "",
       setCustomTabValue(t,k,v) { values.set(t, {...values.get(t),[k]:v}); },
       deleteCustomTabValue(t,k) { if (values.has(t)) delete values.get(t)[k]; } },
   };
-  const context = vm.createContext({
+  const h = await load("tab-router", names, {
     window, gBrowser: { getTabForBrowser: b => tabs.find(t=>t.linkedBrowser===b),
       addTabGroup(items, opts) { const g=addGroup(opts.label, items[0].group);g.addTabs(items);return g; } },
     document: { getElementById: id => groups.find(g=>g.id===id), querySelectorAll: selector => {
@@ -100,8 +97,7 @@ async function environment(options = {}, privateWindow = false) {
     OffscreenCanvas:class { constructor(w,h){this.width=w;this.height=h;} getContext(){return{drawImage(){}};} async convertToBlob(){return{arrayBuffer:async()=>new Uint8Array([this.width===384?2:1]).buffer};} },
     btoa:value=>Buffer.from(value).toString("base64"),
   });
-  vm.runInContext(source, context);
-  return { h:context.harness,prefs,tabs,groups,requests,pending,timers,refreshes,values,addTab,addGroup,navigate,window,
+  return { h,prefs,tabs,groups,requests,pending,timers,refreshes,values,addTab,addGroup,navigate,window,
     advance:ms=>now+=ms,get scans(){return scans;},get moves(){return moves;},
     answer(body) { body=Buffer.from(body).toString("latin1"); const [channel,listener]=pending.shift();listener.onStartRequest(channel);
       listener.onDataAvailable(channel,{body},0,body.length);listener.onStopRequest(channel,0); },

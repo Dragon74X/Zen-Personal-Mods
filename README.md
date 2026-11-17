@@ -44,7 +44,7 @@ The second command also executes upstream Sine's update/install methods with moc
 
 The suite needs `python3`. These variables add the checks that need more than Node:
 
-- `ZEN_BINARY`: a Zen executable for the native Circuit Morph, Groupflow folder, Iconflow hover and Library card runs (the card run also needs Pillow).
+- `ZEN_BINARY`: a Zen executable for the native Circuit Morph, Groupflow folder, Iconflow hover and Library card runs (each needs Pillow; the Morph run also needs `ffmpeg`).
 - `ZEN_MORPH_OUTPUT`, `ZEN_LIBRARY_CARDS_OUTPUT`: where the Morph and Library card runs write their evidence (by default, under the temporary directory).
 - `ZEN_UPSTREAM_SOURCE`: a Zen source checkout with release tags, for the Library card source checks.
 - `PWSH`: a PowerShell executable for the native blur transport tests (Windows uses `powershell.exe` without it).

@@ -542,8 +542,9 @@
     // still here. Safe now that start() is contained and the top level
     // does nothing that can throw; the DOM unload listener above still
     // releases everything when the window closes.
-    // Sine's own unload (disable, removal or update) also gives Arc its
-    // settings back; closing a window does not. An update re-applies them.
+    // A release (disable or removal) also gives Arc its settings back and
+    // clears the Keep Loaded marks. An update or a closing window keeps both:
+    // the next copy re-applies them.
     try { window.addUnloadListener?.(() => { cleanup(); if (!window.__zzSineWindowClosing && window.__zzSineUnloadReasons?.get("zz-tab-unloader") === "release") { try { syncArc(true); } catch {} try { removeKeepItem(true); } catch {} } }); } catch {}
     instance.retire = cleanup;
   }

@@ -31,7 +31,7 @@ These values are configuration choices, not measured speed improvements. Increas
 
 Favorites, Essentials, pinned tabs, and ordinary tabs use Zen/Firefox’s native hover warming and speculative connection path, including container handling. Turbo no longer installs duplicate tab-hover or bookmark-hover handlers or its own dwell timer. Existing retired hover preferences are left untouched but no longer add custom work.
 
-Page-link hover uses Firefox's existing implementation. The native link-hover pack enables it on HTTPS pages; Turbo no longer wraps `XULBrowserWindow.setOverLink`. The retired `network.predictor.enable-prefetch` override is restored from its saved value when still owned by Turbo.
+Page-link hover uses Firefox's existing implementation. The native link-hover pack enables it on HTTPS pages; Turbo no longer wraps `XULBrowserWindow.setOverLink`.
 
 Requests use Firefox's principal-taking API, which derives the destination network partition, including HSTS upgrades. Supplying incomplete origin attributes to the alternative API would bypass that derivation.
 

@@ -435,7 +435,12 @@
   syncButton();
   Services.prefs.addObserver(PREFIX, observer);
   Services.prefs.addObserver("zen.tabs.vertical.right-side", sideObserver);
+  // Sine cleanup and window unload can both run; retire this copy once.
+  let retired = false;
   const cleanup = () => {
+    if (retired) return;
+    retired = true;
+    window.removeEventListener("unload", cleanup);
     try { Services.prefs.removeObserver(PREFIX, observer); } catch {}
     try { Services.prefs.removeObserver("zen.tabs.vertical.right-side", sideObserver); } catch {}
     window.removeEventListener("mouseenter", onEnter, true);

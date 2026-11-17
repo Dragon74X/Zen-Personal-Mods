@@ -112,7 +112,7 @@ now grows Zen's own size by the same factor as the other icons.
 | Icon size | Large (20px) | Zen's 16px, 18, 20 or 22px. Toolbar and sidebar icons grow into the padding of their buttons, so the buttons keep their size; the Library button follows |
 | Morph and animate menu icons | off | Off leaves original menu/context-menu content unchanged |
 | Animate icons | on | Off keeps every icon still: Zen's own, Circuit, menu icons, hover motion, the Library button and the new tab button's press. Iconflow also stays still when the system asks for reduced motion |
-| Animation speed | Smooth (0.45s) | Quick 0.3s, Slow 0.7s |
+| Icon animation timing | Default (450ms) | Quick 300ms, Slow 700ms |
 | Glow on hover | on | A soft light in the icon's own colour while hovered, for glass/neon Circuit and Zen's own; clean stays crisp |
 | Soft glow around lines | on | Glass/neon Circuit's faint halo; clean never draws it |
 | Glass plates | Off | While hovered, or Always. A light fill, a sheen across the top and a rim, over Zen's own blur behind the sidebar. With Glassflow installed, its own sheen and rim are used, so plates follow its Glass settings |
@@ -210,7 +210,7 @@ Library button icon drawn by Iconflow) does not also take a hover motion,
 so the two never stack. Zen's own icons, such as the tab close button, do.
 
 **Leave as it is** keeps Zen's motion, or another mod's; Arc spins the +.
-**None** stops all motion. **Motion speed** defaults to 0.25s, which is Arc's.
+**None** stops all motion. **Motion duration** defaults to 250ms, which is Arc's.
 
 ## Library button
 
@@ -218,7 +218,7 @@ The Library button is the button at the bottom of the sidebar that opens
 downloads and the Library.
 
 The choices are:
-- **Follow the icon set** (the default): Zen's icon with Zen's own set, and Circuit stack with Circuit. Circuit stack is the Firefox Library icon itself, played at 16px like the other buttons.
+- **Follow the icon set** (the default): Zen's icon with Zen's own set, and Circuit stack with Circuit. Circuit stack is the Firefox Library icon itself, played at 16px at Zen's (16px) Icon size; at the larger sizes it is drawn an eighth larger than the other buttons unless **Same size as the other buttons** is on.
 - **Zen's animated icon.**
 - **An animated outline of Zen's icon.**
 - **Eight animated line shapes:** Layers, Hex scan, Focus, Grid, Chevrons, Orbit, Split and Pulse.

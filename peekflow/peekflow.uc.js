@@ -2,7 +2,6 @@
 // @name           Peekflow
 // @description    Places Zen's tab hover preview and remembers how unloaded tabs looked.
 // @include        chrome://browser/content/browser.xhtml
-// @version        1.3.8
 // ==/UserScript==
 
 (() => {
@@ -294,12 +293,17 @@
   // closing): also hand Firefox's switches back.
   try { window.addUnloadListener?.(() => { cleanup(); if (!window.__zzSineWindowClosing && window.__zzSineUnloadReasons?.get("zz-peekflow") === "release") syncFirefox(true); }); } catch {}
 
-  if (window.gBrowserInit?.delayedStartupFinished) start();
+  // start() is wrapped: a throw here escapes into Sine's injection loop,
+  // which does not catch, and every mod queued after this one is never injected.
+  const startOnce = () => {
+    try { start(); } catch (e) { console.error("[Peekflow] failed to start:", e); }
+  };
+  if (window.gBrowserInit?.delayedStartupFinished) startOnce();
   else {
     obs = (subject) => {
       if (subject !== window) return;
       stopWaiting();
-      start();
+      startOnce();
     };
     Services.obs.addObserver(obs, "browser-delayed-startup-finished");
   }

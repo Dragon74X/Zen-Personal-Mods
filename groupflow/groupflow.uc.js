@@ -29,12 +29,10 @@
   const num  = (k, d) => { try { return Services.prefs.getIntPref(PREFIX + k, d); } catch { return d; } };
   const HTML = "http://www.w3.org/1999/xhtml";
   // ---- pref variables at startup -----------------------------------------
-  // Sine injects string and number prefs as CSS variables, but not until
-  // something (the settings page, a mod reload) triggers it -- measured on a
-  // fresh launch, every one of them was absent while the sheet itself was
-  // loaded and working. So the CSS ran on its fallbacks and configured
-  // values only appeared after a reload. The string prefs are written here
-  // instead, from the prefs themselves, so they exist before first paint.
+  // Sine injects string prefs as CSS variables for every chrome window as it
+  // opens, but only after an async read of the mod store. These are written
+  // synchronously as the script loads, from the prefs themselves, so they
+  // exist before first paint.
   //
   // Naming matches Sine's own convention exactly: zzgroup.foo-bar becomes
   // --zzgroup-foo-bar, dots to dashes. Booleans and numbers are skipped: the

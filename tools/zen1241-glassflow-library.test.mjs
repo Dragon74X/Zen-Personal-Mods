@@ -1,4 +1,4 @@
-// Glassflow Library's Space cards against Zen 1.24b/1.24.1b's card structure.
+// Glassflow Library's Space cards against Zen 1.24b through 1.24.2b's card structure.
 // Source-level checks run everywhere. With ZEN_BINARY (and an X display, e.g.
 // xvfb-run) the native probe measures every card setting in a disposable
 // profile. With ZEN_UPSTREAM_SOURCE pointing at a Zen git checkout that has

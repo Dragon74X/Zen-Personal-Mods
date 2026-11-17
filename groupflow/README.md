@@ -454,8 +454,9 @@ universal selector — 1.3 on most platforms, 2.3 on Windows — so group header
 are reshaped along with everything else, and a roundness tuned before 1.22b
 reads squarer at the same number.
 
-**Corner shape** defaults to *Follow Zen*, including Glassflow's **Turn squircles
-off browser-wide** setting. Explicit shapes take precedence; *Round (classic)*
+**Corner shape** defaults to *Shared shape from Glassflow*, Glassflow's own corner
+shape; it and *Follow Zen* both honour Glassflow's **Turn squircles off
+browser-wide** setting. Explicit shapes take precedence; *Round (classic)*
 restores the pre-1.22b look. **Radius source** can take the header radius from
 Zen's own `--border-radius-medium` rather than a pinned number, so headers
 track Zen's design language through future restyles. **Radius compensation** set to *Auto* keeps the

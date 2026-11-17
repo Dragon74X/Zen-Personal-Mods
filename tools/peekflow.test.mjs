@@ -120,6 +120,10 @@ test("closing the browser keeps the settings applied; only turning Peekflow off 
   w.unload();
   assert.equal(e.get(SHOW), true, "no restore and re-apply at every quit and start");
   assert.equal(e.user.has("zzpeek.saved.show"), true);
+  const updated = e.add();
+  updated.window.__zzSineUnloadReasons.set("zz-peekflow", "update");
+  updated.unload();
+  assert.equal(e.get(SHOW), true, "nor when Sine re-injects an update");
 });
 
 test("disabling pictures immediately removes selected-tab canvas", async () => {

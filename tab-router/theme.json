@@ -4,7 +4,7 @@
   "description": "Sorts tabs into nested tab groups (groups and subgroups) by domain and path, using your rules.",
   "author": "Dragon74X",
   "version": "1.45.1",
-  "updatedAt": "2026-11-17T07:08:44Z",
+  "updatedAt": "2026-11-17T07:12:54Z",
   "homepage": "https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/tab-router",
   "readme": "https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/main/tab-router/README.md",
   "style": {

@@ -171,7 +171,7 @@ test("A link to a folder's page goes to the folder, ahead of a Favorite showing 
   assert.equal(ctx.openTargetFor(0, "nowhere.example"), null, "and pages open nowhere navigate as usual");
 });
 
-test("A folder's container is its other tabs'; a page tab left in another container is Groupflow's to replace", () => {
+test("A folder's container is its other tabs'; a page tab alone in another container is Groupflow's to replace", () => {
   const fn = name => { const i = router.indexOf(`  function ${name}(`); return router.slice(i, router.indexOf("\n  }\n", i) + 4); };
   const gen = router.slice(router.indexOf("  const FOLDERS ="), router.indexOf("  function folderFor("));
   const opened = [], switched = [];
@@ -192,6 +192,11 @@ test("A folder's container is its other tabs'; a page tab left in another contai
   page.getAttribute = a => (a === "usercontextid" ? "6" : a === "zzgf-page-of" ? "yt" : null);
   ctx.goTo(ctx.openTargetFor(6, "youtube.com"));
   assert.deepEqual(switched, ["page"], "one in the folder's container is gone to directly");
+  // A no-container tab with history ahead of the rest sets the folder's
+  // container, yet the page tab shares the other tabs': it is kept.
+  folder.tabs.unshift(tab("old", 0));
+  ctx.goTo(ctx.openTargetFor(0, "youtube.com"));
+  assert.deepEqual([switched, opened], [["page", "page"], ["yt"]], "a page tab sharing its container is gone to directly too");
 });
 
 test("A folder's page tab is never switched away on its first load, redirects included", () => {

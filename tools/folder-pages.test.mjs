@@ -30,10 +30,13 @@ function folderPages(tabs, groups, TabRouter = null, removeTab = () => {}) {
     gBrowser: { tabs, removeTab, addTabsProgressListener: listener => { progress = listener; },
       getTabForBrowser: browser => tabs.find(t => t.linkedBrowser === browser) },
     window: { Groupflow: {}, TabRouter, addEventListener() {}, removeEventListener() {}, dispatchEvent: event => events.push(event.type) } });
-  vm.runInContext(source + "\nstartFolderPages();", ctx);
-  return { events, progress, gBrowser: ctx.gBrowser, groupflow: ctx.window.Groupflow, settle: () => { while (frames.length) frames.shift()(); } };
+  const headerClick = vm.runInContext(source + "\nstartFolderPages();\npageHeaderClick", ctx);
+  return { events, progress, headerClick, gBrowser: ctx.gBrowser, groupflow: ctx.window.Groupflow, settle: () => { while (frames.length) frames.shift()(); } };
 }
 const tabAt = (spec, extra = {}) => node(extra.attrs, { linkedBrowser: { currentURI: { spec } }, ...extra });
+// A left click on a folder's name.
+const nameClick = group => ({ button: 0, defaultPrevented: false, clientX: 0, clientY: 0, preventDefault() {}, stopImmediatePropagation() {},
+  target: { closest: sel => (sel === ".tab-group-label-container" ? { parentElement: group, querySelector: () => null } : null) } });
 
 test("Folder pages treat an address as the same page without anchors, tracking, www. or a trailing slash", () => {
   const ctx = vm.createContext({ URL, URLSearchParams });
@@ -100,38 +103,67 @@ test("A Favorite showing a folder's page never stands for the folder", () => {
   assert.ok(opened, "opening the folder's page opens its own tab, not the Favorite");
 });
 
+// YouTube's top-level folder in a space with a container: its tabs are all
+// in creator subfolders, signed in to container 6, like the Favorite. Its
+// page tab, when given, is in container `page`; `before` puts a tab of that
+// container ahead of the others, in a subfolder of its own.
+function youtubeFolder({ page = null, selected = false, before = null } = {}) {
+  const top = node({ "data-zzrouter-page": "https://youtube.com/" }, { id: "yt" });
+  const creator = node({}, { id: "creator", group: top }), old = node({}, { id: "old", group: top });
+  const tabs = [tabAt("https://www.youtube.com/watch?v=x", { group: creator, attrs: { usercontextid: "6" } })];
+  const opened = [], closed = [];
+  if (before) tabs.unshift(tabAt("https://www.youtube.com/watch?v=old", { group: old, attrs: { usercontextid: before } }));
+  if (page) tabs.unshift(tabAt("https://www.youtube.com/", { group: top, selected, attrs: { usercontextid: page, "zzgf-page-of": "yt" } }));
+  const f = folderPages(tabs, [top, creator, old], { openPage: (url, group, ctx) => {
+    opened.push(ctx);
+    const t = tabAt(url, { group, attrs: { usercontextid: String(ctx) } });
+    tabs.push(t);
+    return t;
+  } }, t => { closed.push(t); tabs.splice(tabs.indexOf(t), 1); });
+  return { f, top, tabs, opened, closed, page: page && tabs[0] };
+}
+
 test("A folder holding only subfolders opens its page in their container, and replaces a page tab left in another", () => {
-  // YouTube's top-level folder in a space with a container: its tabs are all
-  // in creator subfolders, signed in to container 6, like the Favorite.
-  const setup = stale => {
-    const top = node({ "data-zzrouter-page": "https://youtube.com/" }, { id: "yt" });
-    const creator = node({}, { id: "creator", group: top });
-    const video = tabAt("https://www.youtube.com/watch?v=x", { group: creator, attrs: { usercontextid: "6" } });
-    const tabs = [video], opened = [], closed = [];
-    if (stale) tabs.unshift(tabAt("https://www.youtube.com/", { group: top, attrs: { usercontextid: stale, "zzgf-page-of": "yt" } }));
-    const f = folderPages(tabs, [top, creator], { openPage: (url, group, ctx) => {
-      opened.push(ctx);
-      const t = tabAt(url, { group, attrs: { usercontextid: String(ctx) } });
-      tabs.push(t);
-      return t;
-    } }, t => { closed.push(t); tabs.splice(tabs.indexOf(t), 1); });
-    return { f, top, tabs, opened, closed, page: stale && tabs[0] };
-  };
-  let s = setup(null);
+  let s = youtubeFolder();
   assert.equal(s.f.groupflow.openFolderPage(s.top), true);
   assert.deepEqual(s.opened, [6], "opened in the subfolders' container, where the site is signed in, not in none");
 
-  s = setup("0");
+  s = youtubeFolder({ page: "0" });
   assert.ok(s.page.hasAttribute("zzgf-page-tab"), "an earlier version's page tab, in no container");
   assert.equal(s.f.groupflow.openFolderPage(s.top), true);
   assert.deepEqual(s.closed, [s.page], "it closes for real (a page tab's close is otherwise only an unload)");
   assert.ok(!s.page.hasAttribute("zzgf-page-of") && !s.page.hasAttribute("zzgf-page-tab"));
   assert.deepEqual(s.opened, [6], "and the page opens again in the folder's container");
 
-  s = setup("6");
+  s = youtubeFolder({ page: "6" });
   assert.equal(s.f.groupflow.openFolderPage(s.top), true);
   assert.equal(s.f.gBrowser.selectedTab, s.page, "a page tab in the folder's container is simply shown");
   assert.deepEqual([s.closed, s.opened], [[], []]);
+});
+
+test("Clicking the name replaces a stray page tab even while it is selected, and folds on a good one", () => {
+  // Session restore selects the page tab an earlier version left in no
+  // container: the click replaces it rather than folding the folder.
+  let s = youtubeFolder({ page: "0", selected: true });
+  assert.equal(s.f.headerClick(nameClick(s.top)), true, "the click is the folder's page, not a fold");
+  assert.deepEqual([s.closed, s.opened], [[s.page], [6]], "the signed-out tab closes and the page opens in the folder's container");
+
+  s = youtubeFolder({ page: "6", selected: true });
+  assert.equal(s.f.headerClick(nameClick(s.top)), false, "on the folder's page, the click folds as usual");
+  assert.deepEqual([s.closed, s.opened], [[], []]);
+});
+
+test("A page tab sharing its container with another of the folder's tabs is kept", () => {
+  // Tab Router keeps the container of a tab with session state, so a folder
+  // can mix containers: a no-container tab with history, refiled ahead of
+  // the rest, sets the folder's container, yet the signed-in page tab stays.
+  const s = youtubeFolder({ page: "6", before: "0" });
+  assert.equal(s.f.groupflow.openFolderPage(s.top), true);
+  assert.deepEqual([s.closed, s.opened], [[], []], "nothing closes or opens");
+  assert.equal(s.f.gBrowser.selectedTab, s.page, "the page tab is shown");
+  s.page.selected = true;
+  assert.equal(s.f.headerClick(nameClick(s.top)), false, "and clicking the name on it folds");
+  assert.deepEqual(s.closed, []);
 });
 
 test("A folder whose page is also a Favorite opens its own tab; the Favorite is never the folder's", () => {

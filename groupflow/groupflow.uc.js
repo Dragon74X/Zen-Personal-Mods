@@ -1006,14 +1006,22 @@
       tab.removeAttribute("zzgf-page-of");
       try { SessionStore.deleteCustomTabValue(tab, PAGE_OF); } catch {}
     }
-    const members = group => group.tabs.filter(t => t.group === group && !t.closing && !t.hasAttribute("zen-empty-tab"));
-    // The folder's container: its tabs', subfolders included (a site's
-    // top-level folder can hold only subfolders), its own page tab last.
-    // Tab Router finds folders by the same rule.
+    // A folder's tabs, its subfolders' included; members are its own.
+    const folderTabs = group => group.tabs.filter(t => !t.closing && !t.hasAttribute("zen-empty-tab"));
+    const members = group => folderTabs(group).filter(t => t.group === group);
+    // The folder's container: its tabs' (a site's top-level folder can hold
+    // only subfolders), its own page tab last. Tab Router finds folders by
+    // the same rule.
     function folderContext(group) {
-      const tabs = group.tabs.filter(t => !t.closing && !t.hasAttribute("zen-empty-tab"));
+      const tabs = folderTabs(group);
       return ctxOf(tabs.find(t => t.getAttribute("zzgf-page-of") !== group.id) || tabs[0]);
     }
+    // A page tab in a container none of the folder's other tabs use is
+    // signed out of the site (earlier versions opened a folder of
+    // subfolders' page in none): it is replaced in the folder's container.
+    // Tab Router leaves such a tab to Groupflow by the same rule.
+    const strayPage = (group, tab) => !!tab && ctxOf(tab) !== folderContext(group) &&
+      !folderTabs(group).some(t => t !== tab && ctxOf(t) === ctxOf(tab));
     // The page tab: the member marked for it, else a member already showing
     // it. The folder always has its own: a Favorite (Essential) showing the
     // same page stays a Favorite, and the header never stands for it.
@@ -1060,10 +1068,8 @@
       if (!page) return false;
       const ctx = folderContext(group);
       let tab = pageTab(group, page);
-      // A page tab in another container is signed out of the site (earlier
-      // versions opened a folder of subfolders' page in none): it closes, and
-      // the page opens again in the folder's container.
-      if (tab && ctxOf(tab) !== ctx) {
+      // A stray page tab closes for real, not unloaded as a page tab.
+      if (strayPage(group, tab)) {
         unmark(tab);
         tab.removeAttribute("zzgf-page-tab");
         gBrowser.removeTab(tab, { animate: false });
@@ -1102,7 +1108,8 @@
       const icon = header.querySelector(":scope > :is(.zzgf-icon, .tab-group-folder-icon)")?.getBoundingClientRect();
       if (icon?.width && event.clientX >= icon.left && event.clientX <= icon.right &&
           event.clientY >= icon.top && event.clientY <= icon.bottom) return false;
-      if (pageTab(group)?.selected) return false;          // on the page: fold as usual
+      const tab = pageTab(group);
+      if (tab?.selected && !strayPage(group, tab)) return false;   // on the page: fold as usual
       event.preventDefault(); event.stopImmediatePropagation();
       open(group);
       return true;

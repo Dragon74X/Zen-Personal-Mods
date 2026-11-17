@@ -98,8 +98,8 @@ by accident; closing or deleting the folder itself still closes everything in
 it. A page that is also one of your Favorites (Essentials) stays a Favorite:
 the folder opens its own tab for it. The page tab opens in the container the
 folder's tabs use, subfolders included, so the site is signed in as it is in
-them; a page tab left in another container is replaced the next time you click
-the name.
+them; a page tab left in a container none of the folder's tabs use is replaced
+the next time you click the name.
 
 Tab Router gives the folders it files into their page: the site's front page,
 a subdomain's, or the channel, game, author or section page the folder is for.

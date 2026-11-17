@@ -138,8 +138,8 @@ with tempfile.TemporaryDirectory(prefix='zen-state-motion-') as d:
             hover_hashes.append(pixels('hover-after'))
             assert len(set(hover_hashes))==3,hover_hashes
             assert close_before==m.script("return motionTab.querySelector('.tab-close-button').getBoundingClientRect().toJSON();"),'Close target moved'
-            repeat=m.script("return (async()=>{gBrowser.selectedTab=motionTab;await motionPause(30);gBrowser.selectedTab=motionOutside;gBrowser.selectedTab=motionTab;await motionPause(500);return getComputedStyle(motionTab.querySelector('.tab-label')).translate;})();")
-            assert repeat=='none',repeat
+            repeat=m.script("return (async()=>{const label=motionTab.querySelector('.tab-label'),rest=getComputedStyle(label).translate;gBrowser.selectedTab=motionTab;await motionPause(30);gBrowser.selectedTab=motionOutside;gBrowser.selectedTab=motionTab;await motionPause(500);return {rest,settled:getComputedStyle(label).translate};})();")
+            assert repeat['settled']==repeat['rest'],repeat  # a quick reselect lands back on the resting (hover-slid) translate
             light_hashes=[]
             for light in range(4):
                 m.script(f"Services.prefs.setIntPref('zzglass.motion.light',{light});return true;");time.sleep(.65)

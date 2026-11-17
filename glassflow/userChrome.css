@@ -1829,18 +1829,28 @@
 }
 
 /* Blended Addressbar's "glow" loading bar (kkugot/blended-addressbar,
-   styles/loadbar.css), copied onto every loading tab and onto a folder header
-   whose own page (groupflow.uc.js) is loading: a faint tint across it, a soft
-   glow at the head of the load, and a thin line along the bottom to the
-   load's progress, breathing gently. Its colour and glow strengths are Blended
+   styles/loadbar.css), on every loading tab and on a folder header whose own
+   page (groupflow.uc.js) is loading, as a light passing through it: a faint
+   tint across it, and a line along the bottom with a fading tail and a
+   bright, glowing head. The head enters from beyond the left edge, moves
+   with the load's progress and has left past the right edge when the load is
+   done; the tab masks both ends. Its colour and glow strengths are Blended
    Addressbar's own variables (your Zen accent, or what that mod is set to),
    with its defaults without it. glassflow.uc.js adds .zzg-loadbar, keeps its
-   --zzg-load-progress, and marks it [loading] while it shows. */
+   --zzg-load-p (0 to 1) and marks it [loading] while it shows. */
 .zzg-loadbar {
   --zzg-glow-color: var(--blended-addressbar-dynamic-loadbar-color, var(--zen-primary-color));
   --zzg-glow-strong: var(--blended-addressbar-loadbar-glow-strong-mix, 34%);
   --zzg-glow-medium: var(--blended-addressbar-loadbar-glow-medium-mix, 18%);
   --zzg-glow-weak: var(--blended-addressbar-loadbar-glow-weak-mix, 7%);
+  --zzg-tail: 120px;
+  /* The head crosses the tab with the load, from off its left edge (where
+     a load starts, at 8%) to its right edge (at 95%); the last 5% carries
+     the line out past the right edge, tail and all. */
+  --zzg-lead: 40px;
+  --zzg-head: calc(-1 * var(--zzg-lead)
+    + clamp(0, (var(--zzg-load-p, 0) - .08) / .87, 1) * (100% + var(--zzg-lead))
+    + max(0, var(--zzg-load-p, 0) - .95) * 20 * (var(--zzg-tail) + var(--zzg-lead)));
   position: absolute;
   inset: 0;
   border-radius: inherit;
@@ -1859,33 +1869,33 @@
   &::before, &::after {
     content: "";
     position: absolute;
-    left: 0;
     bottom: 0;
-    width: var(--zzg-load-progress, 0%);
-    max-width: 100%;
     pointer-events: none;
-    transition: width .3s ease-out;
+    transition: left .3s ease-out;
   }
-  /* A full glow radius beyond the leading edge, not a hard crop. */
+  /* The glow around the head, a full radius on each side. */
   &::before {
     top: 0;
-    left: -150px;
-    width: calc(var(--zzg-load-progress, 0%) + 300px);
-    max-width: none;
+    left: calc(var(--zzg-head) - 150px);
+    width: 300px;
     background:
-      radial-gradient(ellipse 14px 7px at calc(100% - 150px) 100%,
+      radial-gradient(ellipse 14px 7px at 150px 100%,
         color-mix(in srgb, color-mix(in srgb, var(--zzg-glow-color) 25%, white) var(--zzg-glow-strong), transparent), transparent),
-      radial-gradient(ellipse 150px 32px at calc(100% - 150px) 100%,
+      radial-gradient(ellipse 150px 32px at 150px 100%,
         color-mix(in srgb, var(--zzg-glow-color) var(--zzg-glow-strong), transparent),
         color-mix(in srgb, var(--zzg-glow-color) var(--zzg-glow-medium), transparent) 45%,
         transparent 100%);
   }
+  /* The line: its tail fades in behind the head. */
   &::after {
+    left: calc(var(--zzg-head) - var(--zzg-tail));
+    width: var(--zzg-tail);
     height: var(--blended-addressbar-loadbar-height, 2px);
     opacity: var(--blended-addressbar-loadbar-opacity, 1);
-    border-radius: 0 var(--blended-addressbar-loadbar-right-radius, 0px) var(--blended-addressbar-loadbar-right-radius, 0px) 0;
+    border-radius: 0 var(--blended-addressbar-loadbar-height, 2px) var(--blended-addressbar-loadbar-height, 2px) 0;
     background: linear-gradient(to right,
-      color-mix(in srgb, var(--zzg-glow-color) 55%, transparent),
+      transparent,
+      color-mix(in srgb, var(--zzg-glow-color) 55%, transparent) 35%,
       var(--zzg-glow-color) 85%,
       color-mix(in srgb, var(--zzg-glow-color) 25%, white));
     animation: zzg-loadbar-breathe 1.8s ease-in-out infinite alternate;

@@ -28,21 +28,25 @@ test("Tab-state inputs animate on .tab-background, not on the tab", () => {
   for (const rule of states) assert.ok(rule.includes("var(--zzg-state-motion)"), rule);
 });
 
-test("A loading tab, and a folder whose own page loads, carry Blended Addressbar's glow loading bar", () => {
+test("A loading tab, and a folder whose own page loads, carry Blended Addressbar's glow bar as a light passing through", () => {
   const at = css.indexOf("/* Blended Addressbar's \"glow\" loading bar");
   const block = css.slice(at, css.indexOf("@keyframes zzg-loadbar-breathe", at));
   assert.ok(at > 0, "drawn by Glassflow");
   // Its own colour and glow strengths, with its defaults without it.
   assert.match(block, /--zzg-glow-color: var\(--blended-addressbar-dynamic-loadbar-color, var\(--zen-primary-color\)\);/);
   assert.match(block, /--zzg-glow-strong: var\(--blended-addressbar-loadbar-glow-strong-mix, 34%\);/);
-  // Its layers (styles/loadbar.css, glow mode): the head's glow, then the line to the progress, breathing.
-  assert.match(block, /radial-gradient\(ellipse 14px 7px at calc\(100% - 150px\) 100%,/);
-  assert.match(block, /radial-gradient\(ellipse 150px 32px at calc\(100% - 150px\) 100%,/);
-  assert.match(block, /left: -150px;\s*width: calc\(var\(--zzg-load-progress, 0%\) \+ 300px\);/);
-  assert.match(block, /height: var\(--blended-addressbar-loadbar-height, 2px\);/);
-  assert.match(block, /color-mix\(in srgb, var\(--zzg-glow-color\) 55%, transparent\),\s*var\(--zzg-glow-color\) 85%,\s*color-mix\(in srgb, var\(--zzg-glow-color\) 25%, white\)\);/);
+  // The head runs from beyond the left edge (0) to beyond the right, tail and all (1); the tab masks both.
+  assert.match(block, /--zzg-head: calc\(-1 \* var\(--zzg-lead\)\s*\+ clamp\(0, \(var\(--zzg-load-p, 0\) - \.08\) \/ \.87, 1\) \* \(100% \+ var\(--zzg-lead\)\)\s*\+ max\(0, var\(--zzg-load-p, 0\) - \.95\) \* 20 \* \(var\(--zzg-tail\) \+ var\(--zzg-lead\)\)\);/,
+    "from off the left edge as a load starts, across with it, and out past the right, tail and all, only once done");
+  assert.match(block, /overflow: hidden;/);
+  assert.match(block, /left: calc\(var\(--zzg-head\) - var\(--zzg-tail\)\);\s*width: var\(--zzg-tail\);/, "the line ends at the head");
+  assert.match(block, /left: calc\(var\(--zzg-head\) - 150px\);\s*width: 300px;/, "the glow is centred on the head");
+  // Its layers (styles/loadbar.css, glow mode): the head's glow and core, a tail into a whitened head, breathing.
+  assert.match(block, /radial-gradient\(ellipse 14px 7px at 150px 100%,/);
+  assert.match(block, /radial-gradient\(ellipse 150px 32px at 150px 100%,/);
+  assert.match(block, /transparent,\s*color-mix\(in srgb, var\(--zzg-glow-color\) 55%, transparent\) 35%,\s*var\(--zzg-glow-color\) 85%,\s*color-mix\(in srgb, var\(--zzg-glow-color\) 25%, white\)\);/);
   assert.match(block, /animation: zzg-loadbar-breathe 1\.8s ease-in-out infinite alternate;/);
-  assert.match(block, /transition: width \.3s ease-out;/);
+  assert.match(block, /transition: left \.3s ease-out;/);
 });
 
 test("Each tab's load moves as Blended Addressbar's does: 8% to start, creeping to 90%, real progress to 95%, then the end", () => {
@@ -52,5 +56,6 @@ test("Each tab's load moves as Blended Addressbar's does: 8% to start, creeping 
   assert.match(fn, /Math\.min\(0\.95, Math\.max\(0, fraction\)\) : load\.progress \+ Math\.max\(0, 0\.9 - load\.progress\) \* 0\.08/);
   assert.match(fn, /progress: 1, loading: false, hideAt: Date\.now\(\) \+ 450/);
   assert.match(fn, /setInterval\(tick, 250\)/);
+  assert.match(fn, /bar\.style\.setProperty\("--zzg-load-p", load\.progress\.toFixed\(4\)\)/, "the head's place, 0 to 1");
   assert.match(fn, /tab\.hasAttribute\("zzgf-page-tab"\) && tab\.group\?\.querySelector\(":scope > \.tab-group-label-container"\)/, "a folder's header for its own page");
 });

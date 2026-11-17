@@ -15,8 +15,34 @@
   {
     "type": "checkbox",
     "property": "zzrouter.switch-to-open",
-    "label": "Switch to a page that is already open *A link you click, or a new tab, going to a page already open in another tab switches to that tab instead of opening a copy. Back and forward, reloads, forms, redirects and sign-in steps are never switched. Hold Alt while clicking, or use Duplicate Tab, to open a copy. The same page ignores #anchors, tracking parameters, www. and a trailing slash, and only counts in the same container.*",
+    "label": "Switch to a page that is already open *A link you click, or a new tab, going to a page already open in another tab switches to that tab instead of opening a copy. Back and forward, reloads, forms, redirects and sign-in steps are never switched. Hold Alt while clicking, or use Duplicate Tab, to open a copy. The same page ignores #anchors, tracking parameters, www. and a trailing slash, and counts in any container, the link's own first.*",
     "defaultValue": true
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzrouter.tab-switch-cue",
+    "label": "Tab switch animation *Switching tabs plays the pills from the bottom of the page: out over the page you leave, in once the new one shows, or out then in. A switch that lands you in another window always plays them, as before. Arc 2.0 has its own Tab switch animation; pick one of the two.*",
+    "defaultValue": 3,
+    "options": [
+      {
+        "label": "Out then in",
+        "value": 3
+      },
+      {
+        "label": "In",
+        "value": 1
+      },
+      {
+        "label": "Out",
+        "value": 2
+      },
+      {
+        "label": "None",
+        "value": 0
+      }
+    ],
+    "placeholder": false
   },
   {
     "type": "string",

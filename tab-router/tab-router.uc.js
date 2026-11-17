@@ -2177,7 +2177,7 @@
   // page side (links-child.sys.mjs) only acts on real link clicks, so back
   // and forward, reloads, forms, redirects and script navigation never
   // switch; Alt-click, Duplicate Tab and session restore always make copies.
-  const LINKS_VERSION = "1.45.3", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
+  const LINKS_VERSION = "1.45.4", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
   const TRACKING = /^(utm_[a-z]+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|igshid|si|ref_src|_hsenc|_hsmi)$/i;
   function pageKey(url) {
     try {
@@ -2372,9 +2372,30 @@
   // run linear, so each offset is a real time and the easing lives on the
   // keyframes. Each removes itself when it ends, and on release.
   const arrivals = new Set();
+  const arriving = new WeakMap();      // tab -> when a switch from another window marked it
   function markArrival(tab, switching) {
+    arriving.set(tab, performance.now());
     Promise.resolve(switching).catch(() => {}).then(tabSwitched).then(() => new Promise(r => setTimeout(r, 120)))
       .then(() => requestAnimationFrame(() => drawGleams(tab, false)));
+  }
+  // Switching tabs in this window plays them too, by **Tab switch animation**:
+  // 1 in, 2 out, 3 out then in (the default), 0 none. Out plays at once over
+  // the page you leave; in plays once the new page shows, and after out has
+  // carried its pills most of the way out. A quick run of switches shows
+  // only the latest. A switch from another window is that one's to mark.
+  function tabSwitchCue(event) {
+    const tab = event.target, mode = num("tab-switch-cue", 3);
+    if (!mode || retired || !tab?.linkedBrowser) return;
+    const started = performance.now();
+    setTimeout(() => {
+      if (performance.now() - (arriving.get(tab) ?? -1e9) < 500 || gBrowser.selectedTab !== tab) return;
+      for (const line of arrivals) line.remove();
+      arrivals.clear();
+      if (mode & 2) requestAnimationFrame(() => drawGleams(tab, true));
+      if (!(mode & 1)) return;
+      tabSwitched().then(() => new Promise(r => setTimeout(r, Math.max(120, (mode & 2 ? 600 : 0) - (performance.now() - started)))))
+        .then(() => requestAnimationFrame(() => { if (gBrowser.selectedTab === tab) drawGleams(tab, false); }));
+    }, 0);
   }
   // The window you leave plays it the other way at once: the pill wells up
   // from underneath in the middle, parts, and the two run out to the sides.
@@ -3105,6 +3126,7 @@
     backfillSoon();
     learnSearchHomes();
     window.addEventListener("SSTabRestoring", forgetLazy, true);
+    gBrowser.tabContainer.addEventListener("TabSelect", tabSwitchCue);
     patchClicks();
     patchSwitchToTab();
     if (typeof nativeSwitchIfNeeded === "function") workspaces.switchIfNeeded = switchIfNeeded;
@@ -3402,6 +3424,7 @@
       window.removeEventListener("TabOpen", placeOpened, true);
       for (const ev of backfillEvents) window.removeEventListener(ev, backfillSoon, true);
       window.removeEventListener("SSTabRestoring", forgetLazy, true);
+      gBrowser.tabContainer.removeEventListener("TabSelect", tabSwitchCue);
       clearTimeout(backfillTimer); backfillTimer = null;
       unpatchClicks();
       unpatchSwitchToTab();

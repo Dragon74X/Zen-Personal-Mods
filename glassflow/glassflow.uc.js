@@ -674,7 +674,8 @@
   // its drawing (styles/loadbar.css, in userChrome.css). A load starts at 8%;
   // every 250ms it creeps a share of the way to 90%, or follows the page's
   // real progress up to 95%; done, it runs to the end and fades after 450ms.
-  // Each is drawn by an element of its own, behind the tab's content.
+  // Each is drawn by an element of its own, behind the tab's content, as a
+  // light passing through it: --zzg-load-p places its head.
   function tabLoading() {
     const { STATE_START, STATE_STOP, STATE_IS_WINDOW } = Ci.nsIWebProgressListener;
     const loads = new Map();
@@ -696,7 +697,7 @@
           host.prepend(bar);
           bars.add(bar);
         }
-        bar.style.setProperty("--zzg-load-progress", `${(load.progress * 100).toFixed(2)}%`);
+        bar.style.setProperty("--zzg-load-p", load.progress.toFixed(4));
         if (showing) bar.setAttribute("loading", "true");
         else fade(bar);
       }

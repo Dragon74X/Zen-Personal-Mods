@@ -563,21 +563,20 @@
     function cancel() { for (const { animation } of active.values()) animation.cancel(); active.clear(); cancelPresses(); }
     // Native CSS remains the only scale owner. Hold a short tap for the 90ms
     // compression, then use a 240ms spring return; native activation never waits.
-    // A folder's icon folds it, with the same press spring. Its hover slide
-    // owns its CSS transition, so the press runs as its own animation.
+    // A press anywhere on a folder's header gives its icon the same press:
+    // the 90ms compression, then a spring back that overshoots and settles.
+    // Its hover slide owns its CSS transition, so the press runs as its own
+    // animation.
     let folderIcon = null;
     function folderPress(event) {
-      // By where the icon is drawn: on hover it slides over the name, which
-      // then wins the hit test.
       const header = event.target.closest?.(".tab-group-label-container");
       const icon = header?.querySelector(":scope > :is(.zzgf-icon, .tab-group-folder-icon)");
-      if (!icon?.closest("#navigator-toolbox, .zen-library-space-tabs")) return false;
-      const box = icon.getBoundingClientRect();
-      if (!box.width || event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) return false;
+      if (!icon?.closest("#navigator-toolbox, .zen-library-space-tabs") ||
+          event.target.closest("button, input, [editing], .zzgf-control, .zzgf-close, .tab-close-button, .tab-reset-button")) return false;
       folderIcon?.animation?.cancel();
-      // Zen's open/close morph slides and skews the folder's panels; inside
-      // a press it read as a vertical bounce. While pressed the state swaps
-      // at once, so the press is only the zoom out and spring back.
+      // Zen's open/close morph slides and skews the folder's panels; beside
+      // the zoom it read as a jitter. While pressed the state swaps at once,
+      // so the zoom is the only motion.
       icon.setAttribute("zzg-folder-press", "");
       const animation = icon.animate([{ scale: 1 }, { scale: .95 }], { duration: 90, easing: "cubic-bezier(.2,.7,.3,1)", fill: "forwards" });
       folderIcon = { icon, animation, at: performance.now() };
@@ -586,11 +585,17 @@
     function folderRelease() {
       if (!folderIcon) return;
       const { icon, animation, at } = folderIcon; folderIcon = null;
-      const spring = getComputedStyle(document.documentElement).getPropertyValue("--zzg-spring-ease").trim() || "cubic-bezier(.2,.85,.25,1)";
       setTimeout(() => {
         if (!icon.isConnected) return;
         animation.cancel();
-        const back = icon.animate([{ scale: .95 }, { scale: 1 }], { duration: 240, easing: spring });
+        // The shared spring easing overshoots by a share of the distance,
+        // which over a 5% press is too small to see: the overshoot is drawn.
+        const back = icon.animate([
+          { scale: .95, easing: "cubic-bezier(.2,.7,.3,1)" },
+          { scale: 1.06, offset: .4, easing: "cubic-bezier(.4,0,.4,1)" },
+          { scale: .985, offset: .72, easing: "cubic-bezier(.4,0,.4,1)" },
+          { scale: 1 },
+        ], { duration: 340 });
         const done = () => { if (folderIcon?.icon !== icon) icon.removeAttribute("zzg-folder-press"); };
         back.finished.then(done, done);
       }, Math.max(0, 90 - (performance.now() - at)));
@@ -598,7 +603,7 @@
     function press(event) {
       if ((event.type === "keydown" ? event.repeat || !["Enter", " "].includes(event.key)
         : event.button !== 0 || event.isPrimary === false) || !enabled()) return;
-      if (event.type === "pointerdown" && folderPress(event)) return;
+      if (folderPress(event)) return;
       if (event.target.closest?.("button, input, menuitem, .tab-close-button, .tab-icon-overlay, .tab-sharing-icon-overlay")) return;
       const host = event.target.closest?.(".tabbrowser-tab[zen-essential='true'], #zen-workspaces-button toolbarbutton");
       const image = host?.querySelector(".tab-icon-image, .zen-workspace-icon");
@@ -610,7 +615,7 @@
       host.setAttribute("zzg-icon-click", ""); host.setAttribute("zzg-icon-pressed", "");
     }
     function release(event) {
-      if (event.type === "pointerup" && event.button === 0) folderRelease();
+      if (event.type === "keyup" ? ["Enter", " "].includes(event.key) : event.button === 0) folderRelease();
       if (!held || event.type === "keyup" && !["Enter", " "].includes(event.key) ||
           event.type === "pointerup" && event.button !== 0) return;
       const host = held, record = presses.get(host); held = null;

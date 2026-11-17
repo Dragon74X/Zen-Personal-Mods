@@ -488,6 +488,26 @@ test("Router container changes preserve forms, history, POSTs and vetoed closes"
   assert.deepEqual(removed, [t, fresh], "a veto must remove the unused replacement");
 });
 
+test("Router never reopens a folder's page tab in another container", async () => {
+  // Groupflow turns the page tab's close into an unload: the old tab stayed,
+  // the replacement was dropped, and the page reloaded and was replaced again.
+  const calls = [], fresh = tab("https://www.youtube.com/");
+  const e = await routerEnv({ window: { SessionStore: { getTabState: () => JSON.stringify({ entries: [{}] }) } },
+    gBrowser: { async prepareDiscardBrowser() { calls.push("flush"); }, addTab() { calls.push("add"); return fresh; },
+      removeTab(t) { calls.push("close"); t.isConnected = false; } } });
+  e.prefs.set("zzrouter.enabled", true);
+  const page = tab("https://www.youtube.com/");
+  page.setAttribute("zzgf-page-of", "folder");
+  page.setAttribute("zzgf-page-tab", "");
+  assert.equal(await e.h.reopenInContainer(page, 6, null), page);
+  assert.deepEqual(calls, [], "it keeps its container; Groupflow opens it in the folder's");
+  // With Folder pages off, Groupflow keeps the mark but not the page tab, and
+  // closing the tab closes it: its container is repaired like any tab's.
+  page.removeAttribute("zzgf-page-tab");
+  assert.equal(await e.h.reopenInContainer(page, 6, null), fresh);
+  assert.deepEqual(calls, ["flush", "add", "close"]);
+});
+
 test("Router aborts a container reopen when disabled during state flush", async () => {
   const flush = deferred(); let added = false;
   const e = await routerEnv({ gBrowser: { prepareDiscardBrowser: () => flush.promise, addTab() { added = true; } } });

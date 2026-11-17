@@ -416,7 +416,7 @@ test("The timing model matches Web Animations: an effect's easing bends the time
   assert.ok(Math.abs(straight - 131) <= 1, `linear: full at ${straight} ms`);
 });
 
-test("Two pills run in from the sides along the page's and the tab's bottom once the switch is done, merge in the middle, and go", async () => {
+test("Two pills run in from the sides along the bottom of the page once the switch is done, merge in the middle, and go", async () => {
   const appended = [], frames = [], settle = () => new Promise(setImmediate);
   let reduced = false;
   const element = () => ({ style: {}, children: [], setAttribute() {}, remove() { this.removed = true; },
@@ -464,13 +464,11 @@ test("Two pills run in from the sides along the page's and the tab's bottom once
   switched();
   await settle();
   frames.shift()();
-  assert.equal(appended.length, 2, "one pair below the page, one along the tab");
-  const [pageLine, tabLine] = appended;
+  assert.equal(appended.length, 1, "one pair, below the page; none on the tab");
+  const [pageLine] = appended;
   // The tab panels are a deck that paints only the selected panel: the tab box holds it.
   assert.deepEqual([pageLine.holder === tabbox, pageLine.style.left, pageLine.style.top, pageLine.style.width, pageLine.style.height],
     [true, "10px", "1063px", "740px", "10px"], "the page's run on the window's margin below it, centred in it, between the corners");
-  assert.deepEqual([tabLine.holder === stack, tabLine.style.left, tabLine.style.top, tabLine.style.width, tabLine.style.height],
-    [true, "10px", "34px", "160px", "6px"], "the tab's run along its bottom, in the tab, and move with it");
   assert.deepEqual([pageLine.style.position, pageLine.style.overflow, pageLine.style.pointerEvents], ["absolute", "clip", "none"]);
   const [merged, left, right] = pageLine.children;
   // Pills: rounded ends front and back, in the colour Zen's loading indicator is drawn in, read inside it.
@@ -483,8 +481,6 @@ test("Two pills run in from the sides along the page's and the tab's bottom once
     "read inside the indicator, from its variable or Zen's own mix, and nothing left behind");
   assert.deepEqual([left.style.left, right.style.right, left.style.width, merged.style.left, merged.style.width],
     ["-160px", "-160px", "160px", "258px", "224px"], "each starts just beyond its side; they merge into one centred pill");
-  assert.ok(tabLine.children[1].style.width === "35px" && tabLine.children[1].style.bottom === "1px" && !tabLine.children[1].style.boxShadow,
-    "a tab's are shorter, at its edge, with no glow");
   for (const [gleam, sign] of [[left, 1], [right, -1]]) {
     const [run] = gleam.anims;
     assert.deepEqual(Array.from(run.keyframes, props), ["transform,opacity", "transform,opacity", "transform,opacity", "transform,opacity"],
@@ -503,14 +499,14 @@ test("Two pills run in from the sides along the page's and the tab's bottom once
   assert.ok(curve[470] < 1e-6 && fullAt > 500 && fullAt <= 630 && fullUntil >= 740 && curve.at(-1) < 1e-6,
     `appears as they meet, whole from ${fullAt} to ${fullUntil} ms, gone at 1000`);
   // A page-sized blurred shadow costs software WebRender hundreds of ms a frame (Windows CI, real pixels).
-  for (const el of [pageLine, tabLine]) assert.ok(!el.style.boxShadow && !el.style.filter && !el.style.backdropFilter, "nothing page-sized is blurred");
+  for (const el of [pageLine]) assert.ok(!el.style.boxShadow && !el.style.filter && !el.style.backdropFilter, "nothing page-sized is blurred");
   swell.finish();
   await settle();
   assert.ok(pageLine.removed && !ctx.arrivals.has(pageLine), "they remove themselves when they end");
-  assert.equal(ctx.arrivals.size, 1, "the other pair is still live, for release to remove");
+  assert.equal(ctx.arrivals.size, 0, "nothing left live");
   reduced = true;
   await draw();
-  const still = appended[2];
+  const still = appended[1];
   assert.ok(still.children.length === 1 && still.children[0].style.opacity === "1", "with reduced motion nothing runs: only the merged pill");
   assert.equal(still.children[0].anims[0].options.duration, 700, "which fades");
   const quiet = opacityByMs(still.children[0].anims[0].keyframes, still.children[0].anims[0].options), [quietAt, quietUntil] = atFullStrength(quiet);
@@ -519,23 +515,9 @@ test("Two pills run in from the sides along the page's and the tab's bottom once
   // A page that reaches the window's bottom keeps them along its own edge.
   ctx.innerHeight = 1072;
   await draw();
-  assert.ok(appended[4].holder === page && appended[4].style.top === "1058px" && appended[4].children[0].style.bottom === "1px",
+  assert.ok(appended[2].holder === page && appended[2].style.top === "1058px" && appended[2].children[0].style.bottom === "1px",
     "with no margin below, along the page's own bottom edge");
   ctx.innerHeight = 1080;
-  stack.position = "static";
-  await draw();
-  assert.equal(appended.length, 7, "a holder that cannot place them gets none");
-  stack.position = "relative";
-  // Below the fold: selecting it scrolls it into view, and its pills ride along.
-  await draw({ ...tab, querySelector: () => ({ ...box(8, 1808, 172, 36, "static", "6px"), parentNode: stack }) });
-  assert.ok(appended.length === 9 && appended[8].holder === stack && appended[8].style.top === "1682px",
-    "a tab still scrolling into view gets its pills, in the tab");
-  // A folder's page tab is hidden behind its header, which takes them.
-  const header = box(5, 122, 176, 40);
-  await draw({ ...tab, hasAttribute: name => name === "zzgf-page-tab", group: { querySelector: () => header },
-    querySelector: () => ({ ...box(0, 0, 0, 0, "static"), parentNode: stack }) });
-  assert.ok(appended.length === 11 && appended[10].holder === header && appended[10].style.left === "0px" && appended[10].style.top === "34px",
-    "a folder's page is marked along its header's bottom");
   // A window still switching to the page waits for it to show.
   gBrowser._switcher = {};
   ctx.markArrival(tab);
@@ -545,11 +527,11 @@ test("Two pills run in from the sides along the page's and the tab's bottom once
   switchDone();
   await settle();
   frames.shift()();
-  assert.equal(appended.length, 13, "then the pills");
+  assert.equal(appended.length, 4, "then the pills");
   // The Deta Loading Bar mod, when on, gives the colours: its main colour, brightest at the head in its middle one.
   deta = true;
   await draw();
-  assert.match(appended[14].children[1].style.background, /^linear-gradient\(to right, transparent, rgb\(140, 80, 200\) 60%, rgb\(255, 255, 255\)\)$/);
+  assert.match(appended[4].children[1].style.background, /^linear-gradient\(to right, transparent, rgb\(140, 80, 200\) 60%, rgb\(255, 255, 255\)\)$/);
   deta = false;
   // The window you leave plays it the other way, at once: even mid-switch, after one frame.
   gBrowser._switcher = {};
@@ -557,23 +539,26 @@ test("Two pills run in from the sides along the page's and the tab's bottom once
   assert.equal(frames.length, 1, "no waiting for any switch");
   frames.shift()();
   gBrowser._switcher = null;
-  const leaving = appended[15], [parting, outLeft, outRight] = leaving.children;
-  assert.ok(leaving.holder === tabbox && appended[16].holder === stack, "below the page you leave, and along its tab");
-  assert.equal(parting.style.opacity, "1", "it starts as the merged pill, whole");
-  const parted = opacityByMs(parting.anims[0].keyframes, parting.anims[0].options);
-  assert.ok(parted[0] === 1 && parted[180] < 1e-6, "which parts at once, gone by 180 ms");
+  const leaving = appended[5], [parting, outLeft, outRight] = leaving.children;
+  assert.ok(appended.length === 6 && leaving.holder === tabbox, "below the page you leave, and not on its tab");
+  const [rise] = parting.anims, risen = opacityByMs(rise.keyframes, rise.options), [riseAt, riseUntil] = atFullStrength(risen);
+  const lift = valueByMs(rise.keyframes, rise.options, k => Number(/translateY\((-?[\d.]+)(?:px)?\)/.exec(k.transform)[1]));
+  assert.ok(parting.style.opacity === "0" && risen[0] < 1e-6 && lift[0] === 7 && lift[180] < 1e-6,
+    "the merged pill wells up from underneath, not popping in");
+  assert.ok(riseAt > 120 && riseAt <= 180 && riseUntil >= 239 && risen[360] < 1e-6, `whole from ${riseAt} to ${riseUntil} ms, parted by 360`);
   for (const [gleam, sign] of [[outLeft, 1], [outRight, -1]]) {
     const [run] = gleam.anims, at = valueByMs(run.keyframes, run.options, k => Math.abs(shift(k)));
-    assert.ok(shift(run.keyframes[0]) === sign * 374 && at[108] === 374 && at[720] < 1e-6 && run.options.duration === 900,
-      "each runs from the middle out past its side");
-    const speed = at.slice(109, 721).map((v, i) => at[108 + i] - v);
+    assert.ok(shift(run.keyframes[0]) === sign * 374 && at[320] === 374 && at[880] < 1e-6 && run.options.duration === 1000,
+      "each leaves the pill as it parts and runs out past its side");
+    assert.deepEqual(Array.from(run.keyframes, k => k.opacity), [0, 0, 1, 1, 0], "unseen until the pill parts");
+    const speed = at.slice(321, 881).map((v, i) => at[320 + i] - v);
     assert.ok(speed.slice(0, 50).reduce((a, b) => a + b) > 2 * speed.slice(-50).reduce((a, b) => a + b), "fast out of the middle, easing as it leaves");
   }
   ctx.retired = true;
   ctx.markArrival(tab);
   await settle();
   frames.shift()();
-  assert.equal(appended.length, 17, "a released copy draws nothing");
+  assert.equal(appended.length, 6, "a released copy draws nothing");
   // The README says what it looks like.
   const readme = (await readFile(new URL("../tab-router/README.md", import.meta.url), "utf8")).replace(/\s+/g, " ");
   assert.match(readme, /two pill-shaped gleams in the loading bar's colour \(Zen's own loading indicator's, or the Deta Loading Bar mod's when it is on\) run in from the sides/);

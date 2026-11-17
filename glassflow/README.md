@@ -140,6 +140,11 @@ behind the whole sidebar, and every see-through tab shows it; a second blur per
 tab cost a compositor pass each and added nothing you could see. Docked, nothing
 moves behind the sidebar, so there is nothing to blur.
 
+A loading tab carries a copy of Zen's loading indicator along its bottom edge,
+in the same colour: it pulses, and after three seconds a segment sweeps along a
+faint track, as Zen's does. A folder whose own page (Groupflow) is loading shows
+it on its header. With reduced motion it holds still.
+
 Turning on **Detailed rim control** (under *Tabs, shared*) exposes per-state rim
 colour, edge, highlight thickness and ring thickness. Without it the rim uses
 one white 1px top highlight and 1px ring per state.

@@ -90,11 +90,10 @@ When a switch lands you in another window -- one of these, or the address
 bar's **Switch to Tab** -- that window comes forward and, once it shows the
 page, two pill-shaped gleams in the loading bar's colour (Zen's own loading
 indicator's, or the Deta Loading Bar mod's when it is on) run in from the sides along
-the bottom of its page (on the window's margin just below it) and of the tab
-(a folder's header, for a folder's page), gathering speed like waves, then run
+the bottom of its page (on the window's margin just below it), gathering speed like waves, then run
 into each other in the middle and merge into one pill that swells and fades,
 so the eye finds it; the window you leave plays it the other way at once,
-the pill parting in the middle and running out to the sides (with reduced
+the pill welling up in the middle, parting and running out to the sides (with reduced
 motion only the merged pill appears and fades). Moving
 between windows yourself shows nothing, nor does picking a tab whose page Zen
 brings into the window you are in. Zen keeps a copy of each tab in every

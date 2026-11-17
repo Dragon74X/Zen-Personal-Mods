@@ -1827,3 +1827,46 @@
   @media (-moz-pref("zzglass.workspaces.capsule", 1)) { #zen-workspaces-button { --zzg-edge-owner: plain; } }
   @media (-moz-pref("zzglass.workspaces.active", 1)) { #zen-workspaces-button toolbarbutton[active="true"] { --zzg-edge-owner: plain; } }
 }
+
+/* Loading tabs, and a folder header whose own page (groupflow.uc.js) is
+   loading, carry a copy of Zen's loading indicator along their bottom edge:
+   its colour and shape, its pulse, and after three seconds its long-load
+   sweep along a faint track (zen-progress-bar-pulse, -settle and -long-load,
+   fitted to a tab). The pulse is transform and opacity; the sweep moves a 75%
+   segment by its background. With reduced motion it holds still. */
+@keyframes zzg-tab-loading-pulse {
+  from { transform: translateX(-50%) scale(.85); opacity: .6; }
+  to { transform: translateX(-50%) scale(.95); opacity: 1; }
+}
+@keyframes zzg-tab-loading-settle {
+  to { background-color: light-dark(rgba(0, 0, 0, .1), rgba(255, 255, 255, .1)); }
+}
+/* A 75% segment moves 25% of the bar per 100%: -400% to 400% runs it from
+   one bar's width off the left to one off the right, as Zen's does. */
+@keyframes zzg-tab-loading-long {
+  from { background-position: -400% 0; }
+  to { background-position: 400% 0; }
+}
+:is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([busy], [progress]) > .tab-stack::after,
+:is(#navigator-toolbox, .zen-library-space-tabs) :is(tab-group, zen-folder):has(> .tab-group-container > .tabbrowser-tab[zzgf-page-tab]:is([busy], [progress]))
+  > .tab-group-label-container > .tab-group-label::after {
+  --zzg-loading: color-mix(in srgb, var(--zen-primary-color), light-dark(rgba(0, 0, 0, .5), rgba(255, 255, 255, .5)) 70%);
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: min(5rem, 45%);
+  height: 3px;
+  border-radius: 100px;
+  background: linear-gradient(var(--zzg-loading), var(--zzg-loading)) -400% 0 / 75% 100% no-repeat var(--zzg-loading);
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 1;
+  animation: zzg-tab-loading-pulse 1s ease-in-out 3 alternate,
+             zzg-tab-loading-settle .3s ease-out 3s forwards,
+             zzg-tab-loading-long 1s ease-in-out 3.3s infinite;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    opacity: .8;
+  }
+}

@@ -2355,26 +2355,23 @@
   }
   // A switch that lands you in another window gives no sign of its own:
   // once the switch (and any change of space) is done and the window shows
-  // the page, two pill-shaped gleams in the loading bar's colour run in from the sides along the
-  // bottom of this window's page, and of the tab or the folder header that
-  // stands for a folder's page, gathering speed and stretching like waves;
-  // they run into each other in the middle, merge into one pill that swells,
-  // holds and fades. Each sits inside a positioned box that holds what it
-  // marks, so it moves with it (the tab list shifts when a tab opened and
-  // closed for the switch leaves, and scrolls a tab out of view into it).
-  // Transform and opacity only, with nothing page-sized blurred: under
-  // software WebRender a page-sized blurred shadow cost hundreds of
-  // milliseconds a frame, and a window drawing few frames as it comes forward
-  // still catches the merged pill while it holds. The effects run linear, so
-  // each offset is a real time and the easing lives on the keyframes. Each
-  // removes itself when it ends, and on release.
+  // the page, two pill-shaped gleams in the loading bar's colour run in from
+  // the sides along the bottom of this window's page, gathering speed and
+  // stretching like waves; they run into each other in the middle, merge
+  // into one pill that swells, holds and fades. They sit in a positioned box
+  // around the page. Transform and opacity only, with nothing page-sized
+  // blurred: under software WebRender a page-sized blurred shadow cost
+  // hundreds of milliseconds a frame, and a window drawing few frames as it
+  // comes forward still catches the merged pill while it holds. The effects
+  // run linear, so each offset is a real time and the easing lives on the
+  // keyframes. Each removes itself when it ends, and on release.
   const arrivals = new Set();
   function markArrival(tab, switching) {
     Promise.resolve(switching).catch(() => {}).then(tabSwitched).then(() => new Promise(r => setTimeout(r, 120)))
       .then(() => requestAnimationFrame(() => drawGleams(tab, false)));
   }
-  // The window you leave plays it the other way at once: the pill parts in
-  // the middle and the two run out to the sides.
+  // The window you leave plays it the other way at once: the pill wells up
+  // from underneath in the middle, parts, and the two run out to the sides.
   function markDeparture() {
     const tab = gBrowser.selectedTab;
     if (tab) requestAnimationFrame(() => drawGleams(tab, true));
@@ -2405,7 +2402,7 @@
         bottom: `${gap ? (room - thickness) / 2 : 1}px`, height: `${thickness}px`, borderRadius: `${thickness}px`, boxShadow: glow, ...props });
       // The pill they merge into, centred.
       const merged = Math.round(length * 1.4);
-      pill({ left: `${mid - merged / 2}px`, width: `${merged}px`, opacity: brief || out ? "1" : "0",
+      pill({ left: `${mid - merged / 2}px`, width: `${merged}px`, opacity: brief ? "1" : "0",
         background: `linear-gradient(to right, transparent, ${light} 25%, ${head}, ${light} 75%, transparent)` });
       const splash = line.lastChild;
       if (!brief) {
@@ -2417,28 +2414,31 @@
           line.lastChild.animate(out ? [
             // Out of the parting pill, fast at first, easing as they leave.
             { transform: `${end} scaleX(.6)`, opacity: 0 },
-            { transform: `${end} scaleX(1.1)`, opacity: 1, offset: 0.12, easing: "cubic-bezier(.25, .6, .4, 1)" },
-            { transform: "translateX(0) scaleX(.55)", opacity: 1, offset: 0.8, easing: "ease-in" },
+            { transform: `${end} scaleX(.6)`, opacity: 0, offset: 0.24 },
+            { transform: `${end} scaleX(1.1)`, opacity: 1, offset: 0.32, easing: "cubic-bezier(.25, .6, .4, 1)" },
+            { transform: "translateX(0) scaleX(.55)", opacity: 1, offset: 0.88, easing: "ease-in" },
             { transform: "translateX(0) scaleX(.55)", opacity: 0 }] : [
             { transform: "translateX(0) scaleX(.55)", opacity: 1, easing: "cubic-bezier(.4, .05, .75, .4)" },
             { transform: `${end} scaleX(1.1)`, opacity: 1, offset: 0.5, easing: "ease-out" },
             { transform: `${end} scaleX(.6)`, opacity: 0, offset: 0.62 },
-            { transform: `${end} scaleX(.6)`, opacity: 0 }], { duration: out ? 900 : 1000, easing: "linear" });
+            { transform: `${end} scaleX(.6)`, opacity: 0 }], { duration: 1000, easing: "linear" });
         }
       }
       holder.appendChild(line);
       arrivals.add(line);
       const done = () => { arrivals.delete(line); line.remove(); };
       // In: met at 500 ms, merged and swollen by 620, held to 750, gone at
-      // 1000. Out: whole at once, parted by 180 ms as the two leave, gone
-      // from the sides by 900. With reduced motion nothing moves: the
-      // merged pill, held, faded.
+      // 1000. Out: the pill wells up from underneath by 180 ms, parts as
+      // the two leave it at 240, gone from the sides by 1000. With reduced
+      // motion nothing moves: the merged pill, held, faded.
+      const under = `translateY(${(room + thickness) / 2}px)`;
       splash.animate(brief ? [{ opacity: 1 }, { opacity: 1, offset: 0.7, easing: "ease-in-out" }, { opacity: 0 }]
-        : out ? [{ opacity: 1, transform: "scaleX(1)", easing: "ease-in" }, { opacity: 0, transform: "scaleX(.3)", offset: 0.2 },
-          { opacity: 0, transform: "scaleX(.3)" }]
+        : out ? [{ opacity: 0, transform: `${under} scaleX(.4)`, easing: "cubic-bezier(.2, .8, .3, 1)" },
+          { opacity: 1, transform: "translateY(0) scaleX(1)", offset: 0.18 }, { opacity: 1, transform: "translateY(0) scaleX(1)", offset: 0.24, easing: "ease-in" },
+          { opacity: 0, transform: "translateY(0) scaleX(.3)", offset: 0.36 }, { opacity: 0, transform: "translateY(0) scaleX(.3)" }]
         : [{ opacity: 0, transform: "scaleX(.3)" }, { opacity: 0, transform: "scaleX(.3)", offset: 0.48, easing: "cubic-bezier(.2, .8, .3, 1)" },
           { opacity: 1, transform: "scaleX(1)", offset: 0.62 }, { opacity: 1, transform: "scaleX(1)", offset: 0.75, easing: "ease-in-out" },
-          { opacity: 0, transform: "scaleX(1.08)" }], { duration: brief ? 700 : out ? 900 : 1000, easing: "linear" }).finished.then(done, done);
+          { opacity: 0, transform: "scaleX(1.08)" }], { duration: brief ? 700 : 1000, easing: "linear" }).finished.then(done, done);
     };
     // The page: on the window's margin below it (Zen's element separation),
     // or along its own bottom edge when it reaches the window's. The tab
@@ -2450,11 +2450,6 @@
     const below = innerHeight - (page?.getBoundingClientRect().bottom ?? innerHeight);
     if (below >= 4 && tabbox) gleams(page, tabbox, 4, Math.min(below, 16));
     else gleams(page, container || tabbox, 3);
-    // A folder's page tab is hidden (Groupflow): its header stands for it.
-    const header = tab.hasAttribute("zzgf-page-tab") && tab.group?.querySelector(":scope > .tab-group-label-container");
-    const background = tab.querySelector(".tab-background");
-    if (header) gleams(header, header, 3);
-    else gleams(background, background?.parentNode, 3);
   }
   // Every window publishes the whole set, so the page side needs one lookup.
   let publishTimer = null;

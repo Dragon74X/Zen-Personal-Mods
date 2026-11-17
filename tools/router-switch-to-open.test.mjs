@@ -231,7 +231,7 @@ test("A folder's page tab is never switched away on its first load, redirects in
 // holding the tab, then show it there through Zen's switchIfNeeded.
 const between = (start, end) => router.slice(router.indexOf(start), router.indexOf(end));
 function windows(slice, extra = () => ({})) {
-  const focus = { activeWindow: null }, marked = [], raised = [], all = [];
+  const focus = { activeWindow: null }, marked = [], raised = [], departed = [], all = [];
   const helper = { switchToTabHavingURI: (source, target) => {
     target.focus(); target.gZenWorkspaces.switchIfNeeded(target.tab.linkedBrowser); return true; } };
   const native = helper.switchToTabHavingURI;
@@ -242,7 +242,7 @@ function windows(slice, extra = () => ({})) {
       gZenWorkspaces: { selected: null,
         switchIfNeeded(browser) { return this.switchTabIfNeeded(win.gBrowser.getTabForBrowser(browser)); },
         async switchTabIfNeeded(t) { this.selected = t; } },
-      TabRouter: { copyWhile() {}, markArrival: t => marked.push([name, t.id]) } };
+      TabRouter: { copyWhile() {}, markArrival: t => marked.push([name, t.id]), markDeparture: () => departed.push(name) } };
     tab.ownerDocument = { defaultView: win };
     const ctx = vm.createContext({ window: win, gBrowser: win.gBrowser, note: () => {},
       Services: { focus, wm: { getEnumerator: () => all } },
@@ -252,18 +252,19 @@ function windows(slice, extra = () => ({})) {
     all.push(win);
     return Object.assign(win, { tab, ctx });
   };
-  return { A: make("A"), B: make("B"), focus, marked, raised, helper, native };
+  return { A: make("A"), B: make("B"), focus, marked, raised, departed, helper, native };
 }
 
 test("Firefox's Switch to Tab marks the arrival in the window it lands in, and only there", () => {
   const patch = between("  // Firefox's own switch to an open tab", "  function copyWhile(fn) {");
-  const { A, B, focus, marked, raised, helper, native } = windows(patch
+  const { A, B, focus, marked, raised, departed, helper, native } = windows(patch
     + "\npatchSwitchToTab(); window.gZenWorkspaces.switchIfNeeded = switchIfNeeded; this.unpatch = unpatchSwitchToTab;");
   assert.notEqual(helper.switchToTabHavingURI, native, "patched once, for every window");
   focus.activeWindow = A;
   assert.equal(helper.switchToTabHavingURI(A, B), true, "Firefox's answer is passed through");
   assert.deepEqual(raised, ["B"]);
   assert.deepEqual(marked, [["B", "B-tab"]], "the address bar in A lands in B: B marks its tab");
+  assert.deepEqual(departed, ["A"], "and A, the window you leave, its departure");
   assert.equal(B.gZenWorkspaces.selected, B.tab);
   marked.length = 0;
   helper.switchToTabHavingURI(A, A);
@@ -273,6 +274,7 @@ test("Firefox's Switch to Tab marks the arrival in the window it lands in, and o
   focus.activeWindow = { name: "Library" };
   helper.switchToTabHavingURI(A, A);
   assert.deepEqual(marked, [["A", "A-tab"]], "asked from another window (a Library window), the browser window marks it");
+  assert.deepEqual(departed, ["A"], "a Library window has no departure to show");
   marked.length = 0;
   focus.activeWindow = null;
   helper.switchToTabHavingURI(A, B);
@@ -358,15 +360,15 @@ test("Firefox's Switch to Tab to an unloaded copy in your window goes to the win
 });
 
 test("Tab Router's switch raises the window holding the tab, and marks the arrival when it is not the one you are in", () => {
-  const { A, B, focus, marked, raised } = windows(between("  // The window you are in is the active one", "  // A switch that lands you in another window gives")
+  const { A, B, focus, marked, raised, departed } = windows(between("  // The window you are in is the active one", "  // A switch that lands you in another window gives")
     + "\nthis.switchTo = switchTo;");
-  const reset = () => { raised.length = 0; marked.length = 0; };
+  const reset = () => { raised.length = 0; marked.length = 0; departed.length = 0; };
   focus.activeWindow = A;
   A.ctx.switchTo(B.tab);
-  assert.deepEqual([raised, marked], [["B"], [["B", "B-tab"]]], "a link in A to a page open in B");
+  assert.deepEqual([raised, marked, departed], [["B"], [["B", "B-tab"]], ["A"]], "a link in A to a page open in B: B marks the arrival, A the departure");
   reset();
   A.ctx.switchTo(A.tab);
-  assert.deepEqual([raised, marked], [[], []], "a page open in the window you are in");
+  assert.deepEqual([raised, marked, departed], [[], [], []], "a page open in the window you are in");
   focus.activeWindow = { name: "Library" };
   A.ctx.switchTo(A.tab);
   assert.deepEqual([raised, marked], [["A"], [["A", "A-tab"]]], "a bookmark opened from the Library brings its browser window forward");
@@ -448,9 +450,10 @@ test("Two pills run in from the sides along the page's and the tab's bottom once
       : { position: el.position, borderBottomLeftRadius: el.radius, borderBottomRightRadius: el.radius }),
     matchMedia: () => ({ matches: reduced }), requestAnimationFrame: fn => frames.push(fn) });
   vm.runInContext(between("  // A window that has to show another page first is still painting it", "  // Every window publishes the whole set")
-    + "\nthis.markArrival = markArrival; this.arrivals = arrivals;", ctx);
+    + "\nthis.markArrival = markArrival; this.markDeparture = markDeparture; this.arrivals = arrivals;", ctx);
   const tab = { isConnected: true, closing: false, hasAttribute: () => false, linkedBrowser: { closest: () => page },
     querySelector: () => background };
+  gBrowser.selectedTab = tab;
   const draw = async (which = tab) => { ctx.markArrival(which); await settle(); frames.shift()(); };
   const props = k => Object.keys(k).filter(p => p !== "offset" && p !== "easing").join();
   const shift = k => Number(/translateX\((-?[\d.]+)(?:px)?\)/.exec(k.transform)?.[1] ?? 0);
@@ -548,11 +551,29 @@ test("Two pills run in from the sides along the page's and the tab's bottom once
   await draw();
   assert.match(appended[14].children[1].style.background, /^linear-gradient\(to right, transparent, rgb\(140, 80, 200\) 60%, rgb\(255, 255, 255\)\)$/);
   deta = false;
+  // The window you leave plays it the other way, at once: even mid-switch, after one frame.
+  gBrowser._switcher = {};
+  ctx.markDeparture();
+  assert.equal(frames.length, 1, "no waiting for any switch");
+  frames.shift()();
+  gBrowser._switcher = null;
+  const leaving = appended[15], [parting, outLeft, outRight] = leaving.children;
+  assert.ok(leaving.holder === tabbox && appended[16].holder === stack, "below the page you leave, and along its tab");
+  assert.equal(parting.style.opacity, "1", "it starts as the merged pill, whole");
+  const parted = opacityByMs(parting.anims[0].keyframes, parting.anims[0].options);
+  assert.ok(parted[0] === 1 && parted[180] < 1e-6, "which parts at once, gone by 180 ms");
+  for (const [gleam, sign] of [[outLeft, 1], [outRight, -1]]) {
+    const [run] = gleam.anims, at = valueByMs(run.keyframes, run.options, k => Math.abs(shift(k)));
+    assert.ok(shift(run.keyframes[0]) === sign * 374 && at[108] === 374 && at[720] < 1e-6 && run.options.duration === 900,
+      "each runs from the middle out past its side");
+    const speed = at.slice(109, 721).map((v, i) => at[108 + i] - v);
+    assert.ok(speed.slice(0, 50).reduce((a, b) => a + b) > 2 * speed.slice(-50).reduce((a, b) => a + b), "fast out of the middle, easing as it leaves");
+  }
   ctx.retired = true;
   ctx.markArrival(tab);
   await settle();
   frames.shift()();
-  assert.equal(appended.length, 15, "a released copy draws nothing");
+  assert.equal(appended.length, 17, "a released copy draws nothing");
   // The README says what it looks like.
   const readme = (await readFile(new URL("../tab-router/README.md", import.meta.url), "utf8")).replace(/\s+/g, " ");
   assert.match(readme, /two pill-shaped gleams in the loading bar's colour \(Zen's own loading indicator's, or the Deta Loading Bar mod's when it is on\) run in from the sides/);

@@ -2318,7 +2318,10 @@
     if (win !== here) win.focus();
     const switching = win.gZenWorkspaces?.switchTabIfNeeded ? win.gZenWorkspaces.switchTabIfNeeded(tab)
       : (win.gBrowser.selectedTab = tab);
-    if (here && win !== here) win.TabRouter?.markArrival?.(tab, switching);
+    if (here && win !== here) {
+      win.TabRouter?.markArrival?.(tab, switching);
+      here.TabRouter?.markDeparture?.();
+    }
   }
   // A window that has to show another page first is still painting it as
   // the switch resolves: wait for its tab switch to finish (bounded), then a
@@ -2368,74 +2371,90 @@
   const arrivals = new Set();
   function markArrival(tab, switching) {
     Promise.resolve(switching).catch(() => {}).then(tabSwitched).then(() => new Promise(r => setTimeout(r, 120)))
-      .then(() => requestAnimationFrame(() => {
-      const root = document.documentElement;
-      if (retired || !root || tab.closing || !tab.isConnected) return;
-      const [light, head] = loadingColours(tab.linkedBrowser?.closest(".browserSidebarContainer"));
-      const brief = matchMedia("(prefers-reduced-motion: reduce)").matches;
-      const div = () => document.createElementNS("http://www.w3.org/1999/xhtml", "div");
-      // Along the bottom edge of el, inside it, or, given a gap, on the window
-      // just below it, centred in the gap (where the light shows whatever the
-      // page). A soft glow only where there is room for it.
-      const gleams = (el, holder, thickness, gap = 0) => {
-        const r = el?.getBoundingClientRect(), h = holder?.getBoundingClientRect();
-        if (!r?.width || !r.height || !h || getComputedStyle(holder).position === "static") return;
-        // Between the bottom corners' curves.
-        const style = getComputedStyle(el), room = gap ? Math.max(gap, 10) : 6;
-        const inset = Math.min(r.width / 4, Math.max(parseFloat(style.borderBottomLeftRadius) || 0, parseFloat(style.borderBottomRightRadius) || 0));
-        const width = r.width - 2 * inset, mid = width / 2, length = Math.round(Math.min(160, Math.max(28, width * 0.22)));
-        const line = div();
-        line.setAttribute("aria-hidden", "true");
-        Object.assign(line.style, { position: "absolute", left: `${r.left - h.left - holder.clientLeft + inset}px`,
-          top: `${r.bottom - h.top - holder.clientTop + (gap ? (gap - room) / 2 : -room)}px`, width: `${width}px`, height: `${room}px`,
-          overflow: "clip", pointerEvents: "none", zIndex: "1" });
-        const glow = gap ? `0 0 5px color-mix(in srgb, ${light} 50%, transparent)` : "";
-        const pill = props => Object.assign(line.appendChild(div()).style, { position: "absolute",
-          bottom: `${gap ? (room - thickness) / 2 : 1}px`, height: `${thickness}px`, borderRadius: `${thickness}px`, boxShadow: glow, ...props });
-        // The pill they merge into, centred.
-        const merged = Math.round(length * 1.4);
-        pill({ left: `${mid - merged / 2}px`, width: `${merged}px`, opacity: brief ? "1" : "0",
-          background: `linear-gradient(to right, transparent, ${light} 25%, ${head}, ${light} 75%, transparent)` });
-        const splash = line.lastChild;
-        if (!brief) {
-          for (const [side, sign] of [["left", 1], ["right", -1]]) {
-            pill({ [side]: `${-length}px`, width: `${length}px`, transformOrigin: side === "left" ? "right" : "left",
-              background: `linear-gradient(to ${side === "left" ? "right" : "left"}, transparent, ${light} 60%, ${head})` });
-            // The head runs just past the middle, into the other.
-            const end = `translateX(${sign * (mid + thickness)}px)`;
-            line.lastChild.animate([
-              { transform: "translateX(0) scaleX(.55)", opacity: 1, easing: "cubic-bezier(.4, .05, .75, .4)" },
-              { transform: `${end} scaleX(1.1)`, opacity: 1, offset: 0.5, easing: "ease-out" },
-              { transform: `${end} scaleX(.6)`, opacity: 0, offset: 0.62 },
-              { transform: `${end} scaleX(.6)`, opacity: 0 }], { duration: 1000, easing: "linear" });
-          }
+      .then(() => requestAnimationFrame(() => drawGleams(tab, false)));
+  }
+  // The window you leave plays it the other way at once: the pill parts in
+  // the middle and the two run out to the sides.
+  function markDeparture() {
+    const tab = gBrowser.selectedTab;
+    if (tab) requestAnimationFrame(() => drawGleams(tab, true));
+  }
+  function drawGleams(tab, out) {
+    const root = document.documentElement;
+    if (retired || !root || tab.closing || !tab.isConnected) return;
+    const [light, head] = loadingColours(tab.linkedBrowser?.closest(".browserSidebarContainer"));
+    const brief = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const div = () => document.createElementNS("http://www.w3.org/1999/xhtml", "div");
+    // Along the bottom edge of el, inside it, or, given a gap, on the window
+    // just below it, centred in the gap (where the light shows whatever the
+    // page). A soft glow only where there is room for it.
+    const gleams = (el, holder, thickness, gap = 0) => {
+      const r = el?.getBoundingClientRect(), h = holder?.getBoundingClientRect();
+      if (!r?.width || !r.height || !h || getComputedStyle(holder).position === "static") return;
+      // Between the bottom corners' curves.
+      const style = getComputedStyle(el), room = gap ? Math.max(gap, 10) : 6;
+      const inset = Math.min(r.width / 4, Math.max(parseFloat(style.borderBottomLeftRadius) || 0, parseFloat(style.borderBottomRightRadius) || 0));
+      const width = r.width - 2 * inset, mid = width / 2, length = Math.round(Math.min(160, Math.max(28, width * 0.22)));
+      const line = div();
+      line.setAttribute("aria-hidden", "true");
+      Object.assign(line.style, { position: "absolute", left: `${r.left - h.left - holder.clientLeft + inset}px`,
+        top: `${r.bottom - h.top - holder.clientTop + (gap ? (gap - room) / 2 : -room)}px`, width: `${width}px`, height: `${room}px`,
+        overflow: "clip", pointerEvents: "none", zIndex: "1" });
+      const glow = gap ? `0 0 5px color-mix(in srgb, ${light} 50%, transparent)` : "";
+      const pill = props => Object.assign(line.appendChild(div()).style, { position: "absolute",
+        bottom: `${gap ? (room - thickness) / 2 : 1}px`, height: `${thickness}px`, borderRadius: `${thickness}px`, boxShadow: glow, ...props });
+      // The pill they merge into, centred.
+      const merged = Math.round(length * 1.4);
+      pill({ left: `${mid - merged / 2}px`, width: `${merged}px`, opacity: brief || out ? "1" : "0",
+        background: `linear-gradient(to right, transparent, ${light} 25%, ${head}, ${light} 75%, transparent)` });
+      const splash = line.lastChild;
+      if (!brief) {
+        for (const [side, sign] of [["left", 1], ["right", -1]]) {
+          pill({ [side]: `${-length}px`, width: `${length}px`, transformOrigin: side === "left" ? "right" : "left",
+            background: `linear-gradient(to ${side === "left" ? "right" : "left"}, transparent, ${light} 60%, ${head})` });
+          // The head runs just past the middle, into the other.
+          const end = `translateX(${sign * (mid + thickness)}px)`;
+          line.lastChild.animate(out ? [
+            // Out of the parting pill, fast at first, easing as they leave.
+            { transform: `${end} scaleX(.6)`, opacity: 0 },
+            { transform: `${end} scaleX(1.1)`, opacity: 1, offset: 0.12, easing: "cubic-bezier(.25, .6, .4, 1)" },
+            { transform: "translateX(0) scaleX(.55)", opacity: 1, offset: 0.8, easing: "ease-in" },
+            { transform: "translateX(0) scaleX(.55)", opacity: 0 }] : [
+            { transform: "translateX(0) scaleX(.55)", opacity: 1, easing: "cubic-bezier(.4, .05, .75, .4)" },
+            { transform: `${end} scaleX(1.1)`, opacity: 1, offset: 0.5, easing: "ease-out" },
+            { transform: `${end} scaleX(.6)`, opacity: 0, offset: 0.62 },
+            { transform: `${end} scaleX(.6)`, opacity: 0 }], { duration: out ? 900 : 1000, easing: "linear" });
         }
-        holder.appendChild(line);
-        arrivals.add(line);
-        const done = () => { arrivals.delete(line); line.remove(); };
-        // In: met at 500 ms, merged and swollen by 620, held to 750, gone at
-        // 1000. With reduced motion nothing moves: the merged pill, held, faded.
-        splash.animate(brief ? [{ opacity: 1 }, { opacity: 1, offset: 0.7, easing: "ease-in-out" }, { opacity: 0 }]
-          : [{ opacity: 0, transform: "scaleX(.3)" }, { opacity: 0, transform: "scaleX(.3)", offset: 0.48, easing: "cubic-bezier(.2, .8, .3, 1)" },
-            { opacity: 1, transform: "scaleX(1)", offset: 0.62 }, { opacity: 1, transform: "scaleX(1)", offset: 0.75, easing: "ease-in-out" },
-            { opacity: 0, transform: "scaleX(1.08)" }], { duration: brief ? 700 : 1000, easing: "linear" }).finished.then(done, done);
-      };
-      // The page: on the window's margin below it (Zen's element separation),
-      // or along its own bottom edge when it reaches the window's. The tab
-      // panels are a deck that paints only the selected panel, so the box
-      // around them holds what goes outside a page.
-      const tabbox = document.getElementById("tabbrowser-tabbox");
-      const container = tab.linkedBrowser?.closest(".browserSidebarContainer");
-      const page = container || document.getElementById("tabbrowser-tabpanels");
-      const below = innerHeight - (page?.getBoundingClientRect().bottom ?? innerHeight);
-      if (below >= 4 && tabbox) gleams(page, tabbox, 4, Math.min(below, 16));
-      else gleams(page, container || tabbox, 3);
-      // A folder's page tab is hidden (Groupflow): its header stands for it.
-      const header = tab.hasAttribute("zzgf-page-tab") && tab.group?.querySelector(":scope > .tab-group-label-container");
-      const background = tab.querySelector(".tab-background");
-      if (header) gleams(header, header, 3);
-      else gleams(background, background?.parentNode, 3);
-    }));
+      }
+      holder.appendChild(line);
+      arrivals.add(line);
+      const done = () => { arrivals.delete(line); line.remove(); };
+      // In: met at 500 ms, merged and swollen by 620, held to 750, gone at
+      // 1000. Out: whole at once, parted by 180 ms as the two leave, gone
+      // from the sides by 900. With reduced motion nothing moves: the
+      // merged pill, held, faded.
+      splash.animate(brief ? [{ opacity: 1 }, { opacity: 1, offset: 0.7, easing: "ease-in-out" }, { opacity: 0 }]
+        : out ? [{ opacity: 1, transform: "scaleX(1)", easing: "ease-in" }, { opacity: 0, transform: "scaleX(.3)", offset: 0.2 },
+          { opacity: 0, transform: "scaleX(.3)" }]
+        : [{ opacity: 0, transform: "scaleX(.3)" }, { opacity: 0, transform: "scaleX(.3)", offset: 0.48, easing: "cubic-bezier(.2, .8, .3, 1)" },
+          { opacity: 1, transform: "scaleX(1)", offset: 0.62 }, { opacity: 1, transform: "scaleX(1)", offset: 0.75, easing: "ease-in-out" },
+          { opacity: 0, transform: "scaleX(1.08)" }], { duration: brief ? 700 : out ? 900 : 1000, easing: "linear" }).finished.then(done, done);
+    };
+    // The page: on the window's margin below it (Zen's element separation),
+    // or along its own bottom edge when it reaches the window's. The tab
+    // panels are a deck that paints only the selected panel, so the box
+    // around them holds what goes outside a page.
+    const tabbox = document.getElementById("tabbrowser-tabbox");
+    const container = tab.linkedBrowser?.closest(".browserSidebarContainer");
+    const page = container || document.getElementById("tabbrowser-tabpanels");
+    const below = innerHeight - (page?.getBoundingClientRect().bottom ?? innerHeight);
+    if (below >= 4 && tabbox) gleams(page, tabbox, 4, Math.min(below, 16));
+    else gleams(page, container || tabbox, 3);
+    // A folder's page tab is hidden (Groupflow): its header stands for it.
+    const header = tab.hasAttribute("zzgf-page-tab") && tab.group?.querySelector(":scope > .tab-group-label-container");
+    const background = tab.querySelector(".tab-background");
+    if (header) gleams(header, header, 3);
+    else gleams(background, background?.parentNode, 3);
   }
   // Every window publishes the whole set, so the page side needs one lookup.
   let publishTimer = null;
@@ -2676,7 +2695,7 @@
     }
     const switching = nativeSwitchIfNeeded.apply(this, arguments);
     const tab = from && from !== window && gBrowser.getTabForBrowser(browser);
-    if (tab) markArrival(tab, switching);
+    if (tab) { markArrival(tab, switching); from.TabRouter?.markDeparture?.(); }
     return switching;
   }
   function copyWhile(fn) {
@@ -3104,7 +3123,7 @@
     for (const ev of groupEvents) window.addEventListener(ev, bustGroups, true);
 
     window.TabRouter = {
-      linkMessage, republishOpen: () => publishSoon(), switchIfOpen, copyWhile, openPage, tabURL, markArrival,
+      linkMessage, republishOpen: () => publishSoon(), switchIfOpen, copyWhile, openPage, tabURL, markArrival, markDeparture,
       sortAll: () => sweepAll("manual"),
       setPlacementLock,
       pictureCounts: () => ({ creators: creatorMap().size, icons: iconMap().size, inFlight: inFlight.size, refreshOperations }),

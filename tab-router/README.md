@@ -93,8 +93,9 @@ indicator's, or the Deta Loading Bar mod's when it is on) run in from the sides 
 the bottom of its page (on the window's margin just below it) and of the tab
 (a folder's header, for a folder's page), gathering speed like waves, then run
 into each other in the middle and merge into one pill that swells and fades,
-so the eye finds it (with reduced motion only the merged pill appears and
-fades). Moving
+so the eye finds it; the window you leave plays it the other way at once,
+the pill parting in the middle and running out to the sides (with reduced
+motion only the merged pill appears and fades). Moving
 between windows yourself shows nothing, nor does picking a tab whose page Zen
 brings into the window you are in. Zen keeps a copy of each tab in every
 window; a copy that has not loaded yet (every copy after a restart, and a

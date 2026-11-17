@@ -1,0 +1,58 @@
+# TEMPORARY diagnostics: never merge. Runs only on the diag branch.
+name: Diag arrival ring (Windows)
+on:
+  push:
+    branches: [diag/arrival-windows]
+permissions:
+  contents: read
+jobs:
+  arrival:
+    runs-on: windows-latest
+    timeout-minutes: 12
+    env:
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: CosmoCreeper/Sine
+          ref: fb0bd4ca6af888f10648e126947f7d1f82228433
+          path: .test-sine
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch official Zen 1.24.2b and check its published digest
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python -m pip install --disable-pip-version-check -q Pillow
+          $rel = Invoke-RestMethod -Headers @{ Authorization = "Bearer $env:GH_TOKEN"; 'X-GitHub-Api-Version' = '2022-11-28' } https://api.github.com/repos/zen-browser/desktop/releases/tags/1.24.2b
+          $asset = $rel.assets | Where-Object name -eq 'zen.installer.exe'
+          if (!$asset) { throw 'zen.installer.exe missing from release 1.24.2b' }
+          "release=$($rel.tag_name) published=$($rel.published_at) asset=$($asset.name) size=$($asset.size) digest=$($asset.digest)"
+          $installer = Join-Path $env:RUNNER_TEMP zen-1.24.2b.exe
+          curl.exe -fsSL --retry 3 -o $installer $asset.browser_download_url
+          if ($LASTEXITCODE) { throw 'download failed' }
+          $hash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower()
+          "sha256=$hash"
+          if (!$asset.digest) { throw 'release asset has no published digest' }
+          if ("sha256:$hash" -ne $asset.digest) { throw "digest mismatch: $hash vs $($asset.digest)" }
+          $runtime = Join-Path $env:RUNNER_TEMP zen-runtime
+          7z x -y "-o$runtime" $installer | Out-Null
+          if ($LASTEXITCODE) { throw 'Could not extract Zen' }
+          $zen = Get-ChildItem $runtime -Filter zen.exe -File -Recurse | Select-Object -First 1
+          if (!$zen) { throw 'Zen executable missing' }
+          "ZEN_EXE=$($zen.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          (Get-Item $zen.FullName).VersionInfo | Format-List ProductVersion, FileVersion
+      - name: Arrival ring on the real Windows desktop
+        shell: pwsh
+        run: |
+          python tools/diag-arrival-windows.py --zen "$env:ZEN_EXE" --sine .test-sine/src --out "$env:RUNNER_TEMP/arrival-out"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: arrival-windows
+          path: ${{ runner.temp }}/arrival-out
+          retention-days: 3

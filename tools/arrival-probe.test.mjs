@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import { test } from 'node:test';
@@ -388,4 +389,27 @@ test('Stop during the automatic phase: every switch without a result says it was
     clean(z, result);
   }
   assert.deepEqual([...seen].sort(), ['done', 'mid-switch', 'not-started'], 'stops before, during and after a switch');
+});
+
+test('The loader in ARRIVAL-PROBE.md fetches the probe at a pinned commit, runs it into a browser window and removes its file', async t => {
+  const loader = /```js\n([\s\S]*?)\n```/.exec(guide)?.[1];
+  assert.ok(loader, 'a loader to paste');
+  const pinned = /'https:\/\/raw\.githubusercontent\.com\/Dragon74X\/Zen-Personal-Mods\/([0-9a-f]{40})\/tools\/arrival-probe\.js'/.exec(loader);
+  assert.ok(pinned, 'a full commit hash, not a branch');
+  // Where git has that commit (not in a shallow checkout), it must hold this very probe.
+  let published = null;
+  try { published = execFileSync('git', ['show', pinned[1] + ':tools/arrival-probe.js'], { cwd: new URL('.', import.meta.url), encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }); } catch {}
+  if (published === null) t.diagnostic('pinned commit not in this checkout: content not compared');
+  else assert.equal(published, source, 'the pinned commit holds this arrival-probe.js: re-pin the loader after changing it');
+  const z = zen({ entry: loader });
+  await z.advance(0);
+  assert.equal(z.files.size, 0, 'the temporary file is removed once the probe is running');
+  assert.equal(z.O.__zzArrivalProbe.phase !== undefined, true, 'the probe is running');
+  await z.advance(9000);
+  const result = plain(await z.O.__zzArrivalProbe.stop());
+  assert.deepEqual(plain(await z.result), result, 'the loader returns the report');
+  assert.equal(z.fetched.filter(url => url.startsWith('https://')).length, 1);
+  assert.equal(result.status, 'stopped'); assert.equal(result.failures.length, 0);
+  assert.deepEqual(result.auto.paths.map(row => row.after.landed), ['destination', 'destination', 'destination']);
+  clean(z, result);
 });

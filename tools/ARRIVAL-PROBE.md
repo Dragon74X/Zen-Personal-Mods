@@ -2,10 +2,41 @@
 
 When a switch lands you in another window, Tab Router fades a ring in Zen's
 accent around that window's page and the tab. If you don't see it, paste the
-complete [arrival-probe.js](arrival-probe.js) into Zen's **Browser Console**
-(Ctrl+Shift+J) and press Enter, with your windows arranged as usual. It works
-with any installed Tab Router (1.44, 1.45.0, 1.45.1, and the border ring being
-prepared); no update is needed.
+loader below into Zen's **Browser Console** (Ctrl+Shift+J) and press Enter,
+with your windows arranged as usual. It works with any installed Tab Router
+(1.44, 1.45.0, 1.45.1, and the border ring being prepared); no update is needed.
+
+```js
+(async () => {
+  const w = Services.wm.getMostRecentWindow('navigator:browser');
+  if (!w) throw Error('No browser window');
+  const response = await w.fetch('https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/99a7d82bb84ee67de132704cc6d0c94768f6cd04/tools/arrival-probe.js',
+    { signal: w.AbortSignal.timeout(15000) });
+  if (!response.ok) throw Error('Probe download: HTTP ' + response.status);
+  const code = await response.text();
+  const file = Services.dirsvc.get('TmpD', Ci.nsIFile);
+  file.append('zen-arrival-probe.js');
+  file.createUnique(Ci.nsIFile.NORMAL_FILE_TYPE, 0o600);
+  let run;
+  try {
+    await IOUtils.writeUTF8(file.path, code);
+    run = Services.scriptloader.loadSubScriptWithOptions(Services.io.newFileURI(file).spec,
+      { target: w, ignoreCache: true, wantReturnValue: true, allowUnsafeURL: true });
+  } finally {
+    await IOUtils.remove(file.path);
+  }
+  return await run;
+})().catch(error => {
+  const text = JSON.stringify({ probe: 'arrival-loader', errors: [String(error)] });
+  console.error(text);
+  Cc['@mozilla.org/widget/clipboardhelper;1'].getService(Ci.nsIClipboardHelper).copyString(text);
+});
+```
+
+The loader fetches [arrival-probe.js](arrival-probe.js) at a pinned commit,
+runs it through Firefox's local-file script loader (the temporary file is
+removed at once) and copies any download or load error. Pasting the complete
+arrival-probe.js instead does the same.
 
 1. **A few seconds, hands off** (up to about 15): the probe switches between
    two of your browser windows itself, arranged as they are. With only one

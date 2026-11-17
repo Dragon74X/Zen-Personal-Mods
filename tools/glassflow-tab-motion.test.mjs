@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 const css = await readFile(new URL("../glassflow/userChrome.css", import.meta.url), "utf8");
@@ -27,19 +28,29 @@ test("Tab-state inputs animate on .tab-background, not on the tab", () => {
   for (const rule of states) assert.ok(rule.includes("var(--zzg-state-motion)"), rule);
 });
 
-test("A loading tab, and a folder whose own page loads, carry a copy of Zen's loading indicator", () => {
-  const rule = css.slice(css.indexOf(":is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([busy], [progress]) > .tab-stack::after"));
-  const body = rule.slice(0, rule.indexOf("\n}\n"));
-  assert.match(body, /tab-group, zen-folder\):has\(> \.tab-group-container > \.tabbrowser-tab\[zzgf-page-tab\]:is\(\[busy\], \[progress\]\)\)\s*> \.tab-group-label-container > \.tab-group-label::after/,
-    "on a folder's header while its own page tab loads");
-  // Zen's own colour and pill (zen-single-components.css #zen-loading-progress-bar).
-  assert.match(body, /--zzg-loading: color-mix\(in srgb, var\(--zen-primary-color\), light-dark\(rgba\(0, 0, 0, \.5\), rgba\(255, 255, 255, \.5\)\) 70%\);/);
-  assert.match(body, /border-radius: 100px;/);
-  // Its pulse for three seconds, then the long-load track and sweep.
-  assert.match(body, /animation: zzg-tab-loading-pulse 1s ease-in-out 3 alternate,\s*zzg-tab-loading-settle \.3s ease-out 3s forwards,\s*zzg-tab-loading-long 1s ease-in-out 3\.3s infinite;/);
-  assert.match(css, /@keyframes zzg-tab-loading-pulse \{\s*from \{ transform: translateX\(-50%\) scale\(\.85\); opacity: \.6; \}\s*to \{ transform: translateX\(-50%\) scale\(\.95\); opacity: 1; \}/);
-  assert.match(css, /@keyframes zzg-tab-loading-settle \{\s*to \{ background-color: light-dark\(rgba\(0, 0, 0, \.1\), rgba\(255, 255, 255, \.1\)\); \}/);
-  assert.match(css, /@keyframes zzg-tab-loading-long \{\s*from \{ background-position: -400% 0; \}\s*to \{ background-position: 400% 0; \}/);
-  assert.match(body, /pointer-events: none;/);
-  assert.match(body, /@media \(prefers-reduced-motion: reduce\) \{\s*animation: none;/, "still with reduced motion");
+test("A loading tab, and a folder whose own page loads, carry Blended Addressbar's glow loading bar", () => {
+  const at = css.indexOf("/* Blended Addressbar's \"glow\" loading bar");
+  const block = css.slice(at, css.indexOf("@keyframes zzg-loadbar-breathe", at));
+  assert.ok(at > 0, "drawn by Glassflow");
+  // Its own colour and glow strengths, with its defaults without it.
+  assert.match(block, /--zzg-glow-color: var\(--blended-addressbar-dynamic-loadbar-color, var\(--zen-primary-color\)\);/);
+  assert.match(block, /--zzg-glow-strong: var\(--blended-addressbar-loadbar-glow-strong-mix, 34%\);/);
+  // Its layers (styles/loadbar.css, glow mode): the head's glow, then the line to the progress, breathing.
+  assert.match(block, /radial-gradient\(ellipse 14px 7px at calc\(100% - 150px\) 100%,/);
+  assert.match(block, /radial-gradient\(ellipse 150px 32px at calc\(100% - 150px\) 100%,/);
+  assert.match(block, /left: -150px;\s*width: calc\(var\(--zzg-load-progress, 0%\) \+ 300px\);/);
+  assert.match(block, /height: var\(--blended-addressbar-loadbar-height, 2px\);/);
+  assert.match(block, /color-mix\(in srgb, var\(--zzg-glow-color\) 55%, transparent\),\s*var\(--zzg-glow-color\) 85%,\s*color-mix\(in srgb, var\(--zzg-glow-color\) 25%, white\)\);/);
+  assert.match(block, /animation: zzg-loadbar-breathe 1\.8s ease-in-out infinite alternate;/);
+  assert.match(block, /transition: width \.3s ease-out;/);
+});
+
+test("Each tab's load moves as Blended Addressbar's does: 8% to start, creeping to 90%, real progress to 95%, then the end", () => {
+  const js = readFileSync(new URL("../glassflow/glassflow.uc.js", import.meta.url), "utf8");
+  const fn = js.slice(js.indexOf("  function tabLoading() {"), js.indexOf("  function start() {"));
+  assert.match(fn, /progress: 0\.08, loading: true, hideAt: 0/);
+  assert.match(fn, /Math\.min\(0\.95, Math\.max\(0, fraction\)\) : load\.progress \+ Math\.max\(0, 0\.9 - load\.progress\) \* 0\.08/);
+  assert.match(fn, /progress: 1, loading: false, hideAt: Date\.now\(\) \+ 450/);
+  assert.match(fn, /setInterval\(tick, 250\)/);
+  assert.match(fn, /tab\.hasAttribute\("zzgf-page-tab"\) && tab\.group\?\.querySelector\(":scope > \.tab-group-label-container"\)/, "a folder's header for its own page");
 });

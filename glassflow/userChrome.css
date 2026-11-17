@@ -1828,45 +1828,73 @@
   @media (-moz-pref("zzglass.workspaces.active", 1)) { #zen-workspaces-button toolbarbutton[active="true"] { --zzg-edge-owner: plain; } }
 }
 
-/* Loading tabs, and a folder header whose own page (groupflow.uc.js) is
-   loading, carry a copy of Zen's loading indicator along their bottom edge:
-   its colour and shape, its pulse, and after three seconds its long-load
-   sweep along a faint track (zen-progress-bar-pulse, -settle and -long-load,
-   fitted to a tab). The pulse is transform and opacity; the sweep moves a 75%
-   segment by its background. With reduced motion it holds still. */
-@keyframes zzg-tab-loading-pulse {
-  from { transform: translateX(-50%) scale(.85); opacity: .6; }
-  to { transform: translateX(-50%) scale(.95); opacity: 1; }
-}
-@keyframes zzg-tab-loading-settle {
-  to { background-color: light-dark(rgba(0, 0, 0, .1), rgba(255, 255, 255, .1)); }
-}
-/* A 75% segment moves 25% of the bar per 100%: -400% to 400% runs it from
-   one bar's width off the left to one off the right, as Zen's does. */
-@keyframes zzg-tab-loading-long {
-  from { background-position: -400% 0; }
-  to { background-position: 400% 0; }
-}
-:is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([busy], [progress]) > .tab-stack::after,
-:is(#navigator-toolbox, .zen-library-space-tabs) :is(tab-group, zen-folder):has(> .tab-group-container > .tabbrowser-tab[zzgf-page-tab]:is([busy], [progress]))
-  > .tab-group-label-container > .tab-group-label::after {
-  --zzg-loading: color-mix(in srgb, var(--zen-primary-color), light-dark(rgba(0, 0, 0, .5), rgba(255, 255, 255, .5)) 70%);
-  content: "";
+/* Blended Addressbar's "glow" loading bar (kkugot/blended-addressbar,
+   styles/loadbar.css), copied onto every loading tab and onto a folder header
+   whose own page (groupflow.uc.js) is loading: a faint tint across it, a soft
+   glow at the head of the load, and a thin line along the bottom to the
+   load's progress, breathing gently. Its colour and glow strengths are Blended
+   Addressbar's own variables (your Zen accent, or what that mod is set to),
+   with its defaults without it. glassflow.uc.js adds .zzg-loadbar, keeps its
+   --zzg-load-progress, and marks it [loading] while it shows. */
+.zzg-loadbar {
+  --zzg-glow-color: var(--blended-addressbar-dynamic-loadbar-color, var(--zen-primary-color));
+  --zzg-glow-strong: var(--blended-addressbar-loadbar-glow-strong-mix, 34%);
+  --zzg-glow-medium: var(--blended-addressbar-loadbar-glow-medium-mix, 18%);
+  --zzg-glow-weak: var(--blended-addressbar-loadbar-glow-weak-mix, 7%);
   position: absolute;
-  left: 50%;
-  bottom: 2px;
-  width: min(5rem, 45%);
-  height: 3px;
-  border-radius: 100px;
-  background: linear-gradient(var(--zzg-loading), var(--zzg-loading)) -400% 0 / 75% 100% no-repeat var(--zzg-loading);
-  transform: translateX(-50%);
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
   pointer-events: none;
-  z-index: 1;
-  animation: zzg-tab-loading-pulse 1s ease-in-out 3 alternate,
-             zzg-tab-loading-settle .3s ease-out 3s forwards,
-             zzg-tab-loading-long 1s ease-in-out 3.3s infinite;
-  @media (prefers-reduced-motion: reduce) {
-    animation: none;
-    opacity: .8;
+  opacity: 0;
+  transition: opacity .2s ease-out;
+  &[loading] {
+    opacity: 1;
+    @starting-style { opacity: 0; }
+    background-image: linear-gradient(to right,
+      color-mix(in srgb, var(--zzg-glow-color) var(--zzg-glow-medium), transparent) 0%,
+      color-mix(in srgb, var(--zzg-glow-color) var(--zzg-glow-weak), transparent) 55%,
+      color-mix(in srgb, var(--zzg-glow-color) var(--zzg-glow-weak), transparent) 100%);
   }
+  &::before, &::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: var(--zzg-load-progress, 0%);
+    max-width: 100%;
+    pointer-events: none;
+    transition: width .3s ease-out;
+  }
+  /* A full glow radius beyond the leading edge, not a hard crop. */
+  &::before {
+    top: 0;
+    left: -150px;
+    width: calc(var(--zzg-load-progress, 0%) + 300px);
+    max-width: none;
+    background:
+      radial-gradient(ellipse 14px 7px at calc(100% - 150px) 100%,
+        color-mix(in srgb, color-mix(in srgb, var(--zzg-glow-color) 25%, white) var(--zzg-glow-strong), transparent), transparent),
+      radial-gradient(ellipse 150px 32px at calc(100% - 150px) 100%,
+        color-mix(in srgb, var(--zzg-glow-color) var(--zzg-glow-strong), transparent),
+        color-mix(in srgb, var(--zzg-glow-color) var(--zzg-glow-medium), transparent) 45%,
+        transparent 100%);
+  }
+  &::after {
+    height: var(--blended-addressbar-loadbar-height, 2px);
+    opacity: var(--blended-addressbar-loadbar-opacity, 1);
+    border-radius: 0 var(--blended-addressbar-loadbar-right-radius, 0px) var(--blended-addressbar-loadbar-right-radius, 0px) 0;
+    background: linear-gradient(to right,
+      color-mix(in srgb, var(--zzg-glow-color) 55%, transparent),
+      var(--zzg-glow-color) 85%,
+      color-mix(in srgb, var(--zzg-glow-color) 25%, white));
+    animation: zzg-loadbar-breathe 1.8s ease-in-out infinite alternate;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    &::before, &::after { animation: none; transition: none; }
+  }
+}
+@keyframes zzg-loadbar-breathe {
+  from { filter: brightness(1); }
+  to { filter: brightness(1.16); }
 }

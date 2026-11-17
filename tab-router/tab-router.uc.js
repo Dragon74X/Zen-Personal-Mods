@@ -2332,26 +2332,32 @@
     const timer = setTimeout(done, 1500);
     gBrowser.addEventListener("TabSwitchDone", done);
   });
-  // The colour the loading bar is drawn in, read where it is drawn: the Deta
-  // Loading Bar mod's when it is on, else Zen's own indicator's (its variable
-  // is set on its element only, so it is read inside it, or with Zen's own
-  // mix where it does not exist yet).
+  // The colour the loading bar is drawn in, read where it is drawn: the
+  // address bar mod that draws one, by the variable its stylesheet sets, so a
+  // disabled mod's leftover settings do not count (Blended Addressbar's, its
+  // head whitened as it draws it; else the Deta Loading Bar's), else Zen's
+  // own indicator's, whose variable lives on its element only.
   const ZEN_LOADING = "var(--zen-loading-progress-bar-color, color-mix(in srgb, var(--zen-primary-color), " +
     "light-dark(rgba(0, 0, 0, 0.5), rgba(255, 255, 255, 0.5)) 70%))";
   function loadingColours(near) {
-    const deta = Services.prefs.getBoolPref("mod.detaloadingbar.enabled", false);
-    // The mod sets its colours on the root.
-    const host = deta ? document.documentElement : document.getElementById("zen-loading-progress-bar") || near || document.documentElement;
-    const read = value => {
+    const root = document.documentElement, set = name => !!getComputedStyle(root).getPropertyValue(name).trim();
+    const read = (value, host = root) => {
       const probe = host.appendChild(document.createElementNS("http://www.w3.org/1999/xhtml", "div"));
       probe.style.color = value;
       const colour = getComputedStyle(probe).color;
       probe.remove();
       return colour;
     };
-    if (!deta) { const c = read(ZEN_LOADING); return [c, c]; }
-    const main = read("var(--mod-detaloadingbar-primarycolor-final, var(--zen-primary-color))");
-    return [main, read(`var(--mod-detaloadingbar-secondarycolor-final, ${main})`)];
+    if (set("--blended-addressbar-dynamic-loadbar-color")) {
+      const main = read("var(--blended-addressbar-dynamic-loadbar-color)");
+      return [main, read(`color-mix(in srgb, ${main} 25%, white)`)];
+    }
+    if (set("--mod-detaloadingbar-primarycolor-final")) {
+      const main = read("var(--mod-detaloadingbar-primarycolor-final)");
+      return [main, read(`var(--mod-detaloadingbar-secondarycolor-final, ${main})`)];
+    }
+    const c = read(ZEN_LOADING, document.getElementById("zen-loading-progress-bar") || near || root);
+    return [c, c];
   }
   // A switch that lands you in another window gives no sign of its own:
   // once the switch (and any change of space) is done and the window shows

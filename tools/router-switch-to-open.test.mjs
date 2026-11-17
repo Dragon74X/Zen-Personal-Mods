@@ -436,18 +436,20 @@ test("Two pills run in from the sides along the bottom of the page once the swit
   const stack = box(4, 156, 180, 44), background = { ...box(8, 160, 172, 36, "static", "6px"), parentNode: stack };
   // Zen's loading indicator, which carries its colour variable; the Deta
   // Loading Bar mod's colours when it is on.
-  let deta = false, switchDone = null;
+  let switchDone = null;
+  const vars = {};
   const probes = [], indicator = { appendChild(el) { probes.push(el); el.remove = () => { el.removed = true; }; return el; } };
   const colourOf = value => value.startsWith("var(--zen-loading-progress-bar-color") ? "rgba(200, 180, 230, 0.65)"
+    : value.startsWith("var(--blended-addressbar-dynamic-loadbar-color") ? "rgb(50, 29, 70)"
+    : value === "color-mix(in srgb, rgb(50, 29, 70) 25%, white)" ? "rgb(204, 199, 209)"
     : value.startsWith("var(--mod-detaloadingbar-primarycolor-final") ? "rgb(140, 80, 200)" : value.startsWith("var(--mod-detaloadingbar-secondarycolor-final") ? "rgb(255, 255, 255)" : "?";
   const gBrowser = { _switcher: null, addEventListener: (type, fn) => { if (type === "TabSwitchDone") switchDone = fn; }, removeEventListener() {} };
   const ctx = vm.createContext({ retired: false, innerHeight: 1080, gBrowser,
-    Services: { prefs: { getBoolPref: name => name === "mod.detaloadingbar.enabled" && deta } },
     setTimeout: (fn, ms) => { if (ms < 1000) fn(); return 0; }, clearTimeout() {},
     document: { documentElement: indicator, createElementNS: element,
       getElementById: id => ({ "tabbrowser-tabbox": tabbox, "tabbrowser-tabpanels": panels, "zen-loading-progress-bar": indicator })[id] },
     getComputedStyle: el => (el.style?.color ? { color: colourOf(el.style.color) }
-      : { position: el.position, borderBottomLeftRadius: el.radius, borderBottomRightRadius: el.radius }),
+      : { position: el.position, borderBottomLeftRadius: el.radius, borderBottomRightRadius: el.radius, getPropertyValue: name => vars[name] || "" }),
     matchMedia: () => ({ matches: reduced }), requestAnimationFrame: fn => frames.push(fn) });
   vm.runInContext(between("  // A window that has to show another page first is still painting it", "  // Every window publishes the whole set")
     + "\nthis.markArrival = markArrival; this.markDeparture = markDeparture; this.arrivals = arrivals;", ctx);
@@ -528,19 +530,25 @@ test("Two pills run in from the sides along the bottom of the page once the swit
   await settle();
   frames.shift()();
   assert.equal(appended.length, 4, "then the pills");
-  // The Deta Loading Bar mod, when on, gives the colours: its main colour, brightest at the head in its middle one.
-  deta = true;
+  // An address bar mod that draws a loading bar gives the colours, known by the variable its stylesheet sets
+  // (a disabled mod's leftover settings set none): Blended Addressbar's, its head whitened as it draws it.
+  vars["--blended-addressbar-dynamic-loadbar-color"] = " rgb(50, 29, 70)";
   await draw();
-  assert.match(appended[4].children[1].style.background, /^linear-gradient\(to right, transparent, rgb\(140, 80, 200\) 60%, rgb\(255, 255, 255\)\)$/);
-  deta = false;
+  assert.match(appended[4].children[1].style.background, /^linear-gradient\(to right, transparent, rgb\(50, 29, 70\) 60%, rgb\(204, 199, 209\)\)$/);
+  delete vars["--blended-addressbar-dynamic-loadbar-color"];
+  // The Deta Loading Bar's: its main colour, brightest at the head in its middle one.
+  vars["--mod-detaloadingbar-primarycolor-final"] = " rgb(140, 80, 200)";
+  await draw();
+  assert.match(appended[5].children[1].style.background, /^linear-gradient\(to right, transparent, rgb\(140, 80, 200\) 60%, rgb\(255, 255, 255\)\)$/);
+  delete vars["--mod-detaloadingbar-primarycolor-final"];
   // The window you leave plays it the other way, at once: even mid-switch, after one frame.
   gBrowser._switcher = {};
   ctx.markDeparture();
   assert.equal(frames.length, 1, "no waiting for any switch");
   frames.shift()();
   gBrowser._switcher = null;
-  const leaving = appended[5], [parting, outLeft, outRight] = leaving.children;
-  assert.ok(appended.length === 6 && leaving.holder === tabbox, "below the page you leave, and not on its tab");
+  const leaving = appended[6], [parting, outLeft, outRight] = leaving.children;
+  assert.ok(appended.length === 7 && leaving.holder === tabbox, "below the page you leave, and not on its tab");
   const [rise] = parting.anims, risen = opacityByMs(rise.keyframes, rise.options), [riseAt, riseUntil] = atFullStrength(risen);
   const lift = valueByMs(rise.keyframes, rise.options, k => Number(/translateY\((-?[\d.]+)(?:px)?\)/.exec(k.transform)[1]));
   assert.ok(parting.style.opacity === "0" && risen[0] < 1e-6 && lift[0] === 7 && lift[180] < 1e-6,
@@ -558,10 +566,10 @@ test("Two pills run in from the sides along the bottom of the page once the swit
   ctx.markArrival(tab);
   await settle();
   frames.shift()();
-  assert.equal(appended.length, 6, "a released copy draws nothing");
+  assert.equal(appended.length, 7, "a released copy draws nothing");
   // The README says what it looks like.
   const readme = (await readFile(new URL("../tab-router/README.md", import.meta.url), "utf8")).replace(/\s+/g, " ");
-  assert.match(readme, /two pill-shaped gleams in the loading bar's colour \(Zen's own loading indicator's, or the Deta Loading Bar mod's when it is on\) run in from the sides/);
+  assert.match(readme, /two pill-shaped gleams in the loading bar's colour \(Blended Addressbar's or the Deta Loading Bar's when one draws it, else Zen's own loading indicator's\) run in from the sides/);
 });
 
 test("Release restores Zen's switchIfNeeded and removes live bars", () => {

@@ -88,8 +88,8 @@ changes space as needed.
 
 When a switch lands you in another window -- one of these, or the address
 bar's **Switch to Tab** -- that window comes forward and, once it shows the
-page, two pill-shaped gleams in the loading bar's colour (Zen's own loading
-indicator's, or the Deta Loading Bar mod's when it is on) run in from the sides along
+page, two pill-shaped gleams in the loading bar's colour (Blended Addressbar's or the Deta Loading Bar's
+when one draws it, else Zen's own loading indicator's) run in from the sides along
 the bottom of its page (on the window's margin just below it), gathering speed like waves, then run
 into each other in the middle and merge into one pill that swells and fades,
 so the eye finds it; the window you leave plays it the other way at once,

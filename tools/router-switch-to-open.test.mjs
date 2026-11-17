@@ -295,6 +295,41 @@ test("Tab Router's switch raises the window holding the tab, and marks the arriv
   assert.deepEqual([raised, marked], [["A"], []], "from another app: raised, as Firefox would, with no ring");
 });
 
+// The opacity Web Animations computes at each millisecond: the effect's easing
+// maps the time to the iteration's progress, then the keyframe that opens each
+// interval eases it (CSS Easing's cubic-béziers).
+const BEZIER = { linear: [0, 0, 1, 1], ease: [0.25, 0.1, 0.25, 1], "ease-in": [0.42, 0, 1, 1],
+  "ease-out": [0, 0, 0.58, 1], "ease-in-out": [0.42, 0, 0.58, 1] };
+function ease(name = "linear", x) {
+  assert.ok(BEZIER[name], `known easing ${name}`);
+  const [x1, y1, x2, y2] = BEZIER[name], at = (a, b, t) => 3 * a * t * (1 - t) ** 2 + 3 * b * t * t * (1 - t) + t ** 3;
+  let lo = 0, hi = 1;
+  for (let i = 0; i < 60; i++) { const mid = (lo + hi) / 2; if (at(x1, x2, mid) < x) lo = mid; else hi = mid; }
+  return at(y1, y2, (lo + hi) / 2);
+}
+function opacityByMs(keyframes, { duration, easing }) {
+  const offsets = keyframes.map((k, i) => k.offset ?? (i === 0 ? 0 : i === keyframes.length - 1 ? 1 : null));
+  assert.ok(!offsets.includes(null), "every middle keyframe names its offset");
+  return Array.from({ length: duration + 1 }, (_, ms) => {
+    const p = ease(easing, ms / duration);
+    let i = 0;
+    while (i < keyframes.length - 2 && p > offsets[i + 1]) i++;
+    const local = (p - offsets[i]) / (offsets[i + 1] - offsets[i]);
+    return keyframes[i].opacity + (keyframes[i + 1].opacity - keyframes[i].opacity) * ease(keyframes[i].easing, local);
+  });
+}
+const atFullStrength = curve => [curve.findIndex(o => o >= 0.99), curve.findLastIndex(o => o >= 0.99)];
+
+test("The timing model matches Web Animations: an effect's easing bends the time to every keyframe", () => {
+  // 440fa45 ran ease-in-out over the whole effect: its 0.12 keyframe came at
+  // 265 ms, not 132 (Windows CI measured full strength 269 ms after the ring was added).
+  const [bent] = atFullStrength(opacityByMs([{ opacity: 0 }, { opacity: 1, offset: 0.12 }, { opacity: 1, offset: 0.55 }, { opacity: 0 }],
+    { duration: 1100, easing: "ease-in-out" }));
+  assert.ok(bent > 250 && bent < 290, `ease-in-out over the effect: full at ${bent} ms`);
+  const [straight] = atFullStrength(opacityByMs([{ opacity: 0 }, { opacity: 1, offset: 0.12 }, { opacity: 0 }], { duration: 1100 }));
+  assert.ok(Math.abs(straight - 131) <= 1, `linear: full at ${straight} ms`);
+});
+
 test("The arrival ring fades on the compositor once the switch is done, removes itself, and goes on release", async () => {
   const appended = [], frames = [], settle = () => new Promise(setImmediate);
   let reduced = false;
@@ -333,11 +368,16 @@ test("The arrival ring fades on the compositor once the switch is done, removes 
   assert.ok(tabRing.holder === stack && tabRing.style.left === "4px" && tabRing.style.top === "4px" && tabRing.style.width === "172px",
     "the tab's ring sits in the tab, over its background, and moves with it");
   assert.equal(tabRing.style.position, "absolute");
-  assert.deepEqual(Array.from(appended[0].fade.keyframes, k => Object.keys(k).filter(p => p !== "offset").join() + k.opacity),
+  assert.deepEqual(Array.from(appended[0].fade.keyframes, k => Object.keys(k).filter(p => p !== "offset" && p !== "easing").join() + k.opacity),
     ["opacity0", "opacity1", "opacity1", "opacity0"], "opacity only");
-  const offsets = Array.from(appended[0].fade.keyframes, k => k.offset);
-  assert.ok(offsets[1] <= 0.15 && offsets[2] >= 0.5, "in fast, then held at full strength before the fade: a window drawing few frames still shows it");
   assert.equal(appended[0].fade.options.duration, 1100);
+  // Real times, as Web Animations runs them: a window drawing few frames as it
+  // comes forward (software WebRender) still catches it at full strength.
+  const curve = opacityByMs(appended[0].fade.keyframes, appended[0].fade.options), [fullAt, fullUntil] = atFullStrength(curve);
+  assert.ok(fullAt > 0 && fullAt <= 150, `in fast: full strength at ${fullAt} ms`);
+  assert.ok(fullUntil - fullAt >= 450, `then held: full strength from ${fullAt} to ${fullUntil} ms`);
+  assert.ok(curve[0] < 1e-6 && curve.at(-1) < 1e-6 && curve.every((o, ms) => !ms || (ms <= fullAt ? o >= curve[ms - 1] : ms > fullUntil ? o <= curve[ms - 1] : true)),
+    "rises, holds, then fades away, with no flicker");
   assert.equal(appended[0].style.border, "2px solid rgb(1, 2, 3)", "a line in Zen's accent");
   assert.equal(appended[0].style.boxSizing, "border-box", "inside what it rings");
   assert.equal(appended[0].children[0].style.inset, "-2px", "the soft band shares the ring's shape");
@@ -356,6 +396,8 @@ test("The arrival ring fades on the compositor once the switch is done, removes 
   frames.shift()();
   assert.equal(appended[2].fade.options.duration, 700, "shorter with reduced motion");
   assert.deepEqual(Array.from(appended[2].fade.keyframes, k => k.opacity), [1, 1, 0], "with reduced motion it shows at once, holds, and fades out");
+  const still = opacityByMs(appended[2].fade.keyframes, appended[2].fade.options), [stillAt, stillUntil] = atFullStrength(still);
+  assert.ok(stillAt === 0 && stillUntil >= 450 && still.at(-1) < 1e-6, `reduced motion: full strength from 0 to ${stillUntil} ms`);
   stack.position = "static";
   ctx.markArrival(tab);
   await settle();

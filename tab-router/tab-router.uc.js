@@ -2275,11 +2275,13 @@
   // (the tab list shifts when a tab opened and closed for the switch leaves,
   // and scrolls a tab out of view into it). Opacity only (compositor); each
   // ring removes itself when it ends, and on release.
-  // Drawn with borders, not inset box-shadows: a window-sized inset shadow
-  // costs WebRender (software, as on Windows without a usable GPU) hundreds
-  // of milliseconds a frame, so the fade reached the screen late or not at
-  // all. It comes in fast and holds at full strength before it fades, so
-  // even a window that draws few frames as it comes forward shows it.
+  // Drawn with borders, not inset box-shadows: under software WebRender (as
+  // on Windows without a usable GPU) a window-sized inset shadow costs
+  // hundreds of milliseconds a frame, so the fade reached the screen late or
+  // not at all. The effect runs linear, so each offset is a real time and the
+  // easing lives on the keyframes: full strength within 132 ms, held to
+  // 605 ms, gone at 1100 ms. A window that draws few frames as it comes
+  // forward still shows it at full strength.
   const arrivals = new Set();
   function markArrival(tab, switching) {
     Promise.resolve(switching).catch(() => {}).then(() => requestAnimationFrame(() => {
@@ -2304,9 +2306,9 @@
         holder.appendChild(glow);
         arrivals.add(glow);
         const done = () => { arrivals.delete(glow); glow.remove(); };
-        glow.animate(brief ? [{ opacity: 1 }, { opacity: 1, offset: 0.7 }, { opacity: 0 }]
-          : [{ opacity: 0 }, { opacity: 1, offset: 0.12 }, { opacity: 1, offset: 0.55 }, { opacity: 0 }],
-          { duration: brief ? 700 : 1100, easing: "ease-in-out" }).finished.then(done, done);
+        glow.animate(brief ? [{ opacity: 1 }, { opacity: 1, offset: 0.7, easing: "ease-in-out" }, { opacity: 0 }]
+          : [{ opacity: 0, easing: "ease-out" }, { opacity: 1, offset: 0.12 }, { opacity: 1, offset: 0.55, easing: "ease-in-out" }, { opacity: 0 }],
+          { duration: brief ? 700 : 1100, easing: "linear" }).finished.then(done, done);
       };
       const page = tab.linkedBrowser?.closest(".browserSidebarContainer") || document.getElementById("tabbrowser-tabpanels");
       ring(page, page);

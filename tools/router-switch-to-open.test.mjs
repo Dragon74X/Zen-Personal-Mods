@@ -32,7 +32,7 @@ test("A real click on a link to an open page is cancelled and switched; everythi
   const { sent, click } = child();
   let e = click("https://www.example.com/b/?utm_source=x#top");
   assert.ok(e.prevented && e.stopped, "the same page, ignoring www., a trailing slash, tracking and the anchor");
-  assert.deepEqual(sent.pop(), ["ZzRouter:SwitchTo", { key: "example.com/b", ctx: 0, href: "https://www.example.com/b/?utm_source=x#top", newTab: false }]);
+  assert.deepEqual(sent.pop(), ["ZzRouter:SwitchTo", { href: "https://www.example.com/b/?utm_source=x#top", newTab: false }]);
   e = click("https://example.com/b", { ctrlKey: true });
   assert.equal(sent.pop()[1].newTab, true, "a Ctrl-click is a new-tab click");
   for (const [why, href, extra] of [
@@ -54,7 +54,8 @@ test("A real click on a link to an open page is cancelled and switched; everythi
 
 function opener({ open = new Map(), enabled = false, plan = null, native = null } = {}) {
   const src = router.slice(router.indexOf("  let copyNext = false;"), router.indexOf("  // One shared patch on Firefox's click handler"))
-    + router.slice(router.indexOf("  function copyWhile(fn) {"), router.indexOf("  // A new tab whose first page is open elsewhere closes and switches there."));
+    + router.slice(router.indexOf("  function copyWhile(fn) {"), router.indexOf("  // A new tab whose first page is open elsewhere closes and switches there."))
+    + router.slice(router.indexOf("  function allowCopy("), router.indexOf("  function takeCopy("));
   const log = { native: [], switched: [], placed: [] }, copies = new Map(), microtasks = [];
   const groups = { Local: { label: "Local", isConnected: true, addTabs(tabs) { for (const t of tabs) { t.group = this; log.placed.push(t.id); } } } };
   let ctx;
@@ -62,15 +63,15 @@ function opener({ open = new Map(), enabled = false, plan = null, native = null 
       scriptSecurityManager: { getSystemPrincipal: () => "system" } },
     window: { openLinkIn: native ? (...a) => native(log, ctx, ...a) : (...a) => log.native.push(a), gZenWorkspaces: { activeWorkspace: "ws1" } },
     gBrowser: { getTabForBrowser: () => null, addTab: () => null }, retired: false, note: () => {},
-    bool: (k, d) => k === "enabled" ? enabled : k === "follow-containers" ? true : d, switchOn: () => true, isPrivate: () => false,
+    bool: (k, d) => k === "enabled" ? enabled : k === "follow-containers" ? true : d, switchOn: () => true, privateWindow: false,
     pageKey: u => { try { return new URL(u).host + new URL(u).pathname; } catch { return null; } },
-    contextOf: () => 0, copyAllowed: () => copies, openTabFor: (c, key) => open.get(key) || null,
+    contextOf: () => 0, copyAllowed: () => copies, COPY_MS: 10000, openTabFor: (c, key) => open.get(key) || null,
     openTargetFor: (c, key) => open.has(key) ? { tab: open.get(key) } : null,
     goTo: target => { log.switched.push(target.tab.id); return target.tab.id; },
     switchTo: tab => log.switched.push(tab.id),
     hostOf: t => t.linkedBrowser.currentURI.host, targetPath: () => (plan ? ["Local"] : null),
     resolveDestination: () => ({ ws: "ws1", ctx: plan?.ctx ?? null }), findChild: name => groups[name] || null,
-    nativeManaged: () => false, queueMicrotask: fn => microtasks.push(fn) });
+    queueMicrotask: fn => microtasks.push(fn) });
   vm.runInContext(src + "\nthis.openLinkIn = openLinkIn; this.copyWhile = copyWhile; this.placeOpened = placeOpened;", ctx);
   return { ctx, log, copies, microtasks, groups };
 }
@@ -81,9 +82,11 @@ test("A new-tab open of a page that is already open switches before any tab exis
   ctx.openLinkIn("https://example.com/b", "tab", { userContextId: 0 });
   assert.deepEqual(log.switched, ["b"]);
   assert.equal(log.native.length, 0, "Firefox never creates the tab");
+  copies.set("0|example.com/never-loaded", Date.now() - 10000);
   ctx.copyWhile(() => ctx.openLinkIn("https://example.com/b", "tab", {}));
   assert.equal(log.native.length, 1, "an Alt-click opens the copy");
   assert.ok(copies.has("0|example.com/b"), "and the copy's first page is not switched away afterwards");
+  assert.ok(!copies.has("0|example.com/never-loaded"), "a copy whose tab never loaded is let go");
   ctx.openLinkIn("https://example.com/b", "current", {});
   ctx.openLinkIn("https://example.com/c", "tab", {});
   assert.equal(log.native.length, 3, "same-tab loads and pages that are not open go through");
@@ -136,7 +139,7 @@ test("A link clicked in a folder's own page opens in its own tab; elsewhere it n
   const { sent, click } = child([], [7]);
   let e = click("https://example.com/next");
   assert.ok(e.prevented);
-  assert.deepEqual(sent.pop(), ["ZzRouter:OpenFromPage", { key: "example.com/next", ctx: 0, href: "https://example.com/next" }]);
+  assert.deepEqual(sent.pop(), ["ZzRouter:OpenFromPage", { href: "https://example.com/next" }]);
   e = click("https://example.com/a#part");
   assert.ok(!e.prevented, "an anchor on the page itself stays");
   e = click("https://example.com/next", { altKey: true });
@@ -166,13 +169,6 @@ test("A link to a folder's page goes to the folder, ahead of a Favorite showing 
   assert.deepEqual(opened, ["e33"], "Groupflow opens the folder's own tab, hidden as its header from the start");
   assert.equal(ctx.openTargetFor(0, "nexusmods.com/other").tab, favorite, "pages no folder stands for still go to their tab");
   assert.equal(ctx.openTargetFor(0, "nowhere.example"), null, "and pages open nowhere navigate as usual");
-});
-
-test("A folder's page tab stays its page when the site moves on, and is hidden from the moment it is marked", () => {
-  const listener = groupflow.slice(groupflow.indexOf("    const progress = {"), groupflow.indexOf("    function setPage("));
-  assert.ok(!/unmark\(/.test(listener), "no navigation releases the page tab as a visible row");
-  const mark = groupflow.slice(groupflow.indexOf("    function mark(tab, group) {"), groupflow.indexOf("    function unmark(tab) {"));
-  assert.match(mark, /setAttribute\("zzgf-page-tab"/);
 });
 
 test("A folder's page tab is never switched away on its first load, redirects included", () => {

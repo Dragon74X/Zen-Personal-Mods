@@ -192,18 +192,20 @@ part with its own setting (all on by default):
   edges while it scrolls, so folders, subfolders and tabs fade as they leave
   the list even when no folder scrolls inside itself, and with **Scroll
   inside folders** off.
-- **Arrows on hover:** hovering the folder's header shows only directions
-  that can scroll; clicking one scrolls a page that way. The same eligible
-  actions are available through the folder menu for keyboard access. Reduced
-  motion reaches the same final position without a custom glide.
 - **Tab count on hover:** hovering the right end of any folder or subfolder
   header, where the chip sits, shows how many tabs it holds, subfolders
   included. Its tooltip/menu reports loaded,
   total and playing counts. Selection-only changes reuse membership counts.
+  Native Zen folders keep their own header controls, so their counts are in
+  the tooltip only.
 
-Icon-only sidebars hide the count and scroll chips so they cannot overlap the
-folder's collapse/close targets. Expand the sidebar to use those chips; wheel
-scrolling and selected-tab visibility retain their existing behavior.
+The folder's menu offers **Scroll folder up** and **Scroll folder down** for
+each direction that can still scroll; each scrolls a page that way. Reduced
+motion reaches the same final position without a custom glide.
+
+Icon-only sidebars hide the count chip so it cannot overlap the folder's
+collapse/close targets. Expand the sidebar to use it; wheel scrolling and
+selected-tab visibility retain their existing behavior.
 
 A folder that fits has nothing to scroll, so its connector scrolls the list.
 With Firefox's **switch tabs by scrolling** setting on
@@ -438,12 +440,13 @@ separate surfaces:
 - **Gradient direction** is set to *Match Glassflow* by default and tracks
   it live from there.
 
-**Follow Glassflow's edge fade** is off by default, and is the one to turn on
-if you want group headers and tabs to light and fade on the same axis: it
-takes the fade axis and reach from Glassflow's tab edges. The per-state rim
-strengths already reach this mod on their own — only the axis and reach need
-adopting, and a different axis for groups is a fair choice, which is why it is
-opt-in.
+**Follow Glassflow's edge side** is off by default, and is the one to turn on
+if you want group headers and tabs to light from the same side: with **Rim
+light on headers** on, the header's rim fades from the side Glassflow's
+unselected tabs draw their rim line on, over 60% of the header (Glassflow has
+no fade reach of its own). A different side for groups is a fair choice, which
+is why it is opt-in. Folder state profiles keep their own rim direction and
+reach.
 
 ## Corner shape (Zen 1.22b squircles)
 

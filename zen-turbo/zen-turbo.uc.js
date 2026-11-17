@@ -48,7 +48,7 @@
     if (!bool("debug", false)) return;
     log.push([Date.now(), m]);
     if (log.length > 200) log.shift();
-    if (bool("debug", false)) console.log("[ZenTurbo]", m);
+    console.log("[ZenTurbo]", m);
   };
 
   // Only one window should own pref application; every window may warm
@@ -67,7 +67,6 @@
     network: [
       ["network.http.max-persistent-connections-per-server", 10],
       ["network.http.pacing.requests.enabled", false],
-      ["network.http.speculative-parallel-limit", 12],
       ["network.dnsCacheEntries", 2000],
       ["network.dnsCacheExpiration", 3600],
       ["network.ssl_tokens_cache_capacity", 32768],
@@ -75,11 +74,6 @@
     // Reuse Firefox's native page-link hover preconnect on HTTPS pages.
     predictor: [
       ["network.predictor.enable-hover-on-ssl", true],
-    ],
-    // A minimum spacing, not a reason to shorten a newer native interval.
-    // Zen 1.24 already uses 40s. applyPack releases our old 30s override there.
-    "io-jank": [
-      ["browser.sessionstore.interval", 30000],
     ],
     // Requests a 64 MiB media memory cache; actual reuse depends on workload.
     media: [
@@ -157,19 +151,6 @@
       // An existing snapshot means this pack already applied. Re-syncing
       // must not overwrite a later user edit, including after a restart.
       const current = getAny(name);
-      if (packName === "io-jank") {
-        const prior = saved[name];
-        let original = current;
-        if (prior?.had) original = prior.v;
-        else if (prior) {
-          try { original = Services.prefs.getDefaultBranch("").getIntPref(name); }
-          catch { original = undefined; }
-        }
-        if (typeof original === "number" && original >= v) {
-          if (prior) changed = revertPack(packName, saved) || changed;
-          continue;
-        }
-      }
       if (current === v || name in saved) continue;
       const before = Services.prefs.prefHasUserValue(name)
         ? { had: true, v: current } : { had: false };
@@ -263,7 +244,7 @@
       const hit = at !== undefined && Date.now() - at < warmTtlMs();
       if (hit) stats.hits++; else stats.cold++;
       if (hit) bumpOrigin(uri.prePath, "hits");
-      if (bool("debug", false)) note(`${hit ? "HIT" : "cold"} ${uri.prePath}`);
+      note(`${hit ? "HIT" : "cold"} ${uri.prePath}`);
     } catch {}
   }
   // A private window's warmups go to the private connection pool, never
@@ -300,11 +281,19 @@
   let warmupTimer = null, warmIdle = null, startupDue = false;
   const startupWarmTimers = new Set();
   let warmupEpoch = 0;
+  // While the startup warmup is due, a tab selection or a change in the
+  // selected tab's loading state may be the moment it can run.
+  function setStartupDue(due) {
+    if (due === startupDue) return;
+    startupDue = due;
+    for (const type of ["TabAttrModified", "TabSelect"])
+      gBrowser.tabContainer[due ? "addEventListener" : "removeEventListener"](type, onReadyEvent);
+  }
   function cancelStartupWarmup() {
     warmupEpoch++;
     clearTimeout(warmupTimer); warmupTimer = null;
     if (warmIdle !== null) window.cancelIdleCallback(warmIdle);
-    warmIdle = null; startupDue = false;
+    warmIdle = null; setStartupDue(false);
     for (const id of startupWarmTimers) clearTimeout(id);
     startupWarmTimers.clear();
   }
@@ -317,9 +306,12 @@
     warmIdle = window.requestIdleCallback(() => {
       warmIdle = null;
       if (gBrowser.selectedTab?.hasAttribute("busy")) return;
-      startupDue = false;
+      setStartupDue(false);
       startupWarmup();
     });
+  }
+  function onReadyEvent(event) {
+    if (event.type === "TabSelect" || event.target === gBrowser.selectedTab && event.detail?.changed?.includes("busy")) warmWhenReady();
   }
 
   // ---- startup warmup -----------------------------------------------------
@@ -393,9 +385,6 @@
       stats.byOrigin.clear();
     }
   }
-  function onReadyEvent(event) {
-    if (event.type === "TabSelect" || event.target === gBrowser.selectedTab && event.detail?.changed?.includes("busy")) warmWhenReady();
-  }
 
   // ---- wiring -------------------------------------------------------------
   // Only the strips that move are marked. A single mark on :root restyled
@@ -466,12 +455,10 @@
     Services.obs.addObserver(forgetWarmups, "browser:purge-session-history");
 
     syncMeasurement();
-    gBrowser.tabContainer.addEventListener("TabAttrModified", onReadyEvent);
-    gBrowser.tabContainer.addEventListener("TabSelect", onReadyEvent);
 
     if (bool("startup-warmup", true) && !isPrivate() && isMainAppWindow()) {
       window.gZenStartup.promiseInitialized.then(() => {
-        if (!retired) warmupTimer = setTimeout(() => { startupDue = true; warmWhenReady(); }, Math.max(0, num("startup-warm-delay-ms", 4000)));
+        if (!retired) warmupTimer = setTimeout(() => { setStartupDue(true); warmWhenReady(); }, Math.max(0, num("startup-warm-delay-ms", 4000)));
       });
     }
 
@@ -522,8 +509,6 @@
       cancelStartupWarmup();
       syncMeasurement();
       log = []; recentWarm.clear();
-      gBrowser.tabContainer.removeEventListener("TabAttrModified", onReadyEvent);
-      gBrowser.tabContainer.removeEventListener("TabSelect", onReadyEvent);
     };
     window.addEventListener("unload", cleanup, { once: true });
     // Registered with Sine, so an update re-injects this script live, no

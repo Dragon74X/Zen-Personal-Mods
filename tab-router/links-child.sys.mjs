@@ -24,6 +24,8 @@ export function pageKey(url) {
 // bounded here and checked again by the parent, which treats it as untrusted.
 const MAX = 500;
 const text = value => typeof value === "string" ? value.replace(/\s+/g, " ").trim().slice(0, MAX) : "";
+// Structured data gives a value, or a list of them.
+const first = value => [].concat(value || [])[0];
 function authorsFromJSON(node, out, types, depth = 0) {
   if (!node || typeof node !== "object" || depth > 6 || out.length > 8) return;
   if (Array.isArray(node)) { for (const item of node) authorsFromJSON(item, out, types, depth + 1); return; }
@@ -31,7 +33,11 @@ function authorsFromJSON(node, out, types, depth = 0) {
   for (const field of ["author", "creator"]) {
     for (const who of [].concat(node[field] || [])) {
       if (typeof who === "string") out.push({ name: text(who), url: "" });
-      else if (who && typeof who === "object") out.push({ name: text(who.name || who.alternateName), url: text(who.url || who["@id"] || who.sameAs?.[0] || ""), image: text(typeof who.image === "string" ? who.image : who.image?.url || "") });
+      else if (who && typeof who === "object") {
+        const image = first(who.image);
+        out.push({ name: text(who.name || who.alternateName), url: text(who.url || who["@id"] || first(who.sameAs)),
+          image: text(typeof image === "string" ? image : image?.url) });
+      }
     }
   }
   for (const value of Object.values(node)) if (value && typeof value === "object") authorsFromJSON(value, out, types, depth + 1);
@@ -77,29 +83,29 @@ export class ZzRouterLinksChild extends JSWindowActorChild {
   }
   handleEvent(event) {
     // Middle-clicks never reach this listener; Tab Router checks them in the
-    // parent, where Firefox opens the new tab, before the tab exists.
-    if (!event.isTrusted || event.defaultPrevented || event.button !== 0) return;
+    // parent, where Firefox opens the new tab, before the tab exists. Alt
+    // opens a deliberate copy and Shift a new window.
+    if (!event.isTrusted || event.defaultPrevented || event.button !== 0 || event.altKey || event.shiftKey) return;
     const link = event.composedPath().find(node =>
       (node?.localName === "a" || node?.localName === "area") && typeof node.href === "string" && node.href);
-    if (!link || link.hasAttribute("download") || event.shiftKey) return;
+    if (!link || link.hasAttribute("download")) return;
     const href = link.href, key = pageKey(href);
     if (!key || key === pageKey(this.document.documentURI)) return;   // same page, #anchor or not a web page
     const ctx = this.browsingContext.originAttributes?.userContextId || 0;
     const newTab = event.ctrlKey || event.metaKey || link.target === "_blank";
-    if (event.altKey) return;            // a deliberate copy
     let open = null, pageTabs = null;
     try { open = Services.cpmm.sharedData.get(OPEN_PAGES); pageTabs = Services.cpmm.sharedData.get(PAGE_TABS); } catch {}
     if (open?.has?.(`${ctx}|${key}`)) {
       event.preventDefault();
       event.stopImmediatePropagation();
-      this.sendAsyncMessage("ZzRouter:SwitchTo", { key, ctx, href, newTab });
+      this.sendAsyncMessage("ZzRouter:SwitchTo", { href, newTab });
       return;
     }
     // A folder's own page stays on it: the link opens in its own tab.
     if (!newTab && pageTabs?.has?.(this.browsingContext.browserId)) {
       event.preventDefault();
       event.stopImmediatePropagation();
-      this.sendAsyncMessage("ZzRouter:OpenFromPage", { key, ctx, href });
+      this.sendAsyncMessage("ZzRouter:OpenFromPage", { href });
     }
   }
 }

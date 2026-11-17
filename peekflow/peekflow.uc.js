@@ -132,7 +132,7 @@
 
   // ---- the preview panel ------------------------------------------------------
   let tabPanel = null, panel = null, current = null, retired = false;
-  let shotImg = null, shotTab = null, shotURL = null;
+  let shotImg = null, shotBlob = null, shotURL = null;
   // Firefox shows the selected tab without a picture, as you are looking at
   // it; Peekflow takes one as you point at it, shown and not kept.
   let live = null;                          // { tab, canvas }
@@ -164,12 +164,12 @@
     const shot = unloaded && !selected && pictures && bool("last-view", true) ? shots.get(tab) : null;
     let picture = pictures && selected && live?.tab === tab ? live.canvas : null;
     if (shot) {
-      if (shotTab !== tab) {
+      if (shotBlob !== shot.blob) {
         if (shotURL) URL.revokeObjectURL(shotURL);
         shotURL = URL.createObjectURL(shot.blob);
         shotImg ??= Object.assign(document.createElementNS(HTML, "img"), { className: "zzpeek-shot", alt: "" });
         shotImg.src = shotURL;
-        shotTab = tab;
+        shotBlob = shot.blob;
       }
       picture = shotImg;
     }
@@ -242,7 +242,7 @@
     shotImg?.remove();
     live?.canvas.remove();
     if (shotURL) URL.revokeObjectURL(shotURL);
-    tabPanel = panel = current = shotImg = shotTab = shotURL = live = null;
+    tabPanel = panel = current = shotImg = shotBlob = shotURL = live = null;
   }
 
   const observer = { observe(_, __, name) {
@@ -255,6 +255,15 @@
     }
     if (!bool("show", true)) release(); else { adopt(); dress(); }
   } };
+  // Waiting for delayed startup. cleanup() drops the observer: a window closed
+  // before then never fires the topic, and the observer service would keep the
+  // whole window alive; a retired copy must not start when it does fire.
+  let obs = null;
+  const stopWaiting = () => {
+    if (!obs) return;
+    try { Services.obs.removeObserver(obs, "browser-delayed-startup-finished"); } catch {}
+    obs = null;
+  };
   function start() {
     instance.active = true;
     syncFirefox(false);
@@ -268,6 +277,7 @@
   function cleanup() {
     if (retired) return;
     retired = true;
+    stopWaiting();
     instance.active = false;
     try { S.removeObserver(P, observer); } catch {}
     window.removeEventListener("TabSelect", onSelect, true);
@@ -286,18 +296,11 @@
 
   if (window.gBrowserInit?.delayedStartupFinished) start();
   else {
-    const obs = (subject) => {
+    obs = (subject) => {
       if (subject !== window) return;
       stopWaiting();
-      if (!retired) start();
-    };
-    // A window closed before delayed startup never fires the topic, and the
-    // observer service would keep this whole window alive for the session.
-    const stopWaiting = () => {
-      window.removeEventListener("unload", stopWaiting);
-      try { Services.obs.removeObserver(obs, "browser-delayed-startup-finished"); } catch {}
+      start();
     };
     Services.obs.addObserver(obs, "browser-delayed-startup-finished");
-    window.addEventListener("unload", stopWaiting, { once: true });
   }
 })();

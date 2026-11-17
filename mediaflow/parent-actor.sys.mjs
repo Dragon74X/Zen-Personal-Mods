@@ -9,37 +9,19 @@ const FAST_FRAMES_BEFORE_UPGRADE = 30;
 const SAFETY_TICK_MS = 500;
 const CAPTION_TICK_MS = 50;
 
-const DEBUG = false;
-const dlog = DEBUG ? (...a) => console.log(...a) : () => {};
-
 export class ZzMediaflowParent extends JSWindowActorParent {
-  actorCreated() {
-    dlog(
-      "[Mediaflow/parent] actorCreated for browsing context",
-      this.browsingContext?.id,
-    );
-  }
-
   async receiveMessage(msg) {
-    if (msg.name === "ZenPiP:Debug") {
-      if (DEBUG) {
-        const argsArr = Array.isArray(msg.data?.args) ? msg.data.args : null;
-        if (argsArr && argsArr.length > 0) console.log(...argsArr);
-      }
-      return;
-    }
-
     if (this.manager && this.browsingContext.currentWindowGlobal && this.manager !== this.browsingContext.currentWindowGlobal) return;
     const win = this.browsingContext.topChromeWindow;
     if (!win) {
       console.error("[Mediaflow/parent] No chrome window available");
       return;
     }
+    const controller = win.ZzMediaflowController;
 
     switch (msg.name) {
       case "ZenPiP:MirrorStarted": {
         console.log("[Mediaflow/parent] MirrorStarted from tab", this.browsingContext.id, msg.data.width, "x", msg.data.height);
-        const controller = win.ZzMediaflowController;
         if (controller) {
           controller.registerSource(this.browsingContext.id, {
             owner: this,
@@ -62,13 +44,7 @@ export class ZzMediaflowParent extends JSWindowActorParent {
       }
 
       case "ZenPiP:Frame": {
-        const controller = win.ZzMediaflowController;
-        if (!controller?.isSource(this.browsingContext.id, this)) return;
-
-        const activeBC = typeof controller.getActiveBC === "function" ? controller.getActiveBC() : null;
-        if (!activeBC || activeBC.id !== this.browsingContext.id) {
-          return;
-        }
+        if (!this._isShownSource(controller)) return;
 
         // Deliberately no tick restart here: frames only exist in response to
         // ticks, so a stray in-flight frame arriving after capture is stopped
@@ -86,28 +62,17 @@ export class ZzMediaflowParent extends JSWindowActorParent {
       }
 
       case "ZenPiP:SourceVisibility": {
-        const controller = win.ZzMediaflowController;
-        if (!controller?.isSource(this.browsingContext.id, this)) break;
-        const activeBC = typeof controller.getActiveBC === "function" ? controller.getActiveBC() : null;
-        if (controller?.isSource(this.browsingContext.id, this) && activeBC && activeBC.id === this.browsingContext.id) {
-          controller.setSourceTabActive(!msg.data.hidden);
-        }
+        if (this._isShownSource(controller)) controller.setSourceTabActive(!msg.data.hidden);
         break;
       }
 
       case "ZenPiP:PlaybackState": {
-        const controller = win.ZzMediaflowController;
-        if (controller?.isSource(this.browsingContext.id, this) && controller.getActiveBC()?.id === this.browsingContext.id) {
-          controller.updateControls(msg.data);
-        }
+        if (this._isShownSource(controller)) controller.updateControls(msg.data);
         break;
       }
 
       case "ZenPiP:Caption": {
-        if (this._captionMode === "off") break;
-        const controller = win.ZzMediaflowController;
-        const activeBC = controller?.getActiveBC?.();
-        if (controller?.isSource(this.browsingContext.id, this) && activeBC && activeBC.id === this.browsingContext.id) {
+        if (this._captionMode !== "off" && this._isShownSource(controller)) {
           controller.setCaption(msg.data?.text || "");
         }
         break;
@@ -116,22 +81,22 @@ export class ZzMediaflowParent extends JSWindowActorParent {
       case "ZenPiP:VideoStopped": {
         const reason = msg.data?.reason || "";
         console.log("[Mediaflow/parent] VideoStopped reason:", reason);
-        const controller = win.ZzMediaflowController;
-        if (controller?.isSource(this.browsingContext.id, this) && controller.getActiveBC()?.id === this.browsingContext.id) {
+        if (this._isShownSource(controller)) {
           if (reason.includes("pause")) {
-            controller.hideCaption?.();
+            controller.hideCaption();
           } else {
-            controller.setCaption?.("");
+            controller.setCaption("");
           }
         }
-        // The page has already torn its source down before telling us, so
-        // nothing is sent back: a Stop arriving after a quick resume would
-        // clear the resumed video. Captions go off before the source is
-        // dropped, so neither clock outlives it.
+        // The page has already torn its source down, processing state
+        // included, before telling us, so nothing is sent back: a reply
+        // arriving after a quick resume would act on the resumed video.
+        // Captions go off before the source is dropped, so neither clock
+        // outlives it.
         this._captionsActive = false;
         this._stopTicking();
-        if (controller) {
-          if (controller.unregisterSource(this.browsingContext.id, this)) controller.notifySourceStopped(this.browsingContext);
+        if (controller?.unregisterSource(this.browsingContext.id, this)) {
+          controller.notifySourceStopped(this.browsingContext);
         }
         break;
       }
@@ -139,7 +104,15 @@ export class ZzMediaflowParent extends JSWindowActorParent {
     }
   }
 
+  // Only the source the preview shows may draw into it or steer it.
+  _isShownSource(controller) {
+    return !!controller?.isSource(this.browsingContext.id, this) &&
+      controller.getActiveBC()?.id === this.browsingContext.id;
+  }
+
+  // A source that is already ticking keeps its loop and adapted quality.
   _startTicking(win) {
+    if (this._tickScheduled && this._timerWindow === win) return;
     this._stopTicking();
     this._timerWindow = win;
     this._tickScheduled = true;
@@ -150,10 +123,9 @@ export class ZzMediaflowParent extends JSWindowActorParent {
     this._consecutiveFast = 0;
     if (this._captionsActive) this._startCaptionClock();
     this._sendTick();
-    dlog("[Mediaflow/parent] Ticking started (self-clocking)");
   }
 
-  _setProcessingActive(active, captionMode = "off", captionsActive = active) {
+  _setProcessingActive(active, captionMode, captionsActive) {
     this._captionMode = captionMode === "on" || captionMode === "youtube"
       ? captionMode
       : "off";
@@ -314,7 +286,6 @@ export class ZzMediaflowParent extends JSWindowActorParent {
           this._currentQualityIndex < QUALITY_TIERS.length - 1) {
         this._currentQualityIndex++;
         this._consecutiveSlow = 0;
-        dlog(`[Mediaflow/parent] Quality ↓ ${QUALITY_TIERS[this._currentQualityIndex]} (${Math.round(elapsed)}ms)`);
       }
     } else if (elapsed < this._frameBudgetMs * FAST_FRAME_RATIO) {
       this._consecutiveFast++;
@@ -323,7 +294,6 @@ export class ZzMediaflowParent extends JSWindowActorParent {
           this._currentQualityIndex > this._prefQualityIndex()) {
         this._currentQualityIndex--;
         this._consecutiveFast = 0;
-        dlog(`[Mediaflow/parent] Quality ↑ ${QUALITY_TIERS[this._currentQualityIndex]} (${Math.round(elapsed)}ms)`);
       }
     } else {
       this._consecutiveSlow = 0;
@@ -339,16 +309,13 @@ export class ZzMediaflowParent extends JSWindowActorParent {
     this._timerWindow = null;
   }
 
+  // The child went with this actor, so nothing is sent to it.
   didDestroy() {
+    this._captionsActive = false;
     this._stopTicking();
-    this._setProcessingActive(false);
-    try {
-      this.sendAsyncMessage("ZenPiP:Stop", {});
-    } catch (_) {}
-    const win = this.browsingContext?.topChromeWindow;
-    if (win && win.ZzMediaflowController) {
-      if (win.ZzMediaflowController.unregisterSource(this.browsingContext.id, this))
-        win.ZzMediaflowController.notifySourceStopped(this.browsingContext);
+    const controller = this.browsingContext?.topChromeWindow?.ZzMediaflowController;
+    if (controller?.unregisterSource(this.browsingContext.id, this)) {
+      controller.notifySourceStopped(this.browsingContext);
     }
   }
 }

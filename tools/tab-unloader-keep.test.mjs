@@ -6,7 +6,7 @@ import { test } from "node:test";
 const source = await readFile(new URL("../tab-unloader/tab-unloader.uc.js", import.meta.url), "utf8");
 
 test("Keep Loaded marks the tabs it is used on undiscardable for this window only, and can be turned off", () => {
-  const body = source.slice(source.indexOf("  const KEEP ="), source.indexOf("  const LOADED_EVENTS ="));
+  const body = source.slice(source.indexOf("  const KEEP ="), source.indexOf("  function start() {"));
   const tab = id => ({ id, closing: false, multiselected: false, undiscardable: false, attrs: new Set(),
     hasAttribute(a) { return this.attrs.has(a); }, toggleAttribute(a, on) { on ? this.attrs.add(a) : this.attrs.delete(a); },
     removeAttribute(a) { this.attrs.delete(a); } });

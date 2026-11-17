@@ -1,10 +1,9 @@
 /* ============================================================
-   Mediaflow -- Zen's music bar (Zen 1.23b).
+   Mediaflow -- Zen's music bar.
 
    The media player is a card at the bottom of the sidebar. Zen shows its
    title row and progress bar only while it is hovered, floating them up
-   over the tabs. These options were Better Music Bar's, whose selectors
-   predate the card markup and no longer match anything.
+   over the tabs.
    Its colour and the glass behind it are Glassflow's (Overlays section).
    ============================================================ */
 

@@ -189,3 +189,152 @@ test("A folder's page tab is never switched away on its first load, redirects in
   assert.equal(ctx.first(copy, channel("https://www.nexusmods.com/")), false, "and its redirect is let through too");
   assert.deepEqual(cancelled, []);
 });
+
+// Two browser windows, each running the same production slice, and one
+// URILoadingHelper shared by both. Its switch to an open tab is modelled on
+// Firefox's own (which the address bar calls directly): raise the window
+// holding the tab, then show it there through Zen's switchIfNeeded.
+const between = (start, end) => router.slice(router.indexOf(start), router.indexOf(end));
+function windows(slice) {
+  const focus = { activeWindow: null }, marked = [], raised = [], all = [];
+  const helper = { switchToTabHavingURI: (source, target) => {
+    target.focus(); target.gZenWorkspaces.switchIfNeeded(target.tab.linkedBrowser); return true; } };
+  const native = helper.switchToTabHavingURI;
+  const make = name => {
+    const tab = { id: `${name}-tab`, linkedBrowser: {} };
+    const win = { name, focus() { raised.push(name); },
+      gBrowser: { getTabForBrowser: b => (b === tab.linkedBrowser ? tab : null) },
+      gZenWorkspaces: { selected: null,
+        switchIfNeeded(browser) { return this.switchTabIfNeeded(win.gBrowser.getTabForBrowser(browser)); },
+        async switchTabIfNeeded(t) { this.selected = t; } },
+      TabRouter: { copyWhile() {}, markArrival: t => marked.push([name, t.id]) } };
+    tab.ownerDocument = { defaultView: win };
+    const ctx = vm.createContext({ window: win, gBrowser: win.gBrowser, note: () => {},
+      Services: { focus, wm: { getEnumerator: () => all } },
+      ChromeUtils: { importESModule: () => ({ URILoadingHelper: helper }) },
+      markArrival: t => marked.push([name, t.id]) });
+    vm.runInContext(slice, ctx);
+    all.push(win);
+    return Object.assign(win, { tab, ctx });
+  };
+  return { A: make("A"), B: make("B"), focus, marked, raised, helper, native };
+}
+
+test("Firefox's Switch to Tab marks the arrival in the window it lands in, and only there", () => {
+  const patch = between("  // Firefox's own switch to an open tab", "  function copyWhile(fn) {");
+  const { A, B, focus, marked, raised, helper, native } = windows(patch
+    + "\npatchSwitchToTab(); window.gZenWorkspaces.switchIfNeeded = switchIfNeeded; this.unpatch = unpatchSwitchToTab;");
+  assert.notEqual(helper.switchToTabHavingURI, native, "patched once, for every window");
+  focus.activeWindow = A;
+  assert.equal(helper.switchToTabHavingURI(A, B), true, "Firefox's answer is passed through");
+  assert.deepEqual(raised, ["B"]);
+  assert.deepEqual(marked, [["B", "B-tab"]], "the address bar in A lands in B: B marks its tab");
+  assert.equal(B.gZenWorkspaces.selected, B.tab);
+  marked.length = 0;
+  helper.switchToTabHavingURI(A, A);
+  assert.deepEqual(marked, [], "a switch within the window you are in is not an arrival");
+  B.gZenWorkspaces.switchIfNeeded(B.tab.linkedBrowser);
+  assert.deepEqual(marked, [], "nor is Zen's switchIfNeeded on its own (Picture-in-Picture's Back to tab)");
+  focus.activeWindow = { name: "Library" };
+  helper.switchToTabHavingURI(A, A);
+  assert.deepEqual(marked, [["A", "A-tab"]], "asked from another window (a Library window), the browser window marks it");
+  marked.length = 0;
+  focus.activeWindow = null;
+  helper.switchToTabHavingURI(A, B);
+  assert.deepEqual(marked, [], "asked from another app, the window is raised with no ring");
+  assert.equal(helper.switchToTabHavingURI.switchingFrom, undefined, "the note lasts only as long as the call");
+  A.TabRouter = null;
+  B.ctx.unpatch();
+  assert.equal(helper.switchToTabHavingURI, native, "the last window to release restores Firefox's own");
+});
+
+test("Tab Router's switch raises the window holding the tab, and marks the arrival when it is not the one you are in", () => {
+  const { A, B, focus, marked, raised } = windows(between("  // The window you are in is the active one", "  // A switch that lands you in another window gives")
+    + "\nthis.switchTo = switchTo;");
+  const reset = () => { raised.length = 0; marked.length = 0; };
+  focus.activeWindow = A;
+  A.ctx.switchTo(B.tab);
+  assert.deepEqual([raised, marked], [["B"], [["B", "B-tab"]]], "a link in A to a page open in B");
+  reset();
+  A.ctx.switchTo(A.tab);
+  assert.deepEqual([raised, marked], [[], []], "a page open in the window you are in");
+  focus.activeWindow = { name: "Library" };
+  A.ctx.switchTo(A.tab);
+  assert.deepEqual([raised, marked], [["A"], [["A", "A-tab"]]], "a bookmark opened from the Library brings its browser window forward");
+  reset();
+  focus.activeWindow = null;
+  A.ctx.switchTo(A.tab);
+  assert.deepEqual([raised, marked], [["A"], []], "from another app: raised, as Firefox would, with no ring");
+});
+
+test("The arrival ring fades on the compositor once the switch is done, removes itself, and goes on release", async () => {
+  const appended = [], frames = [], settle = () => new Promise(setImmediate);
+  let reduced = false;
+  const element = () => ({ style: {}, setAttribute() {}, remove() { this.removed = true; },
+    animate(keyframes, options) {
+      let finish;
+      const finished = new Promise(r => { finish = r; });
+      this.fade = { keyframes, options, finish };
+      return { finished };
+    } });
+  // Boxes with a place on screen; a holder takes rings as children.
+  const box = (left, top, width, height, position = "relative") => ({ position, clientLeft: 0, clientTop: 0,
+    getBoundingClientRect: () => ({ left, top, width, height, right: left + width, bottom: top + height }),
+    appendChild(el) { appended.push(el); el.holder = this; } });
+  const page = box(200, 8, 760, 1064, "absolute"), stack = box(4, 156, 180, 44);
+  const background = { ...box(8, 160, 172, 36, "static"), parentNode: stack };
+  const ctx = vm.createContext({ retired: false, innerWidth: 960, innerHeight: 1080,
+    document: { documentElement: {}, createElementNS: element, getElementById: () => page },
+    getComputedStyle: el => ({ getPropertyValue: () => " rgb(1, 2, 3) ", borderRadius: "8px", position: el.position }),
+    matchMedia: () => ({ matches: reduced }), requestAnimationFrame: fn => frames.push(fn) });
+  vm.runInContext(between("  // A switch that lands you in another window gives", "  // Every window publishes the whole set")
+    + "\nthis.markArrival = markArrival; this.arrivals = arrivals;", ctx);
+  const tab = { isConnected: true, closing: false, linkedBrowser: { closest: () => page }, querySelector: () => background };
+  let switched;
+  ctx.markArrival(tab, new Promise(r => { switched = r; }));
+  await settle();
+  assert.equal(frames.length, 0, "nothing is drawn while the switch (or a change of space) is under way");
+  switched();
+  await settle();
+  frames.shift()();
+  assert.equal(appended.length, 2, "one ring around the page, one around the tab");
+  const [pageRing, tabRing] = appended;
+  assert.ok(pageRing.holder === page && pageRing.style.left === "0px" && pageRing.style.height === "1064px", "the page's ring fills the page");
+  assert.ok(tabRing.holder === stack && tabRing.style.left === "4px" && tabRing.style.top === "4px" && tabRing.style.width === "172px",
+    "the tab's ring sits in the tab, over its background, and moves with it");
+  assert.equal(tabRing.style.position, "absolute");
+  assert.deepEqual(Array.from(appended[0].fade.keyframes, k => Object.keys(k).filter(p => p !== "offset").join() + k.opacity),
+    ["opacity0", "opacity1", "opacity0"], "opacity only");
+  assert.equal(appended[0].fade.options.duration, 900);
+  assert.match(appended[0].style.boxShadow, /^inset 0 0 0 2px rgb\(1, 2, 3\)/, "in Zen's accent");
+  assert.equal(appended[0].style.pointerEvents, "none");
+  appended[0].fade.finish();
+  await settle();
+  assert.ok(appended[0].removed && !ctx.arrivals.has(appended[0]), "a ring removes itself when it ends");
+  assert.equal(ctx.arrivals.size, 1, "the other is still live, for release to remove");
+  reduced = true;
+  ctx.markArrival(tab);
+  await settle();
+  frames.shift()();
+  assert.equal(appended[2].fade.options.duration, 500, "shorter with reduced motion");
+  stack.position = "static";
+  ctx.markArrival(tab);
+  await settle();
+  frames.shift()();
+  assert.equal(appended.length, 5, "a holder that cannot place it gets no ring");
+  ctx.retired = true;
+  ctx.markArrival(tab);
+  await settle();
+  frames.shift()();
+  assert.equal(appended.length, 5, "a released copy draws nothing");
+});
+
+test("Release restores Zen's switchIfNeeded and removes live rings", () => {
+  const release = between("      // Zen's own switchIfNeeded lives on its prototype", "      // The other windows republish without this one's tabs.");
+  const proto = { switchIfNeeded() {} }, workspaces = Object.create(proto), ours = () => {}, glow = { remove() { this.gone = true; } };
+  workspaces.switchIfNeeded = ours;
+  const ctx = vm.createContext({ workspaces, switchIfNeeded: ours, nativeSwitchIfNeeded: proto.switchIfNeeded, arrivals: new Set([glow]) });
+  vm.runInContext(release, ctx);
+  assert.ok(!Object.hasOwn(workspaces, "switchIfNeeded") && workspaces.switchIfNeeded === proto.switchIfNeeded, "Zen's own method shows through again");
+  assert.ok(glow.gone && ctx.arrivals.size === 0);
+});

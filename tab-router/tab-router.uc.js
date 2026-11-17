@@ -2292,65 +2292,77 @@
     if (here && win !== here) win.TabRouter?.markArrival?.(tab, switching);
   }
   // A switch that lands you in another window gives no sign of its own:
-  // once the switch (and any change of space) is done, two gleams like a
-  // loading bar's slide in from the sides along the bottom of this window's
-  // page, and of the tab or the folder header that stands for a folder's
-  // page, meet in the middle, hold, and fade. Each sits inside a positioned
-  // box that holds what it marks, so it moves with it (the tab list shifts
-  // when a tab opened and closed for the switch leaves, and scrolls a tab out
-  // of view into it). Transform and opacity only, with no window-sized
-  // shadows or filters: under software WebRender a page-sized blurred shadow
-  // cost hundreds of milliseconds a frame, and a window drawing few frames
-  // as it comes forward still catches the gleams while they hold. The
-  // effects run linear, so each offset is a real time and the easing lives
-  // on the keyframes. Each removes itself when it ends, and on release.
+  // once the switch (and any change of space) is done, two pill-shaped
+  // gleams in the colour of Zen's loading indicator run in from the sides along the
+  // bottom of this window's page, and of the tab or the folder header that
+  // stands for a folder's page, gathering speed and stretching like waves;
+  // they run into each other in the middle, merge into one pill that swells,
+  // holds and fades. Each sits inside a positioned box that holds what it
+  // marks, so it moves with it (the tab list shifts when a tab opened and
+  // closed for the switch leaves, and scrolls a tab out of view into it).
+  // Transform and opacity only, with nothing page-sized blurred: under
+  // software WebRender a page-sized blurred shadow cost hundreds of
+  // milliseconds a frame, and a window drawing few frames as it comes forward
+  // still catches the merged pill while it holds. The effects run linear, so
+  // each offset is a real time and the easing lives on the keyframes. Each
+  // removes itself when it ends, and on release.
   const arrivals = new Set();
   function markArrival(tab, switching) {
     Promise.resolve(switching).catch(() => {}).then(() => requestAnimationFrame(() => {
       const root = document.documentElement;
       if (retired || !root || tab.closing || !tab.isConnected) return;
-      const zen = getComputedStyle(root).getPropertyValue("--zen-primary-color").trim() || "AccentColor";
-      // White light on a dark window, as a loading bar's; on a light one,
-      // where white would not show, the accent's hue at a lightness that does.
-      const tinted = `light-dark(oklch(from ${zen} min(l, 0.62) c h), white)`;
-      const light = typeof CSS !== "undefined" && CSS.supports("color", tinted) ? tinted : zen;
+      // The colour of Zen's own loading indicator, from the same place: its
+      // variable, else Zen's own mix of the accent with white on a dark
+      // window and black on a light one.
+      const light = "var(--zen-loading-progress-bar-color, color-mix(in srgb, var(--zen-primary-color), " +
+        "light-dark(rgba(0, 0, 0, 0.5), rgba(255, 255, 255, 0.5)) 70%))";
       const brief = matchMedia("(prefers-reduced-motion: reduce)").matches;
       const div = () => document.createElementNS("http://www.w3.org/1999/xhtml", "div");
       // Along the bottom edge of el, inside it, or, given a gap, on the window
-      // just below it, centred in the gap (where a loading bar's light shows
-      // whatever the page).
+      // just below it, centred in the gap (where the light shows whatever the
+      // page). A soft glow only where there is room for it.
       const gleams = (el, holder, thickness, gap = 0) => {
         const r = el?.getBoundingClientRect(), h = holder?.getBoundingClientRect();
         if (!r?.width || !r.height || !h || getComputedStyle(holder).position === "static") return;
-        // Between the bottom corners' curves, with room for the glow.
-        const style = getComputedStyle(el), room = gap ? Math.max(gap, 10) : 8;
+        // Between the bottom corners' curves.
+        const style = getComputedStyle(el), room = gap ? Math.max(gap, 10) : 6;
         const inset = Math.min(r.width / 4, Math.max(parseFloat(style.borderBottomLeftRadius) || 0, parseFloat(style.borderBottomRightRadius) || 0));
-        const width = r.width - 2 * inset, length = Math.round(Math.min(220, Math.max(40, width * 0.3)));
+        const width = r.width - 2 * inset, mid = width / 2, length = Math.round(Math.min(160, Math.max(28, width * 0.22)));
         const line = div();
         line.setAttribute("aria-hidden", "true");
         Object.assign(line.style, { position: "absolute", left: `${r.left - h.left - holder.clientLeft + inset}px`,
           top: `${r.bottom - h.top - holder.clientTop + (gap ? (gap - room) / 2 : -room)}px`, width: `${width}px`, height: `${room}px`,
           overflow: "clip", pointerEvents: "none", zIndex: "1" });
-        // Each gleam is brightest at its head, which reaches the middle.
-        const travel = width / 2;
-        for (const [side, sign] of [["left", 1], ["right", -1]]) {
-          const gleam = line.appendChild(div());
-          Object.assign(gleam.style, { position: "absolute", bottom: `${gap ? (room - thickness) / 2 : 1}px`, [side]: `${-length}px`,
-            width: `${length}px`, height: `${thickness}px`, borderRadius: `${thickness}px`,
-            background: `linear-gradient(to ${side === "left" ? "right" : "left"}, transparent, ${light})`,
-            boxShadow: `0 0 6px 1px color-mix(in srgb, ${light} 55%, transparent)`,
-            transform: brief ? `translateX(${sign * travel}px)` : "none" });
-          if (!brief) gleam.animate([{ transform: "translateX(0)", easing: "cubic-bezier(.45, 0, .2, 1)" },
-            { transform: `translateX(${sign * travel}px)`, offset: 0.5 }, { transform: `translateX(${sign * travel}px)` }],
-            { duration: 900, easing: "linear" });
+        const glow = gap ? `0 0 5px color-mix(in srgb, ${light} 50%, transparent)` : "";
+        const pill = props => Object.assign(line.appendChild(div()).style, { position: "absolute",
+          bottom: `${gap ? (room - thickness) / 2 : 1}px`, height: `${thickness}px`, borderRadius: `${thickness}px`, boxShadow: glow, ...props });
+        // The pill they merge into, centred.
+        const merged = Math.round(length * 1.4);
+        pill({ left: `${mid - merged / 2}px`, width: `${merged}px`, opacity: brief ? "1" : "0",
+          background: `linear-gradient(to right, transparent, ${light} 30%, ${light} 70%, transparent)` });
+        const splash = line.lastChild;
+        if (!brief) {
+          for (const [side, sign] of [["left", 1], ["right", -1]]) {
+            pill({ [side]: `${-length}px`, width: `${length}px`, transformOrigin: side === "left" ? "right" : "left",
+              background: `linear-gradient(to ${side === "left" ? "right" : "left"}, transparent, ${light} 75%)` });
+            // The head runs just past the middle, into the other.
+            const end = `translateX(${sign * (mid + thickness)}px)`;
+            line.lastChild.animate([
+              { transform: "translateX(0) scaleX(.55)", opacity: 1, easing: "cubic-bezier(.4, .05, .75, .4)" },
+              { transform: `${end} scaleX(1.1)`, opacity: 1, offset: 0.5, easing: "ease-out" },
+              { transform: `${end} scaleX(.6)`, opacity: 0, offset: 0.62 },
+              { transform: `${end} scaleX(.6)`, opacity: 0 }], { duration: 1000, easing: "linear" });
+          }
         }
         holder.appendChild(line);
         arrivals.add(line);
         const done = () => { arrivals.delete(line); line.remove(); };
-        // In: met in the middle by 450 ms, held to 630 ms, gone at 900 ms.
-        // With reduced motion they do not move: met at once, held, faded.
-        line.animate([{ opacity: 1 }, { opacity: 1, offset: 0.7, easing: "ease-in-out" }, { opacity: 0 }],
-          { duration: brief ? 700 : 900, easing: "linear" }).finished.then(done, done);
+        // In: met at 500 ms, merged and swollen by 620, held to 750, gone at
+        // 1000. With reduced motion nothing moves: the merged pill, held, faded.
+        splash.animate(brief ? [{ opacity: 1 }, { opacity: 1, offset: 0.7, easing: "ease-in-out" }, { opacity: 0 }]
+          : [{ opacity: 0, transform: "scaleX(.3)" }, { opacity: 0, transform: "scaleX(.3)", offset: 0.48, easing: "cubic-bezier(.2, .8, .3, 1)" },
+            { opacity: 1, transform: "scaleX(1)", offset: 0.62 }, { opacity: 1, transform: "scaleX(1)", offset: 0.75, easing: "ease-in-out" },
+            { opacity: 0, transform: "scaleX(1.08)" }], { duration: brief ? 700 : 1000, easing: "linear" }).finished.then(done, done);
       };
       // The page: on the window's margin below it (Zen's element separation),
       // or along its own bottom edge when it reaches the window's. The tab
@@ -2360,13 +2372,13 @@
       const container = tab.linkedBrowser?.closest(".browserSidebarContainer");
       const page = container || document.getElementById("tabbrowser-tabpanels");
       const below = innerHeight - (page?.getBoundingClientRect().bottom ?? innerHeight);
-      if (below >= 4 && tabbox) gleams(page, tabbox, 2, Math.min(below, 16));
-      else gleams(page, container || tabbox, 2);
+      if (below >= 4 && tabbox) gleams(page, tabbox, 4, Math.min(below, 16));
+      else gleams(page, container || tabbox, 3);
       // A folder's page tab is hidden (Groupflow): its header stands for it.
       const header = tab.hasAttribute("zzgf-page-tab") && tab.group?.querySelector(":scope > .tab-group-label-container");
       const background = tab.querySelector(".tab-background");
-      if (header) gleams(header, header, 2);
-      else gleams(background, background?.parentNode, 2);
+      if (header) gleams(header, header, 3);
+      else gleams(background, background?.parentNode, 3);
     }));
   }
   // Every window publishes the whole set, so the page side needs one lookup.

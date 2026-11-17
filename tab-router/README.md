@@ -86,12 +86,13 @@ typed) closes and switches to it too. Tabs in every space of every window
 count; Zen changes space as needed.
 
 When a switch lands you in another window -- one of these, or the address
-bar's **Switch to Tab** -- that window comes forward and two gleams, like a
-loading bar's, slide in from the sides along the bottom of its page (on the
-window's margin just below it) and of the tab (a folder's header, for a
-folder's page), meet in the middle and fade, so the eye finds it (with reduced
-motion they appear met and fade; white on a dark window, and on a light one,
-where white would not show, the accent's hue at a lightness that does). Moving
+bar's **Switch to Tab** -- that window comes forward and two pill-shaped
+gleams in the colour of Zen's loading indicator run in from the sides along
+the bottom of its page (on the window's margin just below it) and of the tab
+(a folder's header, for a folder's page), gathering speed like waves, then run
+into each other in the middle and merge into one pill that swells and fades,
+so the eye finds it (with reduced motion only the merged pill appears and
+fades). Moving
 between windows yourself shows nothing, nor does picking a tab whose page Zen
 brings into the window you are in. Zen keeps a copy of each tab in every
 window; a copy that has not loaded yet (every copy after a restart, and a

@@ -297,7 +297,7 @@ const now = () => performance.timeOrigin + performance.now();
 const R = window.__arr = { rec: null, wraps: [], A: window, B: null, log: [] };
 const tag = w => !w ? "none" : w === R.A ? "A" : w === R.B ? "B" : "other";
 const RING = /0px 0px 0px 2px inset|inset 0px 0px 0px 2px/;
-const isRing = n => n?.localName === "div" && n.getAttribute?.("aria-hidden") === "true" && (RING.test(n.style?.boxShadow || "") || n.hasAttribute("data-arr-probe"));
+const isRing = n => n?.localName === "div" && n.getAttribute?.("aria-hidden") === "true" && (RING.test(n.style?.boxShadow || "") || /^2px solid/.test(n.style?.border || "") || n.hasAttribute("data-arr-probe"));
 const st = w => {
   let bc = null; try { bc = w.browsingContext.isActive; } catch {}
   return [Services.focus.activeWindow === w ? 1 : 0, w.isFullyOccluded ? 1 : 0, w.document.hidden ? 1 : 0, bc ? 1 : 0,
@@ -410,7 +410,7 @@ R.arm = ms => {
       for (const m of list) for (const n of m.addedNodes) if (isRing(n)) {
         const r = n.getBoundingClientRect(), h = n.parentNode;
         const e = { win: k, tAdd: rel(), client: [r.left, r.top, r.width, r.height], inner: [w.mozInnerScreenX, w.mozInnerScreenY],
-          dpr: w.devicePixelRatio, holder: String(h?.className || h?.localName || "").slice(0, 80), shadow: n.style.boxShadow.slice(0, 120),
+          dpr: w.devicePixelRatio, holder: String(h?.className || h?.localName || "").slice(0, 80), shadow: (n.style.boxShadow || n.style.border).slice(0, 120),
           st: st(w), frames: [], removed: null };
         rec.rings.push(e);
         const step = () => {
@@ -628,15 +628,17 @@ def analyze(name, cap, ref_img, t_input, info, rec, out_dir, offset):
             'paintsBAfterInput': len([v for v in paints_b if v is not None and 0 <= v <= 1500]),
             'samples': [[rel(s[0])] + s[1:] for s in rec['samples']],
         }
-    best_page = max((f['page']['opacity'] or 0 for f in frames if f['shown'] == 'b'), default=0)
-    best_tab = max(((f['tab'] or {}).get('opacity') or 0 for f in frames if f['shown'] == 'b'), default=0)
+    after = [f for f in frames if f['t'] >= 0]
+    best_page = max((f['page']['opacity'] or 0 for f in after), default=0)
+    best_tab = max(((f['tab'] or {}).get('opacity') or 0 for f in after), default=0)
     first_b = next((f['t'] for f in frames if f['shown'] == 'b' and f['t'] >= 0), None)
     summary = {
         'frames': len(frames), 'fps': round(len(frames) / max(0.001, (cap.frames[-1]['t'] - cap.frames[0]['t']) / 1000), 1) if cap.frames else 0,
         'firstFrameShowingB': first_b,
         'maxPageRingOpacityOnScreen': round(best_page, 3), 'maxTabRingOpacityOnScreen': round(best_tab, 3),
-        'framesWithPageRing': len([f for f in frames if f['shown'] == 'b' and (f['page']['opacity'] or 0) >= 0.25]),
-        'framesWithTabRing': len([f for f in frames if f['shown'] == 'b' and ((f['tab'] or {}).get('opacity') or 0) >= 0.25]),
+        'framesWithPageRing': len([f for f in after if (f['page']['opacity'] or 0) >= 0.25]),
+        'framesWithTabRing': len([f for f in after if ((f['tab'] or {}).get('opacity') or 0) >= 0.25]),
+        'pageRingOnScreen': [[f['t'], f['page']['opacity']] for f in after if (f['page']['opacity'] or 0) >= 0.1],
         'ringsAdded': [(r['win'], rel(r['tAdd']), [round(v) for v in r['client']]) for r in rings],
         'accent': accent, 'pageRect': page_rect, 'tabRect': tab_rect,
     }
@@ -686,7 +688,7 @@ def page_point(win, x, y):
 
 
 def layout(m, mode):
-    if mode == 'max':
+    if mode.startswith('max'):
         m.js('const R=window.__arr;R.B.maximize();return true;')
         time.sleep(0.6)
         m.js('const R=window.__arr;R.A.maximize();return true;')
@@ -737,6 +739,9 @@ def run_capture(m, secs, act, pre=0.25):
 
 def scenario(m, name, mode, action, out_dir):
     result = {'name': name, 'mode': mode, 'action': action}
+    m.js('Services.prefs.setIntPref("ui.prefersReducedMotion",%d);return true;' % (1 if mode.endswith('rm') else 0))
+    time.sleep(0.3)
+    result['reducedMotion'] = m.js('return [window.__arr.A.matchMedia("(prefers-reduced-motion: reduce)").matches,window.__arr.B.matchMedia("(prefers-reduced-motion: reduce)").matches];')
     front = 'B' if action == 'direct' or action.startswith('p') else 'A'
     info, prep = prepare(m, mode, front)
     result['prepare'] = prep
@@ -802,7 +807,7 @@ def main():
     ap.add_argument('--zen', type=Path, required=True)
     ap.add_argument('--sine', type=Path, required=True)
     ap.add_argument('--out', type=Path, required=True)
-    ap.add_argument('--scenarios', default='direct-max,pfull-max,psolid-max,pglow-max,ptab-max,pborder-max,ptiny-max,pstatic-max,phold-max,pfix-max,urlbar-max,link-max,urlbar-side')
+    ap.add_argument('--scenarios', default='direct-max,pfull-max,urlbar-max,link-max,urlbar-side,link-side,direct-maxrm,urlbar-maxrm,link-maxrm')
     args = ap.parse_args()
     out = args.out
     out.mkdir(parents=True, exist_ok=True)
@@ -905,7 +910,7 @@ def main():
         if 'summary' in s:
             sm = s['summary']
             calls = [(c['kind'], c.get('win'), c.get('t')) for c in (s.get('gecko') or {}).get('calls', [])]
-            lines.append(f"{s['name']}: fps={sm['fps']} firstB={sm['firstFrameShowingB']} pageMax={sm['maxPageRingOpacityOnScreen']} "
+            lines.append(f"{s['name']}: rm={s.get('reducedMotion')} fps={sm['fps']} firstB={sm['firstFrameShowingB']} pageMax={sm['maxPageRingOpacityOnScreen']} onScreen={sm['pageRingOnScreen']} "
                          f"tabMax={sm['maxTabRingOpacityOnScreen']} rings={sm['ringsAdded']} calls={calls} "
                          f"ticksB={(s.get('gecko') or {}).get('ticksBAfterInput')} fg={s.get('afterFg', {}).get('title')}")
         else:

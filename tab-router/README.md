@@ -95,9 +95,11 @@ into each other in the middle and merge into one pill that swells and fades,
 so the eye finds it; the window you leave plays it the other way at once,
 the pill welling up in the middle, parting and running out to the sides (with reduced
 motion only the merged pill appears and fades). Switching tabs in a window can play them too, by **Tab switch animation**:
-**Out then in** (the default) plays them out over the page you leave, then in
-once the new page shows; **In** or **Out** play one half, **None** neither.
-Arc 2.0 has its own tab switch animation; pick one of the two. Moving
+**In** (the default) runs them in at once; **In, following the load** runs a
+loading page's pills in with its progress and merges them once it is done (a
+page already loaded plays In); **Out** plays them out over the page you leave;
+**Out then in** plays both; **None** neither. Arc 2.0 has its own tab switch
+animation; pick one of the two. Moving
 between windows yourself shows nothing, nor does picking a tab whose page Zen
 brings into the window you are in. Zen keeps a copy of each tab in every
 window; a copy that has not loaded yet (every copy after a restart, and a

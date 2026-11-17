@@ -22,16 +22,20 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzrouter.tab-switch-cue",
-    "label": "Tab switch animation *Switching tabs plays the pills from the bottom of the page: out over the page you leave, in once the new one shows, or out then in. A switch that lands you in another window always plays them, as before. Arc 2.0 has its own Tab switch animation; pick one of the two.*",
-    "defaultValue": 3,
+    "label": "Tab switch animation *Switching tabs plays the pills along the bottom of the page. In runs them in at once; In, following the load runs a loading page's pills in with its progress and merges them once it is done; Out plays them out over the page you leave; Out then in plays both. A switch that lands you in another window always plays them, as before. Arc 2.0 has its own Tab switch animation; pick one of the two.*",
+    "defaultValue": 1,
     "options": [
-      {
-        "label": "Out then in",
-        "value": 3
-      },
       {
         "label": "In",
         "value": 1
+      },
+      {
+        "label": "In, following the load",
+        "value": 4
+      },
+      {
+        "label": "Out then in",
+        "value": 3
       },
       {
         "label": "Out",

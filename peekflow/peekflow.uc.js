@@ -296,15 +296,12 @@
   // start() is wrapped: a throw here escapes into Sine's injection loop,
   // which does not catch, and every mod queued after this one is never injected.
   const startOnce = () => {
+    stopWaiting();
     try { start(); } catch (e) { console.error("[Peekflow] failed to start:", e); }
   };
   if (window.gBrowserInit?.delayedStartupFinished) startOnce();
   else {
-    obs = (subject) => {
-      if (subject !== window) return;
-      stopWaiting();
-      startOnce();
-    };
+    obs = subject => { if (subject === window) startOnce(); };
     Services.obs.addObserver(obs, "browser-delayed-startup-finished");
   }
 })();

@@ -197,7 +197,7 @@
   {
     "type": "checkbox",
     "property": "zzrouter.section-icons",
-    "label": "Pictures on tabs and subgroups *YouTube tabs use verified channel avatars; Nexus game/mod/profile tabs use the associated square game thumbnail (cover optional). No Nexus author portraits. Creators on other sites get pictures too: each page's own metadata (structured data, author links) is read and, where a site offers it, its oEmbed endpoint is asked, also with routing and Subgroup by creator off. Tabs can show pictures with routing disabled, including pinned tabs and Essentials. Manual Zen icons win. Pictures require Groupflow. Anonymous requests use the tab container, stop after 15 seconds, and never run in private windows. Pictures reuse one bounded cache: 100 subjects, 64-pixel icons; optional banners share the cache. Failed lookups retry on activity after 10 minutes.*",
+    "label": "Pictures on tabs and subgroups *YouTube tabs use verified channel avatars; Nexus game/mod/profile tabs use the associated square game thumbnail (cover optional). No Nexus author portraits. Creators on other sites get pictures too: each page's own metadata (structured data, author links) is read and, where a site offers it, its oEmbed endpoint is asked, also with routing and Subgroup by creator off. Tabs can show pictures with routing disabled, including pinned tabs and Essentials. Manual Zen icons win. Pictures require Groupflow. Anonymous requests use the tab container, stop after 15 seconds, and never run in private windows. Pictures are cached for the tabs and folders open when a window closes, so a restart shows them without fetching; closed ones are dropped. 64-pixel icons; optional banners share the cache. Failed lookups retry on activity after 10 minutes.*",
     "defaultValue": true
   },
   {
@@ -247,12 +247,54 @@
     "placeholder": false
   },
   {
+    "type": "checkbox",
+    "property": "zzrouter.video-covers",
+    "label": "Video thumbnails on tabs *A video's tab shows its own thumbnail behind its styling: YouTube's from the video's address, so unloaded tabs too; other video sites' from the page's preview picture once it loads. Takes the place of a Nexus game banner on that tab. Off by default; requires Groupflow.*",
+    "defaultValue": false,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzrouter.section-icons",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
+    "type": "checkbox",
+    "property": "zzrouter.nexus-page-covers",
+    "label": "Nexus page covers on tabs *A Nexus mod's or collection's tab shows that page's own picture instead of its game's banner, once the page loads. Separate from Nexus game banners, which stay on game pages and folders. Off by default; requires Groupflow.*",
+    "defaultValue": false,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzrouter.section-icons",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
+    "type": "checkbox",
+    "property": "zzrouter.page-covers",
+    "label": "Cover art on other tabs *Any other page's tab shows the page's own preview picture (the one sites give for sharing), once it loads. Off by default; requires Groupflow.*",
+    "defaultValue": false,
+    "conditions": [
+      {
+        "if": {
+          "property": "zzrouter.section-icons",
+          "value": true
+        }
+      }
+    ]
+  },
+  {
     "type": "string",
     "property": "zzrouter.nexus-banner-opacity",
-    "label": "Banner opacity (%) *0–100; default 25. Changes artwork opacity only, below existing tint, sheen and rim. Text, controls and selection states retain their styling. Changes reuse cached artwork without downloading again.*",
+    "label": "Cover art opacity (%) *0–100; default 25. For Nexus game banners and tab covers alike. Changes artwork opacity only, below existing tint, sheen and rim. Text, controls and selection states retain their styling. Changes reuse cached artwork without downloading again.*",
     "defaultValue": "25",
     "placeholder": "25",
-    "conditions": [{"if": {"property": "zzrouter.section-icons", "value": true}}, {"not": {"property": "zzrouter.nexus-banners", "value": 0}}],
+    "conditions": [{"if": {"property": "zzrouter.section-icons", "value": true}}],
     "operator": "AND"
   },
   {

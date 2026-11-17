@@ -1,5 +1,5 @@
 // One profile store shared by all windows. Native JSONFile coalesces writes and
-// flushes them at shutdown; learned data no longer lives in large preferences.
+// flushes them at shutdown; cache preferences left from before are moved in once.
 let opening;
 export function openRouterCache({ Services, IOUtils, PathUtils, JSONFile }) {
   return opening ||= (async () => {

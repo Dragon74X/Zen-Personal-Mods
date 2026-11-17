@@ -26,18 +26,17 @@
   const PREFIX = "zzgroup.";
   const bool = (k, d) => { try { return Services.prefs.getBoolPref(PREFIX + k, d); } catch { return d; } };
   const str  = (k, d) => { try { return Services.prefs.getStringPref(PREFIX + k, d); } catch { return d; } };
-  const num  = (k, d) => { try { return Services.prefs.getIntPref(PREFIX + k); } catch { return d; } };
+  const num  = (k, d) => { try { return Services.prefs.getIntPref(PREFIX + k, d); } catch { return d; } };
+  const HTML = "http://www.w3.org/1999/xhtml";
   // ---- pref variables at startup -----------------------------------------
-  // Sine injects string and number prefs as CSS variables, but not until
-  // something (the settings page, a mod reload) triggers it -- measured on a
-  // fresh launch, every one of them was absent while the sheet itself was
-  // loaded and working. So the CSS ran on its fallbacks and configured
-  // values only appeared after a reload. These are written here instead,
-  // from the prefs themselves, so they exist before first paint.
+  // Sine injects string prefs as CSS variables for every chrome window as it
+  // opens, but only after an async read of the mod store. These are written
+  // synchronously as the script loads, from the prefs themselves, so they
+  // exist before first paint.
   //
   // Naming matches Sine's own convention exactly: zzgroup.foo-bar becomes
-  // --zzgroup-foo-bar, dots to dashes. Booleans are skipped -- those are read
-  // with -moz-pref(), never as variables.
+  // --zzgroup-foo-bar, dots to dashes. Booleans and numbers are skipped: the
+  // stylesheet reads them with -moz-pref() and this script with bool() and num().
   function injectPrefVars() {
     let names = [];
     try { names = Services.prefs.getBranch(PREFIX).getChildList(""); } catch { return; }
@@ -53,27 +52,22 @@
   // The type is CHECKED, never guessed by attempting reads: calling
   // getStringPref on a boolean throws NS_ERROR_UNEXPECTED, and Firefox logs
   // every one of those even when caught -- which floods the console with
-  // "failed to read pref" for every boolean in the branch. Booleans are
-  // skipped; they are read with -moz-pref(), never as variables.
+  // "failed to read pref" for every boolean in the branch. Only strings
+  // become variables.
   function readPrefValue(full) {
     const P = Services.prefs;
-    let type;
-    try { type = P.getPrefType(full); } catch { return null; }
     try {
-      if (type === P.PREF_STRING) {
-        const v = P.getStringPref(full);
-        return v === "" ? null : v;
-      }
-      if (type === P.PREF_INT) return String(P.getIntPref(full));
-    } catch {}
-    return null;
+      if (P.getPrefType(full) !== P.PREF_STRING) return null;
+      const v = P.getStringPref(full);
+      return v === "" ? null : v;
+    } catch { return null; }
   }
 
 
   const prefVarObserver = {
     observe(_s, _t, data) {
       if (!data || !data.startsWith(PREFIX)) return;
-      iconRules = null;                    // reparsed on the next refresh
+      if (data === PREFIX + "icon-rules") iconRules = null;   // reparsed on the next refresh
       if (["favicons", "icon-rules", "section-icons", "icon-shape", "color-source", "subfolder.include-folders"].some(k => data === PREFIX + k)) schedule();
       if (data === PREFIX + "hover-count") countsDirty = true;
       if (["folder-height", "connector-scroll", "hover-count", "scroll-glow", "glow-follows"].some(k => data === PREFIX + k)) fitSoon();
@@ -162,9 +156,6 @@
     return v && /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(v) ? v : null;
   }
 
-  // Dominant base host among the group's DIRECT tabs; subgroups compute
-  // their own, so "Youtube > Creator" shows youtube's icon on the parent
-  // and (usually the same) icon on the child from its own members.
   // Shape of the icon slot. Auto draws an avatar round, as its page does,
   // and everything else as a rounded square; the other settings apply to
   // every icon alike. The CSS selects on attributes since it cannot read
@@ -237,7 +228,7 @@
     header?.style.removeProperty("--zzgf-saved-tint-background");
     if (header) header.style.setProperty("--zzgf-saved-available", background ? "1" : "0");
     if (!background || !header) return;
-    const probe = document.createElementNS("http://www.w3.org/1999/xhtml", "span");
+    const probe = document.createElementNS(HTML, "span");
     probe.style.display = "none";
     probe.style.backgroundImage = background;
     header.appendChild(probe);
@@ -250,19 +241,24 @@
     } finally { probe.remove(); }
   }
 
+  // A decorative span at the end of a group header, hidden from assistive technology.
+  function decorSpan(header, className) {
+    const span = document.createElementNS(HTML, "span");
+    span.className = className;
+    span.setAttribute("aria-hidden", "true");
+    return header.appendChild(span);
+  }
+
   // A clone keeps the real group's attributes and inline styles (colour,
   // icon, shape) but builds its own header, so only the header is dressed:
-  // the rim, the icon and the saved-gradient tint. Never the close control,
-  // which would act on the clone.
+  // the rim, the saved-gradient tint and, without ATG, the icon control
+  // (with ATG the label draws the icon). Never the close control, which
+  // would act on the clone.
   function dressCopy(copy) {
     const header = copy.labelContainerElement;
     if (!plainShape(copy) || !header || header.querySelector(".zzgf-rim")) return;
-    for (const name of ["zzgf-rim", "zzgf-control zzgf-icon"]) {
-      const span = document.createElementNS("http://www.w3.org/1999/xhtml", "span");
-      span.className = name;
-      span.setAttribute("aria-hidden", "true");
-      header.appendChild(span);
-    }
+    decorSpan(header, "zzgf-rim");
+    if (!window.advancedTabGroups) decorSpan(header, "zzgf-control zzgf-icon");
     const real = document.getElementById(copy.id.replace(/-copy$/, ""));
     const tint = real?.labelContainerElement?.style.getPropertyValue("--zzgf-saved-tint-background");
     if (tint) { header.style.setProperty("--zzgf-saved-tint-background", tint); header.style.setProperty("--zzgf-saved-available", "1"); }
@@ -271,12 +267,7 @@
 
   function refreshGroup(g) {
     const header = g.labelContainerElement;
-    if (header && !header.querySelector(".zzgf-rim")) {
-      const rim = document.createElementNS("http://www.w3.org/1999/xhtml", "span");
-      rim.className = "zzgf-rim";
-      rim.setAttribute("aria-hidden", "true");
-      header.appendChild(rim);
-    }
+    if (header && !header.querySelector(".zzgf-rim")) decorSpan(header, "zzgf-rim");
     // ATG may put a full gradient in this token; colour mixing needs one colour.
     let groupColor = getComputedStyle(g).getPropertyValue("--tab-group-color").trim();
     if (window.advancedTabGroups) {
@@ -320,7 +311,7 @@
       }
     }
     // Native folders keep their icon and controls; only their palette is shared.
-    if (g.isZenFolder || g.tagName === "zen-folder") return;
+    if (g.isZenFolder) return;
     const rule = ruledIcon(g) ?? customIcon(g);
     const picture = !rule && bool("section-icons", true) ? stampedIcon(g) : null;
     setShape(g, picture);
@@ -329,6 +320,9 @@
     if (!bool("favicons", true)) {
       setIcon(g, 'url("chrome://browser/skin/zen-icons/folder.svg")'); return;
     }
+    // Dominant base host among the group's DIRECT tabs; subgroups compute
+    // their own, so "Youtube > Creator" shows youtube's icon on the parent
+    // and (usually the same) icon on the child from its own members.
     const counts = new Map(), icons = new Map();
     const count = tab => {
       const h = hostOf(tab);
@@ -336,7 +330,7 @@
       counts.set(h, (counts.get(h) || 0) + 1);
       // Zen retains the tab's actual favicon across restore/unloading. A
       // synthetic https://host/ lookup can miss icons stored for another URL.
-      const icon = gBrowser.getIcon?.(tab) || tab.getAttribute("image");
+      const icon = gBrowser.getIcon(tab) || tab.getAttribute("image");
       if (icon && !/["'()\\]/.test(icon)) icons.set(h, icon);
     };
     for (const el of g.groupContainer?.children ?? []) {
@@ -347,7 +341,7 @@
     // subgroup's members so the parent still gets an icon.
     if (!counts.size) {
       for (const el of g.groupContainer?.children ?? []) {
-        if (!gBrowser.isTabGroup?.(el)) continue;
+        if (!gBrowser.isTabGroup(el)) continue;
         for (const t of el.tabs ?? []) count(t);
         if (counts.size) break;
       }
@@ -362,11 +356,10 @@
     setIcon(g, `url("${icons.get(host) ?? `page-icon:https://${host}/`}")`);
   }
 
-  // refreshAll runs half a second after any tab's favicon changes -- so
-  // after every page load -- and rewrote every group's icon each time.
-  // Writing an inline style invalidates style on that element even when
-  // the value is identical, and these groups carry the glass effects. In
-  // the steady state nothing has changed, so nothing is written.
+  // A member's favicon changes on every page load, and writing an inline
+  // style invalidates style on its element even when the value is
+  // identical; these groups carry the glass effects. Only a changed icon is
+  // written.
   function setIcon(g, value) {
     if (g.style.getPropertyValue("--zzgf-icon") !== value) g.style.setProperty("--zzgf-icon", value);
   }
@@ -392,6 +385,7 @@
   let everything = false;
   const schedule = (event) => {
     const t = event?.target;
+    if (isCopy(t)) return;
     if (t?.tagName === "tab" && t.group) {
       for (let g = t.group; g; g = g.parentElement?.closest("tab-group, zen-folder") ?? null) dirty.add(g);
     } else {
@@ -409,24 +403,40 @@
     dirty.clear();
   }
 
-  // ZenTabIconChanged is patched into tabbrowser.setIcon(), so it fires for
-  // EVERY tab whose favicon is set, and it bubbles -- which is precisely the
-  // signal this mod used to poll for. A member navigating to another domain
-  // gets a new favicon, which is the only reason the icon needs recomputing.
-  // TabGroupUpdate and TabGroupRemovedFromDOM are Zen's own group events; both
-  // change what a group contains and neither was being watched.
+  // ZenTabIconChanged is dispatched from tabbrowser.setIcon() for every tab
+  // whose favicon is set, and bubbles: a member navigating to another domain
+  // gets a new favicon, the only reason its group's icon needs recomputing.
+  // The group events change what a group contains or, for TabGroupUpdate,
+  // its colour and the label icon rules match on.
   const EVENTS = ["TabGroupCreate", "TabGrouped", "TabUngrouped",
                   "TabGroupRemoved", "TabGroupRemovedFromDOM", "TabGroupUpdate",
                   "FolderGrouped", "FolderUngrouped",
                   "SSTabRestored", "ZenTabIconChanged"];
 
-  // Zen's library (1.23b) shows clones of every space's strip. A clone is a
-  // picture of a real group: never one to save, nest, file, edit or close.
+  // Zen's Library shows clones of every space's strip, which fire the same
+  // group events as the real ones. A clone is a picture of a real group:
+  // never one to save, nest, file, edit, close or refit; only dressCopy
+  // handles its events.
   const isCopy = el => !!el?.closest?.("zen-library, [zen-library-copy]");
   const plainShape = g => g?.tagName === "tab-group" && !g.isZenFolder && !g.hasAttribute("split-view-group");
   const plainGroup = g => plainShape(g) && !isCopy(g);
   const plainGroups = () => [...document.querySelectorAll("tab-group")].filter(plainGroup);
   const workspaceOf = g => g.closest("zen-workspace")?.id || g.getAttribute("zen-workspace-id");
+
+  // A group's two menus: Firefox's editor panel and Zen's folder context menu.
+  // Answers the group shown and where its items go, or null for any other popup.
+  function groupMenu(popup) {
+    const panel = popup.matches?.(".tab-group-editor-panel");
+    if (!panel && popup.id !== "zenFolderActions") return null;
+    return { panel, group: panel ? gBrowser.tabGroupMenu.activeGroup : popup.triggerNode?.closest?.("tab-group, zen-folder"),
+      parent: panel ? popup.querySelector(".tab-group-edit-actions") : popup };
+  }
+  function menuItem(parent, panel, id, label, command) {
+    const item = document.createXULElement(panel ? "toolbarbutton" : "menuitem");
+    item.setAttribute("label", label); item.setAttribute("class", "subviewbutton"); item.setAttribute("data-zz-action", "groupflow--" + id);
+    item.addEventListener("command", command);
+    return parent.appendChild(item);
+  }
 
   function readGroupData(key) {
     try {
@@ -482,7 +492,7 @@
       }
       if (changed) writeGroupData("groupflowGroups", data);
     }
-    function changed() { if (timer === null) timer = setTimeout(() => { timer = null; save(); }, 0); }
+    function changed(event) { if (timer === null && !isCopy(event?.target)) timer = setTimeout(() => { timer = null; save(); }, 0); }
     function closing() { save(); closed = true; }
     const events = ["TabGroupCreate", "TabGroupUpdate", "FolderGrouped", "FolderUngrouped"];
     for (const event of events) window.addEventListener(event, changed, true);
@@ -617,13 +627,14 @@
       colorCache.delete(group.id); appliedColors.delete(group);
       group.color = group.id;
       applyColor(group); refreshGroup(group);
-      document.querySelector("zen-library")?.update?.(true);
+      // An open Library rebuilds its copies, which carry the group's inline colours.
+      document.querySelector("zen-library-spaces-section")?.refreshStripsNow();
       return true;
     }
     function editGradient(group) {
       if (!live(group) || !colors) return;
       const html = (tag, parent, attrs = {}) => {
-        const node = document.createElementNS("http://www.w3.org/1999/xhtml", tag);
+        const node = document.createElementNS(HTML, tag);
         for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
         parent?.appendChild(node); return node;
       };
@@ -661,7 +672,7 @@
       if (!live(group) || !colors) return false;
       const before = group.color, saved = JSON.stringify(colors[group.id]);
       const sources = [...new Set(group.tabs.map(tab => tab.getAttribute("image")).filter(Boolean))];
-      const canvas = document.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
+      const canvas = document.createElementNS(HTML, "canvas");
       canvas.width = canvas.height = 16;
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
       const sum = [0, 0, 0]; let weight = 0;
@@ -709,7 +720,7 @@
       if (group.isConnected && !group.tabs.some(tab => !tab.hasAttribute("zen-empty-tab"))) {
         if (fromFolder) group.delete(); else gBrowser.removeTabGroup(group);
       }
-      changed(); document.querySelector("zen-library")?.update?.(true);
+      changed();
       return target;
     }
     const actionItems = new Set();
@@ -721,21 +732,16 @@
       ];
       for (const [id, label, eligible, action] of actions) {
         if (!live(group) || !eligible()) continue;
-        const item = document.createXULElement(panel ? "toolbarbutton" : "menuitem");
-        item.setAttribute("label", label); item.setAttribute("class", "subviewbutton"); item.setAttribute("data-zz-action", "groupflow--" + id);
-        item.addEventListener("command", () => {
+        actionItems.add(menuItem(parent, panel, id, label, () => {
           if (live(group) && eligible()) Promise.resolve(action()).catch(error => console.error("[Groupflow] Action failed:", error));
-        });
-        parent.appendChild(item); actionItems.add(item);
+        }));
       }
     }
     function actionsMenu(event) {
-      const popup = event.target, panel = popup.matches?.(".tab-group-editor-panel");
-      if (!panel && popup.id !== "zenFolderActions") return;
+      const menu = groupMenu(event.target);
+      if (!menu) return;
       for (const item of actionItems) item.remove(); actionItems.clear();
-      const group = panel ? gBrowser.tabGroupMenu.activeGroup : popup.triggerNode?.closest?.("tab-group, zen-folder");
-      const parent = panel ? popup.querySelector(".tab-group-edit-actions") : popup;
-      if (parent && live(group)) addActions(parent, group, panel);
+      if (menu.parent && live(menu.group)) addActions(menu.parent, menu.group, menu.panel);
     }
     let libraryMenu = null;
     function libraryContext(event) {
@@ -764,17 +770,13 @@
       if (!decorated.has(group)) {
         decorated.add(group);
         header.classList.add("zen-drop-target");
-        for (const action of ["icon", "close"]) {
-          const close = action === "close";
-          const control = document.createElementNS("http://www.w3.org/1999/xhtml", close ? "button" : "span");
-          control.className = "zzgf-control zzgf-" + action + (close ? " tab-close-button" : "");
-          if (close) {
-            control.type = "button";
-            control.setAttribute("aria-label", "Close group");
-            control.title = "Close group";
-          } else control.setAttribute("aria-hidden", "true");
-          header.appendChild(control);
-        }
+        decorSpan(header, "zzgf-control zzgf-icon");
+        const close = document.createElementNS(HTML, "button");
+        close.className = "zzgf-control zzgf-close tab-close-button";
+        close.type = "button";
+        close.setAttribute("aria-label", "Close group");
+        close.title = "Close group";
+        header.appendChild(close);
       }
       const ws = workspaceOf(group);
       if (ws && group.getAttribute("zen-workspace-id") !== ws) group.setAttribute("zen-workspace-id", ws);
@@ -799,7 +801,7 @@
       if (updateParents(plainGroups())) writeGroupData("tabGroupParents", parents);
     }
 
-    function pruneClosedState(groups) {
+    function pruneClosedState() {
       // Retain metadata while Firefox can undo the close, including descendants
       // of a closed parent. Never prune against an unavailable closed-tabs store.
       const scope = { sourceWindow: window, closedTabsFromAllWindows: false, closedTabsFromClosedWindows: false };
@@ -844,18 +846,24 @@
       for (const group of groups) decorate(group);
       refreshFolders();
       if (updateParents(groups)) writeGroupData("tabGroupParents", parents);
-      if (pruneNeeded && !closing) {
-        pruneNeeded = false;
-        try { pruneClosedState(groups); } catch (error) {
-          console.error("[Groupflow] Retaining closed group data:", error);
-        }
-      }
+      if (pruneNeeded) { pruneNeeded = false; prune(); }
     }
     function changed(event) {
+      if (isCopy(event?.target)) return;
       if (event?.type === "TabGroupRemoved" || event?.type === "TabGroupRemovedFromDOM") pruneNeeded = true;
       if (pending === null) pending = setTimeout(sync, 0);
     }
-    const historyChanged = () => { pruneNeeded = true; changed(); };
+    let pruneTimer = null;
+    function prune() {
+      clearTimeout(pruneTimer); pruneTimer = null;
+      if (closing) return;
+      try { pruneClosedState(); } catch (error) {
+        console.error("[Groupflow] Retaining closed group data:", error);
+      }
+    }
+    // Closed history changes with every tab closed in any window. That only
+    // retires metadata, so it prunes without a sync, at most once a second.
+    const historyChanged = () => { pruneTimer ??= setTimeout(prune, 1000); };
     Services.obs.addObserver(historyChanged, "sessionstore-closed-objects-changed");
 
     async function click(event) {
@@ -929,19 +937,14 @@
       window.removeEventListener("contextmenu", libraryContext, true);
       if (gBrowser.createTabsForSessionRestore === restoreTabs) gBrowser.createTabsForSessionRestore = nativeRestore;
       if (!closing) saveParents();
-      clearTimeout(pending);
+      clearTimeout(pending); clearTimeout(pruneTimer);
       Services.obs.removeObserver(historyChanged, "sessionstore-closed-objects-changed");
       for (const event of events) window.removeEventListener(event, changed, true);
       for (const [event, fn] of [["click", click], ["contextmenu", edit], ["command", ungroup], ["dragover", drag],
         ["dragend", resetDrag], ["drop", resetDrag], ["SSWindowClosing", beforeClose]]) {
         window.removeEventListener(event, fn, true);
       }
-      for (const group of plainGroups()) {
-        for (const button of group.querySelectorAll(":scope > .tab-group-label-container > .zzgf-control")) button.remove();
-        group.labelContainerElement?.classList.remove("zen-drop-target");
-        group.style.removeProperty("--zzgf-saved-background");
-        group.removeAttribute("zzgf-saved-gradient");
-      }
+      for (const group of plainGroups()) group.labelContainerElement?.classList.remove("zen-drop-target");
       root.removeAttribute("zzgf-standalone");
       savedGroupIcons = null;
       savedGroupColors = null;
@@ -1003,7 +1006,7 @@
       tab.removeAttribute("zzgf-page-of");
       try { SessionStore.deleteCustomTabValue(tab, PAGE_OF); } catch {}
     }
-    const members = group => gBrowser.tabs.filter(t => t.group === group && !t.closing && !t.hasAttribute("zen-empty-tab"));
+    const members = group => group.tabs.filter(t => t.group === group && !t.closing && !t.hasAttribute("zen-empty-tab"));
     // The page tab: the member marked for it, else a member already showing
     // it. The folder always has its own: a Favorite (Essential) showing the
     // same page stays a Favorite, and the header never stands for it.
@@ -1021,11 +1024,11 @@
         if (isCopy(group)) continue;
         const page = pageOf(group), tab = page ? pageTab(group, page) : null;
         if (page) signature += `${group.id}=${page}\n`;
-        if (tab && tab.group === group && markedFor(tab) !== group.id) mark(tab, group);
+        // The page tab carries the mark: a member showing the page takes it, and
+        // one marked only in the session (after a restart or a live update) gets
+        // its attribute back.
+        if (tab && tab.getAttribute("zzgf-page-of") !== group.id) mark(tab, group);
         group.toggleAttribute("zzgf-has-page", !!page);
-        group.toggleAttribute("zzgf-page-open", !!tab);
-        group.toggleAttribute("zzgf-page-selected", !!tab?.selected);
-        group.toggleAttribute("zzgf-page-loaded", !!tab && !tab.hasAttribute("pending"));
       }
       // Tab Router counts folder pages as open, with or without their tab.
       let pageTabsChanged = signature !== lastSignature;
@@ -1084,7 +1087,7 @@
       if (icon?.width && event.clientX >= icon.left && event.clientX <= icon.right &&
           event.clientY >= icon.top && event.clientY <= icon.bottom) return false;
       if (pageTab(group)?.selected) return false;          // on the page: fold as usual
-      event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation?.();
+      event.preventDefault(); event.stopImmediatePropagation();
       open(group);
       return true;
     }
@@ -1117,24 +1120,18 @@
     }
     const items = new Set();
     function menu(event) {
-      const popup = event.target, panel = popup.matches?.(".tab-group-editor-panel");
-      if (!panel && popup.id !== "zenFolderActions") return;
+      const target = groupMenu(event.target);
+      if (!target) return;
       for (const item of items) item.remove(); items.clear();
-      if (!enabled()) return;
-      const group = panel ? gBrowser.tabGroupMenu.activeGroup : popup.triggerNode?.closest?.("tab-group, zen-folder");
-      if (!live(group)) return;
-      const parent = panel ? popup.querySelector(".tab-group-edit-actions") : popup;
+      const { group, parent, panel } = target;
+      if (!enabled() || !live(group) || !parent) return;
       const selected = gBrowser.selectedTab, url = urlOf(selected);
       const actions = [
         ["use-page", "Use selected tab as folder page", selected?.group === group && !!pageKey(url), () => setPage(group, url)],
         ["clear-page", "Clear folder page", !!pageOf(group), () => setPage(group, "")],
       ];
       for (const [id, label, eligible, action] of actions) {
-        if (!eligible || !parent) continue;
-        const item = document.createXULElement(panel ? "toolbarbutton" : "menuitem");
-        item.setAttribute("label", label); item.setAttribute("class", "subviewbutton"); item.setAttribute("data-zz-action", "groupflow--" + id);
-        item.addEventListener("command", () => { if (!retired && live(group)) action(); });
-        parent.appendChild(item); items.add(item);
+        if (eligible) items.add(menuItem(parent, panel, id, label, () => { if (!retired && live(group)) action(); }));
       }
     }
     // A page tab is the folder itself: closing it (a shortcut, the menu,
@@ -1149,7 +1146,7 @@
     function* ancestorsOfGroup(group) { for (let g = group?.group; g; g = g.group) yield g; }
     function unloadPage(tab) {
       if (tab.selected) {
-        const next = gBrowser._findTabToBlurTo?.(tab) || gBrowser.visibleTabs.find(t => t !== tab && !t.closing);
+        const next = gBrowser._findTabToBlurTo(tab) || gBrowser.visibleTabs.find(t => t !== tab && !t.closing);
         if (next) gBrowser.selectedTab = next;
       }
       if (!tab.selected && !tab.hasAttribute("pending")) { try { gBrowser.discardBrowser(tab); } catch {} }
@@ -1161,14 +1158,13 @@
       return nativeRemoveTab.call(this, tab, ...rest);
     };
     gBrowser.removeTab = removeTab;
-    const events = ["TabSelect", "TabOpen", "TabClose", "TabGrouped", "TabUngrouped",
+    // Membership, restores and Tab Router's pages move folder pages;
+    // addresses come through the progress listener.
+    const events = ["TabOpen", "TabClose", "TabGrouped", "TabUngrouped",
       "TabGroupCreate", "TabGroupRemoved", "FolderGrouped", "FolderUngrouped", "SSTabRestored", "ZzRouterPagesChanged"];
-    // Of a tab's attribute changes only these move folder pages; addresses
-    // come through the progress listener.
-    const attrChanged = event => { if (event.detail?.changed?.some(name => name === "pending" || name === "usercontextid")) soon(); };
+    const onEvent = event => { if (!isCopy(event.target)) soon(); };
     window.addEventListener("TabGroupRemoveRequested", groupRemoving, true);
-    window.addEventListener("TabAttrModified", attrChanged, true);
-    for (const type of events) window.addEventListener(type, soon, true);
+    for (const type of events) window.addEventListener(type, onEvent, true);
     window.addEventListener("popupshowing", menu);
     gBrowser.addTabsProgressListener(progress);
     const prefs = { observe: soon };
@@ -1178,8 +1174,7 @@
     return () => {
       retired = true;
       cancelAnimationFrame(frame);
-      for (const type of events) window.removeEventListener(type, soon, true);
-      window.removeEventListener("TabAttrModified", attrChanged, true);
+      for (const type of events) window.removeEventListener(type, onEvent, true);
       window.removeEventListener("TabGroupRemoveRequested", groupRemoving, true);
       if (gBrowser.removeTab === removeTab) { if (ownRemoveTab) gBrowser.removeTab = nativeRemoveTab; else delete gBrowser.removeTab; }
       if (pageHeaderClick === headerClick) pageHeaderClick = null;
@@ -1187,8 +1182,9 @@
       try { gBrowser.removeTabsProgressListener(progress); } catch {}
       try { Services.prefs.removeObserver(PREFIX + "folder-pages", prefs); } catch {}
       for (const item of items) item.remove();
-      for (const el of document.querySelectorAll("[zzgf-has-page], [zzgf-page-tab]")) {
-        for (const a of ["zzgf-has-page", "zzgf-page-open", "zzgf-page-selected", "zzgf-page-loaded", "zzgf-page-tab"]) el.removeAttribute(a);
+      // Tab Router keys off these; the session keeps each tab's mark for the next start.
+      for (const el of document.querySelectorAll("[zzgf-has-page], [zzgf-page-tab], [zzgf-page-of]")) {
+        for (const a of ["zzgf-has-page", "zzgf-page-tab", "zzgf-page-of"]) el.removeAttribute(a);
       }
     };
   }
@@ -1230,7 +1226,7 @@
       }
       const targets = new Set(allDirty ? document.querySelectorAll(tabSelector) : affected);
       // A split wrapper is one visibility/accessibility unit, including its
-      // unloaded peer when a selection-only update touches either member.
+      // unloaded peer when a targeted update touches either member.
       for (const tab of targets) for (const peer of tab.splitview?.tabs ||
         (tab.group?.hasAttribute("split-view-group") ? tab.group.tabs : [])) targets.add(peer);
       const tabs = [...targets];
@@ -1240,12 +1236,15 @@
       }));
       // Existing explicit/seeded false values remain unchanged.
       const keepLast = bool("collapse-keep-last-used", true);
+      // lastSeenActive looks up the frontmost window on every read: once per tab a pass.
+      const seen = new Map();
+      const seenAt = tab => { if (!seen.has(tab)) seen.set(tab, tab.lastSeenActive); return seen.get(tab); };
       for (const group of groups) {
         const groupTabs = members.get(group) || [];
         let last = lastTabs.get(group);
         if (!groupTabs.includes(last)) last = null;
         if (allDirty || !last) for (const tab of groupTabs) {
-          if (!last || tab.selected || (!last.selected && tab.lastSeenActive > last.lastSeenActive)) last = tab;
+          if (!last || tab.selected || (!last.selected && seenAt(tab) > seenAt(last))) last = tab;
         }
         lastTabs.set(group, last);
         if (last && keepLast) retained.add(last);
@@ -1274,6 +1273,7 @@
       gBrowser.tabContainer._invalidateCachedVisibleTabs();
     }
     function changed(event) {
+      if (isCopy(event?.target)) return;
       if (event?.type === "TabSelect") {
         for (const tab of [event.target, event.detail?.previousTab]) {
           if (!tab) continue;
@@ -1284,30 +1284,30 @@
             if (tab === event.target && !group.hasAttribute("split-view-group")) lastTabs.set(group, tab);
           }
         }
-      } else {
+      } else if (event?.type !== "rows") {
         allDirty = true;
         if (!event || ["TabOpen", "TabClose", "TabGrouped", "TabUngrouped", "FolderGrouped", "FolderUngrouped",
-          "TabGroupUpdate", "TabGroupRemovedFromDOM"].includes(event.type)) membershipDirty = true;
+          "TabGroupRemovedFromDOM"].includes(event.type)) membershipDirty = true;
       }
       if (queued || retired) return;
       queued = true;
       queueMicrotask(() => { queued = false; if (!retired) sync(); });
     }
     const events = ["TabOpen", "TabSelect", "TabGroupCollapse", "TabGroupExpand", "TabGrouped", "TabUngrouped",
-      "TabGroupUpdate", "TabGroupRemovedFromDOM", "FolderGrouped", "FolderUngrouped",
+      "TabGroupRemovedFromDOM", "FolderGrouped", "FolderUngrouped",
       "TabClose", "SSTabRestoring", "SSTabRestored"];
     for (const event of events) window.addEventListener(event, changed, true);
     const keepLastPref = PREFIX + "collapse-keep-last-used";
     Services.prefs.addObserver(keepLastPref, changed);
     // Native restoration can clear pending without a TabAttrModified event.
+    // Each of these attributes changes only its own row (sync adds a split
+    // peer), never membership or a folder's last-used tab, so only those
+    // rows are updated.
     const observer = new MutationObserver(records => {
       const relevant = records.filter(record => record.target.matches(tabSelector));
       if (!relevant.length) return;
-      // Selection attributes are changed by the same native selection path.
-      // Reuse its affected tabs; no membership scan on this observer either.
       for (const record of relevant) affected.add(record.target);
-      changed({ type: relevant.some(r => r.attributeName !== "multiselected") ? "state" : "TabSelect",
-        target: gBrowser.selectedTab });
+      changed({ type: "rows" });
     });
     observer.observe(gBrowser.tabContainer, { subtree: true, attributes: true,
       attributeFilter: ["pending", "discarded", "hidden", "multiselected"] });
@@ -1432,21 +1432,34 @@
   // below three rows. Returns the scroll positions and the height for each.
   const shares = new WeakMap();             // box -> height its list gives it
   const prefCap = box => parseFloat(getComputedStyle(box).getPropertyValue("--zzgf-box-cap")) || Infinity;
+  // Reads only: null when the body fits (releaseBox then clears it).
   function measureBox(box) {
     const end = box.scrollHeight;
     const stops = rowStops(box), ends = [...stops, end];
     // A registered <length> | none, so it computes to pixels without touching
     // the box's own height (which would clamp its scroll position).
     const cap = Math.max(shares.get(box) ?? prefCap(box), ends[Math.min(3, ends.length - 1)]);
-    if (end <= cap) {
-      for (const v of ["fit", "scroll"]) box.style.removeProperty("--zzgf-box-" + v);
-      markEdges(box, false);
-      return null;
-    }
+    if (end <= cap) return null;
     const last = stops.find(y => end - y <= cap) ?? end - cap;
     const positions = stops.filter(y => y < last).concat(last);
     const fitAt = y => ends.filter(e => e > y && e - y <= cap).reduce((a, e) => Math.max(a, e - y), 0);
     return { positions, fitAt };
+  }
+  function releaseBox(box) {
+    for (const v of ["fit", "scroll"]) box.style.removeProperty("--zzgf-box-" + v);
+    markEdges(box, false);
+  }
+  // One measurement per wheel gesture, mouse notches as much as touchpads:
+  // rows and caps change only with tabs, folders or sizes, whose refit clears
+  // it (fitSoon), as does a pause in the wheel.
+  const measures = new Map();
+  let measureTimer = null;
+  const forgetMeasures = () => { measures.clear(); clearTimeout(measureTimer); measureTimer = null; };
+  function gestureMeasure(box) {
+    clearTimeout(measureTimer);
+    measureTimer = setTimeout(forgetMeasures, 400);
+    if (!measures.has(box)) measures.set(box, measureBox(box));
+    return measures.get(box);
   }
   // Everything in a list but the folder bodies keeps its height; the bodies
   // share what is left, smallest first, so a folder that fits keeps its full
@@ -1485,7 +1498,8 @@
   // the rail a frame behind, which showed as a gap at the box's edge.
   const glides = new Map();                // box -> { to, raf }; entries leave when done
   const setTops = new WeakMap();            // box -> the scrollTop this mod last set
-  const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let motionQuery = null;                   // one live query, asked per rail per frame
+  const reducedMotion = () => (motionQuery ??= window.matchMedia("(prefers-reduced-motion: reduce)")).matches;
   function scrollBox(box, to, instant, measured) {
     instant ||= reducedMotion();
     if (!instant && glides.get(box)?.to === to) return;   // already gliding there
@@ -1496,13 +1510,17 @@
     cancelAnimationFrame(glides.get(box)?.raf);
     glides.delete(box);
     if (measured) box.style.setProperty("--zzgf-box-fit", measured.fitAt(to) + "px");
+    let max;
     const set = y => {
       box.scrollTop = y;
-      setTops.set(box, box.scrollTop);
-      box.style.setProperty("--zzgf-box-scroll", box.scrollTop + "px");
-      markEdges(box, true);
+      const top = box.scrollTop;
+      setTops.set(box, top);
+      box.style.setProperty("--zzgf-box-scroll", top + "px");
+      markEdges(box, true, max);
     };
     if (instant) { set(to); return; }
+    // Measured once: each frame then writes without forcing a layout.
+    max = box.scrollHeight - box.clientHeight;
     const from = box.scrollTop, start = performance.now(), ms = 240;
     const step = now => {
       const k = Math.min(1, (now - start) / ms);
@@ -1515,17 +1533,13 @@
   // rows are hidden (edge fade), its connector lines are
   // lit at one height that follows the scroll: at the top when the body is
   // at its top, sliding to the bottom as it reaches its end. Subfolder
-  // lines get the same light, measured from their own tops.
-  const HTML = "http://www.w3.org/1999/xhtml";
-  function markEdges(box, scrolls) {
-    for (const item of scrollItems) {
-      if (!item.isConnected || item.zzgfEligible()) continue;
-      const popup = item.closest("menupopup, panel"), focused = document.activeElement === item;
-      item.remove(); scrollItems.delete(item);
-      if (focused) ([...popup.querySelectorAll("menuitem, toolbarbutton")].find(n => !n.hidden && !n.disabled) || popup.anchorNode)?.focus();
-    }
-    const max = box.scrollHeight - box.clientHeight, y = box.scrollTop;
+  // lines get the same light, measured from their own tops. Layout is read
+  // only for a body that scrolls, and max only when the caller has not.
+  function markEdges(box, scrolls, max) {
+    if (scrollItems.size) pruneScrollItems();
+    if (scrolls) max ??= box.scrollHeight - box.clientHeight;
     scrolls &&= max > 0.5;
+    const y = scrolls ? box.scrollTop : 0;
     box.toggleAttribute("zzgf-more-above", scrolls && y > 0.5);
     box.toggleAttribute("zzgf-more-below", scrolls && y < max - 0.5);
     box.toggleAttribute("zzgf-glow", scrolls);
@@ -1539,30 +1553,34 @@
   function pageFolder(box, dir) {
     if (!canScroll(box, dir)) return;
     const measured = measureBox(box);
-    if (!measured) return;
+    if (!measured) { releaseBox(box); return; }
     showWhere(box, true);
     const from = glides.get(box)?.to ?? box.scrollTop, down = dir === "down";
     const ahead = measured.positions.filter(y => down ? y > from + 0.5 : y < from - 0.5);
     if (ahead.length) scrollBox(box, nearest(ahead, from + (down ? 1 : -1) * box.clientHeight), false, measured);
   }
   const scrollItems = new Set();
+  // An open folder menu drops a scroll item the folder can no longer follow.
+  function pruneScrollItems() {
+    for (const item of scrollItems) {
+      if (!item.isConnected || item.zzgfEligible()) continue;
+      const popup = item.closest("menupopup, panel"), focused = document.activeElement === item;
+      item.remove(); scrollItems.delete(item);
+      if (focused) ([...popup.querySelectorAll("menuitem, toolbarbutton")].find(n => !n.hidden && !n.disabled) || popup.anchorNode)?.focus();
+    }
+  }
   function scrollMenu(event) {
-    const popup = event.target, panel = popup.matches?.(".tab-group-editor-panel");
-    if (!panel && popup.id !== "zenFolderActions") return;
+    const menu = groupMenu(event.target);
+    if (!menu) return;
     for (const item of scrollItems) item.remove(); scrollItems.clear();
-    const group = panel ? gBrowser.tabGroupMenu.activeGroup : popup.triggerNode?.closest?.("tab-group, zen-folder");
-    if (!group?.isConnected || isCopy(group)) return;
+    const { group, parent, panel } = menu;
+    if (!group?.isConnected || isCopy(group) || !parent) return;
     const box = group.querySelector(":scope > .tab-group-container");
-    const parent = panel ? popup.querySelector(".tab-group-edit-actions") : popup;
-    if (!parent) return;
     for (const dir of ["up", "down"]) {
       if (!canScroll(box, dir)) continue;
-      const item = document.createXULElement(panel ? "toolbarbutton" : "menuitem");
+      const item = menuItem(parent, panel, "scroll-folder-" + dir, "Scroll folder " + dir, () => { if (item.zzgfEligible()) pageFolder(box, dir); });
       item.zzgfEligible = () => group.isConnected && group.contains(box) && canScroll(box, dir);
-      item.setAttribute("data-zz-action", "groupflow--scroll-folder-" + dir);
-      item.setAttribute("label", "Scroll folder " + dir); item.setAttribute("class", "subviewbutton");
-      item.addEventListener("command", () => { if (item.zzgfEligible()) pageFolder(box, dir); });
-      parent.appendChild(item); scrollItems.add(item);
+      scrollItems.add(item);
     }
   }
 
@@ -1591,9 +1609,9 @@
     : Math.min(r.height, Math.max(0, v.top - r.top));
   // Whatever you did or pointed at last decides a folder's own line. Its
   // tabs and subfolders (pointing at them, or selecting a tab, by scrolling
-  // over the tabs or otherwise) light the selected tab; its own connector,
-  // the strip left of it and its header arrows (pointing at them, or
-  // scrolling the folder) light where you are in it. Leaving the sidebar
+  // over the tabs or otherwise) light the selected tab; its own connector
+  // and the strip left of it (pointing at them, or scrolling the folder by
+  // wheel or from its menu) light where you are in it. Leaving the sidebar
   // keeps whichever it was.
   const scrolled = new WeakSet();           // boxes whose line shows where you are
   const roams = box => scrolled.has(box);
@@ -1750,19 +1768,20 @@
       const put = (el, name) => { if (el && el.getAttribute(name) !== text) el.setAttribute(name, text); };
       put(header, "tooltiptext"); put(header, "aria-description"); put(g.labelElement, "aria-description");
       let badge = header.querySelector(":scope > .zzgf-count");
-      if (!on) { badge?.remove(); continue; }
-      if (!badge) {
-        badge = document.createElementNS(HTML, "span");
-        badge.className = "zzgf-count";
-        badge.setAttribute("aria-hidden", "true");
-        header.appendChild(badge);
-      }
+      // Native folders keep their own header controls: the tooltip carries their count.
+      if (!on || g.isZenFolder) { badge?.remove(); continue; }
+      badge ??= decorSpan(header, "zzgf-count");
       if (badge.textContent !== `${n.loaded}/${n.total}`) badge.textContent = `${n.loaded}/${n.total}`;
     }
   }
+  // Loading changes counts, rows and lights; playback only the counts' text.
+  let countTimer = null;
   function onStatusEvent(event) {
-    if (event.detail?.changed?.some(name => ["pending", "discarded", "soundplaying"].includes(name))) {
-      countsDirty = true; fitSoon();
+    const changed = event.detail?.changed;
+    if (changed?.some(name => name === "pending" || name === "discarded")) { countsDirty = true; fitSoon(); }
+    else if (changed?.includes("soundplaying")) {
+      countsDirty = true;
+      countTimer ??= setTimeout(() => { countTimer = null; countTabs(); }, 150);
     }
   }
   const settles = new Map();                // box -> timer: pixel scrolling snaps once it pauses
@@ -1804,8 +1823,8 @@
   function scrollFolder(event, hit) {
     const box = boxAt(event, hit);
     if (!box || box.scrollHeight <= box.clientHeight) return false;   // fits: the list scrolls (see below)
-    const measured = measureBox(box);
-    if (!measured) return false;
+    const measured = gestureMeasure(box);
+    if (!measured) { releaseBox(box); return false; }
     const { positions } = measured;
     const from = glides.get(box)?.to ?? box.scrollTop;
     // At its end in the wheel's direction the folder passes the wheel on, so
@@ -1878,10 +1897,10 @@
   // Refit a resting box after tabs, folders or the window change: nearest row,
   // keeping a selected tab inside the box fully in view unless told to keep
   // the rows where they are.
-  function fitBox(box, keep, glide = false) {
-    if (glides.has(box) && !glide) return;
+  // Where a resting box should sit (reads only): null when it fits.
+  function planFit(box, keep) {
     const measured = measureBox(box);
-    if (!measured) return;
+    if (!measured) return null;
     const y = box.scrollTop;
     let choices = measured.positions;
     const selected = box.querySelector(".tabbrowser-tab[selected]");
@@ -1891,7 +1910,13 @@
       const showing = choices.filter(p => top >= p && bottom <= p + measured.fitAt(p));
       if (showing.length) choices = showing;
     }
-    scrollBox(box, nearest(choices, y), !glide, measured);
+    return { measured, to: nearest(choices, y) };
+  }
+  function fitBox(box, keep, glide = false) {
+    if (glides.has(box) && !glide) return;
+    const plan = planFit(box, keep);
+    if (plan) scrollBox(box, plan.to, !glide, plan.measured);
+    else releaseBox(box);
   }
   // Zen's button owns the outer list. Reveal our capped body first so its
   // native click handler reads the selected tab's final layout coordinates.
@@ -1910,22 +1935,35 @@
     if (!bool("connector-scroll", true)) {
       // Turned off: clear what folder scrolling left, so the list's light can take over.
       stopScrolling();
-      for (const box of topBoxes()) {
-        for (const v of ["fit", "scroll"]) box.style.removeProperty("--zzgf-box-" + v);
-        markEdges(box, false);
-      }
+      for (const box of topBoxes()) releaseBox(box);
       return;
     }
-    for (const host of document.querySelectorAll("zen-workspace arrowscrollbox")) shareList(host);
-    for (const box of topBoxes()) fitBox(box, keep);
+    // The space on screen; another is fitted as it becomes active.
+    const spaces = document.querySelectorAll("zen-workspace[active]");
+    const roots = spaces.length ? [...spaces] : [document];
+    for (const root of roots) for (const host of root.querySelectorAll("arrowscrollbox")) shareList(host);
+    // Every read, then every write, then the edges' one read: a refit costs a
+    // few layout passes in all rather than a few per folder.
+    const plans = roots.flatMap(root => topBoxes(root)).filter(box => !glides.has(box))
+      .map(box => [box, planFit(box, keep)]);
+    for (const [box, plan] of plans) {
+      if (plan) box.style.setProperty("--zzgf-box-fit", plan.measured.fitAt(plan.to) + "px");
+      else for (const v of ["fit", "scroll"]) box.style.removeProperty("--zzgf-box-" + v);
+    }
+    for (const [box, plan] of plans) if (plan) { box.scrollTop = plan.to; setTops.set(box, box.scrollTop); }
+    for (const [box, plan] of plans) if (plan) box.style.setProperty("--zzgf-box-scroll", setTops.get(box) + "px");
+    const maxes = plans.map(([box]) => box.scrollHeight - box.clientHeight);
+    plans.forEach(([box, plan], i) => markEdges(box, !!plan, maxes[i]));
   }
   // A refit keeps each body's rows where they are, unless a tab was selected
   // or brought into view: then that tab is kept fully inside its body.
   const fitSoon = (select = false) => {
+    forgetMeasures();                       // whatever asked for a refit moved rows or sizes
     showSelected ||= select === true;
     if (fitTimer === null) fitTimer = setTimeout(() => { fitTimer = null; const keep = !showSelected; showSelected = false; countTabs(); fitAll(keep); }, 150);
   };
   const onFitEvent = event => {
+    if (isCopy(event.target)) return;
     // A selected tab glides into view at once, so switching tabs by scrolling keeps up.
     const box = event.type === "TabSelect" && topBoxes().find(b => b.contains(event.target));
     if (event.type === "TabSelect") {
@@ -1933,7 +1971,7 @@
         for (let g = tab?.group; g; g = g.group) tabFacts.delete(g);
     } else {
       tabFacts = new WeakMap();
-      if (!["resize", "TabGroupCollapse", "TabGroupExpand"].includes(event.type)) countsDirty = true;
+      if (!["TabGroupCollapse", "TabGroupExpand"].includes(event.type)) countsDirty = true;
     }
     if (box) {
       // Selecting a tab is the latest thing done here: its line follows the tab.
@@ -1944,7 +1982,7 @@
     fitSoon(event.type === "TabSelect");
   };
   const FIT_EVENTS = ["TabSelect", "TabOpen", "TabClose", "TabGroupCollapse", "TabGroupExpand",
-                      "TabGrouped", "TabUngrouped", "FolderGrouped", "FolderUngrouped", "TabGroupCreate", "TabGroupRemoved", "TabMove", "TabPinned", "TabUnpinned", "resize",
+                      "TabGrouped", "TabUngrouped", "FolderGrouped", "FolderUngrouped", "TabGroupCreate", "TabGroupRemoved", "TabMove", "TabPinned", "TabUnpinned",
                       "TabBrowserDiscarded", "SSTabRestoring", "SSTabRestored"];   // a folder's line rests at its top once nothing in it is loaded
   // Scrolls this mod did not start, such as a selected tab brought into view.
   // Its own scrolls are recognised by position: refitting after them would
@@ -2008,22 +2046,27 @@
     strip.addEventListener("scroll", holdRail, { capture: true, passive: true });
     for (const ev of FIT_EVENTS) window.addEventListener(ev, onFitEvent, true);
     window.addEventListener("TabAttrModified", onStatusEvent, true);
-    // The tab area also changes size without any event: the media bar or a
-    // video preview (Mediaflow) appearing, essentials or the window toolbar.
-    const tabArea = new ResizeObserver(() => fitSoon());
+    // The tab area changes size with the window, and without any event of
+    // its own: the media bar or a video preview (Mediaflow) appearing,
+    // essentials or the window toolbar. Without the wrapper, the window's
+    // resize stands in.
+    const resized = () => fitSoon();
+    const tabArea = new ResizeObserver(resized);
     const wrapper = document.getElementById("zen-tabs-wrapper");
     if (wrapper) tabArea.observe(wrapper);
+    else window.addEventListener("resize", resized);
     // Lists are lit only in the active space; light a space as it becomes
     // active, even when no tab is selected on the way (an Essential kept).
     const spaceShown = new MutationObserver(records => {
-      if (records.some(r => r.target.localName === "zen-workspace" && r.target.hasAttribute("active"))) lightSoon();
+      if (records.some(r => r.target.localName === "zen-workspace" && r.target.hasAttribute("active"))) { lightSoon(); fitSoon(); }
     });
-    const strips = document.getElementById("tabbrowser-tabs");
-    if (strips) spaceShown.observe(strips, { subtree: true, attributes: true, attributeFilter: ["active"] });
-    try { Services.obs.addObserver(schedule, "contextual-identity-updated"); } catch {}
+    spaceShown.observe(strip, { subtree: true, attributes: true, attributeFilter: ["active"] });
+    // Container colours matter only to the Tab container colour accent.
+    const identityChanged = () => { if (num("color-source", 0) === 3) schedule(); };
+    try { Services.obs.addObserver(identityChanged, "contextual-identity-updated"); } catch {}
 
     window.Groupflow = {
-      automaticPictureAllowed: group => !isCopy(group) && plainGroup(group) && !ruledIcon(group) && !customIcon(group) && bool("section-icons", true),
+      automaticPictureAllowed: group => plainGroup(group) && !ruledIcon(group) && !customIcon(group) && bool("section-icons", true),
       pictureForSearch: group => group && !ruledIcon(group) && !customIcon(group) && bool("section-icons", true) ? stampedIcon(group) : null,
       folderStatus(group) { countTabs(); return folderStatus.get(group) || { loaded: 0, total: 0, playing: 0 }; },
       // Additions may batch; removals/history purge and console calls stay immediate.
@@ -2075,12 +2118,13 @@
       for (const ev of iconEvents) window.removeEventListener(ev, schedule, true);
       window.removeEventListener("click", toggleSubgroups, true);
       window.removeEventListener("click", revealSelected, true);
-      stopScrolling();
-      for (const mark of document.querySelectorAll(".tab-group-label-container > .zzgf-count")) mark.remove();
-      for (const box of document.querySelectorAll(".tab-group-container[zzgf-glow]")) markEdges(box, false);
+      stopScrolling(); forgetMeasures();
       for (const port of listPorts) port.removeEventListener("scroll", onListScroll);
       cancelAnimationFrame(listFrame);
-      for (const box of document.querySelectorAll(".tab-group-container[zzgf-list-glow]")) box.removeAttribute("zzgf-list-glow");
+      for (const box of document.querySelectorAll(".tab-group-container")) {
+        for (const name of ["zzgf-glow", "zzgf-more-above", "zzgf-more-below", "zzgf-list-glow"]) box.removeAttribute(name);
+        for (const name of ["--zzgf-glow", "--zzgf-box-fit", "--zzgf-box-scroll"]) box.style.removeProperty(name);
+      }
       window.removeEventListener("TabGroupCreate", dressCopies, true);
       window.removeEventListener("popupshowing", scrollMenu);
       for (const item of scrollItems) item.remove(); scrollItems.clear();
@@ -2094,9 +2138,10 @@
       for (const ev of FIT_EVENTS) window.removeEventListener(ev, onFitEvent, true);
       window.removeEventListener("TabAttrModified", onStatusEvent, true);
       tabArea.disconnect();
+      window.removeEventListener("resize", resized);
       spaceShown.disconnect();
-      clearTimeout(fitTimer);
-      try { Services.obs.removeObserver(schedule, "contextual-identity-updated"); } catch {}
+      clearTimeout(fitTimer); clearTimeout(countTimer);
+      try { Services.obs.removeObserver(identityChanged, "contextual-identity-updated"); } catch {}
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}
       clearTimeout(timer);
       clearTimeout(foldTimer);
@@ -2104,9 +2149,15 @@
       cleanupVisibility?.();
       cleanupPages?.();
       groupDetails?.retire();
-      for (const rim of document.querySelectorAll(".tab-group-label-container > .zzgf-rim")) {
-        rim.parentElement.style.removeProperty("--zzgf-saved-tint-background");
-        rim.remove();
+      // What refreshGroup (setSavedBackground included), countTabs and dressCopy wrote on groups and headers.
+      for (const group of document.querySelectorAll("tab-group, zen-folder")) {
+        for (const name of ["--zzgf-icon", "--zzgf-group-color", "--zzgf-container-color", "--zzgf-saved-background"]) group.style.removeProperty(name);
+        for (const name of ["zzgf-shape", "zzgf-picture", "zzgf-saved-gradient"]) group.removeAttribute(name);
+        const header = group.labelContainerElement;
+        if (!header) continue;
+        for (const child of header.querySelectorAll(":scope > :is(.zzgf-count, .zzgf-rim, .zzgf-control)")) child.remove();
+        for (const name of ["tooltiptext", "aria-description"]) header.removeAttribute(name);
+        for (const name of ["--zzgf-saved-tint-background", "--zzgf-saved-available"]) header.style.removeProperty(name);
       }
       window.removeEventListener("unload", cleanup);
       dirty.clear();
@@ -2141,13 +2192,6 @@
     }).catch(e => console.error("[Groupflow] startup folding failed:", e));
   }
 
-  // Written the moment this script is injected, not from start(). These
-  // variables need only Services.prefs and the document element -- never
-  // gBrowser -- and browser-delayed-startup-finished, which start() waits for,
-  // fires well AFTER first paint. Deferring meant every window opened painting
-  // the CSS fallbacks (10px roundness, the default tints) and then snapping to
-  // the configured values. Doing it here is what actually makes the comment
-  // above true.
   // ---- declared defaults --------------------------------------------------
   // Sine does not write the defaults declared in preferences.json into the
   // profile. manager.sys.mjs says so outright: "TODO: Apply default
@@ -2191,6 +2235,12 @@
     return wrote;
   }
 
+  // Written the moment this script is injected, not from start(). These
+  // variables need only Services.prefs and the document element -- never
+  // gBrowser -- and browser-delayed-startup-finished, which start() waits for,
+  // fires well AFTER first paint: deferred, every window would paint the CSS
+  // fallbacks (10px roundness, the default tints) and then snap to the
+  // configured values.
   try { injectPrefVars(); } catch {}
   // Seeding is a file read, so it cannot happen before first paint like the
   // line above. Re-inject after it, and only if it actually wrote something,

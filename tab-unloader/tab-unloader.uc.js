@@ -48,8 +48,6 @@
   let timer = null;        // setInterval handle for the sweep loop
   let kick  = null;        // setTimeout handle for the first sweep after a reschedule
   let log = [];
-  let SS = null;          // SessionStore, resolved once
-  let ssWarned = false;
   let sweeping = false, retired = false;
 
   function note(msg) {
@@ -58,33 +56,8 @@
     if (bool("debug", false)) console.log("[TabUnloader]", msg);
   }
 
-  function sessionStore() {
-    if (SS) return SS;
-    if (typeof SessionStore !== "undefined") { SS = SessionStore; return SS; }
-    // Firefox 156 moved the browser's own modules to moz-src:; the old
-    // resource:// path is gone there and the new one does not exist on
-    // 155, so both are tried before giving up. This is only the fallback
-    // anyway: browser.xhtml defines SessionStore as a window global.
-    const WHERE = [
-      "moz-src:///browser/components/sessionstore/SessionStore.sys.mjs",
-      "resource:///modules/sessionstore/SessionStore.sys.mjs",
-    ];
-    let err = null;
-    try {
-      for (const uri of WHERE) {
-        try { SS = ChromeUtils.importESModule(uri).SessionStore; } catch (e) { err = e; continue; }
-        if (SS) return SS;
-      }
-      throw err ?? new Error("SessionStore not found");
-    } catch (e) {
-      if (!ssWarned) {
-        ssWarned = true;
-        note(`SessionStore unavailable (${e}); keeping tabs while form protection is enabled`);
-      }
-      SS = null;
-    }
-    return SS;
-  }
+  // browser.js defines SessionStore as a lazy window global.
+  const sessionStore = () => typeof SessionStore === "undefined" ? null : SessionStore;
 
   // Keep tabs when form protection is enabled but session state is unreadable.
   // SessionStore records any field it considers changed -- which is far more
@@ -243,6 +216,7 @@
     // Zen's library clones each strip; those clones are not tabs.
     return [...document.querySelectorAll(".tabbrowser-tab:not(zen-library *)")];
   }
+  const loadedCount = (tabs = allTabs()) => tabs.filter(t => !t.hasAttribute("pending") && !t.closing).length;
 
   // Deferring on Zen's animation markers has to be BOUNDED. Zen sets
   // animating-background from more than one code path but removes it from only
@@ -254,18 +228,16 @@
   // far better failure than never unloading again.
   const MAX_DEFER_MS = 10000;
   let deferredSince = 0, deferredTimer = null;
-  // Zen marks a trackpad swipe on the tab scroller, the workspaces and the
-  // grain layer (ZenSpacesSwipe.mjs), never on :root. A workspace slide is
-  // marked on #navigator-toolbox since Zen 1.23b, on :root before it.
+  // Zen marks a trackpad swipe on the tab scroller (ZenSpacesSwipe.mjs) and a
+  // workspace slide on #navigator-toolbox, never on :root.
   const swiping = () => !!document.getElementById?.("tabbrowser-arrowscrollbox")?.hasAttribute("swipe-gesture");
-  const sliding = () => document.documentElement.hasAttribute("animating-background") ||
-    !!document.getElementById?.("navigator-toolbox")?.hasAttribute("animating-background") || swiping();
+  const sliding = () => !!document.getElementById?.("navigator-toolbox")?.hasAttribute("animating-background") || swiping();
 
   async function sweep(scope = null) {
     const manual = !!scope;
     if (sweeping || retired || (!manual && !bool("enabled", false))) return;
-    // discardBrowser mid workspace-slide contributes to animation stutter;
-    // Zen marks the slide on :root. Skip this tick, the interval retries.
+    // discardBrowser during a workspace slide or swipe adds to its stutter,
+    // so wait for it to end, for up to MAX_DEFER_MS.
     if (!manual && sliding()) {
       if (!deferredSince) deferredSince = Date.now();
       const waited = Date.now() - deferredSince;
@@ -284,10 +256,7 @@
     let budget = cap > 0 ? cap : tabs.length;
 
     const floor = num("keep-loaded", 0);
-    if (floor > 0) {
-      const loaded = tabs.filter(t => !t.hasAttribute("pending") && !t.closing).length;
-      budget = Math.min(budget, Math.max(0, loaded - floor));
-    }
+    if (floor > 0) budget = Math.min(budget, Math.max(0, loadedCount(tabs) - floor));
     if (budget <= 0) { note(`sweep: budget 0 (floor ${floor}); nothing to do`); return; }
 
     // Oldest first, then stop as soon as the budget is filled.
@@ -321,7 +290,7 @@
           if (manual) latest.idleSec = 0;
           if ((scope && (!scope.isConnected || !scope.contains(tab))) || whyKeep(tab, Date.now(), latest) !== null) continue;
           const currentFloor = num("keep-loaded", 0);
-          if (currentFloor > 0 && allTabs().filter(t => !t.hasAttribute("pending") && !t.closing).length <= currentFloor) break;
+          if (currentFloor > 0 && loadedCount() <= currentFloor) break;
           if (gBrowser.discardBrowser(tab)) { done++; note(`unloaded: ${tab.label}`); }
         }
         catch (e) { note(`failed on ${tab.label}: ${e}`); }
@@ -337,6 +306,7 @@
     return done;
   }
 
+  const FIRST_SWEEP_MS = 15000;
   function reschedule(firstDelay = 500) {
     clearTimeout(deferredTimer); deferredTimer = null; deferredSince = 0;
     if (timer) { clearInterval(timer); timer = null; }
@@ -400,21 +370,27 @@
     },
   };
 
-  const loadedTabs = new Set();
   const liveFolder = group => !retired && !!group?.isConnected && group.matches?.("tab-group:not([split-view-group]), zen-folder") && !group.closest("zen-library, [zen-library-copy]");
-  function loadedChanged(event) {
-    const tab = event.detail?.tab || (event.target?.linkedBrowser ? event.target : gBrowser.getTabForBrowser(event.target));
-    if (!tab || tab.closest?.("zen-library, [zen-library-copy]")) return;
-    if (event.type === "TabClose" || !tab.isConnected || tab.closing || tab.hasAttribute("pending")) loadedTabs.delete(tab);
-    else loadedTabs.add(tab);
-    updateFolderMenu();
-  }
   function canUnloadFolder(group) {
-    if (!liveFolder(group) || sweeping || loadedTabs.size <= num("keep-loaded", 0)) return false;
+    const floor = num("keep-loaded", 0);
+    if (!liveFolder(group) || sweeping || (floor > 0 && loadedCount() <= floor)) return false;
     const cfg = sweepConfig(); cfg.idleSec = 0;
     return [...group.tabs].some(tab => whyKeep(tab, Date.now(), cfg) === null);
   }
   const folderItems = new Set();
+  // While a folder menu with items is open, these tab changes can make an item
+  // ineligible, and updateFolderMenu() then removes it. A submenu's
+  // popuphidden bubbles to the menu, hence the target check.
+  const FOLDER_EVENTS = ["TabClose", "TabSelect", "TabAttrModified", "TabBrowserDiscarded"];
+  let folderPopup = null;
+  function watchFolderMenu(popup) {
+    const method = popup ? "addEventListener" : "removeEventListener";
+    for (const type of FOLDER_EVENTS) window[method](type, updateFolderMenu, true);
+    folderPopup?.removeEventListener("popuphidden", folderMenuHidden);
+    popup?.addEventListener("popuphidden", folderMenuHidden);
+    folderPopup = popup;
+  }
+  const folderMenuHidden = event => { if (event.target === folderPopup) watchFolderMenu(null); };
   function updateFolderMenu() {
     for (const item of folderItems) {
       if (!item.isConnected || item.zzunloadEligible()) continue;
@@ -426,7 +402,7 @@
   function folderMenu(event) {
     const popup = event.target, panel = popup.matches?.(".tab-group-editor-panel");
     if (!panel && popup.id !== "zenFolderActions") return;
-    for (const node of folderItems) node.remove(); folderItems.clear();
+    for (const node of folderItems) node.remove(); folderItems.clear(); watchFolderMenu(null);
     const group = panel ? gBrowser.tabGroupMenu.activeGroup : popup.triggerNode?.closest?.("zen-folder, tab-group");
     if (!liveFolder(group)) return;
     const parent = panel ? popup.querySelector(".tab-group-edit-actions") : popup;
@@ -445,6 +421,7 @@
       if (current) Services.prompt.alert(window, "Folder status", `${current.loaded}/${current.total} loaded · ${current.playing} playing`);
     });
     add("unload-folder", "Unload eligible tabs in folder", () => canUnloadFolder(group), () => sweep(group));
+    if (folderItems.size) watchFolderMenu(popup);
   }
   // "Keep loaded" on the tab menu: Firefox's own undiscardable flag, which
   // this mod's sweeps and Firefox's low-memory unloader both honour. It is
@@ -499,11 +476,8 @@
     if (!release) return;
     for (const tab of allTabs()) if (tab.hasAttribute(KEEP)) { tab.removeAttribute(KEEP); tab.undiscardable = false; }
   }
-  const LOADED_EVENTS = ["TabOpen", "TabClose", "TabSelect", "TabAttrModified", "SSTabRestored", "TabBrowserDiscarded"];
 
   function start() {
-    for (const tab of allTabs()) if (!tab.closing && !tab.hasAttribute("pending")) loadedTabs.add(tab);
-    for (const event of LOADED_EVENTS) window.addEventListener(event, loadedChanged, true);
     window.addEventListener("popupshowing", folderMenu);
     try { addKeepItem(); } catch (e) { note(`keep-loaded menu failed: ${e}`); }
     Services.prefs.addObserver(P, observer);
@@ -514,7 +488,7 @@
     gBrowser.tabContainer.addEventListener("TabSelect", onTabSelect);
     gBrowser.tabContainer.addEventListener("TabClose", onTabClose);
     // Startup: hold the first sweep well clear of session restore.
-    reschedule(Math.max(0, num("first-sweep-ms", 15000)));
+    reschedule(FIRST_SWEEP_MS);
 
     window.TabUnloader = {
       sweepNow: () => sweep(),
@@ -551,8 +525,7 @@
       clearTimeout(deferredTimer); deferredTimer = null;
       window.removeEventListener("popupshowing", folderMenu);
       try { removeKeepItem(false); } catch {}
-      for (const event of LOADED_EVENTS) window.removeEventListener(event, loadedChanged, true);
-      loadedTabs.clear();
+      watchFolderMenu(null);
       for (const item of folderItems) item.remove(); folderItems.clear();
       window.removeEventListener("unload", cleanup);
       try { delete window.TabUnloader; } catch {}
@@ -569,8 +542,9 @@
     // still here. Safe now that start() is contained and the top level
     // does nothing that can throw; the DOM unload listener above still
     // releases everything when the window closes.
-    // Sine's own unload (disable, removal or update) also gives Arc its
-    // settings back; closing a window does not. An update re-applies them.
+    // A release (disable or removal) also gives Arc its settings back and
+    // clears the Keep Loaded marks. An update or a closing window keeps both:
+    // the next copy re-applies them.
     try { window.addUnloadListener?.(() => { cleanup(); if (!window.__zzSineWindowClosing && window.__zzSineUnloadReasons?.get("zz-tab-unloader") === "release") { try { syncArc(true); } catch {} try { removeKeepItem(true); } catch {} } }); } catch {}
     instance.retire = cleanup;
   }

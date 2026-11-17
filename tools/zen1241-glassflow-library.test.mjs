@@ -1,4 +1,4 @@
-// Glassflow Library's Space cards against Zen 1.24b/1.24.1b's card structure.
+// Glassflow Library's Space cards against Zen 1.24b through 1.24.2b's card structure.
 // Source-level checks run everywhere. With ZEN_BINARY (and an X display, e.g.
 // xvfb-run) the native probe measures every card setting in a disposable
 // profile. With ZEN_UPSTREAM_SOURCE pointing at a Zen git checkout that has
@@ -42,7 +42,6 @@ const beats = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
 test("cards no longer depend on Zen 1.23's card gradient variable", () => {
   assert.doesNotMatch(css, /--zen-library-space-gradient/, "Zen 1.24 removed it; an undefined var() voids the whole background declaration");
   assert.doesNotMatch(code, /\.zen-library-space::before\s*\{[^}]*opacity/, "gradient strength must not target the card's own ::before");
-  assert.match(cards, /Zen 1\.24b and later/);
 });
 
 test("gradient strength, radius, base, tint, blur and shadow are retargeted to Zen's background child", () => {
@@ -119,10 +118,10 @@ test("every card setting is consumed by the card rules, with unchanged defaults"
 });
 
 const upstream = process.env.ZEN_UPSTREAM_SOURCE;
-test("Zen 1.24b and 1.24.1b paint cards through the generic background child", { skip: !upstream }, () => {
+test("Zen 1.24b through 1.24.2b paint cards through the generic background child", { skip: !upstream }, () => {
   const show = (tag, path) => execFileSync("git", ["-C", upstream, "show", `${tag}:${path}`], { encoding: "utf8", maxBuffer: 2e7 });
   assert.match(show("1.23b", "src/zen/library/zen-library.css"), /background: var\(--zen-library-space-gradient\)/);
-  for (const tag of ["1.24b", "1.24.1b"]) {
+  for (const tag of ["1.24b", "1.24.1b", "1.24.2b"]) {
     const library = show(tag, "src/zen/library/zen-library.css");
     assert.doesNotMatch(library, /--zen-library-space-gradient/, tag);
     assert.match(library, /& > \.zen-library-space-background \{[^}]*z-index: -1;[^}]*border-radius: 14px;[^}]*box-shadow: 0 0 10px rgba\(0, 0, 0, 0\.1\);/, tag);

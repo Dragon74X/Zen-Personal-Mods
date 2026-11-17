@@ -74,7 +74,7 @@ HELPERS = """
   const shown = t => t.visible && t.getBoundingClientRect().height > 0 && !t.hasAttribute('zzgf-visible') &&
     t.getAttribute('aria-hidden') !== 'true';
   const status = (g, w = window) => { const s = w.Groupflow.folderStatus(g); return [s.loaded, s.total]; };
-  const badge = (g, w = window) => g.labelContainerElement.querySelector(':scope > .zzgf-count')?.textContent ?? null;
+  const badge = (g, w = window) => g.isZenFolder ? g.labelContainerElement.getAttribute('tooltiptext')?.split(' ')[0] ?? null : g.labelContainerElement.querySelector(':scope > .zzgf-count')?.textContent ?? null;
   const parents = (w = window) => JSON.parse(w.SessionStore.getCustomWindowValue(w, 'tabGroupParents') || '{}');
   const details = (w = window) => JSON.parse(w.SessionStore.getCustomWindowValue(w, 'groupflowGroups') || '{}');
   const command = async (tab, id, w = window) => {

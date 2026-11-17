@@ -11,10 +11,15 @@ The automatic update source is `main`.
 
 # Settings menus
 
-Glassflow and Groupflow show one page at a time through `*.ui.page`. Every row
-after the picker carries the page condition first, then its own conditions
-(`tools/settings.test.mjs` enforces this). Colours belong to Glassflow; other
-mods say where to find them rather than adding their own colour settings.
+Glassflow, Glassflow Library, Groupflow and Iconflow show one page at a time
+through `*.ui.page`. Every row after the picker carries the page condition
+first, then its own conditions (`tools/settings.test.mjs` enforces this).
+
+The global look (glass tint, rims, panel borders, overlays and the shared
+accent) belongs to Glassflow. Colours that identify one thing live with that
+thing: a folder's own colour and label colours in Groupflow, the icon palette in
+Iconflow. Other mods point to Glassflow for the global look instead of adding
+their own colour settings.
 
 # Window controls
 

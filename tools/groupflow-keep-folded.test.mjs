@@ -35,7 +35,7 @@ test("A collapsed group stays folded when a tab opens or moves into it, and stil
   assert.equal(group.collapsed, true, "Zen's unfold when a tab joins without an active tab is held");
   assert.equal(await folders.animateSelect(group), false, "a held folder reports not expanded, so Zen's loop ends");
   assert.equal(group.collapsed, true);
-  assert.ok(changes.length >= 3, "visibility is resynced so the new tab shows through");
+  assert.deepEqual(changes, ["state", "state", "state"], "each held unfold resyncs visibility so the new tab shows through");
   const active = new Group(false); active.attrs.add("has-active");
   folders.on_TabGrouped(active);
   assert.equal(active.collapsed, true, "Zen may still fold");

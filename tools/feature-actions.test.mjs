@@ -68,10 +68,10 @@ test('Media sizing: disabled has 0 subscriptions; toggles coalesce and teardown 
   class Observer { constructor(fn){this.fn=fn;this.targets=new Set();observers.push(this);}observe(t){this.targets.add(t);}disconnect(){this.targets.clear();} }
   const front={isConnected:true,matches:()=>false,getBoundingClientRect:()=>({height:80})};
   const bar={hidden:false,matches:()=>false,style:{setProperty(){writes++;}}};
-  const env=vm.createContext({retired:false,mediaBar:bar,window:{gZenMediaController:{frontCard:{element:front}}},undo,ResizeObserver:Observer,MutationObserver:Observer,
+  const env=vm.createContext({retired:false,musicPlayerUI:bar,window:{gZenMediaController:{frontCard:{element:front}}},undo,ResizeObserver:Observer,MutationObserver:Observer,
     Services:{prefs:{getBoolPref:()=>enabled,addObserver:(_k,f)=>onPref=f,removeObserver(){}}},
     setTimeout(fn){timers.set(++id,fn);return id;},clearTimeout:id=>timers.delete(id)});
-  vm.runInContext(block(s,'  const EXPANDED_PREF', '    // Zen makes a card')+'\n}',env);
+  vm.runInContext(block(s,'  const EXPANDED_PREF', '  // Zen makes a card'),env);
   assert.equal(observers.reduce((n,o)=>n+o.targets.size,0),0); assert.equal(timers.size,1);
   for (let i=0;i<6;i++){enabled=!enabled;onPref();assert.equal(timers.size,1);}
   assert.equal(observers.reduce((n,o)=>n+o.targets.size,0),0);
@@ -124,9 +124,9 @@ test('Appearance snapshot restore validates whole snapshot and clears absent use
   const P={PREF_BOOL:128,PREF_INT:64,PREF_STRING:32,getStringPref:(k,d)=>store.get(k)??d,
     setBoolPref:(k,v)=>writes.push([k,v]),setIntPref:(k,v)=>writes.push([k,v]),setStringPref:(k,v)=>writes.push([k,v]),clearUserPref:k=>writes.push([k,'clear'])};
   const instance={},window={owner:instance};const env=vm.createContext({window,instance,INSTANCE_KEY:'owner',Services:{prefs:P},APPEARANCE:'saved'});
-  vm.runInContext(block(s,'  let appearanceNames', '  appearancePrefs().then')+'\nappearanceNames=new Set(["zzglass.enabled","zzgroup.radius"]);',env);
-  store.set('saved',JSON.stringify({version:1,values:{'zzglass.enabled':{type:128,had:true,value:true},'zzgroup.radius':{type:0,had:false,value:null}}}));
-  assert.ok(env.savedAppearance());await env.restoreAppearance();assert.deepEqual(writes,[['zzglass.enabled',true],['zzgroup.radius','clear']]);
-  writes.length=0;store.set('saved',JSON.stringify({version:1,values:{'zzglass.enabled':{type:128,had:true,value:true},'zzrouter.rules':{type:32,had:true,value:'secret'}}}));
+  vm.runInContext(block(s,'  let appearanceNames', '  const toolItems')+'\nappearanceNames=new Set(["zzglass.sidebar.enabled","zzgroup.corner.mode"]);',env);
+  store.set('saved',JSON.stringify({version:1,values:{'zzglass.sidebar.enabled':{type:128,had:true,value:true},'zzgroup.corner.mode':{type:0,had:false,value:null}}}));
+  assert.ok(env.savedAppearance());await env.restoreAppearance();assert.deepEqual(writes,[['zzglass.sidebar.enabled',true],['zzgroup.corner.mode','clear']]);
+  writes.length=0;store.set('saved',JSON.stringify({version:1,values:{'zzglass.sidebar.enabled':{type:128,had:true,value:true},'zzrouter.rules':{type:32,had:true,value:'secret'}}}));
   assert.equal(env.savedAppearance(),null);await env.restoreAppearance();assert.equal(writes.length,0);
 });

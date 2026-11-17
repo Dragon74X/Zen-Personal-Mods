@@ -99,9 +99,12 @@ zen-library .zen-library-space-header {
 }
 
 /* The rim is drawn above the card's layers but never takes the pointer.
-   It replaces the 1px outline Zen draws inside compact-mode cards. */
+   It replaces the 1px outline Zen draws inside compact-mode cards. Glassflow
+   writes the pointer direction on the card in variables that do not
+   inherit, so the rim takes them explicitly. */
 @media (-moz-pref("zzlib.card.rim")) {
   zen-library .zen-library-space::after {
+    --zzg-follow-angle: inherit; --zzg-follow-ring-x: inherit; --zzg-follow-ring-y: inherit;
     content: "";
     position: absolute;
     inset: 0;
@@ -204,6 +207,7 @@ zen-library[zzlib-float="centre"] {
     bottom: calc(100% + 6px) !important;
 
     &::before {
+      --zzg-follow-ring-x: inherit; --zzg-follow-ring-y: inherit;   /* written on the list */
       content: "";
       position: absolute;
       inset: 0;
@@ -228,4 +232,5 @@ zen-library[zzlib-float="centre"] {
 }
 
 @media (-moz-pref("zzlib.card.rim")) { .zen-library-space { --zzg-edge-owner: plain; } }
-zen-library[zzlib-float], #zen-library-download-list { --zzg-edge-owner: plain; }
+@media (-moz-pref("zzlib.stack.box")) { #zen-library-download-list { --zzg-edge-owner: plain; } }
+zen-library[zzlib-float] { --zzg-edge-owner: plain; }

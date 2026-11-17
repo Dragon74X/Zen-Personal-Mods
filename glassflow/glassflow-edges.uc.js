@@ -7,11 +7,14 @@
 'use strict';
 const KEY='__zzglassEdgesInstance';window[KEY]?.retire();
 const abort=new AbortController(), records=new Map(), moving=new Set(), layouts=new Map();
-const geometry=/^(?:transform|translate|scale|rotate|(?:min-|max-)?(?:width|height)|(?:margin|padding|inset)(?:-.+)?|top|right|bottom|left|flex-basis|(?:row-|column-)?gap|border-.+-width|border-radius|corner-shape)$/;
+const geometry=/^(?:transform|translate|scale|rotate|(?:min-|max-)?(?:width|height)|(?:margin|padding|inset)(?:-.+)?|top|right|bottom|left|flex-basis|(?:row-|column-)?gap|border-.+-width|border-radius|corner-shape)$/,transform=/^(?:transform|translate|scale|rotate)$/;
 const reduced=matchMedia('(prefers-reduced-motion: reduce)'),forced=matchMedia('(forced-colors: active)');
 let point=null, frame=null, dirty=false, retired=false;
+// Read when a pref changes, not on every pointer move.
+const followPref=()=>Services.prefs.getBoolPref('zzglass.edges.follow-pointer',false)&&!Services.prefs.getBoolPref('zzglass.instant-ui',false);
+let follow=followPref();
 const listen=(el,type,fn,opts={})=>el.addEventListener(type,fn,{...opts,signal:abort.signal});
-const enabled=()=>!retired&&!document.hidden&&!reduced.matches&&!forced.matches&&Services.prefs.getBoolPref('zzglass.edges.follow-pointer',false)&&!Services.prefs.getBoolPref('zzglass.instant-ui',false);
+const enabled=()=>follow&&!retired&&!document.hidden&&!reduced.matches&&!forced.matches;
 const selectors='.tabbrowser-tab, .tab-group-label-container, .tab-group-container, #navigator-toolbox, #zen-toolbar-background, .titlebar-button, #zen-workspaces-button, #zen-workspaces-button toolbarbutton, #navigator-toolbox .toolbarbutton-1, .zzicon-ws-swatch, .zzicon-ws-search, .zen-library-space, zen-library, #zen-library-download-list, .zzgf-gradient-editor, .zzdl-panel, .zzdl-name, .zzdl-btn, #zen-sidebar-pip-container, #zen-sidebar-pip-caption, zen-zap-bar';
 const properties=['--zzg-follow-angle','--zzg-follow-gradient','--zzg-follow-top','--zzg-follow-right','--zzg-follow-bottom','--zzg-follow-left','--zzg-follow-ring-x','--zzg-follow-ring-y'];
 function sample(c,time){const t=Math.max(0,(time-c.time)/1000),y=c.x-c.target,b=c.v+c.w*y,e=Math.exp(-c.w*t);return{x:c.target+(y+b*t)*e,v:(c.v-c.w*b*t)*e};}
@@ -28,7 +31,7 @@ function origin(el,returning=false){
  if(kind==='tab'||!['group','header','rail'].includes(kind))value+=90;
  return {angle:value,shadow:kind==='group'?value:value-90,kind,
   gradient:['group','header','rail'].includes(kind),
-  border:kind==='plain'&&el.matches('.zzicon-ws-swatch,.zzicon-ws-search,.zzdl-panel,.zzdl-name,.zzdl-btn,.zzgf-gradient-editor,#zen-sidebar-pip-container,#zen-sidebar-pip-caption,zen-zap-bar,#zen-toolbar-background'),
+  border:kind==='plain'&&el.matches('.zzicon-ws-swatch,.zzicon-ws-search,.zzdl-panel,.zzdl-name,.zzdl-btn,.zzgf-gradient-editor,#zen-sidebar-pip-container,#zen-sidebar-pip-caption,zen-zap-bar'),
   ring:kind==='plain'&&el.matches('.zen-library-space,zen-library,#zen-library-download-list'),response:Math.max(1,(parseFloat(s.getPropertyValue('--zzg-motion-ms'))||150)/150*(returning?260:180))};
 }
 function schedule(){if(frame===null&&enabled()&&(dirty||moving.size||point&&layouts.size))frame=requestAnimationFrame(tick);}
@@ -87,29 +90,30 @@ listen(window,'pointermove',e=>{if(!enabled()||e.pointerType==='touch')return;po
 listen(window,'pointerout',e=>{if(!e.relatedTarget)leave();});listen(window,'pointercancel',leave);listen(window,'blur',leave);
 for(const type of ['resize','scroll','popupshown','popuphidden','TabMove','TabSelect','TabAttrModified','aftercustomization','animationend'])listen(window,type,layout,{capture:true,passive:true});
 for(const type of ['transitionrun','transitionend','transitioncancel'])listen(window,type,e=>{
- if(e.target.closest?.('.zzicon-morph-glyph')||!geometry.test(e.propertyName))return;
+ if(!geometry.test(e.propertyName))return;
  const key=e.pseudoElement+':'+e.propertyName;
  // Retire transitions even if the pointer left before they finished.
  if(type!=='transitionrun'){const props=layouts.get(e.target);props?.delete(key);if(!props?.size)layouts.delete(e.target);}
- if(!point||![...records.keys()].some(el=>e.target===el||e.target.contains(el)||el.contains(e.target)))return;
+ // A descendant's transform moves only itself, never an owner's box.
+ const moves=transform.test(e.propertyName);
+ if(!point||![...records.keys()].some(el=>e.target===el||e.target.contains(el)||!moves&&el.contains(e.target)))return;
  if(type==='transitionrun'){let props=layouts.get(e.target);if(!props)layouts.set(e.target,props=new Set());props.add(key);}
  layout();
 },{capture:true});
-// Layout/shape changes invalidate only while a pointer owns edges. Animated
-// glyph path writes are excluded; no idle geometry reads or recurring timer.
+// Layout/shape changes invalidate only while a pointer owns edges; no idle
+// geometry reads or recurring timer.
 const externalStyle=value=>(value||'').replace(/--zzg-follow-[^:;]+:[^;]*(?:;|$)/g,'').replace(/\s+/g,'');
 const watch=new MutationObserver(changes=>{
  if(!point)return;
- if(changes.some(c=>!c.target.closest?.('.zzicon-morph-glyph')&&
-  [...records.keys()].some(el=>c.target===el||c.target.contains(el)||el.contains(c.target))&&
+ if(changes.some(c=>[...records.keys()].some(el=>c.target===el||c.target.contains(el)||el.contains(c.target))&&
   (c.attributeName!=='style'||externalStyle(c.oldValue)!==externalStyle(c.target.getAttribute('style')))))layout();
 });
 // Connected only while a pointer owns edges: with the feature off (the
 // default) or the pointer away, chrome's style writes are not observed.
 let watching=false;
-function watchOn(){if(watching||retired)return;watching=true;watch.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeOldValue:true,attributeFilter:['style','hidden','collapsed','zen-sidebar-expanded','zen-compact-mode','class','selected','visuallyselected','pending','zen-folder','zzgf-active']});}
+function watchOn(){if(watching||retired)return;watching=true;watch.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeOldValue:true,attributeFilter:['style','hidden','collapsed','zen-sidebar-expanded','zen-compact-mode','class','selected','visuallyselected','pending']});}
 function watchOff(){if(!watching)return;watching=false;watch.disconnect();}
-const changed={observe(){if(!enabled())clear();else layout();}};
+const changed={observe(){follow=followPref();if(!enabled())clear();else layout();}};
 for(const p of ['zzglass.','zzgroup.','zzlib.','zzmedia.','zzicon.'])Services.prefs.addObserver(p,changed);
 listen(reduced,'change',clear);listen(forced,'change',clear);listen(document,'visibilitychange',clear);
 const instance={retire(){if(retired)return;retired=true;clear();abort.abort();watch.disconnect();resize.disconnect();for(const p of ['zzglass.','zzgroup.','zzlib.','zzmedia.','zzicon.'])Services.prefs.removeObserver(p,changed);if(window[KEY]===instance)delete window[KEY];},get active(){return moving.size;},get owners(){return records.size;},get scheduled(){return frame!==null;}};

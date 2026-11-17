@@ -110,21 +110,21 @@ with tempfile.TemporaryDirectory(prefix='zen-state-motion-') as d:
                 Services.prefs.setIntPref('zzglass.motion.profile',profile);InspectorUtils.removePseudoClassLock(tab,':hover');gBrowser.selectedTab=motionOutside;await motionPause(650);
                 const before=read();InspectorUtils.addPseudoClassLock(tab,':hover');await motionPause(60);const during=read();await motionPause(650);const after=read();
                 const box=bg.getBoundingClientRect().toJSON(), ibox=icon.getBoundingClientRect().toJSON();
-                gBrowser.selectedTab=tab;await motionPause(35);const moved=getComputedStyle(label).translate;await motionPause(450);const settled=getComputedStyle(label).translate;
-                results.push({profile,before,during,after,moved,settled,boxStable:JSON.stringify(box)===JSON.stringify(bg.getBoundingClientRect().toJSON()),iconStable:JSON.stringify(ibox)===JSON.stringify(icon.getBoundingClientRect().toJSON())});
+                const rest=getComputedStyle(label).translate;gBrowser.selectedTab=tab;await motionPause(35);const moved=getComputedStyle(label).translate;await motionPause(450);const settled=getComputedStyle(label).translate;
+                results.push({profile,before,during,after,rest,moved,settled,boxStable:JSON.stringify(box)===JSON.stringify(bg.getBoundingClientRect().toJSON()),iconStable:JSON.stringify(ibox)===JSON.stringify(icon.getBoundingClientRect().toJSON())});
               }
               InspectorUtils.removePseudoClassLock(tab,':hover');
               Services.prefs.setBoolPref('zzglass.edges.enabled',false);await motionPause(650);const off=getComputedStyle(bg).boxShadow;
               Services.prefs.setBoolPref('zzglass.edges.enabled',true);
-              gBrowser.selectedTab=motionOutside;await motionPause(400);gBrowser.selectedTab=tab;Services.prefs.setIntPref('ui.prefersReducedMotion',1);await motionPause(50);
-              const reduced={translate:getComputedStyle(label).translate,animations:label.getAnimations().length};Services.prefs.setIntPref('ui.prefersReducedMotion',0);
+              gBrowser.selectedTab=motionOutside;await motionPause(400);const idle=getComputedStyle(label).translate;gBrowser.selectedTab=tab;Services.prefs.setIntPref('ui.prefersReducedMotion',1);await motionPause(50);
+              const reduced={idle,translate:getComputedStyle(label).translate,animations:label.getAnimations().length};Services.prefs.setIntPref('ui.prefersReducedMotion',0);
               return {profiles:results,off,reduced};
             })();''')
             (OUT/'motion.json').write_text(json.dumps(results,indent=2));print('MOTION',[(r['profile'],r['moved'],r['settled']) for r in results['profiles']],flush=True)
             for row in results['profiles']:
                 assert row['before']['image'] != row['during']['image'] != row['after']['image'], row
-                assert row['moved']!='none' and row['settled']=='none' and row['boxStable'] and row['iconStable'],row
-            assert results['reduced']['translate']=='none' and results['reduced']['animations']==0,results['reduced']
+                assert row['moved']!=row['rest'] and row['settled']==row['rest'] and row['boxStable'] and row['iconStable'],row  # the jiggle rides on the label's resting translate (the hover slide)
+            assert results['reduced']['translate']==results['reduced']['idle'] and results['reduced']['animations']==0,results['reduced']  # no jiggle: the title stays at its resting translate
             # Freeze actual CSS transitions for repeatable before/mid/after pixels.
             m.script("Services.prefs.setIntPref('zzglass.motion.profile',1);gBrowser.selectedTab=motionOutside;InspectorUtils.removePseudoClassLock(motionTab,':hover');return true;");time.sleep(.65)
             box=m.script("return motionTab.querySelector('.tab-background').getBoundingClientRect().toJSON();")
@@ -138,8 +138,8 @@ with tempfile.TemporaryDirectory(prefix='zen-state-motion-') as d:
             hover_hashes.append(pixels('hover-after'))
             assert len(set(hover_hashes))==3,hover_hashes
             assert close_before==m.script("return motionTab.querySelector('.tab-close-button').getBoundingClientRect().toJSON();"),'Close target moved'
-            repeat=m.script("return (async()=>{gBrowser.selectedTab=motionTab;await motionPause(30);gBrowser.selectedTab=motionOutside;gBrowser.selectedTab=motionTab;await motionPause(500);return getComputedStyle(motionTab.querySelector('.tab-label')).translate;})();")
-            assert repeat=='none',repeat
+            repeat=m.script("return (async()=>{const label=motionTab.querySelector('.tab-label'),rest=getComputedStyle(label).translate;gBrowser.selectedTab=motionTab;await motionPause(30);gBrowser.selectedTab=motionOutside;gBrowser.selectedTab=motionTab;await motionPause(500);return {rest,settled:getComputedStyle(label).translate};})();")
+            assert repeat['settled']==repeat['rest'],repeat  # a quick reselect lands back on the resting (hover-slid) translate
             light_hashes=[]
             for light in range(4):
                 m.script(f"Services.prefs.setIntPref('zzglass.motion.light',{light});return true;");time.sleep(.65)
@@ -154,7 +154,7 @@ with tempfile.TemporaryDirectory(prefix='zen-state-motion-') as d:
                 im=m.shot();im.save(OUT/f'surface-{surface}.png');crop=im.crop((round(box['x']),round(box['y']),round(box['right']),round(box['bottom'])))
                 hashes.append(hashlib.sha256(crop.tobytes()).hexdigest())
             assert len(set(hashes))==5,hashes
-            actions=m.script('''return (async()=>{
+            actions=m.script(r'''return (async()=>{
               const checks={};
               const group=motionGroup,tab=group.tabs[0];
               Groupflow.editGradient(group);

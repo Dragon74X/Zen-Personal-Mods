@@ -520,12 +520,8 @@ Tab tinting is painted as a `background-image` on `.tab-background` rather than
 on a pseudo-element. Zen and Arc both already use `.tab-background::before` and
 `::after`, so a layer built there is overridden by their opacity rules.
 
-Setting descriptions are collapsed into hover-revealed info badges. Sine has no
-tooltip field in `preferences.json`, so each explanation is written in
-`*italics*` — `formatLabel()` turns that into an `<i>` element, which
-`userContent.css` restyles as a badge. Every rule is scoped to
-`[id^="zzglass-"]`, matching only this mod's preference rows, so other mods'
-settings panels are untouched.
+Setting descriptions are collapsed into hover-revealed info badges by the
+settings wrapper every mod here shares (`sine-update-guard.sys.mjs`).
 
 `glassflow.uc.js` initializes string and numeric CSS variables synchronously,
 tracks native blur geometry and restores
@@ -533,8 +529,7 @@ the Motion animation override. Current Sine also injects string variables,
 asynchronously; Glassflow additionally covers numeric dropdowns. Booleans use
 `-moz-pref()` directly.
 
-Runtime checked in Zen 1.22.2b (Firefox 156). See the
-[audit](../docs/AUDIT-2026-09-18.md) for source versions and rendering limits.
+Written against Zen 1.24.2b (Firefox 160).
 
 ## License
 

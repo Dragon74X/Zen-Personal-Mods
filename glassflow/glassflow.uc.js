@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Glassflow
-// @description    Writes Glassflow's preference variables at startup.
+// @description    Glassflow's preference variables, sidebar blur upkeep, tab motion and Tools menu commands.
 // @include        chrome://browser/content/browser.xhtml
 // ==/UserScript==
 
@@ -75,10 +75,6 @@
   // pref exists. It is a LOOK change, which is why it lives here and not in a
   // performance mod. In-memory, applies live, reverts live, touches nothing on
   // web pages.
-  //
-  // Restored: cd192ee deleted this body while leaving both call sites, so
-  // start() threw ReferenceError on every window from then on. See the note
-  // on startOnce() for why that took the other four mods down with it.
   let instantOverride = null;
   function restoreInstantUI() {
     if (!instantOverride) return;
@@ -90,16 +86,16 @@
     instantOverride = null;
   }
   function syncInstantUI() {
-    const cfg = window.Motion?.MotionGlobalConfig;
-    if (!cfg) return;                      // not on this build; nothing to do
     let want = false;
     try { want = Services.prefs.getBoolPref(PREFIX + "instant-ui", false); } catch {}
     if (!want) { restoreInstantUI(); return; }
-    if (!instantOverride) {
-      instantOverride = { cfg, value: cfg.instantAnimations,
-        had: Object.hasOwn(cfg, "instantAnimations") };
-      cfg.instantAnimations = true;
-    }
+    if (instantOverride) return;
+    // Zen loads Motion on first use; gZenUIManager.motion loads it now.
+    const cfg = (window.Motion ?? window.gZenUIManager?.motion)?.MotionGlobalConfig;
+    if (!cfg) return;
+    instantOverride = { cfg, value: cfg.instantAnimations,
+      had: Object.hasOwn(cfg, "instantAnimations") };
+    cfg.instantAnimations = true;
   }
 
   const prefVarObserver = {
@@ -153,6 +149,14 @@
     },
   };
 
+  // ---- compact sidebar ----------------------------------------------------
+  // Zen shows the compact sidebar while its toolbox has any of these
+  // attributes, or while a tab is renamed, and slides it on translate.
+  const SHOWN = ["zen-has-hover", "zen-user-show", "zen-has-empty-tab", "flash-popup", "has-popup-menu", "movingtab", "zen-compact-mode-active"];
+  const SHOWN_SELECTOR = SHOWN.map(name => `[${name}]`).join(", ");
+  const revealed = toolbox => toolbox.matches(SHOWN_SELECTOR) || document.documentElement.getAttribute("zen-renaming-tab") === "true";
+  const sliding = toolbox => !!toolbox?.getAnimations().some(a => a.transitionProperty === "translate" && a.playState === "running");
+
   // ---- optional transparent-page blur compatibility --------------------
   // Zen 1.24's native backdrop covered transparent and opaque pages in the
   // Windows pixel test. Keep the page filter opt-in for renderers/themes
@@ -165,7 +169,6 @@
   // it falls back to software: remote pages went blank and corners changed.
   // ponytail: a rectangle; the panel's rounded corners may show a sliver of
   // blurred page. A rounded mask needs feImage, so not until Gecko enables it.
-  const SHOWN = "[zen-has-hover], [zen-user-show], [zen-has-empty-tab], [flash-popup], [has-popup-menu], [movingtab], [zen-compact-mode-active]";
   let pageBlur = null;
   function syncPageBlur() {
     if (Services.prefs.getBoolPref(PREFIX + "sidebar.blur-transparent-pages", false)) {
@@ -208,14 +211,13 @@
       }
       previousFilter = appliedFilter = null;
     };
-    const sliding = () => toolbox.getAnimations().some(a => a.transitionProperty === "translate" && a.playState === "running");
     const update = () => {
       frame = 0;
-      const panel = document.getElementById("zen-toolbar-background"), p = panel?.getBoundingClientRect(), moving = sliding();
+      const panel = document.getElementById("zen-toolbar-background"), p = panel?.getBoundingClientRect(), moving = sliding(toolbox);
       // Computed CSS resolves lengths (rem, calc, etc.) and the native/custom
       // switch once. A zero radius or disabled backdrop needs no page filter.
       const r = panel ? parseFloat(getComputedStyle(panel).backdropFilter.match(/\bblur\(([^)]+)\)/)?.[1]) : NaN;
-      if (!wanted() || !(r > 0) || root.getAttribute("zen-compact-mode") !== "true" || !(toolbox.matches(SHOWN) || root.getAttribute("zen-renaming-tab") === "true" || moving) || !p?.width || !seeThrough()) {
+      if (!wanted() || !(r > 0) || root.getAttribute("zen-compact-mode") !== "true" || !(revealed(toolbox) || moving) || !p?.width || !seeThrough()) {
         releaseFilter();
         return;
       }
@@ -237,7 +239,7 @@
     // its page filter for each one invalidates the same pixels repeatedly.
     const onSlide = e => { if (e.target === toolbox && e.propertyName === "translate") soon(); };
     const mo = new MutationObserver(soon);
-    mo.observe(toolbox, { attributes: true, attributeFilter: ["zen-has-hover", "zen-user-show", "zen-has-empty-tab", "flash-popup", "has-popup-menu", "movingtab", "zen-compact-mode-active"] });
+    mo.observe(toolbox, { attributes: true, attributeFilter: SHOWN });
     mo.observe(root, { attributes: true, attributeFilter: ["zen-compact-mode", "zen-renaming-tab"] });
     const prefs = { observe: soon };
     const transparency = window.matchMedia("(prefers-reduced-transparency: reduce)");
@@ -277,7 +279,7 @@
     // Zen's workspace switch re-blurs this panel on every frame while it fades
     // the background; a redraw then only adds another full blur. It waits for
     // the switch to finish and runs once.
-    const switching = () => !!(toolbox?.hasAttribute?.("animating-background") || root.hasAttribute?.("animating-background"));
+    const switching = () => !!toolbox?.hasAttribute?.("animating-background");
     const dropWaiter = () => { waiter?.disconnect(); waiter = null; };
     const refresh = () => {
       if (retired) return;
@@ -288,14 +290,13 @@
       if (switching()) {
         if (!waiter && toolbox) {
           waiter = new MutationObserver(() => { if (!switching()) { dropWaiter(); refresh(); } });
-          for (const node of [root, toolbox]) waiter.observe(node, { attributes: true, attributeFilter: ["animating-background"] });
+          waiter.observe(toolbox, { attributes: true, attributeFilter: ["animating-background"] });
         }
         return;
       }
       frame = requestAnimationFrame(() => {
         frame = 0;
-        if (retired || !toolbox || root.getAttribute("zen-compact-mode") !== "true" ||
-            !(toolbox.matches(SHOWN) || root.getAttribute("zen-renaming-tab") === "true")) return;
+        if (retired || !toolbox || root.getAttribute("zen-compact-mode") !== "true" || !revealed(toolbox)) return;
         const panel = document.getElementById("zen-toolbar-background");
         if (!panel || getComputedStyle(panel).backdropFilter === "none") return;
         // ponytail: finite renderer invalidation, not a renderer repair. Retain
@@ -342,7 +343,7 @@
     // the whole slide rather than only once it has stopped.
     const slide = e => {
       if (e.target !== toolbox || e.propertyName !== "translate") return;
-      if (e.type === "transitionend" || (pageChanged && toolbox.matches(SHOWN))) refresh();
+      if (e.type === "transitionend" || (pageChanged && toolbox.matches(SHOWN_SELECTOR))) refresh();
     };
     gBrowser.addTabsProgressListener(progress);
     gBrowser.tabContainer.addEventListener("TabSelect", selected);
@@ -365,50 +366,62 @@
   }
 
   const APPEARANCE = "zzglass-saved.appearance";
-  async function appearancePrefs() {
-    // Only declared appearance settings, never an entire profile branch.
-    const names = new Set();
-    for (const mod of ["glassflow", "groupflow", "iconflow"]) {
-      const rows = await (await fetch(`chrome://sine/content/zz-${mod}/preferences.json`)).json();
-      for (const row of rows) {
-        const name = row.property;
-        if (!/^zz(?:glass|group|icon)\./.test(name || "") ||
-            /\.ui\.|\.other\.|icon-rules|collapse-keep-last-used|neutralize-others/.test(name)) continue;
-        if (["checkbox", "dropdown", "string", "text"].includes(row.type)) names.add(name);
-      }
-    }
-    return names;
+  // A mod's declared settings, as Sine serves its preferences.json.
+  function declared(mod) {
+    return fetch(`chrome://sine/content/${mod}/preferences.json`).then(res => res.json());
   }
+  // Only declared appearance settings, never an entire profile branch, read
+  // when the Tools menu first opens. A mod that is not installed adds none.
+  let appearanceNames = null, appearanceLoad = null;
+  function appearancePrefs() {
+    return appearanceLoad ??= (async () => {
+      const names = new Set();
+      for (const mod of ["glassflow", "groupflow", "iconflow"]) {
+        let rows;
+        try { rows = await declared(`zz-${mod}`); } catch { continue; }
+        for (const row of rows) {
+          const name = row.property;
+          if (!/^zz(?:glass|group|icon)\./.test(name || "") ||
+              /\.ui\.|\.other\.|icon-rules|collapse-keep-last-used|neutralize-others/.test(name)) continue;
+          if (["checkbox", "dropdown", "string", "text"].includes(row.type)) names.add(name);
+        }
+      }
+      return appearanceNames = names;
+    })();
+  }
+  // No embedded image/file address or path in a saved value, even in a CSS
+  // text setting. A colour's alpha slash (rgb(0 0 0 / 15%)) is not a path.
+  const UNSAFE = /url\s*\(|\\|[a-z][\w+.-]*:|[a-z.~]\/|\/\.?[a-z~]/i;
   async function appearanceSnapshot() {
     const S = Services.prefs, values = {};
     for (const name of await appearancePrefs()) {
       const type = S.getPrefType(name), had = S.prefHasUserValue(name);
       const value = !had ? null : type === S.PREF_BOOL ? S.getBoolPref(name)
         : type === S.PREF_INT ? S.getIntPref(name) : S.getStringPref(name);
-      // No embedded image/file URLs in an export, even in a CSS text setting.
-      if (typeof value === "string" && /(?:url\s*\(|[\\/]|(?:https?|file|data|resource|chrome):)/i.test(value)) continue;
+      if (typeof value === "string" && UNSAFE.test(value)) continue;
       values[name] = { had, type, value };
     }
     return { version: 1, values };
   }
-  let appearanceNames = null;
-  function savedAppearance() {
+  // The saved snapshot when it is whole and valid. Before the declared names
+  // are read the Tools menu checks only its shape; restoring checks names.
+  function savedAppearance(names = appearanceNames) {
     try {
       const saved = JSON.parse(Services.prefs.getStringPref(APPEARANCE, "null"));
-      if (saved?.version !== 1 || !saved.values || Array.isArray(saved.values) || !appearanceNames) return null;
+      if (saved?.version !== 1 || !saved.values || Array.isArray(saved.values)) return null;
       const S = Services.prefs;
       for (const [name, entry] of Object.entries(saved.values)) {
-        if (!appearanceNames.has(name) || typeof entry?.had !== "boolean") return null;
+        if (names && !names.has(name) || typeof entry?.had !== "boolean") return null;
         if (!entry.had) { if (entry.value !== null) return null; continue; }
         const v = entry.value;
         if (!(entry.type === S.PREF_BOOL && typeof v === "boolean" || entry.type === S.PREF_INT && Number.isInteger(v) ||
-          entry.type === S.PREF_STRING && typeof v === "string" && !/(?:url\s*\(|[\\/]|(?:https?|file|data|resource|chrome):)/i.test(v))) return null;
+          entry.type === S.PREF_STRING && typeof v === "string" && !UNSAFE.test(v))) return null;
       }
       return saved;
     } catch { return null; }
   }
   async function restoreAppearance() {
-    const saved = savedAppearance(), S = Services.prefs;
+    const saved = savedAppearance(appearanceNames ?? await appearancePrefs()), S = Services.prefs;
     if (!saved || window[INSTANCE_KEY] !== instance) return false;
     for (const [name, entry] of Object.entries(saved.values)) {
       if (!entry.had) S.clearUserPref(name);
@@ -418,10 +431,10 @@
     }
     return true;
   }
-  appearancePrefs().then(names => { if (window[INSTANCE_KEY] === instance) appearanceNames = names; }).catch(() => {});
   const toolItems = new Set();
   function toolsMenu(event) {
     if (event.target.id !== "menu_ToolsPopup") return;
+    appearancePrefs();
     for (const node of toolItems) node.remove(); toolItems.clear();
     const actions = [
       ["appearance-save", "Save appearance", async () => {
@@ -468,7 +481,7 @@
       frame = 0;
       // Its translated screen coordinates are transient while compact mode
       // slides the sidebar. Align at the endpoint, including its first reveal.
-      if (toolbox?.getAnimations().some(a => a.transitionProperty === "translate" && a.playState === "running")) return;
+      if (sliding(toolbox)) return;
       const keep = new Set(), writes = [], dpr = window.devicePixelRatio || 1;
       for (const image of document.querySelectorAll(selector)) {
         const style = getComputedStyle(image), kind = style.getPropertyValue("--zzg-icon-align").trim();
@@ -510,9 +523,11 @@
       if (records.some(r => r.type === "attributes" || [...r.addedNodes, ...r.removedNodes].some(n => n.nodeType === 1 &&
         (n.matches(".tab-icon-image,.zen-workspace-icon") || n.querySelector(".tab-icon-image,.zen-workspace-icon"))))) schedule();
     });
-    mutations.observe(document.documentElement, { childList: true, subtree: true });
+    // Icons live in Zen's app area (sidebar, Library); menus and popups,
+    // the window's busiest children, sit outside it.
+    mutations.observe(document.getElementById("zen-main-app-wrapper") || document.documentElement, { childList: true, subtree: true });
     if (toolbox) {
-      mutations.observe(toolbox, { attributes: true, attributeFilter: ["zen-has-hover", "zen-user-show", "zen-has-empty-tab", "flash-popup", "has-popup-menu", "movingtab", "zen-compact-mode-active"] });
+      mutations.observe(toolbox, { attributes: true, attributeFilter: SHOWN });
       const moved = event => { if (event.target === toolbox && event.propertyName === "translate") schedule(); };
       for (const type of ["transitionend", "transitioncancel"]) toolbox.addEventListener(type, moved, { signal: abort.signal });
     }
@@ -556,9 +571,9 @@
       // then wins the hit test.
       const header = event.target.closest?.(".tab-group-label-container");
       const icon = header?.querySelector(":scope > :is(.zzgf-icon, .tab-group-folder-icon)");
-      const box = icon?.getBoundingClientRect();
-      if (!box?.width || event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) return false;
-      if (!icon.closest("#navigator-toolbox, .zen-library-space-tabs")) return false;
+      if (!icon?.closest("#navigator-toolbox, .zen-library-space-tabs")) return false;
+      const box = icon.getBoundingClientRect();
+      if (!box.width || event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) return false;
       folderIcon?.animation?.cancel();
       // Zen's open/close morph slides and skews the folder's panels; inside
       // a press it read as a vertical bounce. While pressed the state swaps
@@ -581,8 +596,8 @@
       }, Math.max(0, 90 - (performance.now() - at)));
     }
     function press(event) {
-      if (!enabled() || (event.type === "keydown" ? event.repeat || !["Enter", " "].includes(event.key)
-        : event.button !== 0 || event.isPrimary === false)) return;
+      if ((event.type === "keydown" ? event.repeat || !["Enter", " "].includes(event.key)
+        : event.button !== 0 || event.isPrimary === false) || !enabled()) return;
       if (event.type === "pointerdown" && folderPress(event)) return;
       if (event.target.closest?.("button, input, menuitem, .tab-close-button, .tab-icon-overlay, .tab-sharing-icon-overlay")) return;
       const host = event.target.closest?.(".tabbrowser-tab[zen-essential='true'], #zen-workspaces-button toolbarbutton");
@@ -690,9 +705,19 @@
     // still here. Safe now that start() is contained and the top level
     // does nothing that can throw; the DOM unload listener above still
     // releases everything when the window closes.
-    // Sine's own unload (disable, removal or update) also hands back other
-    // mods' settings; closing a window does not. An update re-applies them.
-    try { window.addUnloadListener?.(() => { cleanup(); if (!window.__zzSineWindowClosing && window.__zzSineUnloadReasons?.get("zz-glassflow") === "release") try { syncOtherMods(true); } catch {} }); } catch {}
+    // A release (disable or removal) also hands back other mods' settings and
+    // takes this mod's variables off the root, where other mods read them. An
+    // update or a closing window keeps both: the next copy writes the same.
+    try {
+      window.addUnloadListener?.(() => {
+        cleanup();
+        if (!window.__zzSineWindowClosing && window.__zzSineUnloadReasons?.get("zz-glassflow") === "release") {
+          try { syncOtherMods(true); } catch {}
+          const style = document.documentElement.style;
+          for (const name of [...style].filter(n => n.startsWith("--zzglass-"))) style.removeProperty(name);
+        }
+      });
+    } catch {}
     instance.retire = cleanup;
   }
 
@@ -745,8 +770,8 @@
     };
     const set = (name, v) => typeof v === "boolean" ? S.setBoolPref(name, v)
       : typeof v === "number" ? S.setIntPref(name, v) : S.setStringPref(name, v);
-    let saved = {};
-    try { saved = JSON.parse(S.getStringPref(OTHER_SAVED, "{}")) || {}; } catch {}
+    let before = "{}", saved = {};
+    try { before = S.getStringPref(OTHER_SAVED, "{}"); saved = JSON.parse(before) || {}; } catch {}
     for (const [row, entries] of Object.entries(OTHER_MODS)) {
       const rowOn = S.getBoolPref(PREFIX + "other." + row, true);
       for (const [name, value, when] of entries) {
@@ -771,9 +796,11 @@
       try { if (get(name) === was.applied) was.had ? set(name, was.v) : S.clearUserPref(name); } catch {}
       delete saved[name];
     }
-    try { S.setStringPref(OTHER_SAVED, JSON.stringify(saved)); } catch {}
+    const after = JSON.stringify(saved);
+    if (after !== before) try { S.setStringPref(OTHER_SAVED, after); } catch {}
   }
-  const OTHER_WATCH = [PREFIX, "zzgroup.enabled", "zen.theme.acrylic-sidebar"];
+  // The rows' own switches and the features they follow.
+  const OTHER_WATCH = [PREFIX + "other.", ...new Set(Object.values(OTHER_MODS).flat().map(([, , when]) => when))];
   const otherModsObserver = { observe: () => syncOtherMods() };
 
   // ---- declared defaults --------------------------------------------------
@@ -782,7 +809,7 @@
   // preferences." So an unset pref reads as whatever the READER falls back
   // to, and the readers disagree with each other.
   //
-  // A mod's own reader falls back one way (this script's bool(name, true)),
+  // A mod's own reader falls back one way (getBoolPref(name, true) here),
   // Sine's settings panel another (getBoolPref(name, false) when deciding
   // whether a conditioned row shows), and a -moz-pref() media query in the
   // stylesheet a third. Each is reasonable alone; together they produce a mod
@@ -794,16 +821,12 @@
   // was already chosen is touched.
   const MOD_ID = "zz-glassflow";
   async function seedDefaults() {
-    let declared;
-    try {
-      const res = await fetch(`chrome://sine/content/${MOD_ID}/preferences.json`);
-      const json = await res.json();
-      declared = Array.isArray(json) ? json : (json.preferences ?? []);
-    } catch { return false; }
+    let rows;
+    try { rows = await declared(MOD_ID); } catch { return false; }
 
     const S = Services.prefs;
     let wrote = 0;
-    for (const pref of declared) {
+    for (const pref of rows) {
       const name = pref?.property;
       const value = pref?.defaultValue;
       if (!name || !name.startsWith(PREFIX) || value === undefined || value === null) continue;
@@ -818,28 +841,6 @@
     }
     return wrote > 0;
   }
-
-  // Repair 3.74.2's combined switch once: pointer tracking is separate from
-  // ordinary state/spacing motion. Other explicit choices remain intact.
-  try {
-    const S = Services.prefs, done = PREFIX + "migrated.motion-controls";
-    if (!S.getBoolPref(done, false)) {
-      if (S.getBoolPref(PREFIX + "migrated.motion-opt-in", false)) S.setBoolPref(PREFIX + "motion.enabled", true);
-      S.setBoolPref(done, true);
-    }
-  } catch {}
-
-  // Preserve the existing sidebar switch once; keep the old value for rollback.
-  // An explicit new native choice, including Off, always wins.
-  try {
-    const S = Services.prefs, done = PREFIX + "migrated.acrylic-sidebar";
-    if (!S.getBoolPref(done, false)) {
-      if (S.prefHasUserValue("zen.theme.acrylic-elements") && !S.prefHasUserValue("zen.theme.acrylic-sidebar")) {
-        S.setBoolPref("zen.theme.acrylic-sidebar", S.getBoolPref("zen.theme.acrylic-elements"));
-      }
-      S.setBoolPref(done, true);
-    }
-  } catch {}
 
   // Written the moment this script is injected, not from start(). These
   // variables need only Services.prefs and the document element -- never

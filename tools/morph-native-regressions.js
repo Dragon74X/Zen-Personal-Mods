@@ -4,6 +4,8 @@ return (async()=>{
  window.nativeCheck=(name,ok)=>{if(!ok)throw new Error(name);nativeChecks.push(name);};
  window.nativeRecord=s=>__zziconMorphInstance.records.get(document.querySelector(s));
  const wait=nativeWait,check=nativeCheck,rec=nativeRecord;
+ // The first match can be hidden: Zen hides the tab strip's original new-tab button and gives each space its own.
+ const visibleRec=s=>[...__zziconMorphInstance.records.values()].find(r=>r.host.matches(s)&&r.host.checkVisibility());
  const frame=r=>+getComputedStyle(r.paint).getPropertyValue('--zzicon-frame');
  const event=(r,type)=>r.host.dispatchEvent(new PointerEvent(type,{bubbles:true,pointerType:'mouse'}));
  check('native renderer attached',__zziconMorphInstance.records.size>20);
@@ -65,31 +67,31 @@ return (async()=>{
   InspectorUtils.removePseudoClassLock(menu.host,pseudo);__zziconMorphInstance.refresh();await wait(80);
   check('reattach without '+pseudo+' stays at rest',frame(rec('#PanelUI-menu-button'))===0&&!rec('#PanelUI-menu-button').animation);
  }
- const newTab=rec('#tabs-newtab-button')||rec('#new-tab-button'),openTab=BrowserCommands.openTab;let calls=0;
+ const newTab=visibleRec('#tabs-newtab-button')||visibleRec('#new-tab-button'),openTab=BrowserCommands.openTab;let calls=0;
  BrowserCommands.openTab=function(...args){calls++;return openTab.apply(this,args);};
  try{newTab.host.doCommand();await wait(45);newTab.host.doCommand();await wait(180);}finally{BrowserCommands.openTab=openTab;}
  check('native commands execute exactly once per activation',calls===2);check('action uses browser animation',!!newTab.animation);
  await wait(1500);check('repeated action settles',frame(newTab)===0&&!newTab.animation);
  for(const [pref,selector]of [['toolbar','#reload-button'],['plus','#tabs-newtab-button'],['close','.tab-close-button']]){
-  Services.prefs.setIntPref('zzicon.motion.'+pref,2);await wait(100);const r=rec(selector);InspectorUtils.addPseudoClassLock(r.host,':hover');await wait(40);
+  Services.prefs.setIntPref('zzicon.motion.'+pref,2);await wait(100);const r=visibleRec(selector);InspectorUtils.addPseudoClassLock(r.host,':hover');await wait(40);
   check('one motion owner with custom '+pref+' animation',getComputedStyle(r.paint).animationName==='none');InspectorUtils.removePseudoClassLock(r.host,':hover');Services.prefs.clearUserPref('zzicon.motion.'+pref);
  }await wait(100);
  const originalSlot=reload.paint;Services.prefs.setIntPref('zzicon.button.reload',1);await wait(120);
  check('per-button choice restores image paint',!originalSlot.hasAttribute('zzicon-motion'));
  Services.prefs.setIntPref('zzicon.button.reload',0);await wait(250);check('per-button choice keeps native node',rec('#reload-button').paint===originalSlot);
  const compact=rec('#zen-toggle-compact-mode toolbarbutton');
- if(compact){const original=gZenCompactModeManager.preference;gZenCompactModeManager.preference=!original;await wait(500);check('compact reads native owner',compact.model.state===(!original?'compact':'expanded'));gZenCompactModeManager.preference=original;await wait(500);}
+ if(compact){const original=gZenCompactModeManager.preference;gZenCompactModeManager.preference=!original;await wait(500);check('compact reads native owner',compact.state===(!original?'compact':'expanded'));gZenCompactModeManager.preference=original;await wait(500);}
  await PanelUI.show();await wait(300);check('menu reads native open state',rec('#PanelUI-menu-button').state==='open');PanelUI.hide();await wait(800);check('menu returns to closed state',rec('#PanelUI-menu-button').state==='closed');
  await SidebarController.show('viewBookmarksSidebar');await wait(250);check('Firefox sidebar reads own owner',rec('#sidebar-button').state==='open');SidebarController.hide();await wait(300);
  const {PlacesUtils}=ChromeUtils.importESModule('resource://gre/modules/PlacesUtils.sys.mjs');
  const url=nativeFixtureURL;gBrowser.selectedBrowser.loadURI(Services.io.newURI(url),{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal()});await wait(900);
  const saved=await PlacesUtils.bookmarks.insert({parentGuid:PlacesUtils.bookmarks.unfiledGuid,url,title:'Icon check'});await wait(400);check('bookmark reads external insert',rec('#star-button-box').state==='saved');await PlacesUtils.bookmarks.remove(saved.guid);await wait(400);check('bookmark reads external removal',rec('#star-button-box').state==='unsaved');
  check('window controls excluded from Morph',![...__zziconMorphInstance.records.keys()].some(e=>e.matches('.titlebar-button'))&&!document.querySelector('.titlebar-button[zzicon-motion-host],.titlebar-button [zzicon-motion]'));
- ZzMediaflowController.updateControls({time:2,duration:20,paused:true,volume:.37,muted:false});await wait(100);
+ ZzMediaflowController.updateControls({time:2,duration:20,paused:true});await wait(100);
  const mediaButtons=[...document.querySelectorAll('.zzmf-pip-controls button')];
  check('media retains original six controls',mediaButtons.length===6&&mediaButtons.every(b=>!__zziconMorphInstance.records.has(b)&&!b.hasAttribute('zzicon-motion')&&getComputedStyle(b,'::before').content==='none'));
  check('media original paused glyph',getComputedStyle(document.querySelector('.zzmf-pip-play')).backgroundImage.includes('/media-play.svg'));
- ZzMediaflowController.updateControls({time:2,duration:20,paused:false,volume:.37,muted:true});await wait(100);
+ ZzMediaflowController.updateControls({time:2,duration:20,paused:false});await wait(100);
  check('media original playing glyph',getComputedStyle(document.querySelector('.zzmf-pip-play')).backgroundImage.includes('/media-pause.svg'));
  Services.prefs.setBoolPref('zzicon.animate',false);await wait(150);event(rec('#PanelUI-menu-button'),'pointerover');await wait(50);check('animation off stays at rest',frame(rec('#PanelUI-menu-button'))===0&&!rec('#PanelUI-menu-button').animation);
  Services.prefs.setBoolPref('zzicon.animate',true);Services.prefs.setIntPref('ui.prefersReducedMotion',1);await wait(150);event(rec('#PanelUI-menu-button'),'pointerover');check('reduced motion stays at rest',frame(rec('#PanelUI-menu-button'))===0&&!rec('#PanelUI-menu-button').animation);Services.prefs.setIntPref('ui.prefersReducedMotion',0);await wait(150);

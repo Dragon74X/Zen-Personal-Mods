@@ -16,23 +16,22 @@ Shipped Turbo defaults are initialized on Firefox’s typed default preference b
 
 | Pack | Default | Values requested |
 |---|---|---|
-| Network | on | 10 persistent connections per server; pacing disabled; speculative limit 12; DNS entries 2000; DNS expiration 3600 seconds; TLS token cache capacity 32768 |
+| Network | on | 10 persistent connections per server; pacing disabled; DNS entries 2000; DNS expiration 3600 seconds; TLS token cache capacity 32768 |
 | Native link hover | on | Firefox's `network.predictor.enable-hover-on-ssl=true` |
-| Session store | on | Raise shorter write intervals to 30000 ms; preserve longer intervals |
 | Media | on | `media.memory_cache_max_size=65536` (KiB) |
 | Graphics | off | `gfx.webrender.all=true`; `gfx.canvas.accelerated=true` |
 
 A value is changed only if the preference exists and differs from the requested value. Existence does not establish that the installed browser still reads that preference. Settings already at the requested value need no write.
 
-Before changing a preference, the mod captures its user value, or records that no user value existed. Each sync reads one restoration snapshot and writes it at most once, only if changed. Re-syncing skips previously captured preferences, preserving later manual edits. Disabling a pack restores captured values only while the current value still equals the pack's value. Failed restorations retain their snapshots for retry.
+Before changing a preference, the mod captures its user value, or records that no user value existed. Each sync reads one restoration snapshot and writes it at most once, only if changed. Re-syncing skips previously captured preferences, preserving later manual edits. Disabling a pack restores captured values only while the current value still equals the pack's value. A captured preference no pack requests any more, such as a former speculative limit of 12 or session-store interval of 30000 ms, is restored the same way on the next sync. Failed restorations retain their snapshots for retry.
 
-These values are configuration choices, not measured speed improvements. Increasing caches trades memory for potential reuse; speculative requests can consume network resources without a later navigation. The session-store pack only raises intervals shorter than 30 seconds. Zen 1.24 uses 40 seconds already; Turbo leaves that native value intact and releases its previously owned 30-second override. Later manual edits retain precedence. Graphics overrides remain disabled by default.
+These values are configuration choices, not measured speed improvements. Increasing caches trades memory for potential reuse; speculative requests can consume network resources without a later navigation. Later manual edits retain precedence. Graphics overrides remain disabled by default.
 
 ## Connection requests
 
 Favorites, Essentials, pinned tabs, and ordinary tabs use Zen/Firefox’s native hover warming and speculative connection path, including container handling. Turbo no longer installs duplicate tab-hover or bookmark-hover handlers or its own dwell timer. Existing retired hover preferences are left untouched but no longer add custom work.
 
-Page-link hover uses Firefox's existing implementation. The native link-hover pack enables it on HTTPS pages; Turbo no longer wraps `XULBrowserWindow.setOverLink`. The retired `network.predictor.enable-prefetch` override is restored from its saved value when still owned by Turbo.
+Page-link hover uses Firefox's existing implementation. The native link-hover pack enables it on HTTPS pages; Turbo no longer wraps `XULBrowserWindow.setOverLink`.
 
 Requests use Firefox's principal-taking API, which derives the destination network partition, including HSTS upgrades. Supplying incomplete origin attributes to the alternative API would bypass that derivation.
 

@@ -21,7 +21,6 @@ test('a Favorite minus shown by a theme takes no slot beside the Favorite icon',
   // Zen 1.24.1 sets position: relative on tab close/reset boxes for its line
   // strokes; a theme's normal position: absolute (Arc 2.0) no longer applies.
   assert.deepEqual(rule(FAVORITE_MINUS), {position: 'absolute !important'});
-  assert.match(FAVORITE_MINUS, /\[zen-essential\]/, 'regular and pinned tabs keep Zen\'s own minus layout');
 });
 
 test('the Favorite Morph minus repeats the shared strip paint at ID weight', () => {

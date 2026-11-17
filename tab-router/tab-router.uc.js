@@ -55,19 +55,26 @@
     log.map(([t, m]) => `${new Date(t).toLocaleTimeString()}  ${m}`);
 
   // ---- caches ------------------------------------------------------------
-  // Pref strings (rules, aliases, ignore words) were re-parsed on every tab
-  // and every path segment. Parsed once, invalidated by a pref observer.
+  // Pref strings (rules, aliases, ignore words) are parsed once, not per tab
+  // and path segment; the pref observer drops them when they change.
   const parsed = {};
-  // Learned names, creators and icons are one shared pref each, and every
-  // window keeps its own copy. A write from THIS window is the copy it
-  // already holds (writing is up while it lands); a write from another
-  // window is news, and just that copy is dropped so the next read is the
-  // shared one -- never the parsed rules, which that write did not touch.
+  // Learned names, creators and icons live in one profile file shared by
+  // every window (router-cache.sys.mjs), or in one pref each when that file
+  // cannot be opened, and every window keeps its own copy. A write from THIS
+  // window is the copy it already holds (writing is up while it lands); a
+  // write from another window is news, and just that copy is dropped so the
+  // next read is the shared one -- never the parsed rules, which that write
+  // did not touch.
   let fileCache = null;
   let writing = false;
+  // Read where they apply; nothing named or pictured depends on them.
+  const PLACEMENT_PREFS = new Set(["enabled", "max-depth", "create-groups", "sort-mode", "tabs-first",
+    "follow-containers", "skip-grouped", "refile-mismatched", "skip-essentials", "skip-pinned",
+    "sort-on-startup", "order-delay-ms", "startup-delay-ms", "debug"].map(k => P + k));
   const prefObserver = { observe(_s, _t, data) {
     if (writing) return;
     updateOpenMenu();
+    if (PLACEMENT_PREFS.has(data)) return;
     if (data === P + "switch-to-open") { publishSoon(); return; }
     if (data === P + "learned-names") { learnedCache = null; targetGen++; return; }
     if (data === P + "creators") { creatorCache = null; targetGen++; return; }
@@ -98,31 +105,32 @@
   }
   function flushWrites() {
     clearTimeout(writeTimer); writeTimer = null;
-    for (const [key, changes] of pendingWrites) {
+    for (const key of pendingWrites.keys()) {
       const data = readCache(key); // Merge other windows' records before writing our delta.
-      const entries = Object.entries(data).slice(-(key === "avatars" ? 100 : key === "learned-names" ? 200 : 300));
-      const text = key === "avatars" ? boundedIcons(entries) : JSON.stringify(Object.fromEntries(entries));
-      write(key, text);
+      write(key, Object.entries(data).slice(-(key === "avatars" ? 100 : key === "learned-names" ? 200 : 300)));
       if (key === "avatars") iconCache = null; else if (key === "creators") creatorCache = null; else learnedCache = null;
     }
     pendingWrites.clear();
   }
-  function persist(key, text) {
-    const before = cacheSnapshots.get(key) || readCache(key), after = JSON.parse(text);
+  // Every cached value is a string or a flat record.
+  const sameRecord = (a, b) => a === b || !!a && !!b && typeof a === "object" && typeof b === "object" &&
+    Object.keys(a).length === Object.keys(b).length && Object.keys(a).every(k => a[k] === b[k]);
+  function persist(key, data) {
+    const before = cacheSnapshots.get(key) || readCache(key);
     const changes = pendingWrites.get(key) || new Map();
-    for (const id of new Set([...Object.keys(before), ...Object.keys(after)])) {
-      if (JSON.stringify(before[id]) !== JSON.stringify(after[id])) changes.set(id, after[id]);
+    for (const id of new Set([...Object.keys(before), ...Object.keys(data)])) {
+      if (!sameRecord(before[id], data[id])) changes.set(id, data[id]);
     }
-    cacheSnapshots.set(key, after);
+    cacheSnapshots.set(key, data);
     if (!changes.size) return;
     pendingWrites.set(key, changes);
     if (writeTimer === null) writeTimer = setTimeout(flushWrites, 0);
   }
-  function write(key, text) {
+  function write(key, entries) {
     writing = true;
     try {
-      if (fileCache && ["creators", "avatars", "learned-names"].includes(key)) fileCache.write(key, JSON.parse(text));
-      else Services.prefs.setStringPref(P + key, text);
+      if (fileCache) fileCache.write(key, Object.fromEntries(entries));
+      else Services.prefs.setStringPref(P + key, key === "avatars" ? boundedIcons(entries) : JSON.stringify(Object.fromEntries(entries)));
     } catch (error) { console.error("[TabRouter] Cache write failed:", error); } finally { writing = false; }
   }
   function cached(key, make) {
@@ -133,6 +141,7 @@
   // Pref key kept as folder-separator so nobody's saved value is lost;
   // it now separates GROUP levels.
   const SEP = () => str("folder-separator", " / ");
+  const rulesText = () => str("rules", "github.com, gitlab.com > Dev ; youtube.com > Watch");
 
   // ---- naming ------------------------------------------------------------
   // "baldursgate3" carries no word boundaries, so there is no reliable way
@@ -144,7 +153,7 @@
   function aliasMap() {
     return cached("aliases", () => {
       const map = new Map();
-      for (const pair of str("auto-path-aliases", "").split(/[\n,]+/)) {
+      for (const pair of str("auto-path-aliases", "baldursgate3 = Baldur's Gate 3").split(/[\n,]+/)) {
         const i = pair.indexOf("=");
         if (i < 0) continue;
         const k = pair.slice(0, i).trim().toLowerCase();
@@ -189,8 +198,8 @@
   }
   function saveLearned() {
     learnedCache = new Map([...learnedMap()].slice(-200));
-    if (isPrivate()) return;            // a private window learns for its session only
-    persist("learned-names", JSON.stringify(Object.fromEntries(learnedCache)));
+    if (privateWindow) return;          // a private window learns for its session only
+    persist("learned-names", Object.fromEntries(learnedCache));
   }
 
   function titleNameFor(tab, slug) {
@@ -249,7 +258,7 @@
     }));
     return { valid: !errors.length, rules, errors };
   }
-  function rules() { return cached("rules", () => validateRules(str("rules", "")).rules); }
+  function rules() { return cached("rules", () => validateRules(rulesText()).rules); }
   function editRules(initial) {
     const input = { value: initial };
     if (!Services.prompt.prompt(window, "Routing rules — inspect or edit", "Domains > Parent / Child. OK validates; nothing is applied until confirmation.", input, null, {})) return;
@@ -308,6 +317,8 @@
     "comments,comment,status,statuses,directory,replies,reply,p,r,u,c,s,amp")
     .split(","));
 
+  const pathDomains = () => cached("pathdomains", () => str("auto-path-domains", "youtube.com")
+    .split(",").map(s => s.trim().toLowerCase()).filter(Boolean));
   function pathEnabled(tab) {
     const depth = num("auto-path-depth", 0);
     if (depth < 1) return false;
@@ -316,11 +327,9 @@
     // too, which put section names, ids and slugs in the first segment;
     // the ignore list below and the short-segment rule take the worst of
     // that out, and the ignore words setting takes the rest.
-    const list = cached("pathdomains", () => str("auto-path-domains", "")
-      .split(",").map(s => s.trim().toLowerCase()).filter(Boolean));
     const host = hostOf(tab);
     if (!host) return false;
-    const listed = list.some(d => host === d || host.endsWith("." + d));
+    const listed = pathDomains().some(d => host === d || host.endsWith("." + d));
     if (num("auto-path-mode", 0) === 1 ? listed : !listed) return false;
     return true;
   }
@@ -399,8 +408,6 @@
     return withCreator(tab, computeTargetPath(tab));
   }
 
-  // Returns the target as a PATH: ["Nexusmods", "Stalker 2"]. Each level is
-  // a nested tab group. A flat name is just a one-element path.
   // ---- creator via oEmbed -------------------------------------------------
   // A watch URL names the video, never the channel. The page's MediaSession
   // gives the channel for free but only while the video is PLAYING, so a tab
@@ -411,13 +418,14 @@
   // Requests carry the tab's container and omit cookies via LOAD_ANONYMOUS.
   // Private windows reuse cached names but start no creator/icon requests.
   const OEMBED = "https://www.youtube.com/oembed?format=json&url=";
-  const isPrivate = () => {
+  // A window is private, or not, for its whole life.
+  const privateWindow = (() => {
     try {
       return ChromeUtils.importESModule("resource://gre/modules/PrivateBrowsingUtils.sys.mjs")
         .PrivateBrowsingUtils.isWindowPrivate(window);
     } catch { return false; }
-  };
-  const originOf = (ctx) => ({ userContextId: ctx, privateBrowsingId: isPrivate() ? 1 : 0 });
+  })();
+  const originOf = (ctx) => ({ userContextId: ctx, privateBrowsingId: privateWindow ? 1 : 0 });
 
   // Video IDs exclude timestamps/tracking; stored records additionally carry
   // the container ID and a verified subject URL, separate from display text.
@@ -444,10 +452,10 @@
   }
   function saveCreators() {
     creatorCache = new Map([...creatorMap()].slice(-300));
-    if (isPrivate()) return;            // a private window learns for its session only
+    if (privateWindow) return;          // a private window learns for its session only
     // Bounded, oldest out. This is a record of which videos were opened, so
     // it is kept small and forgetCreators() empties it.
-    persist("creators", JSON.stringify(Object.fromEntries(creatorCache)));
+    persist("creators", Object.fromEntries(creatorCache));
   }
 
   let lookupEpoch = 0;
@@ -482,14 +490,21 @@
   const lookupURIAllowed = uri => uri.scheme === "https" && !uri.userPass && !INTERNAL_HOST.test(uri.host);
   // NetUtil already has process lifetime. Only bounded anonymous public lookups
   // live here; each window owns its subscription and can cancel independently.
+  // A shared request's timeout runs on the module clock, not this window's.
+  const { NetUtil } = ChromeUtils.importESModule("resource://gre/modules/NetUtil.sys.mjs");
+  const clock = ChromeUtils.importESModule("resource://gre/modules/Timer.sys.mjs");
   function lookupOwner() {
-    const { NetUtil } = ChromeUtils.importESModule("resource://gre/modules/NetUtil.sys.mjs");
     return NetUtil.__zzrouterLookupsV1 ??= { requests: new Map(), metadata: new Map() };
+  }
+  // Page metadata is bounded like the pictures made from it, oldest out.
+  function rememberMetadata(key, value) {
+    const cache = lookupOwner().metadata;
+    cache.set(key, value);
+    while (cache.size > ICON_MAX) cache.delete(cache.keys().next().value);
   }
   function fetchAnon(url, ctx, cb, maxBytes = MAX_FETCH_BYTES, jsonBody = null) {
     const uri = Services.io.newURI(url);
     if (!lookupURIAllowed(uri)) throw new Error("Lookup requires a public HTTPS hostname");
-    const { NetUtil } = ChromeUtils.importESModule("resource://gre/modules/NetUtil.sys.mjs");
     const shared = lookupOwner().requests;
     const key = JSON.stringify([originOf(ctx), url, maxBytes, jsonBody]);
     let entry = shared.get(key);
@@ -527,7 +542,6 @@
     };
     let done = false;
     let timer = null;
-    const clock = ChromeUtils.importESModule("resource://gre/modules/Timer.sys.mjs");
     const finish = (body) => {
       if (done) return;
       done = true;
@@ -576,13 +590,14 @@
       try { channel.cancel(NS_BINDING_ABORTED); } catch {}
     }
   }
-  // Byte string -> JS string, for text bodies.
-  const utf8 = (bytes) => decodeURIComponent(escape(bytes));
+  // Byte string -> JS string, for text bodies. Not fatal: a body cut at its
+  // byte cap can end inside a character, and some pages are not UTF-8.
+  const utf8 = (bytes) => new TextDecoder().decode(Uint8Array.from(bytes, c => c.charCodeAt(0)));
 
   // Each container has its own request and records. Waiters retain their own
   // navigation/provenance; a shared response never supplies a shared destination.
   function beginLookup(slot, tab) {
-    if (isPrivate() || retired) return null;
+    if (privateWindow || retired) return null;
     const pending = inFlight.get(slot);
     const spec = tab?.linkedBrowser?.currentURI?.spec;
     if (pending) { if (tab) pending.waiters?.set(tab, spec); return null; }
@@ -704,11 +719,14 @@
     return null;
   }
   const sameSite = (a, b) => { try { return baseDomain(new URL(a).hostname) === baseDomain(new URL(b).hostname); } catch { return false; } };
-  const handleLabel = key => { try { return decodeURIComponent(key.split("/").pop()).replace(/^@/, "").slice(0, 80); } catch { return null; } };
+  // Page-supplied names become folder labels: no control characters, and no
+  // bidi formatting that could reorder how a label reads.
+  const UNSAFE_TEXT = /[\p{Cc}\p{Bidi_Control}]/gu;
+  const handleLabel = key => { try { return decodeURIComponent(key.split("/").pop()).replace(UNSAFE_TEXT, "").replace(/^@/, "").slice(0, 80); } catch { return null; } };
   // A page's title without the site's name, separators or "(@handle)".
   function creatorName(title, site) {
     if (typeof title !== "string") return null;
-    let name = title.replace(/[\u0000-\u001f\u007f]/g, "").trim();
+    let name = title.replace(UNSAFE_TEXT, "").trim();
     const parts = name.split(/\s+[|\-–—·•:]\s+/).map(p => p.trim()).filter(Boolean);
     if (parts.length > 1) {
       const low = (site || "").toLowerCase();
@@ -742,7 +760,7 @@
   // need an anonymous fetch (which a sign-in or age check would turn away).
   function seedPicture(ctx, key, title, image) {
     if (!/^https:\/\/[^\s"'<>\\]+$/.test(image || "")) return;
-    lookupOwner().metadata.set(scoped(key, ctx), { title, canonical: key, image, at: Date.now() });
+    rememberMetadata(scoped(key, ctx), { title, canonical: key, image, at: Date.now() });
     failed.delete("icon:" + scoped(key, ctx));
   }
   function learnCreator(tab, spec, meta) {
@@ -775,19 +793,24 @@
       }
       // Sites that publish oEmbed (Vimeo, SoundCloud, Flickr, Reddit, TikTok
       // and many more) name the author there when the page itself does not.
-      const oembed = bounded(meta.oembed, 2000);
-      if (!creatorMap().has(scoped("page:" + page, ctx)) && oembed && !isPrivate()) {
+      // An answer without a usable author waits out the retry delay, so the
+      // page's next title does not ask again.
+      const oembed = bounded(meta.oembed, 2000), slot = "oembed:" + scoped(page, ctx);
+      if (!creatorMap().has(scoped("page:" + page, ctx)) && oembed && !privateWindow &&
+          Date.now() - (failed.get(slot) || 0) >= RETRY_FAIL_MS) {
         try {
           const href = new URL(oembed, spec).href;
           if (sameSite(href, spec)) fetchAnon(href, ctx, body => {
+            if (retired) return;
+            let profile = null, name = null;
             try {
               const j = JSON.parse(utf8(body)), url = new URL(String(j.author_url || ""), spec).href;
-              const profile = sameSite(url, spec) && profileOf(url), name = creatorName(String(j.author_name || ""), site);
-              if (!profile || !name || retired) return;
-              rememberCreator(ctx, "page:" + page, { key: profile.key, label: name });
-              if (!creatorMap().has(scoped(profile.key, ctx))) rememberCreator(ctx, profile.key, { key: profile.key, label: name });
-              saveCreators(); targetGen++; queueRoute(tab, "creator");
+              profile = sameSite(url, spec) && profileOf(url); name = creatorName(String(j.author_name || ""), site);
             } catch {}
+            if (!profile || !name) { noteFail(slot); return; }
+            rememberCreator(ctx, "page:" + page, { key: profile.key, label: name });
+            if (!creatorMap().has(scoped(profile.key, ctx))) rememberCreator(ctx, profile.key, { key: profile.key, label: name });
+            saveCreators(); targetGen++; queueRoute(tab, "creator");
           }, 64 * 1024);
         } catch {}
       }
@@ -831,12 +854,11 @@
         value = { title: metaValue(html, "og:title"), canonical: metaValue(html, "og:url"),
           image: metaValue(html, "og:image"), at: Date.now() };
       } catch { cb(null); return; }
-      cache.set(key, value);
+      rememberMetadata(key, value);
       // Only a verified channel/game canonical can merge aliases.
       const canonical = channelKey(url) && channelKey(value.canonical) ||
         (nexusURLFrom(url)?.game && nexusURLFrom(value.canonical)?.game);
-      if (canonical) cache.set(scoped(canonical, ctx), value);
-      while (cache.size > ICON_MAX) cache.delete(cache.keys().next().value);
+      if (canonical) rememberMetadata(scoped(canonical, ctx), value);
       cb(value);
     }, 1024 * 1024);
   }
@@ -936,7 +958,7 @@
     if (JSON.stringify(savedNexus(tab)) !== JSON.stringify(value)) {
       nexusContext.set(tab, value); targetCache.delete(tab);
     }
-    if (isPrivate()) return;
+    if (privateWindow) return;
     // Current game URLs and verified ancestry already restore themselves. Only
     // loose/manually placed profiles need the optional per-tab session record.
     const needsRecord = value && nexusURL(tab)?.author && !ancestorsOf(tab).some(g =>
@@ -1064,18 +1086,16 @@
     return iconCache;
   }
   function saveIcons() {
-    // A pref string is capped at 1 MB by Firefox; 100 icons at 64px are a
-    // few hundred KB. Oldest out first if it ever gets close.
-    const entries = [...iconMap()].slice(-ICON_MAX);
-    const text = boundedIcons(entries);
-    iconCache = new Map(entries);
-    if (isPrivate()) return;
-    persist("avatars", text);
+    iconCache = new Map([...iconMap()].slice(-ICON_MAX));
+    if (privateWindow) return;
+    persist("avatars", Object.fromEntries(iconCache));
   }
 
+  // For the pref fallback only: Firefox caps a pref string at 1 MB, and 100
+  // icons at 64px are a few hundred KB. Over the limit, banners go first,
+  // then the oldest entries.
   function boundedIcons(entries) {
     let text = JSON.stringify(Object.fromEntries(entries));
-    // Drop optional banners before icons when approaching Firefox's pref cap.
     for (const entry of entries) {
       if (text.length <= 900000) break;
       if (!entry[1]?.b) continue;
@@ -1116,7 +1136,7 @@
   }
 
   function fetchSectionBanner(label, ctx, gameId, refresh = false) {
-    if (retired || isPrivate() || !bool("section-icons", true) || !bannerMode() || !/^[1-9]\d*$/.test(gameId || "")) return;
+    if (retired || privateWindow || !bool("section-icons", true) || !bannerMode() || !/^[1-9]\d*$/.test(gameId || "")) return;
     if (nexusURLFrom(label)?.game !== label) return;
     const key = scoped(label, ctx), slot = "banner:" + key;
     if ((!refresh && iconMap().get(key)?.b) || inFlight.has(slot) || Date.now() - (failed.get(slot) || 0) < RETRY_FAIL_MS) return;
@@ -1152,7 +1172,7 @@
 
   // label is the canonical subject URL, never a folder display name.
   function fetchSectionIcon(label, pageUrl, ctx, shape, refresh = false) {
-    if (retired || isPrivate() || !bool("section-icons", true) || !pageUrl) return;
+    if (retired || privateWindow || !bool("section-icons", true) || !pageUrl) return;
     try { if (!lookupURIAllowed(Services.io.newURI(pageUrl))) return; } catch { return; }
     const key = scoped(label, ctx), slot = "icon:" + key;
     // The pending channel lookup supplies this same metadata; its completion
@@ -1164,7 +1184,7 @@
       if (nexus) fetchSectionBanner(label, ctx, cachedIcon.g);
       return;
     }
-    if (!key || inFlight.has(slot)) return;
+    if (inFlight.has(slot)) return;
     const lastFail = failed.get(slot);
     if (lastFail && Date.now() - lastFail < RETRY_FAIL_MS) return;
     inFlight.set(slot, true);
@@ -1230,9 +1250,7 @@
   const INTERNAL_HOST = /^(?:localhost|[^.]+|\d{1,3}(?:\.\d{1,3}){3}|\[[^\]]*\]|.+\.(?:local|localhost|internal|lan|home|corp|intranet))$/i;
 
   function picturesEnabled(host) {
-    const excluded = num("auto-path-mode", 0) === 1 && cached("pathdomains", () => str("auto-path-domains", "")
-      .split(",").map(s => s.trim().toLowerCase()).filter(Boolean))
-      .some(d => host === d || host?.endsWith("." + d));
+    const excluded = num("auto-path-mode", 0) === 1 && pathDomains().some(d => host === d || host?.endsWith("." + d));
     return bool("section-icons", true) && !excluded;
   }
 
@@ -1380,6 +1398,8 @@
     return [...parts, partFor(who, tab)];
   }
 
+  // Returns the target as a PATH: ["Nexusmods", "Stalker 2"]. Each level is
+  // a nested tab group. A flat name is just a one-element path.
   function computeTargetPath(tab, learn = true) {
     const host = hostOf(tab);
     if (!host) return null;
@@ -1391,7 +1411,7 @@
     }
     // Fully automatic: derive the path from the host itself, so a site you
     // have never visited still lands somewhere sensible without a rule.
-    if (bool("auto-unmatched", false)) {
+    if (bool("auto-unmatched", true)) {
       const base = baseDomain(host);
 
       // Subdomain levels, if any. www is noise, not a real subdomain, so a
@@ -1458,8 +1478,7 @@
   // element. Groups made by hand carry no zen-workspace-id attribute, and
   // treating that as "matches any workspace" was the ghost bug: filing
   // pulled a tab's DOM into another workspace's section while the tab's
-  // attribute said otherwise. Attribute first, section second, and the
-  // attribute gets stamped from the section when missing.
+  // attribute said otherwise. Attribute first, section second.
   function wsOfEl(el) {
     const a = wsOf(el);
     if (a) return a;
@@ -1559,7 +1578,11 @@
 
   function queueChannelDuplicates() {
     if (!bool("enabled", false) || !bool("refile-mismatched", true)) return;
-    for (const tab of allTabs()) if (duplicateChannelGroup(tab, targetPath(tab, false))) queueRoute(tab, "channel identity");
+    // A duplicate holds tabs directly in a channel's group; only theirs need a path.
+    for (const tab of allTabs()) {
+      if (channelKey(tab.group?.getAttribute("data-zzrouter-subject")) &&
+          duplicateChannelGroup(tab, targetPath(tab, false))) queueRoute(tab, "channel identity");
+    }
   }
 
   function placedInPath(chain, want, tab) {
@@ -1712,8 +1735,9 @@
   }
 
   // Reopens the tab with the given container (and workspace, when given);
-  // returns the tab to keep filing -- the fresh one, or the original on
-  // failure.
+  // returns the tab to keep filing -- the fresh one, or the original when it
+  // must keep its container -- or null to stop: the page is still loading,
+  // changed address (routed again) or routing was switched off meanwhile.
   async function reopenInContainer(tab, wantCtx, targetWs) {
     const url = (() => { try { return tab.linkedBrowser?.currentURI?.spec; } catch { return null; } })();
     if (!url || !/^https?:/i.test(url)) return tab;
@@ -1808,7 +1832,7 @@
     }
     let changed = false;
     for (const g of groups()) {
-      if (g.hasAttribute("data-zzrouter-page") || nativeManaged(g)) continue;
+      if (g.hasAttribute("data-zzrouter-page")) continue;
       const subject = g.getAttribute("data-zzrouter-subject");
       let page = /^https:\/\/[^/]+/.test(subject || "") ? subject : null;
       const label = (g.label || "").trim().toLowerCase();
@@ -1826,7 +1850,7 @@
   }
   let backfillTimer = null;
   const backfillSoon = () => { if (!retired && backfillTimer === null) backfillTimer = setTimeout(() => { backfillTimer = null; backfillPages(); }, 400); };
-  const canCreateGroups = () => bool("create-groups", true) && typeof gBrowser.addTabGroup === "function";
+  const canCreateGroups = () => bool("create-groups", true);
 
   function file(tab, parts) {
     if (nativeManaged(tab)) return false;
@@ -1856,8 +1880,7 @@
     // Create the missing levels beneath it, one at a time. Each new group is
     // born where the tab sits, i.e. inside the level just above.
     for (const name of parts.slice(depth)) {
-      if (!bool("create-groups", true)) { note(`"${name}" does not exist and group creation is switched off`); return depth > 0; }
-      if (typeof gBrowser.addTabGroup !== "function") { note("gBrowser.addTabGroup missing on this build"); return depth > 0; }
+      if (!canCreateGroups()) { note(`"${name}" does not exist and group creation is switched off`); return depth > 0; }
       let g;
       try { g = gBrowser.addTabGroup([tab], { label: partLabel(name), insertBefore: tab, isUserTriggered: true }); }
       catch (e) { note(`addTabGroup("${name}") threw: ${e}`); return depth > 0; }
@@ -1907,10 +1930,8 @@
     (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) ? -1 : 1);
 
   function mvEl(el, fn) {
-    try {
-      if (typeof gBrowser.zenHandleTabMove === "function") gBrowser.zenHandleTabMove(el, fn);
-      else fn();
-    } catch (e) { note(`order move failed on "${el.label ?? el.className}": ${e}`); }
+    try { gBrowser.zenHandleTabMove(el, fn); }
+    catch (e) { note(`order move failed on "${el.label ?? el.className}": ${e}`); }
   }
 
   // Reorders els among themselves at the position of their current block;
@@ -1978,12 +1999,10 @@
     }
   }
 
-  // Zen marks a trackpad swipe on the tab scroller, the workspaces and the
-  // grain layer (ZenSpacesSwipe.mjs), never on :root. A workspace slide is
-  // marked on #navigator-toolbox since Zen 1.23b, on :root before it.
+  // Zen marks a trackpad swipe on the tab scroller (ZenSpacesSwipe.mjs) and a
+  // workspace slide on #navigator-toolbox, never on :root.
   const swiping = () => !!document.getElementById?.("tabbrowser-arrowscrollbox")?.hasAttribute("swipe-gesture");
-  const sliding = () => document.documentElement.hasAttribute("animating-background") ||
-    !!document.getElementById?.("navigator-toolbox")?.hasAttribute("animating-background") || swiping();
+  const sliding = () => !!document.getElementById?.("navigator-toolbox")?.hasAttribute("animating-background") || swiping();
   let orderTimer = null;
   const startupTimers = [];
   const MAX_ORDER_DEFER_MS = 10000;
@@ -1991,9 +2010,9 @@
   function scheduleOrder() {
     clearTimeout(orderTimer);
     orderTimer = setTimeout(() => {
-      // Re-sorting moves DOM nodes; doing that mid workspace-slide adds
-      // stutter to the animation. Zen marks the slide on :root, so wait it
-      // out and land the sort right after.
+      // Re-sorting moves DOM nodes; doing that mid workspace-slide or swipe
+      // adds stutter to the animation, so wait it out (sliding() above) and
+      // land the sort right after.
       // Bounded, for the same reason Tab Unloader bounds its sweep: Zen sets
       // animating-background from more than one path and clears it from one,
       // and treats the animation getting stuck as a known hazard. Unbounded,
@@ -2080,8 +2099,8 @@
         const have = chainOf(tab);
         if (want?.length && have.length) {
           if (!placedInPath(have, want, tab)) return null;
-          // The previous version could file a tab before changing its
-          // container. Also repair that case without flattening subgroups.
+          // Placed, but not in its destination's container: route it, and
+          // placeInPath changes the container without flattening subgroups.
           const ctx = bool("follow-containers", true) ? resolveDestination(tab, want).ctx : null;
           if (ctx != null && ctx !== parseInt(tab.getAttribute("usercontextid") || "0", 10)) return null;
         }
@@ -2132,7 +2151,7 @@
   // page side (links-child.sys.mjs) only acts on real link clicks, so back
   // and forward, reloads, forms, redirects and script navigation never
   // switch; Alt-click, Duplicate Tab and session restore always make copies.
-  const LINKS_VERSION = "1.44.0", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
+  const LINKS_VERSION = "1.45.0", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
   const TRACKING = /^(utm_[a-z]+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|igshid|si|ref_src|_hsenc|_hsmi)$/i;
   function pageKey(url) {
     try {
@@ -2232,6 +2251,33 @@
     if (win !== window) win.focus();
     if (win.gZenWorkspaces?.switchTabIfNeeded) win.gZenWorkspaces.switchTabIfNeeded(tab);
     else win.gBrowser.selectedTab = tab;
+    if (win !== window) win.requestAnimationFrame(() => markArrival(win, tab));
+  }
+  // A switch into another window that is already in view gives no sign of
+  // its own: a soft ring in Zen's accent fades in and out around that
+  // window's page, and around the tab when its sidebar shows it. Opacity
+  // only (compositor); each ring removes itself when it ends.
+  function markArrival(win, tab) {
+    const doc = win.document, root = doc.documentElement;
+    if (!root || tab.closing) return;
+    const accent = win.getComputedStyle(root).getPropertyValue("--zen-primary-color").trim() || "AccentColor";
+    const brief = win.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const ring = (el, radius) => {
+      const r = el?.getBoundingClientRect();
+      if (!r?.width || !r.height || r.right <= 0 || r.bottom <= 0 || r.left >= win.innerWidth || r.top >= win.innerHeight) return;
+      const glow = doc.createElementNS("http://www.w3.org/1999/xhtml", "div");
+      glow.setAttribute("aria-hidden", "true");
+      Object.assign(glow.style, { position: "fixed", left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px`,
+        borderRadius: radius, pointerEvents: "none", zIndex: "2147483647", opacity: "0",
+        boxShadow: `inset 0 0 0 2px ${accent}, inset 0 0 28px color-mix(in srgb, ${accent} 40%, transparent)` });
+      root.appendChild(glow);
+      const fade = glow.animate([{ opacity: 0 }, { opacity: 1, offset: 0.3 }, { opacity: 0 }],
+        { duration: brief ? 500 : 900, easing: "ease-in-out" });
+      fade.finished.then(() => glow.remove(), () => glow.remove());
+    };
+    const page = tab.linkedBrowser?.closest(".browserSidebarContainer") || doc.getElementById("tabbrowser-tabpanels");
+    ring(page, page ? win.getComputedStyle(page).borderRadius : "0");
+    ring(tab.querySelector(".tab-background") || tab, win.getComputedStyle(tab.querySelector(".tab-background") || tab).borderRadius);
   }
   // Every window publishes the whole set, so the page side needs one lookup.
   let publishTimer = null;
@@ -2262,51 +2308,60 @@
     } catch {}
   }
   const publishSoon = () => { if (!retired && publishTimer === null) publishTimer = setTimeout(publishOpen, 250); };
-  // An Alt-clicked link opening a new tab is a deliberate copy.
+  // A deliberate copy (an Alt-clicked link, a folder's own page) is let
+  // through when its new tab's first request comes within ten seconds.
+  const COPY_MS = 10000;
   const copyAllowed = () => lookupOwner().copies ??= new Map();
+  function allowCopy(ctx, key) {
+    const copies = copyAllowed(), now = Date.now();
+    for (const [k, at] of copies) if (now - at >= COPY_MS) copies.delete(k);
+    copies.set(`${ctx}|${key}`, now);
+  }
   function takeCopy(ctx, key) {
     const at = copyAllowed().get(`${ctx}|${key}`);
     copyAllowed().delete(`${ctx}|${key}`);
-    return at && Date.now() - at < 10000;
+    return at && Date.now() - at < COPY_MS;
   }
+  // Messages come from a page process, which is untrusted: the container is
+  // the sending tab's own, never one the message names.
   function linkMessage(name, data, browser, principal) {
-    if (name === "ZzRouter:OpenFromPage" && typeof data.href === "string") {
-      // A folder's page stays on its page: the link opens in its own tab next
-      // to it, under the folder, through the same checks as any new tab.
-      let uri;
-      try { uri = Services.io.newURI(data.href); } catch { return; }
-      if (!/^https?$/.test(uri.scheme)) return;
-      // Zen opens a folder tab's links outside the folder; this one goes in
-      // it, unless routing files it somewhere more specific.
-      openInto = gBrowser.getTabForBrowser(browser)?.group || null;
-      try {
-        window.openLinkIn(data.href, "tab", { triggeringPrincipal: principal || Services.scriptSecurityManager.createNullPrincipal({ userContextId: data.ctx | 0 }),
-          userContextId: data.ctx | 0, openerBrowser: browser, relatedToCurrent: true, inBackground: false });
-      } finally { openInto = null; }
-      return;
-    }
-    if (name !== "ZzRouter:SwitchTo" || typeof data.href !== "string") return;
-    const from = gBrowser.getTabForBrowser(browser), ctx = data.ctx | 0;
-    const target = switchOn() && openTargetFor(ctx, pageKey(data.href), from);
-    if (target) { note(`switched to open "${goTo(target)}"`); return; }
-    // Closed in the meantime: do what the click would have done.
+    const from = gBrowser.getTabForBrowser(browser);
+    if (!from || typeof data?.href !== "string") return;
     let uri;
     try { uri = Services.io.newURI(data.href); } catch { return; }
     if (!/^https?$/.test(uri.scheme)) return;
+    const ctx = contextOf(from);
     const triggeringPrincipal = principal || Services.scriptSecurityManager.createNullPrincipal({ userContextId: ctx });
+    if (name === "ZzRouter:OpenFromPage") {
+      // A folder's page stays on its page: the link opens in its own tab next
+      // to it, under the folder (Zen would open it outside), through the
+      // same checks as any new tab.
+      if (!from.hasAttribute("zzgf-page-tab")) return;
+      openInto = from.group || null;
+      try {
+        window.openLinkIn(data.href, "tab", { triggeringPrincipal, userContextId: ctx, openerBrowser: browser, relatedToCurrent: true, inBackground: false });
+      } finally { openInto = null; }
+      return;
+    }
+    if (name !== "ZzRouter:SwitchTo") return;
+    const target = switchOn() && openTargetFor(ctx, pageKey(data.href), from);
+    if (target) { note(`switched to open "${goTo(target)}"`); return; }
+    // Closed in the meantime: do what the click would have done.
     if (data.newTab) window.openLinkIn(data.href, "tab", { triggeringPrincipal, userContextId: ctx, inBackground: false, relatedToCurrent: true });
     else browser?.loadURI(uri, { triggeringPrincipal });
   }
-  // New tabs opened through Firefox's link opener (middle- and Ctrl-clicks
-  // on page links, Open Link in New Tab, bookmarks and history) are checked
-  // before the tab exists: an open page is switched to at once, so no tab
+  // New tabs opened through Firefox's link openers are checked before the tab
+  // exists: openLinkIn (middle- and Ctrl-clicks on page links, Open Link in
+  // New Tab), openTrustedLinkIn and openWebLinkIn (bookmarks, history and the
+  // browser's own menus, which reach Firefox's loader without passing
+  // through openLinkIn). An open page is switched to at once, so no tab
   // flashes in. Firefox's click handler marks an Alt-click as a copy.
   let copyNext = false;
   function switchIfOpen(url, ctx = 0, except = null) {
     if (!switchOn() || typeof url !== "string") return false;
     const key = pageKey(url);
     if (!key) return false;
-    if (copyNext) { copyAllowed().set(`${ctx}|${key}`, Date.now()); return false; }
+    if (copyNext) { allowCopy(ctx, key); return false; }
     const target = openTargetFor(ctx, key, except);
     if (!target) return false;
     note(`switched to open "${goTo(target)}"`);
@@ -2322,24 +2377,22 @@
       hasAttribute: () => false };
   }
   function planNewTab(url, ctx, opener) {
-    if (!bool("enabled", false) || isPrivate()) return null;
+    if (!bool("enabled", false) || privateWindow) return null;
     let preview;
     try { preview = previewTab(url, ctx, opener); } catch { return null; }
     if (!hostOf(preview)) return null;
     try {
       const parts = targetPath(preview, false);
       if (!parts?.length) return null;
-      const dest = resolveDestination(preview, parts) || {};
+      const dest = resolveDestination(preview, parts);
       const plan = { ctx: null, group: null };
       if (bool("follow-containers", true) && Number.isInteger(dest.ctx) && dest.ctx >= 0 && dest.ctx !== ctx) plan.ctx = dest.ctx;
       const ws = dest.ws || preview.getAttribute("zen-workspace-id");
-      let parent = null;
       for (const name of parts) {
-        const g = findChild(name, parent, parent ? null : ws);
+        const g = findChild(name, plan.group, plan.group ? null : ws);
         if (!g) break;
-        parent = g;
+        plan.group = g;
       }
-      if (parent && !nativeManaged({ group: parent, getAttribute: () => null, hasAttribute: () => false })) plan.group = parent;
       return plan;
     } catch (e) { note(`new tab plan failed: ${e}`); return null; }
   }
@@ -2354,8 +2407,9 @@
       try { plan.group.addTabs([tab]); note(`placed new tab in "${plan.group.label}"`); } catch (e) { note(`new tab placement failed: ${e}`); }
     });
   }
-  const nativeOpenLinkIn = window.openLinkIn;
-  function openLinkIn(url, where, params = {}) {
+  const OPENERS = ["openLinkIn", "openTrustedLinkIn", "openWebLinkIn"];
+  const nativeOpeners = new Map(OPENERS.map(name => [name, window[name]]));
+  const wrapOpener = name => function (url, where, params = {}) {
     let plan = null;
     try {
       if ((where === "tab" || where === "tabshifted") && !params?.private) {
@@ -2368,9 +2422,11 @@
       }
     } catch (e) { note(`open check failed: ${e}`); }
     placing = plan?.group ? plan : openInto?.isConnected ? { group: openInto } : null;
-    try { return nativeOpenLinkIn.call(this, url, where, params); }
+    try { return nativeOpeners.get(name).call(this, url, where, params); }
     finally { placing = null; }
-  }
+  };
+  const wrappedOpeners = new Map(OPENERS.map(name => [name, wrapOpener(name)]));
+  const openLinkIn = wrappedOpeners.get("openLinkIn");
   // A folder's own page (Groupflow): switch to it if it is open anywhere,
   // bring a loose copy in the folder's space into the folder, or open it there.
   function openPage(url, group, ctx = 0) {
@@ -2384,7 +2440,7 @@
       try { group.addTabs([tab]); } catch {}
     }
     if (!tab) {
-      copyAllowed().set(`${ctx}|${key}`, Date.now());
+      allowCopy(ctx, key);
       try {
         tab = gBrowser.addTab(url, { triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal(),
           userContextId: ctx, tabGroup: group, skipRoute: true });
@@ -2446,7 +2502,12 @@
     }, 0);
     return true;
   }
+  // Every window shares one registration. Another version's -- an older copy
+  // live-updated while other windows stayed open -- is replaced, or its
+  // modules would stay until the last window closed.
   function registerLinks() {
+    const owner = lookupOwner();
+    if (owner.linksVersion === LINKS_VERSION) return;
     try {
       const id = /^chrome:\/\/sine\/content\/([^/]+)\//.exec(Components.stack.filename)?.[1] || "zz-tab-router";
       let modUri;
@@ -2460,6 +2521,7 @@
       }
       const res = Services.io.getProtocolHandler("resource").QueryInterface(Ci.nsIResProtocolHandler);
       if (!res.hasSubstitution("zz-tab-router")) res.setSubstitution("zz-tab-router", modUri);
+      try { ChromeUtils.unregisterWindowActor("ZzRouterLinks"); } catch {}
       ChromeUtils.registerWindowActor("ZzRouterLinks", {
         parent: { esModuleURI: `resource://zz-tab-router/links-parent.sys.mjs?v=${LINKS_VERSION}` },
         child: {
@@ -2473,16 +2535,15 @@
         // message it acts on (an http(s) address and this tab's container).
         safeForUntrustedWebProcess: true,
       });
-    } catch (e) {
-      if (!/NotSupportedError|already registered/i.test(String(e))) note(`link actor failed: ${e}`);
-    }
+      owner.linksVersion = LINKS_VERSION;
+    } catch (e) { note(`link actor failed: ${e}`); }
   }
   function unregisterLinks() {
     const others = [...Services.wm.getEnumerator("navigator:browser")].some(w => w !== window && w.TabRouter?.linkMessage);
     if (others) return;
     try { ChromeUtils.unregisterWindowActor("ZzRouterLinks"); } catch {}
     try { Services.ppmm.sharedData.delete(OPEN_PAGES); Services.ppmm.sharedData.delete(PAGE_TABS); Services.ppmm.sharedData.flush(); } catch {}
-    try { delete lookupOwner().published; } catch {}
+    try { const owner = lookupOwner(); delete owner.published; delete owner.linksVersion; } catch {}
   }
 
   // ---- events ------------------------------------------------------------
@@ -2544,7 +2605,6 @@
     }, 0);
     pendingRoute.set(tab, id);
   }
-  let progressAttached = false;
   const progress = {
     onStateChange(browser, wp, _req, flags) {
       if (!wp?.isTopLevel || !(flags & Ci.nsIWebProgressListener.STATE_STOP) ||
@@ -2569,6 +2629,7 @@
         captureNexus(tab);
         updatePicture(tab, false);
         queueRoute(tab, "navigate");
+        publishSoon();
       }
     },
   };
@@ -2579,7 +2640,9 @@
   // progress listener. Converges on the same per-tab queue; a title
   // change with an unchanged target path no-ops in placeInPath.
   function onTabEvent(event) {
-    const tab = event.detail?.tab || event.target;
+    // TabGrouped/TabUngrouped fire on the group, with the tab as the detail.
+    const grouping = event.type === "TabGrouped" || event.type === "TabUngrouped";
+    const tab = grouping ? event.detail : event.detail?.tab || event.target;
     if (!tab || tab.closest?.("zen-library, [zen-library-copy]")) return;
     updateOpenMenu();
     if (event.type === "TabClose") {
@@ -2593,7 +2656,7 @@
       if (source && presentable(source)) captureNexus(source);
       captureNexus(tab, source);
     }
-    if (event.type === "TabGrouped" || event.type === "TabUngrouped") {
+    if (grouping) {
       captureNexus(tab);
       updatePicture(tab, false);
       return;
@@ -2698,7 +2761,7 @@
   const liveScope = scope => !retired && !!scope?.isConnected && !scope.closing && !scope.closest?.("zen-library, [zen-library-copy]") && !nativeManaged(scope) &&
     (scope.matches?.("tab-group:not([split-view-group]), zen-folder") || !!scope.linkedBrowser && gBrowser.getTabForBrowser(scope.linkedBrowser) === scope);
   function refreshSubject(scope) {
-    if (!liveScope(scope) || isPrivate()) return null;
+    if (!liveScope(scope) || privateWindow) return null;
     const group = scope.matches?.("tab-group, zen-folder");
     if (group ? !window.Groupflow?.automaticPictureAllowed?.(scope) : scope.zenStaticIcon) return null;
     const key = group ? scope.getAttribute("data-zzrouter-picture") : pictureSubject(scope, false)?.key;
@@ -2747,8 +2810,8 @@
     const show = (title, value) => Services.prompt.alert(window, title, JSON.stringify(value, null, 2));
     if (popup.id === "menu_ToolsPopup") {
       item("generate-routing-rules", "Generate routing rules from open tabs…", () => true, () => editRules(suggestRules({subdomains: true, copy: false})));
-      item("validate-routing-rules", "Validate routing rules", () => true, () => show("Routing rules", validateRules(str("rules", ""))));
-      item("edit-routing-rules", "Edit routing rules…", () => true, () => editRules(str("rules", "")));
+      item("validate-routing-rules", "Validate routing rules", () => true, () => show("Routing rules", validateRules(rulesText())));
+      item("edit-routing-rules", "Edit routing rules…", () => true, () => editRules(rulesText()));
       return;
     }
     const scope = panel ? gBrowser.tabGroupMenu.activeGroup : popup.id === "tabContextMenu"
@@ -2804,7 +2867,7 @@
     window.addEventListener("DOMContentLoaded", watchRuleSettings, true);
     for (const browser of gBrowser.browsers) { try { watchRuleSettings({target: browser.contentDocument}); } catch {} }
     window.gURLBar?.controller.addListener(searchPictures);
-    gBrowser.addTabsProgressListener(progress); progressAttached = true;
+    gBrowser.addTabsProgressListener(progress);
     gBrowser.tabContainer.addEventListener("TabAttrModified", onAttrModified);
     const tabEvents = ["TabOpen", "TabClose", "SSTabRestored", "ZenTabIconChanged", "TabGrouped", "TabUngrouped"];
     for (const event of tabEvents) window.addEventListener(event, onTabEvent, true);
@@ -2812,18 +2875,19 @@
     try { Services.obs.addObserver(purgeObserver, "browser:purge-session-history"); } catch {}
     Services.obs.addObserver(initialRequest, "http-on-modify-request");
     registerLinks();
-    if (typeof nativeOpenLinkIn === "function") window.openLinkIn = openLinkIn;
+    for (const [name, wrapped] of wrappedOpeners) if (typeof nativeOpeners.get(name) === "function") window[name] = wrapped;
     window.addEventListener("TabOpen", placeOpened, true);
     const backfillEvents = ["TabGrouped", "TabGroupCreate", "TabGroupUpdate", "SSTabRestored", "GroupflowReady"];
     for (const ev of backfillEvents) window.addEventListener(ev, backfillSoon, true);
     backfillSoon();
     window.addEventListener("SSTabRestoring", forgetLazy, true);
     patchClicks();
-    const openEvents = ["TabOpen", "TabClose", "TabAttrModified", "SSTabRestored", "TabSelect", "GroupflowPageTabs",
-      "ZzRouterPagesChanged", "TabGroupCreate", "TabGroupRemoved"];
+    // What changes the open pages: addresses (the progress listener), tabs
+    // coming and going, a Glance becoming a tab (it is only selected), and
+    // folder pages and their tabs, which Groupflow announces whenever its
+    // folders change. Attribute changes and restores bring nothing new.
+    const openEvents = ["TabOpen", "TabClose", "TabSelect", "GroupflowPageTabs"];
     for (const ev of openEvents) window.addEventListener(ev, publishSoon, true);
-    const openProgress = { onLocationChange: (_b, wp) => { if (wp?.isTopLevel) publishSoon(); } };
-    gBrowser.addTabsProgressListener(openProgress);
     publishSoon();
     // Groups made or removed by hand must invalidate the cache too.
     // TabGroupUngroup does not exist in Zen 1.22b -- it was a dead listener.
@@ -2834,7 +2898,7 @@
     for (const ev of groupEvents) window.addEventListener(ev, bustGroups, true);
 
     window.TabRouter = {
-      linkMessage, pageKey, republishOpen: () => publishSoon(), switchIfOpen, copyWhile, openPage, tabURL,
+      linkMessage, republishOpen: () => publishSoon(), switchIfOpen, copyWhile, openPage, tabURL,
       sortAll: () => sweepAll("manual"),
       setPlacementLock,
       pictureCounts: () => ({ creators: creatorMap().size, icons: iconMap().size, inFlight: inFlight.size, refreshOperations }),
@@ -3036,12 +3100,6 @@
           }
         }
 
-        // Report "unknown" rather than false when the collection is not
-        // where it is expected: a diagnostic that invents a detached
-        // listener sends you hunting the wrong bug.
-        // Tabbrowser keeps its listeners private: this copy records its own.
-        const listenerAttached = progressAttached;
-
         const r = {
           version: LINKS_VERSION,
           zen: Services.appinfo?.version,
@@ -3050,10 +3108,6 @@
           // guard at the top of the file retires the older copy, so a high
           // number is a record of re-injection, not of copies running now.
           instanceGeneration: instance.generation,
-          // False while the mod is loaded means the progress listener was
-          // dropped without the script being torn down -- routing on
-          // navigation would be dead while a manual sortAll() still worked.
-          navigationListenerAttached: listenerAttached,
           groupsCached: groupsCache ? groupsCache.length : "(cold)",
           // A count, not the contents: status() gets pasted into bug reports.
           creatorsRemembered: creatorMap().size,
@@ -3110,16 +3164,15 @@
       pendingRoute.clear();
       for (const id of startupTimers) clearTimeout(id);
       startupTimers.length = 0;
-      try { gBrowser.removeTabsProgressListener(progress); progressAttached = false; } catch {}
+      try { gBrowser.removeTabsProgressListener(progress); } catch {}
       try { gBrowser.tabContainer.removeEventListener("TabAttrModified", onAttrModified); } catch {}
       try { Services.prefs.removeObserver(P, prefObserver); } catch {}
       try { Services.obs.removeObserver(purgeObserver, "browser:purge-session-history"); } catch {}
       try { Services.obs.removeObserver(initialRequest, "http-on-modify-request"); } catch {}
       for (const ev of openEvents) window.removeEventListener(ev, publishSoon, true);
-      try { gBrowser.removeTabsProgressListener(openProgress); } catch {}
       clearTimeout(publishTimer); publishTimer = null;
       unregisterLinks();
-      if (window.openLinkIn === openLinkIn) window.openLinkIn = nativeOpenLinkIn;
+      for (const [name, wrapped] of wrappedOpeners) if (window[name] === wrapped) window[name] = nativeOpeners.get(name);
       window.removeEventListener("TabOpen", placeOpened, true);
       for (const ev of backfillEvents) window.removeEventListener(ev, backfillSoon, true);
       window.removeEventListener("SSTabRestoring", forgetLazy, true);
@@ -3245,6 +3298,9 @@
       if (topic === "browser-delayed-startup-finished" && subject === window) startOnce();
     };
     Services.obs.addObserver(obs, "browser-delayed-startup-finished");
+    // A window closed before delayed startup never fires the topic, and the
+    // observer service would keep this whole window alive for the session.
+    window.addEventListener("unload", stopWaiting, { once: true });
 
     // The backstop. In the failure above the window is ALREADY past delayed
     // startup, so the first tick starts the mod half a second later. Bounded,

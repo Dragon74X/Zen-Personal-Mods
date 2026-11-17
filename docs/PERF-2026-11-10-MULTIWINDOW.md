@@ -74,6 +74,13 @@ previous code: Zen Turbo strip marks, Groupflow active-space lighting and
 in-place fit, Glassflow redraw deferral, Mediaflow timer ownership, and the
 startup observer removal.
 
+`python3 tools/zen-freeze-smoke.py --zen /path/to/zen --output DIR` runs the
+freeze probe from step 1 below in two disposable headless windows. The probe
+must catch an injected 160 ms main-thread pause, summarize a profiler capture,
+save a valid report ZIP, and leave no preference change, running profiler or
+window hook behind. This checks the collector; it does not reproduce a Windows
+freeze.
+
 ## On Windows
 
 1. With the usual compact mode and blur, restart Zen and keep one window

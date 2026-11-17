@@ -16,7 +16,7 @@ function events() {
   };
 }
 function environment(initial = {}, defaults = { [SHOW]: false, [PICTURES]: true }) {
-  const user = new Map(Object.entries(initial)), windows = [], observers = new Set();
+  const user = new Map(Object.entries(initial)), windows = [], observers = new Set(), waiting = new Set();
   const get = (name, fallback) => user.has(name) ? user.get(name) : defaults[name] ?? fallback;
   function set(name, value) {
     if (user.has(name) && user.get(name) === value) return;
@@ -28,15 +28,19 @@ function environment(initial = {}, defaults = { [SHOW]: false, [PICTURES]: true 
     prefHasUserValue: name => user.has(name), clearUserPref: name => user.delete(name),
     addObserver: (prefix, observer) => observers.add({ prefix, observer }),
     removeObserver: (_, observer) => { for (const item of observers) if (item.observer === observer) observers.delete(item); },
-  }, obs: { addObserver() {}, removeObserver() {} }, wm: { getEnumerator: () => windows.values() } };
-  function add() {
+  }, obs: { addObserver: fn => waiting.add(fn), removeObserver: fn => waiting.delete(fn) },
+  wm: { getEnumerator: () => windows.values() } };
+  // Pictures are fake blobs that carry their own object URL.
+  const URL = { createObjectURL: blob => blob.url, revokeObjectURL() {} };
+  function add({ started = true } = {}) {
     const pending = [], idle = [], unloaders = [], classes = new Set();
     const box = { firstChild: null, classList: { add: v => classes.add(v), remove: v => classes.delete(v) },
       replaceChildren(child) { this.firstChild?.remove(); this.firstChild = child; child.isConnected = true; child.parent = this; } };
     const panel = { ...events(), querySelector: selector => selector === ".tab-preview-thumbnail-container" ? box : null,
       querySelectorAll: () => [] };
     const tabPanel = Object.create({ get popupOptions() { return {}; }, activate() {} });
-    const window = { ...events(), gBrowserInit: { delayedStartupFinished: true },
+    // Sine's reason for unloading: "release" is the mod being turned off or removed.
+    const window = { ...events(), gBrowserInit: { delayedStartupFinished: started }, __zzSineUnloadReasons: new Map([["zz-peekflow", "release"]]),
       addUnloadListener: fn => unloaders.push(fn), requestIdleCallback: fn => idle.push(fn),
       PageThumbs: { captureTabPreviewThumbnail: (_, canvas) => new Promise(resolve => pending.push({ resolve, canvas })) } };
     const document = { getElementById: () => panel, createElementNS: (_, tag) => ({ tag, isConnected: false,
@@ -48,9 +52,9 @@ function environment(initial = {}, defaults = { [SHOW]: false, [PICTURES]: true 
     windows.push(window);
     const inject = () => vm.runInNewContext(source, context);
     inject();
-    return { window, tabPanel, box, classes, pending, idle, inject, unload: () => unloaders.forEach(fn => fn()) };
+    return { window, panel, tabPanel, box, classes, pending, idle, inject, unload: () => unloaders.forEach(fn => fn()) };
   }
-  return { user, get, set, add };
+  return { user, get, set, add, waiting };
 }
 function tab(selected = true) {
   return { selected, linkedBrowser: {}, hasAttribute: () => false };
@@ -110,12 +114,16 @@ test("reinjection keeps ownership until the replacement unloads", () => {
   assert.equal(e.user.has("zzpeek.saved.show"), false);
 });
 
-test("legacy snapshots retain their saved value across upgrade", () => {
-  const e = environment({ [SHOW]: true, "zzpeek.saved.show": false }), w = e.add();
-  e.set("zzpeek.show", false);
-  e.set("zzpeek.show", true);
+test("closing the browser keeps the settings applied; only turning Peekflow off hands them back", () => {
+  const e = environment({ [SHOW]: false }), w = e.add();
+  w.window.__zzSineWindowClosing = true;
   w.unload();
-  assert.equal(e.user.get(SHOW), false);
+  assert.equal(e.get(SHOW), true, "no restore and re-apply at every quit and start");
+  assert.equal(e.user.has("zzpeek.saved.show"), true);
+  const updated = e.add();
+  updated.window.__zzSineUnloadReasons.set("zz-peekflow", "update");
+  updated.unload();
+  assert.equal(e.get(SHOW), true, "nor when Sine re-injects an update");
 });
 
 test("disabling pictures immediately removes selected-tab canvas", async () => {
@@ -194,5 +202,34 @@ test("pending and discarded tabs never start thumbnail capture", () => {
     const t = tab(); t.hasAttribute = key => key === name;
     w.tabPanel.activate(t);
     assert.equal(w.pending.length, 0, name);
+  }
+});
+
+test("an unloaded tab's preview shows its newest last view", () => {
+  const e = environment(), w = e.add(), t = tab(false);
+  let unloaded = false;
+  t.hasAttribute = name => name === "pending" && unloaded;
+  w.tabPanel.activate(t);
+  for (const url of ["blob:first", "blob:second"]) {
+    unloaded = false;
+    w.panel.fire("TabPreviewThumbnailUpdated", { detail: { thumbnail: { toBlob: fn => fn({ url }) } } });
+    unloaded = true;
+    w.panel.fire("TabPreviewUpdated");
+    assert.equal(w.box.firstChild.src, url);
+  }
+});
+
+test("delayed startup starts the copy once; retiring or closing first drops the wait", () => {
+  const e = environment(), w = e.add({ started: false }), [observer] = e.waiting;
+  observer({});
+  assert.equal(e.get(SHOW), false, "another window's startup is not this one's");
+  observer(w.window);
+  assert.equal(e.get(SHOW), true);
+  assert.equal(e.waiting.size, 0);
+  for (const end of ["retire", "unload"]) {
+    const early = e.add({ started: false });
+    assert.equal(e.waiting.size, 1);
+    if (end === "retire") early.window.__zzpeekInstance.retire(); else early.window.fire("unload");
+    assert.equal(e.waiting.size, 0, end);
   }
 });

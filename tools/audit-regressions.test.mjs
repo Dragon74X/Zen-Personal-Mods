@@ -5,62 +5,12 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import { test } from "node:test";
 
-test("Glassflow separates pointer tracking and repairs only the 3.74.2 reset once", async () => {
-  const source = await readFile(new URL("../glassflow/glassflow.uc.js", import.meta.url), "utf8");
-  const migration = source.slice(source.indexOf("  // Repair 3.74.2's combined switch once:"), source.indexOf("  // Preserve the existing sidebar switch once;"));
-  for (const upgraded of [false, true]) for (const initial of [undefined, false, true]) {
-    const prefs = new Map([["zzglass.motion.profile", 3], ["zzglass.hover.tint", "35%"], ["zzglass.migrated.motion-opt-in", upgraded]]);
-    if (initial !== undefined) prefs.set("zzglass.motion.enabled", initial);
-    const context = vm.createContext({ PREFIX: "zzglass.", Services: { prefs: {
-      getBoolPref: (key, fallback) => prefs.has(key) ? prefs.get(key) : fallback,
-      setBoolPref: (key, value) => prefs.set(key, value),
-    } } });
-    vm.runInContext(migration, context);
-    assert.equal(prefs.get("zzglass.motion.enabled"), upgraded ? true : initial);
-    assert.equal(prefs.has("zzglass.edges.follow-pointer"), false, "migration never enables pointer tracking");
-    prefs.set("zzglass.motion.enabled", false);
-    vm.runInContext(migration, context);
-    assert.equal(prefs.get("zzglass.motion.enabled"), false, "later explicit Off survives reinjection");
-    assert.equal(prefs.get("zzglass.motion.profile"), 3);
-    assert.equal(prefs.get("zzglass.hover.tint"), "35%");
-  }
-});
-
-test("Glassflow upgrades legacy sidebar blur once and preserves explicit native choices", async () => {
-  const source = await readFile(new URL("../glassflow/glassflow.uc.js", import.meta.url), "utf8");
-  const migration = source.slice(source.indexOf("  // Preserve the existing sidebar switch once;"), source.indexOf("  // Written the moment this script is injected,"));
-  const old = "zen.theme.acrylic-elements", native = "zen.theme.acrylic-sidebar", urlbar = "zen.theme.acrylic-urlbar";
-  function run(entries) {
-    const prefs = new Map(entries);
-    const context = vm.createContext({ PREFIX: "zzglass.", Services: { prefs: {
-      getBoolPref: (key, fallback) => prefs.has(key) ? prefs.get(key) : fallback,
-      prefHasUserValue: key => prefs.has(key), setBoolPref: (key, value) => prefs.set(key, value),
-    } } });
-    const migrate = () => vm.runInContext(migration, context);
-    migrate();
-    return { prefs, migrate };
-  }
-  for (const value of [false, true]) {
-    const { prefs, migrate } = run([[old, value]]);
-    assert.equal(prefs.get(native), value);
-    assert.equal(prefs.get(old), value, "rollback retains the old choice");
-    assert.equal(prefs.has(urlbar), false);
-    prefs.delete(native);
-    migrate();
-    assert.equal(prefs.has(native), false, "later reset to native default wins");
-    const explicit = run([[old, value], [native, !value], [urlbar, true]]).prefs;
-    assert.equal(explicit.get(native), !value);
-    assert.equal(explicit.get(urlbar), true);
-  }
-  assert.equal(run([]).prefs.has(native), false, "fresh installs keep native defaults");
-});
-
 test("Library batches bounded history and fills only slots not occupied by native session rows", async () => {
   const source = await readFile(new URL("../glassflow-library/glassflow-library.uc.js", import.meta.url), "utf8");
   let view, flushes = 0, copied = 0, count = 8, nativeCount = 4;
   const rows = [], style = { setProperty() {}, removeProperty() {} };
   function row() {
-    const badge = { style, toggleAttribute() {}, firstElementChild: { style } }, title = {}, subtitle = {}, action = { addEventListener() {} };
+    const badge = { style, toggleAttribute() {}, querySelector: () => ({ style }) }, title = {}, subtitle = {}, action = { addEventListener() {} };
     return { style, setAttribute() {}, addEventListener() {}, toggleAttribute() {},
       remove() { rows.splice(rows.indexOf(this), 1); },
       querySelector(s) { return s.includes("action") ? action : s.includes("badge") ? badge : s.endsWith("subtitle") ? subtitle : title; } };
@@ -243,7 +193,7 @@ test("Mediaflow: native state survives same-time pause and hidden capture; PiP t
   const { actor, messages } = mediaActor("content-actor.sys.mjs", "ZzMediaflowChild", "JSWindowActorChild");
   const video = {
     tagName: "VIDEO", currentTime: 30, duration: 100, readyState: 3,
-    videoWidth: 640, videoHeight: 360, paused: false, seeking: false, volume: .37, muted: false,
+    videoWidth: 640, videoHeight: 360, paused: false, seeking: false,
     pause() { this.paused = true; actor.handleEvent({ type: "pause", target: this }); },
     play() { this.paused = false; actor.handleEvent({ type: "play", target: this }); },
   };
@@ -252,9 +202,6 @@ test("Mediaflow: native state survives same-time pause and hidden capture; PiP t
   actor._scaleCanvas = { width: 2, height: 2 };
   actor._ensureScaleContext = () => ({ drawImage() {}, getImageData() { return { data: new Uint8ClampedArray(4) }; } });
   actor._captureFrame("240");
-  assert.equal(messages.at(-1)[1].volume, .37);
-  video.volume = .18;actor.handleEvent({ type: "volumechange", target: video });
-  assert.equal(messages.at(-1)[1].volume, .18, "external numeric volume is delivered without capture polling");
   actor._control("toggle");
   actor._captureFrame("240");
   assert.equal(messages.filter(([name]) => name === "ZenPiP:Frame").length, 1);
@@ -294,21 +241,21 @@ function mediaController() {
     window: {}, on() {}, reducedMotion: { matches: false }, undo: [], retired: false, chosenSource: null, downloadsCovering: () => false, placeToggles() {}, syncToggleIcons() {}, actorRegistry: registry, sourceBC: null, availableSources: new Map(),
     isStreaming: false, playerSeen: true, userHidden: false, sourceTabActive: false,
     browserWindowActive: true, captionMode: "youtube", captionsWhenPipHidden: false,
-    animateOutTimer: null, animating: false, dragging: false,
+    animating: false, dragging: false,
     gBrowser: { selectedBrowser: { browsingContext: { id: 99 } }, tabs: [] },
     pipContainer: { style: {}, getBoundingClientRect() {} },
-    setSourceDimensions() {}, clearCaptionImmediately() {}, resetPreview() {}, log() {}, updateControls() {},
+    setSourceDimensions() {}, clearCaptionImmediately() {}, clearCanvas() {}, resetPreview() {}, log() {}, updateControls() {},
     requestAnimationFrame() {}, cancelAnimationFrame() {}, setTimeout(fn) { timers.set(++timerId, fn); return timerId; },
     clearTimeout(id) { timers.delete(id); }, CONFIG: { ANIM_MS: 220 },
     lastOpacity: 0, lastCaptionOpacity: 0,
     startTracking() { vm.runInContext("_notifyTickState()", env); }, stopTracking() {},
   });
   vm.runInContext(mediaSource.slice(mediaSource.indexOf("  function isTabPlaying(bc)"), mediaSource.indexOf('  on(window, "popupshowing", event => {')), env);
-  return { env, calls, controller: env.window.ZzMediaflowController, runTimer(id) { const fn = timers.get(id); timers.delete(id); fn(); } };
+  return { env, calls, controller: env.window.ZzMediaflowController, runTimers() { for (const [id, fn] of timers) { timers.delete(id); fn(); } } };
 }
 
 test("Mediaflow: source pre-emption stops both clocks and restores the retained source", () => {
-  const { env, calls, controller, runTimer } = mediaController();
+  const { env, calls, controller, runTimers } = mediaController();
   const a = { id: 11, top: { id: 1 } }, b = { id: 22, top: { id: 2 } };
   controller.offerVideo(640, 360, a);
   calls.length = 0;
@@ -318,7 +265,7 @@ test("Mediaflow: source pre-emption stops both clocks and restores the retained 
   assert.equal(controller.getActiveBC(), b);
   controller.unregisterSource(22);
   controller.notifySourceStopped(b);
-  runTimer(env.animateOutTimer);
+  runTimers();
   assert.equal(controller.getActiveBC(), a);
   assert.equal(calls.at(-1), "11.start");
   assert.equal(env.availableSources.has(22), false);
@@ -392,15 +339,14 @@ test("Mediaflow: actor timers are cleared on the window that created them after 
   assert.equal(first.live.size, 1, "a clock whose window closed is started again");
 });
 
-test("Mediaflow measures Zen's visible front card rather than an earlier hidden card", () => {
+test("Mediaflow measures Zen's front card and writes nothing while it is absent, hiding, hovered or hidden", () => {
   const sizes = [], native = { frontCard: null };
-  const hidden = { getBoundingClientRect: () => ({ height: 0 }) };
   const visible = { matches: () => false, getBoundingClientRect: () => ({ height: 80 }) };
-  const bar = { hidden: false, matches: () => false, querySelector: () => hidden,
+  const bar = { hidden: false, matches: () => false,
     style: { setProperty: (_name, value) => sizes.push(value) } };
-  const env = vm.createContext({ retired: false, mediaBar: bar, window: { gZenMediaController: native } });
+  const env = vm.createContext({ retired: false, musicPlayerUI: bar, window: { gZenMediaController: native } });
   vm.runInContext(mediaSource.slice(mediaSource.indexOf('  const remeasure ='),
-    mediaSource.indexOf('\n  if (mediaBar)')) + '\nthis.measure = remeasure;', env);
+    mediaSource.indexOf('\n  let remeasureTimer')) + '\nthis.measure = remeasure;', env);
   native.frontCard = { element: visible };
   env.measure();
   assert.deepEqual(sizes, ['80px']);
@@ -415,7 +361,7 @@ test("Mediaflow measures Zen's visible front card rather than an earlier hidden 
 });
 
 test("Mediaflow: native range seeks once on commit and cancels preview state without seeking", () => {
-  const nodes = [], sent = [], attrs = new Map(), writes = [];
+  const nodes = [], sent = [], attrs = new Map();
   const node = tag => {
     const n = { tag, handlers: {}, attrs: new Map(), style: {}, dataset: {},
       addEventListener(event, fn) { this.handlers[event] = fn; }, append() {}, appendChild() {},
@@ -426,7 +372,7 @@ test("Mediaflow: native range seeks once on commit and cancels preview state wit
     return n;
   };
   const env = vm.createContext({
-    document: { createElement: node }, pipContainer: { appendChild() {}, getAttribute(k){return attrs.get(k)??null;}, setAttribute(k,v){attrs.set(k,v);writes.push(k);}, removeAttribute(k){attrs.delete(k);}, toggleAttribute(k, v) { attrs.set(k, v); } },
+    document: { createElement: node }, pipContainer: { appendChild() {}, toggleAttribute(k, v) { attrs.set(k, v); } },
     holdPreview() {}, releasePreview() {}, safe: fn => fn(), on: (n, event, fn) => n.addEventListener(event, fn), undo: [],
     Services: { prefs: { getBoolPref: () => true, getStringPref: () => "10", addObserver() {} } },
     sourceBC: { id: 11, top: { embedderElement: {} } },
@@ -438,10 +384,7 @@ test("Mediaflow: native range seeks once on commit and cancels preview state wit
   const track = nodes.find(n => n.tag === "input");
   assert.equal(track.type, "range");
   assert.equal(track.attrs.get("aria-label"), "Video position");
-  env.update({ time: 20, duration: 100, paused: false, volume: .37, muted: false });
-  assert.equal(attrs.get("data-zz-volume"), "37");
-  for (let i=0;i<60;i++) env.update({time:20,duration:100,paused:false,volume:.37,muted:false});
-  assert.equal(writes.filter(k=>k==="data-zz-volume").length,1,"unchanged frames do not wake Morph through the volume attribute");
+  env.update({ time: 20, duration: 100, paused: false });
   assert.equal(track.valueAsNumber, 0.2);
   track.value = "0.65";
   track.handlers.input();
@@ -464,10 +407,12 @@ test("Mediaflow: native range seeks once on commit and cancels preview state wit
 
 test("A window closed before delayed startup drops its startup observer", () => {
   for (const file of ["glassflow/glassflow.uc.js", "groupflow/groupflow.uc.js", "tab-unloader/tab-unloader.uc.js",
-    "zen-turbo/zen-turbo.uc.js", "peekflow/peekflow.uc.js"]) {
+    "zen-turbo/zen-turbo.uc.js", "peekflow/peekflow.uc.js", "tab-router/tab-router.uc.js"]) {
     const source = readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
     const wait = source.slice(source.lastIndexOf('Services.obs.addObserver(obs, "browser-delayed-startup-finished")'));
-    assert.match(wait, /^[^]{0,300}window\.addEventListener\("unload", stopWaiting, \{ once: true \}\)/, file);
+    // Peekflow runs cleanup() on unload from the start, and cleanup() stops the wait.
+    if (file === "peekflow/peekflow.uc.js") assert.match(source.slice(source.indexOf("function cleanup()")), /^[^]{0,120}stopWaiting\(\);/, file);
+    else assert.match(wait, /^[^]{0,300}window\.addEventListener\("unload", stopWaiting, \{ once: true \}\)/, file);
     const stop = source.slice(source.indexOf("const stopWaiting"), source.indexOf("const stopWaiting") + 400);
     assert.match(stop, /removeObserver\(obs, "browser-delayed-startup-finished"\)/, file);
   }

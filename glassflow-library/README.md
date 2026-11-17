@@ -1,6 +1,6 @@
 # Glassflow Library
 
-For Zen's Library (Zen 1.23.2b and later): it can float the Library over the
+For Zen's Library (Zen 1.24b and later): it can float the Library over the
 page, changes the recent-downloads list above the Library button, and styles
 the space cards in the Spaces view.
 
@@ -52,7 +52,7 @@ Added rows show download speed, retry stopped downloads, and offer eligible Canc
 Show in Folder actions. They delegate context menus and file drag behavior to Zen's
 native handlers using the actual download. Commands recheck current download/file
 state before execution. Missing files omit file-dependent actions while preserving
-other applicable commands. Requires Zen 1.23.3b.
+other applicable commands.
 Blocked downloads use Zen's native confirmation and verdict text, including
 the extra rows. Nothing is unblocked or opened before the native prompt allows it.
 

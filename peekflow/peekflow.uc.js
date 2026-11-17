@@ -2,7 +2,6 @@
 // @name           Peekflow
 // @description    Places Zen's tab hover preview and remembers how unloaded tabs looked.
 // @include        chrome://browser/content/browser.xhtml
-// @version        1.3.7
 // ==/UserScript==
 
 (() => {
@@ -21,7 +20,8 @@
 
   // ---- Firefox's own switches ----------------------------------------------
   // The preview and its picture are Firefox prefs. Peekflow sets them from its
-  // own settings. The final window restores only overrides still owned by us.
+  // own settings; when Peekflow is removed or turned off, the last window
+  // restores only the overrides still owned by us.
   const OWNED = { "browser.tabs.hoverPreview.enabled": "show", "browser.tabs.hoverPreview.showThumbnails": "pictures" };
   function syncFirefox(release) {
     if (release) for (const w of Services.wm.getEnumerator("navigator:browser")) if (w[INSTANCE_KEY]?.active) return;
@@ -29,21 +29,16 @@
       const saved = P + "saved." + key, had = saved + ".had", applied = saved + ".applied";
       try {
         const wanted = bool(key, true), now = S.getBoolPref(pref, false), owned = S.prefHasUserValue(saved);
-        // ponytail: pre-1.2.1 snapshots lack user-value presence; preserve their
-        // saved value until released, then new snapshots record presence exactly.
         const last = S.getBoolPref(applied, wanted);
         if (release) {
           if (owned && S.prefHasUserValue(pref) && now === last) {
-            if (S.getBoolPref(had, true)) S.setBoolPref(pref, S.getBoolPref(saved));
+            if (S.getBoolPref(had, false)) S.setBoolPref(pref, S.getBoolPref(saved));
             else S.clearUserPref(pref);
           }
           for (const name of [saved, had, applied]) S.clearUserPref(name);
           continue;
         }
-        if (owned && last === wanted) {
-          if (!S.prefHasUserValue(applied)) S.setBoolPref(applied, last);
-          continue; // Unrelated settings must not overwrite a later manual edit.
-        }
+        if (owned && last === wanted) continue; // Unrelated settings must not overwrite a later manual edit.
         if (!owned || now !== last || !S.prefHasUserValue(pref)) {
           S.setBoolPref(had, S.prefHasUserValue(pref));
           S.setBoolPref(saved, now);
@@ -136,7 +131,7 @@
 
   // ---- the preview panel ------------------------------------------------------
   let tabPanel = null, panel = null, current = null, retired = false;
-  let shotImg = null, shotTab = null, shotURL = null;
+  let shotImg = null, shotBlob = null, shotURL = null;
   // Firefox shows the selected tab without a picture, as you are looking at
   // it; Peekflow takes one as you point at it, shown and not kept.
   let live = null;                          // { tab, canvas }
@@ -168,12 +163,12 @@
     const shot = unloaded && !selected && pictures && bool("last-view", true) ? shots.get(tab) : null;
     let picture = pictures && selected && live?.tab === tab ? live.canvas : null;
     if (shot) {
-      if (shotTab !== tab) {
+      if (shotBlob !== shot.blob) {
         if (shotURL) URL.revokeObjectURL(shotURL);
         shotURL = URL.createObjectURL(shot.blob);
         shotImg ??= Object.assign(document.createElementNS(HTML, "img"), { className: "zzpeek-shot", alt: "" });
         shotImg.src = shotURL;
-        shotTab = tab;
+        shotBlob = shot.blob;
       }
       picture = shotImg;
     }
@@ -246,7 +241,7 @@
     shotImg?.remove();
     live?.canvas.remove();
     if (shotURL) URL.revokeObjectURL(shotURL);
-    tabPanel = panel = current = shotImg = shotTab = shotURL = live = null;
+    tabPanel = panel = current = shotImg = shotBlob = shotURL = live = null;
   }
 
   const observer = { observe(_, __, name) {
@@ -259,6 +254,15 @@
     }
     if (!bool("show", true)) release(); else { adopt(); dress(); }
   } };
+  // Waiting for delayed startup. cleanup() drops the observer: a window closed
+  // before then never fires the topic, and the observer service would keep the
+  // whole window alive; a retired copy must not start when it does fire.
+  let obs = null;
+  const stopWaiting = () => {
+    if (!obs) return;
+    try { Services.obs.removeObserver(obs, "browser-delayed-startup-finished"); } catch {}
+    obs = null;
+  };
   function start() {
     instance.active = true;
     syncFirefox(false);
@@ -272,6 +276,7 @@
   function cleanup() {
     if (retired) return;
     retired = true;
+    stopWaiting();
     instance.active = false;
     try { S.removeObserver(P, observer); } catch {}
     window.removeEventListener("TabSelect", onSelect, true);
@@ -284,23 +289,19 @@
   }
   instance.retire = cleanup;
   window.addEventListener("unload", cleanup, { once: true });
-  // Sine turning the mod off: also hand Firefox's switches back.
-  try { window.addUnloadListener?.(() => { cleanup(); syncFirefox(true); }); } catch {}
+  // Sine turning the mod off or removing it (not a window or the browser
+  // closing): also hand Firefox's switches back.
+  try { window.addUnloadListener?.(() => { cleanup(); if (!window.__zzSineWindowClosing && window.__zzSineUnloadReasons?.get("zz-peekflow") === "release") syncFirefox(true); }); } catch {}
 
-  if (window.gBrowserInit?.delayedStartupFinished) start();
+  // start() is wrapped: a throw here escapes into Sine's injection loop,
+  // which does not catch, and every mod queued after this one is never injected.
+  const startOnce = () => {
+    stopWaiting();
+    try { start(); } catch (e) { console.error("[Peekflow] failed to start:", e); }
+  };
+  if (window.gBrowserInit?.delayedStartupFinished) startOnce();
   else {
-    const obs = (subject) => {
-      if (subject !== window) return;
-      stopWaiting();
-      if (!retired) start();
-    };
-    // A window closed before delayed startup never fires the topic, and the
-    // observer service would keep this whole window alive for the session.
-    const stopWaiting = () => {
-      window.removeEventListener("unload", stopWaiting);
-      try { Services.obs.removeObserver(obs, "browser-delayed-startup-finished"); } catch {}
-    };
+    obs = subject => { if (subject === window) startOnce(); };
     Services.obs.addObserver(obs, "browser-delayed-startup-finished");
-    window.addEventListener("unload", stopWaiting, { once: true });
   }
 })();

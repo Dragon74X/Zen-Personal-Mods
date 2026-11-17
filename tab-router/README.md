@@ -69,6 +69,8 @@ container check retries on network completion even if the tab has already been
 filed and **Re-file tabs that drifted** is off. Pending tabs do not influence
 their destination group's container choice. Already-filed tabs with a matching
 rule can also repair a container mismatch; deeper manual subgroups are preserved.
+A folder's own page tab (Groupflow) is never reopened: Groupflow opens it in the
+folder's container.
 `sortAll()` returns a Promise;
 use `await TabRouter.sortAll()` when you need completion.
 

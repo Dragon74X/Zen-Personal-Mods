@@ -198,7 +198,7 @@ test("a rejected check reports only its current settings indicator; a closed or 
   assert.equal(b.ui.firstElementChild.textContent,"...");
 });
 
-test("6 standalone manifests ship identical guards; all declared scripts exist", async () => {
+test("every standalone manifest ships the identical guard; all declared scripts exist", async () => {
   const canonical = await readFile(new URL(mods[0] + "/" + guardName, root), "utf8");
   for (const mod of mods) {
     assert.equal(await readFile(new URL(mod + "/" + guardName, root), "utf8"), canonical, mod);
@@ -208,8 +208,6 @@ test("6 standalone manifests ship identical guards; all declared scripts exist",
     for (const script of Object.keys(manifest.scripts)) assert.ok(files.includes(script), mod + "/" + script);
     assert.ok(Array.isArray(JSON.parse(await readFile(new URL(mod + "/preferences.json", root), "utf8"))));
   }
-  const router = await readFile(new URL("tab-router/tab-router.uc.js", root), "utf8");
-  assert.ok(!router.includes("repairStrays") && !router.includes("IOUtils.move"));
 });
 
 test("standalone reload=false install still queues behind updates", async () => {

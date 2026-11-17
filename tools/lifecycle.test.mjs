@@ -108,7 +108,7 @@ async function routerEnv(extra = {}) {
       asyncOpen(listener) { NetUtil.open(this, listener); } }),
     open: (channel, listener) => callbacks.push([channel, listener]),
     readInputStreamToString: (s, count) => s.body.slice(0, count) };
-  const h = await load("tab-router", "fetchAnon, fetchCreator, fetchSectionIcon, refreshPictures, creatorMap, iconMap, stampIcons, live, majorityContext, learnedMap, saveLearned, saveCreators, saveIcons, forgetAll, cancelLookups, rules, suggestRules, route, queueRoute, onAttrModified, skip, targetPath, reopenInContainer, resolveDestination, prefObserver, progress, placeInPath, initialRequest, retire: () => retired = true", {
+  const h = await load("tab-router", "fetchAnon, fetchCreator, fetchSectionIcon, refreshPictures, creatorMap, iconMap, live, majorityContext, learnedMap, saveLearned, saveCreators, forgetAll, cancelLookups, route, queueRoute, onAttrModified, skip, targetPath, reopenInContainer, prefObserver, progress, placeInPath, initialRequest, retire: () => retired = true", {
     ...c, window: {}, gBrowser: { tabGroups: [], tabs: [] }, document: { querySelectorAll: () => [] },
     ChromeUtils: { generateQI: () => () => {}, importESModule: name => name.includes("NetUtil") ? { NetUtil } : name.includes("Timer") ? c
       : { PrivateBrowsingUtils: { isWindowPrivate: () => false } } },
@@ -209,7 +209,7 @@ async function turboEnv({ privateWindow = false, rows = Promise.resolve([]), fai
   spaces[0].setAttribute("active", "true");
   const essentials = [Object.assign(element(), { localName: "hbox" })], observed = [];
   w.XULBrowserWindow = { setOverLink: (...args) => args };
-  const h = await load("zen-turbo", "start, syncPacks, startupWarmup, forgetWarmups, syncSmoothing, syncMeasurement, navListener, note, warm, prefObserver, stats", {
+  const h = await load("zen-turbo", "start, syncPacks, startupWarmup, forgetWarmups, syncSmoothing, syncMeasurement, note, warm, prefObserver, stats", {
     ...c, window: w, gBrowser: { tabContainer, addTabsProgressListener() {}, removeTabsProgressListener() {} },
     document: { documentElement: root, getElementById: id => ({ "tabbrowser-arrowscrollbox": scroller, "navigator-toolbox": toolbox, "tabbrowser-tabs": tabContainer })[id] ?? null,
       querySelectorAll: selector => ({ "zen-workspace": spaces, ".zen-essentials-container": essentials })[selector] ?? [] },
@@ -648,11 +648,10 @@ test(`Router explicit workspace route respects grouped=${skipGrouped}, create=${
 test("Router coalesces navigation bursts at 0 ms without resetting or routing an older URL", async () => {
   const e = await immediateRouterEnv();
   e.prefs.set("zzrouter.follow-containers", false);
-  e.prefs.set("zzrouter.delay-ms", "400");
   e.prefs.set("zzrouter.rules", "example.com > Old\nfinal.example > Final");
   e.h.progress.onLocationChange({}, { isTopLevel: true });
   const first = [...e.c.timers.keys()]; assert.equal(first.length, 1);
-  assert.deepEqual(e.pending(), first, "stored delay must not postpone routing");
+  assert.deepEqual(e.pending(), first, "a navigation is routed on the next turn");
   e.t.linkedBrowser.currentURI = tab("https://final.example/page").linkedBrowser.currentURI;
   e.t.label = "Final page";
   e.h.onAttrModified({ target: e.t, detail: { changed: ["label"] } });

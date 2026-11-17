@@ -342,11 +342,10 @@ test("Mediaflow: actor timers are cleared on the window that created them after 
   assert.equal(first.live.size, 1, "a clock whose window closed is started again");
 });
 
-test("Mediaflow measures Zen's visible front card rather than an earlier hidden card", () => {
+test("Mediaflow measures Zen's front card and writes nothing while it is absent, hiding, hovered or hidden", () => {
   const sizes = [], native = { frontCard: null };
-  const hidden = { getBoundingClientRect: () => ({ height: 0 }) };
   const visible = { matches: () => false, getBoundingClientRect: () => ({ height: 80 }) };
-  const bar = { hidden: false, matches: () => false, querySelector: () => hidden,
+  const bar = { hidden: false, matches: () => false,
     style: { setProperty: (_name, value) => sizes.push(value) } };
   const env = vm.createContext({ retired: false, mediaBar: bar, window: { gZenMediaController: native } });
   vm.runInContext(mediaSource.slice(mediaSource.indexOf('  const remeasure ='),
@@ -414,7 +413,7 @@ test("Mediaflow: native range seeks once on commit and cancels preview state wit
 
 test("A window closed before delayed startup drops its startup observer", () => {
   for (const file of ["glassflow/glassflow.uc.js", "groupflow/groupflow.uc.js", "tab-unloader/tab-unloader.uc.js",
-    "zen-turbo/zen-turbo.uc.js", "peekflow/peekflow.uc.js"]) {
+    "zen-turbo/zen-turbo.uc.js", "peekflow/peekflow.uc.js", "tab-router/tab-router.uc.js"]) {
     const source = readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
     const wait = source.slice(source.lastIndexOf('Services.obs.addObserver(obs, "browser-delayed-startup-finished")'));
     assert.match(wait, /^[^]{0,300}window\.addEventListener\("unload", stopWaiting, \{ once: true \}\)/, file);

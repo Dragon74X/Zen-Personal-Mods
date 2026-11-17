@@ -1090,9 +1090,8 @@ def check(m, root, atg, port, first):
         m.script((root / "tab-router/tab-router.uc.js").read_text() + "\nreturn true;")
         routed = m.script("return (async()=>{" + HELPERS + """
           const url=fixtureURL.replace('127.0.0.1','localhost')+'/frames';
-          // A legacy delay preference and continuous title events must not
-          // postpone group/workspace filing until a slow subframe finishes.
-          Services.prefs.setIntPref('zzrouter.delay-ms',5000);
+          // Continuous title events must not postpone group/workspace filing
+          // until a slow subframe finishes.
           const t=add(url);group('Source').addTabs([t]);gBrowser.selectedTab=t;
           let labels=0;
           const chatter=setInterval(()=>{
@@ -1106,7 +1105,7 @@ def check(m, root, atg, port, first):
             routeBeforeLoad=t.isConnected && t.hasAttribute('busy') && t.userContextId===1 &&
               t.group===group('Destination') && t.getAttribute('zen-workspace-id')===fixtureDestinationID;
           } finally { clearInterval(chatter); }
-          if(!routeBeforeLoad) throw new Error('Busy tab did not file immediately with delay-ms=5000 and title events');
+          if(!routeBeforeLoad) throw new Error('Busy tab did not file immediately with title events');
           await until(()=>!t.isConnected);
           await until(()=>[...document.querySelectorAll('tab')].some(t=>t.linkedBrowser?.currentURI?.spec===url));
           const fresh=[...document.querySelectorAll('tab')].find(t=>t.linkedBrowser?.currentURI?.spec===url);
@@ -1131,7 +1130,6 @@ def check(m, root, atg, port, first):
               replacement.getAttribute('zen-workspace-id')===fixtureDestinationID;
           } finally {
             Services.prefs.setBoolPref('zzrouter.refile-mismatched',true);
-            Services.prefs.clearUserPref('zzrouter.delay-ms');
           }
           // Reproduce an old-version tab already filed in the right group with the wrong container.
           Services.prefs.setBoolPref('zzrouter.enabled',false);
@@ -1519,7 +1517,7 @@ def main():
                 if "property" in pref and "defaultValue" in pref:
                     prefs[pref["property"]] = pref["defaultValue"]
         prefs.update({"zzrouter.enabled": False, "zzrouter.sort-on-startup": False,
-                      "zzrouter.delay-ms": 100, "zzrouter.auto-unmatched": False,
+                      "zzrouter.auto-unmatched": False,
                       "zzrouter.media-subgroups": False, "zzrouter.section-icons": False,
                       "zzgroup.subfolder.states": False})
         (profile / "user.js").write_text("\n".join(f"user_pref({json.dumps(k)}, {json.dumps(v)});" for k, v in prefs.items()))

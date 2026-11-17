@@ -2294,37 +2294,39 @@
     copyAllowed().delete(`${ctx}|${key}`);
     return at && Date.now() - at < 10000;
   }
+  // Messages come from a page process, which is untrusted: the container is
+  // the sending tab's own, never one the message names.
   function linkMessage(name, data, browser, principal) {
-    if (name === "ZzRouter:OpenFromPage" && typeof data.href === "string") {
-      // A folder's page stays on its page: the link opens in its own tab next
-      // to it, under the folder, through the same checks as any new tab.
-      let uri;
-      try { uri = Services.io.newURI(data.href); } catch { return; }
-      if (!/^https?$/.test(uri.scheme)) return;
-      // Zen opens a folder tab's links outside the folder; this one goes in
-      // it, unless routing files it somewhere more specific.
-      openInto = gBrowser.getTabForBrowser(browser)?.group || null;
-      try {
-        window.openLinkIn(data.href, "tab", { triggeringPrincipal: principal || Services.scriptSecurityManager.createNullPrincipal({ userContextId: data.ctx | 0 }),
-          userContextId: data.ctx | 0, openerBrowser: browser, relatedToCurrent: true, inBackground: false });
-      } finally { openInto = null; }
-      return;
-    }
-    if (name !== "ZzRouter:SwitchTo" || typeof data.href !== "string") return;
-    const from = gBrowser.getTabForBrowser(browser), ctx = data.ctx | 0;
-    const target = switchOn() && openTargetFor(ctx, pageKey(data.href), from);
-    if (target) { note(`switched to open "${goTo(target)}"`); return; }
-    // Closed in the meantime: do what the click would have done.
+    const from = gBrowser.getTabForBrowser(browser);
+    if (!from || typeof data?.href !== "string") return;
     let uri;
     try { uri = Services.io.newURI(data.href); } catch { return; }
     if (!/^https?$/.test(uri.scheme)) return;
+    const ctx = contextOf(from);
     const triggeringPrincipal = principal || Services.scriptSecurityManager.createNullPrincipal({ userContextId: ctx });
+    if (name === "ZzRouter:OpenFromPage") {
+      // A folder's page stays on its page: the link opens in its own tab next
+      // to it, under the folder (Zen would open it outside), through the
+      // same checks as any new tab.
+      if (!from.hasAttribute("zzgf-page-tab")) return;
+      openInto = from.group || null;
+      try {
+        window.openLinkIn(data.href, "tab", { triggeringPrincipal, userContextId: ctx, openerBrowser: browser, relatedToCurrent: true, inBackground: false });
+      } finally { openInto = null; }
+      return;
+    }
+    if (name !== "ZzRouter:SwitchTo") return;
+    const target = switchOn() && openTargetFor(ctx, pageKey(data.href), from);
+    if (target) { note(`switched to open "${goTo(target)}"`); return; }
+    // Closed in the meantime: do what the click would have done.
     if (data.newTab) window.openLinkIn(data.href, "tab", { triggeringPrincipal, userContextId: ctx, inBackground: false, relatedToCurrent: true });
     else browser?.loadURI(uri, { triggeringPrincipal });
   }
-  // New tabs opened through Firefox's link opener (middle- and Ctrl-clicks
-  // on page links, Open Link in New Tab, bookmarks and history) are checked
-  // before the tab exists: an open page is switched to at once, so no tab
+  // New tabs opened through Firefox's link openers are checked before the tab
+  // exists: openLinkIn (middle- and Ctrl-clicks on page links, Open Link in
+  // New Tab), openTrustedLinkIn and openWebLinkIn (bookmarks, history and the
+  // browser's own menus, which reach Firefox's loader without passing
+  // through openLinkIn). An open page is switched to at once, so no tab
   // flashes in. Firefox's click handler marks an Alt-click as a copy.
   let copyNext = false;
   function switchIfOpen(url, ctx = 0, except = null) {
@@ -2379,8 +2381,9 @@
       try { plan.group.addTabs([tab]); note(`placed new tab in "${plan.group.label}"`); } catch (e) { note(`new tab placement failed: ${e}`); }
     });
   }
-  const nativeOpenLinkIn = window.openLinkIn;
-  function openLinkIn(url, where, params = {}) {
+  const OPENERS = ["openLinkIn", "openTrustedLinkIn", "openWebLinkIn"];
+  const nativeOpeners = new Map(OPENERS.map(name => [name, window[name]]));
+  const wrapOpener = name => function (url, where, params = {}) {
     let plan = null;
     try {
       if ((where === "tab" || where === "tabshifted") && !params?.private) {
@@ -2393,9 +2396,11 @@
       }
     } catch (e) { note(`open check failed: ${e}`); }
     placing = plan?.group ? plan : openInto?.isConnected ? { group: openInto } : null;
-    try { return nativeOpenLinkIn.call(this, url, where, params); }
+    try { return nativeOpeners.get(name).call(this, url, where, params); }
     finally { placing = null; }
-  }
+  };
+  const wrappedOpeners = new Map(OPENERS.map(name => [name, wrapOpener(name)]));
+  const openLinkIn = wrappedOpeners.get("openLinkIn");
   // A folder's own page (Groupflow): switch to it if it is open anywhere,
   // bring a loose copy in the folder's space into the folder, or open it there.
   function openPage(url, group, ctx = 0) {
@@ -2604,7 +2609,9 @@
   // progress listener. Converges on the same per-tab queue; a title
   // change with an unchanged target path no-ops in placeInPath.
   function onTabEvent(event) {
-    const tab = event.detail?.tab || event.target;
+    // TabGrouped/TabUngrouped fire on the group, with the tab as the detail.
+    const grouping = event.type === "TabGrouped" || event.type === "TabUngrouped";
+    const tab = grouping ? event.detail : event.detail?.tab || event.target;
     if (!tab || tab.closest?.("zen-library, [zen-library-copy]")) return;
     updateOpenMenu();
     if (event.type === "TabClose") {
@@ -2618,7 +2625,7 @@
       if (source && presentable(source)) captureNexus(source);
       captureNexus(tab, source);
     }
-    if (event.type === "TabGrouped" || event.type === "TabUngrouped") {
+    if (grouping) {
       captureNexus(tab);
       updatePicture(tab, false);
       return;
@@ -2837,7 +2844,7 @@
     try { Services.obs.addObserver(purgeObserver, "browser:purge-session-history"); } catch {}
     Services.obs.addObserver(initialRequest, "http-on-modify-request");
     registerLinks();
-    if (typeof nativeOpenLinkIn === "function") window.openLinkIn = openLinkIn;
+    for (const [name, wrapped] of wrappedOpeners) if (typeof nativeOpeners.get(name) === "function") window[name] = wrapped;
     window.addEventListener("TabOpen", placeOpened, true);
     const backfillEvents = ["TabGrouped", "TabGroupCreate", "TabGroupUpdate", "SSTabRestored", "GroupflowReady"];
     for (const ev of backfillEvents) window.addEventListener(ev, backfillSoon, true);
@@ -3144,7 +3151,7 @@
       try { gBrowser.removeTabsProgressListener(openProgress); } catch {}
       clearTimeout(publishTimer); publishTimer = null;
       unregisterLinks();
-      if (window.openLinkIn === openLinkIn) window.openLinkIn = nativeOpenLinkIn;
+      for (const [name, wrapped] of wrappedOpeners) if (window[name] === wrapped) window[name] = nativeOpeners.get(name);
       window.removeEventListener("TabOpen", placeOpened, true);
       for (const ev of backfillEvents) window.removeEventListener(ev, backfillSoon, true);
       window.removeEventListener("SSTabRestoring", forgetLazy, true);
@@ -3270,6 +3277,7 @@
       if (topic === "browser-delayed-startup-finished" && subject === window) startOnce();
     };
     Services.obs.addObserver(obs, "browser-delayed-startup-finished");
+    window.addEventListener("unload", stopWaiting, { once: true });
 
     // The backstop. In the failure above the window is ALREADY past delayed
     // startup, so the first tick starts the mod half a second later. Bounded,

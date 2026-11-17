@@ -61,8 +61,8 @@ async function environment(options = {}) {
     readInputStreamToString: (stream, count) => stream.body.slice(0, count),
   };
   let source = await readFile(process.env.ROUTER_SOURCE || new URL("../tab-router/tab-router.uc.js", import.meta.url), "utf8");
-  const names = "fetchCreator,fetchSectionIcon,stampIcons,route,iconMap,creatorMap,updatePicture,pictureSubject,refreshPictures,chainOf,startsWithPath,findChild,targetPath,file,captureNexus,nexusGame,nexusURLFrom,musicPage,partLabel,onTabEvent,prefObserver,inFlight,saveNexus,savedNexus,cancelLookups,forgetAll,refreshSubject,fetchMetadata,saveIcons,flushWrites,toIcon,paintBanner".split(",");
-  source = source.replace("  // ---- declared defaults", `globalThis.harness = {${names.map(n=>`${n}:typeof ${n} === 'undefined' ? null : ${n}`).join(',')}, observeQueues: cb => queueRoute=cb}; return;\n  // ---- declared defaults`);
+  const names = "fetchCreator,fetchSectionIcon,stampIcons,route,iconMap,creatorMap,updatePicture,pictureSubject,refreshPictures,targetPath,file,captureNexus,nexusGame,nexusURLFrom,musicPage,onTabEvent,prefObserver,inFlight,savedNexus,cancelLookups,forgetAll,refreshSubject,saveIcons,flushWrites,toIcon";
+  source = source.replace("  // ---- declared defaults", `globalThis.harness = {${names}, observeQueues: cb => queueRoute=cb}; return;\n  // ---- declared defaults`);
   const window = { Groupflow: { refresh: defer => refreshes.push(defer), automaticPictureAllowed: g => !g.customIcon },
     SessionStore: { getCustomTabValue: (t,k) => values.get(t)?.[k] || "",
       setCustomTabValue(t,k,v) { values.set(t, {...values.get(t),[k]:v}); },

@@ -110,8 +110,8 @@ with tempfile.TemporaryDirectory(prefix='zen-state-motion-') as d:
                 Services.prefs.setIntPref('zzglass.motion.profile',profile);InspectorUtils.removePseudoClassLock(tab,':hover');gBrowser.selectedTab=motionOutside;await motionPause(650);
                 const before=read();InspectorUtils.addPseudoClassLock(tab,':hover');await motionPause(60);const during=read();await motionPause(650);const after=read();
                 const box=bg.getBoundingClientRect().toJSON(), ibox=icon.getBoundingClientRect().toJSON();
-                gBrowser.selectedTab=tab;await motionPause(35);const moved=getComputedStyle(label).translate;await motionPause(450);const settled=getComputedStyle(label).translate;
-                results.push({profile,before,during,after,moved,settled,boxStable:JSON.stringify(box)===JSON.stringify(bg.getBoundingClientRect().toJSON()),iconStable:JSON.stringify(ibox)===JSON.stringify(icon.getBoundingClientRect().toJSON())});
+                const rest=getComputedStyle(label).translate;gBrowser.selectedTab=tab;await motionPause(35);const moved=getComputedStyle(label).translate;await motionPause(450);const settled=getComputedStyle(label).translate;
+                results.push({profile,before,during,after,rest,moved,settled,boxStable:JSON.stringify(box)===JSON.stringify(bg.getBoundingClientRect().toJSON()),iconStable:JSON.stringify(ibox)===JSON.stringify(icon.getBoundingClientRect().toJSON())});
               }
               InspectorUtils.removePseudoClassLock(tab,':hover');
               Services.prefs.setBoolPref('zzglass.edges.enabled',false);await motionPause(650);const off=getComputedStyle(bg).boxShadow;
@@ -123,7 +123,7 @@ with tempfile.TemporaryDirectory(prefix='zen-state-motion-') as d:
             (OUT/'motion.json').write_text(json.dumps(results,indent=2));print('MOTION',[(r['profile'],r['moved'],r['settled']) for r in results['profiles']],flush=True)
             for row in results['profiles']:
                 assert row['before']['image'] != row['during']['image'] != row['after']['image'], row
-                assert row['moved']!='none' and row['settled']=='none' and row['boxStable'] and row['iconStable'],row
+                assert row['moved']!=row['rest'] and row['settled']==row['rest'] and row['boxStable'] and row['iconStable'],row  # the jiggle rides on the label's resting translate (the hover slide)
             assert results['reduced']['translate']=='none' and results['reduced']['animations']==0,results['reduced']
             # Freeze actual CSS transitions for repeatable before/mid/after pixels.
             m.script("Services.prefs.setIntPref('zzglass.motion.profile',1);gBrowser.selectedTab=motionOutside;InspectorUtils.removePseudoClassLock(motionTab,':hover');return true;");time.sleep(.65)

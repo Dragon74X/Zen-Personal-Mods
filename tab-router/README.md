@@ -90,7 +90,11 @@ bar's **Switch to Tab** -- that window comes forward and a soft ring in Zen's
 accent fades in and out around its page and the tab (a folder's header, for a
 folder's page), so the eye finds it (briefer with reduced motion). Moving
 between windows yourself shows nothing, nor does picking a tab whose page Zen
-brings into the window you are in.
+brings into the window you are in. Zen keeps a copy of each tab in every
+window; a copy that has not loaded yet (every copy after a restart, and a
+new window's copies of tabs that were already open) counts as the window
+whose page is loaded, so these switches go there instead of pulling the page
+out of it.
 
 New tabs opened through Firefox's link opener -- middle- and Ctrl-clicks on
 links, **Open Link in New Tab**, bookmarks and history -- are checked before the

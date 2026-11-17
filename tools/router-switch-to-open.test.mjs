@@ -183,7 +183,7 @@ test("A folder's container is its other tabs'; a page tab alone in another conta
     Groupflow: { folderPage: () => "https://youtube.com/", openFolderPage: g => { opened.push(g.id); return true; } } };
   const ctx = vm.createContext({ window: win, Services: { wm: { getEnumerator: () => [win] } },
     pageKey: u => u.replace(/^https:\/\/(www\.)?/, "").replace(/\/$/, ""), contextOf: t => +(t.getAttribute("usercontextid") || 0),
-    openTabFor: () => null, switchTo: t => switched.push(t.id), note: () => {}, openPage: () => null });
+    openTabFor: () => null, liveTwin: t => t, switchTo: t => switched.push(t.id), note: () => {}, openPage: () => null });
   vm.runInContext(`${gen}\n${fn("folderFor")}\n${fn("openTargetFor")}\n${fn("goTo")}\nthis.openTargetFor = openTargetFor; this.goTo = goTo;`, ctx);
   const target = ctx.openTargetFor(6, "youtube.com");
   assert.equal(target?.folder?.ctx, 6, "the folder counts in its signed-in tabs' container, not its page tab's");
@@ -223,7 +223,7 @@ test("A folder's page tab is never switched away on its first load, redirects in
 // Firefox's own (which the address bar calls directly): raise the window
 // holding the tab, then show it there through Zen's switchIfNeeded.
 const between = (start, end) => router.slice(router.indexOf(start), router.indexOf(end));
-function windows(slice) {
+function windows(slice, extra = () => ({})) {
   const focus = { activeWindow: null }, marked = [], raised = [], all = [];
   const helper = { switchToTabHavingURI: (source, target) => {
     target.focus(); target.gZenWorkspaces.switchIfNeeded(target.tab.linkedBrowser); return true; } };
@@ -240,7 +240,7 @@ function windows(slice) {
     const ctx = vm.createContext({ window: win, gBrowser: win.gBrowser, note: () => {},
       Services: { focus, wm: { getEnumerator: () => all } },
       ChromeUtils: { importESModule: () => ({ URILoadingHelper: helper }) },
-      markArrival: t => marked.push([name, t.id]) });
+      markArrival: t => marked.push([name, t.id]), liveTwin: t => t, ...extra(name) });
     vm.runInContext(slice, ctx);
     all.push(win);
     return Object.assign(win, { tab, ctx });
@@ -274,6 +274,57 @@ test("Firefox's Switch to Tab marks the arrival in the window it lands in, and o
   A.TabRouter = null;
   B.ctx.unpatch();
   assert.equal(helper.switchToTabHavingURI, native, "the last window to release restores Firefox's own");
+});
+
+test("An unloaded copy of a synced tab stands for the copy whose page is loaded in another window", () => {
+  const fn = name => { const i = router.indexOf(`  function ${name}(`); return router.slice(i, router.indexOf("\n  }\n", i) + 4); };
+  const make = name => ({ name, closed: false, gBrowser: { tabs: [] } });
+  const A = make("A"), B = make("B");
+  const tab = (win, id, url, attrs = {}) => {
+    const t = { id, url, closing: false, ownerGlobal: win, get linkedBrowser() { return { currentURI: { spec: this.url } }; },
+      hasAttribute: a => !!attrs[a], getAttribute: () => null };
+    win.gBrowser.tabs.push(t);
+    return t;
+  };
+  // After a restart every copy is restored unloaded with its page's address;
+  // the page was then opened in B. A's copy still carries the address.
+  const copyA = tab(A, "x", "b", { pending: true }), liveB = tab(B, "x", "b");
+  const ctx = vm.createContext({ window: A, Services: { wm: { getEnumerator: () => [A, B] } },
+    allWindowTabs: function* () { yield* A.gBrowser.tabs; yield* B.gBrowser.tabs; },
+    eligibleTab: () => true, contextOf: () => 0, tabURL: t => t.url, pageKey: u => u });
+  vm.runInContext(`${fn("liveTwin")}\n${fn("openTabFor")}\nthis.openTabFor = openTabFor; this.liveTwin = liveTwin;`, ctx);
+  assert.equal(ctx.openTabFor(0, "b"), liveB, "the window showing the page, not A's unloaded copy");
+  assert.equal(ctx.openTabFor(0, "b", liveB), null, "the tab asking is never its own answer");
+  liveB.url = "c";
+  assert.equal(ctx.openTabFor(0, "b"), null, "a copy whose page moved on in B is not that page");
+  const other = tab(B, "y", "b");
+  assert.equal(ctx.openTabFor(0, "b"), other, "another tab showing it still counts");
+  B.gBrowser.tabs.length = 0;
+  tab(B, "x", "b", { pending: true });
+  assert.equal(ctx.openTabFor(0, "b"), copyA, "unloaded everywhere: the window you are in first, as before");
+  const loadedA = tab(A, "z", "d");
+  tab(B, "z", "about:blank");
+  assert.equal(ctx.openTabFor(0, "d"), loadedA, "a loaded copy is itself");
+  assert.equal(ctx.liveTwin(copyA), copyA, "copies elsewhere unloaded or blank: a copy stands for itself");
+});
+
+test("Firefox's Switch to Tab to an unloaded copy in your window goes to the window showing its page", () => {
+  const patch = between("  // Firefox's own switch to an open tab", "  function copyWhile(fn) {");
+  const switched = [];
+  const { A, B, focus, marked, helper } = windows(patch
+    + "\npatchSwitchToTab(); window.gZenWorkspaces.switchIfNeeded = switchIfNeeded;", name => ({
+      liveTwin: t => (name === "A" && t.id === "A-tab" ? twinOf.B : t), switchTo: t => switched.push(t.id) }));
+  const twinOf = { B: B.tab };
+  A.tab.linkedBrowser.currentURI = B.tab.linkedBrowser.currentURI = { spec: "https://example.com/b" };
+  focus.activeWindow = A;
+  // Firefox looks in A first and finds A's copy, restored unloaded with the address.
+  helper.switchToTabHavingURI(A, A);
+  assert.deepEqual(switched, ["B-tab"], "Tab Router's switch to B: B is raised and marks the arrival");
+  assert.equal(A.gZenWorkspaces.selected, null, "A's copy is not picked, so the page stays in B");
+  B.tab.linkedBrowser.currentURI = { spec: "https://example.com/elsewhere" };
+  switched.length = 0;
+  helper.switchToTabHavingURI(A, A);
+  assert.deepEqual([switched, A.gZenWorkspaces.selected, marked], [[], A.tab, []], "moved on in B: Firefox's own choice stands");
 });
 
 test("Tab Router's switch raises the window holding the tab, and marks the arrival when it is not the one you are in", () => {

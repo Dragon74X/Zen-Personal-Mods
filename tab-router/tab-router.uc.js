@@ -2193,10 +2193,33 @@
     yield* gBrowser.tabs;                               // this window first
     for (const w of Services.wm.getEnumerator("navigator:browser")) if (w !== window && !w.closed && w.gBrowser) yield* w.gBrowser.tabs;
   }
+  // Zen keeps a copy of every tab in each synced window, with its page in
+  // one of them (the others hold about:blank). A copy that has not loaded
+  // (every copy after a restart, and a window's copies of tabs opened before
+  // it) still carries the page's address. Picking it pulls the page out of
+  // the window showing it, so a copy whose page is loaded in another window
+  // stands for that window's.
+  function liveTwin(tab) {
+    if (!tab?.id || !tab.hasAttribute?.("pending")) return tab;
+    const home = tab.ownerGlobal;
+    for (const w of Services.wm.getEnumerator("navigator:browser")) {
+      if (w === home || w.closed || !w.gBrowser) continue;
+      for (const t of w.gBrowser.tabs) {
+        if (t.id !== tab.id || t.closing || t.hasAttribute("pending")) continue;
+        const url = t.linkedBrowser?.currentURI?.spec;
+        if (url && url !== "about:blank") return t;
+      }
+    }
+    return tab;
+  }
   function openTabFor(ctx, key, except = null, accept = null) {
     for (const tab of allWindowTabs()) {
       if (tab === except || !eligibleTab(tab) || contextOf(tab) !== ctx || (accept && !accept(tab))) continue;
-      if (pageKey(tabURL(tab)) === key) return tab;
+      if (pageKey(tabURL(tab)) !== key) continue;
+      const live = liveTwin(tab);
+      // A copy whose page has moved on in the other window no longer shows it.
+      if (live === tab) return tab;
+      if (live !== except && pageKey(tabURL(live)) === key) return live;
     }
     return null;
   }
@@ -2244,9 +2267,10 @@
     const tabs = folderTabs(group), own = tabs.find(t => t.getAttribute("zzgf-page-of") === group.id);
     const stray = own && contextOf(own) !== ctx && !tabs.some(t => t !== own && contextOf(t) === contextOf(own));
     if (own && !stray) {
-      switchTo(own);
-      if (!own.hasAttribute("pending") && pageKey(own.linkedBrowser?.currentURI?.spec || "") !== key) {
-        try { own.linkedBrowser.fixupAndLoadURIString(page, { triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal() }); }
+      const tab = liveTwin(own);
+      switchTo(tab);
+      if (!tab.hasAttribute("pending") && pageKey(tab.linkedBrowser?.currentURI?.spec || "") !== key) {
+        try { tab.linkedBrowser.fixupAndLoadURIString(page, { triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal() }); }
         catch (e) { note(`folder page load failed: ${e}`); }
       }
       return group.label;
@@ -2534,6 +2558,13 @@
   const workspaces = window.gZenWorkspaces, nativeSwitchIfNeeded = workspaces?.switchIfNeeded;
   function switchIfNeeded(browser) {
     const from = loadingHelper().switchToTabHavingURI.switchingFrom;
+    // Firefox looks in the window you are in first, where an unloaded copy
+    // can carry the address of a page loaded in another window: go there.
+    const own = from === window && gBrowser.getTabForBrowser(browser), live = own && liveTwin(own);
+    if (live && live !== own && live.linkedBrowser?.currentURI?.spec === browser.currentURI?.spec) {
+      switchTo(live);
+      return Promise.resolve();
+    }
     const switching = nativeSwitchIfNeeded.apply(this, arguments);
     const tab = from && from !== window && gBrowser.getTabForBrowser(browser);
     if (tab) markArrival(tab, switching);

@@ -83,11 +83,13 @@ is already open in another tab switches to that tab instead of opening a copy,
 whether the click would open it in place or in a new tab; a new tab whose first
 page is already open elsewhere (opened from a menu, a bookmark, another app or
 typed) closes and switches to it too. Tabs in every space of every window
-count; Zen changes space as needed.
+count, in whichever container the page is open (the link's own first); Zen
+changes space as needed.
 
 When a switch lands you in another window -- one of these, or the address
-bar's **Switch to Tab** -- that window comes forward and two pill-shaped
-gleams in the colour of Zen's loading indicator run in from the sides along
+bar's **Switch to Tab** -- that window comes forward and, once it shows the
+page, two pill-shaped gleams in the loading bar's colour (Zen's own loading
+indicator's, or the Deta Loading Bar mod's when it is on) run in from the sides along
 the bottom of its page (on the window's margin just below it) and of the tab
 (a folder's header, for a folder's page), gathering speed like waves, then run
 into each other in the middle and merge into one pill that swells and fades,
@@ -117,8 +119,8 @@ sign-in steps and pages that navigate by script are never switched. To open a
 copy on purpose, hold **Alt** while clicking (middle-click included), or use
 **Duplicate Tab**; session restore and reopening closed tabs make copies as
 before. The same page ignores `#anchors`, tracking parameters (`utm_*`,
-`fbclid`, `si`, …), `www.` and a trailing slash, and only counts within the
-same container. The page side is a small window actor
+`fbclid`, `si`, …), `www.` and a trailing slash; one open in the link's own
+container is preferred, else one in any other. The page side is a small window actor
 (`links-child.sys.mjs`) that reacts to clicks only; the list of open pages it
 reads holds addresses reduced to that comparison key.
 

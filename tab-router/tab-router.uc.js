@@ -1816,11 +1816,28 @@
     return parts.map((part, i) => {
       if (typeof part === "object") return /^https:\/\/[^/]+/.test(part.key || "") ? part.key : null;
       if (!base || typeof part !== "string") return null;
-      if (i === 0 && part.toLowerCase() === domainName(base).toLowerCase()) return `https://${base}/`;
+      if (i === 0 && part.toLowerCase() === domainName(base).toLowerCase()) return frontPage(base);
       const at = subs.findIndex(s => prettify(s).toLowerCase() === part.toLowerCase());
       return at >= 0 ? `https://${subs.slice(0, at + 1).reverse().join(".")}.${base}/` : null;
     });
   }
+  // A search engine's site level opens its search, not the company's front
+  // page (brave.com's is search.brave.com): the search homes of the engines
+  // Firefox knows, and a few that keep search on a subdomain.
+  const searchHomes = new Map([["brave.com", "search.brave.com"], ["yahoo.com", "search.yahoo.com"], ["aol.com", "search.aol.com"]]);
+  async function learnSearchHomes() {
+    try {
+      // Firefox 160 has no Services.search; older builds have no module.
+      let search = Services.search;
+      if (!search) search = ChromeUtils.importESModule("moz-src:///toolkit/components/search/SearchService.sys.mjs").SearchService;
+      for (const engine of await search.getVisibleEngines()) {
+        const host = new URL(engine.searchForm).hostname.toLowerCase().replace(/^www\./, ""), base = baseDomain(host);
+        if (base && host !== base) searchHomes.set(base, host);
+      }
+    } catch (e) { note(`search engines unavailable: ${e}`); }
+    if (!retired) backfillSoon();
+  }
+  const frontPage = base => `https://${searchHomes.get(base) || base}/`;
   // Folders made before pages existed: a level with its own subject already
   // has one; a site or subdomain level named after its tabs' site gets that
   // site's page. Groups named by your own rules get none.
@@ -1835,13 +1852,19 @@
     }
     let changed = false;
     for (const g of groups()) {
-      if (g.hasAttribute("data-zzrouter-page")) continue;
+      if (g.hasAttribute("data-zzrouter-page")) {
+        // A search engine's folder given its company's front page before
+        // search homes were known opens its search instead.
+        const was = /^https:\/\/([^/]+)\/$/.exec(g.getAttribute("data-zzrouter-page"))?.[1];
+        if (was && !parentOf(g) && searchHomes.has(was)) { g.setAttribute("data-zzrouter-page", frontPage(was)); changed = true; }
+        continue;
+      }
       const subject = g.getAttribute("data-zzrouter-subject");
       let page = /^https:\/\/[^/]+/.test(subject || "") ? subject : null;
       const label = (g.label || "").trim().toLowerCase();
       if (!page && label) for (const host of hosts.get(g) || []) {
         const base = baseDomain(host);
-        if (!parentOf(g) && domainName(base).toLowerCase() === label) { page = `https://${base}/`; break; }
+        if (!parentOf(g) && domainName(base).toLowerCase() === label) { page = frontPage(base); break; }
         const sub = host.length > base.length ? host.slice(0, host.length - base.length - 1).replace(/^www(\.|$)/i, "") : "";
         const subs = sub ? sub.split(".").reverse() : [];
         const at = subs.findIndex(x => prettify(x).toLowerCase() === label);
@@ -2154,7 +2177,7 @@
   // page side (links-child.sys.mjs) only acts on real link clicks, so back
   // and forward, reloads, forms, redirects and script navigation never
   // switch; Alt-click, Duplicate Tab and session restore always make copies.
-  const LINKS_VERSION = "1.45.2", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
+  const LINKS_VERSION = "1.45.3", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
   const TRACKING = /^(utm_[a-z]+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|igshid|si|ref_src|_hsenc|_hsmi)$/i;
   function pageKey(url) {
     try {
@@ -2212,9 +2235,10 @@
     }
     return tab;
   }
+  // ctx null: in any container.
   function openTabFor(ctx, key, except = null, accept = null) {
     for (const tab of allWindowTabs()) {
-      if (tab === except || !eligibleTab(tab) || contextOf(tab) !== ctx || (accept && !accept(tab))) continue;
+      if (tab === except || !eligibleTab(tab) || (ctx !== null && contextOf(tab) !== ctx) || (accept && !accept(tab))) continue;
       if (pageKey(tabURL(tab)) !== key) continue;
       const live = liveTwin(tab);
       // A copy whose page has moved on in the other window no longer shows it.
@@ -2247,15 +2271,20 @@
     }
   }
   function folderFor(ctx, key) {
-    for (const f of folderPages()) if (f.ctx === ctx && f.key === key) return f;
+    for (const f of folderPages()) if ((ctx === null || f.ctx === ctx) && f.key === key) return f;
     return null;
   }
-  // Where an open page lives: its folder first, else any tab showing it.
+  // Where an open page lives: its folder first, else any tab showing it; in
+  // the same container if it is open there, else in whichever it is open in
+  // (another space's container, say).
   function openTargetFor(ctx, key, except = null) {
-    const folder = folderFor(ctx, key);
-    if (folder && except?.getAttribute?.("zzgf-page-of") !== folder.group.id) return { folder };
-    const tab = openTabFor(ctx, key, except);
-    return tab ? { tab } : null;
+    for (const where of [ctx, null]) {
+      const folder = folderFor(where, key);
+      if (folder && except?.getAttribute?.("zzgf-page-of") !== folder.group.id) return { folder };
+      const tab = openTabFor(where, key, except);
+      if (tab) return { tab };
+    }
+    return null;
   }
   // A folder goes to its page tab, back on the page if it moved on; with no
   // tab yet, Groupflow opens it (hidden as the header's tab from the start).
@@ -2291,9 +2320,39 @@
       : (win.gBrowser.selectedTab = tab);
     if (here && win !== here) win.TabRouter?.markArrival?.(tab, switching);
   }
+  // A window that has to show another page first is still painting it as
+  // the switch resolves: wait for its tab switch to finish (bounded), then a
+  // beat, so the effect plays on a settled window.
+  const tabSwitched = () => new Promise(resolve => {
+    if (!gBrowser?._switcher) { resolve(); return; }
+    const done = () => { clearTimeout(timer); gBrowser.removeEventListener("TabSwitchDone", done); resolve(); };
+    const timer = setTimeout(done, 1500);
+    gBrowser.addEventListener("TabSwitchDone", done);
+  });
+  // The colour the loading bar is drawn in, read where it is drawn: the Deta
+  // Loading Bar mod's when it is on, else Zen's own indicator's (its variable
+  // is set on its element only, so it is read inside it, or with Zen's own
+  // mix where it does not exist yet).
+  const ZEN_LOADING = "var(--zen-loading-progress-bar-color, color-mix(in srgb, var(--zen-primary-color), " +
+    "light-dark(rgba(0, 0, 0, 0.5), rgba(255, 255, 255, 0.5)) 70%))";
+  function loadingColours(near) {
+    const deta = Services.prefs.getBoolPref("mod.detaloadingbar.enabled", false);
+    // The mod sets its colours on the root.
+    const host = deta ? document.documentElement : document.getElementById("zen-loading-progress-bar") || near || document.documentElement;
+    const read = value => {
+      const probe = host.appendChild(document.createElementNS("http://www.w3.org/1999/xhtml", "div"));
+      probe.style.color = value;
+      const colour = getComputedStyle(probe).color;
+      probe.remove();
+      return colour;
+    };
+    if (!deta) { const c = read(ZEN_LOADING); return [c, c]; }
+    const main = read("var(--mod-detaloadingbar-primarycolor-final, var(--zen-primary-color))");
+    return [main, read(`var(--mod-detaloadingbar-secondarycolor-final, ${main})`)];
+  }
   // A switch that lands you in another window gives no sign of its own:
-  // once the switch (and any change of space) is done, two pill-shaped
-  // gleams in the colour of Zen's loading indicator run in from the sides along the
+  // once the switch (and any change of space) is done and the window shows
+  // the page, two pill-shaped gleams in the loading bar's colour run in from the sides along the
   // bottom of this window's page, and of the tab or the folder header that
   // stands for a folder's page, gathering speed and stretching like waves;
   // they run into each other in the middle, merge into one pill that swells,
@@ -2308,14 +2367,11 @@
   // removes itself when it ends, and on release.
   const arrivals = new Set();
   function markArrival(tab, switching) {
-    Promise.resolve(switching).catch(() => {}).then(() => requestAnimationFrame(() => {
+    Promise.resolve(switching).catch(() => {}).then(tabSwitched).then(() => new Promise(r => setTimeout(r, 120)))
+      .then(() => requestAnimationFrame(() => {
       const root = document.documentElement;
       if (retired || !root || tab.closing || !tab.isConnected) return;
-      // The colour of Zen's own loading indicator, from the same place: its
-      // variable, else Zen's own mix of the accent with white on a dark
-      // window and black on a light one.
-      const light = "var(--zen-loading-progress-bar-color, color-mix(in srgb, var(--zen-primary-color), " +
-        "light-dark(rgba(0, 0, 0, 0.5), rgba(255, 255, 255, 0.5)) 70%))";
+      const [light, head] = loadingColours(tab.linkedBrowser?.closest(".browserSidebarContainer"));
       const brief = matchMedia("(prefers-reduced-motion: reduce)").matches;
       const div = () => document.createElementNS("http://www.w3.org/1999/xhtml", "div");
       // Along the bottom edge of el, inside it, or, given a gap, on the window
@@ -2339,12 +2395,12 @@
         // The pill they merge into, centred.
         const merged = Math.round(length * 1.4);
         pill({ left: `${mid - merged / 2}px`, width: `${merged}px`, opacity: brief ? "1" : "0",
-          background: `linear-gradient(to right, transparent, ${light} 30%, ${light} 70%, transparent)` });
+          background: `linear-gradient(to right, transparent, ${light} 25%, ${head}, ${light} 75%, transparent)` });
         const splash = line.lastChild;
         if (!brief) {
           for (const [side, sign] of [["left", 1], ["right", -1]]) {
             pill({ [side]: `${-length}px`, width: `${length}px`, transformOrigin: side === "left" ? "right" : "left",
-              background: `linear-gradient(to ${side === "left" ? "right" : "left"}, transparent, ${light} 75%)` });
+              background: `linear-gradient(to ${side === "left" ? "right" : "left"}, transparent, ${light} 60%, ${head})` });
             // The head runs just past the middle, into the other.
             const end = `translateX(${sign * (mid + thickness)}px)`;
             line.lastChild.animate([
@@ -2393,9 +2449,11 @@
       if (tab.hasAttribute("zzgf-page-tab") && tab.linkedBrowser?.browserId) pageTabs.add(tab.linkedBrowser.browserId);
       if (!switchOn()) continue;
       const key = pageKey(tabURL(tab));
-      if (key) open.add(`${contextOf(tab)}|${key}`);
+      // By container, and in any container ("*"): a link switches to the
+      // page whichever container it is open in.
+      if (key) open.add(`${contextOf(tab)}|${key}`).add(`*|${key}`);
     }
-    if (switchOn()) for (const f of folderPages()) open.add(`${f.ctx}|${f.key}`);
+    if (switchOn()) for (const f of folderPages()) open.add(`${f.ctx}|${f.key}`).add(`*|${f.key}`);
     // Sending reaches every content process: only when the sets changed.
     // Every window sends the same all-window sets, so the last one sent is
     // shared between windows.
@@ -3025,6 +3083,7 @@
     const backfillEvents = ["TabGrouped", "TabGroupCreate", "TabGroupUpdate", "SSTabRestored", "GroupflowReady"];
     for (const ev of backfillEvents) window.addEventListener(ev, backfillSoon, true);
     backfillSoon();
+    learnSearchHomes();
     window.addEventListener("SSTabRestoring", forgetLazy, true);
     patchClicks();
     patchSwitchToTab();

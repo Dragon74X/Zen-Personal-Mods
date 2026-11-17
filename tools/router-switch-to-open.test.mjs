@@ -432,11 +432,22 @@ test("Two pills run in from the sides along the page's and the tab's bottom once
     appendChild(el) { appended.push(el); el.holder = this; } });
   const page = box(200, 8, 760, 1064, "absolute", "10px"), tabbox = box(200, 8, 760, 1064), panels = box(200, 8, 760, 1064);
   const stack = box(4, 156, 180, 44), background = { ...box(8, 160, 172, 36, "static", "6px"), parentNode: stack };
-  const ctx = vm.createContext({ retired: false, innerHeight: 1080,
-    document: { documentElement: {}, createElementNS: element, getElementById: id => ({ "tabbrowser-tabbox": tabbox, "tabbrowser-tabpanels": panels })[id] },
-    getComputedStyle: el => ({ position: el.position, borderBottomLeftRadius: el.radius, borderBottomRightRadius: el.radius }),
+  // Zen's loading indicator, which carries its colour variable; the Deta
+  // Loading Bar mod's colours when it is on.
+  let deta = false, switchDone = null;
+  const probes = [], indicator = { appendChild(el) { probes.push(el); el.remove = () => { el.removed = true; }; return el; } };
+  const colourOf = value => value.startsWith("var(--zen-loading-progress-bar-color") ? "rgba(200, 180, 230, 0.65)"
+    : value.startsWith("var(--mod-detaloadingbar-primarycolor-final") ? "rgb(140, 80, 200)" : value.startsWith("var(--mod-detaloadingbar-secondarycolor-final") ? "rgb(255, 255, 255)" : "?";
+  const gBrowser = { _switcher: null, addEventListener: (type, fn) => { if (type === "TabSwitchDone") switchDone = fn; }, removeEventListener() {} };
+  const ctx = vm.createContext({ retired: false, innerHeight: 1080, gBrowser,
+    Services: { prefs: { getBoolPref: name => name === "mod.detaloadingbar.enabled" && deta } },
+    setTimeout: (fn, ms) => { if (ms < 1000) fn(); return 0; }, clearTimeout() {},
+    document: { documentElement: indicator, createElementNS: element,
+      getElementById: id => ({ "tabbrowser-tabbox": tabbox, "tabbrowser-tabpanels": panels, "zen-loading-progress-bar": indicator })[id] },
+    getComputedStyle: el => (el.style?.color ? { color: colourOf(el.style.color) }
+      : { position: el.position, borderBottomLeftRadius: el.radius, borderBottomRightRadius: el.radius }),
     matchMedia: () => ({ matches: reduced }), requestAnimationFrame: fn => frames.push(fn) });
-  vm.runInContext(between("  // A switch that lands you in another window gives", "  // Every window publishes the whole set")
+  vm.runInContext(between("  // A window that has to show another page first is still painting it", "  // Every window publishes the whole set")
     + "\nthis.markArrival = markArrival; this.arrivals = arrivals;", ctx);
   const tab = { isConnected: true, closing: false, hasAttribute: () => false, linkedBrowser: { closest: () => page },
     querySelector: () => background };
@@ -459,12 +470,14 @@ test("Two pills run in from the sides along the page's and the tab's bottom once
     [true, "10px", "34px", "160px", "6px"], "the tab's run along its bottom, in the tab, and move with it");
   assert.deepEqual([pageLine.style.position, pageLine.style.overflow, pageLine.style.pointerEvents], ["absolute", "clip", "none"]);
   const [merged, left, right] = pageLine.children;
-  // Pills: rounded ends front and back, in the colour of Zen's loading indicator.
+  // Pills: rounded ends front and back, in the colour Zen's loading indicator is drawn in, read inside it.
   for (const pill of [merged, left, right]) {
     assert.deepEqual([pill.style.height, pill.style.borderRadius, pill.style.bottom], ["4px", "4px", "3px"], "a pill, centred in the margin");
-    assert.match(pill.style.background, /var\(--zen-loading-progress-bar-color, color-mix\(in srgb, var\(--zen-primary-color\), light-dark\(rgba\(0, 0, 0, 0\.5\), rgba\(255, 255, 255, 0\.5\)\) 70%\)\)/,
-      "Zen's loading indicator's colour, from its own variable or its own mix");
+    assert.ok(pill.style.background.includes("rgba(200, 180, 230, 0.65)") && !pill.style.background.includes("var("),
+      `Zen's loading indicator's own colour: ${pill.style.background}`);
   }
+  assert.ok(probes.length && probes.every(p => p.removed && p.style.color.startsWith("var(--zen-loading-progress-bar-color, color-mix(in srgb, var(--zen-primary-color), ")),
+    "read inside the indicator, from its variable or Zen's own mix, and nothing left behind");
   assert.deepEqual([left.style.left, right.style.right, left.style.width, merged.style.left, merged.style.width],
     ["-160px", "-160px", "160px", "258px", "224px"], "each starts just beyond its side; they merge into one centred pill");
   assert.ok(tabLine.children[1].style.width === "35px" && tabLine.children[1].style.bottom === "1px" && !tabLine.children[1].style.boxShadow,
@@ -520,14 +533,29 @@ test("Two pills run in from the sides along the page's and the tab's bottom once
     querySelector: () => ({ ...box(0, 0, 0, 0, "static"), parentNode: stack }) });
   assert.ok(appended.length === 11 && appended[10].holder === header && appended[10].style.left === "0px" && appended[10].style.top === "34px",
     "a folder's page is marked along its header's bottom");
+  // A window still switching to the page waits for it to show.
+  gBrowser._switcher = {};
+  ctx.markArrival(tab);
+  await settle();
+  assert.equal(frames.length, 0, "nothing while the window still paints the page it switches to");
+  gBrowser._switcher = null;
+  switchDone();
+  await settle();
+  frames.shift()();
+  assert.equal(appended.length, 13, "then the pills");
+  // The Deta Loading Bar mod, when on, gives the colours: its main colour, brightest at the head in its middle one.
+  deta = true;
+  await draw();
+  assert.match(appended[14].children[1].style.background, /^linear-gradient\(to right, transparent, rgb\(140, 80, 200\) 60%, rgb\(255, 255, 255\)\)$/);
+  deta = false;
   ctx.retired = true;
   ctx.markArrival(tab);
   await settle();
   frames.shift()();
-  assert.equal(appended.length, 11, "a released copy draws nothing");
+  assert.equal(appended.length, 15, "a released copy draws nothing");
   // The README says what it looks like.
   const readme = (await readFile(new URL("../tab-router/README.md", import.meta.url), "utf8")).replace(/\s+/g, " ");
-  assert.match(readme, /two pill-shaped gleams in the colour of Zen's loading indicator run in from the sides/);
+  assert.match(readme, /two pill-shaped gleams in the loading bar's colour \(Zen's own loading indicator's, or the Deta Loading Bar mod's when it is on\) run in from the sides/);
 });
 
 test("Release restores Zen's switchIfNeeded and removes live bars", () => {

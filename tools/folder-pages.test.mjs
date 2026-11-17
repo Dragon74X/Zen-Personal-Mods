@@ -67,6 +67,10 @@ test("Tab Router gives each level its page: site, subdomain, channel, game, auth
   assert.deepEqual(pages("www.nexusmods.com", ["Nexusmods", { key: "https://www.nexusmods.com/games/crimsondesert", label: "Crimson Desert" },
     { key: "https://www.nexusmods.com/profile/author", label: "Author" }]),
     ["https://nexusmods.com/", "https://www.nexusmods.com/games/crimsondesert", "https://www.nexusmods.com/profile/author"]);
+  // A search engine's folder opens its search, not the company's front page.
+  assert.deepEqual(pages("search.brave.com", ["Brave", "Search"]), ["https://search.brave.com/", "https://search.brave.com/"]);
+  assert.deepEqual(pages("brave.com", ["Brave"]), ["https://search.brave.com/"], "even from the company's own pages");
+  assert.deepEqual(pages("www.google.com", ["Google"]), ["https://google.com/"], "an engine searching on its front page keeps it");
   assert.deepEqual(pages("github.com", ["Dev", "Work"]), [null, null], "a rule's own group names have no page");
   assert.deepEqual(pages("github.com", [{ key: "", label: "No key" }]), [null]);
 });

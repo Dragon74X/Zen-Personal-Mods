@@ -3,8 +3,8 @@
   "name": "Groupflow",
   "description": "Nested group persistence, loaded and last-used tabs visible in collapsed folders, icons and customizable folder states.",
   "author": "Dragon74X",
-  "version": "1.76.11",
-  "updatedAt": "2026-11-17T22:04:33Z",
+  "version": "1.76.12",
+  "updatedAt": "2026-11-17T22:38:35Z",
   "homepage": "https://github.com/Dragon74X/Zen-Personal-Mods/tree/main/groupflow",
   "readme": "https://raw.githubusercontent.com/Dragon74X/Zen-Personal-Mods/main/groupflow/README.md",
   "style": {

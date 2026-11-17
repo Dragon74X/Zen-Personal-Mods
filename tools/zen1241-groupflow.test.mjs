@@ -66,3 +66,22 @@ test("native Essentials from nested folders across restarts and a second window"
     console.log(execFileSync("python3", [smoke, "--zen", process.env.ZEN_BINARY],
       { timeout: 390000, encoding: "utf8", maxBuffer: 4e6 }).slice(-2000));
   });
+
+test("an unloaded tab with no live address is counted by its saved one (Zen 1.24.1b lazy tabs)", async () => {
+  const state = { entries: [{ url: "https://old.example/" }, { url: "https://www.cuurt.com/page" }], index: 2 };
+  let reads = 0;
+  const { hostOf } = await load("groupflow", "hostOf", { window: {}, URL, CSS: { supports: () => true },
+    SessionStore: { getTabState: () => { reads++; return JSON.stringify(state); } } });
+  const tab = (spec, pending) => ({ linkedBrowser: { currentURI: spec ? { scheme: new URL(spec).protocol.slice(0, -1), host: new URL(spec).host } : null },
+    hasAttribute: n => n === "pending" && pending });
+  assert.equal(hostOf(tab("https://windhawk.net/mods", false)), "windhawk.net", "a live address wins");
+  const lazy = tab("about:blank", true);
+  assert.equal(hostOf(lazy), "www.cuurt.com", "the session's current entry");
+  assert.equal(hostOf(lazy), "www.cuurt.com");
+  assert.equal(reads, 1, "read once per tab");
+  assert.equal(hostOf(tab(null, true)), "www.cuurt.com", "no address at all");
+  assert.equal(hostOf(tab("about:blank", false)), null, "a loaded blank tab has no site");
+  const viaRouter = await load("groupflow", "hostOf", { window: { TabRouter: { tabURL: () => "https://github.com/" } }, URL, CSS: { supports: () => true },
+    SessionStore: { getTabState: () => { throw new Error("not needed"); } } });
+  assert.equal(viaRouter.hostOf(tab("about:blank", true)), "github.com", "Tab Router's saved address when present");
+});

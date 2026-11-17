@@ -84,8 +84,30 @@
   function hostOf(tab) {
     try {
       const uri = tab.linkedBrowser?.currentURI;
-      return uri && /^https?$/.test(uri.scheme) ? uri.host : null;
+      if (uri && /^https?$/.test(uri.scheme)) return uri.host;
+    } catch {}
+    // An unloaded restored tab can report no address (Zen 1.24.1b's lazy
+    // tabs do); its session still has it, as for Tab Router and folder pages.
+    if (!tab.hasAttribute?.("pending")) return null;
+    try {
+      const url = new URL(savedURL(tab));
+      return /^https?:$/.test(url.protocol) ? url.host : null;
     } catch { return null; }
+  }
+  // Read once per unloaded tab; a restore loads it, and pending tabs cannot navigate.
+  const savedURLs = new WeakMap();
+  function savedURL(tab) {
+    if (savedURLs.has(tab)) return savedURLs.get(tab);
+    let url = "";
+    try { url = window.TabRouter?.tabURL?.(tab) || ""; } catch {}
+    if (!/^https?:/i.test(url)) {
+      try {
+        const state = JSON.parse(SessionStore.getTabState(tab));
+        url = state.entries?.[(state.index || state.entries.length) - 1]?.url || "";
+      } catch { url = ""; }
+    }
+    savedURLs.set(tab, url);
+    return url;
   }
 
   // ---- icon rules ---------------------------------------------------------

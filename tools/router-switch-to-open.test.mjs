@@ -192,6 +192,13 @@ test("A folder's container is its other tabs'; a page tab alone in another conta
   page.getAttribute = a => (a === "usercontextid" ? "6" : a === "zzgf-page-of" ? "yt" : null);
   ctx.goTo(ctx.openTargetFor(6, "youtube.com"));
   assert.deepEqual(switched, ["page"], "one in the folder's container is gone to directly");
+  // This window's copy of the page tab is unloaded (after a restart, or a
+  // window opened later): the switch goes to the copy showing it elsewhere.
+  const twinB = tab("page-in-B", 6, { "zzgf-page-of": "yt" });
+  ctx.liveTwin = t => (t === page ? twinB : t);
+  ctx.goTo(ctx.openTargetFor(6, "youtube.com"));
+  assert.equal(switched.pop(), "page-in-B", "a folder's unloaded page tab goes to its live copy in another window");
+  ctx.liveTwin = t => t;
   // A no-container tab with history ahead of the rest sets the folder's
   // container, yet the page tab shares the other tabs': it is kept.
   folder.tabs.unshift(tab("old", 0));
@@ -410,15 +417,6 @@ test("The arrival ring fades on the compositor once the switch is done, removes 
     ["opacity0", "opacity1", "opacity0"], "opacity only");
   assert.equal(appended[0].fade.options.duration, 900);
   assert.match(appended[0].style.boxShadow, /^inset 0 0 0 2px rgb\(1, 2, 3\)/, "in Zen's accent");
-  ctx.CSS = { supports: (p, v) => p === "color" && v.startsWith("light-dark(") };
-  ctx.markArrival(tab);
-  await settle();
-  frames.shift()();
-  assert.match(appended[2].style.boxShadow, /^inset 0 0 0 2px light-dark\(oklch\(from rgb\(1, 2, 3\) min\(l, 0\.62\) c h\), oklch\(from rgb\(1, 2, 3\) max\(l, 0\.74\) c h\)\)/,
-    "its hue at a lightness that shows on a light or a dark window");
-  for (const ring of appended.splice(2)) { ring.fade.finish(); }
-  await settle();
-  delete ctx.CSS;
   assert.equal(appended[0].style.pointerEvents, "none");
   appended[0].fade.finish();
   await settle();
@@ -456,6 +454,46 @@ test("The arrival ring fades on the compositor once the switch is done, removes 
   await settle();
   frames.shift()();
   assert.equal(appended.length, 9, "a released copy draws nothing");
+});
+
+test("The arrival ring keeps Zen's accent hue at a lightness that shows on a light or a dark window", async () => {
+  const rings = [], frames = [];
+  const element = () => ({ style: {}, children: [], setAttribute() {}, remove() {}, appendChild(child) { this.children.push(child); },
+    animate: () => ({ finished: new Promise(() => {}) }) });
+  const box = position => ({ position, clientLeft: 0, clientTop: 0, appendChild(el) { rings.push(el); },
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 40 }) });
+  const page = box("absolute"), background = { ...box("static"), parentNode: box("relative") };
+  let relative = true;
+  const ctx = vm.createContext({ retired: false, CSS: { supports: (p, v) => relative && p === "color" && v.startsWith("light-dark(") },
+    document: { documentElement: {}, createElementNS: element, getElementById: () => page },
+    getComputedStyle: el => ({ getPropertyValue: () => " rgb(1, 2, 3) ", borderRadius: "8px", position: el.position }),
+    matchMedia: () => ({ matches: false }), requestAnimationFrame: fn => frames.push(fn) });
+  vm.runInContext(between("  // A switch that lands you in another window gives", "  // Every window publishes the whole set")
+    + "\nthis.markArrival = markArrival;", ctx);
+  const tab = { isConnected: true, closing: false, hasAttribute: () => false, linkedBrowser: { closest: () => page },
+    querySelector: () => background };
+  const draw = async () => { ctx.markArrival(tab); await new Promise(setImmediate); frames.shift()(); return rings.splice(0); };
+  // Every colour a ring is drawn with, however it is drawn (its own lines
+  // and any band inside it).
+  const colours = el => [el, ...el.children].flatMap(e => Object.values(e.style).map(String)).filter(v => v.includes("rgb(1, 2, 3)"));
+  // Zen hands a dark window its theme colour as it is, and a grey one, or a
+  // pale custom accent, as it is to a light window: darken on light, lighten
+  // on dark.
+  const lifted = "light-dark(oklch(from rgb(1, 2, 3) min(l, 0.62) c h), oklch(from rgb(1, 2, 3) max(l, 0.74) c h))";
+  const drawn = await draw();
+  assert.equal(drawn.length, 2, "page and tab");
+  for (const ring of drawn) {
+    const used = colours(ring);
+    assert.ok(used.length && used.every(v => v.includes(lifted) && !v.replaceAll(lifted, "").includes("rgb(1, 2, 3)")),
+      `every colour is the accent's hue at a lightness that shows: ${used.join(" | ")}`);
+  }
+  relative = false;
+  for (const ring of await draw())
+    assert.ok(colours(ring).length && colours(ring).every(v => !v.includes("oklch(")), "Zen's accent as it is without relative colour");
+  // The README says what the ring does on both kinds of window.
+  const readme = (await readFile(new URL("../tab-router/README.md", import.meta.url), "utf8")).replace(/\s+/g, " ");
+  const note = readme.match(/a soft ring in Zen's accent.*?\)\./)?.[0] || "";
+  assert.ok(/dark window/.test(note) && /light (one|window)/.test(note), `the README names both windows: ${note}`);
 });
 
 test("Release restores Zen's switchIfNeeded and removes live rings", () => {

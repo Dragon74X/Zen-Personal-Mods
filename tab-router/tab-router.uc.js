@@ -93,6 +93,9 @@
     stampIcons(); refreshPictures();
   } };
   const pendingWrites = new Map(), cacheSnapshots = new Map();
+  // Pictures are also pruned to what is open when a window closes (pruneCaches);
+  // these caps only bound a single long session.
+  const CACHE_CAPS = { avatars: 300, covers: 200, "learned-names": 200, creators: 300 };
   let writeTimer = null;
   function readCache(key) {
     let data;
@@ -108,8 +111,8 @@
     clearTimeout(writeTimer); writeTimer = null;
     for (const key of pendingWrites.keys()) {
       const data = readCache(key); // Merge other windows' records before writing our delta.
-      write(key, Object.entries(data).slice(-(key === "avatars" ? 100 : key === "learned-names" ? 200 : 300)));
-      if (key === "avatars") iconCache = null; else if (key === "creators") creatorCache = null; else learnedCache = null;
+      write(key, Object.entries(data).slice(-(CACHE_CAPS[key] || 300)));
+      if (key === "avatars") iconCache = null; else if (key === "creators") creatorCache = null; else if (key === "learned-names") learnedCache = null;
     }
     pendingWrites.clear();
   }
@@ -1069,7 +1072,7 @@
   // the store is bounded to 100 sections.
   const ROUND_HOSTS = /(^|\.)(youtube\.com|github\.com|twitch\.tv|tiktok\.com|x\.com|twitter\.com|instagram\.com|threads\.net|bsky\.app|mastodon\.social|reddit\.com|patreon\.com|kick\.com)$/;
   const ICON_ASPECT = [0.6, 1.6];         // 1:1 avatars and 2:3 covers in, 1.9:1 banners out
-  const ICON_MAX = 100;
+  const ICON_MAX = 300;
   const ICON_PX = 64;
   const bannerMode = () => [1, 2, 3].includes(num("nexus-banners", 0)) ? num("nexus-banners", 0) : 0;
   const nexusRendition = () => num("nexus-icon", 0) === 1 ? "tile" : "thumbnail";
@@ -1222,42 +1225,25 @@
           covers.delete(slot); covers.set(slot, { d: data, kind });
           while (covers.size > 240) covers.delete(covers.keys().next().value);
           for (const tab of allTabs()) if (coverSlot(tab) === slot) updatePicture(tab, false);
-          saveCoversSoon();
+          saveCover(slot, covers.get(slot));
         }
         nextCover();
       });
     }
   }
-  // One file for every window: each merges its covers into what is saved,
-  // keeps those of tabs open in any window (in any space), at most 160.
-  const coverFile = () => PathUtils.join(PathUtils.profileDir, "zzrouter-covers.json");
+  // Kept in Tab Router's cache file with the section pictures. Each window
+  // adds its own; pruneCaches keeps only those of tabs open at window close.
   const savedCover = c => c && typeof c === "object" && Object.hasOwn(COVER_SETTINGS, c.kind) &&
     typeof c.d === "string" && c.d.length < 200000 && /^data:image\/webp;base64,[A-Za-z0-9+/=]+$/.test(c.d);
-  let coverSaveTimer = null;
-  function saveCoversSoon() {
-    if (retired || privateWindow || coverSaveTimer) return;
-    coverSaveTimer = setTimeout(async () => {
-      coverSaveTimer = null;
-      let saved = {};
-      try { saved = await IOUtils.readJSON(coverFile()); } catch {}
-      if (retired) return;
-      const open = new Set();
-      for (const tab of allWindowTabs()) { const slot = coverSlot(tab); if (slot) open.add(slot); }
-      const merged = Object.entries(saved).filter(([slot, c]) => savedCover(c) && !covers.has(slot));
-      merged.push(...covers);
-      const kept = merged.filter(([slot]) => open.has(slot)).slice(-160);
-      try { await IOUtils.writeJSON(coverFile(), Object.fromEntries(kept), { tmpPath: coverFile() + ".tmp" }); }
-      catch (e) { note(`saving covers failed: ${e}`); }
-    }, 2000);
+  function saveCover(slot, cover) {
+    if (privateWindow) return;
+    persist("covers", { ...readCache("covers"), [slot]: { d: cover.d, kind: cover.kind } });
   }
-  // Covers are asked for only once the saved ones are in, so a restart
-  // fetches just those it has not kept.
+  // Read before any cover is asked for, so a restart fetches only those it
+  // has not kept.
   let coversLoaded = false;
-  async function loadCovers() {
-    let saved = {};
-    if (!privateWindow) try { saved = await IOUtils.readJSON(coverFile()); } catch {}
-    if (retired) return;
-    for (const [slot, c] of Object.entries(saved)) if (savedCover(c) && !covers.has(slot)) covers.set(slot, { d: c.d, kind: c.kind });
+  function loadCovers() {
+    if (!privateWindow) for (const [slot, c] of Object.entries(readCache("covers"))) if (savedCover(c) && !covers.has(slot)) covers.set(slot, { d: c.d, kind: c.kind });
     coversLoaded = true;
     if (coversOn()) for (const tab of allTabs()) updatePicture(tab, false);
   }
@@ -1464,10 +1450,10 @@
     for (; group; group = parentOf(group)) if (group.isLiveFolder) return true;
     return false;
   }
-  function updatePicture(tab, learn = true) {
-    if (!presentable(tab)) return;
-    // An unloaded restored tab is pictured from its saved address, so its
-    // creator or game picture is there before it loads.
+  // A tab's picture subject and its cache key. An unloaded restored tab is
+  // pictured from its saved address, so its creator or game picture is there
+  // before it loads.
+  function pictureOf(tab, learn) {
     let subject = tab;
     if (!hostOf(tab) && tab.hasAttribute("pending")) {
       const url = tabURL(tab);
@@ -1475,7 +1461,12 @@
     }
     const enabled = !retired && picturesEnabled(hostOf(subject));
     const record = enabled ? pictureSubject(subject, learn && !tab.zenStaticIcon) : null;
-    const key = record && scoped(record.key, contextOf(tab));
+    return { subject, learn, record, key: record && scoped(record.key, contextOf(tab)) };
+  }
+  function updatePicture(tab, learn = true) {
+    if (!presentable(tab)) return;
+    const picture = pictureOf(tab, learn), { subject, record, key } = picture;
+    learn = picture.learn;
     if (record && learn && !tab.zenStaticIcon) fetchSectionIcon(record.key, record.key, contextOf(tab),
       nexusURL(subject) ? "square" : "round");
     const icon = !tab.zenStaticIcon && key ? iconMap().get(key)?.d : null;
@@ -2294,7 +2285,7 @@
   // page side (links-child.sys.mjs) only acts on real link clicks, so back
   // and forward, reloads, forms, redirects and script navigation never
   // switch; Alt-click, Duplicate Tab and session restore always make copies.
-  const LINKS_VERSION = "1.45.6", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
+  const LINKS_VERSION = "1.45.7", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
   const TRACKING = /^(utm_[a-z]+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|igshid|si|ref_src|_hsenc|_hsmi)$/i;
   function pageKey(url) {
     try {
@@ -3206,6 +3197,63 @@
     const ancestors = new Set(affected.flatMap(ancestorsOf));
     stampIcons(false, groups().filter(g => keys.has(scoped(g.getAttribute("data-zzrouter-picture"), Number(g.getAttribute("data-zzrouter-context")))) || ancestors.has(g)));
   }
+  // The pictures this window shows: its tabs' (every space's) and its folders'.
+  function liveCacheKeys() {
+    const avatars = new Set(), covers = new Set();
+    for (const tab of allTabs()) {
+      if (tab.closing) continue;
+      try { const key = pictureOf(tab, false).key; if (key) avatars.add(key); } catch {}
+      const slot = coverSlot(tab); if (slot) covers.add(slot);
+    }
+    for (const g of document.querySelectorAll("tab-group, zen-folder")) {
+      const key = g.getAttribute("data-zzrouter-picture"), ctx = Number(g.getAttribute("data-zzrouter-context"));
+      if (!key || !Number.isInteger(ctx)) continue;
+      avatars.add(scoped(key, ctx));
+      try { avatars.add(scoped(subjectKey(key, ctx), ctx)); } catch {}
+    }
+    return { avatars, covers };
+  }
+  // Pictures are kept for what is open when a window closes: the tabs and
+  // folders of every window still open, and of this one too when the browser
+  // quits or this is its last window. Any window that cannot say what it
+  // shows (an older copy of this mod) leaves the store as it is.
+  const windowPrivate = w => {
+    try { return ChromeUtils.importESModule("resource://gre/modules/PrivateBrowsingUtils.sys.mjs").PrivateBrowsingUtils.isWindowPrivate(w); }
+    catch { return false; }
+  };
+  function pruneCaches(keepOwn) {
+    if (privateWindow || !fileCache) return;
+    const live = { avatars: new Set(), covers: new Set() };
+    // A closing window has already left the window list by its unload.
+    const windows = new Set([...Services.wm.getEnumerator("navigator:browser")].filter(w => w !== window && !w.closed));
+    if (keepOwn) windows.add(window);
+    for (const w of windows) {
+      if (windowPrivate(w)) continue;
+      const keys = w === window ? liveCacheKeys() : w.TabRouter?.liveCacheKeys?.();
+      if (!keys) return;
+      for (const k of keys.avatars) live.avatars.add(k);
+      for (const k of keys.covers) live.covers.add(k);
+    }
+    for (const key of ["avatars", "covers"]) {
+      const data = readCache(key);
+      persist(key, Object.fromEntries(Object.entries(data).filter(([id]) => live[key].has(id))));
+    }
+    flushWrites();
+    iconCache = null;
+  }
+  // Quitting, or closing the last window, keeps every window's pictures; the
+  // windows' own unloads that follow change nothing.
+  let quitting = false;
+  const quitObserver = () => {
+    if (quitting) return;
+    quitting = true;
+    try { pruneCaches(true); } catch (e) { console.error("[TabRouter] Pruning pictures failed:", e); }
+  };
+  function pruneOnClose() {
+    if (retired || quitting || Services.startup.shuttingDown) return;
+    const others = [...Services.wm.getEnumerator("navigator:browser")].some(w => w !== window && !w.closed);
+    try { pruneCaches(!others); } catch (e) { console.error("[TabRouter] Pruning pictures failed:", e); }
+  }
   const menuNodes = new Set();
   function updateOpenMenu() {
     for (const node of menuNodes) {
@@ -3298,6 +3346,8 @@
     for (const event of tabEvents) window.addEventListener(event, onTabEvent, true);
     try { Services.prefs.addObserver(P, prefObserver); } catch {}
     try { Services.obs.addObserver(purgeObserver, "browser:purge-session-history"); } catch {}
+    try { Services.obs.addObserver(quitObserver, "quit-application-granted"); } catch {}
+    try { Services.obs.addObserver(quitObserver, "browser-lastwindow-close-granted"); } catch {}
     Services.obs.addObserver(initialRequest, "http-on-modify-request");
     registerLinks();
     for (const [name, wrapped] of wrappedOpeners) if (typeof nativeOpeners.get(name) === "function") window[name] = wrapped;
@@ -3328,7 +3378,7 @@
     for (const ev of groupEvents) window.addEventListener(ev, bustGroups, true);
 
     window.TabRouter = {
-      linkMessage, republishOpen: () => publishSoon(), switchIfOpen, copyWhile, openPage, tabURL, markArrival, markDeparture,
+      linkMessage, republishOpen: () => publishSoon(), liveCacheKeys, switchIfOpen, copyWhile, openPage, tabURL, markArrival, markDeparture,
       sortAll: () => sweepAll("manual"),
       setPlacementLock,
       pictureCounts: () => ({ creators: creatorMap().size, icons: iconMap().size, inFlight: inFlight.size, refreshOperations }),
@@ -3572,6 +3622,11 @@
     // across window open/close cycles. The capture flag must match the one
     // used to add, or removeEventListener silently does nothing.
     // Sine cleanup and window unload can both run; retire this copy once.
+    // A closing window prunes before its tabs go; Sine's live update calls
+    // cleanup alone, which keeps everything.
+    // Frames inside the window (a sidebar panel) send their own unloads here.
+    const closing = event => { if (event.target === document) pruneOnClose(); };
+    window.addEventListener("unload", closing, { capture: true });
     const cleanup = () => {
       if (retired) return;
       flushWrites();
@@ -3598,6 +3653,9 @@
       try { gBrowser.tabContainer.removeEventListener("TabAttrModified", onAttrModified); } catch {}
       try { Services.prefs.removeObserver(P, prefObserver); } catch {}
       try { Services.obs.removeObserver(purgeObserver, "browser:purge-session-history"); } catch {}
+      try { Services.obs.removeObserver(quitObserver, "quit-application-granted"); } catch {}
+      try { Services.obs.removeObserver(quitObserver, "browser-lastwindow-close-granted"); } catch {}
+      window.removeEventListener("unload", closing, { capture: true });
       try { Services.obs.removeObserver(initialRequest, "http-on-modify-request"); } catch {}
       for (const ev of openEvents) window.removeEventListener(ev, publishSoon, true);
       clearTimeout(publishTimer); publishTimer = null;
@@ -3609,7 +3667,6 @@
       gBrowser.tabContainer.removeEventListener("TabSelect", tabSwitchCue);
       following?.end(false);
       clearTimeout(backfillTimer); backfillTimer = null;
-      clearTimeout(coverSaveTimer); coverSaveTimer = null;
       unpatchClicks();
       unpatchSwitchToTab();
       // Zen's own switchIfNeeded lives on its prototype: removing ours shows it again.

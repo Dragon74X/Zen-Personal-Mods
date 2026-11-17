@@ -637,7 +637,7 @@ test("Release restores Zen's switchIfNeeded and removes live bars", () => {
 test("A tab's own cover art: video thumbnails, Nexus page pictures and other pages' previews, each by its own setting", async () => {
   const settings = { "video-covers": true, "nexus-page-covers": false, "page-covers": false };
   const fetched = [], finish = [], repainted = [], settle = () => new Promise(setImmediate);
-  const tabs = [];
+  const tabs = [], store = {};
   const make = (url, { busy = false, pending = false, meta = null } = {}) => {
     const tab = { url, label: url, closing: false, isConnected: true, attrs: { busy, pending },
       hasAttribute(n) { return !!this.attrs[n]; },
@@ -651,9 +651,8 @@ test("A tab's own cover art: video thumbnails, Nexus page pictures and other pag
     videoId: t => /youtube\.com\/watch\?v=([\w-]+)/.exec(t.url)?.[1] ?? null,
     bounded: (v, max = 500) => typeof v === "string" && v.length <= max ? v : "",
     fetchPicture: (url, c, kind, done) => { fetched.push([url, kind]); finish.push(done); },
-    allTabs: () => tabs, allWindowTabs: () => tabs, updatePicture: t => repainted.push(t.url), URL,
-    setTimeout: () => 0, clearTimeout: () => {}, PathUtils: { profileDir: "/p", join: (...a) => a.join("/") },
-    IOUtils: { readJSON: async () => ({}), writeJSON: async () => {} } });
+    allTabs: () => tabs, updatePicture: t => repainted.push(t.url), URL,
+    readCache: k => ({ ...(store[k] || {}) }), persist: (k, d) => { store[k] = d; } });
   vm.runInContext(between("  // A tab's own cover art, in place of its game's banner", "  // label is the canonical subject URL")
     + "\ncoversLoaded = true; this.wantCover = wantCover; this.coverFor = coverFor;", ctx);
   // A YouTube video's thumbnail comes from its address, loaded or not.
@@ -663,6 +662,14 @@ test("A tab's own cover art: video thumbnails, Nexus page pictures and other pag
   finish.shift()("data:image/webp;base64,AAAA");
   assert.equal(ctx.coverFor(video), "data:image/webp;base64,AAAA");
   assert.deepEqual(repainted, [video.url], "its tab is repainted with it");
+  assert.deepEqual(JSON.parse(JSON.stringify(store.covers)), { "0|youtube.com/watch?v=abcdef12345": { d: "data:image/webp;base64,AAAA", kind: "video" } },
+    "kept in Tab Router's cache file");
+  // A restart reads it back: shown at once, nothing fetched.
+  const again = vm.createContext({ ...ctx, fetchPicture: () => { throw new Error("fetched again"); } });
+  vm.runInContext(between("  // A tab's own cover art, in place of its game's banner", "  // label is the canonical subject URL")
+    + "\nloadCovers(); this.wantCover = wantCover; this.coverFor = coverFor;", again);
+  again.wantCover(video);
+  assert.equal(again.coverFor(video), "data:image/webp;base64,AAAA");
   settings["video-covers"] = false;
   assert.equal(ctx.coverFor(video), null, "its own setting off, none");
   // A Nexus mod's tab: its page's own picture, by its own setting; a game's own page keeps its banner.
@@ -689,4 +696,40 @@ test("A tab's own cover art: video thumbnails, Nexus page pictures and other pag
   assert.equal(fetched.length, 5, "the next starts as one ends");
   mod.label += " "; ctx.wantCover(mod); await settle();
   assert.equal(fetched.filter(([url]) => url.endsWith("mod.jpg")).length, 1, "a failed cover is not fetched again");
+});
+
+test("Pictures are kept for what is open when a window closes", () => {
+  const store = {
+    avatars: { "0|https://a/": { d: "A" }, "0|https://gone/": { d: "G" }, "0|https://b/": { d: "B" } },
+    covers: { "0|v1": { d: "x", kind: "video" }, "0|v2": { d: "y", kind: "video" } },
+  };
+  const own = { closed: false, TabRouter: null }, other = { closed: false };
+  let windows = [own, other], flushed = 0;
+  other.TabRouter = { liveCacheKeys: () => ({ avatars: new Set(["0|https://b/"]), covers: new Set(["0|v2"]) }) };
+  const ctx = vm.createContext({ privateWindow: false, fileCache: {}, window: own, iconCache: new Map(),
+    Services: { wm: { getEnumerator: () => windows } }, ChromeUtils: { importESModule: () => ({ PrivateBrowsingUtils: { isWindowPrivate: () => false } }) },
+    liveCacheKeys: () => ({ avatars: new Set(["0|https://a/"]), covers: new Set(["0|v1"]) }),
+    readCache: k => ({ ...store[k] }), persist: (k, d) => { store[k] = d; }, flushWrites: () => flushed++ });
+  vm.runInContext(between("  // Pictures are kept for what is open when a window closes", "  const quitObserver")
+    + "\nthis.pruneCaches = pruneCaches;", ctx);
+  // Closing one of two windows: only the other's pictures stay.
+  ctx.pruneCaches(false);
+  assert.deepEqual(Object.keys(store.avatars), ["0|https://b/"]);
+  assert.deepEqual(Object.keys(store.covers), ["0|v2"]);
+  assert.equal(flushed, 1, "written at once, before the window goes");
+  // Quitting (or the last window): its own count too.
+  store.avatars = { "0|https://a/": { d: "A" }, "0|https://b/": { d: "B" }, "0|https://gone/": { d: "G" } };
+  ctx.pruneCaches(true);
+  assert.deepEqual(Object.keys(store.avatars).sort(), ["0|https://a/", "0|https://b/"]);
+  // By its unload a closing window has left the window list; the last one still counts its own.
+  windows = [];
+  store.avatars = { "0|https://a/": { d: "A" }, "0|https://gone/": { d: "G" } };
+  ctx.pruneCaches(true);
+  assert.deepEqual(Object.keys(store.avatars), ["0|https://a/"]);
+  windows = [own, other];
+  // A window that cannot say what it shows: nothing is dropped.
+  other.TabRouter = {};
+  store.avatars = { "0|https://gone/": { d: "G" } };
+  ctx.pruneCaches(true);
+  assert.deepEqual(Object.keys(store.avatars), ["0|https://gone/"]);
 });

@@ -226,7 +226,8 @@ TabRouter.forgetCreators(id)  // remove this video/resource in each container
 ```
 
 The creators cache retains at most 300 metadata records; the avatars cache
-retains at most 100 subjects with 64px icons and optional 384px-wide banners.
+holds the pictures of open tabs and folders (see Cache storage), at most 300
+subjects with 64px icons and optional 384px-wide banners.
 Anonymous requests use the tab's container.
 Private windows start **0** metadata/image requests and persist **0** new records.
 Literal IPs, local hostnames, URL credentials and non-HTTPS lookup/redirect
@@ -387,9 +388,24 @@ Nexus documents [V2 artwork](https://graphql.nexusmods.com/#definition-ArtworkSc
 and [thumbnail/cover URLs](https://github.com/Nexus-Mods/Vortex/blob/master/docs/game-art-assets.md).
 The downloaded banner is decoded, limited to 4096 pixels per source dimension,
 and scaled to 384 pixels wide. Icons and optional banners share the
-100-subject cache. A failed request retries on activity after 10 minutes. Off
+pictures cache. A failed request retries on activity after 10 minutes. Off
 starts no banner requests; private windows start no artwork requests. Container
 partitioning, anonymous requests and the 15-second timeout remain in force.
+
+### Tab covers
+
+Three settings, each off by default and separate from **Nexus game banners**,
+give a tab its own cover art in place of its game's banner:
+
+- **Video thumbnails on tabs**: YouTube's thumbnail from the video's address,
+  so unloaded tabs show it too; other video sites' preview picture once loaded.
+- **Nexus page covers on tabs**: a mod's or collection's own page picture. A
+  game's own page keeps its banner.
+- **Cover art on other tabs**: any other page's sharing preview picture.
+
+**Cover art opacity (%)** applies to banners and covers alike. Covers are
+fetched anonymously in the tab's container, at most three at a time, decoded
+to 384 pixels wide; a failed one is not asked for again that session.
 
 Recovered display associations continue through Groupflow's session mechanism.
 Artwork changes never claim routing ownership, rename/reparent folders, or move
@@ -397,14 +413,22 @@ tabs. Opacity changes reuse cached raster bytes without fetching another image.
 
 ## Cache storage
 
-Creators, avatars and learned names use
+Creators, avatars, tab covers and learned names use
 `zen-personal-mods-router-cache.json` in the profile, shared by browser windows.
+
+Pictures (icons, banners and covers) are kept for what is open when a window
+closes: closing a window keeps those of the windows still open, and quitting,
+or closing the last window, keeps every window's. A restart then shows them
+without fetching. Anything closed before that is dropped, so the file holds
+what you use rather than filling up. A window running an older copy of this
+mod, which cannot say what it shows, leaves the file as it is.
 If that file cannot be opened they fall back to one preference each, where the
 avatars are kept under 900000 characters, banners discarded before icons.
 Existing cache preferences are migrated only after the replacement file is
 written successfully. A failed migration retains their original bytes. Native
 JSONFile batches writes and flushes at shutdown; entries keep their
-container/resource keys and the 100-picture, 200-name and 300-creator limits.
+container/resource keys and the 300-picture, 200-cover, 200-name and
+300-creator limits within a session.
 Routing rules and user settings remain preferences. This addresses the large
 `zzrouter.creators`/`zzrouter.avatars` preference warnings, not unrelated
 browser or extension console exceptions.

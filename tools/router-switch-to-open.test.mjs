@@ -444,7 +444,7 @@ test("Two pills run in from the sides along the bottom of the page once the swit
     : value === "color-mix(in srgb, rgb(50, 29, 70) 25%, white)" ? "rgb(204, 199, 209)"
     : value.startsWith("var(--mod-detaloadingbar-primarycolor-final") ? "rgb(140, 80, 200)" : value.startsWith("var(--mod-detaloadingbar-secondarycolor-final") ? "rgb(255, 255, 255)" : "?";
   const gBrowser = { _switcher: null, addEventListener: (type, fn) => { if (type === "TabSwitchDone") switchDone = fn; }, removeEventListener() {} };
-  const ctx = vm.createContext({ retired: false, innerHeight: 1080, gBrowser,
+  const ctx = vm.createContext({ retired: false, innerHeight: 1080, gBrowser, performance,
     setTimeout: (fn, ms) => { if (ms < 1000) fn(); return 0; }, clearTimeout() {},
     document: { documentElement: indicator, createElementNS: element,
       getElementById: id => ({ "tabbrowser-tabbox": tabbox, "tabbrowser-tabpanels": panels, "zen-loading-progress-bar": indicator })[id] },
@@ -570,6 +570,37 @@ test("Two pills run in from the sides along the bottom of the page once the swit
   // The README says what it looks like.
   const readme = (await readFile(new URL("../tab-router/README.md", import.meta.url), "utf8")).replace(/\s+/g, " ");
   assert.match(readme, /two pill-shaped gleams in the loading bar's colour \(Blended Addressbar's or the Deta Loading Bar's when one draws it, else Zen's own loading indicator's\) run in from the sides/);
+});
+
+test("Switching tabs plays the pills by Tab switch animation: out then in by default, in, out or none", async () => {
+  const drawn = [], settle = () => new Promise(setImmediate);
+  let mode = 3, now = 0;
+  const tab = { linkedBrowser: {}, id: "t" }, other = { linkedBrowser: {}, id: "o" };
+  const stale = { remove() { this.gone = true; } };
+  const ctx = vm.createContext({ retired: false, num: (k, d) => (k === "tab-switch-cue" ? mode : d),
+    performance: { now: () => now }, setTimeout: (fn, ms) => { if (ms < 1000) fn(); return 0; },
+    gBrowser: { selectedTab: tab }, arrivals: new Set([stale]), tabSwitched: () => Promise.resolve(),
+    requestAnimationFrame: fn => fn(), drawGleams: (t, out) => drawn.push([t.id, out ? "out" : "in"]) });
+  vm.runInContext(between("  const arriving = new WeakMap();", "  // The window you leave plays it the other way at once")
+    + "\nthis.tabSwitchCue = tabSwitchCue; this.markArrival = markArrival;", ctx);
+  const switchTo = async t => { ctx.gBrowser.selectedTab = t; ctx.tabSwitchCue({ target: t }); await settle(); await settle(); };
+  await switchTo(tab);
+  assert.deepEqual(drawn, [["t", "out"], ["t", "in"]], "out over the page you leave, then in on the new one");
+  assert.ok(stale.gone && ctx.arrivals.size === 0, "a quick run of switches shows only the latest");
+  for (const [m, want] of [[1, [["t", "in"]]], [2, [["t", "out"]]], [0, []]]) {
+    mode = m; drawn.length = 0;
+    await switchTo(tab);
+    assert.deepEqual(drawn, want, `mode ${m}`);
+  }
+  // A switch that lands here from another window is that one's to mark.
+  mode = 3; drawn.length = 0;
+  ctx.markArrival(other, Promise.resolve());
+  await switchTo(other);
+  assert.deepEqual(drawn.filter(([, kind]) => kind === "out"), [], "no tab-switch cue over a cross-window arrival");
+  // The setting is offered, out then in by default.
+  const prefs = JSON.parse(await readFile(new URL("../tab-router/preferences.json", import.meta.url), "utf8"));
+  const setting = prefs.find(p => p.property === "zzrouter.tab-switch-cue");
+  assert.deepEqual([setting?.type, setting?.defaultValue, setting?.options.map(o => o.value)], ["dropdown", 3, [3, 1, 2, 0]]);
 });
 
 test("Release restores Zen's switchIfNeeded and removes live bars", () => {

@@ -141,12 +141,12 @@ tab cost a compositor pass each and added nothing you could see. Docked, nothing
 moves behind the sidebar, so there is nothing to blur.
 
 A loading tab carries Blended Addressbar's "glow" loading bar along its bottom
-edge, copied from that mod's address bar: a faint tint, a soft glow at the head
-and a thin line filling from the left as the page loads, in that mod's loading
-colour (your Zen accent without it). It starts at 8%, creeps on while the page
-loads, follows real progress when the page reports it, runs to the end when
-done and fades. A folder whose own page (Groupflow) is loading shows it on its
-header.
+edge as a light passing through it: a faint tint, and a thin line with a
+fading tail and a bright, glowing head, in that mod's loading colour (your Zen
+accent without it). The head enters from beyond the left edge, moves as the
+page loads (starting at 8%, creeping on, following real progress when the page
+reports it) and leaves past the right edge when it is done; the tab hides both
+ends. A folder whose own page (Groupflow) is loading shows it on its header.
 
 Turning on **Detailed rim control** (under *Tabs, shared*) exposes per-state rim
 colour, edge, highlight thickness and ring thickness. Without it the rim uses

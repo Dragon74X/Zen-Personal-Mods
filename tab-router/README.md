@@ -85,6 +85,13 @@ page is already open elsewhere (opened from a menu, a bookmark, another app or
 typed) closes and switches to it too. Tabs in other spaces and windows count;
 Zen changes space as needed.
 
+When a switch lands you in another window -- one of these, or the address
+bar's **Switch to Tab** -- that window comes forward and a soft ring in Zen's
+accent fades in and out around its page and the tab (a folder's header, for a
+folder's page), so the eye finds it (briefer with reduced motion). Moving
+between windows yourself shows nothing, nor does picking a tab whose page Zen
+brings into the window you are in.
+
 New tabs opened through Firefox's link opener -- middle- and Ctrl-clicks on
 links, **Open Link in New Tab**, bookmarks and history -- are checked before the
 tab exists, so an open page is switched to at once and no tab flashes in. With

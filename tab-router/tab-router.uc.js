@@ -2154,7 +2154,7 @@
   // page side (links-child.sys.mjs) only acts on real link clicks, so back
   // and forward, reloads, forms, redirects and script navigation never
   // switch; Alt-click, Duplicate Tab and session restore always make copies.
-  const LINKS_VERSION = "1.45.0", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
+  const LINKS_VERSION = "1.45.1", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
   const TRACKING = /^(utm_[a-z]+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|igshid|si|ref_src|_hsenc|_hsmi)$/i;
   function pageKey(url) {
     try {
@@ -2256,38 +2256,55 @@
     } catch (e) { note(`folder page failed: ${e}`); }
     return group.label;
   }
+  // The window you are in is the active one, not necessarily the one this
+  // runs in (a folder's page opens through its own window's Tab Router; a
+  // Library window's bookmark through a browser window): like Firefox's own
+  // opener, any other window holding the tab is raised.
   function switchTo(tab) {
-    const win = tab.ownerDocument?.defaultView || window;
-    if (win !== window) win.focus();
-    if (win.gZenWorkspaces?.switchTabIfNeeded) win.gZenWorkspaces.switchTabIfNeeded(tab);
-    else win.gBrowser.selectedTab = tab;
-    if (win !== window) win.requestAnimationFrame(() => markArrival(win, tab));
+    const win = tab.ownerDocument?.defaultView || window, here = Services.focus.activeWindow;
+    if (win !== here) win.focus();
+    const switching = win.gZenWorkspaces?.switchTabIfNeeded ? win.gZenWorkspaces.switchTabIfNeeded(tab)
+      : (win.gBrowser.selectedTab = tab);
+    if (here && win !== here) win.TabRouter?.markArrival?.(tab, switching);
   }
-  // A switch into another window that is already in view gives no sign of
-  // its own: a soft ring in Zen's accent fades in and out around that
-  // window's page, and around the tab when its sidebar shows it. Opacity
-  // only (compositor); each ring removes itself when it ends.
-  function markArrival(win, tab) {
-    const doc = win.document, root = doc.documentElement;
-    if (!root || tab.closing) return;
-    const accent = win.getComputedStyle(root).getPropertyValue("--zen-primary-color").trim() || "AccentColor";
-    const brief = win.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const ring = (el, radius) => {
-      const r = el?.getBoundingClientRect();
-      if (!r?.width || !r.height || r.right <= 0 || r.bottom <= 0 || r.left >= win.innerWidth || r.top >= win.innerHeight) return;
-      const glow = doc.createElementNS("http://www.w3.org/1999/xhtml", "div");
-      glow.setAttribute("aria-hidden", "true");
-      Object.assign(glow.style, { position: "fixed", left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px`,
-        borderRadius: radius, pointerEvents: "none", zIndex: "2147483647", opacity: "0",
-        boxShadow: `inset 0 0 0 2px ${accent}, inset 0 0 28px color-mix(in srgb, ${accent} 40%, transparent)` });
-      root.appendChild(glow);
-      const fade = glow.animate([{ opacity: 0 }, { opacity: 1, offset: 0.3 }, { opacity: 0 }],
-        { duration: brief ? 500 : 900, easing: "ease-in-out" });
-      fade.finished.then(() => glow.remove(), () => glow.remove());
-    };
-    const page = tab.linkedBrowser?.closest(".browserSidebarContainer") || doc.getElementById("tabbrowser-tabpanels");
-    ring(page, page ? win.getComputedStyle(page).borderRadius : "0");
-    ring(tab.querySelector(".tab-background") || tab, win.getComputedStyle(tab.querySelector(".tab-background") || tab).borderRadius);
+  // A switch that lands you in another window gives no sign of its own: a
+  // soft ring in Zen's accent fades in and out around this window's page,
+  // and around the tab, or the folder header that stands for a folder's
+  // page, once the switch (and any change of space) is done. Each ring sits
+  // inside a positioned box that holds what it rings, so it moves with it
+  // (the tab list shifts when a tab opened and closed for the switch leaves,
+  // and scrolls a tab out of view into it). Opacity only (compositor); each
+  // ring removes itself when it ends, and on release.
+  const arrivals = new Set();
+  function markArrival(tab, switching) {
+    Promise.resolve(switching).catch(() => {}).then(() => requestAnimationFrame(() => {
+      const root = document.documentElement;
+      if (retired || !root || tab.closing || !tab.isConnected) return;
+      const accent = getComputedStyle(root).getPropertyValue("--zen-primary-color").trim() || "AccentColor";
+      const brief = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const ring = (el, holder) => {
+        const r = el?.getBoundingClientRect(), h = holder?.getBoundingClientRect();
+        if (!r?.width || !r.height || !h || getComputedStyle(holder).position === "static") return;
+        const glow = document.createElementNS("http://www.w3.org/1999/xhtml", "div");
+        glow.setAttribute("aria-hidden", "true");
+        Object.assign(glow.style, { position: "absolute", left: `${r.left - h.left - holder.clientLeft}px`,
+          top: `${r.top - h.top - holder.clientTop}px`, width: `${r.width}px`, height: `${r.height}px`,
+          borderRadius: getComputedStyle(el).borderRadius, pointerEvents: "none", zIndex: "1", opacity: "0",
+          boxShadow: `inset 0 0 0 2px ${accent}, inset 0 0 28px color-mix(in srgb, ${accent} 40%, transparent)` });
+        holder.appendChild(glow);
+        arrivals.add(glow);
+        const done = () => { arrivals.delete(glow); glow.remove(); };
+        glow.animate([{ opacity: 0 }, { opacity: 1, offset: 0.3 }, { opacity: 0 }],
+          { duration: brief ? 500 : 900, easing: "ease-in-out" }).finished.then(done, done);
+      };
+      const page = tab.linkedBrowser?.closest(".browserSidebarContainer") || document.getElementById("tabbrowser-tabpanels");
+      ring(page, page);
+      // A folder's page tab is hidden (Groupflow): its header stands for it.
+      const header = tab.hasAttribute("zzgf-page-tab") && tab.group?.querySelector(":scope > .tab-group-label-container");
+      const background = tab.querySelector(".tab-background");
+      if (header) ring(header, header);
+      else ring(background, background?.parentNode);
+    }));
   }
   // Every window publishes the whole set, so the page side needs one lookup.
   let publishTimer = null;
@@ -2485,6 +2502,42 @@
       const proto = ClickHandlerParent.prototype, original = proto.contentAreaClick?.[CLICK_MARK];
       if (original) proto.contentAreaClick = original;
     } catch {}
+  }
+  // Firefox's own switch to an open tab (the address bar's Switch to Tab,
+  // and Settings, Add-ons or any page it reuses) raises the window holding
+  // the tab and shows it there through Zen's switchIfNeeded. One shared
+  // patch notes on itself the window you were in for the length of that
+  // call, so the window it lands in can tell an arrival from its own switch.
+  const SWITCH_MARK = Symbol.for("zzrouter.switchToTabHavingURI");
+  const loadingHelper = () => ChromeUtils.importESModule("resource:///modules/URILoadingHelper.sys.mjs").URILoadingHelper;
+  function patchSwitchToTab() {
+    try {
+      const helper = loadingHelper();
+      if (helper.switchToTabHavingURI?.[SWITCH_MARK]) return;
+      const original = helper.switchToTabHavingURI;
+      const patched = function (...args) {
+        const outer = patched.switchingFrom;
+        patched.switchingFrom = Services.focus.activeWindow;
+        try { return original.apply(this, args); } finally { patched.switchingFrom = outer; }
+      };
+      patched[SWITCH_MARK] = original;
+      helper.switchToTabHavingURI = patched;
+    } catch (e) { note(`switch to tab patch failed: ${e}`); }
+  }
+  function unpatchSwitchToTab() {
+    if ([...Services.wm.getEnumerator("navigator:browser")].some(w => w !== window && w.TabRouter?.copyWhile)) return;
+    try {
+      const helper = loadingHelper(), original = helper.switchToTabHavingURI?.[SWITCH_MARK];
+      if (original) helper.switchToTabHavingURI = original;
+    } catch {}
+  }
+  const workspaces = window.gZenWorkspaces, nativeSwitchIfNeeded = workspaces?.switchIfNeeded;
+  function switchIfNeeded(browser) {
+    const from = loadingHelper().switchToTabHavingURI.switchingFrom;
+    const switching = nativeSwitchIfNeeded.apply(this, arguments);
+    const tab = from && from !== window && gBrowser.getTabForBrowser(browser);
+    if (tab) markArrival(tab, switching);
+    return switching;
   }
   function copyWhile(fn) {
     copyNext = true;
@@ -2892,6 +2945,8 @@
     backfillSoon();
     window.addEventListener("SSTabRestoring", forgetLazy, true);
     patchClicks();
+    patchSwitchToTab();
+    if (typeof nativeSwitchIfNeeded === "function") workspaces.switchIfNeeded = switchIfNeeded;
     // What changes the open pages: addresses (the progress listener), tabs
     // coming and going, a Glance becoming a tab (it is only selected), and
     // folder pages and their tabs, which Groupflow announces whenever its
@@ -2908,7 +2963,7 @@
     for (const ev of groupEvents) window.addEventListener(ev, bustGroups, true);
 
     window.TabRouter = {
-      linkMessage, republishOpen: () => publishSoon(), switchIfOpen, copyWhile, openPage, tabURL,
+      linkMessage, republishOpen: () => publishSoon(), switchIfOpen, copyWhile, openPage, tabURL, markArrival,
       sortAll: () => sweepAll("manual"),
       setPlacementLock,
       pictureCounts: () => ({ creators: creatorMap().size, icons: iconMap().size, inFlight: inFlight.size, refreshOperations }),
@@ -3188,6 +3243,14 @@
       window.removeEventListener("SSTabRestoring", forgetLazy, true);
       clearTimeout(backfillTimer); backfillTimer = null;
       unpatchClicks();
+      unpatchSwitchToTab();
+      // Zen's own switchIfNeeded lives on its prototype: removing ours shows it again.
+      if (workspaces?.switchIfNeeded === switchIfNeeded) {
+        delete workspaces.switchIfNeeded;
+        if (workspaces.switchIfNeeded !== nativeSwitchIfNeeded) workspaces.switchIfNeeded = nativeSwitchIfNeeded;
+      }
+      for (const glow of arrivals) glow.remove();
+      arrivals.clear();
       // The other windows republish without this one's tabs.
       for (const w of Services.wm.getEnumerator("navigator:browser")) if (w !== window) try { w.TabRouter?.republishOpen?.(); } catch {}
       for (const ev of groupEvents) {

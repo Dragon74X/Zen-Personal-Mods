@@ -1200,12 +1200,15 @@
       if (!tab.selected && !tab.hasAttribute("pending")) { try { gBrowser.discardBrowser(tab); } catch {} }
       soon();
     }
-    // Closing the page you are on in a folder that holds nothing else -- no
-    // other tab, loaded or not, only page tabs of empty subfolders -- closes
-    // the folder with it (Firefox keeps it among recently closed groups).
-    // Close Other Tabs and the like still only unload, so no folder is lost
-    // by accident.
-    const onlyPage = tab => tab.selected && !folderTabs(tab.group).some(t => t !== tab && !t.hasAttribute("zzgf-page-tab"));
+    // A folder that holds nothing else -- no other tab, loaded or not, only
+    // page tabs of empty subfolders -- closes with its page: when you close
+    // the page you are on, and when Close Other Tabs (or any close of several
+    // tabs at once) takes everything else in it. Firefox keeps it among
+    // recently closed groups.
+    let bulk = null;                                   // tabs closing together
+    const nothingElse = (group, tab) => !folderTabs(group).some(t => t !== tab && !t.closing &&
+      !bulk?.has(t) && !t.hasAttribute("zzgf-page-tab"));
+    const onlyPage = tab => (tab.selected || !!bulk) && nothingElse(tab.group, tab);
     function closeFolder(group) {
       removing.add(group);
       try {
@@ -1217,18 +1220,48 @@
     const nativeRemoveTab = gBrowser.removeTab, ownRemoveTab = Object.prototype.hasOwnProperty.call(gBrowser, "removeTab");
     const removeTab = function (tab, ...rest) {
       if (keepAsPage(tab)) {
+        // Closing several at once: the page closes with them, and Firefox
+        // drops the folder once it is empty.
+        if (onlyPage(tab) && bulk) return nativeRemoveTab.call(this, tab, ...rest);
         if (onlyPage(tab) && closeFolder(tab.group)) return;
         unloadPage(tab); return;
       }
       return nativeRemoveTab.call(this, tab, ...rest);
     };
     gBrowser.removeTab = removeTab;
+    const nativeRemoveTabs = gBrowser.removeTabs, ownRemoveTabs = Object.prototype.hasOwnProperty.call(gBrowser, "removeTabs");
+    const removeTabs = function (tabs, ...rest) {
+      if (!enabled() || retired || !Array.isArray(tabs)) return nativeRemoveTabs.apply(this, [tabs, ...rest]);
+      const outer = bulk, folders = new Set();
+      for (const t of tabs) for (let g = t.group; g; g = g.group) folders.add(g);
+      bulk = new Set([...(outer || []), ...tabs]);
+      try { return nativeRemoveTabs.apply(this, [tabs, ...rest]); }
+      finally {
+        bulk = outer;
+        // A folder left with no tab at all (its subfolders emptied) goes too.
+        if (!bulk) for (const g of folders) if (live(g) && !removing.has(g) && !folderTabs(g).length) closeFolder(g);
+      }
+    };
+    if (typeof nativeRemoveTabs === "function") gBrowser.removeTabs = removeTabs;
     // A page tab's row is hidden: closing another tab never lands on one
     // (where closing again would only unload it and land on the next), unless
     // nothing else is left.
     const nativeBlurTo = gBrowser._findTabToBlurTo, ownBlurTo = Object.prototype.hasOwnProperty.call(gBrowser, "_findTabToBlurTo");
+    // Closing the last tab of a folder that has a page lands on that page, so
+    // closing one tab after another stays in the folder; closing the page
+    // then closes the folder and lands on its parent's page the same way.
+    function folderPageAfter(tab) {
+      for (let g = tab.group; g && live(g); g = g.group) {
+        if (!nothingElse(g, tab)) return null;
+        const page = pageOf(g) ? pageTab(g) : null;
+        if (page && page !== tab && !page.closing && !bulk?.has(page)) return page;
+      }
+      return null;
+    }
     const blurTo = function (tab, exclude = [], ...rest) {
       if (!enabled() || retired || typeof nativeBlurTo !== "function") return nativeBlurTo?.call(this, tab, exclude, ...rest) ?? null;
+      const page = tab?.selected ? folderPageAfter(tab) : null;
+      if (page && !(exclude || []).includes(page)) return page;
       const pageTabs = gBrowser.tabs.filter(t => t !== tab && t.hasAttribute("zzgf-page-tab"));
       const found = pageTabs.length ? nativeBlurTo.call(this, tab, [...(exclude || []), ...pageTabs], ...rest) : null;
       return found || nativeBlurTo.call(this, tab, exclude, ...rest);
@@ -1254,6 +1287,7 @@
       window.removeEventListener("TabGroupRemoveRequested", groupRemoving, true);
       if (gBrowser.removeTab === removeTab) { if (ownRemoveTab) gBrowser.removeTab = nativeRemoveTab; else delete gBrowser.removeTab; }
       if (gBrowser._findTabToBlurTo === blurTo) { if (ownBlurTo) gBrowser._findTabToBlurTo = nativeBlurTo; else delete gBrowser._findTabToBlurTo; }
+      if (gBrowser.removeTabs === removeTabs) { if (ownRemoveTabs) gBrowser.removeTabs = nativeRemoveTabs; else delete gBrowser.removeTabs; }
       if (pageHeaderClick === headerClick) pageHeaderClick = null;
       window.removeEventListener("popupshowing", menu);
       try { gBrowser.removeTabsProgressListener(progress); } catch {}

@@ -123,6 +123,7 @@
 
   // ---- Recent downloads ----
   const foot = () => document.getElementById("zen-sidebar-foot-buttons");
+  let stackOpenedHere = false;
   const stackOpen = () => !!foot()?.hasAttribute("zen-library-stack-open");
   const stackMode = () => pref("zzlib.stack.open", 0);   // 0 hover (Zen's), 1 click, 2 never
   let letEnter = false;
@@ -153,6 +154,7 @@
       const wrapper = document.getElementById("TabsToolbar-customization-target");
       wrapper.removeAttribute("zen-library-stack-closing");
       for (const host of [foot(), wrapper]) host.setAttribute("zen-library-stack-open", "true");
+      stackOpenedHere = true;
     }
   }
   // On click the button drops Zen's command, so its click arrives here first.
@@ -258,7 +260,12 @@
   function makeRow() {
     const row = window.MozXULElement.parseXULToFragment(`
       <div class="zen-library-download-list-download ${EXTRA}">
-        <span class="zen-library-download-badge no-squircles"><span class="zen-library-download-progress no-squircles"></span></span>
+        <span class="zen-library-download-badge no-squircles">
+          <svg xmlns="http://www.w3.org/2000/svg" class="zen-library-download-progress no-squircles" viewBox="0 0 31 31">
+            <circle class="zen-library-download-progress-track" cx="15.5" cy="15.5" r="14"/>
+            <circle class="zen-library-download-progress-arc" cx="15.5" cy="15.5" r="14" pathLength="100"/>
+          </svg>
+        </span>
         <vbox class="zen-library-download-list-title-container">
           <span class="zen-library-download-list-title"></span>
           <span class="zen-library-download-list-subtitle"></span>
@@ -351,24 +358,28 @@
       badge.toggleAttribute("downloading", pending);
       const path = download.target.path;
       badge.style.setProperty("--download-image", path ? `url('moz-icon://${path}?size=32${download.succeeded ? "&state=normal" : ""}')` : "url('moz-icon://.unknown?size=32')");
-      badge.firstElementChild.style.setProperty("--value", download.hasProgress ? download.progress : 0);
-      row.querySelector(".zen-library-download-list-title").textContent = path ? PathUtils.filename(path) : download.source.url;
-      row.querySelector(".zen-library-download-list-subtitle").textContent = status(download);
-      row.setAttribute("aria-label", row.querySelector(".zen-library-download-list-title").textContent + ". " + status(download));
+      badge.querySelector(".zen-library-download-progress-arc").style.strokeDasharray = `${download.hasProgress ? download.progress : 0} 100`;
+      const title = path ? PathUtils.filename(path) : download.source.url, text = status(download);
+      row.querySelector(".zen-library-download-list-title").textContent = title;
+      row.querySelector(".zen-library-download-list-subtitle").textContent = text;
+      row.setAttribute("aria-label", title + ". " + text);
     });
     measure(list);
   }
   // Zen masks the tab list down to the list's height, measured when a
-  // download changes; rows added or hidden here change that height.
-  function measure(list) {
+  // download changes; rows added or hidden here change that height, and
+  // retiring measures Zen's own rows again.
+  let measured = false;
+  function measure(list, retiring = false) {
     window.promiseDocumentFlushed(() => list.getBoundingClientRect().height).then(height => {
-      if (window[INSTANCE_KEY] !== instance) return;
+      if (!retiring && window[INSTANCE_KEY] !== instance) return;
+      measured = true;
       document.getElementById("TabsToolbar-customization-target")?.style.setProperty("--zen-library-stack-height", `${height}px`);
     }).catch(() => {});
   }
+  // Zen marks the list open on the foot buttons, where stackOpen() reads it.
   const footWatch = new MutationObserver(() => { if (stackOpen()) { watchDownloads(); fillExtras(); } });
-  // The list may be built after this runs; watch the attribute wherever it lands.
-  footWatch.observe(document.documentElement, { attributes: true, subtree: true, attributeFilter: ["zen-library-stack-open"] });
+  if (foot()) footWatch.observe(foot(), { attributes: true, attributeFilter: ["zen-library-stack-open"] });
 
   // ---- Get the Library ready after startup ----
   // Zen builds the Library the first time it opens, so the first open of a
@@ -377,12 +388,16 @@
   // and up to date, until the Library is first opened and closed, as Zen
   // keeps it for 30 seconds after any close); 1 only loads the code and
   // stylesheet; 0 leaves it to Zen.
-  const SECTIONS = ["History", "Downloads", "Boosts", "Media", "Spaces"];
+  // ponytail: native entry import upgrades the Library element and starts its
+  // observers. Keep this bounded list for code-only warming until Zen exports
+  // a side-effect-free preload/section registry; review it on Zen releases.
+  const SECTIONS = ["History", "Downloads", "Boosts", "Media", "Spaces", "Search", "SpaceRouting"];
   let warmTimer = null, warmIdle = null, preload = null, warmDue = false;
   function warmLibrary() {
     warmIdle = null;
     if (gBrowser.selectedTab?.hasAttribute("busy")) { warmDue = true; return; }
     warmDue = false;
+    window.removeEventListener("TabAttrModified", warmReady, true);   // warms once
     const how = pref("zzlib.warm", 2);
     if (window[INSTANCE_KEY] !== instance || !how || !pref("zen.library.enabled", true) || libraryNode()) return;
     const load = url => ChromeUtils.importESModule(url, { global: "current" });
@@ -391,7 +406,9 @@
         (Library() ?? load("moz-src:///zen/library/ZenLibrary.mjs").ZenLibrary).getInstance();
         return;
       }
-      for (const name of SECTIONS) load(`moz-src:///zen/library/sections/ZenLibrary${name}Section.mjs`);
+      for (const name of SECTIONS) {
+        try { load(`moz-src:///zen/library/sections/ZenLibrary${name}Section.mjs`); } catch {}   // a section a later Zen renames
+      }
       preload = document.createElementNS("http://www.w3.org/1999/xhtml", "link");
       Object.assign(preload, { rel: "preload", as: "style", href: "chrome://browser/content/zen-styles/zen-library.css" });
       document.documentElement.appendChild(preload);
@@ -414,11 +431,16 @@
   const observer = { observe(_s, _t, data) { if (data?.startsWith(PREFIX)) { write(data); try { onSetting(data); } catch (e) { console.error(e); } } } };
   const sideObserver = { observe() { replace(); } };
   writeAll();
-  seedDefaults().then(watchDownloads).catch(() => {});
+  seedDefaults().catch(() => {});
   syncButton();
   Services.prefs.addObserver(PREFIX, observer);
   Services.prefs.addObserver("zen.tabs.vertical.right-side", sideObserver);
+  // Sine cleanup and window unload can both run; retire this copy once.
+  let retired = false;
   const cleanup = () => {
+    if (retired) return;
+    retired = true;
+    window.removeEventListener("unload", cleanup);
     try { Services.prefs.removeObserver(PREFIX, observer); } catch {}
     try { Services.prefs.removeObserver("zen.tabs.vertical.right-side", sideObserver); } catch {}
     window.removeEventListener("mouseenter", onEnter, true);
@@ -431,6 +453,8 @@
     preload?.remove();
     try { data?.removeView(view); } catch {}
     for (const row of document.querySelectorAll(`#zen-library-download-list > .${EXTRA}`)) row.remove();
+    const list = document.getElementById("zen-library-download-list");
+    if (measured && list) measure(list, true);
     document.getElementById("zen-library-button")?.setAttribute("command", "cmd_zenToggleLibrary");
     try { unpatch?.(); } catch {}
     const lib = libraryNode();
@@ -439,6 +463,10 @@
       lib.style.removeProperty("opacity");
       lib.openProgress = lib.openProgress;
     }
+    // The stack this copy opened for its own rows, and its root variables.
+    if (stackOpenedHere && !document.querySelector("#zen-library-download-list > .zen-library-download-list-download:not([hidden])"))
+      for (const host of [foot(), document.getElementById("TabsToolbar-customization-target")]) host?.removeAttribute("zen-library-stack-open");
+    for (const name of [...root.style].filter(n => n.startsWith("--zzlib-"))) root.style.removeProperty(name);
     if (window[INSTANCE_KEY] === instance) delete window[INSTANCE_KEY];
   };
   instance.retire = cleanup;

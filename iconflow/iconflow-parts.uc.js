@@ -582,12 +582,13 @@
     "minus": { setting: "minus", icons: [".tab-reset-button", ".tab-reset-pin-button image"] },
   };
   // </targets>
-  const int = name => { try { return S.getIntPref(name, 0); } catch { return 0; } };
+  const int = (name, fallback = 0) => { try { return S.getIntPref(name, fallback); } catch { return fallback; } };
   // Zen's own, animated: the set is Zen's own and the button follows it, or
-  // the button picks Zen's own, animated (6) itself.
+  // the button picks Zen's own, animated (6) itself. An unset set is the
+  // declared default, Circuit · Morph (4).
   const animated = key => {
     const b = int(PREFIX + "button." + TARGETS[key].setting);
-    return (int(PREFIX + "set") === 0 && b === 0) || b === 6;
+    return (int(PREFIX + "set", 4) === 0 && b === 0) || b === 6;
   };
   const strips = new Map();   // key + artwork -> strip URL (a promise)
   // Gecko exposes theme paint to chrome/resource SVGs, not file/data SVGs.
@@ -626,19 +627,10 @@
   };
   let retired = false;
   const undress = el => { el.removeAttribute("zzicon-own"); el.style.removeProperty("--zzicon-own"); delete el.zziconKey; delete el.zziconSource; };
-  // The button's own image, read with our strip taken off for a moment (no
-  // paint happens in between).
-  const sourceOf = el => {
-    const dressed = el.hasAttribute("zzicon-own");
-    if (dressed) el.removeAttribute("zzicon-own");
-    const url = imageOf(el);
-    if (dressed) el.setAttribute("zzicon-own", "");
-    return url;
-  };
-  async function dress(el, key) {
+  // url: the button's own image, as scan() read it.
+  async function dress(el, key, url) {
     if (retired) return;
-    undress(el);                  // read the button's own image, not our strip
-    const url = imageOf(el);
+    undress(el);
     el.zziconKey = key;
     el.zziconSource = url;
     if (!url || !/\.svg([?#]|$)|^data:image\/svg\+xml/.test(url)) return;
@@ -654,24 +646,31 @@
     el.setAttribute("zzicon-own", "");
   }
   // State that swaps a button's icon: the star when a page is saved, the
-  // media card's play/pause and mute. Only those elements are watched.
+  // media card's play/pause and mute. Only those elements are watched, and the
+  // media toolbar, where Zen adds a card as playback starts.
   const watch = new MutationObserver(() => soon());
   function scan(force) {
     if (retired) return;
     for (const el of document.querySelectorAll("#star-button, .zen-media-card"))
       watch.observe(el, { attributes: true, attributeFilter: ["starred", "muted", "class"] });
-    const seen = new Set(), animate = S.getBoolPref(PREFIX + "animate", true);
-    for (const [key, { icons }] of Object.entries(TARGETS)) {
-      if (!animate || !animated(key)) continue;
-      for (const sel of icons) for (const el of document.querySelectorAll(sel)) {
-        if (seen.has(el)) continue;
-        seen.add(el);
-        // A changed key, or artwork changed under the same key (New Icons
-        // switched on or off), draws the strip again.
-        if (force || el.zziconKey !== key || sourceOf(el) !== el.zziconSource) dress(el, key);
+    const media = document.getElementById("zen-media-controls-toolbar");
+    if (media) watch.observe(media, { childList: true });
+    const keys = new Map();   // icon element -> the first key that claims it
+    if (S.getBoolPref(PREFIX + "animate", true))
+      for (const [key, { icons }] of Object.entries(TARGETS)) {
+        if (!animated(key)) continue;
+        for (const sel of icons) for (const el of document.querySelectorAll(sel)) if (!keys.has(el)) keys.set(el, key);
       }
-    }
-    for (const el of document.querySelectorAll("[zzicon-own]")) if (!seen.has(el)) undress(el);
+    for (const el of document.querySelectorAll("[zzicon-own]")) if (!keys.has(el)) undress(el);
+    // Each button's own image, read with every strip taken off at once: one
+    // style flush for the scan, and no paint happens in between.
+    const dressed = [...keys.keys()].filter(el => el.hasAttribute("zzicon-own"));
+    for (const el of dressed) el.removeAttribute("zzicon-own");
+    const sources = new Map([...keys.keys()].map(el => [el, imageOf(el)]));
+    for (const el of dressed) el.setAttribute("zzicon-own", "");
+    // A changed key, or artwork changed under the same key (New Icons
+    // switched on or off), draws the strip again.
+    for (const [el, key] of keys) if (force || el.zziconKey !== key || sources.get(el) !== el.zziconSource) dress(el, key, sources.get(el));
   }
   let timer = 0, forced = false;
   const soon = (force = false) => {
@@ -680,9 +679,15 @@
     clearTimeout(timer);
     timer = setTimeout(() => { const f = forced; forced = false; try { scan(f); } catch (e) { console.error("[Iconflow] parts:", e); } }, 80);
   };
-  const observer = { observe: () => soon(true) };
+  // Only the set, Animate icons and the per-button choices change what is dressed.
+  const observer = { observe: (_subject, _topic, name) => { if (/^zzicon\.(?:set|animate|button\..+)$/.test(name)) soon(true); } };
   const events = [["TabOpen", gBrowser.tabContainer], ["popupshown", window], ["ViewShown", window], ["aftercustomization", window]];
-  const onEvent = () => soon();
+  // Of the popups only panels hold these icons; menus, tooltips and the tab
+  // hover preview (opened on every tab the pointer crosses) hold none.
+  const onEvent = e => {
+    if (e?.type === "popupshown" && (e.target?.localName !== "panel" || e.target.id === "tab-preview-panel")) return;
+    soon();
+  };
   S.addObserver(PREFIX, observer);
   for (const [type, target] of events) target.addEventListener(type, onEvent);
   const onLoad = () => soon(true);

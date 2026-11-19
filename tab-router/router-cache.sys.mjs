@@ -1,10 +1,10 @@
 // One profile store shared by all windows. Native JSONFile coalesces writes and
-// flushes them at shutdown; learned data no longer lives in large preferences.
+// flushes them at shutdown; cache preferences left from before are moved in once.
 let opening;
 export function openRouterCache({ Services, IOUtils, PathUtils, JSONFile }) {
   return opening ||= (async () => {
     const path = PathUtils.join(PathUtils.profileDir, "zen-personal-mods-router-cache.json");
-    const keys = ["creators", "avatars", "learned-names"];
+    const keys = ["creators", "avatars", "learned-names", "covers"];
     const record = value => value && typeof value === "object" && !Array.isArray(value) ? value : {};
     let data = {};
     if (await IOUtils.exists(path)) data = record(await IOUtils.readJSON(path));

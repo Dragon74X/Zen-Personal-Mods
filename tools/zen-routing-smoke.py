@@ -497,7 +497,7 @@ def check_sidebar_modes(m, atg):
                 assert m.script(HELPERS + """
                   const h=group('Root').labelContainerElement,icon=h.querySelector('.zzgf-icon');
                   const a=icon.getBoundingClientRect(),b=h.querySelector('.zzgf-close').getBoundingClientRect();
-                  return Math.abs(a.x-(parseFloat(getComputedStyle(icon).insetInlineStart)||0)-b.x)<1 && Math.abs(a.y-b.y)<1 &&
+                  return Math.abs(a.x-(parseFloat(getComputedStyle(icon).translate)||0)-b.x)<1 && Math.abs(a.y-b.y)<1 &&
                     Math.abs(a.width-b.width)<1 && Math.abs(a.height-b.height)<1;
                 """), ('Close button left the icon slot', compact, expanded)
         return {"compactSidebar": True, "expandedSidebar": True, "iconOnlySidebar": True, "overflowHeaderControls": True}
@@ -922,7 +922,9 @@ def check(m, root, atg, port, first):
           const refreshedColour=getComputedStyle(root).getPropertyValue('--tab-group-color').trim();
           const gradient=getComputedStyle(child.labelContainerElement).backgroundImage;
           child.labelContainerElement.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,button:2}));
-          await pause(100);
+          // Native popup opening is asynchronous and can exceed 100ms during
+          // session restoration. Wait for the required state, not a frame budget.
+          await until(()=>gBrowser.tabGroupMenu.activeGroup===child && gBrowser.tabGroupMenu.panel.state==='open');
           const editor=gBrowser.tabGroupMenu.activeGroup===child && gBrowser.tabGroupMenu.panel.state==='open';
           gBrowser.tabGroupMenu.close();
           // A cancelled native close must retain tabs and all saved state.
@@ -1088,9 +1090,8 @@ def check(m, root, atg, port, first):
         m.script((root / "tab-router/tab-router.uc.js").read_text() + "\nreturn true;")
         routed = m.script("return (async()=>{" + HELPERS + """
           const url=fixtureURL.replace('127.0.0.1','localhost')+'/frames';
-          // A legacy delay preference and continuous title events must not
-          // postpone group/workspace filing until a slow subframe finishes.
-          Services.prefs.setIntPref('zzrouter.delay-ms',5000);
+          // Continuous title events must not postpone group/workspace filing
+          // until a slow subframe finishes.
           const t=add(url);group('Source').addTabs([t]);gBrowser.selectedTab=t;
           let labels=0;
           const chatter=setInterval(()=>{
@@ -1104,7 +1105,7 @@ def check(m, root, atg, port, first):
             routeBeforeLoad=t.isConnected && t.hasAttribute('busy') && t.userContextId===1 &&
               t.group===group('Destination') && t.getAttribute('zen-workspace-id')===fixtureDestinationID;
           } finally { clearInterval(chatter); }
-          if(!routeBeforeLoad) throw new Error('Busy tab did not file immediately with delay-ms=5000 and title events');
+          if(!routeBeforeLoad) throw new Error('Busy tab did not file immediately with title events');
           await until(()=>!t.isConnected);
           await until(()=>[...document.querySelectorAll('tab')].some(t=>t.linkedBrowser?.currentURI?.spec===url));
           const fresh=[...document.querySelectorAll('tab')].find(t=>t.linkedBrowser?.currentURI?.spec===url);
@@ -1129,7 +1130,6 @@ def check(m, root, atg, port, first):
               replacement.getAttribute('zen-workspace-id')===fixtureDestinationID;
           } finally {
             Services.prefs.setBoolPref('zzrouter.refile-mismatched',true);
-            Services.prefs.clearUserPref('zzrouter.delay-ms');
           }
           // Reproduce an old-version tab already filed in the right group with the wrong container.
           Services.prefs.setBoolPref('zzrouter.enabled',false);
@@ -1190,9 +1190,38 @@ def check_subject_pictures(m, root, first):
     # no live YouTube/Nexus requests or external account state enter the fixture.
     source = (root / "tab-router/tab-router.uc.js").read_text()
     source = source.replace("  // ---- declared defaults", """
-      window.subjectFixture={route,updatePicture,captureNexus,creatorMap,iconMap,stampIcons,saveNexus,fetchAnon,saveIcons,saveCreators,refreshPictures,toIcon};
+      window.subjectFixture={route,placeInPath,skip,updatePicture,captureNexus,creatorMap,iconMap,stampIcons,saveNexus,fetchAnon,saveIcons,saveCreators,refreshPictures,toIcon};
       // ---- declared defaults""")
     m.script(source + "\nreturn true;")
+    contract = {}
+    if first:
+        contract=m.script("return (async()=>{"+HELPERS+"""
+          const checks={},manager=gZenSpaceRoutingManager,getRoutes=manager.getAllRoutes;
+          const keys=['zzrouter.skip-grouped','zzrouter.create-groups','zzrouter.follow-containers'];
+          const saved=keys.map(k=>Services.prefs.getBoolPref(k,true));
+          const source=gZenWorkspaces.activeWorkspace,dest=source===routeTarget.uuid?routeSourceID:routeTarget.uuid;
+          manager.getAllRoutes=()=>[{reference:'route-contract.invalid',matchType:'contains',openIn:dest}];
+          Services.prefs.setBoolPref(keys[2],false);
+          try {
+            for(const skip of [false,true])for(const create of [false,true]) {
+              const t=add('about:blank'),label='Explicit route '+skip+' '+create;
+              const original=gBrowser.addTabGroup([t],{label,insertBefore:t});
+              const nested=gBrowser.addTabGroup([t],{label:'Manual subgroup',insertBefore:t});
+              original.groupContainer.append(nested);
+              Object.defineProperty(t.linkedBrowser,'currentURI',{configurable:true,get:()=>Services.io.newURI('https://route-contract.invalid/')});
+              try {
+                Services.prefs.setBoolPref(keys[0],skip);Services.prefs.setBoolPref(keys[1],create);
+                await subjectFixture.placeInPath(t,[label]);
+                const moved=!skip && create;
+                checks['explicitRoute'+skip+create]=t.getAttribute('zen-workspace-id')===(moved?dest:source) &&
+                  (t.group===nested)===!moved && t.group.label==='Manual subgroup' &&
+                  t.group.parentElement.closest('tab-group')?.label===label && !t.closing;
+              } finally {delete t.linkedBrowser.currentURI;gBrowser.removeTab(t,{animate:false});}
+            }
+          } finally {manager.getAllRoutes=getRoutes;keys.forEach((k,i)=>Services.prefs.setBoolPref(k,saved[i]));}
+          return checks;
+        })();""")
+        assert all(contract.values()), contract
     m.script("""const ss=Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService);
       window.nexusArtSheet=Services.io.newURI(""" + json.dumps((root / 'glassflow/userChrome.css').as_uri()) + """);
       ss.loadAndRegisterSheet(nexusArtSheet,ss.USER_SHEET);return true;""")
@@ -1242,6 +1271,29 @@ def check_subject_pictures(m, root, first):
       };
       const painted=t=>getComputedStyle(t.querySelector('.tab-icon-image')).content.includes(icon);
       try {
+        // Real native groups with the two identities returned by YouTube.
+        // Metadata parsing/queueing is covered by channel-icons.test.mjs;
+        // this checks addTabs, empty-group cleanup and container preservation.
+        {
+        const canonical='https://www.youtube.com/channel/UCNativeFixture',alias='https://www.youtube.com/@native-alias';
+        const channelTab=await make(canonical),videoTab=await make('https://www.youtube.com/watch?v=native-identity');
+        const context=channelTab.userContextId,record={key:canonical,label:'Identity Channel'};
+        h.creatorMap().set(context+':'+canonical,record);h.creatorMap().set(context+':'+alias,record);
+        h.creatorMap().set(context+':native-identity',{key:alias,label:record.label});
+        const siteIdentity=gBrowser.addTabGroup([channelTab,videoTab],{label:'Identity Site',insertBefore:channelTab});
+        const primary=gBrowser.addTabGroup([channelTab],{label:record.label,insertBefore:channelTab});
+        const duplicate=gBrowser.addTabGroup([videoTab],{label:record.label,insertBefore:videoTab});
+        for(const [g,key]of [[primary,canonical],[duplicate,alias]]){
+          g.setAttribute('data-zzrouter-created','true');g.setAttribute('data-zzrouter-subject',key);g.setAttribute('data-zzrouter-context',String(context));
+        }
+        const want=['Identity Site',{...record,ctx:context}],workspace=videoTab.getAttribute('zen-workspace-id');
+        checks.channelDuplicateEligible=h.skip(videoTab,want)===null;
+        await h.placeInPath(videoTab,want);
+        await until(()=>!duplicate.isConnected); // Native close animation removes the empty group.
+        checks.channelDuplicateMerged=videoTab.group===primary && channelTab.group===primary && primary.group===siteIdentity;
+        checks.channelDuplicateRemoved=!duplicate.isConnected;
+        checks.channelIdentityContext=videoTab.userContextId===context && videoTab.getAttribute('zen-workspace-id')===workspace;
+        }
         const requestSeen={};
         const observer={observe(subject){
           const channel=subject.QueryInterface(Ci.nsIHttpChannel);
@@ -1334,13 +1386,21 @@ def check_subject_pictures(m, root, first):
         Services.prefs.setIntPref('zzgroup.tab-icon-shape',0);
         for(const [mode,radius] of [[1,12],[2,18]]) {
           Services.prefs.setIntPref('zzgroup.corner.mode',mode);
-          Services.prefs.setStringPref('zzgroup.header-roundness',radius+'px');await pause(50);
+          Services.prefs.setStringPref('zzgroup.header-roundness',radius+'px');
+          await until(()=>{
+            const s=getComputedStyle(image),h=getComputedStyle(group('Child').labelContainerElement);
+            return s.cornerShape===h.cornerShape && Math.abs(radiusPx(s)-parseFloat(h.borderTopLeftRadius)*parseFloat(s.width)/36)<.1;
+          });
           const style=getComputedStyle(image),header=getComputedStyle(group('Child').labelContainerElement);
           checks['tabIconFolderCorners_'+mode]=style.cornerShape===header.cornerShape &&
             Math.abs(radiusPx(style)-parseFloat(header.borderTopLeftRadius)*parseFloat(style.width)/36)<.1;
         }
         for(const [mode,radius,corner] of [[1,25,'superellipse(1)'],[2,38,'superellipse(2)'],[3,50,'superellipse(1)'],[4,0,'superellipse(1)']]) {
-          Services.prefs.setIntPref('zzgroup.tab-icon-shape',mode);await pause(50);
+          Services.prefs.setIntPref('zzgroup.tab-icon-shape',mode);
+          await until(()=>{
+            const s=getComputedStyle(image);
+            return parseFloat(s.borderTopLeftRadius)===radius && s.cornerShape===corner;
+          });
           const style=getComputedStyle(image);
           checks['tabIconShape_'+mode]=parseFloat(style.borderTopLeftRadius)===radius && style.cornerShape===corner;
         }
@@ -1428,6 +1488,7 @@ def check_subject_pictures(m, root, first):
       });
     })();""")
     assert result['legacyCustomIconPreserved'], result
+    result.update(contract)
     m.script((root / "tab-router/tab-router.uc.js").read_text() + "\nreturn true;")
     return result
 
@@ -1448,13 +1509,15 @@ def main():
                  "browser.aboutwelcome.enabled": False, "zen.welcome-screen.seen": True,
                  "zen.welcome-screen.enabled": False, "browser.startup.page": 3,
                  "zen.workspaces.continue-where-left-off": True,
+                 # Fixtures use the built-in container IDs; Zen 1.24 can omit them.
+                 "zen.containers.create-default-identities": True,
                  "browser.tabs.groups.arc-style": True, "browser.tabs.groups.folder-look": True}
         for mod in ["groupflow", "tab-router"]:
             for pref in json.loads((root / mod / "preferences.json").read_text()):
                 if "property" in pref and "defaultValue" in pref:
                     prefs[pref["property"]] = pref["defaultValue"]
         prefs.update({"zzrouter.enabled": False, "zzrouter.sort-on-startup": False,
-                      "zzrouter.delay-ms": 100, "zzrouter.auto-unmatched": False,
+                      "zzrouter.auto-unmatched": False,
                       "zzrouter.media-subgroups": False, "zzrouter.section-icons": False,
                       "zzgroup.subfolder.states": False})
         (profile / "user.js").write_text("\n".join(f"user_pref({json.dumps(k)}, {json.dumps(v)});" for k, v in prefs.items()))

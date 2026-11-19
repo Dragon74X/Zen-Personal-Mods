@@ -1,8 +1,7 @@
 // ==UserScript==
 // @name           Mediaflow
-// @version        2.8.4
-// @include        chrome://browser/content/browser.xhtml
 // @description    Hooks into Zen's sidebar to render active video streams.
+// @include        chrome://browser/content/browser.xhtml
 // ==/UserScript==
 
 (function () {
@@ -17,7 +16,7 @@
   const LOG_PREFIX = "[Mediaflow]";
   // Gecko caches actor modules across unregister/re-register. Bump with actor
   // changes so Sine updates load replacement code without a browser restart.
-  const ACTOR_VERSION = "2.8.4";
+  const ACTOR_VERSION = "2.8.16";
   const CAPTIONS_PREF = "zzmedia.preview.captions";
   const CAPTIONS_WHEN_PIP_HIDDEN_PREF =
     "zzmedia.preview.captions-when-hidden";
@@ -54,18 +53,7 @@
     `opacity ${CONFIG.ANIM_MS}ms ease, ` +
     `transform ${CONFIG.ANIM_MS}ms ease, ${LAYOUT_TRANSITION}`;
 
-  const MUSIC_PLAYER_SELECTORS =
-    "#zen-media-controls-toolbar, .zen-sidebar-bottom-buttons";
-  const PIP_BUTTON_SELECTORS = [
-    '[id*="pictureinpicture" i]',
-    '[class*="pictureinpicture" i]',
-    '[command*="pictureinpicture" i]',
-    '[id*="pip" i]',
-    '[class*="pip" i]',
-    '[anonid*="pictureinpicture" i]',
-  ].join(",");
-
-  const musicPlayerUI = document.querySelector(MUSIC_PLAYER_SELECTORS);
+  const musicPlayerUI = document.getElementById("zen-media-controls-toolbar");
   if (!musicPlayerUI) {
     err("Could not find the music player UI.");
     return;
@@ -93,6 +81,9 @@
       contain: strict;
       z-index: 10;
       pointer-events: auto;
+      /* This overlay can cover Zen's draggable empty tab strip. DOM hit
+         testing alone does not exclude that underlying native drag region. */
+      -moz-window-dragging: no-drag;
       transform-origin: 50% 100%;
       transition: ${LAYOUT_TRANSITION};
       will-change: opacity, transform, bottom, left, width, height;
@@ -205,6 +196,17 @@
     }
     .zzmf-pip-controls button:hover { background-color: rgb(255 255 255 / 0.18); }
     .zzmf-pip-controls :is(button, input):focus-visible { outline: 2px solid white; outline-offset: 1px; }
+    @media (prefers-reduced-transparency: reduce), (forced-colors), (prefers-contrast) {
+      #zen-sidebar-pip-caption { background: Canvas; color: CanvasText; }
+      .zzmf-pip-controls button {
+        background-color: Canvas;
+        color: CanvasText;
+        fill: CanvasText;
+      }
+      .zzmf-pip-controls button:hover { background-color: Highlight; color: HighlightText; fill: HighlightText; }
+      .zzmf-pip-time { background: Canvas; color: CanvasText; }
+      .zzmf-pip-controls :is(button, input):focus-visible { outline-color: CanvasText; }
+    }
     .zzmf-pip-close { top: 4px; right: 4px; --zzmf-icon: url("chrome://browser/skin/zen-icons/close.svg"); }
     .zzmf-pip-popout { top: 4px; left: 4px; --zzmf-icon: url("chrome://global/skin/media/picture-in-picture-open.svg"); }
     .zzmf-pip-back, .zzmf-pip-play, .zzmf-pip-forward { top: calc(50% - 14px); }
@@ -288,7 +290,6 @@
   let activeUntil = 0;
   let playerSeen = true;                    // the music bar is on screen (syncPosition)
   let animating = false;
-  let animateOutTimer = null;
   let videoAspect = CONFIG.DEFAULT_ASPECT;
   let captionText = "";
   let captionHideTimer = null;
@@ -299,10 +300,7 @@
     const mode = safe(() =>
       Services.prefs.getStringPref(CAPTIONS_PREF, "youtube"),
     );
-    if (CAPTION_MODES.has(mode)) return mode;
-    // The setting was briefly a checkbox; a profile may still hold that form.
-    const checkbox = safe(() => Services.prefs.getBoolPref(CAPTIONS_PREF));
-    return checkbox === false ? "off" : "youtube";
+    return CAPTION_MODES.has(mode) ? mode : "youtube";
   }
   let captionMode = getCaptionMode();
   let captionsWhenPipHidden = safe(() =>
@@ -314,10 +312,14 @@
     if (canvasEl.width !== w) canvasEl.width = w;
     if (canvasEl.height !== h) canvasEl.height = h;
   }
+  function clearCanvas() {
+    safe(() => canvasCtx.clearRect(0, 0, canvasEl.width, canvasEl.height));
+  }
 
+  // A source sets only the preview's shape: frames size the canvas, and a
+  // resize would clear the frame it shows.
   function setSourceDimensions(w, h) {
     if (!(w > 0) || !(h > 0)) return;
-    setCanvasDimensions(w, h);
     const nextAspect = w / h;
     if (nextAspect !== videoAspect) {
       videoAspect = nextAspect;
@@ -344,19 +346,12 @@
     lastReserve = px;
     bump();
   }
-  // A live update from a version that sized the tab list.
-  for (const el of document.querySelectorAll("[zzmf-tab-list-sized]")) {
-    el.removeAttribute("zzmf-tab-list-sized");
-    el.style.removeProperty("--zzmf-tab-list-height");
-  }
 
   function getMediaTopEdge() {
     const baseRect = musicPlayerUI.getBoundingClientRect();
     let top = baseRect.top;
-    // Zen's cards hold every row that rises on hover, so their edges are
-    // enough; other markup (another music-bar mod) falls back to all of it.
-    let kids = musicPlayerUI.querySelectorAll(".zen-media-card");
-    if (!kids.length) kids = musicPlayerUI.querySelectorAll("*");
+    // Zen's cards hold every row that rises on hover, so their edges are enough.
+    const kids = musicPlayerUI.querySelectorAll(".zen-media-card");
     for (let i = 0; i < kids.length; i++) {
       const kid = kids[i];
       const r = kid.getBoundingClientRect();
@@ -425,8 +420,7 @@
     const visibilityState = `${pipVisible}:${captionVisible}`;
     if (visibilityState !== lastVisible) {
       if (!pipVisible) {
-        clearTimeout(growTimer); pipHover = false; hoverBottom = null; focusedPreview = null;
-        pipContainer.removeAttribute("zzmf-interacting"); restorePreviewFocus();
+        resetPreview(); restorePreviewFocus();
       }
       pipContainer.style.visibility = pipVisible ? "visible" : "hidden";
       captionContainer.style.visibility = captionVisible
@@ -452,14 +446,11 @@
 
     if (pipVisible || captionVisible) {
       const {
-        top: mediaTopRaw,
+        top: mediaTop,
         left,
         width: playerWidth,
       } = getMediaTopEdge();
-      // Native card geometry is authoritative. Focused controls retain their
-      // captured preview bounds below; old sources never set future clearance.
       if (playerWidth !== 0) {
-        const mediaTop = mediaTopRaw;
         let captionHeight = 0;
         let videoBottom = mediaTop - CONFIG.GAP;
         let captionTop = null;
@@ -478,7 +469,7 @@
 
         // Hold from pointer entry, including the growth delay: the bar can
         // fold its rows away as the pointer crosses from below into the video.
-        if (hoverBottom !== null) videoBottom = hoverBottom;
+        if (preview.bottom !== null) videoBottom = preview.bottom;
 
         let height = 0;
         if (pipVisible) {
@@ -496,7 +487,7 @@
           // its bottom edge where it was. The room it keeps above the bar
           // stays the resting size.
           let shownWidth = width, shownHeight = height;
-          const grow = pipHover ? hoverGrowth(width) : 1;
+          const grow = preview.phase === "grown" ? hoverGrowth(width) : 1;
           if (grow > 1) {
             shownWidth = width * grow;
             shownHeight = shownWidth / videoAspect;
@@ -509,11 +500,11 @@
 
           // A focused control must stay under the pointer through press/release
           // and repeated clicks, even during hover growth or a caption change.
-          if (focusedPreview) {
-            shownWidth = focusedPreview.width;
-            shownHeight = focusedPreview.height;
-            adjustedLeft = focusedPreview.left;
-            videoBottom = focusedPreview.bottom;
+          if (preview.bounds) {
+            shownWidth = preview.bounds.width;
+            shownHeight = preview.bounds.height;
+            adjustedLeft = preview.bounds.left;
+            videoBottom = preview.bounds.bottom;
           }
 
           const nextCaptureMaxDimension = Math.max(
@@ -546,7 +537,7 @@
         // Keep a small separation between the final tab and what sits above
         // the bar, when room is made for it; otherwise it floats over the tabs.
         const above = (pipVisible ? height + CONFIG.GAP : 0) + (captionTop !== null ? captionHeight + CONFIG.GAP : 0);
-        if (above && makeRoom()) setReserve(Math.ceil(above + CONFIG.TAB_LIST_GAP));
+        if (above && makeRoom) setReserve(Math.ceil(above + CONFIG.TAB_LIST_GAP));
         else clearReserve();
       }
     } else {
@@ -659,12 +650,11 @@
 
   // Pointing at the preview grows it (Grow on hover); clicking it goes to the
   // tab the video plays in.
-  let pipHover = false, hoverBottom = null, focusedPreview = null;
+  const preview = { phase: "rest", bottom: null, bounds: null, enteredAt: 0 };
   const HOVER_PREF = "zzmedia.preview.hover-size", CLICK_PREF = "zzmedia.preview.click-to-tab";
   function hoverGrowth(width) {
-    const v = safe(() => Services.prefs.getStringPref(HOVER_PREF, "2")) ?? "2";
-    if (v === "half") return Math.max(1, window.innerWidth * 0.5 / width);
-    const k = parseFloat(v);
+    if (hoverSize === "half") return Math.max(1, window.innerWidth * 0.5 / width);
+    const k = parseFloat(hoverSize);
     return Number.isFinite(k) && k > 1 ? k : 1;
   }
   const clickToTab = () => safe(() => Services.prefs.getBoolPref(CLICK_PREF, true)) ?? true;
@@ -675,13 +665,28 @@
   // Off (the default), the preview sits in front of the tabs; on, the tab
   // list ends above it.
   const ROOM_PREF = "zzmedia.preview.make-room";
-  const makeRoom = () => safe(() => Services.prefs.getBoolPref(ROOM_PREF, false)) ?? false;
-  safe(() => Services.prefs.addObserver(ROOM_PREF, bump));
-  undo.push(() => safe(() => Services.prefs.removeObserver(ROOM_PREF, bump)));
+  // Grow on hover, Make room and compact mode's settings (sidebarAway) are
+  // read on every frame syncPosition runs, so they are kept up to date here.
+  const LAYOUT_PREFS = [HOVER_PREF, ROOM_PREF, "zen.view.compact.hide-tabbar", "zen.view.use-single-toolbar"];
+  let hoverSize, makeRoom, compactHides;
+  const syncLayoutPrefs = () => {
+    hoverSize = safe(() => Services.prefs.getStringPref(HOVER_PREF, "2")) ?? "2";
+    makeRoom = safe(() => Services.prefs.getBoolPref(ROOM_PREF, false)) ?? false;
+    compactHides = safe(() => Services.prefs.getBoolPref("zen.view.compact.hide-tabbar", true) ||
+      Services.prefs.getBoolPref("zen.view.use-single-toolbar", false)) ?? true;
+    bump();
+  };
+  syncLayoutPrefs();
+  for (const p of LAYOUT_PREFS) {
+    safe(() => Services.prefs.addObserver(p, syncLayoutPrefs));
+    undo.push(() => safe(() => Services.prefs.removeObserver(p, syncLayoutPrefs)));
+  }
   // In compact mode Zen hides the sidebar once the pointer leaves it, and the
   // preview (growing over the page) sits outside it: pointing at the preview
   // keeps the sidebar open, through Zen's own hover state, and leaving it
   // starts Zen's usual countdown. Docked and other modes are untouched.
+  const SIDEBAR_SHOW_ATTRS = ["zen-has-hover", "zen-user-show", "zen-has-empty-tab",
+    "flash-popup", "has-popup-menu", "movingtab", "zen-compact-mode-active"];
   let holdTimer = null;
   function holdSidebar(hold) {
     const cm = window.gZenCompactModeManager, side = cm?.sidebar;
@@ -696,8 +701,8 @@
       keep();
       // Zen checks the sidebar a moment after the pointer left it and starts
       // its hide countdown then; cancel that one too.
-      holdTimer = setTimeout(() => { if (pipContainer.matches(":hover, :focus-within")) keep(); }, (cm.HOVER_HACK_DELAY || 0) + 40);
-    } else if (!side.matches(":hover")) {
+      holdTimer = setTimeout(() => { if (preview.phase !== "rest") keep(); }, (cm.HOVER_HACK_DELAY || 0) + 40);
+    } else if (!side.matches(":hover") && !sidebarAway()) {
       const ms = safe(() => Services.prefs.getIntPref("zen.view.compact.sidebar-keep-hover.duration", 0)) ?? 0;
       safe(() => cm.flashElement(side, ms, id, "zen-has-hover"));
     }
@@ -710,50 +715,70 @@
   const syncDelay = () => {
     hoverDelay = Math.max(0, parseFloat(safe(() => Services.prefs.getStringPref(DELAY_PREF, "0.3")) ?? "0.3") || 0);
     musicPlayerUI.style.setProperty("--zzmf-hover-delay", hoverDelay + "s");
+    if (preview.phase === "waiting") previewPhase("waiting");
   };
   syncDelay();
   safe(() => Services.prefs.addObserver(DELAY_PREF, syncDelay));
   undo.push(() => {
     safe(() => Services.prefs.removeObserver(DELAY_PREF, syncDelay));
-    clearTimeout(growTimer);
+    resetPreview();
     musicPlayerUI.style.removeProperty("--zzmf-hover-delay");
   });
-  function queueGrowth() {
-    clearTimeout(growTimer);
-    growTimer = setTimeout(() => { pipHover = true; bump(); }, hoverDelay * 1000);
-  }
-  on(pipContainer, "mouseenter", () => {
-    hoverBottom = pipContainer.getBoundingClientRect().bottom;
-    holdSidebar(true);
-    queueGrowth();
-    bump();
-  });
-  on(pipContainer, "mouseleave", () => { clearTimeout(growTimer); pipHover = false; hoverBottom = null; if (!pipContainer.matches(":focus-within")) holdSidebar(false); bump(); });
-  function holdPreview() {
-    holdSidebar(true);
-    clearTimeout(growTimer);
-    if (focusedPreview) return;
-    // Read the in-flight CSS geometry, not the hover animation's destination.
+  // One interaction state owns the delay, anchor and frozen control bounds.
+  // Read CSS layout coordinates: getBoundingClientRect includes the entrance
+  // transform, and feeding it back into `bottom` applies that movement twice.
+  function previewBounds() {
     const s = getComputedStyle(pipContainer);
-    focusedPreview = { width: parseFloat(s.width), height: parseFloat(s.height),
+    return { width: parseFloat(s.width), height: parseFloat(s.height),
       left: parseFloat(s.left), bottom: window.innerHeight - parseFloat(s.bottom) };
-    pipContainer.setAttribute("zzmf-interacting", "");
+  }
+  function previewPhase(phase) {
+    if (phase !== "rest" && getComputedStyle(pipContainer).visibility !== "visible") phase = "rest";
+    const wasRest = preview.phase === "rest";
+    clearTimeout(growTimer);
+    growTimer = null;
+    preview.phase = phase;
+    if (phase !== "held") preview.bounds = null;
+    if (phase === "rest") { preview.bottom = null; preview.enteredAt = 0; }
+    pipContainer.toggleAttribute("zzmf-interacting", phase === "held");
+    if (phase === "waiting") growTimer = setTimeout(() => previewPhase("grown"),
+      Math.max(0, preview.enteredAt + hoverDelay * 1000 - performance.now()));
+    // The sidebar is held and released only as the preview leaves rest or
+    // returns to it: each release flashes the compact sidebar open.
+    if (wasRest !== (phase === "rest")) holdSidebar(phase !== "rest");
+    bump();
+  }
+  function resetPreview() { previewPhase("rest"); }
+  on(pipContainer, "mouseenter", () => {
+    preview.enteredAt = performance.now();
+    preview.bottom ??= previewBounds().bottom;
+    if (preview.phase !== "held") previewPhase("waiting");
+  });
+  on(pipContainer, "mouseleave", event => {
+    // Clicking a button leaves DOM focus behind. That is not pointer hover:
+    // only an unfinished press/drag may keep its target fixed after exit.
+    if (preview.phase !== "held" || !(event.buttons & 1)) resetPreview();
+  });
+  function holdPreview() {
+    if (preview.phase === "held") return;
+    preview.bounds = previewBounds();
+    preview.bottom = preview.bounds.bottom;
+    previewPhase("held");
     lastTop = lastLeft = lastWidth = -1;
     syncPosition();
   }
   on(pipContainer, "focusin", holdPreview);
-  function releasePreview() {
-    if (pipContainer.matches(":focus-within") || controls.matches(":hover")) return;
-    focusedPreview = null;
-    pipContainer.removeAttribute("zzmf-interacting");
-    if (!pipContainer.matches(":hover")) holdSidebar(false);
-    else if (!pipHover) queueGrowth();
-    bump();
+  function releasePreview(event) {
+    if (preview.phase === "rest" || (event?.buttons & 1) || controls.matches(":hover")) return;
+    if (!pipContainer.matches(":hover")) resetPreview();
+    else previewPhase(performance.now() >= preview.enteredAt + hoverDelay * 1000 ? "grown" : "waiting");
   }
   on(pipContainer, "focusout", e => {
     if (pipContainer.contains(e.relatedTarget)) return;
     releasePreview();
   });
+  on(window, "pointerup", releasePreview, true);
+  on(window, "pointercancel", () => { if (preview.phase === "held") resetPreview(); }, true);
   on(pipContainer, "click", event => {
     if (!clickToTab() || event.button !== 0) return;
     const browser = safe(() => sourceBC?.top?.embedderElement);
@@ -773,6 +798,7 @@
   // Hover continues the same growth over canvas and controls. Freeze only on
   // press/focus, so moving across a button cannot strand an intermediate size.
   on(controls, "pointerdown", holdPreview);
+  on(controls, "keydown", holdPreview);
   on(controls, "mouseleave", releasePreview);
   const control = (cls, label, act) => {
     const b = document.createElement("button");
@@ -814,7 +840,9 @@
     pipContainer.toggleAttribute("zzmf-muted", muted); nameControl(mute, muted ? "Unmute tab" : "Mute tab");
   };
   const syncControls = () => {
-    pipContainer.toggleAttribute("zzmf-controls", safe(() => Services.prefs.getBoolPref(CONTROLS_PREF, true)) ?? true);
+    const enabled = safe(() => Services.prefs.getBoolPref(CONTROLS_PREF, true)) ?? true;
+    pipContainer.toggleAttribute("zzmf-controls", enabled);
+    if (!enabled) { restorePreviewFocus(); resetPreview(); }
     for (const b of [back, forward]) b.dataset.step = String(seekStep());
     nameControl(back, `Back ${seekStep()} seconds`); nameControl(forward, `Forward ${seekStep()} seconds`);
   };
@@ -847,10 +875,6 @@
   function updateControls(state) {
     lastPlaybackState = state;
     const { time: t, duration: d, paused } = state;
-    if (Number.isFinite(state.volume) && state.volume >= 0 && state.volume <= 1) {
-      const value = String(state.muted ? 0 : state.volume * 100);
-      if (pipContainer.getAttribute("data-zz-volume") !== value) pipContainer.setAttribute("data-zz-volume", value);
-    } else pipContainer.removeAttribute("data-zz-volume");
     pipContainer.toggleAttribute("zzmf-paused", !!paused);
     nameControl(play, paused ? "Play" : "Pause");
     const live = !(Number.isFinite(d) && d > 0);
@@ -886,11 +910,7 @@
     on(musicPlayerUI, ev, bump);
   }
 
-  safe(() => {
-    const ro = watching(new ResizeObserver(bump));
-    ro.observe(musicPlayerUI);
-    ro.observe(document.documentElement);
-  });
+  watching(new ResizeObserver(bump)).observe(musicPlayerUI);
 
   watching(new MutationObserver(bump)).observe(musicPlayerUI, {
     attributes: true,
@@ -900,14 +920,10 @@
   // Compact mode shows the hidden sidebar while one of these is on it (the
   // same test Glassflow uses); recheck as they change, so copying stops while
   // the sidebar is away and resumes as it comes back.
-  const SIDEBAR_SHOW_ATTRS = ["zen-has-hover", "zen-user-show", "zen-has-empty-tab",
-    "flash-popup", "has-popup-menu", "movingtab", "zen-compact-mode-active"];
   function sidebarAway() {
     const root = document.documentElement, toolbox = document.getElementById("navigator-toolbox");
     if (root.getAttribute("zen-compact-mode") !== "true" || !toolbox || root.hasAttribute("customizing")) return false;
-    const hides = safe(() => Services.prefs.getBoolPref("zen.view.compact.hide-tabbar", true) ||
-      Services.prefs.getBoolPref("zen.view.use-single-toolbar", false)) ?? true;
-    return hides && root.getAttribute("zen-renaming-tab") !== "true" &&
+    return compactHides && root.getAttribute("zen-renaming-tab") !== "true" &&
       !SIDEBAR_SHOW_ATTRS.some(a => toolbox.hasAttribute(a));
   }
   safe(() => {
@@ -1006,9 +1022,10 @@
       }
       const source = sourceForToggle(nativeButton);
       const showing = source?.bc.id === sourceBC?.id && !userHidden;
-      toggle.setAttribute("data-zz-video-visible", String(showing));
+      // Runs on every media card update: write only what changed.
+      const put = (name, value) => { if (toggle.getAttribute(name) !== value) toggle.setAttribute(name, value); };
       const label = showing ? "Hide sidebar video" : "Show this video in sidebar";
-      toggle.setAttribute("aria-label", label); toggle.setAttribute("tooltiptext", label);
+      put("aria-label", label); put("tooltiptext", label);
       const icon = showing ? EYE_URL : EYE_OFF_URL;
       if (toggle.style.listStyleImage !== icon) {
         toggle.style.listStyleImage = icon;
@@ -1030,7 +1047,6 @@
     btn.removeAttribute("zzmf-parked"); parked.delete(btn);
   }
   function parkNativePipButton(btn) {
-    if (!btn || btn.hasAttribute("zzmf-toggle")) return;
     if (!parked.has(btn)) parked.set(btn, { display: btn.style.getPropertyValue("display"),
       priority: btn.style.getPropertyPriority("display"), aria: btn.getAttribute("aria-hidden") });
     if (btn.getAttribute("zzmf-parked") !== "true") {
@@ -1051,9 +1067,7 @@
     btn.classList.add("zen-sidebar-pip-toggle");
     btn.removeAttribute("zzmf-parked");
     btn.setAttribute("zzmf-toggle", "true");
-    btn.setAttribute("tooltiptext", "Toggle sidebar PiP");
     for (const a of STRIPPED_ATTRS) btn.removeAttribute(a);
-    btn.style.listStyleImage = userHidden ? EYE_OFF_URL : EYE_URL;
     btn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -1084,9 +1098,8 @@
       }
     }
 
-    const nativeButtons = musicPlayerUI.querySelectorAll(PIP_BUTTON_SELECTORS);
-    for (const nativeButton of nativeButtons) {
-      if (nativeButton.hasAttribute("zzmf-toggle") || !sourceForToggle(nativeButton)) continue;
+    for (const nativeButton of musicPlayerUI.querySelectorAll(".zen-media-pip-button")) {
+      if (!sourceForToggle(nativeButton)) continue;
       const existingToggle = togglesByNativeButton.get(nativeButton);
       if (existingToggle?.isConnected) {
         parkNativePipButton(nativeButton);
@@ -1103,8 +1116,13 @@
   }
 
   placeToggles();
-  watching(new MutationObserver(() => {
-    placeToggles();
+  // The bar's own ticking (time and title text) and this mod's writes to its
+  // toggles change nothing a toggle depends on.
+  const affectsToggles = r => r.type === "childList"
+    ? [...r.addedNodes, ...r.removedNodes].some(n => n.nodeType === 1)
+    : !r.target.hasAttribute?.("zzmf-toggle");
+  watching(new MutationObserver(records => {
+    if (records.some(affectsToggles)) placeToggles();
   })).observe(musicPlayerUI, {
     attributes: true,
     attributeFilter: ["hidden", "style", "class", "collapsed"],
@@ -1166,7 +1184,7 @@
       !sourceTabActive &&
       browserWindowActive &&
       (!userHidden || captionsWhenPipHidden) && !downloadsCovering();
-    info.setProcessingActive?.(
+    info.setProcessingActive(
       frameProcessingActive || captionProcessingActive,
       captionMode,
       captionProcessingActive,
@@ -1184,7 +1202,7 @@
     sourceEpoch++;
     for (const id of sourceFrames.keys()) cancelAnimationFrame(id);
     for (const id of sourceTimers.keys()) clearTimeout(id);
-    sourceFrames.clear(); sourceTimers.clear(); animateOutTimer = null; animating = false;
+    sourceFrames.clear(); sourceTimers.clear(); animating = false;
   }
   function sourceFrame(fn) {
     if (reducedMotion.matches) { fn(); return null; }
@@ -1252,16 +1270,16 @@
       _notifyTickState();
     },
     isSource(id, owner) { return actorRegistry.get(id)?.owner === owner; },
+    // The actor follows registering with offerVideo and unregistering with
+    // notifySourceStopped, and those place the toggles.
     registerSource(id, callbacks) {
       const old = actorRegistry.get(id);
-      if (old && old.owner !== callbacks.owner) { old.stopTick(); old.setProcessingActive?.(false, "off", false); }
+      if (old && old.owner !== callbacks.owner) { old.stopTick(); old.setProcessingActive(false, "off", false); }
       actorRegistry.set(id, callbacks);
-      placeToggles();
     },
     unregisterSource(id, owner) {
       if (actorRegistry.get(id)?.owner !== owner) return false;
       actorRegistry.delete(id);
-      placeToggles();
       return true;
     },
     chooseSource(id = null) {
@@ -1269,7 +1287,7 @@
       chosenSource = id;
       if (id !== null) setUserHidden(false);
       const next = id === null ? [...availableSources.values()].find(s => isTabPlaying(s.bc)) || availableSources.values().next().value : availableSources.get(id);
-      if (next) { this._activateSource(next.width, next.height, next.bc); _notifyTickState(); }
+      if (next) this._activateSource(next.width, next.height, next.bc);
       return true;
     },
     offerVideo(width, height, browsingContext) {
@@ -1290,49 +1308,11 @@
       this._activateSource(width, height, browsingContext);
     },
     notifySourceStopped(bc) {
-      const old = actorRegistry.get(bc.id); old?.stopTick(); old?.setProcessingActive?.(false, "off", false);
+      const old = actorRegistry.get(bc.id); old?.stopTick(); old?.setProcessingActive(false, "off", false);
       availableSources.delete(bc.id);
       placeToggles();
       if (chosenSource === bc.id) chosenSource = null;
-
-      if (sourceBC && sourceBC.id === bc.id) {
-        if (availableSources.size > 0) {
-          this._activateSourceAfterHide();
-        } else {
-          this.hideVideo();
-        }
-      }
-    },
-    _activateSourceAfterHide() {
-      cancelSourceMotion();
-      if (animateOutTimer) return;
-      const s = pipContainer.style;
-      animating = true;
-      s.transition = "none";
-      s.opacity = userHidden ? "0" : "1";
-      s.transform = "scale(1) translateY(0)";
-      void pipContainer.getBoundingClientRect();
-
-      sourceFrame(() => {
-        s.transition = ANIM_TRANSITION;
-        sourceFrame(() => {
-          s.opacity = "0";
-          s.transform = "scale(0.9) translateY(8px)";
-        });
-      });
-
-      animateOutTimer = sourceDelay(() => {
-        animateOutTimer = null;
-        animating = false;
-        sourceBC = null;
-        isStreaming = false;
-        stopTracking();
-
-        if (availableSources.size > 0) {
-          const next = availableSources.get(chosenSource) || availableSources.values().next().value;
-          this._activateSource(next.width, next.height, next.bc);
-        }
-      }, CONFIG.ANIM_MS + 60);
+      if (sourceBC?.id === bc.id) this.hideVideo();
     },
     _activateSource(width, height, browsingContext) {
       cancelSourceMotion();
@@ -1343,10 +1323,12 @@
       const sourceChanged =
         previousSourceBC && nextSourceBC && previousSourceBC.id !== nextSourceBC.id;
       if (sourceChanged) {
+        resetPreview();
         const previous = actorRegistry.get(previousSourceBC.id);
-        previous?.setProcessingActive?.(false, captionMode, false);
+        previous?.setProcessingActive(false, captionMode, false);
         previous?.stopTick();
         clearCaptionImmediately();
+        clearCanvas();
       }
       sourceBC = nextSourceBC;
       syncToggleIcons();
@@ -1359,14 +1341,6 @@
         } catch (_) {
           sourceTabActive = false;
         }
-      }
-
-      if (animateOutTimer) {
-        // We're pre-empting an in-flight hide to re-activate; we're no longer
-        // animating out, so clear the flag or it stays stuck true.
-        clearTimeout(animateOutTimer);
-        animateOutTimer = null;
-        animating = false;
       }
 
       const wasStreaming = isStreaming;
@@ -1385,11 +1359,7 @@
       s.display = "block";
       s.visibility = userHidden || sourceTabActive ? "hidden" : "visible";
 
-      if (sourceTabActive) {
-        isStreaming = true;
-        animating = false;
-        startTracking();
-      } else {
+      if (!sourceTabActive) {
         animating = true;
         s.transition = "none";
         s.opacity = "0";
@@ -1415,11 +1385,7 @@
     hideVideo() {
       cancelSourceMotion();
       log("hideVideo");
-      if (!isStreaming && !animating) return;
-      if (animateOutTimer) {
-        clearTimeout(animateOutTimer);
-        animateOutTimer = null;
-      }
+      if (!isStreaming) return;
 
       animating = true;
       const s = pipContainer.style;
@@ -1436,10 +1402,9 @@
         });
       });
 
-      animateOutTimer = sourceDelay(() => {
-        animateOutTimer = null;
+      sourceDelay(() => {
         animating = false;
-        safe(() => canvasCtx.clearRect(0, 0, canvasEl.width, canvasEl.height));
+        clearCanvas();
         clearCaptionImmediately();
         sourceBC = null;
         s.display = "none";
@@ -1451,8 +1416,8 @@
         lastCaptionOpacity = NaN;
         lastVisible = null;
 
-        // A different source may have been queued while this hide was running;
-        // drain it so it isn't stranded until the next pause/play.
+        // A source still waiting, queued behind this one or offered during the
+        // hide, takes over rather than waiting for its next pause/play.
         if (availableSources.size > 0) {
           const next = availableSources.get(chosenSource) || availableSources.values().next().value;
           this._activateSource(next.width, next.height, next.bc);
@@ -1465,7 +1430,7 @@
     if (event.target.id !== "tabContextMenu") return;
     for (const item of sourceItems) item.remove(); sourceItems.clear();
     const tab = event.target.triggerNode?.closest?.(".tabbrowser-tab") || event.target.anchorNode?.closest?.(".tabbrowser-tab") || window.TabContextMenu?.contextTab;
-    if (!tab?.isConnected || tab.closing || tab.closest?.("zen-library")) return;
+    if (!tab?.isConnected || tab.closing || tab.closest?.("zen-library, [zen-library-copy]")) return;
     const sources = [...availableSources.values()].filter(source => usableSource(source, tab));
     for (const [i, source] of sources.entries()) {
       const owner = actorRegistry.get(source.bc.id)?.owner;
@@ -1499,19 +1464,19 @@
       window.ZzMediaflowController.notifySourceStopped(bc);
   }, true);
 
-  function instantiateActorForOpenTabs() {
+  function scanOpenDocuments() {
     try {
       for (const browser of gBrowser?.browsers || []) {
         const pending = [browser.browsingContext];
         while (pending.length) {
           const bc = pending.pop();
           if (!bc) continue;
-          safe(() => bc.currentWindowGlobal?.getActor("ZzMediaflow"));
+          safe(() => bc.currentWindowGlobal?.getActor("ZzMediaflow").sendAsyncMessage("ZenPiP:Scan"));
           safe(() => pending.push(...bc.children));
         }
       }
     } catch (e) {
-      warn("Could not initialize actors for open tabs:", e);
+      warn("Could not scan open tabs:", e);
     }
   }
 
@@ -1568,85 +1533,90 @@
       err("Failed to register JSWindowActor:", e);
   }
 
-  // Actor registration is process-global and lazy. Force an instance for
-  // already-open documents so restored playback is discovered, then retry as
-  // the registration reaches existing content processes.
-  instantiateActorForOpenTabs();
-  for (const ms of [500, 1500]) {
-    const t = setTimeout(instantiateActorForOpenTabs, ms);
-    undo.push(() => clearTimeout(t));
-  }
+  // A page's actor starts with the first event or message it gets, and a
+  // video already playing (restored, or playing before this window's copy
+  // loaded) sends no more events: ask every open document to look. The
+  // registration reaches each content process ahead of these messages.
+  scanOpenDocuments();
+
+  // Sine writes a setting's default only once its settings page is built,
+  // and -moz-pref() in userChrome.css has no fallback: every declared default
+  // goes on the default branch, where any value already set still wins.
+  fetch("resource://zz-mediaflow/preferences.json").then(r => r.json()).then(rows => {
+    const defaults = Services.prefs.getDefaultBranch("");
+    for (const { property, defaultValue } of rows) {
+      if (typeof defaultValue === "boolean") safe(() => defaults.setBoolPref(property, defaultValue));
+      else if (typeof defaultValue === "string") safe(() => defaults.setStringPref(property, defaultValue));
+    }
+  }).catch(e => warn("Could not read the default settings:", e));
 
   // ---- music bar ----------------------------------------------------------
   // Zen measures the player's height once, when it appears, and floats the
   // hover rows above that height. Always expanded, those rows are part of the
   // player, so measure again whenever the front card's size changes.
-  const mediaBar = document.getElementById("zen-media-controls-toolbar");
   const EXPANDED_PREF = "zzmedia.bar.always-expanded";
   const remeasure = () => {
-    if (retired || !mediaBar || mediaBar.hidden || mediaBar.matches(":hover")) return;
+    if (retired || musicPlayerUI.hidden || musicPlayerUI.matches(":hover")) return;
     const front = window.gZenMediaController?.frontCard?.element;
     if (front && !front.matches("[zen-removing], [zen-hiding]")) {
-      mediaBar.style.setProperty("--zen-media-collapsed-height", front.getBoundingClientRect().height + "px");
+      musicPlayerUI.style.setProperty("--zen-media-collapsed-height", front.getBoundingClientRect().height + "px");
     }
   };
-  if (mediaBar) {
-    let remeasureTimer = null;
-    const sizes = new ResizeObserver(remeasure);
-    const watchCards = () => {
-      sizes.disconnect();
-      if (retired || !Services.prefs.getBoolPref(EXPANDED_PREF, false)) return;
-      const front = window.gZenMediaController?.frontCard?.element;
-      if (front && front.isConnected && !front.matches("[zen-removing], [zen-hiding]")) sizes.observe(front);
-      remeasure();
-    };
-    const cards = new MutationObserver(watchCards);
-    const onPref = () => {
-      clearTimeout(remeasureTimer); remeasureTimer = null;
-      sizes.disconnect(); cards.disconnect();
-      if (retired) return;
-      if (Services.prefs.getBoolPref(EXPANDED_PREF, false)) {
-        cards.observe(mediaBar, { childList: true, subtree: true, attributes: true,
-          attributeFilter: ["zen-removing", "zen-hiding"] });
-        watchCards();
-      }
-      // Folding still needs one settled native height, with no ongoing subscriptions.
-      remeasureTimer = setTimeout(() => { remeasureTimer = null; remeasure(); }, 350);
-    };
-    Services.prefs.addObserver(EXPANDED_PREF, onPref);
-    onPref();
-    undo.push(() => {
-      Services.prefs.removeObserver(EXPANDED_PREF, onPref);
-      sizes.disconnect(); cards.disconnect(); clearTimeout(remeasureTimer);
-    });
+  let remeasureTimer = null;
+  const sizes = new ResizeObserver(remeasure);
+  const watchCards = () => {
+    sizes.disconnect();
+    if (retired || !Services.prefs.getBoolPref(EXPANDED_PREF, false)) return;
+    const front = window.gZenMediaController?.frontCard?.element;
+    if (front && front.isConnected && !front.matches("[zen-removing], [zen-hiding]")) sizes.observe(front);
+    remeasure();
+  };
+  const cards = new MutationObserver(watchCards);
+  const onPref = () => {
+    clearTimeout(remeasureTimer); remeasureTimer = null;
+    sizes.disconnect(); cards.disconnect();
+    if (retired) return;
+    if (Services.prefs.getBoolPref(EXPANDED_PREF, false)) {
+      cards.observe(musicPlayerUI, { childList: true, subtree: true, attributes: true,
+        attributeFilter: ["zen-removing", "zen-hiding"] });
+      watchCards();
+    }
+    // Folding still needs one settled native height, with no ongoing subscriptions.
+    remeasureTimer = setTimeout(() => { remeasureTimer = null; remeasure(); }, 350);
+  };
+  Services.prefs.addObserver(EXPANDED_PREF, onPref);
+  onPref();
+  undo.push(() => {
+    Services.prefs.removeObserver(EXPANDED_PREF, onPref);
+    sizes.disconnect(); cards.disconnect(); clearTimeout(remeasureTimer);
+  });
 
-    // Zen makes a card only as a tab starts making sound, and only if the
-    // tab's media controller is active at that moment. A video whose
-    // controller wakes a little later, or whose card went with a page change
-    // while the sound played on, is left with no bar. Ask Zen again for a
-    // while after each sound change or lost card; it skips a tab that
-    // already has a card.
-    let tries = 0, retry = null;
-    const askZen = () => {
-      retry = null;
-      if (retired) return;
-      const playing = document.querySelectorAll(".tabbrowser-tab[soundplaying]:not(zen-library *)");
-      if (playing.length <= mediaBar.querySelectorAll(":scope > .zen-media-card.playing").length) return;
-      for (const tab of playing) {
-        const c = safe(() => tab.linkedBrowser.browsingContext.mediaController);
-        if (c?.isActive && c.isPlaying) safe(() => window.gZenMediaController.onAudioPlaybackStarted(tab.linkedBrowser));
-      }
-      if (++tries < 8) retry = setTimeout(askZen, 2000);
-    };
-    const askSoon = () => { tries = 0; clearTimeout(retry); retry = setTimeout(askZen, 1500); };
-    const onSound = e => { if (e.detail?.changed?.includes("soundplaying")) askSoon(); };
-    window.addEventListener("TabAttrModified", onSound);
-    watching(new MutationObserver(records => {
-      if (records.some(r => [...r.removedNodes].some(n => n.classList?.contains("zen-media-card")))) askSoon();
-    })).observe(mediaBar, { childList: true });
-    askSoon();
-    undo.push(() => { window.removeEventListener("TabAttrModified", onSound); clearTimeout(retry); });
-  }
+  // Zen makes a card only as a tab starts making sound, and only if the
+  // tab's media controller is active at that moment. A video whose
+  // controller wakes a little later, or whose card went with a page change
+  // while the sound played on, is left with no bar. Ask Zen again for a
+  // while after each sound change or lost card; it skips a tab that
+  // already has a card.
+  let tries = 0, retry = null;
+  const askZen = () => {
+    retry = null;
+    if (retired) return;
+    const playing = document.querySelectorAll(".tabbrowser-tab[soundplaying]:not(zen-library *)");
+    if (playing.length <= musicPlayerUI.querySelectorAll(":scope > .zen-media-card.playing").length) return;
+    for (const tab of playing) {
+      const c = safe(() => tab.linkedBrowser.browsingContext.mediaController);
+      if (c?.isActive && c.isPlaying) safe(() => window.gZenMediaController.onAudioPlaybackStarted(tab.linkedBrowser));
+    }
+    if (++tries < 8) retry = setTimeout(askZen, 2000);
+  };
+  const askSoon = () => { tries = 0; clearTimeout(retry); retry = setTimeout(askZen, 1500); };
+  const onSound = e => { if (e.detail?.changed?.includes("soundplaying")) askSoon(); };
+  window.addEventListener("TabAttrModified", onSound);
+  watching(new MutationObserver(records => {
+    if (records.some(r => [...r.removedNodes].some(n => n.classList?.contains("zen-media-card")))) askSoon();
+  })).observe(musicPlayerUI, { childList: true });
+  askSoon();
+  undo.push(() => { window.removeEventListener("TabAttrModified", onSound); clearTimeout(retry); });
 
   // Retire: stop every source this window drives, put Zen's own controls
   // back, remove what was added, and release the actor once no window
@@ -1655,11 +1625,11 @@
   const retire = () => {
     if (retired) return;
     retired = true;
-    for (const info of actorRegistry.values()) safe(() => { info.stopTick(); info.setProcessingActive?.(false, "off", false); });
+    for (const info of actorRegistry.values()) safe(() => { info.stopTick(); info.setProcessingActive(false, "off", false); });
     actorRegistry.clear();
     availableSources.clear(); chosenSource = null;
     for (const fn of undo.splice(0).reverse()) safe(fn);
-    for (const t of [animateOutTimer, captionHideTimer, captionExitTimer]) clearTimeout(t);
+    clearCaptionTimers();
     isStreaming = false;
     activeUntil = 0;
     safe(clearReserve);
@@ -1668,7 +1638,7 @@
       unparkNativePipButton(nativeButton);
     }
     togglesByNativeButton.clear();
-    mediaBar?.style.removeProperty("--zen-media-collapsed-height");
+    musicPlayerUI.style.removeProperty("--zen-media-collapsed-height");
     for (const el of [styleEl, pipContainer, captionContainer]) el.remove();
     delete window.ZzMediaflowController;
     delete window.__zzMediaflowLoaded;

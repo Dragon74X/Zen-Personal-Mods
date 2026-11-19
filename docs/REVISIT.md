@@ -1,7 +1,6 @@
-# Deferred decisions
+# Reviewed decisions and evidence
 
-Items reviewed in October 2026 and deliberately left unchanged for now. Each
-entry says what is true today, what would change, and what to check first.
+Historical review entries from October 2026. The [completion audit](FIXES-2026-10-30-COMPLETION-AUDIT.md) records the later fixes and benchmarks; unconfirmed behavior proposals remain separate from implementation work.
 
 ## Glassflow: native strip blur and the snapshot sampler (settled)
 
@@ -9,9 +8,16 @@ entry says what is true today, what would change, and what to check first.
   "One blur: Zen's own acrylic"). The see-through-page blur was rebuilt in
   `18bb149` (6 October 2026) with an `feFlood` mask instead of `feImage`, and
   is attached only while the compact sidebar shows over a see-through page.
-- **Still open:** not measured on a GPU machine. The mask is a rectangle, so
-  the panel's rounded corners may show a sliver of blurred page (the
-  `ponytail:` note in `glassflow.uc.js` says what to do if it does).
+- **Updated:** the [Zen 1.24 Windows pixel comparison](AUDIT-2026-10-30-NATIVE-BLUR-PIXELS.md)
+  covers 32 cases without capture errors. Native blur covers the tested opaque
+  and transparent pages. Glassflow 3.74.17 defaults the existing compatibility
+  filter off and removes its resources while off; saved choices remain intact.
+- **Updated:** Glassflow 3.74.25 repaints the page under the compact sidebar once
+  per changed page as it opens, after a Windows report that the first open after
+  a page load showed no blur ([multi-window lag notes](PERF-2026-11-10-MULTIWINDOW.md)).
+- **Still open:** other transient redraw cases and other renderer/theme combinations.
+  The retained fallback mask is a rectangle, so rounded panel corners may show
+  a sliver of blurred page (the `ponytail:` note describes the limit).
 - **Recorded:** 9 October 2026 audit ([AUDIT-2026-10-09.md](AUDIT-2026-10-09.md)).
 
 ## Glassflow: blur behind overlays
@@ -38,16 +44,12 @@ entry says what is true today, what would change, and what to check first.
   the X display (Marionette's own screenshots skip `backdrop-filter`); measure
   edge detail inside a box against the same area without it.
 
-## Tab Router: grouped tabs and explicit Zen domain routes
+## Tab Router: grouped tabs and explicit Zen domain routes (fixed)
 
-- **Today:** a tab already filed under its target group path stays in its
-  workspace even when an explicit Zen "route domain to space" rule names another
-  workspace. With *Tabs already in a group* on (default), that matches the
-  documented contract; with it off, rules are meant to override placement.
-- **Change options:** relocate only for explicit Zen routes, either only when
-  *Tabs already in a group* is off or behind a new setting.
-- **Risk:** moving a tab out of a group in another workspace creates a
-  same-named group in the routed workspace; *Sort all* could do that in bulk.
+Tab Router 1.37.10 now follows explicit Zen workspace routes when **Tabs already
+in a group** is Off, even if the folder name already matches. On preserves the
+existing grouped-tab contract. Group creation Off with a missing destination
+preserves membership/workspace. Node and native four-case regressions pass.
 
 ## Tab Router: container chosen by group majority
 
@@ -58,14 +60,14 @@ entry says what is true today, what would change, and what to check first.
   choose a container; make the majority fallback optional or remove it.
 - **Trade-off:** mixed-container groups stay mixed instead of converging.
 
-## Zen Turbo: default-on packs and startup preconnections
+## Zen Turbo: measured packs and startup preconnections
 
-- **Today:** the network, predictor, session-store and media packs, hover
-  warmup and startup history warmup default on. `ZenTurbo.stats()` counts
-  navigation matches; no time saved has been measured.
-- **Change:** default the packs and startup warmup off; keep hover warmup and
-  workspace-switch smoothing on. Only profiles that never set the preference
-  would change; packs already applied stay applied until turned off.
+The controlled stock/pack comparison is now implemented in
+`tools/zen-turbo-benchmark.py`; results and limits are in the completion audit.
+The network fixture improved, median media seek did not, and no blanket default
+change was made. Zen Turbo 1.13.6 fixes the demonstrated 40s-native/30s-override
+session interval regression. Startup-history preconnection savings on real
+workloads remain unmeasured; request counts are not time saved.
 
 ## Already settled
 

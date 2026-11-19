@@ -140,6 +140,14 @@ behind the whole sidebar, and every see-through tab shows it; a second blur per
 tab cost a compositor pass each and added nothing you could see. Docked, nothing
 moves behind the sidebar, so there is nothing to blur.
 
+A loading tab carries Blended Addressbar's "glow" loading bar along its bottom
+edge as a light passing through it: a faint tint, and a thin line with a
+fading tail and a bright, glowing head, in that mod's loading colour (your Zen
+accent without it). The head enters from beyond the left edge, moves as the
+page loads (starting at 8%, creeping on, following real progress when the page
+reports it) and leaves past the right edge when it is done; the tab hides both
+ends. A folder whose own page (Groupflow) is loading shows it on its header.
+
 Turning on **Detailed rim control** (under *Tabs, shared*) exposes per-state rim
 colour, edge, highlight thickness and ring thickness. Without it the rim uses
 one white 1px top highlight and 1px ring per state.
@@ -195,7 +203,15 @@ down and let this own it.
 | Customise Zen's blur | off | Off keeps Glassflow's existing blur preset. On sets the four values below, see [Zen's blur](#zens-blur). Shown whether or not sidebar styling is on |
 | Blur strength / brightness / saturation / contrast | `42px` / `0.25` / `1.1` / `1` | Custom preset; native Zen 1.23 brightness is `0.5` |
 | Darken the sidebar's edges | Soft | Off, Soft, Medium or Strong: a shade painted just inside the compact sidebar's edges |
-| Blur see-through pages too | on | A page made see-through (Transparent Zen's transparent tint, Zen Internet) leaves the sidebar's blur nothing to blur, so its text showed through sharp. While the compact sidebar shows over such a page, the page itself is blurred under it. Pages with a solid background (Zen's default) get Zen's blur alone |
+| Extra blur for see-through pages (compatibility) | off | Adds a page filter only if native blur leaves transparent page content sharp under the compact sidebar. Previously called **Blur see-through pages too**; saved values are preserved |
+
+With native Zen acrylic enabled before startup, the Zen 1.24 Windows pixel
+comparison blurred opaque and transparent pages without the extra page filter.
+Leave the compatibility option off on that configuration. Turning it off also
+removes its SVG, geometry tracking and listeners; it does not change the native
+blur recipe or its custom values. An existing saved **On** stays on until you
+switch it off. Other renderers and themes can still use the fallback.
+See the [pixel results and limits](../docs/AUDIT-2026-10-30-NATIVE-BLUR-PIXELS.md).
 
 ### Workspaces
 
@@ -512,12 +528,8 @@ Tab tinting is painted as a `background-image` on `.tab-background` rather than
 on a pseudo-element. Zen and Arc both already use `.tab-background::before` and
 `::after`, so a layer built there is overridden by their opacity rules.
 
-Setting descriptions are collapsed into hover-revealed info badges. Sine has no
-tooltip field in `preferences.json`, so each explanation is written in
-`*italics*` — `formatLabel()` turns that into an `<i>` element, which
-`userContent.css` restyles as a badge. Every rule is scoped to
-`[id^="zzglass-"]`, matching only this mod's preference rows, so other mods'
-settings panels are untouched.
+Setting descriptions are collapsed into hover-revealed info badges by the
+settings wrapper every mod here shares (`sine-update-guard.sys.mjs`).
 
 `glassflow.uc.js` initializes string and numeric CSS variables synchronously,
 tracks native blur geometry and restores
@@ -525,8 +537,7 @@ the Motion animation override. Current Sine also injects string variables,
 asynchronously; Glassflow additionally covers numeric dropdowns. Booleans use
 `-moz-pref()` directly.
 
-Runtime checked in Zen 1.22.2b (Firefox 156). See the
-[audit](../docs/AUDIT-2026-09-18.md) for source versions and rendering limits.
+Written against Zen 1.24.2b (Firefox 160).
 
 ## License
 
@@ -554,7 +565,8 @@ With state motion enabled, the closed URL bar stays anchored so Arc’s hover
 lift cannot repeatedly move its hit target away from the pointer. Zen’s open
 URL bar and search-mode motion keep their transforms.
 The close glyph fades into its fixed target (the favicon's slot on the left, Zen's
-own slot on the right) while the favicon and title, or the label end, make room.
+own slot on the right) while the favicon and title, or the label end, make room;
+Zen 1.24.1's two-line X also grows in from 65% without resizing the target.
 Loaded and unloaded tabs use the same **Motion feel** for that spacing, including
 hover exit. Unloaded opacity and greyscale remain independent appearance settings.
 Selection switches immediately; the existing title moves 4px sideways, rebounds

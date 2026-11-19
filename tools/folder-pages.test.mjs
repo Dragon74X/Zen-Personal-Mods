@@ -1,0 +1,218 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import vm from "node:vm";
+import { test } from "node:test";
+
+const groupflow = await readFile(new URL("../groupflow/groupflow.uc.js", import.meta.url), "utf8");
+const router = await readFile(new URL("../tab-router/tab-router.uc.js", import.meta.url), "utf8");
+
+function node(attrs = {}, extra = {}) {
+  const a = new Map(Object.entries(attrs));
+  return { isConnected: true, closing: false, matches: () => true, closest: () => null,
+    getAttribute: k => a.get(k) ?? null, hasAttribute: k => a.has(k), setAttribute: (k, v) => a.set(k, String(v)),
+    removeAttribute: k => a.delete(k), toggleAttribute: (k, on = !a.has(k)) => { if (on) a.set(k, ""); else a.delete(k); return on; }, ...extra };
+}
+// Groupflow's folder pages, run with their tabs and groups. A group's tabs
+// include its subfolders' tabs, as Zen's do.
+function folderPages(tabs, groups, TabRouter = null, removeTab = () => {}, browser = {}) {
+  const inside = (t, g) => { for (let p = t.group; p; p = p.group) if (p === g) return true; return false; };
+  for (const g of groups) Object.defineProperty(g, "tabs", { get: () => tabs.filter(t => inside(t, g)) });
+  const start = groupflow.indexOf("  const PAGE_KEY =");
+  const source = groupflow.slice(start, groupflow.indexOf("\n  }\n", groupflow.indexOf("  function startFolderPages() {")) + 4);
+  const frames = [], events = [];
+  let progress = null;
+  const ctx = vm.createContext({ URL, URLSearchParams, console, PREFIX: "zzgroup.", bool: (_k, d) => d,
+    readGroupData: () => null, writeGroupData() {}, isCopy: () => false,
+    SessionStore: { getCustomTabValue: () => "", setCustomTabValue() {}, deleteCustomTabValue() {} },
+    Services: { prefs: { addObserver() {}, removeObserver() {} } }, CustomEvent: class { constructor(type) { this.type = type; } },
+    requestAnimationFrame: fn => frames.push(fn), cancelAnimationFrame() {},
+    document: { querySelectorAll: () => groups },
+    gBrowser: { ...browser, tabs, removeTab, addTabsProgressListener: listener => { progress = listener; },
+      getTabForBrowser: browser => tabs.find(t => t.linkedBrowser === browser) },
+    window: { Groupflow: {}, TabRouter, addEventListener() {}, removeEventListener() {}, dispatchEvent: event => events.push(event.type) } });
+  const headerClick = vm.runInContext(source + "\nstartFolderPages();\npageHeaderClick", ctx);
+  return { events, progress, headerClick, gBrowser: ctx.gBrowser, groupflow: ctx.window.Groupflow, settle: () => { while (frames.length) frames.shift()(); } };
+}
+const tabAt = (spec, extra = {}) => node(extra.attrs, { linkedBrowser: { currentURI: { spec } }, ...extra });
+// A left click on a folder's name, and on its icon.
+const nameClick = group => ({ button: 0, defaultPrevented: false, clientX: 0, clientY: 0, preventDefault() {}, stopImmediatePropagation() {},
+  target: { closest: sel => (sel === ".tab-group-label-container" ? { parentElement: group, querySelector: () => null } : null) } });
+const iconClick = group => ({ ...nameClick(group),
+  target: { closest: sel => (sel === ".tab-group-label-container" ? { parentElement: group, querySelector: () => null } :
+    sel === ".zzgf-icon, .tab-group-folder-icon" ? {} : null) } });
+
+test("Folder pages treat an address as the same page without anchors, tracking, www. or a trailing slash", () => {
+  const ctx = vm.createContext({ URL, URLSearchParams });
+  vm.runInContext(groupflow.slice(groupflow.indexOf("  const TRACKING ="), groupflow.indexOf("  function startFolderPages()")) + "\nthis.pageKey = pageKey;", ctx);
+  const same = (a, b) => assert.equal(ctx.pageKey(a), ctx.pageKey(b), `${a} ~ ${b}`);
+  same("https://www.youtube.com/@creator/", "https://youtube.com/@creator#about");
+  same("https://www.nexusmods.com/games/crimsondesert?utm_source=x&fbclid=1", "https://nexusmods.com/games/crimsondesert");
+  same("https://youtu.be/abc?si=share", "https://youtu.be/abc");
+  assert.notEqual(ctx.pageKey("https://www.youtube.com/watch?v=a"), ctx.pageKey("https://www.youtube.com/watch?v=b"), "real query parameters still count");
+  assert.notEqual(ctx.pageKey("https://music.youtube.com/"), ctx.pageKey("https://youtube.com/"), "subdomains are different sites");
+  assert.equal(ctx.pageKey("about:blank"), null);
+  assert.equal(ctx.pageKey("not a url"), null);
+});
+
+test("Tab Router gives each level its page: site, subdomain, channel, game, author or section", () => {
+  const ctx = vm.createContext({
+    hostOf: tab => tab.host,
+    baseDomain: host => host.split(".").slice(-2).join("."),
+    domainName: base => base.split(".")[0].replace(/^\w/, c => c.toUpperCase()),
+    prettify: seg => seg.replace(/^\w/, c => c.toUpperCase()),
+  });
+  vm.runInContext(router.slice(router.indexOf("  function levelPages(tab, parts) {"), router.indexOf("  const canCreateGroups = () =>")) + "\nthis.levelPages = levelPages;", ctx);
+  const pages = (host, parts) => JSON.parse(JSON.stringify(ctx.levelPages({ host }, parts)));
+  assert.deepEqual(pages("www.youtube.com", ["Youtube", { key: "https://www.youtube.com/@creator", label: "Creator" }]),
+    ["https://youtube.com/", "https://www.youtube.com/@creator"]);
+  assert.deepEqual(pages("music.youtube.com", ["Youtube", "Music", { key: "https://music.youtube.com/channel/x", label: "Artist" }]),
+    ["https://youtube.com/", "https://music.youtube.com/", "https://music.youtube.com/channel/x"]);
+  assert.deepEqual(pages("www.nexusmods.com", ["Nexusmods", { key: "https://www.nexusmods.com/games/crimsondesert", label: "Crimson Desert" },
+    { key: "https://www.nexusmods.com/profile/author", label: "Author" }]),
+    ["https://nexusmods.com/", "https://www.nexusmods.com/games/crimsondesert", "https://www.nexusmods.com/profile/author"]);
+  // A search engine's folder opens its search, not the company's front page.
+  assert.deepEqual(pages("search.brave.com", ["Brave", "Search"]), ["https://search.brave.com/", "https://search.brave.com/"]);
+  assert.deepEqual(pages("brave.com", ["Brave"]), ["https://search.brave.com/"], "even from the company's own pages");
+  assert.deepEqual(pages("www.google.com", ["Google"]), ["https://google.com/"], "an engine searching on its front page keeps it");
+  assert.deepEqual(pages("github.com", ["Dev", "Work"]), [null, null], "a rule's own group names have no page");
+  assert.deepEqual(pages("github.com", [{ key: "", label: "No key" }]), [null]);
+});
+
+test("A folder's page tab is hidden from the moment it is marked, and stays its page when the site moves on", () => {
+  const group = node({ "data-zzrouter-page": "https://www.example.com/" }, { id: "g1" });
+  const other = tabAt("https://example.com/more", { group }), tabs = [other];
+  let page = null;
+  const f = folderPages(tabs, [group], { openPage: url => { page = tabAt(url, { group }); tabs.push(page); return page; } });
+  assert.ok(!other.hasAttribute("zzgf-page-of") && !other.hasAttribute("zzgf-page-tab"), "a member on another page is not the page tab");
+  assert.equal(f.groupflow.openFolderPage(group), true, "Tab Router opens the page");
+  assert.equal(page.getAttribute("zzgf-page-of"), "g1");
+  assert.ok(page.hasAttribute("zzgf-page-tab"), "hidden as soon as it is marked, before the next frame");
+  assert.ok(f.events.includes("GroupflowPageTabs"), "and Tab Router hears of it");
+  f.settle();
+  page.linkedBrowser.currentURI.spec = "https://example.com/elsewhere";
+  f.progress.onLocationChange(page.linkedBrowser, { isTopLevel: true }, null, { spec: page.linkedBrowser.currentURI.spec });
+  f.settle();
+  assert.equal(page.getAttribute("zzgf-page-of"), "g1", "the site moving on does not release it");
+  assert.ok(page.hasAttribute("zzgf-page-tab"), "and it never shows as a row");
+  assert.equal(f.groupflow.folderPage(group), "https://www.example.com/", "and the folder keeps its page");
+});
+
+test("A Favorite showing a folder's page never stands for the folder", () => {
+  const group = node({ "data-zzrouter-page": "https://www.nexusmods.com/" }, { id: "g2" });
+  const favorite = tabAt("https://nexusmods.com/", { group: null, pinned: true, attrs: { "zen-essential": "true" } });
+  const member = tabAt("https://other.example/", { group });
+  let opened = null;
+  const f = folderPages([favorite, member], [group], { openPage: url => opened = tabAt(url, { group }) });
+  assert.ok(!favorite.hasAttribute("zzgf-page-of") && !favorite.hasAttribute("zzgf-page-tab"));
+  assert.ok(!member.hasAttribute("zzgf-page-tab"));
+  assert.ok(group.hasAttribute("zzgf-has-page") && !member.hasAttribute("zzgf-page-of"), "the folder has no page tab yet");
+  assert.equal(f.groupflow.openFolderPage(group), true);
+  assert.ok(opened, "opening the folder's page opens its own tab, not the Favorite");
+});
+
+// YouTube's top-level folder in a space with a container: its tabs are all
+// in creator subfolders, signed in to container 6, like the Favorite. Its
+// page tab, when given, is in container `page`; `before` puts a tab of that
+// container ahead of the others, in a subfolder of its own.
+function youtubeFolder({ page = null, selected = false, before = null } = {}) {
+  const top = node({ "data-zzrouter-page": "https://youtube.com/" }, { id: "yt" });
+  const creator = node({}, { id: "creator", group: top }), old = node({}, { id: "old", group: top });
+  const tabs = [tabAt("https://www.youtube.com/watch?v=x", { group: creator, attrs: { usercontextid: "6" } })];
+  const opened = [], closed = [];
+  if (before) tabs.unshift(tabAt("https://www.youtube.com/watch?v=old", { group: old, attrs: { usercontextid: before } }));
+  if (page) tabs.unshift(tabAt("https://www.youtube.com/", { group: top, selected, attrs: { usercontextid: page, "zzgf-page-of": "yt" } }));
+  const f = folderPages(tabs, [top, creator, old], { openPage: (url, group, ctx) => {
+    opened.push(ctx);
+    const t = tabAt(url, { group, attrs: { usercontextid: String(ctx) } });
+    tabs.push(t);
+    return t;
+  } }, t => { closed.push(t); tabs.splice(tabs.indexOf(t), 1); });
+  return { f, top, tabs, opened, closed, page: page && tabs[0] };
+}
+
+test("A folder holding only subfolders opens its page in their container, and replaces a page tab left in another", () => {
+  let s = youtubeFolder();
+  assert.equal(s.f.groupflow.openFolderPage(s.top), true);
+  assert.deepEqual(s.opened, [6], "opened in the subfolders' container, where the site is signed in, not in none");
+
+  s = youtubeFolder({ page: "0" });
+  assert.ok(s.page.hasAttribute("zzgf-page-tab"), "an earlier version's page tab, in no container");
+  assert.equal(s.f.groupflow.openFolderPage(s.top), true);
+  assert.deepEqual(s.closed, [s.page], "it closes for real (a page tab's close is otherwise only an unload)");
+  assert.ok(!s.page.hasAttribute("zzgf-page-of") && !s.page.hasAttribute("zzgf-page-tab"));
+  assert.deepEqual(s.opened, [6], "and the page opens again in the folder's container");
+
+  s = youtubeFolder({ page: "6" });
+  assert.equal(s.f.groupflow.openFolderPage(s.top), true);
+  assert.equal(s.f.gBrowser.selectedTab, s.page, "a page tab in the folder's container is simply shown");
+  assert.deepEqual([s.closed, s.opened], [[], []]);
+});
+
+test("Clicking the icon replaces a stray page tab even while it is selected, and folds on a good one", () => {
+  // Session restore selects the page tab an earlier version left in no
+  // container: the click replaces it rather than folding the folder.
+  let s = youtubeFolder({ page: "0", selected: true });
+  assert.equal(s.f.headerClick(nameClick(s.top)), false, "the name always folds");
+  assert.deepEqual([s.closed, s.opened], [[], []]);
+  assert.equal(s.f.headerClick(iconClick(s.top)), true, "the icon is the folder's page, not a fold");
+  assert.deepEqual([s.closed, s.opened], [[s.page], [6]], "the signed-out tab closes and the page opens in the folder's container");
+
+  s = youtubeFolder({ page: "6", selected: true });
+  assert.equal(s.f.headerClick(iconClick(s.top)), false, "on the folder's page, the click folds as usual");
+  assert.deepEqual([s.closed, s.opened], [[], []]);
+});
+
+test("A page tab sharing its container with another of the folder's tabs is kept", () => {
+  // Tab Router keeps the container of a tab with session state, so a folder
+  // can mix containers: a no-container tab with history, refiled ahead of
+  // the rest, sets the folder's container, yet the signed-in page tab stays.
+  const s = youtubeFolder({ page: "6", before: "0" });
+  assert.equal(s.f.groupflow.openFolderPage(s.top), true);
+  assert.deepEqual([s.closed, s.opened], [[], []], "nothing closes or opens");
+  assert.equal(s.f.gBrowser.selectedTab, s.page, "the page tab is shown");
+  s.page.selected = true;
+  assert.equal(s.f.headerClick(iconClick(s.top)), false, "and clicking the icon on it folds");
+  assert.deepEqual(s.closed, []);
+});
+
+test("A folder whose page is also a Favorite opens its own tab; the Favorite is never the folder's", () => {
+  const fn = name => router.slice(router.indexOf(`  function ${name}(`), router.indexOf("\n  }\n", router.indexOf(`  function ${name}(`)) + 4);
+  const group = { isConnected: true, closest: () => ({ id: "ws" }), getAttribute: () => null };
+  const tab = (id, url, attrs = []) => ({ id, url, closing: false, linkedBrowser: {}, group: null, pinned: false,
+    hasAttribute: a => attrs.includes(a), getAttribute: () => "ws" });
+  const favorite = tab("fav", "https://www.nexusmods.com/", ["zen-essential"]);
+  const loose = tab("loose", "https://other.example/");
+  const copies = new Map(), switched = [], added = [];
+  const ctx = vm.createContext({
+    tabs: [favorite, loose], copies, switched, added, group,
+    eligibleTab: t => !t.closing, contextOf: () => 0, tabURL: t => t.url, switchOn: () => true,
+    pageKey: u => u.replace(/^https:\/\/(www\.)?/, "").replace(/\/$/, ""),
+    copyAllowed: () => copies, COPY_MS: 10000, switchTo: t => switched.push(t.id), note: () => {},
+    Services: { scriptSecurityManager: { getSystemPrincipal: () => ({}) } },
+    gBrowser: { addTab(url) { const t = { id: "new", url, group }; added.push(t); return t; } },
+  });
+  vm.runInContext(`function* allWindowTabs() { yield* tabs; }\n${fn("openTabFor")}\n${fn("allowCopy")}\n${fn("openPage")}\nthis.openPage = openPage;`, ctx);
+  const opened = ctx.openPage("https://nexusmods.com", group, 0);
+  assert.equal(opened.id, "new", "a new tab in the folder, not the Favorite");
+  assert.deepEqual(switched, ["new"]);
+  assert.ok(copies.has("0|nexusmods.com"), "the new-tab check lets the folder's own tab load");
+});
+
+test("Closing a tab never lands on a folder's hidden page tab, unless nothing else is left", () => {
+  const make = withOther => {
+    const top = node({ "data-zzrouter-page": "https://youtube.com/" }, { id: "yt" });
+    const page = tabAt("https://www.youtube.com/", { group: top, attrs: { "zzgf-page-of": "yt" } });
+    const video = tabAt("https://www.youtube.com/watch?v=x", { group: top }), other = tabAt("https://other.example/");
+    const tabs = withOther ? [page, video, other] : [page, video];
+    // Zen's own choice: the first other tab not excluded.
+    const native = function (tab, exclude = []) { return tabs.find(t => t !== tab && !exclude.includes(t)) || null; };
+    const f = folderPages(tabs, [top], null, () => {}, { _findTabToBlurTo: native });
+    f.settle();
+    return { f, page, video, other };
+  };
+  let s = make(true);
+  assert.ok(s.page.hasAttribute("zzgf-page-tab"));
+  assert.equal(s.f.gBrowser._findTabToBlurTo(s.video), s.other, "the next real tab, not the page");
+  s = make(false);
+  assert.equal(s.f.gBrowser._findTabToBlurTo(s.video), s.page, "the page when it is all that is left");
+});

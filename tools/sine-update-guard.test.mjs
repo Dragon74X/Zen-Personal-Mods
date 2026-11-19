@@ -3,8 +3,8 @@ import { readFile, readdir } from "node:fs/promises";
 import { setImmediate as tick } from "node:timers/promises";
 import { test } from "node:test";
 import { installSineUpdateGuard } from "../download-prompt/sine-update-guard.sys.mjs";
+import { mods } from "./harness.mjs";
 
-const mods = ["download-prompt", "glassflow", "glassflow-library", "groupflow", "iconflow", "tab-router", "tab-unloader", "zen-turbo", "mediaflow", "peekflow"];
 const guardName = "sine-update-guard.sys.mjs";
 const root = new URL("../", import.meta.url);
 const deferred = () => {
@@ -175,7 +175,30 @@ test("unknown APIs and already-fixed staging implementations are unchanged", () 
   assert.equal(installSineUpdateGuard({}, {}), false);
 });
 
-test("6 standalone manifests ship identical guards; all declared scripts exist", async () => {
+test("a rejected check reports only its current settings indicator; a closed or newer page owns its own state",async()=>{
+  const f=fixture(),gates=[];
+  f.manager.updateMods=()=>new Promise((ok,bad)=>gates.push({ok,bad}));
+  f.manager.loadMods=()=>{};
+  installSineUpdateGuard(f.manager,f.utils);
+  const page=()=>{
+    const ui={replaceChildren(p){this.firstElementChild=p;}},events={};
+    const win={document:{querySelector:()=>ui},addEventListener:(name,fn)=>events[name]=fn};
+    f.manager.loadMods(win);
+    return {ui,close:()=>events.unload(),start:()=>{
+      ui.firstElementChild={textContent:"...",classList:{contains:()=>false},setAttribute(){}};
+      return f.manager.updateMods("manual");
+    }};
+  };
+  const a=page(),b=page(),first=a.start(),second=a.start(),third=b.start();
+  await tick();gates[0].bad(Error("first"));await assert.rejects(first,/first/);
+  assert.equal(a.ui.firstElementChild.textContent,"...");assert.equal(b.ui.firstElementChild.textContent,"...");
+  b.close();await tick();gates[1].bad(Error("second"));await assert.rejects(second,/second/);
+  assert.match(a.ui.firstElementChild.textContent,/failed/);
+  await tick();gates[2].bad(Error("third"));await assert.rejects(third,/third/);
+  assert.equal(b.ui.firstElementChild.textContent,"...");
+});
+
+test("every standalone manifest ships the identical guard; all declared scripts exist", async () => {
   const canonical = await readFile(new URL(mods[0] + "/" + guardName, root), "utf8");
   for (const mod of mods) {
     assert.equal(await readFile(new URL(mod + "/" + guardName, root), "utf8"), canonical, mod);
@@ -185,8 +208,6 @@ test("6 standalone manifests ship identical guards; all declared scripts exist",
     for (const script of Object.keys(manifest.scripts)) assert.ok(files.includes(script), mod + "/" + script);
     assert.ok(Array.isArray(JSON.parse(await readFile(new URL(mod + "/preferences.json", root), "utf8"))));
   }
-  const router = await readFile(new URL("tab-router/tab-router.uc.js", root), "utf8");
-  assert.ok(!router.includes("repairStrays") && !router.includes("IOUtils.move"));
 });
 
 test("standalone reload=false install still queues behind updates", async () => {

@@ -1,0 +1,32 @@
+diff --git a/src/zen/tabs/ZenPinnedTabManager.mjs b/src/zen/tabs/ZenPinnedTabManager.mjs
+index c5483eb..59f6f42 100644
+--- a/src/zen/tabs/ZenPinnedTabManager.mjs
++++ b/src/zen/tabs/ZenPinnedTabManager.mjs
+@@ -464,6 +464,4 @@ class nsZenPinnedTabManager extends nsZenDOMOperatedFeature {
+   #resetTabToStoredState(tab) {
+-    const state = this.#getTabState(tab);
+-
+     const initialState = tab._zenPinnedInitialState;
+     if (!initialState?.entry) {
+       return;
+@@ -473,14 +471,16 @@ class nsZenPinnedTabManager extends nsZenDOMOperatedFeature {
+     let url;
+     try {
+       url = Services.io.newURI(initialState.entry.url);
+-    } catch {}
++    } catch {
++      // An invalid saved target cannot be restored. Keep the live tab and history.
++      return;
++    }
++    const state = this.#getTabState(tab);
+     state.entries = [
+       {
+         ...initialState.entry,
+         triggeringPrincipal_base64: E10SUtils.serializePrincipal(
+-          url
+-            ? Services.scriptSecurityManager.createContentPrincipal(url, {})
+-            : Services.scriptSecurityManager.createNullPrincipal()
++          Services.scriptSecurityManager.createContentPrincipal(url, {})
+         ),
+       },
+     ];

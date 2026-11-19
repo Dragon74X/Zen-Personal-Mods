@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Glassflow
-// @description    Writes Glassflow's preference variables at startup.
+// @description    Glassflow's preference variables, sidebar blur upkeep, tab motion and Tools menu commands.
 // @include        chrome://browser/content/browser.xhtml
 // ==/UserScript==
 
@@ -75,10 +75,6 @@
   // pref exists. It is a LOOK change, which is why it lives here and not in a
   // performance mod. In-memory, applies live, reverts live, touches nothing on
   // web pages.
-  //
-  // Restored: cd192ee deleted this body while leaving both call sites, so
-  // start() threw ReferenceError on every window from then on. See the note
-  // on startOnce() for why that took the other four mods down with it.
   let instantOverride = null;
   function restoreInstantUI() {
     if (!instantOverride) return;
@@ -90,22 +86,23 @@
     instantOverride = null;
   }
   function syncInstantUI() {
-    const cfg = window.Motion?.MotionGlobalConfig;
-    if (!cfg) return;                      // not on this build; nothing to do
     let want = false;
     try { want = Services.prefs.getBoolPref(PREFIX + "instant-ui", false); } catch {}
     if (!want) { restoreInstantUI(); return; }
-    if (!instantOverride) {
-      instantOverride = { cfg, value: cfg.instantAnimations,
-        had: Object.hasOwn(cfg, "instantAnimations") };
-      cfg.instantAnimations = true;
-    }
+    if (instantOverride) return;
+    // Zen loads Motion on first use; gZenUIManager.motion loads it now.
+    const cfg = (window.Motion ?? window.gZenUIManager?.motion)?.MotionGlobalConfig;
+    if (!cfg) return;
+    instantOverride = { cfg, value: cfg.instantAnimations,
+      had: Object.hasOwn(cfg, "instantAnimations") };
+    cfg.instantAnimations = true;
   }
 
   const prefVarObserver = {
     observe(_s, _t, data) {
       if (!data || !data.startsWith(PREFIX)) return;
       if (data === PREFIX + "instant-ui") { syncInstantUI(); return; }
+      if (data === PREFIX + "sidebar.blur-transparent-pages") { syncPageBlur(); return; }
       const name = "--" + data.replace(/\./g, "-");
       const value = readPrefValue(data);
       try {
@@ -127,43 +124,65 @@
   // from: the load then ends with the icon still on, and the page's own
   // icon, usually the very same file, lands without a repaint. A
   // different site starts clean and never wears the previous icon.
-  const lastHost = new WeakMap();             // browser -> host of its last location
+  const lastIcon = new WeakMap();             // browser -> source accepted by tabbrowser, on its owning host
   const keepIconOn = () => { try { return Services.prefs.getBoolPref("zen.theme.hide-tab-throbber", false); } catch { return false; } };
   const hostOf = (uri) => { try { return /^https?$/.test(uri?.scheme) ? uri.host : null; } catch { return null; } };
   const iconKeeper = {
+    onLinkIconAvailable(browser, icon) {
+      const host = hostOf(browser.currentURI);
+      if (host && typeof icon === "string" && /^(?:data|chrome|resource|about):/.test(icon))
+        lastIcon.set(browser, { host, icon });
+      else lastIcon.delete(browser);
+    },
     onLocationChange(browser, webProgress, request, location) {
       // Subframes report here too -- tabbrowser.js says so in as many
       // words. An ad frame navigating would otherwise overwrite the tab's
       // host, and the next same-site load would look like a new site and
       // lose the icon: the hold quietly stopped working on half the web.
       if (!webProgress?.isTopLevel) return;
-      const prev = lastHost.get(browser), host = hostOf(location);
-      lastHost.set(browser, host);
-      if (!keepIconOn() || !host || host !== prev || browser.mIconURL) return;
-      const img = gBrowser.getTabForBrowser(browser)?.getAttribute("image");
-      if (img) browser.mIconURL = img;
+      const held = lastIcon.get(browser);
+      if (!held) return;
+      if (held.host !== hostOf(location)) { lastIcon.delete(browser); return; }
+      // The image attribute may be a process-bound moz-remote-image display
+      // URL. SessionStore saves mIconURL, so retain only Gecko's source.
+      if (keepIconOn() && !browser.mIconURL) browser.mIconURL = held.icon;
     },
   };
 
-  // ---- transparent pages under the compact sidebar ---------------------
-  // A page made see-through (Transparent Zen, Zen Internet) leaves the
-  // sidebar's blur nothing to blur: its text sits on nothing, a blurred copy
-  // of it is all but invisible, and the sharp original shows through. While
-  // the compact sidebar shows over such a page, an SVG filter on the page box
-  // blurs the strip under the panel instead, keeping the rest of the page as
-  // it is. Zen gives every page a solid background unless a mod takes it
-  // away, so a page whose browser background is solid is left to Zen's blur
-  // alone and nothing extra runs.
+  // ---- compact sidebar ----------------------------------------------------
+  // Zen shows the compact sidebar while its toolbox has any of these
+  // attributes, or while a tab is renamed, and slides it on translate.
+  const SHOWN = ["zen-has-hover", "zen-user-show", "zen-has-empty-tab", "flash-popup", "has-popup-menu", "movingtab", "zen-compact-mode-active"];
+  const SHOWN_SELECTOR = SHOWN.map(name => `[${name}]`).join(", ");
+  const revealed = toolbox => toolbox.matches(SHOWN_SELECTOR) || document.documentElement.getAttribute("zen-renaming-tab") === "true";
+  const sliding = toolbox => !!toolbox?.getAnimations().some(a => a.transitionProperty === "translate" && a.playState === "running");
+
+  // ---- optional transparent-page blur compatibility --------------------
+  // Zen 1.24's native backdrop covered transparent and opaque pages in the
+  // Windows pixel test. Keep the page filter opt-in for renderers/themes
+  // that still show sharp page content through the panel. Current acrylic
+  // prefs cannot reveal the renderer's startup latch; do not guess support
+  // from the browser version or silently replace a saved choice.
+  // Off means no SVG, geometry reads, frame loop or page-blur listeners.
   // Only primitives WebRender draws itself (feFlood, feGaussianBlur,
   // feComposite, feMerge). Zen 1.23.4b ships feImage off, and a filter using
   // it falls back to software: remote pages went blank and corners changed.
   // ponytail: a rectangle; the panel's rounded corners may show a sliver of
   // blurred page. A rounded mask needs feImage, so not until Gecko enables it.
-  const SHOWN = "[zen-has-hover], [zen-user-show], [zen-has-empty-tab], [flash-popup], [has-popup-menu], [movingtab], [zen-compact-mode-active]";
+  let pageBlur = null;
+  function syncPageBlur() {
+    if (Services.prefs.getBoolPref(PREFIX + "sidebar.blur-transparent-pages", false)) {
+      try { pageBlur ||= transparentPageBlur(); } catch (e) { console.error("[Glassflow] page blur failed to start:", e); }
+    } else {
+      const old = pageBlur;
+      pageBlur = null;
+      old?.destroy();
+    }
+  }
   function transparentPageBlur() {
     const NS = "http://www.w3.org/2000/svg", S = Services.prefs, root = document.documentElement;
     const toolbox = document.getElementById("navigator-toolbox"), box = document.getElementById("tabbrowser-tabbox");
-    if (!toolbox || !box) return () => {};
+    if (!toolbox || !box) return null;
     const attr = (e, k, v) => { const text = String(v); if (e.getAttribute(k) !== text) e.setAttribute(k, text); };
     const el = (parent, tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) attr(e, k, attrs[k]); parent.append(e); return e; };
     const svg = el(document.documentElement, "svg", { width: 0, height: 0, style: "position:fixed;pointer-events:none", "aria-hidden": "true" });
@@ -174,8 +193,7 @@
     const merge = el(filter, "feMerge", {});
     el(merge, "feMergeNode", { in: "o" });
     el(merge, "feMergeNode", { in: "b" });
-    const wanted = () => S.getBoolPref(PREFIX + "sidebar.blur-transparent-pages", true) &&
-      (S.getBoolPref(PREFIX + "sidebar.blur", false) || S.getBoolPref("zen.theme.acrylic-sidebar", false));
+    const wanted = () => S.getBoolPref(PREFIX + "sidebar.blur", false) || S.getBoolPref("zen.theme.acrylic-sidebar", false);
     const alpha = c => {
       if (c === "transparent") return 0;
       const m = c.match(/^rgba\((?:[^,]+,){3}\s*([\d.]+)\)$/) || c.match(/\/\s*([\d.]+)(%?)\s*\)$/);
@@ -185,7 +203,7 @@
     // Follows the panel every frame while it slides, in and out, so the blur
     // moves with it and stays until it has gone. Another mod's inline filter
     // on the page box is kept ahead of ours and put back afterwards.
-    let frame = 0, previousFilter = null, appliedFilter = null;
+    let frame = 0, previousFilter = null, appliedFilter = null, retired = false;
     const releaseFilter = () => {
       if (appliedFilter && box.style.getPropertyValue("filter") === appliedFilter) {
         if (previousFilter[0]) box.style.setProperty("filter", ...previousFilter);
@@ -193,14 +211,13 @@
       }
       previousFilter = appliedFilter = null;
     };
-    const sliding = () => toolbox.getAnimations().some(a => a.transitionProperty === "translate" && a.playState === "running");
     const update = () => {
       frame = 0;
-      const panel = document.getElementById("zen-toolbar-background"), p = panel?.getBoundingClientRect(), moving = sliding();
+      const panel = document.getElementById("zen-toolbar-background"), p = panel?.getBoundingClientRect(), moving = sliding(toolbox);
       // Computed CSS resolves lengths (rem, calc, etc.) and the native/custom
       // switch once. A zero radius or disabled backdrop needs no page filter.
       const r = panel ? parseFloat(getComputedStyle(panel).backdropFilter.match(/\bblur\(([^)]+)\)/)?.[1]) : NaN;
-      if (!wanted() || !(r > 0) || root.getAttribute("zen-compact-mode") !== "true" || !(toolbox.matches(SHOWN) || root.getAttribute("zen-renaming-tab") === "true" || moving) || !p?.width || !seeThrough()) {
+      if (!wanted() || !(r > 0) || root.getAttribute("zen-compact-mode") !== "true" || !(revealed(toolbox) || moving) || !p?.width || !seeThrough()) {
         releaseFilter();
         return;
       }
@@ -217,12 +234,12 @@
       }
       if (moving) frame = requestAnimationFrame(update);
     };
-    const soon = () => { frame ||= requestAnimationFrame(update); };
+    const soon = () => { if (!retired) frame ||= requestAnimationFrame(update); };
     // Descendant icon/colour transitions do not move the sidebar. Rewriting
     // its page filter for each one invalidates the same pixels repeatedly.
     const onSlide = e => { if (e.target === toolbox && e.propertyName === "translate") soon(); };
     const mo = new MutationObserver(soon);
-    mo.observe(toolbox, { attributes: true, attributeFilter: ["zen-has-hover", "zen-user-show", "zen-has-empty-tab", "flash-popup", "has-popup-menu", "movingtab", "zen-compact-mode-active", "zzg-redraw"] });
+    mo.observe(toolbox, { attributes: true, attributeFilter: SHOWN });
     mo.observe(root, { attributes: true, attributeFilter: ["zen-compact-mode", "zen-renaming-tab"] });
     const prefs = { observe: soon };
     const transparency = window.matchMedia("(prefers-reduced-transparency: reduce)");
@@ -230,68 +247,181 @@
     S.addObserver(PREFIX + "sidebar.", prefs);
     S.addObserver("zen.theme.acrylic-sidebar", prefs);
     window.addEventListener("resize", soon);
-    for (const type of ["transitionrun", "transitionend", "transitioncancel"]) toolbox.addEventListener(type, onSlide);
-    gBrowser.tabContainer.addEventListener("TabSelect", soon);
+    for (const type of ["transitionrun", "transitioncancel"]) toolbox.addEventListener(type, onSlide);
     update();
-    return () => {
+    return { refresh: soon, destroy() {
+      retired = true;
       mo.disconnect();
       transparency.removeEventListener("change", soon);
       S.removeObserver(PREFIX + "sidebar.", prefs);
       S.removeObserver("zen.theme.acrylic-sidebar", prefs);
       window.removeEventListener("resize", soon);
-      for (const type of ["transitionrun", "transitionend", "transitioncancel"]) toolbox.removeEventListener(type, onSlide);
-      gBrowser.tabContainer.removeEventListener("TabSelect", soon);
+      for (const type of ["transitionrun", "transitioncancel"]) toolbox.removeEventListener(type, onSlide);
       cancelAnimationFrame(frame);
       releaseFilter();
       svg.remove();
+    } };
+  }
+
+  // Sidebar selection, navigation and slide completion share one invalidation
+  // owner. Loading a new page while the sidebar stays open changes its backdrop
+  // without a TabSelect or translate transition. Refresh after top-level load
+  // completion, including the optional page filter's transparency decision.
+  function sidebarBackdrop() {
+    const root = document.documentElement, toolbox = document.getElementById("navigator-toolbox");
+    const page = document.getElementById("tabbrowser-tabbox");
+    let frame = 0, retired = false, waiter = null;
+    // The first open after a page loaded (or a tab or launch) showed no blur
+    // on Windows until the next open: the renderer blurred a stale copy of
+    // the page, and changing the filter alone re-blurs that same copy. Once
+    // per changed page, the page itself is repainted for the same two frames.
+    let pageChanged = true;
+    // Zen's workspace switch re-blurs this panel on every frame while it fades
+    // the background; a redraw then only adds another full blur. It waits for
+    // the switch to finish and runs once.
+    const switching = () => !!toolbox?.hasAttribute?.("animating-background");
+    const dropWaiter = () => { waiter?.disconnect(); waiter = null; };
+    const refresh = () => {
+      if (retired) return;
+      pageBlur?.refresh();
+      cancelAnimationFrame(frame);
+      toolbox?.removeAttribute("zzg-redraw");
+      page?.removeAttribute("zzg-repaint");
+      if (switching()) {
+        if (!waiter && toolbox) {
+          waiter = new MutationObserver(() => { if (!switching()) { dropWaiter(); refresh(); } });
+          waiter.observe(toolbox, { attributes: true, attributeFilter: ["animating-background"] });
+        }
+        return;
+      }
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        if (retired || !toolbox || root.getAttribute("zen-compact-mode") !== "true" || !revealed(toolbox)) return;
+        const panel = document.getElementById("zen-toolbar-background");
+        if (!panel || getComputedStyle(panel).backdropFilter === "none") return;
+        // ponytail: finite renderer invalidation, not a renderer repair. Retain
+        // until Windows load/slide captures prove stale backdrops are fixed.
+        toolbox.setAttribute("zzg-redraw", "");
+        const repaint = pageChanged && page;
+        if (repaint) { pageChanged = false; page.setAttribute("zzg-repaint", ""); }
+        frame = requestAnimationFrame(() => {
+          frame = requestAnimationFrame(() => {
+            frame = 0; toolbox.removeAttribute("zzg-redraw");
+            if (repaint) page.removeAttribute("zzg-repaint");
+          });
+        });
+      });
+    };
+    // A page keeps painting after its load finishes (images, fonts, scripts),
+    // the sidebar may open while it is still loading, a site can change page
+    // in place (no load), and a switched-to tab shows its content only once
+    // Firefox finishes the switch: each counts the page as changed, redraws
+    // an open sidebar, and redraws it again as the page settles.
+    let settleTimers = [];
+    const clearSettle = () => { for (const id of settleTimers) clearTimeout(id); settleTimers = []; };
+    const settle = () => {
+      pageChanged = true; refresh();
+      clearSettle();
+      settleTimers = [400, 1500, 4000].map(ms => setTimeout(() => { if (!retired) { pageChanged = true; refresh(); } }, ms));
+    };
+    const progress = {
+      onStateChange(browser, wp, _request, flags) {
+        const W = Ci.nsIWebProgressListener;
+        if (browser !== gBrowser.selectedBrowser || !wp?.isTopLevel || !(flags & W.STATE_IS_NETWORK)) return;
+        if (flags & W.STATE_START) { pageChanged = true; return; }
+        if (flags & W.STATE_STOP) settle();
+      },
+      onLocationChange(browser, wp, _request, _location, flags) {
+        if (browser !== gBrowser.selectedBrowser || !wp?.isTopLevel) return;
+        pageChanged = true;
+        // A load ends in STATE_STOP; a same-document change has no load.
+        if (flags & Ci.nsIWebProgressListener.LOCATION_CHANGE_SAME_DOCUMENT) settle();
+      },
+    };
+    const selected = () => { pageChanged = true; refresh(); };
+    // Also as the sidebar starts to slide in, so a changed page is right for
+    // the whole slide rather than only once it has stopped.
+    const slide = e => {
+      if (e.target !== toolbox || e.propertyName !== "translate") return;
+      if (e.type === "transitionend" || (pageChanged && toolbox.matches(SHOWN_SELECTOR))) refresh();
+    };
+    gBrowser.addTabsProgressListener(progress);
+    gBrowser.tabContainer.addEventListener("TabSelect", selected);
+    window.addEventListener("TabSwitchDone", settle, true);
+    toolbox?.addEventListener("transitionend", slide);
+    toolbox?.addEventListener("transitionrun", slide);
+    return () => {
+      retired = true;
+      dropWaiter();
+      clearSettle();
+      cancelAnimationFrame(frame);
+      toolbox?.removeAttribute("zzg-redraw");
+      page?.removeAttribute("zzg-repaint");
+      gBrowser.removeTabsProgressListener(progress);
+      gBrowser.tabContainer.removeEventListener("TabSelect", selected);
+      window.removeEventListener("TabSwitchDone", settle, true);
+      toolbox?.removeEventListener("transitionend", slide);
+      toolbox?.removeEventListener("transitionrun", slide);
     };
   }
 
   const APPEARANCE = "zzglass-saved.appearance";
-  async function appearancePrefs() {
-    // Only declared appearance settings, never an entire profile branch.
-    const names = new Set();
-    for (const mod of ["glassflow", "groupflow", "iconflow"]) {
-      const rows = await (await fetch(`chrome://sine/content/zz-${mod}/preferences.json`)).json();
-      for (const row of rows) {
-        const name = row.property;
-        if (!/^zz(?:glass|group|icon)\./.test(name || "") ||
-            /\.ui\.|\.other\.|icon-rules|collapse-keep-last-used|neutralize-others/.test(name)) continue;
-        if (["checkbox", "dropdown", "string", "text"].includes(row.type)) names.add(name);
-      }
-    }
-    return names;
+  // A mod's declared settings, as Sine serves its preferences.json.
+  function declared(mod) {
+    return fetch(`chrome://sine/content/${mod}/preferences.json`).then(res => res.json());
   }
+  // Only declared appearance settings, never an entire profile branch, read
+  // when the Tools menu first opens. A mod that is not installed adds none.
+  let appearanceNames = null, appearanceLoad = null;
+  function appearancePrefs() {
+    return appearanceLoad ??= (async () => {
+      const names = new Set();
+      for (const mod of ["glassflow", "groupflow", "iconflow"]) {
+        let rows;
+        try { rows = await declared(`zz-${mod}`); } catch { continue; }
+        for (const row of rows) {
+          const name = row.property;
+          if (!/^zz(?:glass|group|icon)\./.test(name || "") ||
+              /\.ui\.|\.other\.|icon-rules|collapse-keep-last-used|neutralize-others/.test(name)) continue;
+          if (["checkbox", "dropdown", "string", "text"].includes(row.type)) names.add(name);
+        }
+      }
+      return appearanceNames = names;
+    })();
+  }
+  // No embedded image/file address or path in a saved value, even in a CSS
+  // text setting. A colour's alpha slash (rgb(0 0 0 / 15%)) is not a path.
+  const UNSAFE = /url\s*\(|\\|[a-z][\w+.-]*:|[a-z.~]\/|\/\.?[a-z~]/i;
   async function appearanceSnapshot() {
     const S = Services.prefs, values = {};
     for (const name of await appearancePrefs()) {
       const type = S.getPrefType(name), had = S.prefHasUserValue(name);
       const value = !had ? null : type === S.PREF_BOOL ? S.getBoolPref(name)
         : type === S.PREF_INT ? S.getIntPref(name) : S.getStringPref(name);
-      // No embedded image/file URLs in an export, even in a CSS text setting.
-      if (typeof value === "string" && /(?:url\s*\(|[\\/]|(?:https?|file|data|resource|chrome):)/i.test(value)) continue;
+      if (typeof value === "string" && UNSAFE.test(value)) continue;
       values[name] = { had, type, value };
     }
     return { version: 1, values };
   }
-  let appearanceNames = null;
-  function savedAppearance() {
+  // The saved snapshot when it is whole and valid. Before the declared names
+  // are read the Tools menu checks only its shape; restoring checks names.
+  function savedAppearance(names = appearanceNames) {
     try {
       const saved = JSON.parse(Services.prefs.getStringPref(APPEARANCE, "null"));
-      if (saved?.version !== 1 || !saved.values || Array.isArray(saved.values) || !appearanceNames) return null;
+      if (saved?.version !== 1 || !saved.values || Array.isArray(saved.values)) return null;
       const S = Services.prefs;
       for (const [name, entry] of Object.entries(saved.values)) {
-        if (!appearanceNames.has(name) || typeof entry?.had !== "boolean") return null;
+        if (names && !names.has(name) || typeof entry?.had !== "boolean") return null;
         if (!entry.had) { if (entry.value !== null) return null; continue; }
         const v = entry.value;
         if (!(entry.type === S.PREF_BOOL && typeof v === "boolean" || entry.type === S.PREF_INT && Number.isInteger(v) ||
-          entry.type === S.PREF_STRING && typeof v === "string" && !/(?:url\s*\(|[\\/]|(?:https?|file|data|resource|chrome):)/i.test(v))) return null;
+          entry.type === S.PREF_STRING && typeof v === "string" && !UNSAFE.test(v))) return null;
       }
       return saved;
     } catch { return null; }
   }
   async function restoreAppearance() {
-    const saved = savedAppearance(), S = Services.prefs;
+    const saved = savedAppearance(appearanceNames ?? await appearancePrefs()), S = Services.prefs;
     if (!saved || window[INSTANCE_KEY] !== instance) return false;
     for (const [name, entry] of Object.entries(saved.values)) {
       if (!entry.had) S.clearUserPref(name);
@@ -301,10 +431,10 @@
     }
     return true;
   }
-  appearancePrefs().then(names => { if (window[INSTANCE_KEY] === instance) appearanceNames = names; }).catch(() => {});
   const toolItems = new Set();
   function toolsMenu(event) {
     if (event.target.id !== "menu_ToolsPopup") return;
+    appearancePrefs();
     for (const node of toolItems) node.remove(); toolItems.clear();
     const actions = [
       ["appearance-save", "Save appearance", async () => {
@@ -333,28 +463,186 @@
     }
   }
 
-  // One retargetable animation on the existing title; selection is never delayed.
+  // Keep the image's layout origin on the device-pixel grid before scaling.
+  // Fractional layout placement can change raster placement at compositor
+  // handoff even when the CSS center stays fixed. Translated layers do not fix
+  // that: align layout once, then leave every animation frame to CSS.
+  function iconAlignment() {
+    const selector = "#zen-workspaces-button img.zen-workspace-icon, .tabbrowser-tab[zen-essential='true'] .tab-icon-image";
+    const toolbox = document.getElementById("navigator-toolbox");
+    const owned = new Map(), abort = new AbortController();
+    let frame = 0;
+    const clear = image => {
+      image.style.removeProperty("--zzg-icon-pixel-x");
+      image.style.removeProperty("--zzg-icon-pixel-y");
+      resize.unobserve(image); owned.delete(image);
+    };
+    function update() {
+      frame = 0;
+      // Its translated screen coordinates are transient while compact mode
+      // slides the sidebar. Align at the endpoint, including its first reveal.
+      if (sliding(toolbox)) return;
+      const keep = new Set(), writes = [], dpr = window.devicePixelRatio || 1;
+      for (const image of document.querySelectorAll(selector)) {
+        const style = getComputedStyle(image), kind = style.getPropertyValue("--zzg-icon-align").trim();
+        if (kind !== "workspace" && kind !== "favorite") continue;
+        keep.add(image);
+        const box = image.getBoundingClientRect();
+        if (!box.width || !box.height || box.right <= 0 || box.bottom <= 0 || box.left >= innerWidth || box.top >= innerHeight) continue;
+        const factor = kind === "workspace" ? 2 : 1;
+        const old = owned.get(image) || {
+          x: (parseFloat(style.getPropertyValue("--zzg-icon-pixel-x")) || 0) / factor,
+          y: (parseFloat(style.getPropertyValue("--zzg-icon-pixel-y")) || 0) / factor,
+        };
+        const align = (center, size, offset) => {
+          const raw = center - offset, phase = Math.round(size * dpr) % 2 / 2;
+          return Math.round(((Math.round(raw * dpr - phase) + phase) / dpr - raw) * 60) / 60;
+        };
+        const x = align(box.x + box.width / 2, parseFloat(style.width), old.x);
+        const y = align(box.y + box.height / 2, parseFloat(style.height), old.y);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+        if (!owned.has(image) || Math.abs(x - old.x) > 1 / 60 || Math.abs(y - old.y) > 1 / 60)
+          writes.push({ image, kind, x, y });
+      }
+      for (const image of owned.keys()) if (!keep.has(image)) clear(image);
+      // Batch reads above; only layout changes write, never hover/press frames.
+      for (const { image, kind, x, y } of writes) {
+        const factor = kind === "workspace" ? 2 : 1; // absolute flex centering splits margins
+        image.style.setProperty("--zzg-icon-pixel-x", `${x * factor}px`);
+        image.style.setProperty("--zzg-icon-pixel-y", `${y * factor}px`);
+        if (!owned.has(image)) resize.observe(image);
+        owned.set(image, { x, y });
+      }
+    }
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
+    const resize = new ResizeObserver(schedule);
+    for (const id of ["navigator-toolbox", "zen-workspaces-button", "tabbrowser-tabs"]) {
+      const node = document.getElementById(id); if (node) resize.observe(node);
+    }
+    const mutations = new MutationObserver(records => {
+      if (records.some(r => r.type === "attributes" || [...r.addedNodes, ...r.removedNodes].some(n => n.nodeType === 1 &&
+        (n.matches(".tab-icon-image,.zen-workspace-icon") || n.querySelector(".tab-icon-image,.zen-workspace-icon"))))) schedule();
+    });
+    // Icons live in Zen's app area (sidebar, Library); menus and popups,
+    // the window's busiest children, sit outside it.
+    mutations.observe(document.getElementById("zen-main-app-wrapper") || document.documentElement, { childList: true, subtree: true });
+    if (toolbox) {
+      mutations.observe(toolbox, { attributes: true, attributeFilter: SHOWN });
+      const moved = event => { if (event.target === toolbox && event.propertyName === "translate") schedule(); };
+      for (const type of ["transitionend", "transitioncancel"]) toolbox.addEventListener(type, moved, { signal: abort.signal });
+    }
+    for (const type of ["resize", "TabOpen", "TabClose", "TabPinned", "TabUnpinned", "ZenWorkspacesUIUpdate", "aftercustomization"])
+      window.addEventListener(type, schedule, { signal: abort.signal });
+    const prefs = { observe: schedule }; Services.prefs.addObserver(PREFIX, prefs);
+    schedule();
+    return () => {
+      abort.abort(); resize.disconnect(); mutations.disconnect(); cancelAnimationFrame(frame);
+      Services.prefs.removeObserver(PREFIX, prefs);
+      for (const image of owned.keys()) clear(image);
+    };
+  }
+
+  // One retargetable horizontal settle on the existing title. Zen owns its
+  // transform (including the 1.24 sublabel lift), which must stay live throughout.
   function tabMotion() {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
     const active = new Map();
+    const presses = new Map();
+    let held = null;
     const enabled = () => !reduced.matches && Services.prefs.getBoolPref(PREFIX + "motion.enabled", true) &&
       !Services.prefs.getBoolPref(PREFIX + "instant-ui", false) && !window.Motion?.MotionGlobalConfig?.instantAnimations;
-    function cancel() { for (const { animation } of active.values()) animation.cancel(); active.clear(); }
+    function clearPress(host) {
+      clearTimeout(presses.get(host)?.timer); presses.delete(host);
+      host.removeAttribute("zzg-icon-pressed"); host.removeAttribute("zzg-icon-click");
+      if (held === host) held = null;
+    }
+    function cancelPresses() {
+      for (const host of presses.keys()) clearPress(host);
+      if (folderIcon) { folderIcon.animation.cancel(); folderIcon.icon.removeAttribute("zzg-folder-press"); folderIcon = null; }
+    }
+    function cancel() { for (const { animation } of active.values()) animation.cancel(); active.clear(); cancelPresses(); }
+    // Native CSS remains the only scale owner. Hold a short tap for the 90ms
+    // compression, then use a 240ms spring return; native activation never waits.
+    // A press anywhere on a folder's header gives its icon the same press:
+    // the 90ms compression, then a spring back that overshoots and settles.
+    // Its hover slide owns its CSS transition, so the press runs as its own
+    // animation.
+    let folderIcon = null;
+    function folderPress(event) {
+      const header = event.target.closest?.(".tab-group-label-container");
+      const icon = header?.querySelector(":scope > :is(.zzgf-icon, .tab-group-folder-icon)");
+      if (!icon?.closest("#navigator-toolbox, .zen-library-space-tabs") ||
+          event.target.closest("button, input, [editing], .zzgf-control, .zzgf-close, .tab-close-button, .tab-reset-button")) return false;
+      folderIcon?.animation?.cancel();
+      // Zen's open/close morph slides and skews the folder's panels; beside
+      // the zoom it read as a jitter. While pressed the state swaps at once,
+      // so the zoom is the only motion.
+      icon.setAttribute("zzg-folder-press", "");
+      const animation = icon.animate([{ scale: 1 }, { scale: .95 }], { duration: 90, easing: "cubic-bezier(.2,.7,.3,1)", fill: "forwards" });
+      folderIcon = { icon, animation, at: performance.now() };
+      return true;
+    }
+    function folderRelease() {
+      if (!folderIcon) return;
+      const { icon, animation, at } = folderIcon; folderIcon = null;
+      setTimeout(() => {
+        if (!icon.isConnected) return;
+        animation.cancel();
+        // The shared spring easing overshoots by a share of the distance,
+        // which over a 5% press is too small to see: the overshoot is drawn.
+        const back = icon.animate([
+          { scale: .95, easing: "cubic-bezier(.2,.7,.3,1)" },
+          { scale: 1.06, offset: .4, easing: "cubic-bezier(.4,0,.4,1)" },
+          { scale: .985, offset: .72, easing: "cubic-bezier(.4,0,.4,1)" },
+          { scale: 1 },
+        ], { duration: 340 });
+        const done = () => { if (folderIcon?.icon !== icon) icon.removeAttribute("zzg-folder-press"); };
+        back.finished.then(done, done);
+      }, Math.max(0, 90 - (performance.now() - at)));
+    }
+    function press(event) {
+      if ((event.type === "keydown" ? event.repeat || !["Enter", " "].includes(event.key)
+        : event.button !== 0 || event.isPrimary === false) || !enabled()) return;
+      if (folderPress(event)) return;
+      if (event.target.closest?.("button, input, menuitem, .tab-close-button, .tab-icon-overlay, .tab-sharing-icon-overlay")) return;
+      const host = event.target.closest?.(".tabbrowser-tab[zen-essential='true'], #zen-workspaces-button toolbarbutton");
+      const image = host?.querySelector(".tab-icon-image, .zen-workspace-icon");
+      if (!image || !host.closest("#navigator-toolbox, .zen-library-space-tabs") ||
+          host.closest("#zen-workspaces-button") && !Services.prefs.getBoolPref(PREFIX + "workspaces.enabled", true)) return;
+      if (held && held !== host) clearPress(held);
+      clearTimeout(presses.get(host)?.timer);
+      held = host; presses.set(host, { at: performance.now(), timer: null });
+      host.setAttribute("zzg-icon-click", ""); host.setAttribute("zzg-icon-pressed", "");
+    }
+    function release(event) {
+      if (event.type === "keyup" ? ["Enter", " "].includes(event.key) : event.button === 0) folderRelease();
+      if (!held || event.type === "keyup" && !["Enter", " "].includes(event.key) ||
+          event.type === "pointerup" && event.button !== 0) return;
+      const host = held, record = presses.get(host); held = null;
+      record.timer = setTimeout(() => {
+        host.removeAttribute("zzg-icon-pressed");
+        record.timer = setTimeout(() => clearPress(host), 240);
+      }, Math.max(0, 90 - (performance.now() - record.at)));
+    }
+    const inputs = [["pointerdown", press], ["pointerup", release], ["keydown", press], ["keyup", release],
+      ["pointercancel", cancelPresses], ["dragstart", cancelPresses], ["deactivate", cancelPresses]];
+    for (const [type, handler] of inputs) window.addEventListener(type, handler, true);
     function settle(label) {
       if (!label?.isConnected || !enabled()) return;
-      const old = active.get(label), from = getComputedStyle(label).transform;
-      const base = old?.base ?? (from === "none" ? "" : from);
+      const old = active.get(label);
       old?.animation.cancel();
       const style = getComputedStyle(document.documentElement);
       const duration = 90 + (parseFloat(style.getPropertyValue("--zzg-motion-ms")) || 150);
       const easing = style.getPropertyValue("--zzg-motion-ease").trim() || "cubic-bezier(.2,.85,.25,1)";
+      // Added on top of the label's own translate (the hover slide that
+      // makes room for a left close button), so a click never undoes it.
       const animation = label.animate([
-        { transform: from, offset: 0, easing: "cubic-bezier(.2,.7,.3,1)" },
-        { transform: `translateX(4px) ${base}`, offset: .24, easing: "cubic-bezier(.3,0,.35,1)" },
-        { transform: `translateX(-1px) ${base}`, offset: .65, easing },
-        { transform: base || "none", offset: 1 },
-      ], { duration });
-      active.set(label, { animation, base });
+        { translate: "0px", offset: 0, easing: "cubic-bezier(.2,.7,.3,1)" },
+        { translate: "4px", offset: .24, easing: "cubic-bezier(.3,0,.35,1)" },
+        { translate: "-1px", offset: .65, easing },
+        { translate: "0px", offset: 1 },
+      ], { duration, composite: "add" });
+      active.set(label, { animation });
       animation.finished.then(() => { if (active.get(label)?.animation === animation) active.delete(label); }, () => {});
     }
     const selected = event => settle(event.target.querySelector?.(".tab-label"));
@@ -371,6 +659,7 @@
     Services.prefs.addObserver(PREFIX + "instant-ui", changed);
     return () => {
       cancel();
+      for (const [type, handler] of inputs) window.removeEventListener(type, handler, true);
       gBrowser.tabContainer.removeEventListener("TabSelect", selected);
       window.removeEventListener("click", clicked);
       reduced.removeEventListener("change", cancel);
@@ -379,35 +668,121 @@
     };
   }
 
+  // Blended Addressbar's "glow" loading bar (kkugot/blended-addressbar, along
+  // its address bar), on every loading tab and on a folder header whose own
+  // page (Groupflow) is loading: its progress model (scripts/loadbar.js) and
+  // its drawing (styles/loadbar.css, in userChrome.css). A load starts at 8%;
+  // every 250ms it creeps a share of the way to 90%, or follows the page's
+  // real progress up to 95%; done, it runs to the end and fades after 450ms.
+  // Each is drawn by an element of its own, behind the tab's content, as a
+  // light passing through it: --zzg-load-p places its head.
+  function tabLoading() {
+    const { STATE_START, STATE_STOP, STATE_IS_WINDOW } = Ci.nsIWebProgressListener;
+    const loads = new Map();
+    let timer = 0;
+    // Where a tab's load shows: its background, and the header of the folder
+    // its own page stands for.
+    const hosts = tab => [tab.querySelector(".tab-background"),
+      tab.hasAttribute("zzgf-page-tab") && tab.group?.querySelector(":scope > .tab-group-label-container")].filter(Boolean);
+    const bars = new Set();
+    function paint(tab, load) {
+      const showing = load.loading || Date.now() < load.hideAt;
+      for (const host of hosts(tab)) {
+        let bar = host.querySelector(":scope > .zzg-loadbar");
+        if (!bar && !showing) continue;
+        if (!bar) {
+          bar = host.ownerDocument.createElementNS("http://www.w3.org/1999/xhtml", "div");
+          bar.className = "zzg-loadbar";
+          bar.setAttribute("aria-hidden", "true");
+          host.prepend(bar);
+          bars.add(bar);
+        }
+        bar.style.setProperty("--zzg-load-p", load.progress.toFixed(4));
+        if (showing) bar.setAttribute("loading", "true");
+        else fade(bar);
+      }
+    }
+    function fade(bar) {
+      if (!bar.hasAttribute("loading")) return;
+      bar.removeAttribute("loading");
+      setTimeout(() => { if (!bar.hasAttribute("loading")) { bar.remove(); bars.delete(bar); } }, 250);
+    }
+    function tick() {
+      for (const [tab, load] of loads) {
+        if (!tab.isConnected || (!load.loading && Date.now() >= load.hideAt)) { paint(tab, { ...load, loading: false, hideAt: 0 }); loads.delete(tab); }
+        else { advance(load); paint(tab, load); }
+      }
+      if (!loads.size) { clearInterval(timer); timer = 0; }
+    }
+    function advance(load, fraction) {
+      if (!load.loading) return;
+      const next = Number.isFinite(fraction) ? Math.min(0.95, Math.max(0, fraction)) : load.progress + Math.max(0, 0.9 - load.progress) * 0.08;
+      load.progress = Math.max(load.progress, next);
+    }
+    function track(tab, phase, fraction) {
+      let load = loads.get(tab);
+      if (phase === "start") loads.set(tab, load = { progress: 0.08, loading: true, hideAt: 0 });
+      else if (!load) return;
+      else if (phase === "stop") { if (load.loading) Object.assign(load, { progress: 1, loading: false, hideAt: Date.now() + 450 }); }
+      else advance(load, fraction);
+      paint(tab, load);
+      timer ||= setInterval(tick, 250);
+    }
+    const listener = {
+      onStateChange(browser, webProgress, request, flags) {
+        if (!webProgress.isTopLevel || !(flags & STATE_IS_WINDOW)) return;
+        const tab = gBrowser.getTabForBrowser(browser);
+        if (!tab) return;
+        if (flags & STATE_START) track(tab, "start");
+        else if (flags & STATE_STOP) track(tab, "stop");
+      },
+      onProgressChange(browser, webProgress, request, curSelf, maxSelf, curTotal, maxTotal) {
+        const tab = maxTotal > 0 && gBrowser.getTabForBrowser(browser);
+        if (tab) track(tab, "progress", curTotal / maxTotal);
+      },
+    };
+    const closed = event => { const load = loads.get(event.target); if (load) { loads.delete(event.target); paint(event.target, { ...load, loading: false, hideAt: 0 }); } };
+    gBrowser.addTabsProgressListener(listener);
+    gBrowser.tabContainer.addEventListener("TabClose", closed);
+    // Tabs already loading when this starts.
+    for (const tab of gBrowser.tabs) if (tab.hasAttribute("busy")) track(tab, "start");
+    return () => {
+      try { gBrowser.removeTabsProgressListener(listener); } catch {}
+      gBrowser.tabContainer.removeEventListener("TabClose", closed);
+      clearInterval(timer); timer = 0;
+      loads.clear();
+      for (const bar of bars) bar.remove();
+      bars.clear();
+    };
+  }
+
   function start() {
     const stopMotion = tabMotion();
+    let stopLoading = () => {};
+    try { stopLoading = tabLoading(); } catch (e) { console.error("[Glassflow] tab loading bar failed to start:", e); }
+    const stopAlignment = iconAlignment();
     window.addEventListener("popupshowing", toolsMenu);
     syncInstantUI();
     Services.prefs.addObserver(PREFIX, prefVarObserver);
     try { syncOtherMods(); } catch (e) { console.error("[Glassflow] other mods failed:", e); }
     for (const branch of OTHER_WATCH) Services.prefs.addObserver(branch, otherModsObserver);
-    try { gBrowser.addTabsProgressListener(iconKeeper); } catch (e) { console.error("[Glassflow] favicon hold failed to start:", e); }
-    // The compact sidebar's blur sometimes stayed missing after the sidebar
-    // slid in, until the page under it repainted. Redraw it once the slide
-    // ends and on every tab switch: a filter that looks the same but is not,
-    // for two frames (userChrome.css, [zzg-redraw]).
-    // ponytail: a nudge, not a cause found; drop it if Firefox fixes stale backdrops.
-    const toolbox = document.getElementById("navigator-toolbox");
-    const redraw = e => {
-      if (e.type === "transitionend" && (e.target !== toolbox || e.propertyName !== "translate")) return;
-      toolbox?.setAttribute("zzg-redraw", "");
-      requestAnimationFrame(() => requestAnimationFrame(() => toolbox?.removeAttribute("zzg-redraw")));
-    };
-    toolbox?.addEventListener("transitionend", redraw);
-    gBrowser.tabContainer.addEventListener("TabSelect", redraw);
-    let stopPageBlur = () => {};
-    try { stopPageBlur = transparentPageBlur(); } catch (e) { console.error("[Glassflow] page blur failed to start:", e); }
+    try {
+      gBrowser.addTabsProgressListener(iconKeeper);
+      for (const tab of gBrowser.tabs) {
+        if (tab.linkedPanel && tab.linkedBrowser?.mIconURL)
+          iconKeeper.onLinkIconAvailable(tab.linkedBrowser, tab.linkedBrowser.mIconURL);
+      }
+    } catch (e) { console.error("[Glassflow] favicon hold failed to start:", e); }
+    syncPageBlur();
+    const stopBackdrop = sidebarBackdrop();
     // Sine cleanup and window unload can both run; retire this copy once.
     let retired = false;
     const cleanup = () => {
       if (retired) return;
       retired = true;
       stopMotion();
+      stopLoading();
+      stopAlignment();
       window.removeEventListener("popupshowing", toolsMenu);
       for (const item of toolItems) item.remove(); toolItems.clear();
       window.removeEventListener("unload", cleanup);
@@ -415,10 +790,9 @@
       for (const branch of OTHER_WATCH) try { Services.prefs.removeObserver(branch, otherModsObserver); } catch {}
       restoreInstantUI();
       try { gBrowser.removeTabsProgressListener(iconKeeper); } catch {}
-      toolbox?.removeEventListener("transitionend", redraw);
-      gBrowser.tabContainer.removeEventListener("TabSelect", redraw);
-      toolbox?.removeAttribute("zzg-redraw");
-      try { stopPageBlur(); } catch {}
+      stopBackdrop();
+      try { pageBlur?.destroy(); } catch {}
+      pageBlur = null;
     };
     window.addEventListener("unload", cleanup, { once: true });
     // Registered with Sine, so an update re-injects this script live, no
@@ -427,9 +801,19 @@
     // still here. Safe now that start() is contained and the top level
     // does nothing that can throw; the DOM unload listener above still
     // releases everything when the window closes.
-    // Sine's own unload (disable, removal or update) also hands back other
-    // mods' settings; closing a window does not. An update re-applies them.
-    try { window.addUnloadListener?.(() => { cleanup(); if (!window.__zzSineWindowClosing && window.__zzSineUnloadReasons?.get("zz-glassflow") === "release") try { syncOtherMods(true); } catch {} }); } catch {}
+    // A release (disable or removal) also hands back other mods' settings and
+    // takes this mod's variables off the root, where other mods read them. An
+    // update or a closing window keeps both: the next copy writes the same.
+    try {
+      window.addUnloadListener?.(() => {
+        cleanup();
+        if (!window.__zzSineWindowClosing && window.__zzSineUnloadReasons?.get("zz-glassflow") === "release") {
+          try { syncOtherMods(true); } catch {}
+          const style = document.documentElement.style;
+          for (const name of [...style].filter(n => n.startsWith("--zzglass-"))) style.removeProperty(name);
+        }
+      });
+    } catch {}
     instance.retire = cleanup;
   }
 
@@ -482,8 +866,8 @@
     };
     const set = (name, v) => typeof v === "boolean" ? S.setBoolPref(name, v)
       : typeof v === "number" ? S.setIntPref(name, v) : S.setStringPref(name, v);
-    let saved = {};
-    try { saved = JSON.parse(S.getStringPref(OTHER_SAVED, "{}")) || {}; } catch {}
+    let before = "{}", saved = {};
+    try { before = S.getStringPref(OTHER_SAVED, "{}"); saved = JSON.parse(before) || {}; } catch {}
     for (const [row, entries] of Object.entries(OTHER_MODS)) {
       const rowOn = S.getBoolPref(PREFIX + "other." + row, true);
       for (const [name, value, when] of entries) {
@@ -508,9 +892,11 @@
       try { if (get(name) === was.applied) was.had ? set(name, was.v) : S.clearUserPref(name); } catch {}
       delete saved[name];
     }
-    try { S.setStringPref(OTHER_SAVED, JSON.stringify(saved)); } catch {}
+    const after = JSON.stringify(saved);
+    if (after !== before) try { S.setStringPref(OTHER_SAVED, after); } catch {}
   }
-  const OTHER_WATCH = [PREFIX, "zzgroup.enabled", "zen.theme.acrylic-sidebar"];
+  // The rows' own switches and the features they follow.
+  const OTHER_WATCH = [PREFIX + "other.", ...new Set(Object.values(OTHER_MODS).flat().map(([, , when]) => when))];
   const otherModsObserver = { observe: () => syncOtherMods() };
 
   // ---- declared defaults --------------------------------------------------
@@ -519,7 +905,7 @@
   // preferences." So an unset pref reads as whatever the READER falls back
   // to, and the readers disagree with each other.
   //
-  // A mod's own reader falls back one way (this script's bool(name, true)),
+  // A mod's own reader falls back one way (getBoolPref(name, true) here),
   // Sine's settings panel another (getBoolPref(name, false) when deciding
   // whether a conditioned row shows), and a -moz-pref() media query in the
   // stylesheet a third. Each is reasonable alone; together they produce a mod
@@ -531,16 +917,12 @@
   // was already chosen is touched.
   const MOD_ID = "zz-glassflow";
   async function seedDefaults() {
-    let declared;
-    try {
-      const res = await fetch(`chrome://sine/content/${MOD_ID}/preferences.json`);
-      const json = await res.json();
-      declared = Array.isArray(json) ? json : (json.preferences ?? []);
-    } catch { return false; }
+    let rows;
+    try { rows = await declared(MOD_ID); } catch { return false; }
 
     const S = Services.prefs;
     let wrote = 0;
-    for (const pref of declared) {
+    for (const pref of rows) {
       const name = pref?.property;
       const value = pref?.defaultValue;
       if (!name || !name.startsWith(PREFIX) || value === undefined || value === null) continue;
@@ -555,28 +937,6 @@
     }
     return wrote > 0;
   }
-
-  // Repair 3.74.2's combined switch once: pointer tracking is separate from
-  // ordinary state/spacing motion. Other explicit choices remain intact.
-  try {
-    const S = Services.prefs, done = PREFIX + "migrated.motion-controls";
-    if (!S.getBoolPref(done, false)) {
-      if (S.getBoolPref(PREFIX + "migrated.motion-opt-in", false)) S.setBoolPref(PREFIX + "motion.enabled", true);
-      S.setBoolPref(done, true);
-    }
-  } catch {}
-
-  // Preserve the existing sidebar switch once; keep the old value for rollback.
-  // An explicit new native choice, including Off, always wins.
-  try {
-    const S = Services.prefs, done = PREFIX + "migrated.acrylic-sidebar";
-    if (!S.getBoolPref(done, false)) {
-      if (S.prefHasUserValue("zen.theme.acrylic-elements") && !S.prefHasUserValue("zen.theme.acrylic-sidebar")) {
-        S.setBoolPref("zen.theme.acrylic-sidebar", S.getBoolPref("zen.theme.acrylic-elements"));
-      }
-      S.setBoolPref(done, true);
-    }
-  } catch {}
 
   // Written the moment this script is injected, not from start(). These
   // variables need only Services.prefs and the document element -- never
@@ -643,6 +1003,9 @@
       if (topic === "browser-delayed-startup-finished" && subject === window) startOnce();
     };
     Services.obs.addObserver(obs, "browser-delayed-startup-finished");
+    // A window closed before delayed startup never fires the topic, and the
+    // observer service would keep this whole window alive for the session.
+    window.addEventListener("unload", stopWaiting, { once: true });
 
     // The backstop. In the failure above the window is ALREADY past delayed
     // startup, so the first tick starts the mod half a second later. Bounded,

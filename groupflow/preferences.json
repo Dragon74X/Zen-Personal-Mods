@@ -212,7 +212,7 @@
   {
     "type": "checkbox",
     "property": "zzgroup.match-glassflow-edges",
-    "label": "Follow Glassflow's edge fade *Uses Glassflow's shared edge axis and reach for the shared header style. Folder state profiles have independent rim direction and reach, with shared rim colours.*",
+    "label": "Follow Glassflow's edge side *The header's rim fades from the side Glassflow's unselected tabs draw their rim line on. Folder state profiles have independent rim direction and reach, with shared rim colours.*",
     "defaultValue": false,
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "headers"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.enabled", "value": true}}], "operator": "OR"}],
     "operator": "AND"
@@ -499,6 +499,14 @@
     "type": "checkbox",
     "property": "zzgroup.collapse-keep-last-used",
     "label": "Keep each folder's last-used tab when collapsed *Collapsing a folder or subfolder always keeps the selected tab and loaded tabs visible. With this on, it also keeps the tab you last used in each folder, even after that tab has been unloaded.*",
+    "defaultValue": true,
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "checkbox",
+    "property": "zzgroup.folder-pages",
+    "label": "Folders open their own page *Clicking a folder's icon opens its page, or switches to it when it is already open; clicking its name or elsewhere on the header folds it. The page's own tab row is hidden and the header shows it instead. Tab Router gives its folders their site, channel, game or section page; set or clear any folder's page from its menu.*",
     "defaultValue": true,
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"

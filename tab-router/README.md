@@ -30,13 +30,12 @@ Anything without a matching rule is left alone, unless **Sort everything automat
 
 Glance tabs, split-view tabs and Zen's blank placeholder tabs are skipped unconditionally — they are not toggles. Placeholders in particular cannot be grouped at all; `addTabGroup` returns null for them.
 
-**Re-file tabs that drifted** (on) is the one exception to *skip grouped*. A link opened from a grouped tab inherits that group even when it goes somewhere unrelated, so a tab whose group path no longer matches where it belongs gets re-filed rather than stranded. A tab that ends up suffix-filed under junk gets exactly one repair attempt, then is left alone.
+**Re-file tabs that drifted** (on) is the one exception to *skip grouped*. A link opened from a grouped tab inherits that group even when it goes somewhere unrelated, so a tab whose group path no longer matches where it belongs gets re-filed rather than stranded. A tab in a deeper subgroup of its path stays there, and so does one in a folder made by hand where its path would add a section, creator, channel or game subfolder; a tab in any other folder off its path is re-filed.
 
 Routing starts as soon as the tab's URL is known, without waiting for page load.
 Events within one event-loop turn share a single route using the latest URL;
 title changes cannot postpone it. Redirects and SPA navigation route again as
-their destination becomes known. The old **Wait before routing** setting is
-removed; saved values no longer add a delay. Group ordering has its own timer.
+their destination becomes known. Group ordering has its own timer.
 
 Only `http` and `https` tabs are considered. `about:`, `file:` and `chrome:` are ignored.
 
@@ -70,10 +69,81 @@ container check retries on network completion even if the tab has already been
 filed and **Re-file tabs that drifted** is off. Pending tabs do not influence
 their destination group's container choice. Already-filed tabs with a matching
 rule can also repair a container mismatch; deeper manual subgroups are preserved.
+A folder's own page tab (Groupflow) is never reopened: Groupflow opens it in the
+folder's container.
 `sortAll()` returns a Promise;
 use `await TabRouter.sortAll()` when you need completion.
 
 `TabRouter.applyOrder()` re-runs just the ordering pass.
+
+## Switching to a page that is already open
+
+**Switch to a page that is already open** (on). Clicking a link to a page that
+is already open in another tab switches to that tab instead of opening a copy,
+whether the click would open it in place or in a new tab; a new tab whose first
+page is already open elsewhere (opened from a menu, a bookmark, another app or
+typed) closes and switches to it too. Tabs in every space of every window
+count, in whichever container the page is open (the link's own first); Zen
+changes space as needed.
+
+When a switch lands you in another window -- one of these, or the address
+bar's **Switch to Tab** -- that window comes forward and, once it shows the
+page, two pill-shaped gleams in the loading bar's colour (Blended Addressbar's or the Deta Loading Bar's
+when one draws it, else Zen's own loading indicator's) run in from the sides along
+the bottom of its page (on the window's margin just below it), gathering speed like waves, then run
+into each other in the middle and merge into one pill that swells and fades,
+so the eye finds it; the window you leave plays it the other way at once,
+the pill welling up in the middle, parting and running out to the sides (with reduced
+motion only the merged pill appears and fades). Switching tabs in a window can play them too, by **Tab switch animation**:
+**In** (the default) runs them in at once; **In, following the load** runs a
+loading page's pills in with its progress and merges them once it is done (a
+page already loaded plays In); **Out** plays them out over the page you leave;
+**Out then in** plays both; **None** neither. Arc 2.0 has its own tab switch
+animation; pick one of the two. Moving
+between windows yourself shows nothing, nor does picking a tab whose page Zen
+brings into the window you are in. Zen keeps a copy of each tab in every
+window; a copy that has not loaded yet (every copy after a restart, and a
+new window's copies of tabs that were already open) counts as the window
+whose page is loaded, so these switches go there instead of pulling the page
+out of it.
+
+New tabs opened through Firefox's link opener -- middle- and Ctrl-clicks on
+links, **Open Link in New Tab**, bookmarks and history -- are checked before the
+tab exists, so an open page is switched to at once and no tab flashes in. With
+routing on, such a tab is also created in the container Zen's route asks for
+(rather than reopened in it afterwards) and filed into the deepest folder of its
+path that already exists, before it is drawn; any missing levels are created
+once it has loaded, as before. Tab Router also opens Groupflow's folder pages.
+
+A link clicked inside one of Groupflow's folder pages opens in its own tab in
+that folder (or wherever routing files it), so the page tab stays on its page.
+
+Only real link clicks and new tabs are checked, so back and
+forward, reloads, form submissions (and their redirects), redirects in general,
+sign-in steps and pages that navigate by script are never switched. To open a
+copy on purpose, hold **Alt** while clicking (middle-click included), or use
+**Duplicate Tab**; session restore and reopening closed tabs make copies as
+before. The same page ignores `#anchors`, tracking parameters (`utm_*`,
+`fbclid`, `si`, …), `www.` and a trailing slash; one open in the link's own
+container is preferred, else one in any other. The page side is a small window actor
+(`links-child.sys.mjs`) that reacts to clicks only; the list of open pages it
+reads holds addresses reduced to that comparison key.
+
+## Folder pages
+
+When it files a tab, Tab Router records each folder level's own page for
+Groupflow's **Folders open their own page**: the site's front page for the
+domain level (`https://youtube.com/`), the subdomain's for a subdomain level,
+and the channel, Nexus game or author, music page or path section a level is
+for. A level keeps the first page it is given; groups named by your own rules
+get none. Pages set or cleared by hand in Groupflow win. Folders made before
+pages existed get theirs too: a level with its own channel, game or section
+keeps that, and a site or subdomain level named after its tabs' site gets that
+site's front page.
+
+A tab restored unloaded after a restart reports `about:blank` until it loads;
+Tab Router reads its real address from its saved session, so its creator or
+game picture, the open-page check and folder pages all work before it loads.
 
 ## Splitting YouTube by creator
 
@@ -94,15 +164,39 @@ What the request is, exactly, because it is a network request:
   inline styles is reachable; other requests remain capped at 512 KiB. Each gives up
   after fifteen seconds, and a picture that decodes larger than 4096
   square is refused before it is drawn.
-- **Never from a private window.**
+- **Private windows ask nothing unless allowed.** See Private windows.
 - Creator names are cached by video ID, so `&t=` timestamps do not create extra
   entries. Missing avatars can repeat the oEmbed lookup for the channel URL.
   Failed requests or unusable metadata have a 10-minute retry cooldown.
 
+### Creators on any other site
+
+The same setting files creators everywhere else, without a list of sites to
+keep up:
+
+- **Profile addresses** by their shape on any site (`/@name`, `/channel/`,
+  `/user/`, `/u/`, `/profile/`, `/creator/`, `/r/` and similar), and at the root
+  of sites that keep profiles there (Twitch, Kick, X, Instagram, Patreon,
+  GitHub, OnlyFans, Fansly and others). Shared words such as `/model/` or
+  `/artist/` count only once the page says it is a person or profile.
+- **Who made a page**, read from the page you are viewing when Tab Router
+  asks: its structured data (`author`/`creator`), microdata, author link or
+  `meta name=author`, and otherwise the site's own oEmbed. Because it is your
+  page, signed-in and age-checked content is read like any other; no site is
+  skipped for what it shows. Only inert markup is read, never page scripts.
+- The page side is untrusted: names are bounded and cleaned of control and
+  bidi formatting characters, and a creator must live on the page's own site.
+  A profile's live preview image is used for its picture, so the picture needs
+  no anonymous fetch. A site's oEmbed answer that names no usable author is
+  not asked for again for 10 minutes.
+
 **Pictures on tabs and subgroups** operates independently of movement and
 **Subgroup by creator**. It includes pinned tabs, Essentials and already-grouped
-tabs. Enable Groupflow to render the pictures. Zen's manual tab icons take
-precedence; loading/audio/PiP controls and native favicons remain native.
+tabs. To picture creators on other sites it reads each page's creator as above,
+asking the site's oEmbed endpoint where needed, even with routing and
+**Subgroup by creator** off. Enable Groupflow to render the pictures. Zen's
+manual tab icons take precedence; loading/audio/PiP controls and native
+favicons remain native.
 Navigation, picture disable and Router unload remove owned overrides. Library
 copies display the same token but never route.
 
@@ -132,9 +226,11 @@ TabRouter.forgetCreators(id)  // remove this video/resource in each container
 ```
 
 The creators cache retains at most 300 metadata records; the avatars cache
-retains at most 100 subjects with 64px icons and optional 384px-wide banners.
+holds the pictures of open tabs and folders (see Cache storage), at most 300
+subjects with 64px icons and optional 384px-wide banners.
 Anonymous requests use the tab's container.
-Private windows start **0** metadata/image requests and persist **0** new records.
+Private windows persist **0** records and, unless **Look up names and pictures
+in private windows** is on, start **0** metadata/image requests.
 Literal IPs, local hostnames, URL credentials and non-HTTPS lookup/redirect
 targets are rejected; the hostname check does not classify DNS results.
 
@@ -216,8 +312,7 @@ moment something looks off, and it copies itself to the clipboard.
 Its **stalled** list is the one to read first: tabs that are not skipped, do
 have a target, and are still not under it. Those are the tabs the mod was
 supposed to file and did not. Everything else in the report explains why —
-the skip histogram, whether the navigation listener is still attached, and the
-last forty log lines.
+the skip histogram and the last forty log lines.
 
 `instanceGeneration` above 1 means this window loaded the script more than
 once. The mod retires the older copy when that happens, so a high number is a
@@ -235,17 +330,17 @@ group, and it copies the result to the clipboard.
 
 ## Subgroups
 
-Nesting uses real tab groups, never Zen folders, so nothing gets pinned. Automatic mode builds the path for you: `docs.proton.me` becomes **Proton / Docs**, and with path depth on, `nexusmods.com/games/stalker2` becomes **Nexusmods / Stalker 2**. Slugs are prettified (`crimson-desert` → Crimson Desert); slugs without word boundaries need an alias (`baldursgate3 = Baldur's Gate 3`) — `TabRouter.suggestAliases()` writes those from your page titles.
+Nesting uses real tab groups, never Zen folders, so nothing gets pinned. Automatic mode builds the path for you: `docs.proton.me` becomes **Proton / Docs**, and with URL path subgroups on for `nexusmods.com`, `nexusmods.com/games/stalker2` becomes **Nexusmods / Stalker 2**. Slugs are prettified (`crimson-desert` → Crimson Desert); slugs without word boundaries need an alias (`baldursgate3 = Baldur's Gate 3`) — `TabRouter.suggestAliases()` writes those from your page titles.
 
-Path subgroups are opt-in per site: **Sites that get path subgroups** lists which domains they apply to (`youtube.com` by default), so a deep path on every other site does not explode into subgroups. **Nesting limit** caps the total depth regardless of what the rules ask for.
+Path subgroups are off by default (**Use URL path as subgroups**). When on, **Site list mode** applies them to **only the listed sites** (the default; the list holds `youtube.com`) or to **every site except the listed ones**, so a deep path on other sites does not explode into subgroups. **Nesting limit** caps the total depth regardless of what the rules ask for.
 
 `TabRouter.groupTree()` prints the current nesting.
 
 ## Notes
 
-Uses `gBrowser.tabGroups` and `gBrowser.addTabGroup`. Subgroup creation relies on `addTabGroup({ insertBefore: tab })` placing the new group at the tab's position — a tab already inside a group therefore produces a group nested inside it. If a level refuses to nest on your build, the log says so and the group is kept flat rather than lost. Group matching is by label, case-insensitive, so a rule pointing at a group you already made will use it rather than creating a duplicate.
+Creates groups with `gBrowser.addTabGroup` and moves tabs with each group's `addTabs`. Subgroup creation relies on `addTabGroup({ insertBefore: tab })` placing the new group at the tab's position — a tab already inside a group therefore produces a group nested inside it. If a level refuses to nest on your build, the log says so and the group is kept flat rather than lost. Group matching is by label, case-insensitive, so a rule pointing at a group you already made will use it rather than creating a duplicate.
 
-If group creation is unavailable on your build, the log says so explicitly rather than failing silently. Turn off **Create groups that do not exist yet** to only ever use groups you made by hand. A rule naming a group that does not exist then leaves the tab where it is: no container reopen, no workspace move, no leaving its current group. If only a subgroup is missing, the tab still goes into the existing parent.
+Turn off **Create groups that do not exist yet** to only ever use groups you made by hand. A rule naming a group that does not exist then leaves the tab where it is: no container reopen, no workspace move, no leaving its current group. If only a subgroup is missing, the tab still goes into the existing parent.
 
 ## When Sine says it cannot read a mod's preferences
 
@@ -293,23 +388,78 @@ Only the game's `hero.jpg` is used—not promotional strips or mod-author images
 Nexus documents [V2 artwork](https://graphql.nexusmods.com/#definition-ArtworkSchemaV2)
 and [thumbnail/cover URLs](https://github.com/Nexus-Mods/Vortex/blob/master/docs/game-art-assets.md).
 The downloaded banner is decoded, limited to 4096 pixels per source dimension,
-and scaled to 384 pixels wide. Icons and optional banners share the existing
-100-subject, 900000-character cache; banners are discarded before icons at the
-size limit. A failed request retries on activity after 10 minutes. Off starts
-no banner requests; private windows start no artwork requests. Container
+and scaled to 384 pixels wide. Icons and optional banners share the
+pictures cache. A failed request retries on activity after 10 minutes. Off
+starts no banner requests; private windows start none unless allowed. Container
 partitioning, anonymous requests and the 15-second timeout remain in force.
+
+### Tab covers
+
+Three settings, each off by default and separate from **Nexus game banners**,
+give a tab its own cover art in place of its game's banner:
+
+- **Video thumbnails on tabs**: YouTube's thumbnail from the video's address,
+  so unloaded tabs show it too; other video sites' preview picture once loaded.
+  **Video picture** picks the **Thumbnail** (often large text) or a **Frame
+  from the video**, a still from partway in with no added text (YouTube).
+- **Nexus page covers on tabs**: a mod's or collection's own page picture. A
+  game's own page keeps its banner. **Nexus mod tab picture** picks the mod's
+  **Main picture** or its **Game banner**. Nexus's public data has no separate
+  mod banner, only the main picture and thumbnails of it.
+- **Cover art on other tabs**: any other page's sharing preview picture.
+
+**Cover art opacity (%)** applies to banners and covers alike, and **Cover art
+blur (px)** (0–20, default 0) softens text baked into thumbnails and banners;
+both reuse cached artwork. Covers are fetched anonymously in the tab's
+container, at most three at a time, decoded to 384 pixels wide with any black
+bars (a 4:3 video's frame) cut off; a failed one is not asked for again that
+session.
+
+### YouTube channel banners
+
+**YouTube channel banners** offers **Off** (default), **Folders**, **Tabs**, or
+**Folders and tabs**, like Nexus game banners: a creator's subfolder, and tabs
+of that channel and its videos (a video's own cover wins when that is on). The
+banner sits near the end of the channel's page, about 1.5 MB in, past what the
+name and avatar lookup reads, so it is its own anonymous read of at most 3 MiB,
+once per channel, after the channel's icon is in. It is cached with that icon.
 
 Recovered display associations continue through Groupflow's session mechanism.
 Artwork changes never claim routing ownership, rename/reparent folders, or move
 tabs. Opacity changes reuse cached raster bytes without fetching another image.
 
+## Private windows
+
+A private window routes tabs like any other, including as they open, and reads
+creator names from the pages you load in it. It saves nothing: no learned
+names, creators, pictures, covers or session records, and its pictures never
+enter the cache file. What it learns stays in that window's memory, including
+its own copy of page metadata, and is gone when the window closes.
+
+**Look up names and pictures in private windows** (off by default) decides
+whether it may ask sites online: creator names, pictures, banners and covers.
+Off, it asks nothing and shows only what normal windows already cached. On,
+lookups are anonymous, in the window's container, and go through the private
+network cache.
+
 ## Cache storage
 
-Creators, avatars and learned names now use
+Creators, avatars, tab covers and learned names use
 `zen-personal-mods-router-cache.json` in the profile, shared by browser windows.
+
+Pictures (icons, banners and covers) are kept for what is open when a window
+closes: closing a window keeps those of the windows still open, and quitting,
+or closing the last window, keeps every window's. A restart then shows them
+without fetching. Anything closed before that is dropped, so the file holds
+what you use rather than filling up. A window running an older copy of this
+mod, which cannot say what it shows, leaves the file as it is.
+If that file cannot be opened they fall back to one preference each, where the
+avatars are kept under 900000 characters, banners discarded before icons.
 Existing cache preferences are migrated only after the replacement file is
 written successfully. A failed migration retains their original bytes. Native
-JSONFile batches writes and flushes at shutdown; container/resource keys and
-existing cache limits are preserved. Routing rules and user settings remain
-preferences. This addresses the large `zzrouter.creators`/`zzrouter.avatars`
-preference warnings, not unrelated browser or extension console exceptions.
+JSONFile batches writes and flushes at shutdown; entries keep their
+container/resource keys and the 300-picture, 200-cover, 200-name and
+300-creator limits within a session.
+Routing rules and user settings remain preferences. This addresses the large
+`zzrouter.creators`/`zzrouter.avatars` preference warnings, not unrelated
+browser or extension console exceptions.

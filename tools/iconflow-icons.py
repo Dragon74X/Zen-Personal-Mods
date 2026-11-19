@@ -1177,11 +1177,14 @@ def zen_css():
         every += [i for i, _ in targets]
         parted = ", ".join(i + "[zzicon-own]" + OWN for i, _ in targets)
         parted_hover = ", ".join(h + "[zzicon-own]" + OWN for _, h in targets)
+        native_lines = ("  .tab-reset-button[zzicon-own]::before, .tab-reset-button[zzicon-own]::after { content: none !important; }\n"
+                        if key == "minus" else "")
         out.append(f"/* {label}, Zen's own animated */\n"
                    f'@media ((-moz-pref("zzicon.set", 0)) and (-moz-pref("zzicon.button.{k}", 0))) or (-moz-pref("zzicon.button.{k}", {ZEN_ANIMATED})) {{\n'
                    f"  {icons} {{ {move} {motion_props(ZEN_MOTION[key])} }}\n"
                    f'  @media {MOVES} {{ {hovers} {{ {lit} }} }}\n'
                    f"  {parted} {{ {PARTED} }}\n"
+                   f"{native_lines}"
                    f'  @media {MOVES} {{ {parted_hover} {{ --zzicon-frame: {FRAMES - 1} !important; filter: var(--zzicon-circuit-glow, none) !important; }} }}\n'
                    f"  {parents([h for _, h in targets])} {{ animation: none !important; transform: none !important; }}\n}}")
     # The glow rises with the pose, so it lights as the icon moves.
@@ -1467,6 +1470,10 @@ def main():
         if key == "downloads": icons += ", .zen-download-box-animation-icon" + OWN
         hovers = ", ".join(h for _, h in targets)
         own = ", ".join(h + OWN for _, h in targets)
+        if key == "minus":
+            # Zen 1.24.1 boxes draw native lines above the replacement background.
+            css.append(f"@media {uses(key)} {{\n"
+                       "  .tab-reset-button::before, .tab-reset-button::after { content: none !important; }\n}")
         if key in CSS_MOTION:
             # One drawing, moved by CSS on the spring: recomputed every refresh.
             css.append(f"/* {label}: moved by CSS */\n@media {uses(key)} {{\n"

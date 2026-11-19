@@ -120,9 +120,11 @@ Supported background-video tabs expose Show this video in sidebar and Sidebar vi
 
 ## Stable controls
 
-Pressing a preview control or focusing one captures the current preview
-geometry until pointer and keyboard focus both leave. Play/pause and seeking
-therefore retain the same target while the native music bar changes size. The
+Pressing a preview control or using its keyboard controls captures the current
+preview geometry. Pause alone keeps that size. Leaving the preview shrinks it,
+even if the clicked button still has DOM focus; hovering the media bar does not
+hold the video expanded. An unfinished press or timeline drag keeps its target
+fixed until release. Keyboard focus remains on the control after shrinking. The
 canvas and control hover share the same growth; crossing a button during that
 growth no longer cancels the timer or freezes an intermediate size. Controls use
 their original glyphs, including the seek-step labels, with no Morph replacement.
@@ -132,6 +134,14 @@ delay when arriving from the music bar below. Leaving returns it to the bar over
 the toolbar's different top edge no longer causes a one-frame position jump. Reduced
 motion changes apply live, and disabling the mod restores parked native PiP
 buttons only while Mediaflow still owns their hidden state.
+
+Keep the player's size now preserves Zen's toolbar height, the control row's
+layout space, and Mediaflow's reserved top margin. This also applies when title
+and progress are always shown. Arc's 120px hover height, -10px margin and
+0px-to-content-height control row otherwise moved the preview even while the
+pointer stayed on the music bar below it. Turning both size preservation and
+always-show off releases that geometry. Native title/progress hover disclosure
+and multiple-card stack sizing remain available.
 
 The diagnostic in `tools/mediaflow-controls-probe.js` records attempted presses as well as
 commands, so missed clicks are visible; it automatically copies its report.

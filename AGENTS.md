@@ -11,13 +11,36 @@ The automatic update source is `main`.
 
 # Settings menus
 
-Glassflow and Groupflow show one page at a time through `*.ui.page`. Every row
-after the picker carries the page condition first, then its own conditions
-(`tools/settings.test.mjs` enforces this). Colours belong to Glassflow; other
-mods say where to find them rather than adding their own colour settings.
+Glassflow, Glassflow Library, Groupflow and Iconflow show one page at a time
+through `*.ui.page`. Every row after the picker carries the page condition
+first, then its own conditions (`tools/settings.test.mjs` enforces this).
+
+The global look (glass tint, rims, panel borders, overlays and the shared
+accent) belongs to Glassflow. Colours that identify one thing live with that
+thing: a folder's own colour and label colours in Groupflow, the icon palette in
+Iconflow. Other mods point to Glassflow for the global look instead of adding
+their own colour settings.
 
 # Window controls
 
 Preserve the existing close, minimize, maximize and restore button glyphs and
 behavior. Keep them outside Iconflow/Morph artwork and animation changes unless
 the user explicitly requests changes to those window controls.
+
+# Diagnostics
+
+Requested implementation and verification remain agent-owned. Do not turn
+unfinished authorized work into a task handoff to the user. Only request data or
+a test that requires the user's machine, explicitly naming what to run and return.
+Continue all independent implementation/checks while that evidence is unavailable.
+
+Start collecting immediately when a probe runs. Discover targets and advance
+phases automatically; never require F8, target selection, Begin/Next buttons or
+rating choices. Keep only an optional Stop + copy control. Restore temporary
+styles, CSS state locks and UI state on completion, cancellation and a bounded
+deadline, then auto-copy the report. Diagnose installed versions and available
+APIs without requiring a mod update merely to run the probe.
+
+Distinguish automated CSS-state tests from real pointer/OS input and rendered
+pixels. Synthetic clicks or direct commands cannot verify physical input
+delivery. Timing/computed values alone cannot certify visual smoothness.

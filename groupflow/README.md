@@ -64,6 +64,9 @@ unloaded tabs and keeps the selected tab and all loaded tabs visible. **Keep eac
 (on for new/unset configurations) also keeps the tab last used in each folder/subfolder, even when unloaded. Existing false values remain unchanged.
 The next click shows all tabs in all subfolders.
 Nested headers and groups without subfolders still toggle individually.
+A collapsed group or folder stays folded when a tab opens in it or is moved
+into it (Firefox, and Zen's folder code, otherwise unfold it); the new tab shows
+like any other loaded or selected tab. Only unfolding it yourself opens it.
 Last-selected order uses Zen's native timestamps, including restored session history.
 History includes descendant tabs.
 If any split-view member remains visible, both member tabs retain their native row.
@@ -75,6 +78,36 @@ Collapse changes visibility only; it does not load, unload or close tabs.
 Folder labels retain the theme's toolbar text colour when a tab inside is selected.
 The Label colour setting overrides this foreground without changing the header fill.
 Subfolder state labels can override that shared setting.
+
+## Folders as pages
+
+A folder can be a page itself: Tab Router's YouTube folder is youtube.com, a
+creator subfolder is that creator's page, a Nexus Mods game folder is that
+game's page. Clicking the folder's **icon** switches to its page when you are not
+on it; when you are already on it, the same click folds and unfolds the folder.
+Clicking the folder's **name**, or anywhere else on its header, folds and unfolds
+it. The page's own tab row is hidden and the header keeps
+its usual look. Links you click inside the page open in their own tab in the
+folder (Tab Router), so the page tab stays on its page; a page tab that moves on
+by other means (a form, a script) becomes an ordinary tab in the folder again
+and the next icon click opens the page afresh.
+
+Closing a page tab -- with a shortcut, the tab menu or Close Other Tabs --
+unloads it instead, as a Favorite does, so a folder is never emptied or lost
+by accident; closing or deleting the folder itself still closes everything in
+it. A page that is also one of your Favorites (Essentials) stays a Favorite:
+the folder opens its own tab for it. The page tab opens in the container the
+folder's tabs use, subfolders included, so the site is signed in as it is in
+them; a page tab left in a container none of the folder's tabs use is replaced
+the next time you click the name.
+
+Tab Router gives the folders it files into their page: the site's front page,
+a subdomain's, or the channel, game, author or section page the folder is for.
+A folder named by one of your own rules has none. From a folder's menu, **Use
+selected tab as folder page** sets any folder's page and **Clear folder page**
+removes it; a cleared folder stays cleared. **Folders open their own page**
+(on) turns the whole behaviour off. "Same page" ignores `#anchors`, tracking
+parameters (`utm_*`, `fbclid`, `si`, …), `www.` and a trailing slash.
 
 ## Moving the window from under the tabs
 
@@ -162,18 +195,19 @@ part with its own setting (all on by default):
   edges while it scrolls, so folders, subfolders and tabs fade as they leave
   the list even when no folder scrolls inside itself, and with **Scroll
   inside folders** off.
-- **Arrows on hover:** hovering the folder's header shows only directions
-  that can scroll; clicking one scrolls a page that way. The same eligible
-  actions are available through the folder menu for keyboard access. Reduced
-  motion reaches the same final position without a custom glide.
 - **Tab count on hover:** hovering the right end of any folder or subfolder
   header, where the chip sits, shows how many tabs it holds, subfolders
   included. Its tooltip/menu reports loaded,
   total and playing counts. Selection-only changes reuse membership counts.
+  Native Zen folders keep their own header controls, so their counts are in
+  the tooltip only.
 
-Icon-only sidebars hide the count and scroll chips so they cannot overlap the
-folder's collapse/close targets. Expand the sidebar to use those chips; wheel
-scrolling and selected-tab visibility retain their existing behavior.
+The folder's menu offers **Scroll folder up** and **Scroll folder down** for
+each direction that can still scroll; each scrolls a page that way. Reduced
+motion reaches the same final position without a custom glide.
+
+Icon-only sidebars hide the count chip so it cannot overlap the folder's
+collapse/close targets; expand the sidebar to see it.
 
 A folder that fits has nothing to scroll, so its connector scrolls the list.
 With Firefox's **switch tabs by scrolling** setting on
@@ -405,15 +439,16 @@ separate surfaces:
   empty variable, which invalidates the rule.
 - **Header tint** defaults to Glassflow's unselected-tab tint, not its
   selected one.
-- **Gradient direction** is set to *Match Glassflow* by default and tracks
-  it live from there.
+- **Gradient direction** fades left to right by default; choose *Match
+  Glassflow* to follow Glassflow's direction live.
 
-**Follow Glassflow's edge fade** is off by default, and is the one to turn on
-if you want group headers and tabs to light and fade on the same axis: it
-takes the fade axis and reach from Glassflow's tab edges. The per-state rim
-strengths already reach this mod on their own — only the axis and reach need
-adopting, and a different axis for groups is a fair choice, which is why it is
-opt-in.
+**Follow Glassflow's edge side** is off by default, and is the one to turn on
+if you want group headers and tabs to light from the same side: with **Rim
+light on headers** on, the header's rim fades from the side Glassflow's
+unselected tabs draw their rim line on, over 60% of the header (Glassflow has
+no fade reach of its own). A different side for groups is a fair choice, which
+is why it is opt-in. Folder state profiles keep their own rim direction and
+reach.
 
 ## Corner shape (Zen 1.22b squircles)
 
@@ -422,8 +457,9 @@ universal selector — 1.3 on most platforms, 2.3 on Windows — so group header
 are reshaped along with everything else, and a roundness tuned before 1.22b
 reads squarer at the same number.
 
-**Corner shape** defaults to *Follow Zen*, including Glassflow's **Turn squircles
-off browser-wide** setting. Explicit shapes take precedence; *Round (classic)*
+**Corner shape** defaults to *Shared shape from Glassflow*, Glassflow's own corner
+shape; it and *Follow Zen* both honour Glassflow's **Turn squircles off
+browser-wide** setting. Explicit shapes take precedence; *Round (classic)*
 restores the pre-1.22b look. **Radius source** can take the header radius from
 Zen's own `--border-radius-medium` rather than a pinned number, so headers
 track Zen's design language through future restyles. **Radius compensation** set to *Auto* keeps the
@@ -434,6 +470,10 @@ one place the two mods do not inherit from each other automatically, because
 header roundness has always been its own value.
 
 ## Performance
+
+Pointer movement and folder-gutter wheel events resolve against the workspace
+under the pointer. This avoids geometry reads for inactive workspaces and
+prevents their overlapping hidden boxes from claiming the gutter.
 
 Nothing in Groupflow runs a blur of its own. Headers, lines and marks sit on
 the sidebar, and their see-through fills show Zen's own blur (Glassflow >
@@ -467,3 +507,16 @@ Tab-icon shape clips the image itself, including native, Router, manual and Libr
 copy icons. It overrides Arc’s `overflow: visible !important` inside the existing
 enabled geometry rule. Default / Match folder corners remains the default; icon
 size, transparent pixels and sibling loading/media overlays remain independent.
+
+## Zen 1.24.1b
+
+Zen 1.24.1b returns saved gradients (`tabGroupColors` gradient colours) as
+window-sized layers a header cannot draw, so such groups showed one colour
+fading out. Groupflow now lays Zen's colour stops across the header, first colour
+on the left; older Zen output is used unchanged.
+
+In Linux test runs, adding a tab from a nested folder or group to Essentials
+(new in 1.24.1b), restarting, and **Remove from Essentials** left the folders,
+nesting, counts and saved details unchanged, and the tab was not filed back into
+its folder (`tools/zen1241-groupflow-smoke.py`, synthetic commands). Windows is
+likely to behave the same, but physical input and Windows rendering were not tested.

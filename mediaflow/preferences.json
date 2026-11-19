@@ -172,7 +172,7 @@
   {
     "type": "checkbox",
     "property": "zzmedia.bar.still-on-hover",
-    "label": "Keep the player's size when pointed at *Zen adds space around the title and progress rows while you point at the player, which grows it and moves what sits above it. On, the rows keep their resting spacing. Where those rows show only on hover (Zen's own layout, without Arc 2.0 or the setting above) they still appear, just without the extra space.*",
+    "label": "Keep the player's size when pointed at *Keeps the toolbar height, control-row space and row padding unchanged on hover, including with Arc 2.0. Where title and progress show only on hover (Zen's own layout, without Arc 2.0 or the setting above) they still appear, without extra padding.*",
     "defaultValue": true,
     "conditions": [{"if": {"property": "zzmedia.bar.always-expanded", "value": false}}]
   },

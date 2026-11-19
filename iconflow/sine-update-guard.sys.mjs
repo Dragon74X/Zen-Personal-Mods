@@ -21,7 +21,7 @@ export function fixChromeStylesheetImports(utils, { IOUtils, PathUtils } = globa
   return true;
 }
 
-export function installSineUpdateGuard(manager, utils, { IOUtils, PathUtils } = globalThis) {
+export function installSineUpdateGuard(manager, utils, { IOUtils, PathUtils, Services } = globalThis) {
   const marker = "__zenPersonalModsUpdateGuardV1";
   if (manager[marker]) return true;
   const names = ["updateMods", "processModUpdate", "installMod", "syncModData"];
@@ -49,15 +49,62 @@ export function installSineUpdateGuard(manager, utils, { IOUtils, PathUtils } = 
   const operations = serial();
   const updates = serial();
   let batchErrors = null;
+  // Sine's settings caller clears its busy paragraph only on success. Track
+  // its actual paragraph, so an older request cannot overwrite a newer one.
+  // ponytail: retire when the upstream settings caller handles rejection.
+  const indicators = new Map();
+  function attachSettings(win) {
+    const doc = win?.document;
+    const indicator = doc?.querySelector("#sineInstalledGroup .update-indicator");
+    if (!indicator || indicators.has(indicator)) return;
+    indicators.set(indicator, null);
+    win.addEventListener("unload", () => indicators.delete(indicator), { once: true });
+    // Sine registers only the initializer. Zen 1.24 also looks up the module
+    // when navigating. Use the native registrar and retain Sine's initializer.
+    const sine = win.gCategoryInits?.get("paneSineMods");
+    if (sine && win.gCategoryModules && !win.gCategoryModules.has("paneSineMods")) {
+      if (typeof win.register_module === "function") win.register_module("paneSineMods", sine);
+      else win.gCategoryModules.set("paneSineMods", sine);
+    }
+    // Search initializes every pane, including the marketplace Sine removed.
+    // Leave the real marketplace alone wherever its tab or backend still exists.
+    const retired = win.gCategoryInits?.get("paneZenMarketplace");
+    const browser = win.browsingContext?.topChromeWindow;
+    if (retired && browser && !browser.gZenMods && !win.gZenMods &&
+        doc.getElementById("category-sine-mods") && !doc.getElementById("category-zen-marketplace"))
+      retired._initted = true;
+  }
+  if (typeof manager.loadMods === "function") {
+    const load = manager.loadMods;
+    manager.loadMods = function (win, ...args) {
+      attachSettings(win);
+      return load.call(this, win, ...args);
+    };
+  }
   // Queue before updateMods/installMod read mods.json, preventing stale copies
   // from separate user actions overwriting each other's installed-mod entries.
   manager.updateMods = function (...args) {
+    const waiting = [];
+    for (const [indicator, previous] of indicators) {
+      const busy = indicator.firstElementChild;
+      if (busy && busy !== previous && !busy.classList.contains("checked") && busy.textContent.trim() === "...") {
+        indicators.set(indicator, busy);
+        waiting.push([indicator, busy]);
+      }
+    }
     return operations(async () => {
       batchErrors = [];
       try {
         const result = await original.updateMods.apply(this, args);
         if (batchErrors.length) throw batchErrors[0];
         return result;
+      } catch (error) {
+        for (const [indicator, busy] of waiting) if (indicators.get(indicator) === busy) {
+          busy.setAttribute("role", "alert");
+          busy.textContent = "Update check failed. You can retry.";
+          indicator.replaceChildren(busy);
+        }
+        throw error;
       } finally {
         await updates.drain();
         batchErrors = null;
@@ -75,9 +122,11 @@ export function installSineUpdateGuard(manager, utils, { IOUtils, PathUtils } = 
         args[1] = await utils.getMods();
         // Sine compares only updatedAt. Several store entries never get one,
         // or change version without a new date, so they never update. For
-        // store mods, a different store version counts as newer.
+        // store mods, only a newer version may supply a missing/stale date.
+        // A cached older store entry must not undo an installed correction.
         const [mod, , store] = args, entry = mod?.origin === "store" && store?.[mod.id];
-        if (entry?.version && entry.version !== mod.version &&
+        if (entry?.version && mod.version && entry.version !== mod.version &&
+            Services?.vc?.compare(entry.version, mod.version) > 0 &&
             !(new Date(mod.updatedAt) < new Date(entry.updatedAt))) {
           args[2] = { ...store, [mod.id]: { ...entry, updatedAt: new Date().toISOString() } };
         }
@@ -156,16 +205,20 @@ export function installSineUpdateGuard(manager, utils, { IOUtils, PathUtils } = 
           const mod = intended[transaction.id];
           if (mod !== transaction.theme && !equal(mod, transaction.theme)) continue;
           const folder = transaction.folder;
-          const required = [mod.preferences, ...Object.values(mod.style || {}), ...Object.keys(mod.scripts || {})].filter(Boolean);
+          const required = new Set([mod.preferences, ...Object.values(mod.style || {}), ...Object.keys(mod.scripts || {})].filter(Boolean));
           for (const name of required) {
-            if (typeof name !== "string" || name.startsWith("/") || name.split(/[\\/]/).includes("..") ||
-                !await IOUtils.exists(PathUtils.join(folder, name))) throw new Error(`Missing installed file: ${transaction.id}/${name}`);
+            // Sine stores archive-relative paths with '/'. Gecko join() takes
+            // individual components; passing a nested name as one leaf fails.
+            const parts = typeof name === "string" ? name.split("/") : [];
+            if (!parts.length || parts.at(-1) === "." || parts.some(p =>
+              !p || /[\\:\x00-\x1f]/.test(p) || (p !== "." && /[. ]$/.test(p))))
+              throw new Error(`Invalid installed file path: ${transaction.id}`);
+            const file = PathUtils.join(folder, ...parts.filter(p => p !== "."));
+            if (!await IOUtils.exists(file)) throw new Error(`Missing installed file: ${transaction.id}/${name}`);
+            if (name === mod.preferences && IOUtils.readJSON && !Array.isArray(await IOUtils.readJSON(file)))
+              throw new Error(`Invalid preferences: ${transaction.id}`);
           }
           if (transaction.hadPreferences && !mod.preferences) throw new Error(`Missing preferences: ${transaction.id}`);
-          if (mod.preferences && IOUtils.readJSON) {
-            const preferences = await IOUtils.readJSON(PathUtils.join(folder, mod.preferences));
-            if (!Array.isArray(preferences)) throw new Error(`Invalid preferences: ${transaction.id}`);
-          }
           // Updating code must not reset the user's install controls.
           for (const key of ["enabled", "no-updates"]) if (Object.hasOwn(current[transaction.id] || {}, key)) merged[transaction.id][key] = current[transaction.id][key];
         }
@@ -261,9 +314,10 @@ export function installSineUpdateGuard(manager, utils, { IOUtils, PathUtils } = 
       finally { reasons(window).delete(id); }
     };
   }
-  // The shared manager makes 6 copies and multiple windows install just once.
+  // All standalone copies share one owner. The recovery check can distinguish
+  // this revision from an older guard still resident until browser restart.
   // Deliberately session-scoped: no window unload may abandon pending updates.
-  Object.defineProperty(manager, marker, { value: true });
+  Object.defineProperty(manager, marker, { value: 2 });
   return true;
 }
 
@@ -390,24 +444,47 @@ function settingsDocument(window, retire) {
   // Original help stays visually hidden in each control's accessible description.
   const tooltip = document.createElementNS("http://www.w3.org/1999/xhtml", "div");
   tooltip.className = "zzsettings-tooltip"; tooltip.popover = "auto"; tooltip.setAttribute("aria-hidden", "true");
-  const hideHelp = () => { if (tooltip.matches(":popover-open")) tooltip.hidePopover(); tooltip.remove(); };
+  let hideTimer = 0;
+  const hideHelp = () => { window.clearTimeout(hideTimer); hideTimer = 0; if (tooltip.matches(":popover-open")) tooltip.hidePopover(); tooltip.remove(); };
   const helpRow = node => node?.closest?.(".zzsettings-dialog .zzsettings-described");
+  const labelOf = row => row.querySelector(".zzsettings-name") || row.querySelector("moz-toggle")?.labelEl;
+  // The "i" (CSS-drawn after the name) sits just past the end of the name's
+  // last line: 6px out, 13px wide. Hovering it, with 4px to spare, is what
+  // shows the help; the rest of the row is left to its controls.
+  const iconOf = row => {
+    const label = labelOf(row);
+    if (!label) return null;
+    const range = document.createRange();
+    range.selectNodeContents(label);
+    const last = [...range.getClientRects()].filter(r => r.width).at(-1);
+    if (!last) return null;
+    const middle = last.top + last.height / 2;
+    return { left: last.right + 2, right: last.right + 23, top: middle - 11, bottom: middle + 11 };
+  };
+  const within = (box, event) => !!box && event.clientX >= box.left && event.clientX <= box.right &&
+    event.clientY >= box.top && event.clientY <= box.bottom;
+  const stay = () => { window.clearTimeout(hideTimer); hideTimer = 0; };
+  // Leaving the "i" for the help itself keeps it open; leaving both closes it.
+  const hideSoon = () => { if (!hideTimer && tooltip.isConnected) hideTimer = window.setTimeout(() => { hideTimer = 0; hideHelp(); }, 250); };
   const showHelp = row => {
+    stay();
     if (!row || tooltip.parentElement === row) return;
     hideHelp();
     tooltip.textContent = row.querySelector(".zzsettings-help").textContent;
     row.append(tooltip); tooltip.showPopover();
-    const label = row.querySelector(".zzsettings-name") || row.querySelector("moz-toggle").labelEl;
-    const anchor = label.getBoundingClientRect(), box = tooltip.getBoundingClientRect();
-    tooltip.style.left = `${Math.max(12, Math.min(anchor.left, window.innerWidth - box.width - 12))}px`;
-    const top = anchor.bottom + box.height <= window.innerHeight - 12 ? anchor.bottom : anchor.top - box.height;
+    const icon = iconOf(row) || labelOf(row).getBoundingClientRect(), box = tooltip.getBoundingClientRect();
+    tooltip.style.left = `${Math.max(12, Math.min(icon.left, window.innerWidth - box.width - 12))}px`;
+    const top = icon.bottom + box.height <= window.innerHeight - 12 ? icon.bottom : icon.top - box.height;
     tooltip.style.top = `${Math.max(12, Math.min(top, window.innerHeight - box.height - 12))}px`;
   };
   const helpEvents = [
-    ["pointerover", event => { const row = helpRow(event.target); if (row && !row.contains(event.relatedTarget)) showHelp(row); }],
-    ["pointerout", event => { const row = helpRow(event.target); if (row && !row.contains(event.relatedTarget) && !row.matches(":focus-within")) hideHelp(); }],
-    ["focusin", event => showHelp(helpRow(event.target))],
-    ["focusout", event => { const row = helpRow(event.target); if (row && !row.contains(event.relatedTarget) && !row.matches(":hover")) hideHelp(); }],
+    ["pointermove", event => {
+      if (tooltip.contains(event.target)) { stay(); return; }
+      const row = helpRow(event.target);
+      if (row && within(iconOf(row), event)) showHelp(row);
+      else hideSoon();
+    }],
+    ["pointerout", event => { if (!event.relatedTarget) hideSoon(); }],
     ["scroll", event => { if (event.target !== tooltip) hideHelp(); }],
     ["close", hideHelp],
   ];

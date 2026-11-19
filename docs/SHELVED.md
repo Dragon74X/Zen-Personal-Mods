@@ -1,13 +1,19 @@
 # Shelved work
 
+> Historical rationale only. Current Router picture recovery and file-backed
+> caches were subsequently implemented; see the [completion audit](FIXES-2026-10-30-COMPLETION-AUDIT.md).
+
 > **Record status, 9 October 2026:** restored from `57be003`. Commit `6f4ea93`
 > (9 September 2026) had emptied this file; the reasoning below is kept as a
 > record. Two ideas came back in other forms: creator subgrouping through
 > oEmbed, and subgroup pictures as Tab Router's section icons (each subgroup's
 > own page asked for its `og:image`). The MediaSession variant and the
-> history-based group images described below remain shelved. The caches named
-> below (`zzrouter.creators`, `zzgroup.icon-cache`) are no longer cleared on
-> load: that code went in `6f4ea93`, so an old profile may still hold them.
+> history-based group images described below remain shelved.
+>
+> **The caches named below, now:** `zzrouter.creators` is the oEmbed creator
+> cache; Tab Router moves an old profile's preference into its cache file once
+> (`router-cache.sys.mjs`). Nothing reads or clears `zzgroup.icon-cache`, so an
+> old profile may still hold it.
 
 Removed to rule them out as the cause of a stutter that lands shortly after a
 page loads -- not because they were wrong. Everything here worked and was
@@ -64,7 +70,7 @@ network/actor tier with the cookie and container caveats already noted.
 Why shelved: it routed on every navigation and re-checked a session-less media
 tab twelve times at 2.5s intervals -- per-page-load work in the same window as
 the stutter. Suspected, not proven. Its cache (`zzrouter.creators`) was a
-record of what had been watched and is cleared on load now.
+record of what had been watched.
 
 ## Automatic group images -- Groupflow
 
@@ -77,7 +83,7 @@ record of what had been watched and is cleared on load now.
 
 Why shelved: both ran per group on every refresh, and refreshes are driven by
 tab and favicon events -- again per-page-load. Its cache (`zzgroup.icon-cache`)
-paired sites with names from history and is cleared on load now.
+paired sites with names from history.
 
 ## What stays
 

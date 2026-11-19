@@ -1,8 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import vm from 'node:vm';
 import { installSineUpdateGuard } from '../glassflow/sine-update-guard.sys.mjs';
+import { load } from './harness.mjs';
 
 let serial = 0;
 async function cacheEnv({ fail = false, saved = {} } = {}) {
@@ -66,15 +65,10 @@ test('Sine teardown identifies window close, enabled rebuild, removal and disabl
   } finally { if(old===undefined)delete globalThis.Services;else globalThis.Services=old; }
 });
 
-async function functions(mod, names, context={}) {
-  let source=await readFile(new URL(`../${mod}/${mod}.uc.js`,import.meta.url),'utf8');
-  source=source.replace('  // ---- declared defaults',`  globalThis.harness={${names}};return;\n  // ---- declared defaults`);
-  const env=vm.createContext({console,...context});vm.runInContext(source,env);return env.harness;
-}
 test('Unloader reaches its ten-second deadline independently of the sweep interval', async () => {
-  let now=1000,id=0;const timers=new Map(),root={hasAttribute:()=>true};
-  const h=await functions('tab-unloader','sweep, retire:()=>retired=true',{
-    window:{},document:{documentElement:root,querySelectorAll:()=>[]},
+  let now=1000,id=0;const timers=new Map(),toolbox={hasAttribute:name=>name==='animating-background'};
+  const h=await load('tab-unloader','sweep, retire:()=>retired=true',{
+    window:{},document:{documentElement:{hasAttribute:()=>false},getElementById:id=>id==='navigator-toolbox'?toolbox:null,querySelectorAll:()=>[]},
     Date:class extends Date { static now(){return now;} },setTimeout:(fn,delay)=>{timers.set(++id,{fn,delay});return id;},clearTimeout:id=>timers.delete(id),
     Services:{prefs:{getBoolPref:(_k,d)=>d===false?true:d,getPrefType:()=>0}},gBrowser:{tabs:[]},
   });

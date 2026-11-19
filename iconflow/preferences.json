@@ -111,19 +111,19 @@
   {
     "type": "dropdown",
     "property": "zzicon.speed",
-    "label": "Animation duration (ms)",
+    "label": "Icon animation timing *Circuit: duration. Morph: wind-up + action. Clicking before wind-up finishes also includes its remaining time.*",
     "defaultValue": "0.45s",
     "options": [
       {
-        "label": "Quick — 300ms",
+        "label": "Quick — 300ms / Morph 120 + 400ms",
         "value": "0.3s"
       },
       {
-        "label": "Smooth — 450ms",
+        "label": "Default — 450ms / Morph 180 + 600ms",
         "value": "0.45s"
       },
       {
-        "label": "Slow — 700ms",
+        "label": "Slow — 700ms / Morph 280 + 933ms",
         "value": "0.7s"
       }
     ],
@@ -174,7 +174,7 @@
   {
     "type": "checkbox",
     "property": "zzicon.menu.animate",
-    "label": "Morph and animate menu icons (off by default) *Off leaves original menu icons and text-only entries unchanged. On applies Morph to supported menu and context-menu commands when using that icon set; other sets animate existing menu icons. Uses Animation speed.*",
+    "label": "Morph and animate menu icons (off by default) *Off leaves original menu icons and text-only entries unchanged. On applies Morph to supported menu and context-menu commands when using that icon set; other sets animate existing menu icons. Uses Icon animation timing.*",
     "defaultValue": false,
     "operator": "AND",
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "icons"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}]
@@ -2588,7 +2588,7 @@
   {
     "type": "checkbox",
     "property": "zzicon.library.size",
-    "label": "Same size as the other buttons *Zen draws it 18px and 8% larger than the others; this matches it to Icon size.*",
+    "label": "Same size as the other buttons *Zen draws it larger than the others; this matches it to Icon size.*",
     "defaultValue": false,
     "conditions": [{"conditions": [{"if": {"property": "zzicon.ui.page", "value": "library"}}, {"if": {"property": "zzicon.ui.page", "value": "all"}}, {"if": {"property": "zzicon.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"

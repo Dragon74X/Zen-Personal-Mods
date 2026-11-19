@@ -48,7 +48,7 @@
     if (!bool("debug", false)) return;
     log.push([Date.now(), m]);
     if (log.length > 200) log.shift();
-    if (bool("debug", false)) console.log("[ZenTurbo]", m);
+    console.log("[ZenTurbo]", m);
   };
 
   // Only one window should own pref application; every window may warm
@@ -67,7 +67,6 @@
     network: [
       ["network.http.max-persistent-connections-per-server", 10],
       ["network.http.pacing.requests.enabled", false],
-      ["network.http.speculative-parallel-limit", 12],
       ["network.dnsCacheEntries", 2000],
       ["network.dnsCacheExpiration", 3600],
       ["network.ssl_tokens_cache_capacity", 32768],
@@ -75,13 +74,6 @@
     // Reuse Firefox's native page-link hover preconnect on HTTPS pages.
     predictor: [
       ["network.predictor.enable-hover-on-ssl", true],
-    ],
-    // Session state is written to disk every 15s by default; that write is
-    // a periodic jank source on HDDs and busy systems. 30s halves it. Cost:
-    // after a hard crash, up to 30s of very recent session changes instead
-    // of 15s. Zen's own window sync is unaffected.
-    "io-jank": [
-      ["browser.sessionstore.interval", 30000],
     ],
     // Requests a 64 MiB media memory cache; actual reuse depends on workload.
     media: [
@@ -187,23 +179,16 @@
     return changed;
   }
 
-  // A pack that no longer exists can still own prefs in the snapshot written by
-  // an earlier version. The squircle pack, which moved to Glassflow where
-  // appearance belongs, is exactly that case: 1.3.0 shipped it, so a profile
-  // that enabled it holds layout.css.corner-shape.enabled = false plus a
-  // snapshot entry, and with the pack gone nothing would ever revert it. Give
-  // back anything the current packs no longer claim.
+  // A pack that no longer exists can still own prefs in the snapshot written
+  // while it did; with the pack gone nothing would revert them. Give back
+  // anything the current packs no longer claim, unless it was changed since.
   function reclaimOrphans(saved) {
     const owned = new Set();
     for (const list of Object.values(PACKS)) for (const [name] of list) owned.add(name);
     let changed = false;
     for (const name of Object.keys(saved)) {
       if (owned.has(name)) continue;
-      const s = saved[name];
-      // Older builds only recorded the original value. The removed
-      // squircle pack's applied value is known; other unknown entries stay.
-      const legacyApplied = { "layout.css.corner-shape.enabled": false, "network.predictor.enable-prefetch": true };
-      const applied = s?.applied ?? legacyApplied[name];
+      const s = saved[name], applied = s?.applied;
       if (applied === undefined) continue;
       if (getAny(name) !== applied) { delete saved[name]; changed = true; continue; }
       try {
@@ -259,7 +244,7 @@
       const hit = at !== undefined && Date.now() - at < warmTtlMs();
       if (hit) stats.hits++; else stats.cold++;
       if (hit) bumpOrigin(uri.prePath, "hits");
-      if (bool("debug", false)) note(`${hit ? "HIT" : "cold"} ${uri.prePath}`);
+      note(`${hit ? "HIT" : "cold"} ${uri.prePath}`);
     } catch {}
   }
   // A private window's warmups go to the private connection pool, never
@@ -296,11 +281,19 @@
   let warmupTimer = null, warmIdle = null, startupDue = false;
   const startupWarmTimers = new Set();
   let warmupEpoch = 0;
+  // While the startup warmup is due, a tab selection or a change in the
+  // selected tab's loading state may be the moment it can run.
+  function setStartupDue(due) {
+    if (due === startupDue) return;
+    startupDue = due;
+    for (const type of ["TabAttrModified", "TabSelect"])
+      gBrowser.tabContainer[due ? "addEventListener" : "removeEventListener"](type, onReadyEvent);
+  }
   function cancelStartupWarmup() {
     warmupEpoch++;
     clearTimeout(warmupTimer); warmupTimer = null;
     if (warmIdle !== null) window.cancelIdleCallback(warmIdle);
-    warmIdle = null; startupDue = false;
+    warmIdle = null; setStartupDue(false);
     for (const id of startupWarmTimers) clearTimeout(id);
     startupWarmTimers.clear();
   }
@@ -313,9 +306,12 @@
     warmIdle = window.requestIdleCallback(() => {
       warmIdle = null;
       if (gBrowser.selectedTab?.hasAttribute("busy")) return;
-      startupDue = false;
+      setStartupDue(false);
       startupWarmup();
     });
+  }
+  function onReadyEvent(event) {
+    if (event.type === "TabSelect" || event.target === gBrowser.selectedTab && event.detail?.changed?.includes("busy")) warmWhenReady();
   }
 
   // ---- startup warmup -----------------------------------------------------
@@ -389,32 +385,50 @@
       stats.byOrigin.clear();
     }
   }
-  function onReadyEvent(event) {
-    if (event.type === "TabSelect" || event.target === gBrowser.selectedTab && event.detail?.changed?.includes("busy")) warmWhenReady();
-  }
 
   // ---- wiring -------------------------------------------------------------
+  // Only the strips that move are marked. A single mark on :root restyled
+  // every workspace's tab strip twice per switch, which cost more main-thread
+  // and style time than the motion it was meant to spare.
   let smoothingObserver = null, smoothingTimer = null, smoothingMarked = false;
+  const smoothed = new Set();
+  // Zen moves "active" to the new space before it starts the slide, so the
+  // space being left is remembered from those records until the slide begins.
+  const leaving = new Set();
   function stopSmoothing() {
     clearTimeout(smoothingTimer); smoothingTimer = null;
-    document.documentElement.removeAttribute("zzturbo-smoothing");
+    for (const strip of smoothed) strip.removeAttribute("zzturbo-smoothing");
+    smoothed.clear();
   }
-  // Zen marks a trackpad swipe on the tab scroller, the workspaces and the
-  // grain layer (ZenSpacesSwipe.mjs), never on :root. A workspace slide is
-  // marked on #navigator-toolbox since Zen 1.23b, on :root before it.
+  // A click or shortcut moves the space being left and the one becoming
+  // active. A swipe can drag either neighbour, so it marks every strip.
+  function movingStrips() {
+    const all = swiping(), out = [...leaving];
+    for (const space of document.querySelectorAll("zen-workspace")) if (all || space.hasAttribute("active")) out.push(space);
+    for (const box of document.querySelectorAll(".zen-essentials-container")) if (all || !box.hasAttribute("hidden")) out.push(box);
+    leaving.clear();
+    return out.filter(strip => strip.isConnected);
+  }
+  // Zen marks a trackpad swipe on the tab scroller (ZenSpacesSwipe.mjs) and a
+  // workspace slide on #navigator-toolbox, never on :root.
   const swiping = () => !!document.getElementById?.("tabbrowser-arrowscrollbox")?.hasAttribute("swipe-gesture");
-  const sliding = () => document.documentElement.hasAttribute("animating-background") ||
-    !!document.getElementById?.("navigator-toolbox")?.hasAttribute("animating-background") || swiping();
-  function syncSmoothing() {
-    const root = document.documentElement;
+  const sliding = () => !!document.getElementById?.("navigator-toolbox")?.hasAttribute("animating-background") || swiping();
+  function syncSmoothing(records) {
+    for (const record of records || [])
+      if (record.attributeName === "active" && record.target?.localName === "zen-workspace") leaving.add(record.target);
     const marked = sliding();
     if (!marked || !bool("smooth-workspace-switch", true)) {
       stopSmoothing(); smoothingMarked = false; return;
     }
+    // A stuck native animation marker must not freeze tab effects indefinitely:
+    // once the timer has released them, nothing is marked until it clears.
+    if (smoothingMarked && !smoothingTimer) return;
+    for (const strip of movingStrips()) {
+      if (smoothed.has(strip)) continue;
+      smoothed.add(strip); strip.setAttribute("zzturbo-smoothing", "");
+    }
     if (smoothingMarked) return;
     smoothingMarked = true;
-    root.setAttribute("zzturbo-smoothing", "");
-    // A stuck native animation marker must not freeze tab effects indefinitely.
     smoothingTimer = setTimeout(stopSmoothing, 1500);
   }
   const prefObserver = {
@@ -429,24 +443,22 @@
 
   function start() {
     smoothingObserver = new MutationObserver(syncSmoothing);
-    smoothingObserver.observe(document.documentElement, { attributes: true,
-      attributeFilter: ["animating-background"] });
     const toolbox = document.getElementById("navigator-toolbox");
     if (toolbox) smoothingObserver.observe(toolbox, { attributes: true, attributeFilter: ["animating-background"] });
     const scroller = document.getElementById("tabbrowser-arrowscrollbox");
     if (scroller) smoothingObserver.observe(scroller, { attributes: true, attributeFilter: ["swipe-gesture"] });
+    const strips = document.getElementById("tabbrowser-tabs");
+    if (strips) smoothingObserver.observe(strips, { attributes: true, subtree: true, attributeFilter: ["active"] });
     syncSmoothing();
     Services.prefs.addObserver(P, prefObserver);
     syncPacks();
     Services.obs.addObserver(forgetWarmups, "browser:purge-session-history");
 
     syncMeasurement();
-    gBrowser.tabContainer.addEventListener("TabAttrModified", onReadyEvent);
-    gBrowser.tabContainer.addEventListener("TabSelect", onReadyEvent);
 
     if (bool("startup-warmup", true) && !isPrivate() && isMainAppWindow()) {
       window.gZenStartup.promiseInitialized.then(() => {
-        if (!retired) warmupTimer = setTimeout(() => { startupDue = true; warmWhenReady(); }, Math.max(0, num("startup-warm-delay-ms", 4000)));
+        if (!retired) warmupTimer = setTimeout(() => { setStartupDue(true); warmWhenReady(); }, Math.max(0, num("startup-warm-delay-ms", 4000)));
       });
     }
 
@@ -490,15 +502,13 @@
       retired = true;
       window.removeEventListener("unload", cleanup);
       smoothingObserver?.disconnect(); smoothingObserver = null;
-      stopSmoothing();
+      stopSmoothing(); leaving.clear();
       try { Services.prefs.removeObserver(P, prefObserver); } catch {}
       try { delete window.ZenTurbo; } catch {}
       try { Services.obs.removeObserver(forgetWarmups, "browser:purge-session-history"); } catch {}
       cancelStartupWarmup();
       syncMeasurement();
       log = []; recentWarm.clear();
-      gBrowser.tabContainer.removeEventListener("TabAttrModified", onReadyEvent);
-      gBrowser.tabContainer.removeEventListener("TabSelect", onReadyEvent);
     };
     window.addEventListener("unload", cleanup, { once: true });
     // Registered with Sine, so an update re-injects this script live, no
@@ -597,6 +607,9 @@
       if (topic === "browser-delayed-startup-finished" && subject === window) startOnce();
     };
     Services.obs.addObserver(obs, "browser-delayed-startup-finished");
+    // A window closed before delayed startup never fires the topic, and the
+    // observer service would keep this whole window alive for the session.
+    window.addEventListener("unload", stopWaiting, { once: true });
 
     // The backstop. In the failure above the window is ALREADY past delayed
     // startup, so the first tick starts the mod half a second later. Bounded,

@@ -60,9 +60,10 @@ def check(m, root, sine, profile, output, restarted=False):
           restartedPage:Services.prefs.getStringPref('zzglass.ui.page')==='tabs'&&Services.prefs.getStringPref('zzglass.ui.tab-state')==='hover'
         };""")
         result['restartedHoverHelp']=m.script("""return (async()=>{const d=settingsWin.document,dialog=d.querySelector('[mod-id="zz-groupflow"] dialog');
-          dialog.showModal();await new Promise(r=>setTimeout(r,400));d.querySelector('#zzgroup-enabled moz-toggle').focus();
-          const tip=d.querySelector('#zzgroup-enabled .zzsettings-tooltip:popover-open'),shown=!!tip&&tip.textContent===d.getElementById('zzgroup-enabled-help').textContent;
-          dialog.close();return shown;})();""")
+          dialog.showModal();await new Promise(r=>setTimeout(r,400));const toggle=d.querySelector('#zzgroup-enabled moz-toggle');toggle.focus();
+          const quiet=!d.querySelector('.zzsettings-tooltip:popover-open');
+          const help=d.getElementById('zzgroup-enabled-help'),described=!!help?.textContent&&toggle.contains(help);
+          dialog.close();return quiet&&described;})();""")
         print('restart',result,flush=True);assert all(result.values()),result
         return result
     result = m.script('''return (async()=>{
@@ -259,9 +260,16 @@ def hover_checks(m, output):
     result['helpHiddenAtRest']=not resting['open'] and 0<resting['height']<=1.1 and resting['clip']=='inset(50%)'
     print('resting help',resting,flush=True)
     for key in ['zzgroup-enabled','zzgroup-ui-page','zzgroup-header-tint']:
+        # The name and the rest of the row are left to their controls: only the "i" after the name shows help.
         point=m.script("""const row=settingsWin.document.getElementById("""+json.dumps(key)+""");row.scrollIntoView({block:'center'});
-          const label=row.querySelector('.zzsettings-name')||row.querySelector('moz-toggle').labelEl,b=label.getBoundingClientRect();return {x:b.x+8,y:b.y+b.height/2};""")
-        pointer(point['x'],point['y'])
+          const label=row.querySelector('.zzsettings-name')||row.querySelector('moz-toggle').labelEl,range=settingsWin.document.createRange();
+          range.selectNodeContents(label);const last=[...range.getClientRects()].filter(r=>r.width).at(-1),b=label.getBoundingClientRect();
+          return {x:b.x+8,y:b.y+b.height/2,ix:last.right+12,iy:last.top+last.height/2};""")
+        pointer(point['x'],point['y']);time.sleep(.35)
+        quiet=m.script("return !settingsWin.document.querySelector('.zzsettings-tooltip:popover-open');")
+        result['nameQuiet-'+key]=quiet
+        assert quiet,('help shown over the name',key)
+        pointer(point['ix'],point['iy'])
         state=m.script("""const d=settingsWin.document,row=d.getElementById("""+json.dumps(key)+"""),tip=row.querySelector('.zzsettings-tooltip:popover-open'),c=row.querySelector('moz-toggle,input,select');
           const a=settingsA11y.getAccessibleFor(c.buttonEl||c);return {shown:!!tip&&tip.textContent===row.querySelector('.zzsettings-help').textContent,accessible:a.description.includes(row.querySelector('.zzsettings-help').textContent),count:d.querySelectorAll('.zzsettings-tooltip').length};""")
         result['hover-'+key]=state['shown'] and state['accessible'] and state['count']==1
@@ -272,8 +280,14 @@ def hover_checks(m, output):
             result['hoverableHelpNoToggle']=m.script("return !!settingsWin.document.querySelector('.zzsettings-tooltip:popover-open')&&Services.prefs.getBoolPref('zzgroup.enabled')===true;")
             if output:m.shot().save(output/'native-settings-hover.png')
         pointer(1,1)
+    time.sleep(.35)
     m.script("settingsWin.document.getElementById('zzgroup-header-tint-control').focus();return true;")
-    result['focusHelp']=m.script("return !!settingsWin.document.querySelector('#zzgroup-header-tint .zzsettings-tooltip:popover-open');")
+    # Focusing a control leaves the help to its accessible description; it shows from the "i" only.
+    result['focusQuiet']=m.script("return !settingsWin.document.querySelector('.zzsettings-tooltip:popover-open');")
+    # Escape closes open help before the dialog: open it from the "i" first.
+    icon=m.script("""const row=settingsWin.document.getElementById('zzgroup-header-tint'),label=row.querySelector('.zzsettings-name'),range=settingsWin.document.createRange();
+      range.selectNodeContents(label);const last=[...range.getClientRects()].filter(r=>r.width).at(-1);return {x:last.right+12,y:last.top+last.height/2};""")
+    pointer(icon['x'],icon['y'])
     m.call('Marionette:SetContext',{'value':'content'})
     m.call('WebDriver:PerformActions',{'actions':[{'type':'key','id':'help-escape','actions':[{'type':'keyDown','value':'\ue00c'},{'type':'keyUp','value':'\ue00c'}]}]})
     m.call('WebDriver:ReleaseActions');time.sleep(.1)
@@ -318,11 +332,23 @@ def layout_checks(m, output):
         m.script("""const d=settingsWin.document,rows=[...d.querySelectorAll('dialog[open] .zzsettings-described')].filter(r=>r.getClientRects().length);
           window.edgeHelpRow=rows.at(-1);edgeHelpRow.scrollIntoView({block:'end'});d.activeElement?.blur();return true;""")
         time.sleep(.1)
-        m.script("edgeHelpRow.querySelector('moz-toggle,input,select,textarea').focus({preventScroll:true});return true;")
-        time.sleep(.1)
+        # Help shows from the "i" after the name: hover it.
+        icon=m.script("""const label=edgeHelpRow.querySelector('.zzsettings-name')||edgeHelpRow.querySelector('moz-toggle').labelEl,range=settingsWin.document.createRange();
+          range.selectNodeContents(label);const last=[...range.getClientRects()].filter(r=>r.width).at(-1);return {x:last.right+12,y:last.top+last.height/2};""")
+        m.call('Marionette:SetContext',{'value':'content'})
+        m.call('WebDriver:PerformActions',{'actions':[{'type':'pointer','id':'edge-help','parameters':{'pointerType':'mouse'},
+          'actions':[{'type':'pointerMove','duration':0,'x':round(icon['x']),'y':round(icon['y'])}]}]})
+        m.call('WebDriver:ReleaseActions');time.sleep(.1)
+        m.call('Marionette:SetContext',{'value':'chrome'})
         result[mode+'HelpBounds']=m.script("""const w=settingsWin,t=w.document.querySelector('.zzsettings-tooltip:popover-open');if(!t)return false;
           const b=t.getBoundingClientRect();return b.left>=0&&b.top>=0&&b.right<=w.innerWidth&&b.bottom<=w.innerHeight&&t.scrollWidth<=t.clientWidth+2;""")
         if output:m.shot().save(output/f'native-settings-{mode}.png')
+        # Leave nothing hovered for the next mode's measurements.
+        m.call('Marionette:SetContext',{'value':'content'})
+        m.call('WebDriver:PerformActions',{'actions':[{'type':'pointer','id':'edge-help','parameters':{'pointerType':'mouse'},
+          'actions':[{'type':'pointerMove','duration':0,'x':1,'y':1}]}]})
+        m.call('WebDriver:ReleaseActions');time.sleep(.3)
+        m.call('Marionette:SetContext',{'value':'chrome'})
     assert all(result.values()),result
     m.call('WebDriver:SetWindowRect',{'width':1366,'height':768})
     m.script("settingsWin.document.querySelector('dialog[open]').close();return true;")

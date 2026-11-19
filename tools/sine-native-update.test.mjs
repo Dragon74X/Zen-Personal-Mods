@@ -8,10 +8,10 @@ import vm from "node:vm";
 import { setImmediate as tick } from "node:timers/promises";
 import { test } from "node:test";
 import { installSineUpdateGuard, fixChromeStylesheetImports } from "../download-prompt/sine-update-guard.sys.mjs";
+import { mods } from "./harness.mjs";
 
 const upstream = process.env.SINE_MANAGER_SOURCE;
 const root = new URL("../", import.meta.url);
-const mods = ["download-prompt", "glassflow", "glassflow-library", "groupflow", "iconflow", "tab-router", "tab-unloader", "zen-turbo", "mediaflow", "peekflow"];
 
 test("native Sine: chrome imports retain SVG context paint without changing content imports or enable gates", { skip: !upstream }, async () => {
   const source = await readFile(path.resolve(path.dirname(upstream), "../services/stylesheets.sys.mjs"), "utf8");
@@ -70,7 +70,7 @@ async function environment({ realMetadata = false, failArchive = new Set() } = {
     manifests[theme.id] = { ...theme, enabled: true };
   }
   const fs = new Map();
-  let registry = Object.fromEntries(Object.entries(manifests).map(([id, m]) => [id, { ...m, updatedAt: "2020-01-01T00:00:00Z" }]));
+  let registry = Object.fromEntries(Object.entries(manifests).map(([id, m]) => [id, { ...structuredClone(m), updatedAt: "2020-01-01T00:00:00Z" }]));
   const entries = p => [...fs].filter(([k]) => k === p || k.startsWith(p + "/"));
   const exists = p => entries(p).length > 0;
   const erase = p => { for (const [k] of entries(p)) fs.delete(k); };
@@ -151,10 +151,44 @@ async function environment({ realMetadata = false, failArchive = new Set() } = {
     lastLoad = Promise.all(Object.values(registry).map(mod => utils.getModPreferences(mod)));
     return lastLoad;
   };
-  return { manager, utils, IOUtils, ucAPI, fs, manifests, marketplace, metadataRequests, updatedMods, sharedRepoDate,
+  return { manager, utils, IOUtils, ucAPI, fs, repo, manifests, marketplace, metadataRequests, updatedMods, sharedRepoDate,
     get lastLoad() { return lastLoad; },
     get registry() { return registry; } };
 }
+
+test("native Sine: nested archive files commit, invalid or missing files roll back, and retry succeeds", { skip: !upstream }, async () => {
+  const env = await environment(), id = "zz-groupflow", mod = env.manifests[id];
+  const folder = env.utils.getModFolder(id), previous = structuredClone(env.registry[id]);
+  const diskBefore = () => [...env.fs].filter(([p]) => p.startsWith(folder + "/")).sort();
+  const prior = diskBefore();
+  for (const [from, to] of [["preferences.json","config/menu/preferences.json"],["userChrome.css","styles/sidebar/userChrome.css"],["groupflow.uc.js","scripts/icons/groupflow.uc.js"]]) {
+    env.repo.set("groupflow/"+to, env.repo.get("groupflow/"+from)); env.repo.delete("groupflow/"+from);
+  }
+  mod.preferences = "config/menu/preferences.json"; mod.style.chrome = "styles/sidebar/userChrome.css";
+  delete mod.scripts["groupflow.uc.js"];
+  const script = "./scripts/icons/groupflow.uc.js";
+  // Node's path.join accepts a nested second argument. Gecko's join rejects
+  // both separators inside a leaf on Windows. The upstream preferences reader
+  // and host-folder extraction already supply individual components.
+  const PathUtils = { join(base, ...leaves) {
+    if (leaves.some(p => /[\\/]/.test(p))) throw new DOMException("PathUtils.join: NS_ERROR_FILE_UNRECOGNIZED_PATH");
+    return path.posix.join(base, ...leaves);
+  } };
+  installSineUpdateGuard(env.manager, env.utils, { IOUtils: env.IOUtils, PathUtils });
+  for (const invalid of ["../outside","/absolute","C:/absolute","C:relative","//server/share","..\\outside","assets/.. /p","assets/p:stream","assets//file","assets/","assets/missing"]) {
+    mod.scripts[invalid] = {};
+    const list = await env.utils.getMods();
+    await assert.rejects(env.manager.processModUpdate(list[id],list,null), /(?:Invalid installed file path|Missing installed file)/, invalid);
+    assert.deepEqual(env.registry[id],previous); assert.deepEqual(diskBefore(),prior);
+    delete mod.scripts[invalid];
+  }
+  mod.scripts[script] = {}; const list = await env.utils.getMods();
+  assert.equal((await env.manager.processModUpdate(list[id],list,null)).changed,true);
+  assert.equal(env.registry[id].style.chrome,mod.style.chrome);
+  assert.equal(env.registry[id].preferences,mod.preferences);
+  assert.deepEqual(await env.utils.getModPreferences(env.registry[id]),JSON.parse(env.repo.get("groupflow/"+mod.preferences)));
+  assert.ok(env.fs.has(folder+"/scripts/icons/groupflow.uc.js"));
+});
 
 test("native Sine: newer version is skipped when the shared repository timestamp is unchanged", { skip: !upstream }, async () => {
   const env = await environment({ realMetadata: true });
@@ -279,7 +313,8 @@ test("native Sine: a store mod whose store entry changes version without a newer
   const unguarded = await env.utils.getMods();
   assert.equal((await env.manager.processModUpdate(unguarded[id], unguarded, env.marketplace)).changed, false,
     "baseline: Sine never updates it");
-  installSineUpdateGuard(env.manager, env.utils, { IOUtils: env.IOUtils, PathUtils: path.posix });
+  installSineUpdateGuard(env.manager, env.utils, { IOUtils: env.IOUtils, PathUtils: path.posix,
+    Services: { vc: { compare(a,b) { assert.notEqual(a,b); return 1; } } } });
   assert.equal(await env.manager.updateMods("auto"), true);
   assert.deepEqual(env.updatedMods, [id]);
   assert.equal(env.registry[id].version, entry.version);
@@ -290,6 +325,23 @@ test("native Sine: a store mod whose store entry changes version without a newer
   env.registry[id].updatedAt = "2026-01-02T00:00:00Z";
   assert.equal(await env.manager.updateMods("auto"), true, "different version, same date");
   assert.deepEqual(env.updatedMods, [id, id]);
+});
+
+test("native Sine: stale store versions cannot force a version-only downgrade", { skip: !upstream }, async () => {
+  const env = await environment();
+  const id = "zz-groupflow", { updatedAt, ...entry } = env.manifests[id];
+  Object.assign(env.registry[id], { origin: "store", version: "9.9.9", updatedAt: "2026-01-02T00:00:00Z" });
+  env.marketplace[id] = { ...entry, version: "1.0.0", commit: "cached" };
+  installSineUpdateGuard(env.manager, env.utils, { IOUtils: env.IOUtils, PathUtils: path.posix,
+    Services: { vc: { compare(a, b) { assert.equal(a, "1.0.0"); assert.equal(b, "9.9.9"); return -1; } } } });
+  const before = await env.utils.getMods();
+  for (const date of [undefined, "2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z"]) {
+    if (date) env.marketplace[id].updatedAt = date;
+    else delete env.marketplace[id].updatedAt;
+    assert.equal((await env.manager.processModUpdate(before[id], before, env.marketplace)).changed, false);
+  }
+  assert.equal(env.registry[id].version, "9.9.9");
+  assert.deepEqual(env.updatedMods, []);
 });
 
 test("native Sine: an installed Zenslop fork updates into Mediaflow and keeps its id", { skip: !upstream }, async () => {

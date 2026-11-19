@@ -17,6 +17,42 @@ engine. It needs no specific installed mod version; auto-copy/cleanup remains
 20 seconds. Compositor status identifies execution location, not GPU present
 times. No Windows scale fix is claimed from Linux geometry checks.
 
+The subsequent Windows v5 capture reports Iconflow 1.21.8, Glassflow 3.74.11 and
+Mediaflow 2.8.4 installed. Four workspace and two Favorite runs show zero hit-box
+travel and zero sampled scale reversals while hover/press state is unchanged.
+Icon-center rounding spans at most 0.017px. Scale transitions report compositor
+execution after startup. Median callback interval is 4.17ms; three runs contain
+75–79.16ms gaps. Parent grayscale and tab-light transitions also run, but these
+samples do not establish their effect on displayed frame pacing. The attached
+icon probe contains no Mediaflow geometry, so its installed version alone does
+not verify the running preview's layout or explain the reported bar-hover shift.
+
+### Workspace/Favorites rendering remains open
+
+Probe v6 keeps the existing 20-second clipboard workflow and adds Gecko's
+`windowUtils.startFrameTimeRecording()` / `stopFrameTimeRecording()` to each
+one-second run. These record window compositor frame intervals separately from
+main-thread callback intervals. The first interval may start before recording;
+idle periods do not imply dropped frames, and an empty result does not mean
+zero latency. These are not monitor scan-out timestamps or icon-only counters.
+The API supports concurrent consumers; the probe does not change buffer prefs,
+graphics settings, production styles or an existing profiler session.
+
+Also collect graphics backend, adapter/driver, monitor refresh rates when
+available, native paint counts, transition run/cancel/end and pointer events,
+plus the probe's own setup/style-read cost. This distinguishes interrupted
+transitions, main-thread work and compositor pacing without treating
+`runningOnCompositor: true` as proof of the displayed result. Missing native
+capabilities are recorded and do not prevent clipboard delivery. No particular
+installed mod version is required. No production animation correction is
+claimed by this diagnostic change.
+
+API contract: [Mozilla's nsIDOMWindowUtils](https://searchfox.org/firefox-main/source/dom/interfaces/base/nsIDOMWindowUtils.idl).
+The existing native Morph harness checks compositor samples and transition
+events for both workspace and Favorite targets, graphics information, paint
+counts and auto-copy/cleanup. Windows output is still required to diagnose the
+reported display behavior.
+
 ## Confirmed defects and corrections
 
 - Arc's exact `#urlbar:hover` rule translates the whole target upward 2px over

@@ -2,9 +2,12 @@
 export async function collectReport(W, { timedMedia = false } = {}) {
   const P = Services.prefs;
   const TYPE = { 0: "unset", 32: "string", 64: "int", 128: "bool" };
-  // Web addresses are removed; other paths (a profile path names the Windows
-  // user) shrink to their file name.
-  const strip = () => "unavailable";
+  // Values and errors stay readable without what could name the user: a
+  // url()'s target and web addresses are removed, and other paths (a profile
+  // path names the Windows user, spaces and all) shrink to their file name.
+  const strip = value => String(value).replace(/url\([^)]*\)/gi, "url()")
+    .replace(/\b(?:https?|wss?|ftp):\/\/[^\s'"`()]*/gi, "<address>")
+    .replace(/[^\s'"`()\\/]*[\\/](?:[^'"`\\/\n]*[\\/])*[^\s'"`()\\/]*/g, path => path.split(/[\\/]/).pop());
 
   const MODS = [
     ["zz-download-prompt", "Download Prompt", "DownloadPrompt"],
@@ -59,8 +62,9 @@ export async function collectReport(W, { timedMedia = false } = {}) {
   try {
     const manager = ChromeUtils.importESModule(
       "chrome://userscripts/content/core/manager.sys.mjs").default;
-    report.sineUpdateGuard = manager.__zenPersonalModsUpdateGuardV1 === true
-      ? "active (session-scoped)" : "not active (restart, or engine no longer matches)";
+    const guard = manager.__zenPersonalModsUpdateGuardV1;
+    report.sineUpdateGuard = Number(guard) >= 2 ? "active (session-scoped)"
+      : guard ? "older revision active until restart" : "not active (restart, or engine no longer matches)";
   } catch (e) { report.sineUpdateGuard = "could not inspect: " + strip(e); }
   try {
     const utils = ChromeUtils.importESModule(
@@ -101,8 +105,7 @@ export async function collectReport(W, { timedMedia = false } = {}) {
     let prefs = null;
     try {
       const res = await fetch(`chrome://sine/content/${id}/preferences.json`);
-      const json = await res.json();
-      prefs = Array.isArray(json) ? json : (json.preferences ?? []);
+      prefs = await res.json();
     } catch (e) {
       out.problems.push(`could not read preferences.json: ${strip(e)}`);
       report.mods[name] = out;
@@ -206,15 +209,12 @@ export async function collectReport(W, { timedMedia = false } = {}) {
     const panel = d.querySelector("#navigator-toolbox .zen-toolbar-background, #zen-toolbar-background");
     const filter = sel => { const e = d.querySelector(sel); return e ? strip(cs(e).backdropFilter) : "absent"; };
     out.glass = {
-      animating: d.getElementById("navigator-toolbox")?.getAttribute("animate"),
+      animating: d.getElementById("navigator-toolbox")?.hasAttribute("animating-background"),
       edgeShade: shade && { content: shade.content, shadow: shade.boxShadow, radius: shade.borderRadius },
       titlebarBox: box(tb), panel: panel && { filter: strip(cs(panel).backdropFilter), bg: cs(panel).backgroundColor, box: box(panel) },
       tokens: Object.fromEntries(["--zzg-acrylic", "--zzg-blur-size", "--zzg-panel-radius", "--arc-compact-sidebar-blur", "--zen-backdrop-underlay"].map(v => [v, cs(d.documentElement).getPropertyValue(v).trim()])),
       overlays: { media: filter("#zen-media-controls-toolbar > .zen-media-card"), urlbar: filter("#urlbar[breakout-extend] .urlbar-background"), menu: filter("menupopup"), } };
 
-    // The music bar and video preview over 15 seconds: position, size,
-    // transform and opacity whenever one changes, and which attributes
-    // changed. No text or style values are read.
     out.downloadStack = {
       box: P.getBoolPref("zzlib.stack.box", false),
       open: d.getElementById("zen-sidebar-foot-buttons")?.hasAttribute("zen-library-stack-open"),
@@ -223,6 +223,9 @@ export async function collectReport(W, { timedMedia = false } = {}) {
       rows: d.querySelectorAll("#zen-library-download-list > :not([hidden])").length,
     };
     const bar = d.getElementById("zen-media-controls-toolbar");
+    // The music bar and video preview over 15 seconds: position, size,
+    // transform and opacity whenever one changes, and which attributes
+    // changed. No text or style values are read.
     if (timedMedia) {
       console.log("Recording the music bar for 15 seconds: switch away from the playing video's tab now, then point at the preview.");
       const pipEl = () => d.getElementById("zen-sidebar-pip-container"), t0 = w.performance.now();

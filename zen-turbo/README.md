@@ -16,23 +16,22 @@ Shipped Turbo defaults are initialized on Firefox’s typed default preference b
 
 | Pack | Default | Values requested |
 |---|---|---|
-| Network | on | 10 persistent connections per server; pacing disabled; speculative limit 12; DNS entries 2000; DNS expiration 3600 seconds; TLS token cache capacity 32768 |
+| Network | on | 10 persistent connections per server; pacing disabled; DNS entries 2000; DNS expiration 3600 seconds; TLS token cache capacity 32768 |
 | Native link hover | on | Firefox's `network.predictor.enable-hover-on-ssl=true` |
-| Session store | on | Write interval 30000 ms |
 | Media | on | `media.memory_cache_max_size=65536` (KiB) |
 | Graphics | off | `gfx.webrender.all=true`; `gfx.canvas.accelerated=true` |
 
 A value is changed only if the preference exists and differs from the requested value. Existence does not establish that the installed browser still reads that preference. Settings already at the requested value need no write.
 
-Before changing a preference, the mod captures its user value, or records that no user value existed. Each sync reads one restoration snapshot and writes it at most once, only if changed. Re-syncing skips previously captured preferences, preserving later manual edits. Disabling a pack restores captured values only while the current value still equals the pack's value. Failed restorations retain their snapshots for retry.
+Before changing a preference, the mod captures its user value, or records that no user value existed. Each sync reads one restoration snapshot and writes it at most once, only if changed. Re-syncing skips previously captured preferences, preserving later manual edits. Disabling a pack restores captured values only while the current value still equals the pack's value. A captured preference no pack requests any more, such as a former speculative limit of 12 or session-store interval of 30000 ms, is restored the same way on the next sync. Failed restorations retain their snapshots for retry.
 
-These values are configuration choices, not measured speed improvements. Increasing caches trades memory for potential reuse; speculative requests can consume network resources without a later navigation. The 30-second session-store interval changes session persistence timing. Graphics overrides remain disabled by default.
+These values are configuration choices, not measured speed improvements. Increasing caches trades memory for potential reuse; speculative requests can consume network resources without a later navigation. Later manual edits retain precedence. Graphics overrides remain disabled by default.
 
 ## Connection requests
 
 Favorites, Essentials, pinned tabs, and ordinary tabs use Zen/Firefox’s native hover warming and speculative connection path, including container handling. Turbo no longer installs duplicate tab-hover or bookmark-hover handlers or its own dwell timer. Existing retired hover preferences are left untouched but no longer add custom work.
 
-Page-link hover uses Firefox's existing implementation. The native link-hover pack enables it on HTTPS pages; Turbo no longer wraps `XULBrowserWindow.setOverLink`. The retired `network.predictor.enable-prefetch` override is restored from its saved value when still owned by Turbo.
+Page-link hover uses Firefox's existing implementation. The native link-hover pack enables it on HTTPS pages; Turbo no longer wraps `XULBrowserWindow.setOverLink`.
 
 Requests use Firefox's principal-taking API, which derives the destination network partition, including HSTS upgrades. Supplying incomplete origin attributes to the alternative API would bypass that derivation.
 
@@ -45,6 +44,8 @@ Clearing browsing history clears this window's warmup counters, origin records, 
 ## Workspace animation CSS
 
 `zzturbo.smooth-workspace-switch` pauses tab-strip transitions and animations and hides its videos during workspace motion. Zen's blur behind the sidebar stays on. Effects resume when the marker clears or after 1500 ms; a stale marker cannot freeze them indefinitely. Actual frame-time impact requires profiling the installed theme, browser, and hardware.
+
+Only the strips that move carry the mark: the space being left, the space becoming active and the visible Essentials. A trackpad swipe marks every strip, since it can drag either neighbour. Earlier versions marked the document root, which restyled every workspace's strip twice per switch. On Zen 1.24.1b under Linux/Xvfb with four spaces, that added about 30 ms of main-thread time per switch over stock Zen; marking only the moving strips brought it to about 8 ms and halved the style-thread time (synthetic switches; not a Windows, input or pixel measurement). The old cost grew with every space's strip; a click or shortcut now marks two strips however many spaces there are.
 
 ## Diagnostics and limits
 
@@ -59,7 +60,7 @@ ZenTurbo.warm("https://example.com")
 
 **These counters do not measure socket reuse, successful handshakes, bytes saved, or load-time savings.** Repeated navigations can match one request. Measurement defaults to off. Only explicit measurement installs the diagnostic navigation listener and collects counters; disabling it removes that listener and releases measurement data. Debug logs require their separate explicit setting. The functional recent-warm cache remains independent. Counters belong to the current window/script instance.
 
-Turbo adds one bounded history warmup per session and configurable preference overrides. Zen/Firefox already provides tab and page-link warming. The broad preference packs have no measured speed advantage in this repository; they are optional configuration choices. Disabling a pack or removing the mod restores captured values still owned by Turbo. Closing a window or rebuilding enabled scripts keeps feature overrides active. Restart once after upgrading to the new shared lifecycle guard.
+Turbo adds one bounded history warmup per session and configurable preference overrides. Zen/Firefox already provides tab and page-link warming. The [controlled workload comparison](../docs/FIXES-2026-10-30-COMPLETION-AUDIT.md) reports local HTTP/1.1 and media-seek results. They do not establish a universal speed advantage or justify changing saved choices; the packs remain optional configuration choices. Disabling a pack or removing the mod restores captured values still owned by Turbo. Closing a window or rebuilding enabled scripts keeps feature overrides active. Restart once after upgrading to the new shared lifecycle guard.
 
 `status().managedPrefs` lists captured preference names. `unknownPrefs` lists missing preference names; neither field proves a performance benefit. `warmupRequests` counts accepted API calls, and `recentOriginContexts` counts retained origin/container records, capped at `200`.
 

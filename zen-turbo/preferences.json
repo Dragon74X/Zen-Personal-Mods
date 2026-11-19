@@ -9,19 +9,13 @@
   {
     "type": "checkbox",
     "property": "zzturbo.pack-network",
-    "label": "Network preferences *Requests 10 persistent connections per server, disables request pacing, sets speculative limit 12, and changes DNS/TLS cache limits. Captures prior values before changes; re-sync preserves later manual edits. No load-time improvement has been measured by this mod.*",
+    "label": "Network preferences *Requests 10 persistent connections per server, disables request pacing, and changes DNS/TLS cache limits. Captures prior values before changes; re-sync preserves later manual edits. No load-time improvement has been measured by this mod.*",
     "defaultValue": true
   },
   {
     "type": "checkbox",
     "property": "zzturbo.pack-predictor",
     "label": "Native HTTPS link-hover preconnection *Enables Firefox's built-in speculative connections from HTTPS page-link hover. Turbo does not wrap the page-link status handler. Requests can occur without a later navigation.*",
-    "defaultValue": true
-  },
-  {
-    "type": "checkbox",
-    "property": "zzturbo.pack-io-jank",
-    "label": "Session-store interval *Sets browser.sessionstore.interval to 30000 milliseconds. Fewer scheduled writes can also leave more recent session changes unpersisted after a crash.*",
     "defaultValue": true
   },
   {

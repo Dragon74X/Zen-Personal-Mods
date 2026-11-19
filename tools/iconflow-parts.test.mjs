@@ -87,3 +87,18 @@ test("Clean Circuit retains every icon's size and states without glass or halo",
   const saved = await readFile(new URL("../iconflow/icons/clean/bookmarked.svg", import.meta.url), "utf8");
   assert.ok(+saved.match(/fill-opacity='([^']+)'/)[1] > +bookmark.match(/fill-opacity='([^']+)'/)[1]);
 });
+
+test("Parts rescans only for panels and views, not menus, tooltips or the tab hover preview", () => {
+  const start = source.indexOf("  const onEvent = e => {"), end = source.indexOf("\n  };", start) + 4;
+  assert.ok(start > 0, "onEvent handler present");
+  let scans = 0;
+  const onEvent = new Function("soon", source.slice(start, end) + "\nreturn onEvent;")(() => scans++);
+  onEvent({ type: "popupshown", target: { localName: "tooltip" } });
+  onEvent({ type: "popupshown", target: { localName: "panel", id: "tab-preview-panel" } });
+  onEvent({ type: "popupshown", target: { localName: "menupopup", id: "tabContextMenu" } });
+  assert.equal(scans, 0);
+  onEvent({ type: "popupshown", target: { localName: "panel", id: "appMenu-popup" } });
+  onEvent({ type: "ViewShown", target: { localName: "panelview" } });
+  onEvent({ type: "TabOpen", target: {} });
+  assert.equal(scans, 3);
+});

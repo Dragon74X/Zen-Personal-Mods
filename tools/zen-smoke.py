@@ -9,9 +9,12 @@ import argparse
 import base64
 import io
 import json
+import os
 from pathlib import Path
+import re
 import socket
 import subprocess
+import sys
 import tempfile
 import time
 from urllib.parse import quote
@@ -158,15 +161,17 @@ def check_restored_chrome(m, root):
             assert painted(info['box'],shown,hidden),(motion,left,'close glyph did not paint',info)
             m.script("restoreClose.removeAttribute('zzsmoke-hidden');if(restoreCloseStyle===null)restoreClose.removeAttribute('style');else restoreClose.setAttribute('style',restoreCloseStyle);InspectorUtils.removePseudoClassLock(restoreTab,':hover');return true;")
             time.sleep(.3);checks.append({'closeMotion':motion,'closeLeft':left,'painted':True})
-    # Discard a real background tab: its pending fade used to replace the
-    # spacing transition. Sample native animation times and rendered geometry.
+    # Discard a real background tab: its pending fade must keep the close
+    # spacing transition. With the X on the right the title's container gives
+    # way by margin; on the left the favicon and title slide by translate.
+    # Sample native animation times and rendered geometry.
     close_motion=m.script("""return (async()=>{
       const S=Services.prefs,wait=ms=>new Promise(r=>setTimeout(r,ms));
       const keys=['zzglass.motion.enabled','zzglass.instant-ui','zzglass.pending.enabled','zzglass.motion.profile','zzglass.tabs.close-left','ui.prefersReducedMotion'];
       const saved=keys.map(k=>{const had=S.prefHasUserValue(k);return [k,had,had?(S.getPrefType(k)===S.PREF_BOOL?S.getBoolPref(k):S.getIntPref(k)):null];});
       S.setBoolPref(keys[0],true);S.setBoolPref(keys[1],false);S.setBoolPref(keys[2],true);S.setIntPref(keys[5],0);
       const tab=gBrowser.addTab('data:text/html,<title>Close spacing test</title>',{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});
-      const stack=tab.querySelector('.tab-icon-stack'),label=tab.querySelector('.tab-label-container'),close=tab.querySelector('.tab-close-button');
+      const stack=tab.querySelector('.tab-icon-stack'),label=tab.querySelector('.tab-label-container'),title=tab.querySelector('.tab-label'),close=tab.querySelector('.tab-close-button');
       const cases=[],gates=[],rect=e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height];};
       try {
         await wait(800);
@@ -174,25 +179,27 @@ def check_restored_chrome(m, root):
           if(pending){gBrowser.discardBrowser(tab);await wait(200);if(!tab.hasAttribute('pending'))throw new Error('Native discard failed');}
           for(const [profile,duration]of [150,210,240,270,290].entries())for(const left of [false,true]){
             S.setIntPref(keys[3],profile);S.setBoolPref(keys[4],left);await wait(350);
-            const el=left?stack:label,property=left?'marginInlineStart':'marginInlineEnd';
-            const anchor=rect(close),origin=rect(label),directions=[];
+            // A transition reports margin-inline-end by its physical side.
+            const property=left?'translate':'marginInlineEnd',isSlide=a=>left?a.transitionProperty==='translate':a.transitionProperty?.startsWith('margin-');
+            const sliding=left?[stack,title]:[label],moved=left?title:label;
+            const anchor=rect(close),origin=rect(moved),directions=[];
             for(const hover of [true,false]){
               InspectorUtils[hover?'addPseudoClassLock':'removePseudoClassLock'](tab,':hover');
-              const slide=el.getAnimations().find(a=>a.transitionProperty?.startsWith('margin-'));
+              const slides=sliding.map(e=>e.getAnimations().find(isSlide));
               const fade=close.getAnimations().find(a=>a.transitionProperty==='opacity');
-              if(!slide||!fade||Math.abs(slide.effect.getTiming().duration-duration)>.01)throw new Error('Missing close transition '+JSON.stringify({pending,profile,left,hover,duration:slide?.effect.getTiming().duration,fade:!!fade,transition:getComputedStyle(el).transition}));
-              const animations=[slide,fade];animations.forEach(a=>a.pause());
+              if(!slides.every(a=>a&&Math.abs(a.effect.getTiming().duration-duration)<=.01)||!fade)throw new Error('Missing close transition '+JSON.stringify({pending,profile,left,hover,durations:slides.map(a=>a?.effect.getTiming().duration),fade:!!fade,transition:getComputedStyle(sliding[0]).transition}));
+              const animations=[...slides,fade];animations.forEach(a=>a.pause());
               const frames=[];
               for(const fraction of [0,.25,.5,.75,1]){
                 animations.forEach(a=>a.currentTime=duration*fraction);
-                const margin=parseFloat(getComputedStyle(el)[property]),box=rect(label),hit=rect(close);
+                const offset=parseFloat(getComputedStyle(sliding[0])[property]),box=rect(moved),hit=rect(close);
                 if(hit.some((v,i)=>Math.abs(v-anchor[i])>.02))throw new Error('Close target moved');
                 const travel=left?box[0]-origin[0]:origin[2]-box[2];
-                if(Math.abs(travel-margin)>.05)throw new Error('Label did not follow spacing');
-                frames.push({margin,opacity:+getComputedStyle(close).opacity});
+                if(Math.abs(travel-offset)>.05)throw new Error('Label did not follow spacing');
+                frames.push({offset,opacity:+getComputedStyle(close).opacity});
               }
               const end=hover?24:0;
-              if(Math.abs(frames.at(-1).margin-end)>.02||new Set(frames.map(f=>f.margin.toFixed(2))).size<3)throw new Error('Spacing jumped');
+              if(Math.abs(frames.at(-1).offset-end)>.02||new Set(frames.map(f=>f.offset.toFixed(2))).size<3)throw new Error('Spacing jumped');
               animations.forEach(a=>a.finish());directions.push({hover,frames});
             }
             cases.push({pending,profile,left,duration,directions});
@@ -202,7 +209,7 @@ def check_restored_chrome(m, root):
         for(const [name,key,value]of [['disabled',keys[0],false],['instant',keys[1],true],['reduced',keys[5],1]]){
           const set=v=>S[typeof v==='boolean'?'setBoolPref':'setIntPref'](key,v);set(value);await wait(350);
           InspectorUtils.addPseudoClassLock(tab,':hover');
-          if(stack.getAnimations().some(a=>a.transitionProperty?.startsWith('margin-'))||parseFloat(getComputedStyle(stack).marginInlineStart)!==24)throw new Error(name+' did not disable spacing motion');
+          if(stack.getAnimations().some(a=>a.transitionProperty==='translate')||parseFloat(getComputedStyle(stack).translate)!==24)throw new Error(name+' did not disable spacing motion');
           InspectorUtils.removePseudoClassLock(tab,':hover');set(name==='disabled'?true:name==='instant'?false:0);gates.push(name);
         }
         return {cases,gates};
@@ -261,6 +268,8 @@ def check_sidebar_hover(m):
     from threading import Thread
     class Page(BaseHTTPRequestHandler):
         def do_GET(self):
+            if self.path.startswith('/load-'):
+                time.sleep(.2)
             fill = 'white' if self.path == '/opaque' else 'transparent'
             html = f'''<!doctype html><style>html,body{{margin:0;background:{fill}}}
               #pattern{{position:fixed;inset:0;background:repeating-linear-gradient(90deg,black 0 4px,transparent 4px 8px)}}
@@ -280,6 +289,34 @@ def check_sidebar_hover(m):
           await Promise.all(box.getAnimations().map(a=>a.finished.catch(()=>{})));return true;
         })();""")
     try:
+        # Navigate the current tab while its sidebar stays open. The late
+        # transparency change models a theme applying to the loaded document;
+        # the real top-level load callback must refresh both blur paths.
+        for compatibility in [False, True]:
+            m.script("document.documentElement.setAttribute('zzsmoke-opaque','');Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',"+json.dumps(compatibility)+");return true;")
+            hover(True)
+            url=f'http://127.0.0.1:{server.server_port}/load-{compatibility}'
+            loaded=m.script("""return (async()=>{
+              const browser=gBrowser.selectedBrowser, tab=gBrowser.selectedTab, toolbox=document.getElementById('navigator-toolbox');
+              let timer, finish, done=false, redraws=0;
+              const mo=new MutationObserver(()=>{if(done && toolbox.hasAttribute('zzg-redraw'))redraws++;});
+              mo.observe(toolbox,{attributes:true,attributeFilter:['zzg-redraw']});
+              const progress={onStateChange(b,wp,_r,flags){const W=Ci.nsIWebProgressListener;
+                if(b!==browser || !wp?.isTopLevel || !(flags&W.STATE_STOP) || !(flags&W.STATE_IS_NETWORK))return;
+                document.documentElement.removeAttribute('zzsmoke-opaque');done=true;finish();
+              }};
+              gBrowser.addTabsProgressListener(progress);
+              try {
+                await new Promise((resolve,reject)=>{finish=resolve;timer=setTimeout(()=>reject(Error('Load did not finish')),8000);
+                  browser.loadURI(Services.io.newURI("""+json.dumps(url)+"""),{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal()});});
+                for(let n=0;n<4;n++)await new Promise(r=>requestAnimationFrame(r));
+                return {redraws,sameTab:gBrowser.selectedTab===tab,open:toolbox.hasAttribute('zen-has-hover'),
+                  background:getComputedStyle(browser).backgroundColor,filter:document.getElementById('tabbrowser-tabbox').style.filter};
+              } finally {clearTimeout(timer);mo.disconnect();gBrowser.removeTabsProgressListener(progress);}
+            })();""")
+            assert loaded['sameTab'] and loaded['open'] and loaded['redraws']>0,loaded
+            assert ('zzg-strip' in loaded['filter'])==compatibility,loaded
+            checks.append({'page':'loaded-with-open-sidebar','compatibility':compatibility,**loaded})
         for name,url in [('transparent',f'http://127.0.0.1:{server.server_port}/transparent'),('opaque',f'http://127.0.0.1:{server.server_port}/opaque'),('settings','about:preferences')]:
             m.script('gBrowser.selectedTab=gBrowser.addTab('+json.dumps(url)+',{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});return true;')
             time.sleep(.8)
@@ -325,6 +362,9 @@ def check_sidebar_hover(m):
                     # blur. Count mutations, not just matching final geometry.
                     motion=m.script("""return (async()=>{
                       const wait=ms=>new Promise(r=>setTimeout(r,ms));
+                      // Updates are scheduled on rAF. A 100ms timer can fire
+                      // before a throttled headless chrome window runs one.
+                      const settle=()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
                       const toolbox=document.getElementById('navigator-toolbox'),filter=document.getElementById('zzg-strip'),box=document.getElementById('tabbrowser-tabbox');
                       const keys=['zzglass.workspaces.enabled','zzglass.workspaces.hover','zzglass.tabs.essentials-icon-grow'],S=Services.prefs;
                       const saved=keys.map(k=>[k,S.prefHasUserValue(k),S.getPrefType(k)===S.PREF_BOOL?S.getBoolPref(k):S.getIntPref(k)]);
@@ -342,17 +382,21 @@ def check_sidebar_hover(m):
                           if(scale!=='1.3'||writes.length)throw new Error(name+': '+JSON.stringify({scale,writes:writes.map(c=>c.attributeName)}));
                           cases.push({name,scale,filterWrites:writes.length});
                         }
-                        writes.length=0;window.dispatchEvent(new Event('resize'));await wait(100);
+                        writes.length=0;window.dispatchEvent(new Event('resize'));await settle();
                         if(writes.length)throw new Error('Unchanged geometry rewrote filter');
                         // Tab selection can change transparency without moving
                         // the sidebar. Re-evaluate it without relying on bubbling
                         // icon transitions; retain another owner's filter.
-                        document.documentElement.setAttribute('zzsmoke-opaque','');tab.dispatchEvent(new Event('TabSelect',{bubbles:true}));await wait(100);
+                        document.documentElement.setAttribute('zzsmoke-opaque','');tab.dispatchEvent(new Event('TabSelect',{bubbles:true}));await settle();
                         if(box.style.filter)throw new Error('Opaque selection retained strip filter');
                         document.documentElement.removeAttribute('zzsmoke-opaque');
-                        tab.dispatchEvent(new Event('TabSelect',{bubbles:true}));await wait(100);
-                        if(!box.style.filter.includes('zzg-strip'))throw new Error('Transparent selection lost strip filter');
-                        writes.length=0;toolbox.dispatchEvent(new TransitionEvent('transitioncancel',{propertyName:'translate'}));await wait(100);
+                        tab.dispatchEvent(new Event('TabSelect',{bubbles:true}));await settle();
+                        if(!box.style.filter.includes('zzg-strip'))throw new Error('Transparent selection lost strip filter: '+JSON.stringify({filter:box.style.filter,
+                          background:getComputedStyle(gBrowser.selectedBrowser).backgroundColor,
+                          backdrop:getComputedStyle(document.getElementById('zen-toolbar-background')).backdropFilter,
+                          compact:document.documentElement.getAttribute('zen-compact-mode'),attributes:toolbox.getAttributeNames(),
+                          enabled:S.getBoolPref('zzglass.sidebar.blur-transparent-pages'),svg:!!document.getElementById('zzg-strip')}));
+                        writes.length=0;toolbox.dispatchEvent(new TransitionEvent('transitioncancel',{propertyName:'translate'}));await settle();
                         if(writes.length)throw new Error('Cancelled slide rewrote unchanged geometry');
                         return cases;
                       } finally {
@@ -365,7 +409,9 @@ def check_sidebar_hover(m):
                     panel=m.script("const p=document.getElementById('zen-toolbar-background').getBoundingClientRect();return [p.left,p.top,p.right,p.bottom];")
                     blurred=m.shot();scale=blurred.width/m.script('return window.innerWidth;')
                     m.script("Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',false);return true;");time.sleep(.3)
-                    sharp=m.shot();m.script("Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',true);return true;")
+                    sharp=m.shot()
+                    assert m.script("return !document.getElementById('zzg-strip') && !document.getElementById('tabbrowser-tabbox').style.filter;"), 'Disabled compatibility retained its SVG or page filter'
+                    m.script("Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',true);return true;")
                     strip=tuple(round(v*scale) for v in (panel[0]+20,200,panel[2]-20,260))
                     detail=[max(ImageStat.Stat(im.crop(strip)).stddev) for im in (blurred,sharp)]
                     assert detail[0]<detail[1]/2,(name,'strip not blurred',detail)
@@ -381,7 +427,8 @@ def check_sidebar_hover(m):
 
 
 def check(m, root, arc, transparent):
-    mods = ["download-prompt", "glassflow", "glassflow-library", "groupflow", "iconflow", "tab-router", "tab-unloader", "zen-turbo", "mediaflow"]
+    # Every mod but zenslop, which only forwards old installs to Mediaflow.
+    mods = sorted(theme.parent.name for theme in root.glob("*/theme.json") if theme.parent.name != "zenslop")
     prefs = {}
     pref_files = [p / "preferences.json" for p in [arc, transparent] if p] + [root / mod / "preferences.json" for mod in mods]
     for path in pref_files:
@@ -391,10 +438,10 @@ def check(m, root, arc, transparent):
     prefs.update({"zzglass.sidebar.enabled": True, "zzglass.sidebar.blur": True,
                   "zzglass.sidebar.blur-radius": "12px", "zzglass.sidebar.panel-opacity": "0%",
                   "zzrouter.enabled": False, "zzunload.enabled": False,
-                  "zzturbo.startup-warmup": False, "zzturbo.hover-warmup": False,
+                  "zzturbo.startup-warmup": False,
                   "zen.view.compact.hide-tabbar": True, "zen.theme.acrylic-sidebar": True,
                   "arc.force-blur-rendering": False})
-    for pack in ["network", "predictor", "io-jank", "media", "gfx"]:
+    for pack in ["network", "predictor", "media", "gfx"]:
         prefs["zzturbo.pack-" + pack] = False
     m.script("for (const [k,v] of Object.entries(" + json.dumps(prefs) + ")) {"
              "Services.prefs[typeof v==='boolean'?'setBoolPref':typeof v==='number'?'setIntPref':'setStringPref'](k,v); } return true;")
@@ -429,6 +476,16 @@ def check(m, root, arc, transparent):
       download:DownloadPrompt.status()};""")
     assert all(present for _, present in result["apis"]), (result, m.script("return (Services.console.getMessageArray()||[]).map(m=>m.message).filter(m=>/TabRouter|tab-router/.test(m));"))
     result['iconPaintChecks'] = icon_paint_checks
+    # With compatibility off, native blur owns the surface without allocating
+    # a page filter. Saved On is still honoured after re-injection.
+    assert m.script("return !document.getElementById('zzg-strip') && !document.getElementById('tabbrowser-tabbox').style.filter;"), 'Default native path allocated a page filter'
+    m.script("Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',true);return true;")
+    m.script((root / 'glassflow/glassflow.uc.js').read_text() + "\nreturn true;")
+    assert m.script("return Services.prefs.getBoolPref('zzglass.sidebar.blur-transparent-pages') && document.querySelectorAll('#zzg-strip').length===1;"), 'Saved compatibility choice lost or duplicated on re-injection'
+    m.script("Services.prefs.setBoolPref('zzglass.sidebar.blur-transparent-pages',false);return true;")
+    m.script((root / 'glassflow/glassflow.uc.js').read_text() + "\nreturn true;")
+    assert m.script("return !Services.prefs.getBoolPref('zzglass.sidebar.blur-transparent-pages') && !document.getElementById('zzg-strip') && !document.getElementById('tabbrowser-tabbox').style.filter;"), 'Off retained a page filter after re-injection'
+    result['pageBlurLifecycle'] = ['default-off', 'saved-on-reinjection-single-owner', 'saved-off-reinjection-no-filter']
     def settle():
         m.script("return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))));")
 
@@ -492,7 +549,7 @@ def check(m, root, arc, transparent):
       const ss=Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService);
       ss.unregisterSheet(zzsmokeMediaSheet,ss.USER_SHEET);
       delete window.zzsmokeMediaEvents;delete window.zzsmokeMediaListen;delete window.zzsmokeMediaSheet;return true;""")
-    m.script("document.documentElement.removeAttribute('animating-background'); DownloadPrompt.preview(); return true;")
+    m.script("DownloadPrompt.preview(); return true;")
     modal = m.script("""let d=document.getElementById('zzdl-ask');return {modal:d.matches(':modal'),
       focus:d.contains(document.activeElement),name:d.getAttribute('aria-labelledby')};""")
     assert modal == {"modal": True, "focus": True, "name": "zzdl-title"}, modal
@@ -963,6 +1020,351 @@ def check_actions(m, root):
     return result
 
 
+def check_native_popups(m, root):
+    m.script('return gZenStartup.promiseInitialized.then(()=>true);')
+    # Exercise the Windows-only tint branch without claiming a Windows renderer.
+    css = (root/'glassflow/userChrome.css').read_text().replace('(-moz-windows-mica-popups)', '(-moz-pref("test.mica"))')
+    m.script('window.popupTestCSS='+json.dumps(css)+';return true;')
+    m.sock.settimeout(180)
+    m.call('WebDriver:SetTimeouts', {'script':180000})
+    result=m.script((root/'tools/native-popup-checks.js').read_text())
+    # Use the shipped collector with actual Arc menu animation and shadow DOM.
+    m.script('''const ss=Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService);
+      for(const css of [popupTestCSS,popupTestArc])ss.loadAndRegisterSheet(Services.io.newURI('data:text/css,'+encodeURIComponent(css)),1);
+      Services.prefs.setBoolPref('zen.theme.acrylic-sidebar',true);
+      Services.prefs.setBoolPref('zzglass.overlays.enabled',true);window.__zzNativeBlurFollowUpOnly=true;return true;''')
+    probe=(root/'tools/native-blur-probe.js').read_text()
+    probe=probe.replace("Services.appinfo.OS !== 'WINNT'", 'false')
+    probe=probe.replace("const shell = PathUtils.join(Services.dirsvc.get('WinD',Ci.nsIFile).path,'System32','WindowsPowerShell','v1.0','powershell.exe');", "const shell = 'test-worker';")
+    probe=probe.replace("worker = Cc['@mozilla.org/process/util;1'].createInstance(Ci.nsIProcess); worker.init(localFile(shell));", "worker = {isRunning:false,runwAsync(){this.isRunning=true;},kill(){this.isRunning=false;}};")
+    probe=probe.replace("const readyPath=PathUtils.join(directory,'ready-'+messageId+'.json');", "const readyPath=PathUtils.join(directory,'ready-'+messageId+'.json');await IOUtils.writeJSON(readyPath,{id});")
+    probe=probe.replace('      let response;', "      if(start)await wait(800);await IOUtils.writeJSON(responsePath,{id,files:[],simulated:true});\n      let response;")
+    capture=m.script('return (\n'+probe.rstrip().removesuffix(';')+'\n);')
+    assert len(capture['cases'])==14 and not capture['errors'], capture
+    palettes={}
+    for case in capture['cases']:
+        if case['kind']!='accessibility':
+            assert case['after']['backgrounds']['html']==('rgb(255, 255, 255)' if case['page']=='opaque' else 'rgba(0, 0, 0, 0)'),case
+            continue
+        computed=case['computed']
+        assert all(float(item['opacity'])==1 for item in computed['items']), case
+        assert float(computed['menuOpacity'])==1 and float(computed['contentOpacity'])==1,case
+        assert case['fixtureScheme'] in computed['colorScheme'],case
+        if case['mode']!='normal':
+            assert computed['menuFill'].startswith('rgb('),case
+            assert computed['menuFill']==computed['canvas'] and computed['menuText']==computed['canvasText'],case
+        if case['mode']=='normal': palettes[case['fixtureScheme']]=computed['canvas']
+    assert palettes['light']!=palettes['dark'],palettes
+    assert m.script('return !window.__zzNativeBlurFollowUpOnly&&!window.__zzNativeBlurProbe&&!document.getElementById("zz-render-menu");')
+    result['collector']={'cases':len(capture['cases']),'verifiedBackgrounds':2,'opacitiesSettled':True,'accessibleBackgroundsOpaque':True,'distinctFixturePalettes':True,'backend':'simulated; no Windows pixels'}
+    import shutil
+    shutil.rmtree(capture['directory']);Path(capture['archive']).unlink()
+    return result
+
+
+def check_sine_update(m, root, sine):
+    """Real Gecko file APIs and Sine's actual updater and settings button."""
+    mappings = [['content', 'userscripts', sine.resolve().as_uri() + '/'],
+                ['content', 'locales', (sine.parent/'locales').resolve().as_uri() + '/']]
+    m.script('window.updateChrome=Cc["@mozilla.org/addons/addon-manager-startup;1"].getService(Ci.amIAddonManagerStartup).registerChrome(Services.io.newFileURI(Services.dirsvc.get("ProfD",Ci.nsIFile)),'+json.dumps(mappings)+');return true;')
+    settings=(sine/'core/settings.mjs').read_text()
+    button=settings[settings.index('const checkForUpdates ='):settings.index('document.querySelector("#sineModImport").addEventListener')]
+    # Only the fragment factory is adapted to its fixture window; the click
+    # listener, busy paragraph, await and native success labels are upstream.
+    m.script('window.bindUpdateButton=(document,installedGroup,manager)=>{const domUtils={appendXUL:(parent,xml)=>parent.append(document.defaultView.MozXULElement.parseXULToFragment(xml))};'+button+'};return true;')
+    m.script('window.updateSettingsTab=gBrowser.addTab("about:preferences",{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal()});gBrowser.selectedTab=updateSettingsTab;return true;')
+    result=m.script((root/'tools/zen-update-checks.js').read_text())
+    # Exercise the user launch action as shipped, including real ZIP/clipboard
+    # APIs. Only a known local guard copy can pass its on-disk hash check.
+    m.script('''return (async()=>{
+      const u=ChromeUtils.importESModule("chrome://userscripts/content/core/utils.sys.mjs").default;
+      const id="zz-download-prompt",name="sine-update-guard.sys.mjs",folder=u.getModFolder(id);
+      await IOUtils.makeDirectory(folder);const code=await (await fetch("chrome://sine/content/"+id+"/"+name)).text();
+      await IOUtils.writeUTF8(PathUtils.join(folder,name),code);const mods=await u.getMods();
+      mods[id]={id,enabled:true,"no-updates":true,scripts:{[name]:{}}};await IOUtils.writeJSON(u.modsDataFile,mods);
+      return true;
+    })();''')
+    recovery=m.script('return (\n'+(root/'tools/sine-update-recovery.js').read_text().rstrip().removesuffix(';')+'\n);')
+    assert recovery['fixedGuardActive'] and recovery['check']=='up-to-date' and recovery['verifiedCopies']==recovery['enabledCopies']==1,recovery
+    import zipfile
+    archive=Path(m.script('return PathUtils.tempDir;'))/recovery['archiveInTemp']
+    try:
+        with zipfile.ZipFile(archive) as z:
+            assert z.namelist()==['report.json'] and json.loads(z.read('report.json'))==recovery
+        assert m.script('return !window.__zzSineUpdateRecovery;')
+        result['recovery']={'verifiedLocalCopy':True,'archive':True}
+    finally:
+        import shutil
+        shutil.rmtree(archive.with_suffix(''),ignore_errors=True);archive.unlink(missing_ok=True)
+    if m.script('return !!window.gZenWorkspaces;'):
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+        from threading import Thread
+        class Page(BaseHTTPRequestHandler):
+            def do_GET(self):
+                body=('<title>'+self.path+'</title>Fixture').encode()
+                self.send_response(404 if self.path=='/favicon.ico' else 200)
+                self.send_header('Content-Type','text/html');self.end_headers();self.wfile.write(body)
+            def log_message(self,*args): pass
+        with ThreadingHTTPServer(('127.0.0.1',0),Page) as server:
+            thread=Thread(target=server.serve_forever,daemon=True);thread.start()
+            try:
+                m.script('window.faviconPort='+str(server.server_port)+';return gZenStartup.promiseInitialized.then(()=>true);')
+                m.script((root/'glassflow/glassflow.uc.js').read_text()+'\nreturn true;')
+                result['favicon']=m.script((root/'tools/zen-favicon-restore-checks.js').read_text())
+            finally:
+                server.shutdown();thread.join()
+        # The upstream private method cannot be repaired by a browser mod.
+        # Apply the proposed source patch only to a temporary copy and run
+        # that class against the same real tab and SessionStore.
+        original=m.script('return fetch("chrome://browser/content/zen-components/ZenPinnedTabManager.mjs").then(r=>r.text());')
+        if 'createNullPrincipal()' in original:
+            with tempfile.TemporaryDirectory() as checkout:
+                candidate=Path(checkout)/'src/zen/tabs/ZenPinnedTabManager.mjs'
+                candidate.parent.mkdir(parents=True);candidate.write_bytes(original.replace('\r\n','\n').encode('utf-8'))
+                patch=(root/'tools/upstream/zen-1.24b-invalid-pinned-target.patch').read_text(encoding='utf-8').encode('utf-8')
+                subprocess.run(['git','-c','core.autocrlf=false','apply','-'],cwd=checkout,input=patch,check=True)
+                code=candidate.read_text().replace('import { nsZenDOMOperatedFeature } from "chrome://browser/content/zen-components/ZenCommonUtils.mjs";','const { nsZenDOMOperatedFeature }=ChromeUtils.importESModule("chrome://browser/content/zen-components/ZenCommonUtils.mjs",{global:"current"});')
+                code=code.replace('window.gZenPinnedTabManager = new nsZenPinnedTabManager();','window.pinnedCandidate = new nsZenPinnedTabManager();')
+                m.script('(()=>{'+code+'})();return true;')
+            result['upstreamPinnedCandidate']=m.script('''return (async()=>{
+              const t=gBrowser.addTab("about:blank",{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal()});
+              gBrowser.pinTab(t);t._zenPinnedInitialState={entry:{url:":::invalid fixture"}};
+              const before=JSON.stringify(JSON.parse(SessionStore.getTabState(t)).entries);
+              let oldError;try{gZenPinnedTabManager.resetPinnedTab(t);}catch(e){oldError=e.result;}
+              if(oldError!==Cr.NS_ERROR_XPC_NOT_ENOUGH_ARGS)throw Error("Stock pinned failure not reproduced");
+              pinnedCandidate.resetPinnedTab(t);
+              if(JSON.stringify(JSON.parse(SessionStore.getTabState(t)).entries)!==before)throw Error("Invalid target changed tab history");
+              t._zenPinnedInitialState={entry:{url:"about:robots"}};
+              pinnedCandidate.resetPinnedTab(t);
+              const after=JSON.parse(SessionStore.getTabState(t));
+              if(after.entries?.[0]?.url!=="about:robots"||!after.entries[0].triggeringPrincipal_base64)throw Error("Valid pin did not reset with its principal");
+              gBrowser.removeTab(t,{animate:false});return {stockFailure:true,invalidPreserved:true,validReset:true,installed:false};
+            })();''')
+    return result
+
+
+def check_native_integration(m, root):
+    m.script('return gZenStartup.promiseInitialized.then(()=>true);')
+    mods = ['glassflow', 'glassflow-library', 'groupflow', 'iconflow', 'tab-router', 'mediaflow']
+    prefs = {}
+    for mod in mods:
+        for row in json.loads((root/mod/'preferences.json').read_text()):
+            if 'property' in row and 'defaultValue' in row:
+                prefs[row['property']] = row['defaultValue']
+    prefs.update({'zzrouter.enabled': False, 'zzlib.warm': 1, 'zzglass.sidebar.blur': True,
+                  'zzicon.newtab.hide-label': True, 'zen.view.show-scroll-to-selected-tab': True})
+    m.script('for(const[k,v]of Object.entries('+json.dumps(prefs)+'))Services.prefs[typeof v==="boolean"?"setBoolPref":typeof v==="number"?"setIntPref":"setStringPref"](k,v);return true;')
+    m.script('window.integrationErrors=[];window.addEventListener("error",e=>integrationErrors.push(e.message));return true;')
+    for mod in mods:
+        if (root/mod/'userChrome.css').exists():
+            m.script('Cc["@mozilla.org/content/style-sheet-service;1"].getService(Ci.nsIStyleSheetService).loadAndRegisterSheet(Services.io.newURI('+json.dumps((root/mod/'userChrome.css').as_uri())+'),1);return true;')
+        if mod == 'iconflow': continue
+        source = (root/mod/(mod+'.uc.js')).read_text()
+        if mod == 'glassflow-library':
+            source = source.replace('  const warmReady =', '  window.integrationWarmLibrary = warmLibrary;\n  const warmReady =')
+        m.script(source+'\nreturn true;')
+    result = m.script((root/'tools/native-integration-checks.js').read_text())
+    result['accessibility']=[]
+    for dark in [False,True]:
+        for mode in ['normal','reduced-transparency','contrast']:
+            case=m.script('return integrationAppearance('+json.dumps(dark)+','+json.dumps(mode)+');')
+            shot=m.shot().convert('RGB')
+            shot.save('/tmp/zen-appearance-'+str(int(dark))+'-'+mode+'.png')
+            if mode!='normal':
+                r=case['card']['rect']
+                actual=shot.getpixel((round(r['left']+3),round(r['top']+40)))
+                expected=tuple(map(int,re.findall(r'\d+',case['palette']['canvas'])))
+                assert max(abs(a-b) for a,b in zip(actual,expected))<=5, (case,actual,expected)
+                case['cardPixel']={'actual':actual,'expected':expected}
+            result['accessibility'].append(case)
+    m.script("return integrationAppearance(false,'normal');")
+    Path('/tmp/zen-native-appearance.json').write_text(json.dumps(result,indent=2))
+    # Leave the real Library open: the capture must close/mask it and restore
+    # its section after stopping the screen worker, without collecting its text.
+    # Exercise real chrome geometry, pref restoration and ZIP APIs on Linux;
+    # only the Windows screen worker is substituted. Never call this pixel proof.
+    m.script('Services.prefs.clearUserPref("browser.display.document_color_use");Services.prefs.clearUserPref("ui.useAccessibilityTheme");Services.prefs.setBoolPref("zen.theme.acrylic-sidebar",true);window.integrationOriginalTab=gBrowser.selectedTab;return true;')
+    probe = (root/'tools/native-blur-probe.js').read_text()
+    probe = probe.replace("Services.appinfo.OS !== 'WINNT'", 'false')
+    probe = probe.replace("const shell = PathUtils.join(Services.dirsvc.get('WinD',Ci.nsIFile).path,'System32','WindowsPowerShell','v1.0','powershell.exe');", "const shell = 'test-worker';")
+    probe = probe.replace("worker = Cc['@mozilla.org/process/util;1'].createInstance(Ci.nsIProcess); worker.init(localFile(shell));", "worker = {isRunning:false,runwAsync(){this.isRunning=true;},kill(){this.isRunning=false;}};")
+    probe = probe.replace("const readyPath=PathUtils.join(directory,'ready-'+messageId+'.json');", "const readyPath=PathUtils.join(directory,'ready-'+messageId+'.json');await IOUtils.writeJSON(readyPath,{id});")
+    probe = probe.replace('      let response;', "      if(start)await wait(800);await IOUtils.writeJSON(responsePath,{id,files:[],simulated:true});\n      let response;")
+    m.sock.settimeout(180)
+    m.call('WebDriver:SetTimeouts', {'script':180000})
+    capture = m.script('return (\n'+probe.rstrip().removesuffix(';')+'\n);')
+    assert len(capture['cases']) == 108 and not capture['errors'], capture
+    assert m.script('return gBrowser.selectedTab===integrationOriginalTab&&!document.documentElement.hasAttribute("zz-native-blur-test")&&!window.__zzNativeBlurProbe;')
+    assert m.script("return customElements.get('zen-library').isLibraryOpen;")
+    result['blurOrchestration'] = {'cases':len(capture['cases']), 'restored':True, 'zip':Path(capture['archive']).exists(), 'captureBackend':'simulated; no Windows pixels'}
+    import shutil
+    shutil.rmtree(capture['directory']); Path(capture['archive']).unlink()
+    return result
+
+
+def check_probe_loader(m, root):
+    """Use the Browser Console's evaluation actor, not Marionette's eval sandbox."""
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from threading import Thread
+
+    guide = (root/'tools/NATIVE-BLUR-PROBE.md').read_text()
+    loader = re.search(r'```js\n([\s\S]*?)\n```', guide)[1]
+    url = re.search(r"https://raw\.githubusercontent\.com/[^']+", loader)[0]
+    fixtures = {
+        '/success.js': "Promise.resolve('local script executed');",
+        '/syntax-error.js': '(() => {',
+        '/native-blur-probe.js': (root/'tools/native-blur-probe.js').read_text(),
+    }
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            body = fixtures.get(self.path)
+            self.send_response(200 if body is not None else 503)
+            self.send_header('Content-Type', 'application/javascript; charset=utf-8')
+            self.end_headers()
+            self.wfile.write((body or '').encode())
+
+        def log_message(self, *_args):
+            pass
+
+    server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    m.script("""return (async()=>{
+      await gZenStartup.promiseInitialized;
+      // The full probe must stop before screen capture on every platform.
+      Services.prefs.setBoolPref('zen.theme.acrylic-sidebar',false);
+      Services.prefs.setBoolPref('zen.theme.acrylic-urlbar',false);
+      const {require}=ChromeUtils.importESModule('resource://devtools/shared/loader/Loader.sys.mjs');
+      const {CommandsFactory}=require('resource://devtools/shared/commands/commands-factory.js');
+      window.probeLoaderCommands=await CommandsFactory.forBrowserConsole();
+      await probeLoaderCommands.targetCommand.startListening();
+      return true;
+    })();""")
+
+    def evaluate(code):
+        response = m.script("return probeLoaderCommands.scriptCommand.execute("+json.dumps(code)+""",
+          {mapped:{await:true}}).then(r=>({result:typeof r.result==='string'?r.result:null,error:!!r.exceptionMessage,rejected:r.topLevelAwaitRejected}));""")
+        assert not response.get('error') and not response.get('rejected'), response
+        return response.get('result')
+
+    def temp_files():
+        return m.script("return IOUtils.getChildren(PathUtils.tempDir).then(paths=>paths.filter(p=>PathUtils.filename(p).startsWith('zen-native-blur-probe')).sort());")
+
+    def clipboard():
+        return json.loads(m.script("""const t=Cc['@mozilla.org/widget/transferable;1'].createInstance(Ci.nsITransferable);
+          t.init(null);t.addDataFlavor('text/plain');Services.clipboard.getData(t,Services.clipboard.kGlobalClipboard);
+          const v={};t.getTransferData('text/plain',v);return v.value.QueryInterface(Ci.nsISupportsString).data;"""))
+
+    try:
+        # Same nested eval and async callback as the failed fetch-then-eval loader.
+        blocked = "Promise.resolve('1').then(code=>(0,eval)(code)).then(()=>false,e=>e.name+': '+e.message)"
+        before = evaluate(blocked)
+        assert isinstance(before, str) and 'CSP' in before and 'EvalError' in before, before
+        initial = temp_files()
+        result = {'oldLoaderBlocked': before, 'cases': []}
+        result['missingReplyError'] = m.script("return IOUtils.readJSON(PathUtils.join(PathUtils.tempDir,Services.uuid.generateUUID().toString())).then(()=>null,e=>e.name);")
+        assert result['missingReplyError'] == 'NotFoundError', result
+        for path in ['/success.js', '/download-error.js', '/syntax-error.js', '/native-blur-probe.js']:
+            code = loader.replace(url, f'http://127.0.0.1:{server.server_port}{path}')
+            if path == '/native-blur-probe.js':
+                # Full scope retains the acrylic precondition on Windows too;
+                # this loader test must never start a desktop capture worker.
+                code=code.replace('w.__zzNativeBlurFollowUpOnly = true;', 'w.__zzNativeBlurFollowUpOnly = false;')
+            value = evaluate(code)
+            if path == '/success.js':
+                assert value == 'local script executed', value
+            else:
+                report = clipboard()
+                if path == '/native-blur-probe.js':
+                    expected_probe=re.search(r"probe: '([^']+)'",fixtures['/native-blur-probe.js'])[1]
+                    assert report['probe'] == expected_probe and report['cases'] == [], report
+                    assert report['finished'] == 'error' and len(report['errors']) == 1, report
+                    assert any(s in report['errors'][0] for s in ['requires Windows', 'Enable native Zen acrylic']), report
+                    assert m.script('return !window.__zzNativeBlurProbe;'), 'Probe lifecycle did not finish'
+                else:
+                    assert report['probe'] == 'native-blur-loader' and len(report['errors']) == 1, report
+                    assert ('HTTP 503' if path == '/download-error.js' else 'SyntaxError') in report['errors'][0], report
+            assert temp_files() == initial, (path, 'Temporary script remains')
+            assert m.script('return !window.__zzNativeBlurFollowUpOnly;'), 'Menu-only request remains after loader exit'
+            result['cases'].append({'fixture': path, 'passed': True, 'temporaryFileRemoved': True})
+        assert evaluate(blocked) == before, 'CSP behavior changed'
+        result['cspStillEnforced'] = True
+        m.script((root/'tools/console-origin-probe.js').read_text()+'\nreturn true;')
+        origin=m.script('''return (async()=>{
+          const error=Cc['@mozilla.org/scripterror;1'].createInstance(Ci.nsIScriptError);
+          error.init('Console origin fixture','chrome://sine/content/zz-groupflow/fixture.js',17,0,0,'chrome javascript');
+          Services.console.logMessage(error);
+          await new Promise(r=>setTimeout(r,100));
+          return window.__zzConsoleOriginProbe.stop('native fixture completed');
+        })();''')
+        assert any(e['message']=='Console origin fixture' and e['line']==17 and e['source'].endswith('/fixture.js') for e in origin['entries']), origin
+        assert clipboard()['probe']=='console-origin-v1'
+        result['consoleOrigin']={'nativeScriptErrorSource':True,'clipboard':True,
+          'cleaned':m.script('return !window.__zzConsoleOriginProbe;')}
+        m.script('''for(const k of ['network','predictor','media','gfx'])Services.prefs.setBoolPref('zzturbo.pack-'+k,false);
+          Services.prefs.setBoolPref('zzturbo.startup-warmup',false);
+          Services.prefs.setStringPref('zzturbo.saved-prefs',JSON.stringify({'browser.sessionstore.interval':{had:false,applied:30000}}));
+          Services.prefs.setIntPref('browser.sessionstore.interval',30000);return true;''')
+        m.script((root/'zen-turbo/zen-turbo.uc.js').read_text()+'\nreturn true;')
+        result['turboNativeIntervalRecovery']=m.script('''return (async()=>{
+          for(let i=0;i<80 && Services.prefs.prefHasUserValue('browser.sessionstore.interval');i++)await new Promise(r=>setTimeout(r,50));
+          return {value:Services.prefs.getIntPref('browser.sessionstore.interval'),owned:Services.prefs.prefHasUserValue('browser.sessionstore.interval')};
+        })();''')
+        assert result['turboNativeIntervalRecovery']=={'value':40000,'owned':False}, result
+        result['captureBackend'] = 'Not invoked; tests console startup and reporting only'
+        return result
+    finally:
+        m.script('return probeLoaderCommands.destroy().then(()=>{delete window.probeLoaderCommands;return true;});')
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
+def check_probe_fixture(m, root):
+    """Render the shipped challenge in Gecko; this checks content, not acrylic."""
+    source = (root/'tools/native-blur-probe.js').read_text()
+    factory = source[source.index('    const fixtureCSS='):source.index('    fixture = w.gBrowser.addTab')]
+    m.script("""window.fixtureOriginalTab=gBrowser.selectedTab;window.fixtureSheets=[];
+      window.fixtureRegister=css=>{const ss=Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService),uri=Services.io.newURI('data:text/css,'+encodeURIComponent(css));if(!ss.sheetRegistered(uri,1)){ss.loadAndRegisterSheet(uri,1);fixtureSheets.push(uri);}};
+      fixtureRegister('html,body{background:rgb(22,23,22)!important}');return true;""")
+    results = []
+    try:
+        for page in ['opaque', 'transparent']:
+            for paint, expected in [('cyan', (32, 200, 255)), ('amber', (255, 144, 32))]:
+                url = m.script("const marker='ZZBLUR-render-fixture',fixtureDocuments=new Map();"+factory+
+                               'fixtureRegister(fixtureCSS);return pageURL('+json.dumps(page)+','+json.dumps(paint)+');')
+                m.call('Marionette:SetContext',{'value':'content'})
+                handles = m.call('WebDriver:GetWindowHandles')
+                m.script('window.paintFixture=gBrowser.addTab('+json.dumps(url)+', {triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});gBrowser.selectedTab=paintFixture;return true;')
+                m.call('Marionette:SetContext',{'value':'content'})
+                added = set(m.call('WebDriver:GetWindowHandles'))-set(handles)
+                assert len(added) == 1, 'Expected one generated tab'
+                m.call('WebDriver:SwitchToWindow',{'handle':added.pop()})
+                try:
+                    for _ in range(100):
+                        if m.script('return !gBrowser.selectedBrowser.webProgress.isLoadingDocument&&gBrowser.selectedBrowser.currentURI.spec==='+json.dumps(url)+';'):
+                            break
+                        time.sleep(.05)
+                    time.sleep(.1)
+                    style = m.script('return {html:getComputedStyle(document.documentElement).backgroundColor,body:getComputedStyle(document.body).backgroundColor};',context='content')
+                    expected_background = 'rgb(255, 255, 255)' if page == 'opaque' else 'rgba(0, 0, 0, 0)'
+                    assert style['html'] == style['body'] == expected_background, style
+                    reported = m.script("return JSON.parse(gBrowser.selectedBrowser.contentTitle.split('|')[1]);")
+                    assert reported['html']==reported['body']==expected_background,reported
+                    bounds = m.script('const r=gBrowser.selectedBrowser.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width};')
+                    pixel = m.shot().getpixel((round(bounds['x']+bounds['width']/2),round(bounds['y']+208)))
+                    assert max(abs(a-b) for a,b in zip(pixel,expected)) <= 2, (page,paint,pixel,expected)
+                    results.append({'page':page,'paint':paint,'actualRGB':pixel,'expectedRGB':expected,'background':style['html']})
+                finally:
+                    m.script('gBrowser.removeTab(paintFixture,{animate:false,skipPermitUnload:true});return true;')
+                    m.call('Marionette:SetContext',{'value':'content'})
+                    m.call('WebDriver:SwitchToWindow',{'handle':handles[0]})
+    finally:
+        m.script('gBrowser.selectedTab=fixtureOriginalTab;for(const u of fixtureSheets)Cc["@mozilla.org/content/style-sheet-service;1"].getService(Ci.nsIStyleSheetService).unregisterSheet(u,1);delete window.fixtureSheets;delete window.fixtureRegister;delete window.fixtureOriginalTab;delete window.paintFixture;return true;')
+    return {'fixturePaint':results,'limitation':'Gecko content pixels only; no Windows backdrop or frame-pacing claim'}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--zen", type=Path, required=True)
@@ -970,6 +1372,11 @@ def main():
     parser.add_argument("--transparent", type=Path, help="Optional sameerasw/zen-themes/TransparentZen directory (Normal sidebar mode)")
     parser.add_argument("--library-hover", action="store_true", help="Check compact sidebar pointer handoff from recent downloads")
     parser.add_argument("--actions", action="store_true", help="Check native menus, snapshots, diagnostics and scoped actions")
+    parser.add_argument("--native-integration", action="store_true", help="Check Zen 1.24 native ownership and accessibility")
+    parser.add_argument("--popup-accessibility", action="store_true", help="Check native popup paint ownership against Arc and settled menu capture")
+    parser.add_argument("--sine-update", type=Path, help="Check the updater button, nested manifest paths and rollback against this Sine src directory")
+    parser.add_argument("--probe-loader", action="store_true", help="Check the blur loader through the actual Browser Console actor with CSP enabled")
+    parser.add_argument("--probe-fixture", action="store_true", help="Render the actual cyan/amber navigation challenge and document transparency")
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
     with tempfile.TemporaryDirectory(prefix="zen-mod-smoke-") as directory:
@@ -978,6 +1385,13 @@ def main():
         for theme in root.glob('*/theme.json'):
             mod_id = json.loads(theme.read_text())['id']
             target = profile / 'sine-mods' / mod_id
+            if args.sine_update:
+                # Never point an updater test at a source checkout via a link.
+                if mod_id == 'zz-download-prompt':
+                    import shutil
+                    target.mkdir()
+                    shutil.copyfile(theme.parent/'sine-update-guard.sys.mjs',target/'sine-update-guard.sys.mjs')
+                continue
             if not target.exists():
                 target.symlink_to(theme.parent, target_is_directory=True)
         with socket.socket() as sock:
@@ -988,8 +1402,13 @@ def main():
                  "zen.welcome-screen.enabled": False, "browser.tabs.allow_transparent_browser": True}
         (profile / "user.js").write_text("\n".join(f"user_pref({json.dumps(k)}, {json.dumps(v)});" for k, v in prefs.items()))
         with (profile / "browser.log").open("w") as log:
-            process = subprocess.Popen([str(args.zen.resolve()), "--headless", "--no-remote", "--profile", directory,
-                                        "--marionette", "--remote-allow-system-access", "about:blank"], stdout=log, stderr=log)
+            win_update = args.sine_update and sys.platform == "win32"
+            # This one process runs against our new temporary profile only.
+            # Current Gecko requires both the switch and the environment opt-in.
+            native_env = {**os.environ, "MOZ_REMOTE_ALLOW_SYSTEM_ACCESS":"1"} if args.sine_update else None
+            process = subprocess.Popen([str(args.zen.resolve()), *(["-wait-for-browser"] if win_update else []), "--headless", "--no-remote", "--profile", directory,
+                                        "--marionette", "--remote-allow-system-access", "about:blank"], stdout=log, stderr=log, env=native_env)
+            m = None
             try:
                 for _ in range(100):
                     try:
@@ -1003,9 +1422,15 @@ def main():
                 m.script("""window.zzsmokeChrome=Cc['@mozilla.org/addons/addon-manager-startup;1']
                   .getService(Ci.amIAddonManagerStartup).registerChrome(Services.io.newURI(""" +
                   json.dumps((profile / 'chrome.manifest').as_uri()) + """),[['content','sine','sine-mods/']]);return true;""")
-                result = check_actions(m, root) if args.actions else check_library_hover(m, root, args.arc) if args.library_hover else check(m, root, args.arc, args.transparent)
+                result = check_sine_update(m, root, args.sine_update) if args.sine_update else check_native_popups(m, root) if args.popup_accessibility else check_probe_fixture(m, root) if args.probe_fixture else check_probe_loader(m, root) if args.probe_loader else check_native_integration(m, root) if args.native_integration else check_actions(m, root) if args.actions else check_library_hover(m, root, args.arc) if args.library_hover else check(m, root, args.arc, args.transparent)
                 print(json.dumps(result, indent=2))
             finally:
+                if win_update and m:
+                    try:
+                        m.call("Marionette:Quit",{"flags":["eForceQuit"]})
+                        process.wait(timeout=10)
+                    except (ConnectionError, OSError, RuntimeError, subprocess.TimeoutExpired):
+                        pass
                 process.terminate()
                 try:
                     process.wait(timeout=5)

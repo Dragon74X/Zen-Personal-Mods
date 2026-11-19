@@ -86,6 +86,24 @@ security preference changes.
 
 See [engine comparison and native checks](../docs/CIRCUIT-MORPH.md).
 
+## Zen 1.24.1 compatibility (1.21.13)
+
+Tab close and pinned-tab reset now draw in the native control's padded icon
+area with both Zen's earlier image elements and its new box elements. While
+Iconflow paints the replacement, Zen's two CSS strokes are suppressed together;
+native artwork returns when that replacement is released. Circuit, Clean and
+successfully prepared native-icon strips follow the same ownership rule.
+Groupflow's group-header close keeps its existing glyph layer. Artwork,
+animation timing, settings, hit targets and native commands are retained.
+
+Favorites: a theme that shows the Essentials minus on hover (Arc 2.0's *unload
+button*) lost its placement to Zen 1.24.1's `position: relative`, so the minus
+took a slot and the icon slid 12px. It stays out of the layout again, and the
+Morph minus paints over the theme's button. Stock Zen hides that minus.
+
+Library: Zen 1.24.1 draws it 20px (1.24: 18px scaled 8%). A larger Icon size
+now grows Zen's own size by the same factor as the other icons.
+
 ## Icon set
 
 | Setting | Default | Notes |
@@ -94,7 +112,7 @@ See [engine comparison and native checks](../docs/CIRCUIT-MORPH.md).
 | Icon size | Large (20px) | Zen's 16px, 18, 20 or 22px. Toolbar and sidebar icons grow into the padding of their buttons, so the buttons keep their size; the Library button follows |
 | Morph and animate menu icons | off | Off leaves original menu/context-menu content unchanged |
 | Animate icons | on | Off keeps every icon still: Zen's own, Circuit, menu icons, hover motion, the Library button and the new tab button's press. Iconflow also stays still when the system asks for reduced motion |
-| Animation speed | Smooth (0.45s) | Quick 0.3s, Slow 0.7s |
+| Icon animation timing | Default (450ms) | Quick 300ms, Slow 700ms |
 | Glow on hover | on | A soft light in the icon's own colour while hovered, for glass/neon Circuit and Zen's own; clean stays crisp |
 | Soft glow around lines | on | Glass/neon Circuit's faint halo; clean never draws it |
 | Glass plates | Off | While hovered, or Always. A light fill, a sheen across the top and a rim, over Zen's own blur behind the sidebar. With Glassflow installed, its own sheen and rim are used, so plates follow its Glass settings |
@@ -159,9 +177,7 @@ text.
 
 The style and colour can also be switched in the picker; both places set the
 same settings. In the workspace switcher Iconflow's icons draw at 18px, a
-little larger than Zen's 14px slot for emoji, since they fill their box. Site
-icons picked under 1.17.0 had a glass plate of their own; it is taken off on
-startup, keeping the picture.
+little larger than Zen's 14px slot for emoji, since they fill their box.
 
 ## Hover motion
 
@@ -194,7 +210,7 @@ Library button icon drawn by Iconflow) does not also take a hover motion,
 so the two never stack. Zen's own icons, such as the tab close button, do.
 
 **Leave as it is** keeps Zen's motion, or another mod's; Arc spins the +.
-**None** stops all motion. **Motion speed** defaults to 0.25s, which is Arc's.
+**None** stops all motion. **Motion duration** defaults to 250ms, which is Arc's.
 
 ## Library button
 
@@ -202,7 +218,7 @@ The Library button is the button at the bottom of the sidebar that opens
 downloads and the Library.
 
 The choices are:
-- **Follow the icon set** (the default): Zen's icon with Zen's own set, and Circuit stack with Circuit. Circuit stack is the Firefox Library icon itself, played at 16px like the other buttons.
+- **Follow the icon set** (the default): Zen's icon with Zen's own set, and Circuit stack with Circuit. Circuit stack is the Firefox Library icon itself, played at 16px at Zen's (16px) Icon size; at the larger sizes it is drawn an eighth larger than the other buttons unless **Same size as the other buttons** is on.
 - **Zen's animated icon.**
 - **An animated outline of Zen's icon.**
 - **Eight animated line shapes:** Layers, Hex scan, Focus, Grid, Chevrons, Orbit, Split and Pulse.
@@ -210,7 +226,8 @@ The choices are:
 - **Layers, still.**
 
 The shapes use Zen's own 36-frame sprite format, so Zen's hover animation
-plays them. **Same size as the other buttons** draws the icon at 16px.
+plays them. **Same size as the other buttons** draws it at the Icon size,
+like the other buttons.
 
 Releases up to 1.18.0 carried settings chosen in Glassflow 3.50 over once;
 that step was retired in the 9 October 2026 audit

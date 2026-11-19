@@ -23,10 +23,15 @@ Use **Tools → Copy Zen Mods Report** for an immediate report of settings, vers
 
 Individual READMEs define settings, exclusions, and known limits.
 
-[September 18 audit](docs/AUDIT-2026-09-18.md): findings, pinned upstream sources, native blur checks and remaining runtime limits.
+The audits in [docs](docs/) are dated records of what was checked then. The
+[September 18 audit](docs/AUDIT-2026-09-18.md) is historical: its findings were
+fixed in [PR #70](https://github.com/Dragon74X/Zen-Personal-Mods/pull/70) and some options it names no longer exist. Current limits are in
+the Zen 1.24.1b pass and the multi-window lag notes below.
 
 [Icon engine comparison and native Morph motion](docs/CIRCUIT-MORPH.md): retained artwork/windup, restored native ownership and runtime checks.
 [URL-bar hover audit](docs/AUDIT-2026-10-29-URLBAR.md): confirmed hit-target and binding fixes; workspace smoothness remains open.
+[Zen 1.24.1b pass](docs/AUDIT-2026-11-09-ZEN1241.md): Library cards, Favorites hover, close X, Library button size, saved header gradients; Firefox 160 risks.
+[Multi-window lag](docs/PERF-2026-11-10-MULTIWINDOW.md): what closed windows leave behind (Zen, not the mods), Zen Turbo switch restyle, Groupflow rail glides, Glassflow redraw timing, Mediaflow caption clock.
 [Animated icon designs](resources/animated-icons/): 114 glyphs for every Zen and mod icon in 10 motion styles, with an eye test. Design resources only; no mod uses them yet.
 
 ## Regression checks
@@ -38,6 +43,15 @@ SINE_MANAGER_SOURCE=/path/to/Sine/src/core/manager.sys.mjs node --test tools/*.t
 
 The second command also executes upstream Sine's update/install methods with mocked filesystem and network APIs. Tests target Sine commit `fb0bd4ca6af888f10648e126947f7d1f82228433`; browser API fakes do not verify live Zen compatibility.
 
+The suite needs `python3`. These variables add the checks that need more than Node:
+
+- `ZEN_BINARY`: a Zen executable for the native Circuit Morph, Groupflow folder, Iconflow hover and Library card runs (each needs Pillow; the Morph run also needs `ffmpeg`).
+- `ZEN_MORPH_OUTPUT`, `ZEN_LIBRARY_CARDS_OUTPUT`: where the Morph and Library card runs write their evidence (by default, under the temporary directory).
+- `ZEN_UPSTREAM_SOURCE`: a Zen source checkout with release tags, for the Library card source checks.
+- `PWSH`: a PowerShell executable for the native blur transport tests (Windows uses `powershell.exe` without it).
+
+Every native run, here and in the `tools/zen-*.py` commands below, drives Zen's chrome through Marionette, which needs `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1` in the environment.
+
 Each mod ships the same Sine update guard so it can install independently. The guard serializes updates, installs, and sibling dependencies while upstream uses one shared `temp` directory. Restart Zen after updating this guard: its replacement takes effect in the next browser session.
 
 For an isolated runtime check with a disposable profile and Pillow installed:
@@ -46,7 +60,7 @@ For an isolated runtime check with a disposable profile and Pillow installed:
 python tools/zen-smoke.py --zen /path/to/zen --arc /path/to/Arc-2.0 --transparent /path/to/zen-themes/TransparentZen
 ```
 
-This starts every mod's script, checks SVG content filtering, the modal dialog and native download actions, and verifies cleanup. It does not prove compositor backdrop blur, benchmark the GPU or contact an existing browser profile. Arc and Transparent Zen are optional. Add `--actions` for native menus, search, settings and multiwindow startup checks, or `--library-hover` for download history, backing and trusted pointer handoff checks.
+This starts every mod's main script, Glassflow's edge input and Iconflow's parts (Circuit Morph has its own runner, `tools/zen-morph-smoke.py`), checks SVG content filtering, the modal dialog and native download actions, and verifies cleanup. It does not prove compositor backdrop blur, benchmark the GPU or contact an existing browser profile. Arc and Transparent Zen are optional. A flag runs one other check instead: `--actions` (native menus, search, settings and multiwindow startup), `--library-hover` (download history, backing and trusted pointer handoff), `--native-integration` (Zen 1.24 native ownership and accessibility), `--popup-accessibility` (native popup paint against Arc), `--sine-update SINE_SRC` (the updater, nested manifest paths and rollback), `--probe-loader` (the blur probe's loader through the Browser Console) or `--probe-fixture` (the blur probe's navigation challenge).
 
 [October 23 implementation checklist](docs/IMPLEMENTATION-2026-10-23.md): requirements 1–25, measured operation counts, releases and remaining device checks.
 

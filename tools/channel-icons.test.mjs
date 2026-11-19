@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
-import vm from "node:vm";
 import { test } from "node:test";
+import { load } from "./harness.mjs";
 
 const CHANNEL = "https://www.youtube.com/@channel";
 const GAME = "https://www.nexusmods.com/games/baldursgate3";
@@ -20,15 +19,16 @@ function element(extra = {}) {
     dispatchEvent() {}, ...extra,
   };
 }
-async function environment(options = {}) {
+// A window is private, or not, from the start, as a real one is.
+async function environment(options = {}, privateWindow = false) {
   const prefs = new Map(Object.entries({
     "zzrouter.enabled": true, "zzrouter.rules": "youtube.com > Youtube\nnexusmods.com > Nexus",
     "zzrouter.media-subgroups": true, "zzrouter.follow-containers": false,
     "zzrouter.auto-path-depth": 1, "zzrouter.auto-path-domains": "youtube.com,nexusmods.com",
-    "zzrouter.creators": "{}", ...options,
+    "zzrouter.auto-path-aliases": "", "zzrouter.creators": "{}", ...options,
   }));
   const tabs = [], groups = [], pending = [], requests = [], timers = new Map(), refreshes = [], values = new Map();
-  let now = 1000000, serial = 0, scans = 0, privateWindow = false, moves = 0;
+  let now = 1000000, serial = 0, scans = 0, moves = 0;
   function navigate(tab, spec) {
     const url = new URL(spec);
     tab.linkedBrowser = { currentURI: { spec, scheme: url.protocol.slice(0,-1), host: url.hostname,
@@ -60,15 +60,13 @@ async function environment(options = {}) {
       asyncOpen(listener) { pending.push([this, listener]); requests.push({ url: uri, ctx: loadingPrincipal.userContextId, body: this.body }); } }),
     readInputStreamToString: (stream, count) => stream.body.slice(0, count),
   };
-  let source = await readFile(process.env.ROUTER_SOURCE || new URL("../tab-router/tab-router.uc.js", import.meta.url), "utf8");
-  const names = "fetchCreator,fetchSectionIcon,stampIcons,route,iconMap,creatorMap,updatePicture,pictureSubject,refreshPictures,chainOf,startsWithPath,findChild,targetPath,file,captureNexus,nexusGame,nexusURLFrom,musicPage,partLabel,onTabEvent,prefObserver,inFlight,saveNexus,savedNexus,cancelLookups,forgetAll,refreshSubject,fetchMetadata,saveIcons,flushWrites,toIcon,paintBanner".split(",");
-  source = source.replace("  // ---- declared defaults", `globalThis.harness = {${names.map(n=>`${n}:typeof ${n} === 'undefined' ? null : ${n}`).join(',')}, observeQueues: cb => queueRoute=cb}; return;\n  // ---- declared defaults`);
+  const names = "fetchCreator,fetchSectionIcon,stampIcons,route,iconMap,creatorMap,updatePicture,pictureSubject,refreshPictures,targetPath,file,captureNexus,nexusGame,nexusURLFrom,musicPage,onTabEvent,prefObserver,inFlight,savedNexus,cancelLookups,forgetAll,refreshSubject,saveIcons,flushWrites,toIcon,observeQueues: cb => queueRoute=cb";
   const window = { Groupflow: { refresh: defer => refreshes.push(defer), automaticPictureAllowed: g => !g.customIcon },
     SessionStore: { getCustomTabValue: (t,k) => values.get(t)?.[k] || "",
       setCustomTabValue(t,k,v) { values.set(t, {...values.get(t),[k]:v}); },
       deleteCustomTabValue(t,k) { if (values.has(t)) delete values.get(t)[k]; } },
   };
-  const context = vm.createContext({
+  const h = await load("tab-router", names, {
     window, gBrowser: { getTabForBrowser: b => tabs.find(t=>t.linkedBrowser===b),
       addTabGroup(items, opts) { const g=addGroup(opts.label, items[0].group);g.addTabs(items);return g; } },
     document: { getElementById: id => groups.find(g=>g.id===id), querySelectorAll: selector => {
@@ -89,7 +87,7 @@ async function environment(options = {}) {
     Cc: { "@mozilla.org/io/string-input-stream;1": { createInstance:()=>({}) } },
     Components: { isSuccessCode:status=>status===0 },
     Date: { now:()=>now }, setTimeout:fn=>{timers.set(++serial,fn);return serial;}, clearTimeout:id=>timers.delete(id),
-    URLSearchParams, Blob, Uint8Array, CustomEvent: class { constructor(type, options) { Object.assign(this, {type}, options); } },
+    URLSearchParams, TextDecoder, Blob, Uint8Array, CustomEvent: class { constructor(type, options) { Object.assign(this, {type}, options); } },
     createImageBitmap:async blob=>{
       const bytes=await blob.text();
       if(bytes==='invalid')throw new Error('decode failed');
@@ -99,14 +97,39 @@ async function environment(options = {}) {
     OffscreenCanvas:class { constructor(w,h){this.width=w;this.height=h;} getContext(){return{drawImage(){}};} async convertToBlob(){return{arrayBuffer:async()=>new Uint8Array([this.width===384?2:1]).buffer};} },
     btoa:value=>Buffer.from(value).toString("base64"),
   });
-  vm.runInContext(source, context);
-  return { h:context.harness,prefs,tabs,groups,requests,pending,timers,refreshes,values,addTab,addGroup,navigate,window,
-    advance:ms=>now+=ms,makePrivate:()=>privateWindow=true,get scans(){return scans;},get moves(){return moves;},
+  return { h,prefs,tabs,groups,requests,pending,timers,refreshes,values,addTab,addGroup,navigate,window,
+    advance:ms=>now+=ms,get scans(){return scans;},get moves(){return moves;},
     answer(body) { body=Buffer.from(body).toString("latin1"); const [channel,listener]=pending.shift();listener.onStartRequest(channel);
       listener.onDataAvailable(channel,{body},0,body.length);listener.onStopRequest(channel,0); },
   };
 }
 const tick = () => new Promise(resolve=>setImmediate(resolve));
+
+test('Live Folder ownership prevents routing and artwork even with pinned/grouped exclusions off', async()=>{
+  for (const kind of ['item', 'folder', 'ancestor']) {
+    const e=await environment({'zzrouter.skip-pinned':false,'zzrouter.skip-grouped':false});
+    const t=e.addTab(GAME), parent=e.addGroup('Provider');
+    const g=kind==='ancestor'?e.addGroup('Nested',parent):parent;
+    g.addTabs([t]);
+    if(kind==='item')t.setAttribute('zen-live-folder-item-id','provider-item');
+    else parent.isLiveFolder=true;
+    t.pinned=true;
+    t.setAttribute('image','native-provider-icon');
+    t.setAttribute('data-zzrouter-tab-icon',ICON);
+    t.style.setProperty('--zzrouter-tab-icon',`url("${ICON}")`);
+    e.h.onTabEvent({type:'TabGrouped',target:t});
+    await e.h.route(t,'test');
+    assert.equal(e.h.file(t,['Nexus','Baldurs Gate 3']),false,'final placement boundary rejects provider tabs');
+    assert.equal(t.group,g,kind);
+    assert.equal(e.moves,1,kind);
+    assert.equal(e.requests.length,0,kind);
+    assert.equal(t.getAttribute('data-zzrouter-tab-icon'),undefined);
+    assert.equal(t.style.getPropertyValue('--zzrouter-tab-icon'),'');
+    assert.equal(t.getAttribute('image'),'native-provider-icon');
+    assert.equal(e.h.pictureSubject(t),null);
+    assert.equal(e.h.refreshSubject(t),null);
+  }
+});
 
 test('Nexus defaults to verified square thumbnails, upgrades cached covers, and starts zero banner requests',async()=>{
   const e=await environment({'zzrouter.enabled':false}), t=e.addTab(GAME,2);
@@ -202,7 +225,7 @@ test('banner lookup is opt-in, partitioned, deduplicated and inactive in private
       assert.ok(e.tabs.every(t=>t.hasAttribute('data-zzrouter-banner')));
     }
   }
-  const e=await environment({'zzrouter.nexus-banners':3});e.makePrivate();
+  const e=await environment({'zzrouter.nexus-banners':3},true);
   e.h.iconMap().set('0:'+GAME,{d:ICON,s:'square',n:'thumbnail',g:'3474'});
   e.h.updatePicture(e.addTab(GAME));assert.equal(e.requests.length,0);
 });
@@ -322,6 +345,53 @@ test("same-name subjects have separate groups and pictures; ambiguous legacy fol
   assert.equal(legacy.getAttribute("data-zzrouter-subject"),undefined);
   assert.equal(legacy.getAttribute("data-zzrouter-icon"),undefined);
 });
+test('YouTube channel pages and videos reuse verified handle/ID identity in either opening order',async()=>{
+  const id='https://www.youtube.com/channel/UCVerified';
+  for(const videoFirst of [false,true]){
+    const e=await environment({'zzrouter.section-icons':false}),channel=e.addTab(CHANNEL+'/videos'),video=e.addTab();
+    e.h.creatorMap().set('0:'+CHANNEL,{key:id,label:'Channel'});
+    e.h.creatorMap().set('0:'+id,{key:id,label:'Channel'});
+    e.h.creatorMap().set('0:video',{key:CHANNEL,label:'Channel'});
+    for(const tab of videoFirst?[video,channel]:[channel,video])await e.h.route(tab,'test');
+    assert.equal(channel.group,video.group,'one channel group, not separate handle/ID groups');
+    assert.equal(e.h.pictureSubject(video,false).key,id);
+    assert.equal(e.groups.filter(g=>g.getAttribute('data-zzrouter-subject')).length,1);
+  }
+});
+test('verified YouTube duplicate repair moves direct tabs; preserves manual names, icons and subfolders',async()=>{
+  const id='https://www.youtube.com/channel/UCVerified';
+  for(const protectedBy of ['', 'name', 'icon', 'subfolder']){
+    const e=await environment({'zzrouter.section-icons':false}),root=e.addGroup('Youtube');
+    const a=e.addGroup('Channel',root,id),b=e.addGroup(protectedBy==='name'?'Saved channel':'Channel',root,CHANNEL);
+    a.setAttribute('data-zzrouter-created','1');b.setAttribute('data-zzrouter-created','2');
+    if(protectedBy==='icon')b.customIcon=true;
+    const channel=e.addTab(id),video=e.addTab();a.addTabs([channel]);
+    const destination=protectedBy==='subfolder'?e.addGroup('Watch later',b):b;destination.addTabs([video]);
+    e.h.creatorMap().set('0:'+CHANNEL,{key:id,label:'Channel'});
+    e.h.creatorMap().set('0:'+id,{key:id,label:'Channel'});
+    e.h.creatorMap().set('0:video',{key:CHANNEL,label:'Channel'});
+    await e.h.route(video,'test');
+    assert.equal(video.group,protectedBy?destination:a,protectedBy||'duplicate consolidated');
+  }
+});
+test('channel metadata queues only verified duplicate repairs and keeps container identities separate',async()=>{
+  const id='https://www.youtube.com/channel/UCVerified',e=await environment({'zzrouter.section-icons':false}),queued=[];
+  e.h.observeQueues((tab,why)=>queued.push({tab,why}));
+  const root=e.addGroup('Youtube'),a=e.addGroup('Channel',root,id),b=e.addGroup('Channel',root,CHANNEL);
+  a.setAttribute('data-zzrouter-created','1');b.setAttribute('data-zzrouter-created','2');
+  const channel=e.addTab(CHANNEL+'/videos'),video=e.addTab(),canonical=e.addTab(id),other=e.addTab('https://www.youtube.com/watch?v=other',2);
+  a.addTabs([canonical]);b.addTabs([channel,video]);
+  e.h.creatorMap().set('0:video',{key:CHANNEL,label:'Channel'});
+  e.h.creatorMap().set('2:other',{key:CHANNEL,label:'Channel'});
+  e.h.pictureSubject(channel);assert.equal(e.requests.length,1);
+  e.answer(`<meta property="og:url" content="${id}"><meta property="og:title" content="Channel - YouTube">`);
+  assert.ok(queued.some(r=>r.tab===video&&r.why==='channel identity'));
+  assert.ok(queued.some(r=>r.tab===channel&&r.why==='channel identity'));
+  assert.ok(queued.every(r=>r.tab!==canonical&&r.tab!==other));
+  assert.equal(e.h.pictureSubject(other,false).key,CHANNEL,'another container has no verified alias');
+  for(const tab of new Set(queued.map(r=>r.tab)))await e.h.route(tab,'metadata');
+  assert.equal(channel.group,a);assert.equal(video.group,a);
+});
 test("picture-only updates work when movement disabled, creator grouping off, pinned, Essential or manually grouped",async()=>{
   for(const mode of ["disabled","creator-off","pinned","essential","grouped"]){
     const e=await environment(),t=e.addTab();
@@ -348,7 +418,7 @@ test("manual icons, navigation, disable/re-enable and exclusion restore native f
   e.navigate(t,"https://example.com/");e.h.updatePicture(t);assert.equal(t.getAttribute("image"),"native");assert.equal(e.moves,0);
 });
 test("private windows initiate no metadata/image requests or persist new context",async()=>{
-  const e=await environment();e.makePrivate();const t=e.addTab(GAME);
+  const e=await environment({},true),t=e.addTab(GAME);
   e.h.captureNexus(t);e.h.updatePicture(t);e.h.fetchCreator(t,"video");e.h.fetchSectionIcon(GAME,GAME,0,"square");
   assert.equal(e.requests.length,0);assert.equal(e.values.size,0);
 });
@@ -493,7 +563,12 @@ test("metadata completion repairs a legacy folder even when its picture was alre
   await e.h.route(t,'before metadata');assert.equal(g.hasAttribute('data-zzrouter-icon'),false);
   e.answer(JSON.stringify({author_name:'Channel',author_url:CHANNEL}));
   await e.h.route(t,'metadata');assert.equal(g.getAttribute('data-zzrouter-icon'),ICON);
-  assert.equal(e.requests.length,1);assert.equal(t.group,g);
+  assert.equal(e.requests.length,2,'one oEmbed request plus one channel identity lookup');
+  const id='https://www.youtube.com/channel/UCVerified';
+  e.answer(`<meta property="og:url" content="${id}"><meta property="og:title" content="Channel - YouTube">`);
+  await e.h.route(t,'canonical');
+  assert.equal(e.requests.length,2,'canonical identity reuses cached picture');
+  assert.equal(g.getAttribute('data-zzrouter-icon'),ICON);assert.equal(t.getAttribute('data-zzrouter-tab-icon'),ICON);assert.equal(t.group,g);
 });
 
 test("pre-update label caches refetch verified YouTube and Nexus pictures without reusing ambiguous bytes",async()=>{
@@ -510,7 +585,9 @@ test("pre-update label caches refetch verified YouTube and Nexus pictures withou
       e.answer(JSON.stringify({author_name:label,author_url:key}));await e.h.route(t,'verified channel');
     }
     assert.equal(e.requests.at(-1).url,key);
-    e.answer(nexus?gameMetadata():'<meta property="og:image" content="https://example.com/verified.png">');e.answer('image bytes');await tick();
+    e.answer(nexus?gameMetadata():`<meta property="og:url" content="${key}"><meta property="og:title" content="Channel - YouTube"><meta property="og:image" content="https://example.com/verified.png">`);
+    if(!nexus)await e.h.route(t,'channel metadata');
+    e.answer('image bytes');await tick();
     assert.equal(g.getAttribute('data-zzrouter-icon'),ICON);
     assert.equal(t.getAttribute('data-zzrouter-tab-icon'),ICON);
     assert.equal(g.getAttribute('data-zzrouter-picture'),key);
@@ -550,5 +627,50 @@ test('Targeted refresh retains a verified picture on failure and leaves unrelate
   e.advance(11*60*1000);assert.equal(e.h.refreshSubject(tab).key,CHANNEL);
   tab.zenStaticIcon='manual';assert.equal(e.h.refreshSubject(tab),null);delete tab.zenStaticIcon;
   e.prefs.set('zzrouter.section-icons',false);assert.equal(e.h.refreshSubject(tab),null);e.prefs.set('zzrouter.section-icons',true);
-  e.makePrivate();assert.equal(e.h.refreshSubject(tab),null);
+  const p=await environment({},true),own=p.addTab(CHANNEL);p.h.iconMap().set('0:'+CHANNEL,{d:ICON,s:'round'});
+  assert.equal(p.h.refreshSubject(own),null,'private windows refresh nothing');
+});
+
+test('YouTube channel banners: four modes on a creator folder and its tabs, read once from the channel page',async()=>{
+  for(const mode of [0,1,2,3]) {
+    const e=await environment({'zzrouter.youtube-banners':mode,'zzrouter.enabled':false});
+    const t=e.addTab(CHANNEL),root=e.addGroup('Youtube'),g=e.addGroup('Channel',root);
+    g.addTabs([t]);g.setAttribute('data-zzrouter-picture',CHANNEL);g.setAttribute('data-zzrouter-context','0');
+    e.h.creatorMap().set('0:'+CHANNEL,{key:CHANNEL,label:'Channel'});
+    e.h.iconMap().set('0:'+CHANNEL,{d:ICON,s:'round',b:BANNER});
+    e.h.updatePicture(t);e.h.stampIcons();
+    assert.equal(g.hasAttribute('data-zzrouter-banner'),!!(mode&1),`folder, mode ${mode}`);
+    assert.equal(t.hasAttribute('data-zzrouter-banner'),!!(mode&2),`tab, mode ${mode}`);
+    assert.equal(e.requests.length,0,'a cached banner is not read again');
+  }
+  const e=await environment({'zzrouter.youtube-banners':1,'zzrouter.enabled':false});
+  const g=e.addGroup('Channel',e.addGroup('Youtube'));g.addTabs([e.addTab(CHANNEL)]);
+  g.setAttribute('data-zzrouter-picture',CHANNEL);g.setAttribute('data-zzrouter-context','0');
+  e.h.creatorMap().set('0:'+CHANNEL,{key:CHANNEL,label:'Channel'});
+  e.h.iconMap().set('0:'+CHANNEL,{d:ICON,s:'round'});
+  e.h.stampIcons();e.h.stampIcons();
+  assert.deepEqual(e.requests.map(r=>r.url),[CHANNEL],'the channel page, once');
+  const url='https://yt3.googleusercontent.com/abc=w1060-fcrop64=1,0-k-c0xffffffff-no-nd-rj';
+  e.answer('x'.repeat(5000)+`"banner":{"imageBannerViewModel":{"image":{"sources":[{"url":"${url}","width":1060,"height":175}]}}}`);
+  assert.equal(e.requests.at(-1).url,url);
+  e.answer('banner');await tick();
+  assert.ok(e.h.iconMap().get('0:'+CHANNEL).b,'kept with the channel icon');
+  assert.equal(e.h.iconMap().get('0:'+CHANNEL).d,ICON);
+  assert.ok(g.hasAttribute('data-zzrouter-banner'));
+});
+
+test('a private window looks up names and pictures only when allowed, and never saves them',async()=>{
+  const off=await environment({},true),t=off.addTab(GAME);
+  off.h.updatePicture(t);off.h.fetchSectionIcon(GAME,GAME,0,'square',true);
+  assert.equal(off.requests.length,0,'off by default: no request');
+  const e=await environment({'zzrouter.private-lookups':true},true),tab=e.addTab(GAME);
+  const before=e.prefs.get('zzrouter.avatars');
+  e.h.fetchSectionIcon(GAME,GAME,0,'square',true);
+  assert.equal(e.requests.length,1,'allowed: looked up');
+  assert.equal(e.requests[0].ctx,0);
+  e.answer(gameMetadata());e.answer('image bytes');await tick();
+  assert.ok(e.h.iconMap().get('0:'+GAME)?.d,'kept in this window');
+  for(const timer of [...e.timers.values()])timer();await tick();
+  assert.equal(e.prefs.get('zzrouter.avatars'),before,'never saved');
+  assert.equal(e.values.size,0,'no session records');
 });

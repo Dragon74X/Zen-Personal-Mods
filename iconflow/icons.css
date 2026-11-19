@@ -1288,6 +1288,9 @@
       transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), filter .2s, stroke .2s, transform .35s var(--zzicon-spring) !important; }
   }
 }
+@media (((-moz-pref("zzicon.set", 2)) or (-moz-pref("zzicon.set", 3))) and (-moz-pref("zzicon.button.minus", 0))) or (-moz-pref("zzicon.button.minus", 4)) or (-moz-pref("zzicon.button.minus", 5)) {
+  .tab-reset-button::before, .tab-reset-button::after { content: none !important; }
+}
 /* Reset pinned tab: moved by CSS */
 @media (((-moz-pref("zzicon.set", 2)) or (-moz-pref("zzicon.set", 3))) and (-moz-pref("zzicon.button.minus", 0))) or (-moz-pref("zzicon.button.minus", 4)) or (-moz-pref("zzicon.button.minus", 5)) {
   .tab-reset-button:not(#zzicon-own), .tab-reset-pin-button image:not(#zzicon-own) {
@@ -2149,6 +2152,7 @@
   .tab-reset-button:not(#zzicon-own), .tab-reset-pin-button image:not(#zzicon-own) { transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring-back), --zzicon-v var(--zzicon-duration) var(--zzicon-spring-back-speed), transform .35s var(--zzicon-spring) !important; animation: none !important; scale: calc(1 + var(--zzicon-t) * -0.35) calc(1 + 0) !important; filter: var(--zzicon-zen-glow, none) !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) { .tab-reset-button:hover:not(#zzicon-own), .tab-reset-pin-button:hover image:not(#zzicon-own) { transition: --zzicon-t var(--zzicon-duration) var(--zzicon-spring), --zzicon-v var(--zzicon-duration) var(--zzicon-spring-speed), transform .35s var(--zzicon-spring) !important; --zzicon-t: 1 !important; --zzicon-v: 1 !important; } }
   .tab-reset-button[zzicon-own]:not(#zzicon-own), .tab-reset-pin-button image[zzicon-own]:not(#zzicon-own) { list-style-image: var(--zzicon-blank) !important; -moz-context-properties: fill, fill-opacity, stroke, stroke-opacity !important; background-image: var(--zzicon-own) !important; background-size: 9600% 100% !important; background-position: calc(var(--zzicon-frame) * 100% / 95) 0 !important; background-repeat: no-repeat !important; background-origin: content-box !important; background-clip: content-box !important; translate: none !important; rotate: none !important; scale: none !important; filter: none !important; transition: --zzicon-frame var(--zzicon-duration) linear, filter .2s, transform .35s var(--zzicon-spring) !important; }
+  .tab-reset-button[zzicon-own]::before, .tab-reset-button[zzicon-own]::after { content: none !important; }
   @media (-moz-pref("zzicon.animate")) and (prefers-reduced-motion: no-preference) { .tab-reset-button:hover[zzicon-own]:not(#zzicon-own), .tab-reset-pin-button:hover image[zzicon-own]:not(#zzicon-own) { --zzicon-frame: 95 !important; filter: var(--zzicon-circuit-glow, none) !important; } }
   .tab-reset-pin-button:hover { animation: none !important; transform: none !important; }
 }

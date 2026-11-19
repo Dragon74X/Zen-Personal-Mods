@@ -12,6 +12,46 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from functools import partial
 from threading import Thread
 ROOT=Path(__file__).resolve().parents[1]
+# Exact geometry rules from Arc 2.0, loaded AFTER Mediaflow to exercise priority:
+# https://github.com/YashjitPal/Arc-2.0/blob/eaf001a7a2d9c797ba3af41fd50feefc657679b2/modules/chrome/media-player.css
+ARC_MEDIA_HOVER='''
+@media not (-moz-pref("arc-disable-media-player-styles")) {
+  @media (-moz-pref("arc.media-controls-toolbar-bottom")) {
+    #zen-media-controls-toolbar { order: 1 !important; }
+    #zen-media-controls-toolbar:hover + #zen-sidebar-foot-buttons {
+      transform: translateY(-36px);
+      transition: transform 0.2s ease-in-out !important;
+    }
+  }
+  @media not (-moz-pref("arc.media-controls-toolbar-bottom")) {
+    #zen-media-controls-toolbar {
+      &:hover { height: 120px !important; margin-top: -10px !important; }
+    }
+  }
+  #zen-media-controls-toolbar { transition: height 0.25s ease-in-out !important; }
+  #zen-media-controls-toolbar {
+    & .show-on-hover {
+      max-height: unset !important; opacity: 1 !important;
+      transform: translateY(0) !important; padding-right: 6px;
+      pointer-events: none;
+      transition: max-height 0.5s ease, opacity 0.5s ease, transform 0.5s ease, padding 0.5s ease;
+    }
+  }
+  #zen-media-controls-toolbar {
+    .zen-media-controls-hbox {
+      order: 0 !important; height: 0 !important; opacity: 0;
+      transition: all 0.25s !important; pointer-events: none;
+    }
+    &:hover {
+      .zen-media-controls-hbox {
+        height: fit-content !important; opacity: 1 !important; pointer-events: all;
+      }
+    }
+  }
+  .zen-media-main-vbox > vbox { order: 1 !important; }
+  #zen-sidebar-foot-buttons { margin-bottom: 5px !important; margin-top: 7px; }
+}
+'''
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--zen',required=True,type=Path)
 parser.add_argument('--output',required=True,type=Path)
@@ -26,7 +66,7 @@ with tempfile.TemporaryDirectory(prefix='mediaflow-controls-') as d:
     server=ThreadingHTTPServer(('127.0.0.1',0),partial(SimpleHTTPRequestHandler,directory=str(p)))
     Thread(target=server.serve_forever,daemon=True).start()
     with socket.socket() as s:s.bind(('127.0.0.1',0));port=s.getsockname()[1]
-    prefs={'marionette.port':port,'browser.shell.checkDefaultBrowser':False,'browser.aboutwelcome.enabled':False,'zen.welcome-screen.seen':True,'zen.welcome-screen.enabled':False,'sine.auto-update':False,'media.autoplay.default':0,'media.autoplay.blocking_policy':0}
+    prefs={'marionette.port':port,'browser.shell.checkDefaultBrowser':False,'browser.aboutwelcome.enabled':False,'zen.welcome-screen.seen':True,'zen.welcome-screen.enabled':False,'sine.auto-updates':False,'media.autoplay.default':0,'media.autoplay.blocking_policy':0}
     (p/'user.js').write_text('\n'.join(f'user_pref({json.dumps(k)},{json.dumps(v)});' for k,v in prefs.items()))
     with (OUT/'browser.log').open('w') as log:
         process=subprocess.Popen([str(args.zen.resolve()),'--headless','--no-remote','--profile',d,'--marionette','--remote-allow-system-access','about:blank'],stdout=log,stderr=log)
@@ -40,13 +80,21 @@ with tempfile.TemporaryDirectory(prefix='mediaflow-controls-') as d:
             defaults={r['property']:r['defaultValue'] for r in json.loads((ROOT/'mediaflow/preferences.json').read_text()) if 'property' in r and 'defaultValue' in r}
             m.script('for(const [k,v] of Object.entries('+json.dumps(defaults)+'))Services.prefs[typeof v==="boolean"?"setBoolPref":typeof v==="number"?"setIntPref":"setStringPref"](k,v);return true;')
             m.script("window.mediaErrors=[];window.addEventListener('error',e=>mediaErrors.push(e.message));return true;")
+            # Loading with controls disabled must also work in compact mode.
+            # Preference synchronization runs before later observers are wired.
+            m.script("Services.prefs.setBoolPref('zzmedia.preview.controls',false);Services.prefs.setBoolPref('zen.view.compact',true);Services.prefs.setBoolPref('zen.view.compact.hide-tabbar',true);document.documentElement.setAttribute('zen-compact-mode','true');return true;")
             m.script((ROOT/'mediaflow/mediaflow.uc.js').read_text()+'\nreturn true;')
+            assert m.script("return !!window.ZzMediaflowController&&!document.getElementById('zen-sidebar-pip-container').hasAttribute('zzmf-controls');")
+            m.script("Services.prefs.setBoolPref('zzmedia.preview.controls',true);Services.prefs.setBoolPref('zen.view.compact',false);document.documentElement.setAttribute('zen-compact-mode','false');return true;")
             m.call('Marionette:SetContext',{'value':'content'});m.call('WebDriver:Navigate',{'url':f'http://127.0.0.1:{server.server_port}/index.html'})
-            m.script('document.querySelector("video").currentTime=35;document.querySelector("video").play();return true;',context='content')
+            playback=m.script('return (async()=>{const v=document.querySelector("video");let error=null;await Promise.race([v.play().catch(e=>error=String(e)),new Promise(r=>setTimeout(r,3000))]);if(v.readyState>=2)v.currentTime=35;return {paused:v.paused,ready:v.readyState,width:v.videoWidth,visibility:document.visibilityState,error};})();',context='content')
+            print('PLAYBACK',playback,flush=True)
             time.sleep(1)
             m.script('window.mediaSourceTab=gBrowser.selectedTab;gBrowser.selectedTab=window.mediaOtherTab=gBrowser.addTab("about:blank",{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal(),skipAnimation:true});return true;')
             time.sleep(2)
-            print('SOURCE',m.script('return {active:ZzMediaflowController.getActiveBC()?.id,source:mediaSourceTab.linkedBrowser.browsingContext.id,paused:document.querySelector("#zen-sidebar-pip-container").getAttribute("zzmf-paused")};'),flush=True)
+            source=m.script('return {active:ZzMediaflowController.getActiveBC()?.id,source:mediaSourceTab.linkedBrowser.browsingContext.id,paused:document.querySelector("#zen-sidebar-pip-container").getAttribute("zzmf-paused")};')
+            print('SOURCE',source,flush=True)
+            assert source['active']==source['source'],source
             # Native card markup, but never force the preview's normal geometry.
             m.script("const bar=document.getElementById('zen-media-controls-toolbar');bar.append(document.getElementById('zen-media-card-template').content.cloneNode(true));bar.hidden=false;return true;")
             m.script("Cc['@mozilla.org/content/style-sheet-service;1'].getService(Ci.nsIStyleSheetService).loadAndRegisterSheet(Services.io.newURI("+json.dumps((ROOT/'mediaflow/userChrome.css').as_uri())+"),1);return true;")
@@ -67,14 +115,31 @@ with tempfile.TemporaryDirectory(prefix='mediaflow-controls-') as d:
                 m.call('WebDriver:PerformActions',{'actions':[{'type':'pointer','id':'mediaflow-test','parameters':{'pointerType':'mouse'},'actions':actions}]})
             def move(x,y,pause=0):pointer([{'type':'pointerMove','duration':0,'x':x,'y':y},{'type':'pause','duration':pause}])
             def click(selector,hold=30):
-                move(*center(selector))
-                pointer([{'type':'pointerDown','button':0},{'type':'pause','duration':hold},{'type':'pointerUp','button':0},{'type':'pause','duration':150}])
-            def stable(before,after):
-                assert all(abs(before[k]-after[k])<1 for k in ['x','y','width','height']), (before,after)
+                # Resolve the element's center when WebDriver delivers the
+                # action. A prior coordinate snapshot can age past a moving
+                # button during the separate protocol round trips.
+                target=m.script('return document.querySelector('+json.dumps(selector)+');')
+                pointer([{'type':'pointerMove','duration':0,'origin':target,'x':0,'y':0},{'type':'pointerDown','button':0},{'type':'pause','duration':hold},{'type':'pointerUp','button':0},{'type':'pause','duration':150}])
+            def stable(before,after,keys=('x','y','width','height')):
+                assert all(abs(before[k]-after[k])<1 for k in keys), (before,after)
             def reset():
                 move(1000,250)
                 m.script("document.activeElement?.blur();gBrowser.selectedTab=mediaOtherTab;return true;")
                 time.sleep(.5)
+            # Chrome-only dragging values are not exposed by computed style
+            # on every build. Verify the parsed rule on the actual overlay;
+            # WebDriver DOM input cannot certify Windows WM_NCHITTEST behavior.
+            drag_rule=m.script("const p=document.getElementById('zen-sidebar-pip-container');return [...InspectorUtils.getMatchingCSSRules(p)].some(r=>r.selectorText==='#zen-sidebar-pip-container'&&/-moz-window-dragging:\\s*no-drag\\s*;/.test(r.style.cssText));")
+            assert drag_rule, 'The floating preview must exclude underlying native window-drag regions'
+            # Enter while the source entrance transform is still in flight.
+            # Layout bottom and transformed visual bottom are different spaces.
+            reset()
+            m.script("const p=document.getElementById('zen-sidebar-pip-container');p.style.transition='none';p.style.transform='scale(0.9) translateY(8px)';return true;")
+            entering=rect();move(*center('#zen-sidebar-pip-container'),pause=80)
+            entered=rect()
+            (OUT/'entrance-hover.json').write_text(json.dumps({'before':entering,'after':entered},indent=2))
+            assert abs(entered['bottom']-entering['bottom'])<1,('Entrance hover moved bottom',entering,entered)
+            m.script("const p=document.getElementById('zen-sidebar-pip-container');p.style.removeProperty('transition');p.style.removeProperty('transform');return true;")
             # Exercise real entry from the bar below, including its collapsing
             # rows and the 300ms growth delay. Timer expiry must not swap the
             # card's top edge for its toolbar's top edge.
@@ -105,6 +170,31 @@ with tempfile.TemporaryDirectory(prefix='mediaflow-controls-') as d:
                     boundary_cases.append({'expanded':expanded,'direction':direction,'hoverBottomRange':max(s['bottom'] for s in active)-min(s['bottom'] for s in active),'returnDistance':distance})
             m.script('Services.prefs.setBoolPref("zzmedia.bar.always-expanded",false);return true;')
             reset()
+            # Hover the MUSIC BAR below the preview, without hovering the
+            # preview itself. The former tests missed Arc resizing this anchor.
+            m.script('window.arcMediaFixture=Services.io.newURI("data:text/css,"+encodeURIComponent('+json.dumps(ARC_MEDIA_HOVER)+'));Cc["@mozilla.org/content/style-sheet-service;1"].getService(Ci.nsIStyleSheetService).loadAndRegisterSheet(arcMediaFixture,1);return true;')
+            arc_cases=[]
+            for bottom in [False,True]:
+                for still,expanded,room in [(True,False,False),(True,True,False),(True,False,True),(False,True,False),(False,False,False)]:
+                    m.script('for(const[k,v]of Object.entries('+json.dumps({'arc.media-controls-toolbar-bottom':bottom,'zzmedia.bar.still-on-hover':still,'zzmedia.bar.always-expanded':expanded,'zzmedia.preview.make-room':room})+'))Services.prefs.setBoolPref(k,v);return true;')
+                    reset();time.sleep(.3);before=rect();bar=rect('#zen-media-controls-toolbar')
+                    m.script("window.barSamples=[];window.barStart=performance.now();function barTick(){const p=document.getElementById('zen-sidebar-pip-container'),r=p.getBoundingClientRect(),b=document.getElementById('zen-media-controls-toolbar'),s=getComputedStyle(b),br=b.getBoundingClientRect();barSamples.push({t:performance.now()-barStart,bottom:r.bottom,barHeight:br.height,margin:parseFloat(s.marginTop),hover:b.matches(':hover'),videoHover:p.matches(':hover')});if(performance.now()-barStart<1700)requestAnimationFrame(barTick);}requestAnimationFrame(barTick);return true;")
+                    move(round(bar['x']+bar['width']/2),round(bar['bottom']-3),pause=800)
+                    hovered=rect();move(1000,250,pause=950)
+                    samples=m.script('return barSamples;');travel=max(s['bottom'] for s in samples)-min(s['bottom'] for s in samples)
+                    assert any(s['hover'] for s in samples) and not any(s['videoHover'] for s in samples),(bottom,still,expanded,room,samples)
+                    if still or expanded:
+                        assert travel<1,(bottom,still,expanded,room,travel)
+                        assert max(s['barHeight'] for s in samples)-min(s['barHeight'] for s in samples)<1,samples
+                        margin=m.script("const b=document.getElementById('zen-media-controls-toolbar');return {actual:parseFloat(getComputedStyle(b).marginTop),reserved:parseFloat(b.style.getPropertyValue('--zzmf-reserve'))||0};")
+                        assert abs(margin['actual']-margin['reserved'])<1,margin
+                        assert (margin['reserved']>0)==room,margin
+                        assert m.script("const s=getComputedStyle(document.querySelector('.zen-media-controls-hbox'));return parseFloat(s.height)>0&&s.opacity==='1'&&s.pointerEvents==='auto';")
+                    else:
+                        assert travel>10,('Off failed to release Arc layout',bottom,travel)
+                    arc_cases.append({'bottomPlacement':bottom,'still':still,'expanded':expanded,'room':room,'previewTravel':travel})
+            m.script('Cc["@mozilla.org/content/style-sheet-service;1"].getService(Ci.nsIStyleSheetService).unregisterSheet(arcMediaFixture,1);for(const k of ["arc.media-controls-toolbar-bottom","zzmedia.bar.always-expanded","zzmedia.preview.make-room"])Services.prefs.setBoolPref(k,false);Services.prefs.setBoolPref("zzmedia.bar.still-on-hover",true);return true;')
+            reset()
             # Canvas hover must grow; the controls' transparent full-size layer
             # must not claim the pointer and cancel the growth timer.
             reset();resting=rect()
@@ -126,6 +216,14 @@ with tempfile.TemporaryDirectory(prefix='mediaflow-controls-') as d:
             m.script("document.documentElement.setAttribute('zen-compact-mode','false');return true;")
             reset()
             results=[]
+            m.script("""window.controlEvents=[];
+              for(const type of ['pointerdown','pointerup','mousedown','mouseup','click'])addEventListener(type,e=>{
+                const p=document.getElementById('zen-sidebar-pip-container'),b=document.querySelector('.zzmf-pip-play');
+                controlEvents.push({type,target:e.target.className,x:e.clientX,y:e.clientY,buttons:e.buttons,
+                  held:p.hasAttribute('zzmf-interacting'),hover:p.matches(':hover'),controlHover:b.matches(':hover'),
+                  preview:p.getBoundingClientRect().toJSON(),button:b.getBoundingClientRect().toJSON()});
+                if(controlEvents.length>100)controlEvents.shift();
+              },true);return true;""")
             for delay in [40,250,340,700]:
                 reset()
                 resting=rect()
@@ -134,19 +232,52 @@ with tempfile.TemporaryDirectory(prefix='mediaflow-controls-') as d:
                 # Reacquire its current position, then hold across the growth boundary.
                 was=video()
                 click('.zzmf-pip-play',hold=140)
-                after=video();assert after['paused'] != was['paused'], (delay,was,after)
+                after=video()
+                if after['paused']==was['paused']:
+                    (OUT/'control-failure.json').write_text(json.dumps(m.script('return controlEvents;'),indent=2))
+                assert after['paused'] != was['paused'], (delay,was,after)
                 assert m.script("return gBrowser.selectedTab===mediaOtherTab;"), 'control click selected source'
                 held=rect()
                 move(1000,250,400)
-                stable(held,rect())
+                stable(resting,rect())
+                assert m.script("return !document.getElementById('zen-sidebar-pip-container').hasAttribute('zzmf-interacting');"), 'Mouse-acquired focus retained expanded geometry'
                 for cls,delta in [('forward',10),('back',-10)]:
                     # Pause first so the seek distance is exact.
                     if not video()['paused']:click('.zzmf-pip-play')
-                    before=video();click('.zzmf-pip-'+cls);after=video()
+                    before=video();held=rect();click('.zzmf-pip-'+cls);after=video()
                     assert abs(after['time']-before['time']-delta)<.01,(cls,before,after)
                     stable(held,rect())
                 reset();stable(resting,rect())
-                results.append({'hoverDelayMs':delay,'toggle':True,'seeks':2,'heldFocusGeometry':True,'releasedGeometry':True})
+                results.append({'hoverDelayMs':delay,'toggle':True,'seeks':2,'pressGeometry':True,'hoverExitReleasesFocusedControl':True,'releasedGeometry':True})
+            # Pause does not collapse; leaving for the media bar does. Retained
+            # button focus must not freeze the next hover at an intermediate size.
+            reset()
+            if video()['paused']:click('.zzmf-pip-play')
+            reset();paused_rest=rect()
+            move(round(paused_rest['x']+paused_rest['width']/2),round(paused_rest['y']+25),800)
+            pause_grown=rect();assert pause_grown['width']>paused_rest['width']*1.95
+            click('.zzmf-pip-play');assert video()['paused']
+            stable(pause_grown,rect())
+            move(*center('.zen-media-controls-hbox'),pause=700)
+            # Native title/progress disclosure can move the card; size must
+            # return to rest and the next preview entry must keep that anchor.
+            paused_bar=rect();stable(paused_rest,paused_bar,('width','height'))
+            assert m.script("return document.activeElement===document.querySelector('.zzmf-pip-play')&&!document.getElementById('zen-sidebar-pip-container').hasAttribute('zzmf-interacting');"), 'Bar hover retained the preview hold or removed keyboard focus'
+            move(round(paused_bar['x']+paused_bar['width']/2),round(paused_bar['y']+25),800)
+            paused_reentry=rect();stable(pause_grown,paused_reentry,('width','height'))
+            assert abs(paused_reentry['bottom']-paused_bar['bottom'])<1, 'Re-entry moved the video anchor'
+            assert video()['paused']
+            pause_hover={'restingWidth':paused_rest['width'],'pauseWidth':pause_grown['width'],'barWidth':paused_bar['width'],'reentryWidth':paused_reentry['width'],'barBottom':paused_bar['bottom'],'reentryBottom':paused_reentry['bottom'],'focusPreserved':True}
+            reset()
+            # Press at the expanded preview, leave while held, then release over
+            # remote content. Hold only until release; cancel the original click.
+            resting=rect();move(*center('.zzmf-pip-play'),pause=800)
+            move(*center('.zzmf-pip-play'));pressed=rect();was=video()
+            pointer([{'type':'pointerDown','button':0}]);move(1000,250,pause=400)
+            stable(pressed,rect())
+            pointer([{'type':'pointerUp','button':0},{'type':'pause','duration':500}])
+            stable(resting,rect());assert video()['paused']==was['paused']
+            pause_hover['releaseOutsideCancelsClickAndHold']=True
             # Keyboard activation remains native; the canvas still opens its source tab.
             m.script("document.querySelector('.zzmf-pip-play').focus();return true;")
             before=video()
@@ -198,9 +329,9 @@ with tempfile.TemporaryDirectory(prefix='mediaflow-controls-') as d:
                 m.script("document.querySelector('.zzmf-pip-"+name+"').style.removeProperty('background-image');return true;")
                 paints.append({'control':name,'pixelDifference':amount,'size':info['size']})
             assert m.script('return mediaErrors;')==[],m.script('return mediaErrors;')
-            (OUT/'checks.json').write_text(json.dumps({'runtimeErrors':0,'boundaryCases':boundary_cases,'canvasGrowth':True,'controlHoverGrowth':[resting['width'],control_grown['width']],'crossingControlDuringGrowth':[mid_growth['width'],continued['width']],'originalGlyphPaints':paints,'sidebarHide':True,'hoverCases':results,'keyboard':True,'canvasNavigation':True,'probe':{'presses':6,'commands':4,'misses':2,'autoCopy':True,'cleanup':True}},indent=2))
+            (OUT/'checks.json').write_text(json.dumps({'runtimeErrors':0,'windowDragging':{'previewExclusionParsed':drag_rule,'windowsPhysicalInput':'not-tested'},'arcBarHover':arc_cases,'boundaryCases':boundary_cases,'canvasGrowth':True,'controlHoverGrowth':[resting['width'],control_grown['width']],'crossingControlDuringGrowth':[mid_growth['width'],continued['width']],'originalGlyphPaints':paints,'sidebarHide':True,'hoverCases':results,'pauseHover':pause_hover,'keyboard':True,'canvasNavigation':True,'probe':{'presses':6,'commands':4,'misses':2,'autoCopy':True,'cleanup':True}},indent=2))
             m.shot().save(OUT/'controls.png')
-            print('PASS: control hover growth, 6 original glyph paints, 4 hover timings, 8 seeks, focus hold/release, keyboard, canvas navigation; probe captured 6 presses / 4 commands / 2 misses and auto-copied after cleanup.',flush=True)
+            print('PASS: control hover growth, 6 original glyph paints, 4 hover timings, 8 seeks, pause stays expanded, bar exit shrinks, paused re-entry grows, keyboard, canvas navigation; probe captured 6 presses / 4 commands / 2 misses and auto-copied after cleanup.',flush=True)
         finally:
             process.terminate()
             try:process.wait(timeout=5)

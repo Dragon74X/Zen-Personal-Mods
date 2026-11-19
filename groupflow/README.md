@@ -95,10 +95,16 @@ and the next icon click opens the page afresh.
 Closing a page tab -- with a shortcut, the tab menu or Close Other Tabs --
 unloads it instead, as a Favorite does, so a folder is never emptied or lost
 by accident; closing or deleting the folder itself still closes everything in
-it. The exception: closing the page you are on when the folder holds nothing
-else (no other tab, loaded or not; only empty subfolders) closes the folder
-with it, and Firefox keeps it among recently closed groups to reopen. Close
-Other Tabs and the like still only unload. A page that is also one of your Favorites (Essentials) stays a Favorite:
+it. The exception is a folder that holds nothing else (no other tab, loaded
+or not; only empty subfolders): it closes with its page, both when you close
+the page you are on and when Close Other Tabs (or any close of several tabs at
+once) takes everything else in it. Firefox keeps it among recently closed
+groups to reopen.
+
+Closing tabs one after another stays in the folder: when you close its last
+tab, the folder's page is selected next rather than a tab elsewhere, and
+closing the page then closes the folder and lands on its parent folder's page
+the same way. A page that is also one of your Favorites (Essentials) stays a Favorite:
 the folder opens its own tab for it. The page tab opens in the container the
 folder's tabs use, subfolders included, so the site is signed in as it is in
 them; a page tab left in a container none of the folder's tabs use is replaced

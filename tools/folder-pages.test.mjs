@@ -240,5 +240,39 @@ test("Closing the page you are on closes its folder when the folder holds nothin
   assert.deepEqual([s.removedGroups.length, s.removed.length], [0, 0], "a folder with another tab stays");
   s = make({ selected: false });
   s.f.gBrowser.removeTab(s.page);
-  assert.equal(s.removedGroups.length, 0, "Close Other Tabs and the like only unload");
+  assert.equal(s.removedGroups.length, 0, "closing it alone in the background only unloads");
+});
+
+test("Closing several tabs at once closes a folder they empty, page and all; a folder keeping a tab keeps its page", () => {
+  const top = node({ "data-zzrouter-page": "https://youtube.com/" }, { id: "yt" });
+  const busy = node({ "data-zzrouter-page": "https://other.example/" }, { id: "busy" });
+  const page = tabAt("https://www.youtube.com/", { group: top, attrs: { "zzgf-page-of": "yt" } });
+  const video = tabAt("https://www.youtube.com/watch?v=x", { group: top });
+  const busyPage = tabAt("https://other.example/", { group: busy, attrs: { "zzgf-page-of": "busy" } });
+  const kept = tabAt("https://other.example/kept", { group: busy, selected: true });
+  const tabs = [page, video, busyPage, kept];
+  const removed = [], discarded = [];
+  const f = folderPages(tabs, [top, busy], null, t => removed.push(t), { discardBrowser: t => discarded.push(t),
+    _findTabToBlurTo: () => null, removeTabGroup() {},
+    // Firefox's removeTabs closes each in turn through removeTab.
+    removeTabs(list) { for (const t of list) this.removeTab(t); } });
+  f.settle();
+  f.gBrowser.removeTabs([page, video, busyPage]);
+  assert.deepEqual(removed, [page, video], "the emptied folder's page closes with its tabs");
+  assert.deepEqual(discarded, [busyPage], "a folder that keeps a tab only unloads its page");
+});
+
+test("Closing a folder's last tab lands on the folder's page, not a tab elsewhere", () => {
+  const top = node({ "data-zzrouter-page": "https://youtube.com/" }, { id: "yt" });
+  const page = tabAt("https://www.youtube.com/", { group: top, attrs: { "zzgf-page-of": "yt" } });
+  const a = tabAt("https://www.youtube.com/watch?v=a", { group: top, selected: true });
+  const b = tabAt("https://www.youtube.com/watch?v=b", { group: top });
+  const elsewhere = tabAt("https://other.example/");
+  const tabs = [page, a, b, elsewhere];
+  const native = function (tab, exclude = []) { return [elsewhere, b, a, page].find(t => t !== tab && !exclude.includes(t)) || null; };
+  const f = folderPages(tabs, [top], null, () => {}, { _findTabToBlurTo: native });
+  f.settle();
+  assert.equal(f.gBrowser._findTabToBlurTo(a), elsewhere, "with another tab left, the usual choice (never the page)");
+  b.closing = true;
+  assert.equal(f.gBrowser._findTabToBlurTo(a), page, "the last one: the folder's page");
 });

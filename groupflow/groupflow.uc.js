@@ -1200,9 +1200,26 @@
       if (!tab.selected && !tab.hasAttribute("pending")) { try { gBrowser.discardBrowser(tab); } catch {} }
       soon();
     }
+    // Closing the page you are on in a folder that holds nothing else -- no
+    // other tab, loaded or not, only page tabs of empty subfolders -- closes
+    // the folder with it (Firefox keeps it among recently closed groups).
+    // Close Other Tabs and the like still only unload, so no folder is lost
+    // by accident.
+    const onlyPage = tab => tab.selected && !folderTabs(tab.group).some(t => t !== tab && !t.hasAttribute("zzgf-page-tab"));
+    function closeFolder(group) {
+      removing.add(group);
+      try {
+        if (group.isZenFolder && typeof group.delete === "function") group.delete();
+        else gBrowser.removeTabGroup(group, { isUserTriggered: true });
+      } catch (error) { removing.delete(group); console.error("[Groupflow] Cannot close folder:", error); return false; }
+      return true;
+    }
     const nativeRemoveTab = gBrowser.removeTab, ownRemoveTab = Object.prototype.hasOwnProperty.call(gBrowser, "removeTab");
     const removeTab = function (tab, ...rest) {
-      if (keepAsPage(tab)) { unloadPage(tab); return; }
+      if (keepAsPage(tab)) {
+        if (onlyPage(tab) && closeFolder(tab.group)) return;
+        unloadPage(tab); return;
+      }
       return nativeRemoveTab.call(this, tab, ...rest);
     };
     gBrowser.removeTab = removeTab;

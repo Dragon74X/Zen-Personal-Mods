@@ -976,8 +976,8 @@
   // ---- folder pages --------------------------------------------------------
   // A folder can be a page itself: Tab Router's YouTube folder is youtube.com,
   // a creator subfolder that creator's page, a Nexus game folder that game's
-  // page. Clicking the folder's name opens that page, or switches to it when it
-  // is already open; clicking anywhere else on the header still folds. The
+  // page. Clicking the folder's icon opens that page, or switches to it when it
+  // is already open; clicking its name or anywhere else on the header folds. The
   // page's own tab row is hidden and its header shows it instead. A page tab
   // that navigates elsewhere becomes an ordinary tab in the folder again.
   const PAGE_KEY = "groupflowPages", PAGE_OF = "zzgfPageOf";
@@ -1116,20 +1116,23 @@
       soon();
       return true;
     }
-    // The header is the folder's page: clicking it switches to the page, or
-    // folds the folder when you are already on it. The icon always folds.
-    // Called first by toggleSubgroups, so folders with subfolders behave alike.
+    // The folder's icon is its page: clicking it switches to the page, or
+    // folds the folder when you are already on it. The name and the rest of
+    // the header fold. Called first by toggleSubgroups, so folders with
+    // subfolders behave alike.
     function headerClick(event) {
       if (event.button !== 0 || event.defaultPrevented || !enabled()) return false;
       const header = event.target.closest?.(".tab-group-label-container");
       const group = header?.parentElement;
       if (!live(group) || !pageOf(group)) return false;
-      if (event.target.closest(".zzgf-icon, .tab-group-folder-icon, .zzgf-close, .tab-close-button, .tab-reset-button, button, input, [editing]")) return false;
+      if (event.target.closest(".zzgf-close, .tab-close-button, .tab-reset-button, button, input, [editing]")) return false;
       // The icon slides over the name on hover, where the name wins the hit
       // test: go by where the icon is drawn now.
-      const icon = header.querySelector(":scope > :is(.zzgf-icon, .tab-group-folder-icon)")?.getBoundingClientRect();
-      if (icon?.width && event.clientX >= icon.left && event.clientX <= icon.right &&
-          event.clientY >= icon.top && event.clientY <= icon.bottom) return false;
+      const iconNode = header.querySelector(":scope > :is(.zzgf-icon, .tab-group-folder-icon)");
+      const icon = iconNode?.getBoundingClientRect();
+      const onIcon = !!event.target.closest(".zzgf-icon, .tab-group-folder-icon") || (!!icon?.width &&
+        event.clientX >= icon.left && event.clientX <= icon.right && event.clientY >= icon.top && event.clientY <= icon.bottom);
+      if (!onIcon) return false;
       const tab = pageTab(group);
       if (tab?.selected && !strayPage(group, tab)) return false;   // on the page: fold as usual
       event.preventDefault(); event.stopImmediatePropagation();
@@ -1203,6 +1206,17 @@
       return nativeRemoveTab.call(this, tab, ...rest);
     };
     gBrowser.removeTab = removeTab;
+    // A page tab's row is hidden: closing another tab never lands on one
+    // (where closing again would only unload it and land on the next), unless
+    // nothing else is left.
+    const nativeBlurTo = gBrowser._findTabToBlurTo, ownBlurTo = Object.prototype.hasOwnProperty.call(gBrowser, "_findTabToBlurTo");
+    const blurTo = function (tab, exclude = [], ...rest) {
+      if (!enabled() || retired || typeof nativeBlurTo !== "function") return nativeBlurTo?.call(this, tab, exclude, ...rest) ?? null;
+      const pageTabs = gBrowser.tabs.filter(t => t !== tab && t.hasAttribute("zzgf-page-tab"));
+      const found = pageTabs.length ? nativeBlurTo.call(this, tab, [...(exclude || []), ...pageTabs], ...rest) : null;
+      return found || nativeBlurTo.call(this, tab, exclude, ...rest);
+    };
+    if (typeof nativeBlurTo === "function") gBrowser._findTabToBlurTo = blurTo;
     // Membership, restores and Tab Router's pages move folder pages;
     // addresses come through the progress listener.
     const events = ["TabOpen", "TabClose", "TabGrouped", "TabUngrouped",
@@ -1222,6 +1236,7 @@
       for (const type of events) window.removeEventListener(type, onEvent, true);
       window.removeEventListener("TabGroupRemoveRequested", groupRemoving, true);
       if (gBrowser.removeTab === removeTab) { if (ownRemoveTab) gBrowser.removeTab = nativeRemoveTab; else delete gBrowser.removeTab; }
+      if (gBrowser._findTabToBlurTo === blurTo) { if (ownBlurTo) gBrowser._findTabToBlurTo = nativeBlurTo; else delete gBrowser._findTabToBlurTo; }
       if (pageHeaderClick === headerClick) pageHeaderClick = null;
       window.removeEventListener("popupshowing", menu);
       try { gBrowser.removeTabsProgressListener(progress); } catch {}

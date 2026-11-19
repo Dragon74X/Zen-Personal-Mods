@@ -506,7 +506,7 @@
   {
     "type": "checkbox",
     "property": "zzgroup.folder-pages",
-    "label": "Folders open their own page *Clicking a folder's name opens its page, or switches to it when it is already open; clicking elsewhere on the header still folds it. The page's own tab row is hidden and the header shows it instead. Tab Router gives its folders their site, channel, game or section page; set or clear any folder's page from its menu.*",
+    "label": "Folders open their own page *Clicking a folder's icon opens its page, or switches to it when it is already open; clicking its name or elsewhere on the header folds it. The page's own tab row is hidden and the header shows it instead. Tab Router gives its folders their site, channel, game or section page; set or clear any folder's page from its menu.*",
     "defaultValue": true,
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"

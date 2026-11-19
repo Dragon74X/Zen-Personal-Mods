@@ -645,7 +645,8 @@ test("A tab's own cover art: video thumbnails, Nexus page pictures and other pag
     tabs.push(tab);
     return tab;
   };
-  const ctx = vm.createContext({ retired: false, privateWindow: false, bool: (k, d) => settings[k] ?? d,
+  const ctx = vm.createContext({ retired: false, privateWindow: false, noLookups: () => false, bool: (k, d) => settings[k] ?? d,
+    num: (k, d) => settings[k] ?? d, modTabsUseGameBanner: () => settings["nexus-page-covers"] && settings["nexus-page-cover-source"] === 1,
     pageKey: url => url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, ""), tabURL: t => t.url, contextOf: () => 0,
     scoped: (k, c) => `${c}|${k}`, hostOf: t => new URL(t.url).hostname.replace(/^www\./, ""),
     videoId: t => /youtube\.com\/watch\?v=([\w-]+)/.exec(t.url)?.[1] ?? null,
@@ -687,6 +688,23 @@ test("A tab's own cover art: video thumbnails, Nexus page pictures and other pag
   assert.equal(fetched.length, 2, "not while it is still loading");
   page.attrs.busy = false; ctx.wantCover(page); await settle();
   assert.equal(fetched.at(-1)[0], "https://example.com/share.png");
+  // A frame from the video instead of its thumbnail, cached on its own.
+  settings["video-covers"] = true; settings["video-cover-source"] = 1;
+  const framed = make("https://www.youtube.com/watch?v=frame123456", { pending: true });
+  ctx.wantCover(framed);
+  assert.equal(fetched.at(-1)[0], "https://i.ytimg.com/vi/frame123456/mq2.jpg", "a still from the video, no thumbnail text");
+  finish.pop()("data:image/webp;base64,FRAME");
+  assert.equal(ctx.coverFor(framed), "data:image/webp;base64,FRAME");
+  settings["video-cover-source"] = 0;
+  assert.equal(ctx.coverFor(framed), null, "the thumbnail is a different picture");
+  ctx.wantCover(framed);
+  assert.equal(fetched.at(-1)[0], "https://i.ytimg.com/vi/frame123456/mqdefault.jpg");
+  finish.pop()(null);
+  fetched.splice(-2); settings["video-covers"] = false;
+  // Nexus mod tabs set to their game's banner: the mod's own picture is not shown or asked for.
+  settings["nexus-page-cover-source"] = 1;
+  assert.equal(ctx.coverFor(mod), null);
+  settings["nexus-page-cover-source"] = 0;
   // Three at a time; a failed one is not asked for again.
   for (let i = 0; i < 4; i++) ctx.wantCover(make(`https://www.youtube.com/watch?v=queued${i}000`));
   settings["video-covers"] = true;
@@ -732,4 +750,50 @@ test("Pictures are kept for what is open when a window closes", () => {
   store.avatars = { "0|https://gone/": { d: "G" } };
   ctx.pruneCaches(true);
   assert.deepEqual(Object.keys(store.avatars), ["0|https://gone/"]);
+});
+
+test("YouTube channel banners: a banner source on the channel's page; blur softens cover art", async () => {
+  const html = 'x'.repeat(200) + '"banner":{"imageBannerViewModel":{"image":{"sources":[{"url":"https://yt3.googleusercontent.com/abc=w1060-fcrop64=1,00005a57ffffa5a8-k-c0xffffffff-no-nd-rj","width":1060,"height":175},' +
+    '{"url":"https://yt3.googleusercontent.com/abc=w2120-fcrop64=1,00005a57ffffa5a8-k-c0xffffffff-no-nd-rj","width":2120,"height":351}]}}}' +
+    '"url":"https://yt3.googleusercontent.com/zzz=w9000","width":9000';
+  const ctx = vm.createContext({});
+  vm.runInContext(between("  function channelBannerURL(html) {", "  function fetchChannelBanner(") + "\nthis.channelBannerURL = channelBannerURL;", ctx);
+  assert.equal(ctx.channelBannerURL(html), "https://yt3.googleusercontent.com/abc=w1060-fcrop64=1,00005a57ffffa5a8-k-c0xffffffff-no-nd-rj", "the smallest at least 768px wide");
+  assert.equal(ctx.channelBannerURL('"avatar":{"url":"https://yt3.googleusercontent.com/a=s176"}'), null, "no banner, none");
+  assert.equal(ctx.channelBannerURL('"banner":{"imageBannerViewModel":{"image":{"sources":[{"url":"https://evil.example/x","width":1060}]}}}'), null, "only YouTube's image host");
+  const prefs = { "nexus-banner-opacity": 25, "cover-blur": 0 };
+  const paint = vm.createContext({ num: (k, d) => prefs[k] ?? d, imageData: v => /^data:image\/webp;base64,/.test(v) });
+  vm.runInContext(between("  function paintBanner(node, data) {", "  // A tab's own cover art, in place of its game's banner") + "\nthis.paintBanner = paintBanner;", paint);
+  const node = { attrs: {}, props: {}, getAttribute(n) { return this.attrs[n] ?? null; }, setAttribute(n, v) { this.attrs[n] = v; }, removeAttribute(n) { delete this.attrs[n]; },
+    style: { setProperty(n, v) { node.props[n] = v; }, removeProperty(n) { delete node.props[n]; } } };
+  paint.paintBanner(node, "data:image/webp;base64,AAAA");
+  assert.equal(node.attrs["data-zzrouter-banner"], "0.25:data:image/webp;base64,AAAA");
+  assert.doesNotMatch(decodeURIComponent(node.props["--zzrouter-banner-data"]), /feGaussianBlur/);
+  prefs["cover-blur"] = 6;
+  assert.equal(paint.paintBanner(node, "data:image/webp;base64,AAAA"), true, "a blur change repaints");
+  assert.equal(node.attrs["data-zzrouter-banner"], "0.25:6:data:image/webp;base64,AAAA");
+  const svg = decodeURIComponent(node.props["--zzrouter-banner-data"]);
+  assert.match(svg, /<feGaussianBlur stdDeviation="6"\/>/);
+  assert.match(svg, /x="-8%" y="-8%" width="116%" height="116%"/, "drawn larger, so the blur never fades its edges");
+  assert.doesNotMatch(svg, /href="(?!data:)/, "no remote reference");
+  prefs["cover-blur"] = 99;
+  paint.paintBanner(node, "data:image/webp;base64,AAAA");
+  assert.match(node.attrs["data-zzrouter-banner"], /^0\.25:20:/, "at most 20");
+});
+
+test("A cover's black bars are cut off; a picture without them, or all dark, stays whole", () => {
+  const picture = (w, h, lit) => {
+    const data = new Uint8ClampedArray(w * h * 4);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (lit(x, y)) data.fill(200, (y * w + x) * 4, (y * w + x) * 4 + 3);
+    return { width: w, height: h, data };
+  };
+  let current = null;
+  const ctx = vm.createContext({ OffscreenCanvas: class { getContext() { return { drawImage() {}, getImageData: () => ({ data: current.data }) }; } } });
+  vm.runInContext(between("  function letterbox(bmp) {", "  function fetchPicture(") + "\nthis.letterbox = letterbox;", ctx);
+  const crop = bmp => { current = bmp; return Array.from(ctx.letterbox(bmp)); };
+  assert.deepEqual(crop(picture(320, 180, x => x >= 40 && x < 280)), [40, 0, 240, 180], "a 4:3 frame's pillarbox");
+  assert.deepEqual(crop(picture(320, 180, (x, y) => y >= 22 && y < 158)), [0, 22, 320, 136], "a letterbox");
+  assert.deepEqual(crop(picture(320, 180, () => true)), [0, 0, 320, 180], "no bars");
+  assert.deepEqual(crop(picture(320, 180, () => false)), [0, 0, 320, 180], "an all-dark picture");
+  assert.deepEqual(crop(picture(320, 180, x => x >= 1)), [0, 0, 320, 180], "a one-pixel edge is not a bar");
 });

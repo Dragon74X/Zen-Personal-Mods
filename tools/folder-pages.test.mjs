@@ -216,3 +216,29 @@ test("Closing a tab never lands on a folder's hidden page tab, unless nothing el
   s = make(false);
   assert.equal(s.f.gBrowser._findTabToBlurTo(s.video), s.page, "the page when it is all that is left");
 });
+
+test("Closing the page you are on closes its folder when the folder holds nothing else; otherwise it only unloads", () => {
+  const make = ({ withOther = false, selected = true } = {}) => {
+    const top = node({ "data-zzrouter-page": "https://youtube.com/" }, { id: "yt" });
+    const page = tabAt("https://www.youtube.com/", { group: top, selected, attrs: { "zzgf-page-of": "yt" } });
+    const loose = tabAt("https://other.example/");
+    const tabs = withOther ? [page, tabAt("https://www.youtube.com/watch?v=x", { group: top }), loose] : [page, loose];
+    const removedGroups = [], removed = [], discarded = [];
+    const f = folderPages(tabs, [top], null, t => removed.push(t), {
+      removeTabGroup: (g, options) => removedGroups.push([g, options]), discardBrowser: t => discarded.push(t),
+      _findTabToBlurTo: tab => tabs.find(t => t !== tab && !t.hasAttribute("zzgf-page-tab")) || null });
+    f.settle();
+    return { f, top, page, removedGroups, removed, discarded };
+  };
+  let s = make();
+  s.f.gBrowser.removeTab(s.page);
+  assert.equal(s.removedGroups.length, 1, "the empty folder closes");
+  assert.equal(s.removedGroups[0][0], s.top);
+  assert.equal(s.removedGroups[0][1].isUserTriggered, true, "kept among recently closed groups");
+  s = make({ withOther: true });
+  s.f.gBrowser.removeTab(s.page);
+  assert.deepEqual([s.removedGroups.length, s.removed.length], [0, 0], "a folder with another tab stays");
+  s = make({ selected: false });
+  s.f.gBrowser.removeTab(s.page);
+  assert.equal(s.removedGroups.length, 0, "Close Other Tabs and the like only unload");
+});

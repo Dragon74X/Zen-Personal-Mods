@@ -630,3 +630,47 @@ test('Targeted refresh retains a verified picture on failure and leaves unrelate
   const p=await environment({},true),own=p.addTab(CHANNEL);p.h.iconMap().set('0:'+CHANNEL,{d:ICON,s:'round'});
   assert.equal(p.h.refreshSubject(own),null,'private windows refresh nothing');
 });
+
+test('YouTube channel banners: four modes on a creator folder and its tabs, read once from the channel page',async()=>{
+  for(const mode of [0,1,2,3]) {
+    const e=await environment({'zzrouter.youtube-banners':mode,'zzrouter.enabled':false});
+    const t=e.addTab(CHANNEL),root=e.addGroup('Youtube'),g=e.addGroup('Channel',root);
+    g.addTabs([t]);g.setAttribute('data-zzrouter-picture',CHANNEL);g.setAttribute('data-zzrouter-context','0');
+    e.h.creatorMap().set('0:'+CHANNEL,{key:CHANNEL,label:'Channel'});
+    e.h.iconMap().set('0:'+CHANNEL,{d:ICON,s:'round',b:BANNER});
+    e.h.updatePicture(t);e.h.stampIcons();
+    assert.equal(g.hasAttribute('data-zzrouter-banner'),!!(mode&1),`folder, mode ${mode}`);
+    assert.equal(t.hasAttribute('data-zzrouter-banner'),!!(mode&2),`tab, mode ${mode}`);
+    assert.equal(e.requests.length,0,'a cached banner is not read again');
+  }
+  const e=await environment({'zzrouter.youtube-banners':1,'zzrouter.enabled':false});
+  const g=e.addGroup('Channel',e.addGroup('Youtube'));g.addTabs([e.addTab(CHANNEL)]);
+  g.setAttribute('data-zzrouter-picture',CHANNEL);g.setAttribute('data-zzrouter-context','0');
+  e.h.creatorMap().set('0:'+CHANNEL,{key:CHANNEL,label:'Channel'});
+  e.h.iconMap().set('0:'+CHANNEL,{d:ICON,s:'round'});
+  e.h.stampIcons();e.h.stampIcons();
+  assert.deepEqual(e.requests.map(r=>r.url),[CHANNEL],'the channel page, once');
+  const url='https://yt3.googleusercontent.com/abc=w1060-fcrop64=1,0-k-c0xffffffff-no-nd-rj';
+  e.answer('x'.repeat(5000)+`"banner":{"imageBannerViewModel":{"image":{"sources":[{"url":"${url}","width":1060,"height":175}]}}}`);
+  assert.equal(e.requests.at(-1).url,url);
+  e.answer('banner');await tick();
+  assert.ok(e.h.iconMap().get('0:'+CHANNEL).b,'kept with the channel icon');
+  assert.equal(e.h.iconMap().get('0:'+CHANNEL).d,ICON);
+  assert.ok(g.hasAttribute('data-zzrouter-banner'));
+});
+
+test('a private window looks up names and pictures only when allowed, and never saves them',async()=>{
+  const off=await environment({},true),t=off.addTab(GAME);
+  off.h.updatePicture(t);off.h.fetchSectionIcon(GAME,GAME,0,'square',true);
+  assert.equal(off.requests.length,0,'off by default: no request');
+  const e=await environment({'zzrouter.private-lookups':true},true),tab=e.addTab(GAME);
+  const before=e.prefs.get('zzrouter.avatars');
+  e.h.fetchSectionIcon(GAME,GAME,0,'square',true);
+  assert.equal(e.requests.length,1,'allowed: looked up');
+  assert.equal(e.requests[0].ctx,0);
+  e.answer(gameMetadata());e.answer('image bytes');await tick();
+  assert.ok(e.h.iconMap().get('0:'+GAME)?.d,'kept in this window');
+  for(const timer of [...e.timers.values()])timer();await tick();
+  assert.equal(e.prefs.get('zzrouter.avatars'),before,'never saved');
+  assert.equal(e.values.size,0,'no session records');
+});

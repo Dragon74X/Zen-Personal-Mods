@@ -84,11 +84,11 @@
       for (const key of keys) if (before.get(key)?.d === after.get(key)?.d && before.get(key)?.s === after.get(key)?.s && before.get(key)?.b === after.get(key)?.b) keys.delete(key);
       repaintSubjects(keys); return;
     }
-    if (["section-icons", "nexus-icon", "nexus-banners"].some(k => data === P + k)) {
+    if (["section-icons", "nexus-icon", "nexus-banners", "youtube-banners"].some(k => data === P + k)) {
       cancelLookups(); stampIcons(true); refreshPictures(); return;
     }
-    if (data === P + "nexus-banner-opacity") { stampIcons(); refreshPictures(false); return; }
-    if (["video-covers", "nexus-page-covers", "page-covers"].some(k => data === P + k)) { refreshPictures(); return; }
+    if (["nexus-banner-opacity", "cover-blur"].some(k => data === P + k)) { stampIcons(); refreshPictures(false); return; }
+    if (["video-covers", "nexus-page-covers", "page-covers", "video-cover-source", "nexus-page-cover-source"].some(k => data === P + k)) { refreshPictures(); return; }
     for (const k of Object.keys(parsed)) delete parsed[k]; learnedCache = null; targetGen++;
     stampIcons(); refreshPictures();
   } };
@@ -430,6 +430,12 @@
     } catch { return false; }
   })();
   const originOf = (ctx) => ({ userContextId: ctx, privateBrowsingId: privateWindow ? 1 : 0 });
+  // A private window asks nothing online unless **Look up names and pictures
+  // in private windows** is on. Either way it saves nothing: what it learns
+  // stays in this window's memory and goes when the window closes.
+  const noLookups = () => privateWindow && !bool("private-lookups", false);
+  const privateMetadata = new Map();
+  const metadataCache = () => privateWindow ? privateMetadata : lookupOwner().metadata;
 
   // Video IDs exclude timestamps/tracking; stored records additionally carry
   // the container ID and a verified subject URL, separate from display text.
@@ -502,7 +508,7 @@
   }
   // Page metadata is bounded like the pictures made from it, oldest out.
   function rememberMetadata(key, value) {
-    const cache = lookupOwner().metadata;
+    const cache = metadataCache();
     cache.set(key, value);
     while (cache.size > ICON_MAX) cache.delete(cache.keys().next().value);
   }
@@ -601,7 +607,7 @@
   // Each container has its own request and records. Waiters retain their own
   // navigation/provenance; a shared response never supplies a shared destination.
   function beginLookup(slot, tab) {
-    if (privateWindow || retired) return null;
+    if (noLookups() || retired) return null;
     const pending = inFlight.get(slot);
     const spec = tab?.linkedBrowser?.currentURI?.spec;
     if (pending) { if (tab) pending.waiters?.set(tab, spec); return null; }
@@ -800,7 +806,7 @@
       // An answer without a usable author waits out the retry delay, so the
       // page's next title does not ask again.
       const oembed = bounded(meta.oembed, 2000), slot = "oembed:" + scoped(page, ctx);
-      if (!creatorMap().has(scoped("page:" + page, ctx)) && oembed && !privateWindow &&
+      if (!creatorMap().has(scoped("page:" + page, ctx)) && oembed && !noLookups() &&
           Date.now() - (failed.get(slot) || 0) >= RETRY_FAIL_MS) {
         try {
           const href = new URL(oembed, spec).href;
@@ -847,7 +853,7 @@
   }
 
   function fetchMetadata(url, ctx, cb, fresh = false) {
-    const cache = lookupOwner().metadata, key = scoped(url, ctx);
+    const cache = metadataCache(), key = scoped(url, ctx);
     const hit = cache.get(key);
     if (!fresh && hit && Date.now() - hit.at < RETRY_FAIL_MS) { cb(hit); return; }
     fetchAnon(url, ctx, body => {
@@ -1075,6 +1081,14 @@
   const ICON_MAX = 300;
   const ICON_PX = 64;
   const bannerMode = () => [1, 2, 3].includes(num("nexus-banners", 0)) ? num("nexus-banners", 0) : 0;
+  const channelBannerMode = () => [1, 2, 3].includes(num("youtube-banners", 0)) ? num("youtube-banners", 0) : 0;
+  // **Nexus page covers on tabs** set to the game's banner: mod and collection
+  // tabs show their game's banner rather than the page's own picture.
+  const modTabsUseGameBanner = () => bool("nexus-page-covers", false) && num("nexus-page-cover-source", 0) === 1;
+  const nexusPageTab = tab => {
+    if (!/(^|\.)nexusmods\.com$/.test(hostOf(tab) || "")) return false;
+    try { return /\/mods\/\d+|\/collections\//.test(new URL(tabURL(tab)).pathname); } catch { return false; }
+  };
   const nexusRendition = () => num("nexus-icon", 0) === 1 ? "tile" : "thumbnail";
   const imageData = value => typeof value === "string" && /^data:image\/(?:webp|png);base64,[A-Za-z0-9+/=]+$/.test(value);
   let iconCache = null;
@@ -1125,14 +1139,41 @@
     const bounds = banner === "cover" ? [0.5, 8] : banner ? [2, 8] : ICON_ASPECT;
     if (aspect < bounds[0] || aspect > bounds[1]) { bmp.close(); return null; }
     const side = Math.min(bmp.width, bmp.height);
-    const width = banner ? 384 : ICON_PX, height = banner ? Math.round(width / aspect) : ICON_PX;
+    // A cover's black bars (a 4:3 video's frame in a 16:9 picture) are cut off.
+    const crop = banner === "cover" ? letterbox(bmp) : [0, 0, bmp.width, bmp.height];
+    const shown = crop[2] / crop[3];
+    const width = banner ? 384 : ICON_PX, height = banner ? Math.round(width / (banner === "cover" ? shown : aspect)) : ICON_PX;
     const c = new OffscreenCanvas(width, height);
-    if (banner) c.getContext("2d").drawImage(bmp, 0, 0, width, height);
+    if (banner) c.getContext("2d").drawImage(bmp, ...crop, 0, 0, width, height);
     else c.getContext("2d").drawImage(bmp, (bmp.width - side) / 2, (bmp.height - side) / 2, side, side, 0, 0, width, height);
     bmp.close();
     const buf = new Uint8Array(await (await c.convertToBlob({ type: "image/webp", quality: 0.85 })).arrayBuffer());
     let bin = ""; for (const b of buf) bin += String.fromCharCode(b);
     return `data:image/webp;base64,${btoa(bin)}`;
+  }
+
+  // The picture inside uniform near-black edges, at most a quarter off each side.
+  function letterbox(bmp) {
+    const w = bmp.width, h = bmp.height, full = [0, 0, w, h];
+    if (w > 1600 || h > 1600) return full;
+    const g = new OffscreenCanvas(w, h).getContext("2d", { willReadFrequently: true });
+    g.drawImage(bmp, 0, 0);
+    const px = g.getImageData(0, 0, w, h).data;
+    const dark = (x0, y0, x1, y1) => {
+      for (let y = y0; y < y1; y += 2) for (let x = x0; x < x1; x += 2) {
+        const i = (y * w + x) * 4;
+        if (px[i] > 28 || px[i + 1] > 28 || px[i + 2] > 28) return false;
+      }
+      return true;
+    };
+    let left = 0, right = w, top = 0, bottom = h;
+    while (left < w / 4 && dark(left, 0, left + 1, h)) left++;
+    while (right > w * 3 / 4 && dark(right - 1, 0, right, h)) right--;
+    while (top < h / 4 && dark(left, top, right, top + 1)) top++;
+    while (bottom > h * 3 / 4 && dark(left, bottom - 1, right, bottom)) bottom--;
+    // A whole-dark picture, or barely any bar, stays as it is.
+    if (right - left <= w / 2 || bottom - top <= h / 2 || (left < 3 && w - right < 3 && top < 3 && h - bottom < 3)) return full;
+    return [left, top, right - left, bottom - top];
   }
 
   function fetchPicture(url, ctx, banner, done) {
@@ -1143,11 +1184,11 @@
   }
 
   function fetchSectionBanner(label, ctx, gameId, refresh = false) {
-    if (retired || privateWindow || !bool("section-icons", true) || !bannerMode() || !/^[1-9]\d*$/.test(gameId || "")) return;
+    if (retired || noLookups() || !bool("section-icons", true) || !(bannerMode() || modTabsUseGameBanner()) || !/^[1-9]\d*$/.test(gameId || "")) return;
     if (nexusURLFrom(label)?.game !== label) return;
     const key = scoped(label, ctx), slot = "banner:" + key;
     if ((!refresh && iconMap().get(key)?.b) || inFlight.has(slot) || Date.now() - (failed.get(slot) || 0) < RETRY_FAIL_MS) return;
-    if (!(bannerMode() & 2) && !groups().some(g => g.getAttribute("data-zzrouter-picture") === label &&
+    if (!(bannerMode() & 2) && !modTabsUseGameBanner() && !groups().some(g => g.getAttribute("data-zzrouter-picture") === label &&
         Number(g.getAttribute("data-zzrouter-context")) === ctx && window.Groupflow?.automaticPictureAllowed?.(g))) return;
     inFlight.set(slot, true);
     const epoch = lookupEpoch;
@@ -1161,14 +1202,63 @@
     });
   }
 
+  // A YouTube channel's banner (**YouTube channel banners**). It sits near the
+  // end of the channel's page (about 1.5 MB in), past what the name and
+  // avatar lookup reads, so it is its own read, once per channel; the banner
+  // is cached with the channel's icon.
+  const CHANNEL_PAGE_BYTES = 3 * 1024 * 1024;
+  function channelBannerURL(html) {
+    const at = html.indexOf('"banner":{"imageBannerViewModel"');
+    if (at < 0) return null;
+    // The smallest source at least twice the 384px it is drawn at.
+    let best = null, width = 0;
+    for (const m of html.slice(at, at + 4000).matchAll(/"url":"(https:\/\/yt3\.googleusercontent\.com\/[\w\-=,.~]+)","width":(\d+)/g)) {
+      if (m.index > 1500) break;
+      const w = Number(m[2]);
+      if (!best || (width < 768 ? w > width : w >= 768 && w < width)) { best = m[1]; width = w; }
+    }
+    return best;
+  }
+  function fetchChannelBanner(label, ctx, refresh = false) {
+    if (retired || noLookups() || !bool("section-icons", true) || !channelBannerMode() || channelKey(label) !== label) return;
+    const key = scoped(label, ctx), slot = "banner:" + key, current = iconMap().get(key);
+    // Kept with the channel's icon: fetched once that icon is in.
+    if (!current?.d || (!refresh && current.b) || inFlight.has(slot) || Date.now() - (failed.get(slot) || 0) < RETRY_FAIL_MS) return;
+    inFlight.set(slot, true);
+    const epoch = lookupEpoch;
+    const fail = () => { if (epoch !== lookupEpoch) return; inFlight.delete(slot); noteFail(slot); };
+    try {
+      fetchAnon(label, ctx, body => {
+        if (epoch !== lookupEpoch) return;
+        let url = null;
+        try { url = body && channelBannerURL(utf8(body)); } catch {}
+        if (!url) { fail(); note(`no banner for "${label}"`); return; }
+        fetchPicture(url, ctx, true, banner => {
+          if (epoch !== lookupEpoch) return;
+          inFlight.delete(slot);
+          if (!banner) { noteFail(slot); return; }
+          const now = iconMap().get(key);
+          if (!now?.d) return;
+          iconMap().set(key, { ...now, b: banner }); saveIcons(); repaintSubjects(new Set([key]));
+        });
+      }, CHANNEL_PAGE_BYTES);
+    } catch { fail(); }
+  }
+
   // SVG supplies alpha to this raster layer only. No remote references or
   // executable page content; the browser sizes/crops it inside the existing fill.
   function paintBanner(node, data) {
     const opacity = Math.max(0, Math.min(100, num("nexus-banner-opacity", 25))) / 100;
-    const value = imageData(data) && opacity ? `${opacity}:${data}` : null;
+    // **Cover art blur** softens text baked into thumbnails and banners. The
+    // picture is drawn a little larger so the blur never fades its edges.
+    const blur = Math.max(0, Math.min(20, Math.round(num("cover-blur", 0)) || 0));
+    const value = imageData(data) && opacity ? (blur ? `${opacity}:${blur}:${data}` : `${opacity}:${data}`) : null;
     if ((node.getAttribute("data-zzrouter-banner") || null) === value) return false;
     if (value) {
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><image width="100%" height="100%" preserveAspectRatio="xMidYMid slice" opacity="${opacity}" href="${data}"/></svg>`;
+      const image = blur
+        ? `<filter id="b" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="${blur}"/></filter><image x="-8%" y="-8%" width="116%" height="116%" preserveAspectRatio="xMidYMid slice" opacity="${opacity}" filter="url(#b)" href="${data}"/>`
+        : `<image width="100%" height="100%" preserveAspectRatio="xMidYMid slice" opacity="${opacity}" href="${data}"/>`;
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">${image}</svg>`;
       node.setAttribute("data-zzrouter-banner", value);
       node.style?.setProperty("--zzrouter-banner-data", `url("data:image/svg+xml,${encodeURIComponent(svg)}")`);
     } else {
@@ -1187,9 +1277,16 @@
   const COVER_SETTINGS = { video: "video-covers", nexus: "nexus-page-covers", page: "page-covers" };
   const covers = new Map(), coverFailed = new Set(), coverAsked = new WeakMap(), coverFetching = new Set();
   const coversOn = () => Object.values(COVER_SETTINGS).some(k => bool(k, false));
-  const coverSlot = tab => { const key = pageKey(tabURL(tab)); return key && scoped(key, contextOf(tab)); };
+  // **Video thumbnails on tabs** can use a frame from the video instead of its
+  // thumbnail, which often carries large text; each is cached on its own.
+  const videoFrames = () => num("video-cover-source", 0) === 1;
+  const coverSlot = tab => {
+    const key = pageKey(tabURL(tab));
+    return key && scoped(key, contextOf(tab)) + (videoFrames() && videoId(tab) ? "#frame" : "");
+  };
   function coverFor(tab) {
     const slot = coverSlot(tab), cover = slot && covers.get(slot);
+    if (cover?.kind === "nexus" && modTabsUseGameBanner()) return null;
     return cover && bool(COVER_SETTINGS[cover.kind], false) ? cover.d : null;
   }
   // A Nexus game's own page keeps its banner; its mods and collections have
@@ -1243,18 +1340,18 @@
   // has not kept.
   let coversLoaded = false;
   function loadCovers() {
-    if (!privateWindow) for (const [slot, c] of Object.entries(readCache("covers"))) if (savedCover(c) && !covers.has(slot)) covers.set(slot, { d: c.d, kind: c.kind });
+    for (const [slot, c] of Object.entries(readCache("covers"))) if (savedCover(c) && !covers.has(slot)) covers.set(slot, { d: c.d, kind: c.kind });
     coversLoaded = true;
     if (coversOn()) for (const tab of allTabs()) updatePicture(tab, false);
   }
   function wantCover(tab) {
-    if (retired || privateWindow || !coversLoaded || tab.closing || !coversOn()) return;
+    if (retired || noLookups() || !coversLoaded || tab.closing || !coversOn()) return;
     const slot = coverSlot(tab), ctx = contextOf(tab);
     if (!slot || covers.has(slot) || coverFailed.has(slot)) return;
     // A YouTube video's thumbnail is known from its address, loaded or not.
     const id = videoId(tab);
     if (id && /^[\w-]{6,20}$/.test(id)) {
-      if (bool("video-covers", false)) fetchCover(slot, "video", `https://i.ytimg.com/vi/${id}/mqdefault.jpg`, ctx);
+      if (bool("video-covers", false)) fetchCover(slot, "video", `https://i.ytimg.com/vi/${id}/${videoFrames() ? "mq2" : "mqdefault"}.jpg`, ctx);
       return;
     }
     // Others from the page's own preview picture, once it has loaded.
@@ -1268,13 +1365,14 @@
     actor.sendQuery("ZzRouter:Meta").then(meta => {
       if (retired || !tab.isConnected || tab.linkedBrowser?.currentURI?.spec !== spec || !meta || typeof meta !== "object") return;
       const kind = coverKind(tab, meta), image = bounded(meta.ogImage);
+      if (kind === "nexus" && modTabsUseGameBanner()) return;
       if (kind && bool(COVER_SETTINGS[kind], false) && /^https:\/\/[^\s"'<>\\]+$/.test(image)) fetchCover(slot, kind, image, ctx);
     }, () => {});
   }
 
   // label is the canonical subject URL, never a folder display name.
   function fetchSectionIcon(label, pageUrl, ctx, shape, refresh = false) {
-    if (retired || privateWindow || !bool("section-icons", true) || !pageUrl) return;
+    if (retired || noLookups() || !bool("section-icons", true) || !pageUrl) return;
     try { if (!lookupURIAllowed(Services.io.newURI(pageUrl))) return; } catch { return; }
     const key = scoped(label, ctx), slot = "icon:" + key;
     // The pending channel lookup supplies this same metadata; its completion
@@ -1306,7 +1404,7 @@
       if (!icon) { noteFail(slot); note(`no usable picture for "${label}"; favicon stays`); return; }
       const old = iconMap().get(key);
       iconMap().set(key, { d: icon, s: shape, ...(nexus ? { n: rendition, g: gameId } : {}),
-        ...(gameId && old?.g === gameId && old.b ? { b: old.b } : {}) });
+        ...(gameId && old?.g === gameId && old.b ? { b: old.b } : !nexus && old?.b ? { b: old.b } : {}) });
       saveIcons();
       note(`icon for "${label}"`);
       repaintSubjects(new Set([key]));
@@ -1403,10 +1501,15 @@
         ? iconMap().get(scoped(subjectKey(picture.key, picture.ctx), picture.ctx)) || iconMap().get(scoped(picture.key, picture.ctx)) : null;
       const automatic = window.Groupflow?.automaticPictureAllowed?.(g);
       const nexus = picture && nexusURLFrom(picture.key)?.game === picture.key;
-      paintBanner(g, automatic && nexus && (bannerMode() & 1) ? want?.b : null);
+      const channel = !!picture && !!channelKey(picture.key);
+      paintBanner(g, automatic && ((nexus && (bannerMode() & 1)) || (channel && (channelBannerMode() & 1))) ? want?.b : null);
       if (on && automatic && picture) {
         if (learn) fetchSectionIcon(picture.key, picture.key, picture.ctx, nexus ? "square" : "round");
         if (want?.g && (bannerMode() & 1)) fetchSectionBanner(picture.key, picture.ctx, want.g);
+        if (channel && (channelBannerMode() & 1) && want?.d && !want.b) {
+          const own = scoped(subjectKey(picture.key, picture.ctx), picture.ctx);
+          fetchChannelBanner(iconMap().get(own)?.d ? subjectKey(picture.key, picture.ctx) : picture.key, picture.ctx);
+        }
       }
       if (want?.d) {
         if (g.getAttribute("data-zzrouter-icon") !== want.d || g.getAttribute("data-zzrouter-icon-shape") !== want.s) {
@@ -1471,8 +1574,11 @@
       nexusURL(subject) ? "square" : "round");
     const icon = !tab.zenStaticIcon && key ? iconMap().get(key)?.d : null;
     wantCover(tab);
-    const bannerChanged = paintBanner(tab, coverFor(tab) || (!tab.zenStaticIcon && key && nexusURLFrom(record.key)?.game === record.key &&
-      (bannerMode() & 2) ? iconMap().get(key)?.b : null));
+    const channelTab = !tab.zenStaticIcon && key && !!channelKey(record.key) && (channelBannerMode() & 2);
+    if (channelTab && iconMap().get(key)?.d && !iconMap().get(key)?.b) fetchChannelBanner(record.key, contextOf(tab));
+    const gameBanner = !tab.zenStaticIcon && key && nexusURLFrom(record.key)?.game === record.key &&
+      ((bannerMode() & 2) || (modTabsUseGameBanner() && nexusPageTab(subject)));
+    const bannerChanged = paintBanner(tab, coverFor(tab) || (gameBanner || channelTab ? iconMap().get(key)?.b : null));
     updateOpenMenu();
     const old = tab.getAttribute("data-zzrouter-tab-icon");
     if (icon && /^data:image\/(?:webp|png);base64,[A-Za-z0-9+/=]+$/.test(icon)) {
@@ -2285,7 +2391,7 @@
   // page side (links-child.sys.mjs) only acts on real link clicks, so back
   // and forward, reloads, forms, redirects and script navigation never
   // switch; Alt-click, Duplicate Tab and session restore always make copies.
-  const LINKS_VERSION = "1.45.7", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
+  const LINKS_VERSION = "1.45.8", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
   const TRACKING = /^(utm_[a-z]+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|igshid|si|ref_src|_hsenc|_hsmi)$/i;
   function pageKey(url) {
     try {
@@ -2750,7 +2856,7 @@
       hasAttribute: () => false };
   }
   function planNewTab(url, ctx, opener) {
-    if (!bool("enabled", false) || privateWindow) return null;
+    if (!bool("enabled", false)) return null;
     let preview;
     try { preview = previewTab(url, ctx, opener); } catch { return null; }
     if (!hostOf(preview)) return null;
@@ -3165,7 +3271,7 @@
   const purgeObserver = () => { try { forgetAll(); } catch {} };
   function forgetAll() {
     cancelLookups();
-    lookupOwner().metadata.clear();
+    lookupOwner().metadata.clear(); privateMetadata.clear();
     creatorCache = new Map(); iconCache = new Map(); learnedCache = new Map();
     saveCreators(); saveIcons(); saveLearned();
     stampIcons();
@@ -3177,7 +3283,7 @@
   const liveScope = scope => !retired && !!scope?.isConnected && !scope.closing && !scope.closest?.("zen-library, [zen-library-copy]") && !nativeManaged(scope) &&
     (scope.matches?.("tab-group:not([split-view-group]), zen-folder") || !!scope.linkedBrowser && gBrowser.getTabForBrowser(scope.linkedBrowser) === scope);
   function refreshSubject(scope) {
-    if (!liveScope(scope) || privateWindow) return null;
+    if (!liveScope(scope) || noLookups()) return null;
     const group = scope.matches?.("tab-group, zen-folder");
     if (group ? !window.Groupflow?.automaticPictureAllowed?.(scope) : scope.zenStaticIcon) return null;
     const key = group ? scope.getAttribute("data-zzrouter-picture") : pictureSubject(scope, false)?.key;

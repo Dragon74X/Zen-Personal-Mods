@@ -164,7 +164,7 @@ What the request is, exactly, because it is a network request:
   inline styles is reachable; other requests remain capped at 512 KiB. Each gives up
   after fifteen seconds, and a picture that decodes larger than 4096
   square is refused before it is drawn.
-- **Never from a private window.**
+- **Private windows ask nothing unless allowed.** See Private windows.
 - Creator names are cached by video ID, so `&t=` timestamps do not create extra
   entries. Missing avatars can repeat the oEmbed lookup for the channel URL.
   Failed requests or unusable metadata have a 10-minute retry cooldown.
@@ -229,7 +229,8 @@ The creators cache retains at most 300 metadata records; the avatars cache
 holds the pictures of open tabs and folders (see Cache storage), at most 300
 subjects with 64px icons and optional 384px-wide banners.
 Anonymous requests use the tab's container.
-Private windows start **0** metadata/image requests and persist **0** new records.
+Private windows persist **0** records and, unless **Look up names and pictures
+in private windows** is on, start **0** metadata/image requests.
 Literal IPs, local hostnames, URL credentials and non-HTTPS lookup/redirect
 targets are rejected; the hostname check does not classify DNS results.
 
@@ -389,7 +390,7 @@ and [thumbnail/cover URLs](https://github.com/Nexus-Mods/Vortex/blob/master/docs
 The downloaded banner is decoded, limited to 4096 pixels per source dimension,
 and scaled to 384 pixels wide. Icons and optional banners share the
 pictures cache. A failed request retries on activity after 10 minutes. Off
-starts no banner requests; private windows start no artwork requests. Container
+starts no banner requests; private windows start none unless allowed. Container
 partitioning, anonymous requests and the 15-second timeout remain in force.
 
 ### Tab covers
@@ -399,17 +400,47 @@ give a tab its own cover art in place of its game's banner:
 
 - **Video thumbnails on tabs**: YouTube's thumbnail from the video's address,
   so unloaded tabs show it too; other video sites' preview picture once loaded.
+  **Video picture** picks the **Thumbnail** (often large text) or a **Frame
+  from the video**, a still from partway in with no added text (YouTube).
 - **Nexus page covers on tabs**: a mod's or collection's own page picture. A
-  game's own page keeps its banner.
+  game's own page keeps its banner. **Nexus mod tab picture** picks the mod's
+  **Main picture** or its **Game banner**. Nexus's public data has no separate
+  mod banner, only the main picture and thumbnails of it.
 - **Cover art on other tabs**: any other page's sharing preview picture.
 
-**Cover art opacity (%)** applies to banners and covers alike. Covers are
-fetched anonymously in the tab's container, at most three at a time, decoded
-to 384 pixels wide; a failed one is not asked for again that session.
+**Cover art opacity (%)** applies to banners and covers alike, and **Cover art
+blur (px)** (0–20, default 0) softens text baked into thumbnails and banners;
+both reuse cached artwork. Covers are fetched anonymously in the tab's
+container, at most three at a time, decoded to 384 pixels wide with any black
+bars (a 4:3 video's frame) cut off; a failed one is not asked for again that
+session.
+
+### YouTube channel banners
+
+**YouTube channel banners** offers **Off** (default), **Folders**, **Tabs**, or
+**Folders and tabs**, like Nexus game banners: a creator's subfolder, and tabs
+of that channel and its videos (a video's own cover wins when that is on). The
+banner sits near the end of the channel's page, about 1.5 MB in, past what the
+name and avatar lookup reads, so it is its own anonymous read of at most 3 MiB,
+once per channel, after the channel's icon is in. It is cached with that icon.
 
 Recovered display associations continue through Groupflow's session mechanism.
 Artwork changes never claim routing ownership, rename/reparent folders, or move
 tabs. Opacity changes reuse cached raster bytes without fetching another image.
+
+## Private windows
+
+A private window routes tabs like any other, including as they open, and reads
+creator names from the pages you load in it. It saves nothing: no learned
+names, creators, pictures, covers or session records, and its pictures never
+enter the cache file. What it learns stays in that window's memory, including
+its own copy of page metadata, and is gone when the window closes.
+
+**Look up names and pictures in private windows** (off by default) decides
+whether it may ask sites online: creator names, pictures, banners and covers.
+Off, it asks nothing and shows only what normal windows already cached. On,
+lookups are anonymous, in the window's container, and go through the private
+network cache.
 
 ## Cache storage
 

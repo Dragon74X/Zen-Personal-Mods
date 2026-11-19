@@ -201,6 +201,12 @@
     "defaultValue": true
   },
   {
+    "type": "checkbox",
+    "property": "zzrouter.private-lookups",
+    "label": "Look up names and pictures in private windows *Off by default: a private window asks no site anything, yet still routes tabs as they open and reads creator names from pages you load. On: creator names, pictures, banners and covers are looked up as in normal windows, anonymously and through the private network cache. Either way a private window saves nothing: what it learns stays in that window's memory and is gone when it closes.*",
+    "defaultValue": false
+  },
+  {
     "type": "dropdown",
     "value": "number",
     "property": "zzrouter.nexus-icon",
@@ -247,6 +253,34 @@
     "placeholder": false
   },
   {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzrouter.youtube-banners",
+    "label": "YouTube channel banners *A creator's channel banner behind folder and tab styling, like Nexus game banners: on the creator's subfolder, and on tabs of that channel and its videos (a video's own thumbnail wins when that is on). Read once per channel from its page and cached with its icon. Off starts no banner requests. Requires Groupflow.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Off",
+        "value": 0
+      },
+      {
+        "label": "Folders",
+        "value": 1
+      },
+      {
+        "label": "Tabs",
+        "value": 2
+      },
+      {
+        "label": "Folders and tabs",
+        "value": 3
+      }
+    ],
+    "conditions": [{"if": {"property": "zzrouter.section-icons", "value": true}}],
+    "operator": "AND",
+    "placeholder": false
+  },
+  {
     "type": "checkbox",
     "property": "zzrouter.video-covers",
     "label": "Video thumbnails on tabs *A video's tab shows its own thumbnail behind its styling: YouTube's from the video's address, so unloaded tabs too; other video sites' from the page's preview picture once it loads. Takes the place of a Nexus game banner on that tab. Off by default; requires Groupflow.*",
@@ -261,6 +295,26 @@
     ]
   },
   {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzrouter.video-cover-source",
+    "label": "Video picture *Thumbnail is the video's own thumbnail, which often has large text. Frame from the video is a still from partway in, with no added text (YouTube; other sites keep their preview picture). Each is cached on its own.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Thumbnail",
+        "value": 0
+      },
+      {
+        "label": "Frame from the video",
+        "value": 1
+      }
+    ],
+    "conditions": [{"if": {"property": "zzrouter.section-icons", "value": true}}, {"if": {"property": "zzrouter.video-covers", "value": true}}],
+    "operator": "AND",
+    "placeholder": false
+  },
+  {
     "type": "checkbox",
     "property": "zzrouter.nexus-page-covers",
     "label": "Nexus page covers on tabs *A Nexus mod's or collection's tab shows that page's own picture instead of its game's banner, once the page loads. Separate from Nexus game banners, which stay on game pages and folders. Off by default; requires Groupflow.*",
@@ -273,6 +327,26 @@
         }
       }
     ]
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzrouter.nexus-page-cover-source",
+    "label": "Nexus mod tab picture *Main picture is the mod's or collection's own picture (the one Nexus shares for the page). Game banner shows its game's banner instead.*",
+    "defaultValue": 0,
+    "options": [
+      {
+        "label": "Main picture",
+        "value": 0
+      },
+      {
+        "label": "Game banner",
+        "value": 1
+      }
+    ],
+    "conditions": [{"if": {"property": "zzrouter.section-icons", "value": true}}, {"if": {"property": "zzrouter.nexus-page-covers", "value": true}}],
+    "operator": "AND",
+    "placeholder": false
   },
   {
     "type": "checkbox",
@@ -291,9 +365,18 @@
   {
     "type": "string",
     "property": "zzrouter.nexus-banner-opacity",
-    "label": "Cover art opacity (%) *0–100; default 25. For Nexus game banners and tab covers alike. Changes artwork opacity only, below existing tint, sheen and rim. Text, controls and selection states retain their styling. Changes reuse cached artwork without downloading again.*",
+    "label": "Cover art opacity (%) *0–100; default 25. For game and channel banners and tab covers alike. Changes artwork opacity only, below existing tint, sheen and rim. Text, controls and selection states retain their styling. Changes reuse cached artwork without downloading again.*",
     "defaultValue": "25",
     "placeholder": "25",
+    "conditions": [{"if": {"property": "zzrouter.section-icons", "value": true}}],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzrouter.cover-blur",
+    "label": "Cover art blur (px) *0–20; default 0. Softens text in thumbnails and banners. Applies to banners and tab covers alike, and reuses cached artwork without downloading again.*",
+    "defaultValue": "0",
+    "placeholder": "0",
     "conditions": [{"if": {"property": "zzrouter.section-icons", "value": true}}],
     "operator": "AND"
   },

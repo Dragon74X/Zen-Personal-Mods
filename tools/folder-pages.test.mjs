@@ -14,7 +14,7 @@ function node(attrs = {}, extra = {}) {
 }
 // Groupflow's folder pages, run with their tabs and groups. A group's tabs
 // include its subfolders' tabs, as Zen's do.
-function folderPages(tabs, groups, TabRouter = null, removeTab = () => {}) {
+function folderPages(tabs, groups, TabRouter = null, removeTab = () => {}, browser = {}) {
   const inside = (t, g) => { for (let p = t.group; p; p = p.group) if (p === g) return true; return false; };
   for (const g of groups) Object.defineProperty(g, "tabs", { get: () => tabs.filter(t => inside(t, g)) });
   const start = groupflow.indexOf("  const PAGE_KEY =");
@@ -27,16 +27,19 @@ function folderPages(tabs, groups, TabRouter = null, removeTab = () => {}) {
     Services: { prefs: { addObserver() {}, removeObserver() {} } }, CustomEvent: class { constructor(type) { this.type = type; } },
     requestAnimationFrame: fn => frames.push(fn), cancelAnimationFrame() {},
     document: { querySelectorAll: () => groups },
-    gBrowser: { tabs, removeTab, addTabsProgressListener: listener => { progress = listener; },
+    gBrowser: { ...browser, tabs, removeTab, addTabsProgressListener: listener => { progress = listener; },
       getTabForBrowser: browser => tabs.find(t => t.linkedBrowser === browser) },
     window: { Groupflow: {}, TabRouter, addEventListener() {}, removeEventListener() {}, dispatchEvent: event => events.push(event.type) } });
   const headerClick = vm.runInContext(source + "\nstartFolderPages();\npageHeaderClick", ctx);
   return { events, progress, headerClick, gBrowser: ctx.gBrowser, groupflow: ctx.window.Groupflow, settle: () => { while (frames.length) frames.shift()(); } };
 }
 const tabAt = (spec, extra = {}) => node(extra.attrs, { linkedBrowser: { currentURI: { spec } }, ...extra });
-// A left click on a folder's name.
+// A left click on a folder's name, and on its icon.
 const nameClick = group => ({ button: 0, defaultPrevented: false, clientX: 0, clientY: 0, preventDefault() {}, stopImmediatePropagation() {},
   target: { closest: sel => (sel === ".tab-group-label-container" ? { parentElement: group, querySelector: () => null } : null) } });
+const iconClick = group => ({ ...nameClick(group),
+  target: { closest: sel => (sel === ".tab-group-label-container" ? { parentElement: group, querySelector: () => null } :
+    sel === ".zzgf-icon, .tab-group-folder-icon" ? {} : null) } });
 
 test("Folder pages treat an address as the same page without anchors, tracking, www. or a trailing slash", () => {
   const ctx = vm.createContext({ URL, URLSearchParams });
@@ -145,15 +148,17 @@ test("A folder holding only subfolders opens its page in their container, and re
   assert.deepEqual([s.closed, s.opened], [[], []]);
 });
 
-test("Clicking the name replaces a stray page tab even while it is selected, and folds on a good one", () => {
+test("Clicking the icon replaces a stray page tab even while it is selected, and folds on a good one", () => {
   // Session restore selects the page tab an earlier version left in no
   // container: the click replaces it rather than folding the folder.
   let s = youtubeFolder({ page: "0", selected: true });
-  assert.equal(s.f.headerClick(nameClick(s.top)), true, "the click is the folder's page, not a fold");
+  assert.equal(s.f.headerClick(nameClick(s.top)), false, "the name always folds");
+  assert.deepEqual([s.closed, s.opened], [[], []]);
+  assert.equal(s.f.headerClick(iconClick(s.top)), true, "the icon is the folder's page, not a fold");
   assert.deepEqual([s.closed, s.opened], [[s.page], [6]], "the signed-out tab closes and the page opens in the folder's container");
 
   s = youtubeFolder({ page: "6", selected: true });
-  assert.equal(s.f.headerClick(nameClick(s.top)), false, "on the folder's page, the click folds as usual");
+  assert.equal(s.f.headerClick(iconClick(s.top)), false, "on the folder's page, the click folds as usual");
   assert.deepEqual([s.closed, s.opened], [[], []]);
 });
 
@@ -166,7 +171,7 @@ test("A page tab sharing its container with another of the folder's tabs is kept
   assert.deepEqual([s.closed, s.opened], [[], []], "nothing closes or opens");
   assert.equal(s.f.gBrowser.selectedTab, s.page, "the page tab is shown");
   s.page.selected = true;
-  assert.equal(s.f.headerClick(nameClick(s.top)), false, "and clicking the name on it folds");
+  assert.equal(s.f.headerClick(iconClick(s.top)), false, "and clicking the icon on it folds");
   assert.deepEqual(s.closed, []);
 });
 
@@ -191,4 +196,23 @@ test("A folder whose page is also a Favorite opens its own tab; the Favorite is 
   assert.equal(opened.id, "new", "a new tab in the folder, not the Favorite");
   assert.deepEqual(switched, ["new"]);
   assert.ok(copies.has("0|nexusmods.com"), "the new-tab check lets the folder's own tab load");
+});
+
+test("Closing a tab never lands on a folder's hidden page tab, unless nothing else is left", () => {
+  const make = withOther => {
+    const top = node({ "data-zzrouter-page": "https://youtube.com/" }, { id: "yt" });
+    const page = tabAt("https://www.youtube.com/", { group: top, attrs: { "zzgf-page-of": "yt" } });
+    const video = tabAt("https://www.youtube.com/watch?v=x", { group: top }), other = tabAt("https://other.example/");
+    const tabs = withOther ? [page, video, other] : [page, video];
+    // Zen's own choice: the first other tab not excluded.
+    const native = function (tab, exclude = []) { return tabs.find(t => t !== tab && !exclude.includes(t)) || null; };
+    const f = folderPages(tabs, [top], null, () => {}, { _findTabToBlurTo: native });
+    f.settle();
+    return { f, page, video, other };
+  };
+  let s = make(true);
+  assert.ok(s.page.hasAttribute("zzgf-page-tab"));
+  assert.equal(s.f.gBrowser._findTabToBlurTo(s.video), s.other, "the next real tab, not the page");
+  s = make(false);
+  assert.equal(s.f.gBrowser._findTabToBlurTo(s.video), s.page, "the page when it is all that is left");
 });

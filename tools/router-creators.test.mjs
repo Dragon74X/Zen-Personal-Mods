@@ -14,8 +14,8 @@ function load(extra = {}) {
   const ctx = vm.createContext({ URL, creators, routed, fetched, metadata,
     baseDomain: host => host.split(".").slice(-2).join("."), scoped: (k, c) => `${c}:${k}`, contextOf: () => 0,
     creatorMap: () => creators, saveCreators: () => {}, targetGen: 0, queueRoute: (t, why) => routed.push(why),
-    lookupOwner: () => ({ metadata }), ICON_MAX: 100, failed,
-    privateWindow: false, retired: false, utf8: x => { if (typeof x !== "string") throw new TypeError("no body"); return x; },
+    lookupOwner: () => ({ metadata }), metadataCache: () => metadata, ICON_MAX: 100, failed,
+    privateWindow: false, noLookups: () => false, retired: false, utf8: x => { if (typeof x !== "string") throw new TypeError("no body"); return x; },
     pageKey: u => { const x = new URL(u); return x.hostname.replace(/^www\./, "") + x.pathname.replace(/\/$/, ""); },
     fetchAnon: (url, c, cb) => fetched.push([url, cb]), ...extra });
   vm.runInContext(body + "\nthis.profileOf = profileOf; this.creatorName = creatorName; this.learnCreator = learnCreator; this.genericCreator = genericCreator;", ctx);

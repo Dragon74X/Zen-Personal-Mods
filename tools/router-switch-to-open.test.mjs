@@ -625,14 +625,17 @@ test("Switching tabs plays the pills by Tab switch animation: in by default, fol
   tab.busy = false;
   // A loaded page shown only once its picture is ready plays then, on the page you see.
   mode = 1; drawn.length = 0;
-  let shown = null;
-  ctx.tabSwitched = () => new Promise(r => { shown = r; });
+  const frames = [];
+  ctx.requestAnimationFrame = fn => frames.push(fn);
+  const frame = async () => { for (const f of frames.splice(0)) f(); await settle(); };
   ctx.gBrowser._switcher = { visibleTab: other };
-  await switchTo(tab);
+  ctx.gBrowser.selectedTab = tab; ctx.tabSwitchCue({ target: tab }); await flush();
+  await frame(); await frame();
   assert.deepEqual(drawn, [], "not while the old page is still on screen");
-  ctx.gBrowser._switcher = null; shown(); await settle();
-  assert.deepEqual(drawn, [["t", "in"]], "played once the switch is done");
-  ctx.tabSwitched = () => Promise.resolve();
+  ctx.gBrowser._switcher.visibleTab = tab;
+  await frame(); await frame();
+  assert.deepEqual(drawn, [["t", "in"]], "played the frame the page appears, not after Firefox's clean-up");
+  ctx.gBrowser._switcher = null; ctx.requestAnimationFrame = fn => fn();
   // A switch that lands here from another window is that one's to mark.
   mode = 3; drawn.length = 0;
   ctx.markArrival(other, Promise.resolve());

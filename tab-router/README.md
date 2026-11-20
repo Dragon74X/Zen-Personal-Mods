@@ -80,9 +80,12 @@ use `await TabRouter.sortAll()` when you need completion.
 
 **Switch to a page that is already open** (on). Clicking a link to a page that
 is already open in another tab switches to that tab instead of opening a copy,
-whether the click would open it in place or in a new tab; a new tab whose first
-page is already open elsewhere (opened from a menu, a bookmark, another app or
-typed) closes and switches to it too. Tabs in every space of every window
+whether the page would open it in place or in a new tab; a new tab whose first
+page is already open elsewhere (opened by another app or typed) closes and
+switches to it too. Middle- and Ctrl/Cmd-clicks on links, bookmarks and history
+switch the same way. A new tab you ask for by a command always opens: **Open
+Link in New Tab** (or in a container tab), **Open in New Tab** on a bookmark or
+history entry, and the address bar's Alt+Enter. Tabs in every space of every window
 count, in whichever container the page is open (the link's own first); Zen
 changes space as needed.
 
@@ -107,10 +110,10 @@ new window's copies of tabs that were already open) counts as the window
 whose page is loaded, so these switches go there instead of pulling the page
 out of it.
 
-New tabs opened through Firefox's link opener -- middle- and Ctrl-clicks on
-links, **Open Link in New Tab**, bookmarks and history -- are checked before the
-tab exists, so an open page is switched to at once and no tab flashes in. With
-routing on, such a tab is also created in the container Zen's route asks for
+New tabs opened through Firefox's link opener by a click -- middle- and
+Ctrl-clicks on links, bookmarks and history -- are checked before the tab
+exists, so an open page is switched to at once and no tab flashes in; those
+opened by a command open as asked. With routing on, such a tab is created in the container Zen's route asks for
 (rather than reopened in it afterwards) and filed into the deepest folder of its
 path that already exists, before it is drawn; any missing levels are created
 once it has loaded, as before. Tab Router also opens Groupflow's folder pages.

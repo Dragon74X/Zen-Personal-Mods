@@ -101,7 +101,9 @@ motion only the merged pill appears and fades). Switching tabs in a window can p
 **In** (the default) runs them in at once; **In, following the load** runs a
 loading page's pills in with its progress and merges them once it is done (a
 page already loaded plays In); **Out** plays them out over the page you leave;
-**Out then in** plays both; **None** neither. Arc 2.0 has its own tab switch
+**Out then in** plays both; **None** neither. A loaded page that Firefox
+shows only once its picture is ready (with GPU compositing the old page stays
+on screen a moment) plays when it appears. Arc 2.0 has its own tab switch
 animation; pick one of the two. Moving
 between windows yourself shows nothing, nor does picking a tab whose page Zen
 brings into the window you are in. Zen keeps a copy of each tab in every

@@ -2391,7 +2391,7 @@
   // page side (links-child.sys.mjs) only acts on real link clicks, so back
   // and forward, reloads, forms, redirects and script navigation never
   // switch; Alt-click, Duplicate Tab and session restore always make copies.
-  const LINKS_VERSION = "1.45.8", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
+  const LINKS_VERSION = "1.45.9", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
   const TRACKING = /^(utm_[a-z]+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|igshid|si|ref_src|_hsenc|_hsmi)$/i;
   function pageKey(url) {
     try {
@@ -2816,10 +2816,10 @@
       // to it, under the folder (Zen would open it outside), through the
       // same checks as any new tab.
       if (!from.hasAttribute("zzgf-page-tab")) return;
-      openInto = from.group || null;
+      openInto = from.group || null; pageLinkOpening = true;
       try {
         window.openLinkIn(data.href, "tab", { triggeringPrincipal, userContextId: ctx, openerBrowser: browser, relatedToCurrent: true, inBackground: false });
-      } finally { openInto = null; }
+      } finally { openInto = null; pageLinkOpening = false; }
       return;
     }
     if (name !== "ZzRouter:SwitchTo") return;
@@ -2829,13 +2829,17 @@
     if (data.newTab) window.openLinkIn(data.href, "tab", { triggeringPrincipal, userContextId: ctx, inBackground: false, relatedToCurrent: true });
     else browser?.loadURI(uri, { triggeringPrincipal });
   }
-  // New tabs opened through Firefox's link openers are checked before the tab
-  // exists: openLinkIn (middle- and Ctrl-clicks on page links, Open Link in
-  // New Tab), openTrustedLinkIn and openWebLinkIn (bookmarks, history and the
-  // browser's own menus, which reach Firefox's loader without passing
-  // through openLinkIn). An open page is switched to at once, so no tab
-  // flashes in. Firefox's click handler marks an Alt-click as a copy.
-  let copyNext = false;
+  // New tabs opened through Firefox's link openers -- openLinkIn,
+  // openTrustedLinkIn and openWebLinkIn -- by a click (middle- and Ctrl-clicks
+  // on page links, bookmarks and history; a plain click in a folder's page)
+  // switch to an open copy before any tab exists. Those opened by a command
+  // (Open Link in New Tab, Open in New Tab on a bookmark, the address bar's
+  // Alt+Enter) are tabs you asked for: they open. Firefox's click handler
+  // marks an Alt-click as a copy.
+  let copyNext = false, pageLinkOpening = false, linkClicking = false;
+  // A click, not a menu command: a middle- or Ctrl-click on a bookmark, a
+  // history entry or the browser's own links.
+  const clickedOpen = () => { const e = window.event; return !!e && /^(?:click|auxclick|mouseup)$/.test(e.type) && (e.button === 1 || e.ctrlKey || e.metaKey); };
   function switchIfOpen(url, ctx = 0, except = null) {
     if (!switchOn() || typeof url !== "string") return false;
     const key = pageKey(url);
@@ -2894,8 +2898,11 @@
       if ((where === "tab" || where === "tabshifted") && !params?.private) {
         const opener = params?.openerBrowser ? gBrowser.getTabForBrowser(params.openerBrowser) : null;
         const href = typeof url === "string" ? url : url?.spec;
-        const ctx = params?.userContextId ?? (opener ? contextOf(opener) : 0);
-        if (switchIfOpen(href, ctx, opener)) return null;
+        // Open Link in New Tab passes NaN for "this tab's container".
+        const ctx = Number.isInteger(params?.userContextId) && params.userContextId >= 0 ? params.userContextId
+          : opener ? contextOf(opener) : gBrowser.selectedTab ? contextOf(gBrowser.selectedTab) : 0;
+        if (pageLinkOpening || linkClicking || clickedOpen()) { if (switchIfOpen(href, ctx, opener)) return null; }
+        else if (switchOn() && typeof href === "string" && pageKey(href)) allowCopy(ctx, pageKey(href));  // the new tab's first load is let through
         if (!copyNext && typeof href === "string") plan = planNewTab(href, ctx, opener);
         if (plan?.ctx != null) params = { ...params, userContextId: plan.ctx };
       }
@@ -2936,14 +2943,18 @@
     try {
       const { ClickHandlerParent } = ChromeUtils.importESModule("resource:///actors/ClickHandlerParent.sys.mjs");
       const proto = ClickHandlerParent.prototype;
-      if (proto.contentAreaClick?.[CLICK_MARK]) return;
-      const original = proto.contentAreaClick;
+      // The click is handed to the window it belongs to, which decides; an
+      // older copy's patch (Alt only) is replaced on a live update.
+      if (proto.contentAreaClick?.[CLICK_MARK] && proto.contentAreaClick.delegates) return;
+      const original = proto.contentAreaClick?.[CLICK_MARK] || proto.contentAreaClick;
       const patched = function (data) {
         const win = this.manager?.browsingContext?.top?.embedderElement?.ownerDocument?.defaultView;
-        const alt = !!data?.altKey && typeof win?.TabRouter?.copyWhile === "function";
-        return alt ? win.TabRouter.copyWhile(() => original.call(this, data)) : original.call(this, data);
+        const run = () => original.call(this, data);
+        if (typeof win?.TabRouter?.contentClick === "function") return win.TabRouter.contentClick(data, run);
+        return data?.altKey && typeof win?.TabRouter?.copyWhile === "function" ? win.TabRouter.copyWhile(run) : run();
       };
       patched[CLICK_MARK] = original;
+      patched.delegates = true;
       proto.contentAreaClick = patched;
     } catch (e) { note(`click handler patch failed: ${e}`); }
   }
@@ -3001,6 +3012,13 @@
   function copyWhile(fn) {
     copyNext = true;
     try { return fn(); } finally { copyNext = false; }
+  }
+  // A middle- or Ctrl-click on a page's link (Firefox's click handler) goes to
+  // an open copy like a plain click; Alt opens a copy.
+  function contentClick(data, run) {
+    if (data?.altKey) return copyWhile(run);
+    linkClicking = true;
+    try { return run(); } finally { linkClicking = false; }
   }
   // A new tab whose first page is open elsewhere closes and switches there.
   // A tab let through once (a copy, a folder's own page) stays let through
@@ -3484,7 +3502,7 @@
     for (const ev of groupEvents) window.addEventListener(ev, bustGroups, true);
 
     window.TabRouter = {
-      linkMessage, republishOpen: () => publishSoon(), liveCacheKeys, switchIfOpen, copyWhile, openPage, tabURL, markArrival, markDeparture,
+      linkMessage, republishOpen: () => publishSoon(), liveCacheKeys, switchIfOpen, copyWhile, contentClick, openPage, tabURL, markArrival, markDeparture,
       sortAll: () => sweepAll("manual"),
       setPlacementLock,
       pictureCounts: () => ({ creators: creatorMap().size, icons: iconMap().size, inFlight: inFlight.size, refreshOperations }),

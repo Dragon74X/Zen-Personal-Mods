@@ -15,7 +15,7 @@
   {
     "type": "checkbox",
     "property": "zzrouter.switch-to-open",
-    "label": "Switch to a page that is already open *A link you click, or a new tab, going to a page already open in another tab switches to that tab instead of opening a copy. Back and forward, reloads, forms, redirects and sign-in steps are never switched. Hold Alt while clicking, or use Duplicate Tab, to open a copy. The same page ignores #anchors, tracking parameters, www. and a trailing slash, and counts in any container, the link's own first.*",
+    "label": "Switch to a page that is already open *A link you click, or a new tab, going to a page already open in another tab switches to that tab instead of opening a copy. Middle- and Ctrl-clicks switch too. A new tab you ask for by a command always opens: Open Link in New Tab, Open in New Tab on a bookmark or history entry, the address bar's Alt+Enter. Back and forward, reloads, forms, redirects and sign-in steps are never switched. Hold Alt while clicking, or use Duplicate Tab, to open a copy. The same page ignores #anchors, tracking parameters, www. and a trailing slash, and counts in any container, the link's own first.*",
     "defaultValue": true
   },
   {

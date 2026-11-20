@@ -338,7 +338,25 @@
         if (flags & Ci.nsIWebProgressListener.LOCATION_CHANGE_SAME_DOCUMENT) settle();
       },
     };
-    const selected = () => { pageChanged = true; refresh(); };
+    // A loaded page switched to is shown only once its picture is ready (the
+    // old page staying on screen meanwhile with GPU compositing): redrawn
+    // then too, the frame it appears, not only at TabSwitchDone, which comes
+    // after Firefox's 300 ms clean-up.
+    let shownFrame = 0;
+    const showing = () => { try { const v = gBrowser._switcher?.visibleTab; return !v || v === gBrowser.selectedTab; } catch { return true; } };
+    const whenShown = () => {
+      cancelAnimationFrame(shownFrame);
+      if (showing()) return;
+      const until = Date.now() + 1500, tab = gBrowser.selectedTab;
+      const check = () => {
+        shownFrame = 0;
+        if (retired || gBrowser.selectedTab !== tab) return;
+        if (showing() || Date.now() > until) { pageChanged = true; refresh(); return; }
+        shownFrame = requestAnimationFrame(check);
+      };
+      shownFrame = requestAnimationFrame(check);
+    };
+    const selected = () => { pageChanged = true; refresh(); whenShown(); };
     // Also as the sidebar starts to slide in, so a changed page is right for
     // the whole slide rather than only once it has stopped.
     const slide = e => {
@@ -354,6 +372,7 @@
       retired = true;
       dropWaiter();
       clearSettle();
+      cancelAnimationFrame(shownFrame);
       cancelAnimationFrame(frame);
       toolbox?.removeAttribute("zzg-redraw");
       page?.removeAttribute("zzg-repaint");

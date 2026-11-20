@@ -213,6 +213,12 @@ blur recipe or its custom values. An existing saved **On** stays on until you
 switch it off. Other renderers and themes can still use the fallback.
 See the [pixel results and limits](../docs/AUDIT-2026-10-30-NATIVE-BLUR-PIXELS.md).
 
+Switching to a loaded tab while the compact sidebar is out, Firefox shows the
+new page only once its picture is ready; the blur is redrawn the frame it
+appears, with the panel moved by a hundredth of a pixel for two frames, as
+re-showing the sidebar moves it, since on Windows that is what makes the blur
+pick up the new page.
+
 ### Workspaces
 
 The row of workspace icons at the bottom of the sidebar, in the same glass as

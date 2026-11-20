@@ -112,9 +112,13 @@
   :root[zen-compact-mode="true"] #navigator-toolbox #titlebar #zen-toolbar-background {
     backdrop-filter: var(--zzg-acrylic-flat) !important;
   }
-  /* Redraw (glassflow.uc.js): the same look, a different filter, for two frames. */
+  /* Redraw (glassflow.uc.js): the same look, a different filter, for two
+     frames, and the panel moved by a hundredth of a pixel, as re-showing the
+     sidebar moves it: on Windows only a moved panel re-blurs a tab's page
+     that was switched to while the sidebar was open. */
   :root[zen-compact-mode="true"] #navigator-toolbox[zzg-redraw] #titlebar #zen-toolbar-background {
     backdrop-filter: var(--zzg-acrylic-flat) contrast(1.001) !important;
+    translate: 0 0.01px !important;
   }
   /* Repaint (glassflow.uc.js): the page under it, for the same two frames,
      once per changed page, so the blur is not made from a stale copy. */

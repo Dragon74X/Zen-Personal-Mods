@@ -229,3 +229,20 @@ test('A site changing page in place, and a finished tab switch, repaint an open 
   assert.equal(h.window.listeners.get('TabSwitchDone').size, 0);
   assert.equal(h.timers.size, 0);
 });
+
+test('A loaded page switched to is re-blurred the frame it appears, not only at TabSwitchDone', () => {
+  const h = setup(false), stop = h.api.sidebarBackdrop();
+  const redraws = () => h.toolbox.writes.filter(k => k === 'zzg-redraw').length;
+  const batch = () => { const fns = [...h.frames.values()]; h.frames.clear(); for (const fn of fns) fn(); };
+  const tab = {}, old = {};
+  h.browser.selectedTab = tab; h.browser._switcher = { visibleTab: old };
+  for (const fn of h.browser.tabContainer.listeners.get('TabSelect')) fn({});
+  batch(); batch(); batch();
+  assert.equal(redraws(), 1, 'one redraw at once, while the old page is still on screen');
+  h.browser._switcher.visibleTab = tab;
+  for (let n = 0; h.frames.size && n < 10; n++) batch();
+  assert.equal(redraws(), 2, 'and again the frame the new page appears');
+  assert.ok(h.box.writes.filter(k => k === 'zzg-repaint').length >= 2, 'with the page repainted under it');
+  h.browser._switcher = null;
+  stop();
+});

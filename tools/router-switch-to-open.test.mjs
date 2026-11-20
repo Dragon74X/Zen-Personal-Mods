@@ -623,6 +623,16 @@ test("Switching tabs plays the pills by Tab switch animation: in by default, fol
   listener.onStateChange(tab.linkedBrowser, { isTopLevel: true }, null, 16 | 0x80000);
   assert.ok(handle.finished && handle.places.at(-1) === 1 && listener === null, "done: met, merged, and no longer listening");
   tab.busy = false;
+  // A loaded page shown only once its picture is ready plays then, on the page you see.
+  mode = 1; drawn.length = 0;
+  let shown = null;
+  ctx.tabSwitched = () => new Promise(r => { shown = r; });
+  ctx.gBrowser._switcher = { visibleTab: other };
+  await switchTo(tab);
+  assert.deepEqual(drawn, [], "not while the old page is still on screen");
+  ctx.gBrowser._switcher = null; shown(); await settle();
+  assert.deepEqual(drawn, [["t", "in"]], "played once the switch is done");
+  ctx.tabSwitched = () => Promise.resolve();
   // A switch that lands here from another window is that one's to mark.
   mode = 3; drawn.length = 0;
   ctx.markArrival(other, Promise.resolve());

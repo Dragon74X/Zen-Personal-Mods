@@ -2391,7 +2391,7 @@
   // page side (links-child.sys.mjs) only acts on real link clicks, so back
   // and forward, reloads, forms, redirects and script navigation never
   // switch; Alt-click, Duplicate Tab and session restore always make copies.
-  const LINKS_VERSION = "1.45.9", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
+  const LINKS_VERSION = "1.45.10", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
   const TRACKING = /^(utm_[a-z]+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|igshid|si|ref_src|_hsenc|_hsmi)$/i;
   function pageKey(url) {
     try {
@@ -2637,14 +2637,20 @@
       following?.end(false);
       for (const line of arrivals) line.remove();
       arrivals.clear();
-      requestAnimationFrame(() => {
+      const play = () => requestAnimationFrame(() => {
         if (gBrowser.selectedTab !== tab) return;
         if (mode === 4) { followLoad(tab); return; }
         drawGleams(tab, mode === 1 ? "in" : "out");
         if (mode === 3) setTimeout(() => { if (gBrowser.selectedTab === tab) drawGleams(tab, "in"); }, 600);
       });
+      // A loaded page in the background is shown only once its picture is
+      // ready (with GPU compositing this takes a moment, the old page staying
+      // on screen meanwhile): played then, on the page you see. A page shown
+      // already plays at once.
+      if (stillShowingOther(tab)) tabSwitched().then(play); else play();
     }, 0);
   }
+  const stillShowingOther = tab => { try { const v = gBrowser._switcher?.visibleTab; return !!v && v !== tab; } catch { return false; } };
   // The window you leave plays it the other way at once: the pill wells up
   // from underneath in the middle, parts, and the two run out to the sides.
   function markDeparture() {

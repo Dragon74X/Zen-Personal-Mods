@@ -59,10 +59,12 @@ Groupflow also saves parent labels, colours and workspace IDs in `groupflowGroup
 Zen does not recreate plain groups containing only subgroups on its own.
 
 Clicking a top-level group/folder header keeps the parent open and alternates
-between collapsing and expanding all nested subgroups/subfolders. Collapsing hides
-unloaded tabs and keeps the selected tab and all loaded tabs visible. **Keep each folder's last-used tab when collapsed**
+between collapsing and expanding the subgroups/subfolders directly under it;
+theirs keep their own state until you click them. Collapsing hides unloaded
+tabs and keeps the selected tab and all loaded tabs visible. **Keep each folder's last-used tab when collapsed**
 (on for new/unset configurations) also keeps the tab last used in each folder/subfolder, even when unloaded. Existing false values remain unchanged.
-The next click shows all tabs in all subfolders.
+A tab showing in a collapsed folder keeps showing when it unloads; collapsing
+the folder again decides afresh which tabs it keeps.
 Nested headers and groups without subfolders still toggle individually.
 A collapsed group or folder stays folded when a tab opens in it or is moved
 into it (Firefox, and Zen's folder code, otherwise unfold it); the new tab shows

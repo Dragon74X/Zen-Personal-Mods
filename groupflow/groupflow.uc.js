@@ -1310,6 +1310,9 @@
     let queued = false, retired = false, membershipDirty = true, allDirty = true;
     let members = new Map();
     const affected = new Set();
+    // A tab showing in a folded folder keeps showing when it unloads: only
+    // folding the folder again by hand decides afresh which rows it keeps.
+    const refold = new Set();
 
     // CSS cannot change Zen's keyboard-navigation visibility. Keep its guards
     // for hidden/closing tabs and collapsed pinned sections, replacing only
@@ -1364,7 +1367,9 @@
       // native paint state, not an additional selection/retention authority.
       const shown = new Set(tabs.filter(tab => open(tab) && !tab.hidden && tab.group &&
         (retained.has(tab) || tab.selected || tab.multiselected ||
-          (!tab.hasAttribute("pending") && !tab.hasAttribute("discarded")))));
+          (!tab.hasAttribute("pending") && !tab.hasAttribute("discarded")) ||
+          (tab.hasAttribute(marker) && !refold.has(tab)))));
+      refold.clear();
       for (const tab of shown) {
         if (tab.group.hasAttribute("split-view-group")) {
           for (const peer of tab.group.tabs) if (open(peer) && !peer.hidden) shown.add(peer);
@@ -1396,6 +1401,8 @@
           }
         }
       } else if (event?.type !== "rows") {
+        // Folded (by hand, or by a parent header): its rows are decided afresh.
+        if (event?.type === "TabGroupCollapse" && event.target?.tabs) for (const tab of event.target.tabs) refold.add(tab);
         allDirty = true;
         if (!event || ["TabOpen", "TabClose", "TabGrouped", "TabUngrouped", "FolderGrouped", "FolderUngrouped",
           "TabGroupRemovedFromDOM"].includes(event.type)) membershipDirty = true;
@@ -1409,7 +1416,9 @@
       "TabClose", "SSTabRestoring", "SSTabRestored"];
     for (const event of events) window.addEventListener(event, changed, true);
     const keepLastPref = PREFIX + "collapse-keep-last-used";
-    Services.prefs.addObserver(keepLastPref, changed);
+    // A changed setting decides every folder's rows afresh.
+    const keepLastChanged = () => { for (const tab of document.querySelectorAll(tabSelector)) refold.add(tab); changed(); };
+    Services.prefs.addObserver(keepLastPref, keepLastChanged);
     // Native restoration can clear pending without a TabAttrModified event.
     // Each of these attributes changes only its own row (sync adds a split
     // peer), never membership or a folder's last-used tab, so only those
@@ -1475,7 +1484,7 @@
         Object.defineProperty(groupProto, "collapsed", nativeCollapsed);
       }
       observer.disconnect();
-      try { Services.prefs.removeObserver(keepLastPref, changed); } catch {}
+      try { Services.prefs.removeObserver(keepLastPref, keepLastChanged); } catch {}
       for (const event of events) window.removeEventListener(event, changed, true);
       prototypes.forEach((proto, i) => {
         if (Object.getOwnPropertyDescriptor(proto, "visible").get === getters[i]) {
@@ -1501,13 +1510,16 @@
     const selector = "tab-group, zen-folder";
     if (!group?.matches(selector) || group.hasAttribute("split-view-group") ||
         group.parentElement?.closest(selector) || isCopy(group)) return;
-    const children = [...group.querySelectorAll(selector)].filter(child => !child.hasAttribute("split-view-group"));
+    // Only the subfolders directly under it; theirs keep their own state.
+    const children = [...group.querySelectorAll(selector)].filter(child => !child.hasAttribute("split-view-group") &&
+      child.parentElement?.closest(selector) === group);
     if (!children.length) return;
     // Capture before Zen toggles the parent: this header controls its subfolders.
     event.preventDefault();
     event.stopPropagation();
     const collapse = children.some(child => !child.collapsed);
-    // Loaded and last-used rows remain visible through collapsed ancestors.
+    // Loaded and last-used rows (and rows that were showing) remain visible
+    // through collapsed ancestors.
     for (const child of children.reverse()) child.collapsed = collapse;
     group.collapsed = false;
     gBrowser.tabGroupMenu.close();

@@ -995,31 +995,32 @@ test("Router retries missing metadata after 10 minutes without persisting a perm
   assert.equal(opened, 2); e.h.cancelLookups();
 });
 
-test("Groupflow parent click alternates descendants without collapsing the parent", async () => {
+test("Groupflow parent click alternates the subfolders directly under it without collapsing the parent", async () => {
   let menuClosed = 0;
   const h = await load("groupflow", "toggleSubgroups", {
     window: {}, gBrowser: { tabGroupMenu: { close() { menuClosed++; } } },
   });
   const writes = [];
-  function group(name, collapsed = false, split = false) {
+  function group(name, collapsed = false, split = false, parent = null) {
     return { hasAttribute: () => split, matches: () => true, contains: () => false,
-      parentElement: { closest: () => null },
+      parentElement: { closest: () => parent },
       get collapsed() { return collapsed; },
       set collapsed(value) { writes.push([name, value]); collapsed = value; } };
   }
-  const root = group("root"), child = group("child"), grandchild = group("grandchild", true);
-  const split = group("split", false, true);
+  const root = group("root"), child = group("child", false, false, root), grandchild = group("grandchild", true, false, child);
+  const split = group("split", false, true, root);
   root.querySelectorAll = () => [child, grandchild, split];
   let prevented = 0, stopped = 0;
   const event = { button: 0, target: { closest: selector =>
     selector === ".tab-group-label-container" ? { parentElement: root } : null },
     preventDefault() { prevented++; }, stopPropagation() { stopped++; } };
   h.toggleSubgroups(event);
-  assert.deepEqual(writes, [["grandchild", true], ["child", true], ["root", false]]);
+  assert.deepEqual(writes, [["child", true], ["root", false]], "a subfolder's own subfolders keep their state");
   assert.equal(split.collapsed, false);
   writes.length = 0;
   h.toggleSubgroups(event);
-  assert.deepEqual(writes, [["grandchild", false], ["child", false], ["root", false]]);
+  assert.deepEqual(writes, [["child", false], ["root", false]]);
+  assert.equal(grandchild.collapsed, true, "and stay folded until clicked themselves");
   assert.equal(prevented, 2); assert.equal(stopped, 2);
   assert.equal(menuClosed, 2);
 });
@@ -1028,24 +1029,24 @@ test("Groupflow bulk collapse folds the selected path too and still alternates w
   const firstTab = {}, secondTab = {};
   const gBrowser = { selectedTab: firstTab, tabGroupMenu: { close() {} } };
   const h = await load("groupflow", "toggleSubgroups", { window: {}, gBrowser });
-  const child = { collapsed: false, hasAttribute: () => false, contains: tab => tab === firstTab };
-  const grandchild = { ...child };
-  const sibling = { collapsed: false, hasAttribute: () => false, contains: tab => tab === secondTab };
   const root = { collapsed: false, matches: () => true, hasAttribute: () => false,
     parentElement: { closest: () => null }, querySelectorAll: () => [child, grandchild, sibling] };
+  const child = { collapsed: false, hasAttribute: () => false, contains: tab => tab === firstTab, parentElement: { closest: () => root } };
+  const grandchild = { ...child, parentElement: { closest: () => child } };
+  const sibling = { collapsed: false, hasAttribute: () => false, contains: tab => tab === secondTab, parentElement: { closest: () => root } };
   const event = { button: 0, target: { closest: selector =>
     selector === ".tab-group-label-container" ? { parentElement: root } : null },
     preventDefault() {}, stopPropagation() {} };
   const state = () => [root, child, grandchild, sibling].map(group => group.collapsed);
 
   h.toggleSubgroups(event);
-  assert.deepEqual(state(), [false, true, true, true]);
+  assert.deepEqual(state(), [false, true, false, true]);
   h.toggleSubgroups(event);
   assert.deepEqual(state(), [false, false, false, false]);
 
   gBrowser.selectedTab = secondTab;
   h.toggleSubgroups(event);
-  assert.deepEqual(state(), [false, true, true, true]);
+  assert.deepEqual(state(), [false, true, false, true]);
   h.toggleSubgroups(event);
   assert.deepEqual(state(), [false, false, false, false]);
   assert.equal(gBrowser.selectedTab, secondTab);
@@ -1065,7 +1066,7 @@ test("Groupflow leaves nested and leaf headers, controls and other mouse buttons
 });
 
 async function collapsedVisibilityEnv() {
-  const prefs = new Map([["zzgroup.collapse-keep-last-used", true]]);
+  const prefs = new Map([["zzgroup.collapse-keep-last-used", true]]), prefObservers = new Map();
   const tabs = [], groups = [], microtasks = [], w = element();
   let observer, invalidations = 0;
   const workspace = { hasCollapsedPinnedTabs: false, collapsiblePins: { activeTabs: [] } };
@@ -1117,9 +1118,11 @@ async function collapsedVisibilityEnv() {
       observe() {} disconnect() { this.disconnected = true; }
     },
     // These cases cover the optional last-used retention; the default is tested separately.
-    Services: { prefs: { getBoolPref: (k, d) => prefs.has(k) ? prefs.get(k) : d, addObserver() {}, removeObserver() {} } },
+    Services: { prefs: { getBoolPref: (k, d) => prefs.has(k) ? prefs.get(k) : d,
+      addObserver: (k, fn) => prefObservers.set(k, fn), removeObserver: k => prefObservers.delete(k) } },
   });
   return { h, w, tabs, groups, Tab, Group, originals, workspace, microtasks, prefs,
+    notify(k) { const fn = prefObservers.get(k); (typeof fn === "function" ? fn : fn?.observe?.bind(fn))?.(null, "nsPref:changed", k); },
     get observer() { return observer; }, get invalidations() { return invalidations; },
     flush() { while (microtasks.length) microtasks.shift()(); },
     changed(tab) { observer.callback([{ target: tab }]); },
@@ -1136,21 +1139,26 @@ test("Groupflow collapsed folders retain loaded tabs and one last-used tab per s
   assert.deepEqual(e.tabs.map(tab => tab.visible), [false, true, true, true, false, true]);
   assert.deepEqual(e.tabs.map(tab => tab.getAttribute("aria-hidden")), ["true", undefined, undefined, undefined, "true", undefined]);
   assert.equal(child.visible, true); assert.equal(sibling.visible, true);
+  const refold = g => { e.w.fire("TabGroupCollapse", { type: "TabGroupCollapse", target: g }); e.flush(); };
   loaded.setAttribute("pending", "true"); e.changed(loaded); e.flush();
-  assert.equal(loaded.visible, false, "unloading a non-last-used tab hides it");
+  assert.equal(loaded.visible, true, "a tab showing keeps showing when it unloads");
+  refold(child);
+  assert.equal(loaded.visible, false, "folding the folder again decides afresh");
   loaded.removeAttribute("pending"); e.changed(loaded); e.flush();
   assert.equal(loaded.visible, true, "restoring a background tab reveals it");
   loaded.setAttribute("discarded", "true"); e.changed(loaded); e.flush();
+  refold(child);
   assert.equal(loaded.visible, false, "explicit discard remains unloaded without pending");
   loaded.removeAttribute("discarded"); e.changed(loaded); e.flush();
   older.setAttribute("selected", "true"); older.lastSeenActive = last.lastSeenActive = 60;
   e.w.fire("TabSelect", { type: "TabSelect", target: older }); older.removeAttribute("selected");
   e.w.fire("TabSelect", { type: "TabSelect", target: new e.Tab(null) }); e.flush();
+  refold(child);
   assert.equal(older.visible, true); assert.equal(last.visible, false, "same-tick select-away retains the selected winner despite equal timestamps");
-  older.group = sibling; e.w.fire("TabGrouped"); e.flush();
+  older.group = sibling; e.w.fire("TabGrouped"); e.flush(); refold(sibling);
   assert.equal(last.visible, true, "moving the last-used tab recomputes its former group");
   assert.equal(otherLast.visible, false); assert.equal(older.visible, true);
-  older.closing = true; e.w.fire("TabClose"); e.flush();
+  older.closing = true; e.w.fire("TabClose"); e.flush(); refold(sibling);
   assert.equal(older.visible, false); assert.equal(otherLast.visible, true, "closing recomputes the destination group");
   cleanup();
 });
@@ -1163,8 +1171,8 @@ test("Groupflow keeps last-used tabs by default and preserves explicit false", a
   last.setAttribute("visuallyselected", "true"); // native restored pin may retain its old paint state
   const cleanup = e.h.startCollapsedVisibility();
   assert.deepEqual([loaded.visible, last.visible], [true, true]);
-  e.prefs.set("zzgroup.collapse-keep-last-used", false); e.changed(last); e.flush();
-  assert.equal(last.visible, false, "explicit false stays off");
+  e.prefs.set("zzgroup.collapse-keep-last-used", false); e.notify("zzgroup.collapse-keep-last-used"); e.flush();
+  assert.equal(last.visible, false, "explicit false stays off, decided afresh when the setting changes");
   assert.equal(last.hasAttribute("visuallyselected"), true, "native paint state remains native-owned");
   last.setAttribute("selected", "true"); e.w.fire("TabSelect", {target:last}); e.flush();
   assert.equal(last.visible, true, "actual selection still keeps a pending row");
@@ -2100,5 +2108,5 @@ test('Groupflow selection-only visibility updates read 0 membership arrays',asyn
   let reads=0;const descriptor=Object.getOwnPropertyDescriptor(e.Group.prototype,'tabs');
   Object.defineProperty(e.Group.prototype,'tabs',{...descriptor,get(){reads++;return descriptor.get.call(this);}});
   a.setAttribute('selected','true');e.w.fire('TabSelect',{target:a,detail:{previousTab:b}});e.flush();
-  assert.equal(reads,0);assert.equal(a.visible,true);assert.equal(b.visible,false);cleanup();
+  assert.equal(reads,0);assert.equal(a.visible,true);assert.equal(b.visible,true,'the tab left keeps showing until the folder is folded again');cleanup();
 });

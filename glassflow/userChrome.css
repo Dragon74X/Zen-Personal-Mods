@@ -382,28 +382,28 @@
 /* ---------- Selected tab ---------- */
 @media (-moz-pref("zzglass.selected.enabled")) {
   /* defaults first; the settings below override them */
-  :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) {
+  :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is(:is([selected], [visuallyselected]):not([pending]), [multiselected]) {
     --zzg-a: color-mix(in srgb, var(--zzg-accent) var(--zzglass-selected-tint, 42%), transparent);
     --zzg-b: transparent;
     --zzg-spread: var(--zzglass-selected-spread, 100%);
     --zzg-dir: 90deg;
   }
-  @media (-moz-pref("zzglass.selected.direction", 1)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-dir: 270deg; } }
-  @media (-moz-pref("zzglass.selected.direction", 2)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-dir: 180deg; } }
-  @media (-moz-pref("zzglass.selected.direction", 3)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-dir: 0deg; } }
-  @media (-moz-pref("zzglass.selected.direction", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-dir: 135deg; } }
-  @media (-moz-pref("zzglass.selected.direction", 5)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-dir: 315deg; } }
-  @media (-moz-pref("zzglass.selected.direction", 6)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-dir: 45deg; } }
-  @media (-moz-pref("zzglass.selected.direction", 7)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-dir: 225deg; } }
+  @media (-moz-pref("zzglass.selected.direction", 1)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is(:is([selected], [visuallyselected]):not([pending]), [multiselected]) { --zzg-dir: 270deg; } }
+  @media (-moz-pref("zzglass.selected.direction", 2)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is(:is([selected], [visuallyselected]):not([pending]), [multiselected]) { --zzg-dir: 180deg; } }
+  @media (-moz-pref("zzglass.selected.direction", 3)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is(:is([selected], [visuallyselected]):not([pending]), [multiselected]) { --zzg-dir: 0deg; } }
+  @media (-moz-pref("zzglass.selected.direction", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is(:is([selected], [visuallyselected]):not([pending]), [multiselected]) { --zzg-dir: 135deg; } }
+  @media (-moz-pref("zzglass.selected.direction", 5)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is(:is([selected], [visuallyselected]):not([pending]), [multiselected]) { --zzg-dir: 315deg; } }
+  @media (-moz-pref("zzglass.selected.direction", 6)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is(:is([selected], [visuallyselected]):not([pending]), [multiselected]) { --zzg-dir: 45deg; } }
+  @media (-moz-pref("zzglass.selected.direction", 7)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is(:is([selected], [visuallyselected]):not([pending]), [multiselected]) { --zzg-dir: 225deg; } }
   @media (-moz-pref("zzglass.selected.end-mode", 1)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-b: color-mix(in srgb, var(--zzg-accent) var(--zzglass-selected-end-tint, 17%), transparent); }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is(:is([selected], [visuallyselected]):not([pending]), [multiselected]) { --zzg-b: color-mix(in srgb, var(--zzg-accent) var(--zzglass-selected-end-tint, 17%), transparent); }
   }
   @media (-moz-pref("zzglass.selected.end-mode", 2)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-b: color-mix(in srgb, var(--zzg-second) var(--zzglass-selected-end-tint, 17%), transparent); }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is(:is([selected], [visuallyselected]):not([pending]), [multiselected]) { --zzg-b: color-mix(in srgb, var(--zzg-second) var(--zzglass-selected-end-tint, 17%), transparent); }
   }
-  @media (-moz-pref("zzglass.selected.end-mode", 3)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-b: var(--zzg-a); } }
+  @media (-moz-pref("zzglass.selected.end-mode", 3)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is(:is([selected], [visuallyselected]):not([pending]), [multiselected]) { --zzg-b: var(--zzg-a); } }
 
-  :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-background, :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) .tab-stack .tab-background {
+  :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is(:is([selected], [visuallyselected]):not([pending]), [multiselected]) .tab-background, :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is(:is([selected], [visuallyselected]):not([pending]), [multiselected]) .tab-stack .tab-background {
     background-color: transparent !important;
     background-repeat: repeat !important;
     background-position: center center !important;
@@ -419,59 +419,59 @@
     box-shadow: var(--zzg-state-shadow) !important;
   }
   @media (-moz-pref("zzglass.selected.sheen")) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-sheen-level: 1; }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is(:is([selected], [visuallyselected]):not([pending]), [multiselected]) { --zzg-sheen-level: 1; }
   }
   @media (-moz-pref("zzglass.selected.rim")) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-edge-top: var(--zzg-rim-top); --zzg-edge-ring: var(--zzg-rim-all); --zzg-edge-owner: tab; }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is(:is([selected], [visuallyselected]):not([pending]), [multiselected]) { --zzg-edge-top: var(--zzg-rim-top); --zzg-edge-ring: var(--zzg-rim-all); --zzg-edge-owner: tab; }
     @media (-moz-pref("zzglass.edges.enabled")) {
-      :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-edge-top: color-mix(in srgb, var(--zzglass-edges-selected-color, white) calc(42% * var(--zzglass-edges-selected-top, 1) * var(--zzg-glass)), transparent);
+      :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is(:is([selected], [visuallyselected]):not([pending]), [multiselected]) { --zzg-edge-top: color-mix(in srgb, var(--zzglass-edges-selected-color, white) calc(42% * var(--zzglass-edges-selected-top, 1) * var(--zzg-glass)), transparent);
       --zzg-edge-ring: color-mix(in srgb, var(--zzglass-edges-selected-color, white) calc(12% * var(--zzglass-edges-selected-ring, 1) * var(--zzg-glass)), transparent);
       --zzg-edge-width: var(--zzglass-edges-selected-thickness, 1px);
       --zzg-ring-width: var(--zzglass-edges-selected-ring-width, 1px); }
     }
   }
   @media (-moz-pref("zzglass.selected.rim")) and (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.edges.selected-edge", 1)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-edge-angle: 270deg; }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is(:is([selected], [visuallyselected]):not([pending]), [multiselected]) { --zzg-edge-angle: 270deg; }
   }
   @media (-moz-pref("zzglass.selected.rim")) and (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.edges.selected-edge", 2)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-edge-angle: 0deg; }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is(:is([selected], [visuallyselected]):not([pending]), [multiselected]) { --zzg-edge-angle: 0deg; }
   }
   @media (-moz-pref("zzglass.selected.rim")) and (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.edges.selected-edge", 3)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-edge-angle: 180deg; }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is(:is([selected], [visuallyselected]):not([pending]), [multiselected]) { --zzg-edge-angle: 180deg; }
   }
   @media (-moz-pref("zzglass.selected.rim")) and (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.edges.selected-edge", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-edge-top: transparent; }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is(:is([selected], [visuallyselected]):not([pending]), [multiselected]) { --zzg-edge-top: transparent; }
   }
   @media (-moz-pref("zzglass.selected.glow")) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is([selected], [visuallyselected]):not([pending]) { --zzg-state-glow: color-mix(in srgb, var(--zzg-accent) 35%, transparent); }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:is(:is([selected], [visuallyselected]):not([pending]), [multiselected]) { --zzg-state-glow: color-mix(in srgb, var(--zzg-accent) 35%, transparent); }
   }
 }
 
 /* ---------- Unselected tab ---------- */
 @media (-moz-pref("zzglass.unselected.enabled")) {
   /* defaults first; the settings below override them */
-  :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) {
+  :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):not([pending]):not(:hover) {
     --zzg-a: color-mix(in srgb, var(--zzg-accent) var(--zzglass-unselected-tint, 12%), transparent);
     --zzg-b: transparent;
     --zzg-spread: var(--zzglass-unselected-spread, 100%);
     --zzg-dir: 90deg;
   }
-  @media (-moz-pref("zzglass.unselected.direction", 1)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-dir: 270deg; } }
-  @media (-moz-pref("zzglass.unselected.direction", 2)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-dir: 180deg; } }
-  @media (-moz-pref("zzglass.unselected.direction", 3)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-dir: 0deg; } }
-  @media (-moz-pref("zzglass.unselected.direction", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-dir: 135deg; } }
-  @media (-moz-pref("zzglass.unselected.direction", 5)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-dir: 315deg; } }
-  @media (-moz-pref("zzglass.unselected.direction", 6)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-dir: 45deg; } }
-  @media (-moz-pref("zzglass.unselected.direction", 7)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-dir: 225deg; } }
+  @media (-moz-pref("zzglass.unselected.direction", 1)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):not([pending]):not(:hover) { --zzg-dir: 270deg; } }
+  @media (-moz-pref("zzglass.unselected.direction", 2)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):not([pending]):not(:hover) { --zzg-dir: 180deg; } }
+  @media (-moz-pref("zzglass.unselected.direction", 3)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):not([pending]):not(:hover) { --zzg-dir: 0deg; } }
+  @media (-moz-pref("zzglass.unselected.direction", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):not([pending]):not(:hover) { --zzg-dir: 135deg; } }
+  @media (-moz-pref("zzglass.unselected.direction", 5)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):not([pending]):not(:hover) { --zzg-dir: 315deg; } }
+  @media (-moz-pref("zzglass.unselected.direction", 6)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):not([pending]):not(:hover) { --zzg-dir: 45deg; } }
+  @media (-moz-pref("zzglass.unselected.direction", 7)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):not([pending]):not(:hover) { --zzg-dir: 225deg; } }
   @media (-moz-pref("zzglass.unselected.end-mode", 1)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-b: color-mix(in srgb, var(--zzg-accent) var(--zzglass-unselected-end-tint, 4%), transparent); }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):not([pending]):not(:hover) { --zzg-b: color-mix(in srgb, var(--zzg-accent) var(--zzglass-unselected-end-tint, 4%), transparent); }
   }
   @media (-moz-pref("zzglass.unselected.end-mode", 2)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-b: color-mix(in srgb, var(--zzg-second) var(--zzglass-unselected-end-tint, 4%), transparent); }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):not([pending]):not(:hover) { --zzg-b: color-mix(in srgb, var(--zzg-second) var(--zzglass-unselected-end-tint, 4%), transparent); }
   }
-  @media (-moz-pref("zzglass.unselected.end-mode", 3)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-b: var(--zzg-a); } }
+  @media (-moz-pref("zzglass.unselected.end-mode", 3)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):not([pending]):not(:hover) { --zzg-b: var(--zzg-a); } }
 
-  :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-background, :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) .tab-stack .tab-background {
+  :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):not([pending]):not(:hover) .tab-background, :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):not([pending]):not(:hover) .tab-stack .tab-background {
     background-color: transparent !important;
     background-repeat: repeat !important;
     background-position: center center !important;
@@ -487,59 +487,59 @@
     box-shadow: var(--zzg-state-shadow) !important;
   }
   @media (-moz-pref("zzglass.unselected.sheen")) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-sheen-level: 1; }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):not([pending]):not(:hover) { --zzg-sheen-level: 1; }
   }
   @media (-moz-pref("zzglass.unselected.rim")) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-edge-top: var(--zzg-rim-top); --zzg-edge-ring: var(--zzg-rim-all); --zzg-edge-owner: tab; }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):not([pending]):not(:hover) { --zzg-edge-top: var(--zzg-rim-top); --zzg-edge-ring: var(--zzg-rim-all); --zzg-edge-owner: tab; }
     @media (-moz-pref("zzglass.edges.enabled")) {
-      :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-edge-top: color-mix(in srgb, var(--zzglass-edges-unselected-color, white) calc(42% * var(--zzglass-edges-unselected-top, 1) * var(--zzg-glass)), transparent);
+      :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):not([pending]):not(:hover) { --zzg-edge-top: color-mix(in srgb, var(--zzglass-edges-unselected-color, white) calc(42% * var(--zzglass-edges-unselected-top, 1) * var(--zzg-glass)), transparent);
       --zzg-edge-ring: color-mix(in srgb, var(--zzglass-edges-unselected-color, white) calc(12% * var(--zzglass-edges-unselected-ring, 1) * var(--zzg-glass)), transparent);
       --zzg-edge-width: var(--zzglass-edges-unselected-thickness, 1px);
       --zzg-ring-width: var(--zzglass-edges-unselected-ring-width, 1px); }
     }
   }
   @media (-moz-pref("zzglass.unselected.rim")) and (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.edges.unselected-edge", 1)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-edge-angle: 270deg; }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):not([pending]):not(:hover) { --zzg-edge-angle: 270deg; }
   }
   @media (-moz-pref("zzglass.unselected.rim")) and (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.edges.unselected-edge", 2)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-edge-angle: 0deg; }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):not([pending]):not(:hover) { --zzg-edge-angle: 0deg; }
   }
   @media (-moz-pref("zzglass.unselected.rim")) and (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.edges.unselected-edge", 3)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-edge-angle: 180deg; }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):not([pending]):not(:hover) { --zzg-edge-angle: 180deg; }
   }
   @media (-moz-pref("zzglass.unselected.rim")) and (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.edges.unselected-edge", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-edge-top: transparent; }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):not([pending]):not(:hover) { --zzg-edge-top: transparent; }
   }
   @media (-moz-pref("zzglass.unselected.glow")) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):not([pending]):not(:hover) { --zzg-state-glow: color-mix(in srgb, var(--zzg-accent) 35%, transparent); }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):not([pending]):not(:hover) { --zzg-state-glow: color-mix(in srgb, var(--zzg-accent) 35%, transparent); }
   }
 }
 
 /* ---------- Hovered tab ---------- */
 @media (-moz-pref("zzglass.hover.enabled")) {
   /* defaults first; the settings below override them */
-  :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover {
+  :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):hover {
     --zzg-a: color-mix(in srgb, var(--zzg-accent) var(--zzglass-hover-tint, 24%), transparent);
     --zzg-b: transparent;
     --zzg-spread: var(--zzglass-hover-spread, 100%);
     --zzg-dir: 90deg;
   }
-  @media (-moz-pref("zzglass.hover.direction", 1)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-dir: 270deg; } }
-  @media (-moz-pref("zzglass.hover.direction", 2)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-dir: 180deg; } }
-  @media (-moz-pref("zzglass.hover.direction", 3)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-dir: 0deg; } }
-  @media (-moz-pref("zzglass.hover.direction", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-dir: 135deg; } }
-  @media (-moz-pref("zzglass.hover.direction", 5)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-dir: 315deg; } }
-  @media (-moz-pref("zzglass.hover.direction", 6)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-dir: 45deg; } }
-  @media (-moz-pref("zzglass.hover.direction", 7)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-dir: 225deg; } }
+  @media (-moz-pref("zzglass.hover.direction", 1)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):hover { --zzg-dir: 270deg; } }
+  @media (-moz-pref("zzglass.hover.direction", 2)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):hover { --zzg-dir: 180deg; } }
+  @media (-moz-pref("zzglass.hover.direction", 3)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):hover { --zzg-dir: 0deg; } }
+  @media (-moz-pref("zzglass.hover.direction", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):hover { --zzg-dir: 135deg; } }
+  @media (-moz-pref("zzglass.hover.direction", 5)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):hover { --zzg-dir: 315deg; } }
+  @media (-moz-pref("zzglass.hover.direction", 6)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):hover { --zzg-dir: 45deg; } }
+  @media (-moz-pref("zzglass.hover.direction", 7)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):hover { --zzg-dir: 225deg; } }
   @media (-moz-pref("zzglass.hover.end-mode", 1)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-b: color-mix(in srgb, var(--zzg-accent) var(--zzglass-hover-end-tint, 9%), transparent); }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):hover { --zzg-b: color-mix(in srgb, var(--zzg-accent) var(--zzglass-hover-end-tint, 9%), transparent); }
   }
   @media (-moz-pref("zzglass.hover.end-mode", 2)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-b: color-mix(in srgb, var(--zzg-second) var(--zzglass-hover-end-tint, 9%), transparent); }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):hover { --zzg-b: color-mix(in srgb, var(--zzg-second) var(--zzglass-hover-end-tint, 9%), transparent); }
   }
-  @media (-moz-pref("zzglass.hover.end-mode", 3)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-b: var(--zzg-a); } }
+  @media (-moz-pref("zzglass.hover.end-mode", 3)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):hover { --zzg-b: var(--zzg-a); } }
 
-  :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-background, :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover .tab-stack .tab-background {
+  :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):hover .tab-background, :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):hover .tab-stack .tab-background {
     background-color: transparent !important;
     background-repeat: repeat !important;
     background-position: center center !important;
@@ -555,12 +555,12 @@
     box-shadow: var(--zzg-state-shadow) !important;
   }
   @media (-moz-pref("zzglass.hover.sheen")) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-sheen-level: 1; }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):hover { --zzg-sheen-level: 1; }
   }
   @media (-moz-pref("zzglass.hover.rim")) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-edge-top: var(--zzg-rim-top); --zzg-edge-ring: var(--zzg-rim-all); --zzg-edge-owner: tab; }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):hover { --zzg-edge-top: var(--zzg-rim-top); --zzg-edge-ring: var(--zzg-rim-all); --zzg-edge-owner: tab; }
     @media (-moz-pref("zzglass.edges.enabled")) {
-      :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-edge-top: color-mix(in srgb, var(--zzglass-edges-hover-color, white) calc(42% * var(--zzglass-edges-hover-top, 1) * var(--zzg-glass)), transparent);
+      :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):hover { --zzg-edge-top: color-mix(in srgb, var(--zzglass-edges-hover-color, white) calc(42% * var(--zzglass-edges-hover-top, 1) * var(--zzg-glass)), transparent);
       --zzg-edge-ring: color-mix(in srgb, var(--zzglass-edges-hover-color, white) calc(12% * var(--zzglass-edges-hover-ring, 1) * var(--zzg-glass)), transparent);
       --zzg-edge-width: var(--zzglass-edges-hover-thickness, 1px);
       --zzg-ring-width: var(--zzglass-edges-hover-ring-width, 1px); }
@@ -569,50 +569,50 @@
   /* Restates the default because a hovered unloaded tab also matches the
      Unloaded rules below, which would otherwise give it their edge. */
   @media (-moz-pref("zzglass.hover.rim")) and (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.edges.hover-edge", 0)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-edge-angle: 90deg; }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):hover { --zzg-edge-angle: 90deg; }
   }
   @media (-moz-pref("zzglass.hover.rim")) and (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.edges.hover-edge", 1)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-edge-angle: 270deg; }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):hover { --zzg-edge-angle: 270deg; }
   }
   @media (-moz-pref("zzglass.hover.rim")) and (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.edges.hover-edge", 2)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-edge-angle: 0deg; }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):hover { --zzg-edge-angle: 0deg; }
   }
   @media (-moz-pref("zzglass.hover.rim")) and (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.edges.hover-edge", 3)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-edge-angle: 180deg; }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):hover { --zzg-edge-angle: 180deg; }
   }
   @media (-moz-pref("zzglass.hover.rim")) and (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.edges.hover-edge", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-edge-top: transparent; }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):hover { --zzg-edge-top: transparent; }
   }
   @media (-moz-pref("zzglass.hover.glow")) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected]):hover { --zzg-state-glow: color-mix(in srgb, var(--zzg-accent) 35%, transparent); }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab:not([selected], [visuallyselected], [multiselected]):hover { --zzg-state-glow: color-mix(in srgb, var(--zzg-accent) 35%, transparent); }
   }
 }
 
 /* ---------- Unloaded tab ---------- */
 @media (-moz-pref("zzglass.pending.enabled")) {
   /* defaults first; the settings below override them */
-  :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] {
+  :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending]:not([multiselected]) {
     --zzg-a: color-mix(in srgb, var(--zzg-accent) var(--zzglass-pending-tint, 7%), transparent);
     --zzg-b: transparent;
     --zzg-spread: var(--zzglass-pending-spread, 100%);
     --zzg-dir: 270deg;
   }
-  @media (-moz-pref("zzglass.pending.direction", 0)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-dir: 90deg; } }
-  @media (-moz-pref("zzglass.pending.direction", 2)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-dir: 180deg; } }
-  @media (-moz-pref("zzglass.pending.direction", 3)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-dir: 0deg; } }
-  @media (-moz-pref("zzglass.pending.direction", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-dir: 135deg; } }
-  @media (-moz-pref("zzglass.pending.direction", 5)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-dir: 315deg; } }
-  @media (-moz-pref("zzglass.pending.direction", 6)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-dir: 45deg; } }
-  @media (-moz-pref("zzglass.pending.direction", 7)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-dir: 225deg; } }
+  @media (-moz-pref("zzglass.pending.direction", 0)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending]:not([multiselected]) { --zzg-dir: 90deg; } }
+  @media (-moz-pref("zzglass.pending.direction", 2)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending]:not([multiselected]) { --zzg-dir: 180deg; } }
+  @media (-moz-pref("zzglass.pending.direction", 3)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending]:not([multiselected]) { --zzg-dir: 0deg; } }
+  @media (-moz-pref("zzglass.pending.direction", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending]:not([multiselected]) { --zzg-dir: 135deg; } }
+  @media (-moz-pref("zzglass.pending.direction", 5)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending]:not([multiselected]) { --zzg-dir: 315deg; } }
+  @media (-moz-pref("zzglass.pending.direction", 6)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending]:not([multiselected]) { --zzg-dir: 45deg; } }
+  @media (-moz-pref("zzglass.pending.direction", 7)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending]:not([multiselected]) { --zzg-dir: 225deg; } }
   @media (-moz-pref("zzglass.pending.end-mode", 1)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-b: color-mix(in srgb, var(--zzg-accent) var(--zzglass-pending-end-tint, 2%), transparent); }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending]:not([multiselected]) { --zzg-b: color-mix(in srgb, var(--zzg-accent) var(--zzglass-pending-end-tint, 2%), transparent); }
   }
   @media (-moz-pref("zzglass.pending.end-mode", 2)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-b: color-mix(in srgb, var(--zzg-second) var(--zzglass-pending-end-tint, 2%), transparent); }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending]:not([multiselected]) { --zzg-b: color-mix(in srgb, var(--zzg-second) var(--zzglass-pending-end-tint, 2%), transparent); }
   }
-  @media (-moz-pref("zzglass.pending.end-mode", 3)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-b: var(--zzg-a); } }
+  @media (-moz-pref("zzglass.pending.end-mode", 3)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending]:not([multiselected]) { --zzg-b: var(--zzg-a); } }
 
-  :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] .tab-background, :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] .tab-stack .tab-background {
+  :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending]:not([multiselected]) .tab-background, :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending]:not([multiselected]) .tab-stack .tab-background {
     background-color: transparent !important;
     background-repeat: repeat !important;
     background-position: center center !important;
@@ -630,58 +630,58 @@
   /* The title and favicon fade with the background (the setting fades the
      whole tab), and the favicon can lose its colour. Only those two: the
      tab's own colours (tint, rim, marks) stay as the state draws them. */
-  :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] :is(.tab-icon-stack, .tab-label-container) {
+  :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending]:not([multiselected]) :is(.tab-icon-stack, .tab-label-container) {
     opacity: var(--zzglass-pending-opacity, 0.62) !important;
     /* The favicon keeps its close-left slide while unloaded. */
     transition: opacity 180ms ease-out, filter 180ms ease-out,
       translate var(--zzg-motion-time) var(--zzg-motion-ease) !important;
   }
   @media (-moz-pref("zzglass.pending.greyscale")) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] .tab-icon-stack { filter: grayscale(1) !important; }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending]:not([multiselected]) .tab-icon-stack { filter: grayscale(1) !important; }
   }
   /* Essentials and pinned tabs can stay at full strength while unloaded:
      no fade and no greyscale, with the Unloaded tint kept as the cue. */
   @media not (-moz-pref("zzglass.pending.essentials")) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][zen-essential] { --zzglass-pending-opacity: 1 !important; & .tab-icon-stack { filter: none !important; } }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][zen-essential]:not([multiselected]) { --zzglass-pending-opacity: 1 !important; & .tab-icon-stack { filter: none !important; } }
   }
   @media not (-moz-pref("zzglass.pending.pinned")) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][pinned]:not([zen-essential]) { --zzglass-pending-opacity: 1 !important; & .tab-icon-stack { filter: none !important; } }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][pinned]:not([zen-essential], [multiselected]) { --zzglass-pending-opacity: 1 !important; & .tab-icon-stack { filter: none !important; } }
   }
   /* Or dim them by their own amount: Light, Medium, Strong, Faint. */
-  @media (-moz-pref("zzglass.pending.essentials")) and (-moz-pref("zzglass.pending.essentials-dim", 1)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][zen-essential] { --zzglass-pending-opacity: 0.85 !important; } }
-  @media (-moz-pref("zzglass.pending.essentials")) and (-moz-pref("zzglass.pending.essentials-dim", 2)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][zen-essential] { --zzglass-pending-opacity: 0.72 !important; } }
-  @media (-moz-pref("zzglass.pending.essentials")) and (-moz-pref("zzglass.pending.essentials-dim", 3)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][zen-essential] { --zzglass-pending-opacity: 0.5 !important; } }
-  @media (-moz-pref("zzglass.pending.essentials")) and (-moz-pref("zzglass.pending.essentials-dim", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][zen-essential] { --zzglass-pending-opacity: 0.35 !important; } }
-  @media (-moz-pref("zzglass.pending.pinned")) and (-moz-pref("zzglass.pending.pinned-dim", 1)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][pinned]:not([zen-essential]) { --zzglass-pending-opacity: 0.85 !important; } }
-  @media (-moz-pref("zzglass.pending.pinned")) and (-moz-pref("zzglass.pending.pinned-dim", 2)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][pinned]:not([zen-essential]) { --zzglass-pending-opacity: 0.72 !important; } }
-  @media (-moz-pref("zzglass.pending.pinned")) and (-moz-pref("zzglass.pending.pinned-dim", 3)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][pinned]:not([zen-essential]) { --zzglass-pending-opacity: 0.5 !important; } }
-  @media (-moz-pref("zzglass.pending.pinned")) and (-moz-pref("zzglass.pending.pinned-dim", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][pinned]:not([zen-essential]) { --zzglass-pending-opacity: 0.35 !important; } }
+  @media (-moz-pref("zzglass.pending.essentials")) and (-moz-pref("zzglass.pending.essentials-dim", 1)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][zen-essential]:not([multiselected]) { --zzglass-pending-opacity: 0.85 !important; } }
+  @media (-moz-pref("zzglass.pending.essentials")) and (-moz-pref("zzglass.pending.essentials-dim", 2)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][zen-essential]:not([multiselected]) { --zzglass-pending-opacity: 0.72 !important; } }
+  @media (-moz-pref("zzglass.pending.essentials")) and (-moz-pref("zzglass.pending.essentials-dim", 3)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][zen-essential]:not([multiselected]) { --zzglass-pending-opacity: 0.5 !important; } }
+  @media (-moz-pref("zzglass.pending.essentials")) and (-moz-pref("zzglass.pending.essentials-dim", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][zen-essential]:not([multiselected]) { --zzglass-pending-opacity: 0.35 !important; } }
+  @media (-moz-pref("zzglass.pending.pinned")) and (-moz-pref("zzglass.pending.pinned-dim", 1)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][pinned]:not([zen-essential], [multiselected]) { --zzglass-pending-opacity: 0.85 !important; } }
+  @media (-moz-pref("zzglass.pending.pinned")) and (-moz-pref("zzglass.pending.pinned-dim", 2)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][pinned]:not([zen-essential], [multiselected]) { --zzglass-pending-opacity: 0.72 !important; } }
+  @media (-moz-pref("zzglass.pending.pinned")) and (-moz-pref("zzglass.pending.pinned-dim", 3)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][pinned]:not([zen-essential], [multiselected]) { --zzglass-pending-opacity: 0.5 !important; } }
+  @media (-moz-pref("zzglass.pending.pinned")) and (-moz-pref("zzglass.pending.pinned-dim", 4)) { :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending][pinned]:not([zen-essential], [multiselected]) { --zzglass-pending-opacity: 0.35 !important; } }
   @media (-moz-pref("zzglass.pending.sheen")) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-sheen-level: 1; }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending]:not([multiselected]) { --zzg-sheen-level: 1; }
   }
   @media (-moz-pref("zzglass.pending.rim")) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-edge-top: var(--zzg-rim-top); --zzg-edge-ring: var(--zzg-rim-all); --zzg-edge-owner: tab; }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending]:not([multiselected]) { --zzg-edge-top: var(--zzg-rim-top); --zzg-edge-ring: var(--zzg-rim-all); --zzg-edge-owner: tab; }
     @media (-moz-pref("zzglass.edges.enabled")) {
-      :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-edge-top: color-mix(in srgb, var(--zzglass-edges-pending-color, white) calc(42% * var(--zzglass-edges-pending-top, 1) * var(--zzg-glass)), transparent);
+      :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending]:not([multiselected]) { --zzg-edge-top: color-mix(in srgb, var(--zzglass-edges-pending-color, white) calc(42% * var(--zzglass-edges-pending-top, 1) * var(--zzg-glass)), transparent);
       --zzg-edge-ring: color-mix(in srgb, var(--zzglass-edges-pending-color, white) calc(12% * var(--zzglass-edges-pending-ring, 1) * var(--zzg-glass)), transparent);
       --zzg-edge-width: var(--zzglass-edges-pending-thickness, 1px);
       --zzg-ring-width: var(--zzglass-edges-pending-ring-width, 1px); }
     }
   }
   @media (-moz-pref("zzglass.pending.rim")) and (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.edges.pending-edge", 1)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-edge-angle: 270deg; }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending]:not([multiselected]) { --zzg-edge-angle: 270deg; }
   }
   @media (-moz-pref("zzglass.pending.rim")) and (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.edges.pending-edge", 2)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-edge-angle: 0deg; }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending]:not([multiselected]) { --zzg-edge-angle: 0deg; }
   }
   @media (-moz-pref("zzglass.pending.rim")) and (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.edges.pending-edge", 3)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-edge-angle: 180deg; }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending]:not([multiselected]) { --zzg-edge-angle: 180deg; }
   }
   @media (-moz-pref("zzglass.pending.rim")) and (-moz-pref("zzglass.edges.enabled")) and (-moz-pref("zzglass.edges.pending-edge", 4)) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-edge-top: transparent; }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending]:not([multiselected]) { --zzg-edge-top: transparent; }
   }
   @media (-moz-pref("zzglass.pending.glow")) {
-    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending] { --zzg-state-glow: color-mix(in srgb, var(--zzg-accent) 35%, transparent); }
+    :is(#navigator-toolbox, .zen-library-space-tabs) .tabbrowser-tab[pending]:not([multiselected]) { --zzg-state-glow: color-mix(in srgb, var(--zzg-accent) 35%, transparent); }
   }
 }
 

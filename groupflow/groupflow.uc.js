@@ -751,6 +751,12 @@
         ["edit-gradient", "Edit gradient…", () => !!colors, () => editGradient(group)],
         ["resample-favicon-colour", "Resample favicon colour", () => !!colors && group.tabs.some(tab => tab.hasAttribute("image")), () => resampleColor(group)],
         [group.isZenFolder ? "convert-to-tab-group" : "convert-to-folder", group.isZenFolder ? "Convert to tab group" : "Convert to folder", () => !!leafTabs(group)?.length, () => convert(group)],
+        // A new tab in a new subfolder of this one, named as you make it.
+        ["new-subfolder", "New subfolder", () => !group.isZenFolder, () => {
+          const tab = gBrowser.addTab(window.BROWSER_NEW_TAB_URL || "about:newtab", { triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal(), tabGroup: group });
+          if (tab && tab.group !== group) { try { group.addTabs([tab]); } catch {} }
+          if (tab) { newSubfolder([tab], group); gBrowser.selectedTab = tab; }
+        }],
       ];
       for (const [id, label, eligible, action] of actions) {
         if (!live(group) || !eligible()) continue;
@@ -1300,6 +1306,215 @@
     };
   }
 
+  // ---- idle tabs ------------------------------------------------------------
+  // A tab in a folder that has been unloaded and unused for **Idle after**
+  // (1d by default; days, hours, minutes), or that you send there from its
+  // menu, goes behind an "N idle tabs" row at the bottom of its folder. It
+  // stays hidden, folder unfolded or not, until you click that row. Opening
+  // it brings it out; **Keep visible** exempts a tab.
+  const IDLE_VALUE = "zzgfIdle", KEEP_VALUE = "zzgfKeep";
+  function parseDuration(text) {
+    const value = String(text ?? "").trim().toLowerCase();
+    if (!value) return 864e5;
+    if (/^0+(?:\.0+)?$|^off$/.test(value)) return 0;
+    let total = 0, matched = "";
+    for (const m of value.matchAll(/(\d+(?:\.\d+)?)\s*(d|days?|h|hours?|hrs?|m|mins?|minutes?)\b/g)) {
+      total += Number(m[1]) * ({ d: 864e5, h: 36e5, m: 6e4 })[m[2][0]];
+      matched += m[0];
+    }
+    if (!matched && /^\d+(?:\.\d+)?$/.test(value)) return Number(value) * 6e4;   // a bare number is minutes
+    return total > 0 ? total : 864e5;
+  }
+  // Folders made and filled by hand: Tab Router leaves them where you put them.
+  const lockPlacement = scope => { try { window.TabRouter?.setPlacementLock?.(scope, true); } catch {} };
+  function newSubfolder(tabs, parent) {
+    tabs = tabs.filter(t => t?.isConnected && !t.closing && !t.pinned && !t.hasAttribute("zen-essential") && !t.hasAttribute("zzgf-page-tab"));
+    if (!tabs.length) return null;
+    const into = parent?.tagName === "tab-group" && !parent.hasAttribute("split-view-group") && parent.isConnected ? parent : null;
+    const box = into?.groupContainer, at = box ? [...box.children].indexOf(tabs[0]) : -1;
+    let group = null;
+    try { group = gBrowser.addTabGroup(tabs, { insertBefore: tabs[0], label: "New folder", color: into?.color }); }
+    catch (error) { console.error("[Groupflow] Cannot make a subfolder:", error); return null; }
+    if (!group) return null;
+    if (box && group.parentElement !== box) box.insertBefore(group, box.children[Math.max(0, at)] ?? null);
+    lockPlacement(group);
+    group.dispatchEvent(new CustomEvent("TabGroupUpdate", { bubbles: true }));
+    try { gBrowser.tabGroupMenu?.openEditModal?.(group); } catch {}
+    return group;
+  }
+  function moveToFolder(tabs, group) {
+    tabs = tabs.filter(t => t?.isConnected && !t.closing && !t.pinned && !t.hasAttribute("zen-essential") && !t.hasAttribute("zzgf-page-tab") && t.group !== group);
+    if (!tabs.length || !group?.isConnected) return;
+    try { group.addTabs(tabs); } catch (error) { console.error("[Groupflow] Cannot move tabs:", error); return; }
+    for (const tab of tabs) lockPlacement(tab);
+  }
+  // The folders of a space, nested ones under their parent, as menu rows.
+  function folderRows(workspace) {
+    return [...document.querySelectorAll("tab-group:not([split-view-group])")]
+      .filter(g => !isCopy(g) && (!workspace || (g.closest("zen-workspace")?.id || g.getAttribute("zen-workspace-id")) === workspace))
+      .map(g => { let depth = 0; for (let p = g.parentElement?.closest("tab-group"); p; p = p.parentElement?.closest("tab-group")) depth++; return { g, depth }; });
+  }
+
+  function startIdleTabs() {
+    const enabled = () => bool("idle-tabs", true);
+    const flag = (tab, key) => { try { return SessionStore.getCustomTabValue(tab, key) === "1"; } catch { return false; } };
+    const setFlag = (tab, key, on) => {
+      try { if (on) SessionStore.setCustomTabValue(tab, key, "1"); else SessionStore.deleteCustomTabValue(tab, key); } catch {}
+    };
+    let retired = false, queued = false;
+    const rows = new Map();               // group -> its idle row
+    function idle(tab, now, after) {
+      const group = tab.group;
+      if (!group || isCopy(tab) || group.hasAttribute("split-view-group") || tab.closing || tab.hidden ||
+          tab.selected || tab.multiselected || tab.hasAttribute("zen-empty-tab") || tab.hasAttribute("zzgf-page-tab")) return false;
+      if (flag(tab, KEEP_VALUE)) return false;
+      if (flag(tab, IDLE_VALUE)) return true;
+      if (!after || (!tab.hasAttribute("pending") && !tab.hasAttribute("discarded"))) return false;
+      return now - (tab.lastAccessed || 0) >= after;
+    }
+    function row(group) {
+      let el = rows.get(group);
+      if (!el) {
+        el = document.createElementNS(HTML, "div");
+        el.className = "zzgf-idle-row";
+        el.setAttribute("role", "button");
+        el.tabIndex = 0;
+        const toggle = event => {
+          if (event.type === "keydown" && event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault(); event.stopPropagation();
+          group.toggleAttribute("zzgf-show-idle");
+          soon();
+        };
+        el.addEventListener("click", toggle);
+        el.addEventListener("keydown", toggle);
+        el.addEventListener("mousedown", event => event.stopPropagation());
+        rows.set(group, el);
+      }
+      return el;
+    }
+    function sync() {
+      queued = false;
+      if (retired) return;
+      const on = enabled(), now = Date.now(), after = parseDuration(str("idle-after", "1d"));
+      const counts = new Map();
+      for (const tab of gBrowser.tabs) {
+        const isIdle = on && idle(tab, now, after);
+        const hide = isIdle && !tab.group.hasAttribute("zzgf-show-idle");
+        if (tab.hasAttribute("zzgf-idle") !== isIdle) tab.toggleAttribute("zzgf-idle", isIdle);
+        if (tab.hasAttribute("zzgf-idle-hidden") !== hide) tab.toggleAttribute("zzgf-idle-hidden", hide);
+        if (isIdle) counts.set(tab.group, (counts.get(tab.group) || 0) + 1);
+      }
+      for (const [group, el] of rows) {
+        if (counts.has(group) && group.isConnected) continue;
+        el.remove(); rows.delete(group); group.removeAttribute("zzgf-show-idle");
+      }
+      for (const [group, n] of counts) {
+        const box = group.groupContainer;
+        if (!box) continue;
+        const el = row(group), open = group.hasAttribute("zzgf-show-idle");
+        const label = `${open ? "Hide" : "Show"} ${n} idle tab${n === 1 ? "" : "s"}`;
+        if (el.textContent !== label) el.textContent = label;
+        el.toggleAttribute("open", open);
+        el.setAttribute("aria-expanded", String(open));
+        if (el.parentElement !== box || box.lastElementChild !== el) box.appendChild(el);
+      }
+      gBrowser.tabContainer._invalidateCachedVisibleTabs?.();
+    }
+    const soon = () => { if (!queued && !retired) { queued = true; queueMicrotask(sync); } };
+    // Opening a tab brings it out of the idle row.
+    const selected = event => { const tab = event.target; if (flag(tab, IDLE_VALUE)) setFlag(tab, IDLE_VALUE, false); soon(); };
+    const events = ["TabOpen", "TabClose", "TabGrouped", "TabUngrouped", "FolderGrouped", "FolderUngrouped",
+      "TabGroupRemovedFromDOM", "SSTabRestored", "TabMultiSelect"];
+    for (const type of events) window.addEventListener(type, soon, true);
+    gBrowser.tabContainer.addEventListener("TabSelect", selected);
+    const watch = new MutationObserver(soon);
+    watch.observe(gBrowser.tabContainer, { subtree: true, attributes: true, attributeFilter: ["pending", "discarded"] });
+    const prefs = { observe: soon };
+    for (const k of ["idle-tabs", "idle-after"]) Services.prefs.addObserver(PREFIX + k, prefs);
+    // Time alone makes a tab idle.
+    const tick = setInterval(soon, 60000);
+    sync();
+    const tabsOf = tabs => tabs.filter(t => t?.isConnected && !t.closing && t.group && !t.group.hasAttribute("split-view-group"));
+    const api = {
+      // Unloads them too; a selected tab hands the selection on first.
+      sendToIdle(tabs) {
+        tabs = tabsOf(tabs);
+        if (!tabs.length) return;
+        for (const tab of tabs) { setFlag(tab, KEEP_VALUE, false); setFlag(tab, IDLE_VALUE, true); }
+        if (tabs.includes(gBrowser.selectedTab)) {
+          const next = gBrowser._findTabToBlurTo?.(gBrowser.selectedTab, tabs) || gBrowser.visibleTabs.find(t => !tabs.includes(t));
+          if (next) gBrowser.selectedTab = next;
+        }
+        if (gBrowser.selectedTabs?.length > 1) gBrowser.clearMultiSelectedTabs?.();
+        for (const tab of tabs) if (!tab.selected && !tab.hasAttribute("pending")) { try { gBrowser.discardBrowser(tab); } catch {} }
+        soon();
+      },
+      keepVisible(tabs, on) {
+        for (const tab of tabsOf(tabs)) { setFlag(tab, KEEP_VALUE, on); if (on) setFlag(tab, IDLE_VALUE, false); }
+        soon();
+      },
+      kept: tab => flag(tab, KEEP_VALUE),
+      idle: tab => tab.hasAttribute("zzgf-idle"),
+    };
+    if (window.Groupflow) Object.assign(window.Groupflow, { sendToIdle: api.sendToIdle, keepVisible: api.keepVisible, newSubfolder, moveToFolder });
+    // The tab menu, for the tab or the tabs selected with it.
+    const menuItems = new Set();
+    function tabMenu(event) {
+      const popup = event.target;
+      if (popup.id !== "tabContextMenu") return;
+      for (const el of menuItems) el.remove(); menuItems.clear();
+      const context = window.TabContextMenu?.contextTab;
+      if (!context?.isConnected || isCopy(context)) return;
+      const tabs = (context.multiselected ? gBrowser.selectedTabs : [context]).filter(t => t.isConnected && !t.closing && !t.hasAttribute("zen-empty-tab"));
+      const add = el => { popup.appendChild(el); menuItems.add(el); return el; };
+      const item = (id, label, command, attrs = {}, parent = null) => {
+        const el = document.createXULElement("menuitem");
+        el.setAttribute("label", label); el.setAttribute("data-zz-action", "groupflow--" + id);
+        for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+        el.addEventListener("command", () => { if (!retired) command(); });
+        return parent ? parent.appendChild(el) : add(el);
+      };
+      const inFolders = tabs.filter(t => t.group && !t.group.hasAttribute("split-view-group") && !t.hasAttribute("zzgf-page-tab"));
+      const movable = tabs.filter(t => !t.pinned && !t.hasAttribute("zen-essential") && !t.hasAttribute("zzgf-page-tab"));
+      if (!inFolders.length && !movable.length) return;
+      add(document.createXULElement("menuseparator"));
+      const many = tabs.length > 1 ? ` (${tabs.length})` : "";
+      if (enabled() && inFolders.length) {
+        item("send-to-idle", "Send to idle tabs" + many, () => api.sendToIdle(inFolders));
+        const kept = inFolders.every(t => flag(t, KEEP_VALUE));
+        item("keep-visible", "Keep visible (never idle)", () => api.keepVisible(inFolders, !kept), { type: "checkbox", checked: String(kept) });
+      }
+      if (movable.length) {
+        item("new-subfolder", "Move to new subfolder" + many, () => newSubfolder(movable, context.group));
+        const menu = document.createXULElement("menu"), list = document.createXULElement("menupopup");
+        menu.setAttribute("label", "Move to folder" + many); menu.setAttribute("data-zz-action", "groupflow--move-to-folder");
+        menu.appendChild(list);
+        const space = context.closest?.("zen-workspace")?.id || context.getAttribute("zen-workspace-id");
+        for (const { g, depth } of folderRows(space)) {
+          item("move-to-" + (g.id || "folder"), "\u2003".repeat(depth) + (g.label || "Unnamed folder"), () => moveToFolder(movable, g),
+            movable.every(t => t.group === g) ? { disabled: "true" } : {}, list);
+        }
+        if (list.childElementCount) add(menu);
+      }
+    }
+    window.addEventListener("popupshowing", tabMenu);
+    return { api, cleanup() {
+      retired = true;
+      window.removeEventListener("popupshowing", tabMenu);
+      for (const el of menuItems) el.remove(); menuItems.clear();
+      clearInterval(tick);
+      for (const type of events) window.removeEventListener(type, soon, true);
+      gBrowser.tabContainer.removeEventListener("TabSelect", selected);
+      watch.disconnect();
+      for (const k of ["idle-tabs", "idle-after"]) { try { Services.prefs.removeObserver(PREFIX + k, prefs); } catch {} }
+      for (const el of rows.values()) el.remove();
+      rows.clear();
+      for (const el of document.querySelectorAll("[zzgf-idle], [zzgf-idle-hidden], [zzgf-show-idle]"))
+        for (const a of ["zzgf-idle", "zzgf-idle-hidden", "zzgf-show-idle"]) el.removeAttribute(a);
+      gBrowser.tabContainer._invalidateCachedVisibleTabs?.();
+    } };
+  }
+
   function startCollapsedVisibility() {
     const groupsSelector = "tab-group:not([split-view-group]), zen-folder";
     const collapsedSelector = "tab-group[collapsed]:not([split-view-group]), zen-folder[collapsed]";
@@ -1321,6 +1536,7 @@
       customElements.get("tab-group").prototype];
     const originals = prototypes.map(proto => Object.getOwnPropertyDescriptor(proto, "visible"));
     const getters = prototypes.map((_proto, index) => function() {
+      if (!index && this.hasAttribute("zzgf-idle-hidden") && !this.selected && !this.multiselected) return false;
       const parent = index ? this.parentElement : this;
       if (!parent?.closest(collapsedSelector)) return originals[index].get.call(this);
       if (!index && (!open(this) || this.hidden)) return false;
@@ -1366,6 +1582,7 @@
       // Zen may leave visuallyselected on a restored, unloaded pin. It is
       // native paint state, not an additional selection/retention authority.
       const shown = new Set(tabs.filter(tab => open(tab) && !tab.hidden && tab.group &&
+        (!tab.hasAttribute("zzgf-idle-hidden") || tab.selected || tab.multiselected) &&
         (retained.has(tab) || tab.selected || tab.multiselected ||
           (!tab.hasAttribute("pending") && !tab.hasAttribute("discarded")) ||
           (tab.hasAttribute(marker) && !refold.has(tab)))));
@@ -1430,7 +1647,7 @@
       changed({ type: "rows" });
     });
     observer.observe(gBrowser.tabContainer, { subtree: true, attributes: true,
-      attributeFilter: ["pending", "discarded", "hidden", "multiselected"] });
+      attributeFilter: ["pending", "discarded", "hidden", "multiselected", "zzgf-idle-hidden"] });
 
     // Firefox unfolds a collapsed group whenever a tab is inserted into it
     // (bug 1997096); Zen unfolds one when a tab joins it without an active
@@ -2225,6 +2442,7 @@
     let cleanupGroups = null;
     let cleanupVisibility = null;
     let cleanupPages = null;
+    let idleTabs = null;
     let groupDetails = null;
 
     // This script is injected per window and lives as long as the window
@@ -2271,6 +2489,7 @@
       cleanupGroups?.();
       cleanupVisibility?.();
       cleanupPages?.();
+      idleTabs?.cleanup();
       groupDetails?.retire();
       // What refreshGroup (setSavedBackground included), countTabs and dressCopy wrote on groups and headers.
       for (const group of document.querySelectorAll("tab-group, zen-folder")) {
@@ -2306,6 +2525,7 @@
         else restoreParents(readGroupData("tabGroupParents"), plainGroups(), groupDetails.data);
         cleanupVisibility = startCollapsedVisibility();
         try { cleanupPages = startFolderPages(); } catch (error) { console.error("[Groupflow] folder pages failed to start:", error); }
+        try { idleTabs = startIdleTabs(); } catch (error) { console.error("[Groupflow] idle tabs failed to start:", error); }
         foldStartupGroups();
         groupDetails.save();
         refreshAll();

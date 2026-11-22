@@ -505,6 +505,23 @@
   },
   {
     "type": "checkbox",
+    "property": "zzgroup.idle-tabs",
+    "label": "Idle tabs *A tab in a folder that has been unloaded and unused for the time below, or that you send there from its menu, goes behind a row at the bottom of its folder (\"N idle tabs\") and stays hidden until you click that row. Opening it brings it back out; Keep visible on its menu exempts it.*",
+    "defaultValue": true,
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "string",
+    "property": "zzgroup.idle-after",
+    "label": "Idle after *How long a tab stays unloaded and unused before it goes idle: days, hours and minutes, like 1d, 12h, 1d 6h or 30m. 0 turns automatic idling off; sending tabs there by hand still works.*",
+    "defaultValue": "1d",
+    "placeholder": "1d",
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "checkbox",
     "property": "zzgroup.folder-pages",
     "label": "Folders open their own page *Clicking a folder's icon opens its page, or switches to it when it is already open; clicking its name or elsewhere on the header folds it. The page's own tab row is hidden and the header shows it instead. Tab Router gives its folders their site, channel, game or section page; set or clear any folder's page from its menu.*",
     "defaultValue": true,

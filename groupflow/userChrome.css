@@ -2022,6 +2022,40 @@
   .tab-group-container { --zzg-edge-owner: rail; }
 }
 
+/* Idle tabs (groupflow.uc.js): tabs unloaded and unused for a while, or sent
+   there from a tab's menu, sit behind a row at the bottom of their folder and
+   stay hidden until it is clicked. */
+.tabbrowser-tab[zzgf-idle-hidden]:not([selected], [multiselected]) {
+  display: none !important;
+}
+.zzgf-idle-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  margin-block: 2px;
+  margin-inline-start: var(--zzgf-idle-indent, 6px);
+  padding-inline: 10px;
+  border-radius: 8px;
+  font-size: 0.85em;
+  opacity: 0.65;
+  cursor: default;
+  -moz-window-dragging: no-drag;
+}
+.zzgf-idle-row::before {
+  content: "";
+  width: 0; height: 0;
+  border-block: 4px solid transparent;
+  border-inline-start: 5px solid currentColor;
+  transition: rotate 120ms ease;
+}
+.zzgf-idle-row[open]::before { rotate: 90deg; }
+.zzgf-idle-row:hover, .zzgf-idle-row:focus-visible {
+  opacity: 1;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+.tabbrowser-tab[zzgf-idle] { opacity: 0.8; }
+
 /* Folder pages (groupflow.uc.js): a folder can be a page itself. Its page
    tab's own row is hidden and the header stands for it with its usual look.
    The icon is its own click target (it folds), following its hover slide. */

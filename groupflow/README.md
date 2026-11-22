@@ -81,6 +81,29 @@ Folder labels retain the theme's toolbar text colour when a tab inside is select
 The Label colour setting overrides this foreground without changing the header fill.
 Subfolder state labels can override that shared setting.
 
+## Idle tabs
+
+A tab in a folder that has been unloaded and unused for **Idle after** (`1d`
+by default; days, hours and minutes, like `12h`, `1d 6h` or `30m`; `0` turns
+automatic idling off) goes behind a row at the bottom of its folder, "Show N
+idle tabs". Idle tabs stay hidden, folder unfolded or not, until you click that
+row (it then reads "Hide N idle tabs"); the selected tab is never hidden.
+Opening a tab brings it back out. **Idle tabs** (on) turns all of this off.
+
+From a tab's menu, for that tab or every tab selected with it (Shift- or
+Ctrl-click):
+
+- **Send to idle tabs** puts them behind the row at once and unloads them.
+- **Keep visible (never idle)** exempts them; choose it again to undo.
+- **Move to new subfolder** makes a subfolder of their folder holding them and
+  opens its name and colour editor.
+- **Move to folder** lists the folders of the space, nested ones under their
+  parent.
+
+A folder's own menu has **New subfolder**, which opens a new tab in a new
+subfolder of it. Tab Router leaves tabs and subfolders you move or make this
+way where you put them.
+
 ## Folders as pages
 
 A folder can be a page itself: Tab Router's YouTube folder is youtube.com, a

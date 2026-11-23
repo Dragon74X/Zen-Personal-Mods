@@ -76,6 +76,17 @@
     updateOpenMenu();
     if (PLACEMENT_PREFS.has(data)) return;
     if (data === P + "switch-to-open") { publishSoon(); return; }
+    // Another window saved a cover: take it, and repaint only its tabs.
+    if (data === P + "covers") {
+      if (!coversLoaded) return;
+      const saved = readCache("covers"), fresh = new Set();
+      for (const [slot, c] of Object.entries(saved)) if (savedCover(c) && covers.get(slot)?.d !== c.d) { covers.set(slot, { d: c.d, kind: c.kind }); fresh.add(slot); }
+      if (fresh.size) for (const tab of allTabs()) if (fresh.has(coverSlot(tab))) updatePicture(tab, false);
+      return;
+    }
+    // A private window that looks things up keeps what it learned in memory;
+    // another window's save must not replace that with what is on disk.
+    if (privateWindow && ["learned-names", "creators", "avatars"].some(k => data === P + k)) return;
     if (data === P + "learned-names") { learnedCache = null; targetGen++; return; }
     if (data === P + "creators") { creatorCache = null; targetGen++; return; }
     if (data === P + "avatars") {
@@ -478,6 +489,8 @@
     for (const release of [...refreshCancels]) release();
     inFlight.clear();
     failed.clear();
+    // Cancelled cover fetches never call back: free their places.
+    coverQueue.length = 0; coverRunning = 0; coverFetching.clear();
   }
   const inFlight = new Map();            // container + resource -> pending request
   const failed = new Map();              // request key -> failure time (memory only)
@@ -1223,7 +1236,9 @@
     if (retired || noLookups() || !bool("section-icons", true) || !channelBannerMode() || channelKey(label) !== label) return;
     const key = scoped(label, ctx), slot = "banner:" + key, current = iconMap().get(key);
     // Kept with the channel's icon: fetched once that icon is in.
-    if (!current?.d || (!refresh && current.b) || inFlight.has(slot) || Date.now() - (failed.get(slot) || 0) < RETRY_FAIL_MS) return;
+    // A channel whose page has no banner is asked again after a week, not on
+    // every pass (the page is a 3 MiB read).
+    if (!current?.d || (!refresh && (current.b || (current.nb && Date.now() - current.nb < 6048e5))) || inFlight.has(slot) || Date.now() - (failed.get(slot) || 0) < RETRY_FAIL_MS) return;
     inFlight.set(slot, true);
     const epoch = lookupEpoch;
     const fail = () => { if (epoch !== lookupEpoch) return; inFlight.delete(slot); noteFail(slot); };
@@ -1232,7 +1247,13 @@
         if (epoch !== lookupEpoch) return;
         let url = null;
         try { url = body && channelBannerURL(utf8(body)); } catch {}
-        if (!url) { fail(); note(`no banner for "${label}"`); return; }
+        if (!url) {
+          fail(); note(`no banner for "${label}"`);
+          // The page came but has none: remembered with the icon.
+          const now = iconMap().get(key);
+          if (body && now?.d) { iconMap().set(key, { ...now, nb: Date.now() }); saveIcons(); }
+          return;
+        }
         fetchPicture(url, ctx, true, banner => {
           if (epoch !== lookupEpoch) return;
           inFlight.delete(slot);
@@ -1998,6 +2019,7 @@
       });
     } catch (e) { note(`container reopen failed: ${e}`); return tab; }
     if (!fresh) return tab;
+    if (passedTabs.has(tab)) passedTabs.add(fresh);
     const provenance = savedNexus(tab);
     if (provenance) saveNexus(fresh, { ...provenance, ctx: wantCtx, ws: targetWs || wsOf(tab) });
     try {
@@ -2391,7 +2413,7 @@
   // page side (links-child.sys.mjs) only acts on real link clicks, so back
   // and forward, reloads, forms, redirects and script navigation never
   // switch; Alt-click, Duplicate Tab and session restore always make copies.
-  const LINKS_VERSION = "1.45.11", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
+  const LINKS_VERSION = "1.45.12", OPEN_PAGES = "zzrouter:open-pages", PAGE_TABS = "zzrouter:page-tabs";
   const TRACKING = /^(utm_[a-z]+|fbclid|gclid|dclid|msclkid|mc_cid|mc_eid|igshid|si|ref_src|_hsenc|_hsmi)$/i;
   function pageKey(url) {
     try {
@@ -2852,7 +2874,11 @@
   let copyNext = false, pageLinkOpening = false, linkClicking = false;
   // A click, not a menu command: a middle- or Ctrl-click on a bookmark, a
   // history entry or the browser's own links.
-  const clickedOpen = () => { const e = window.event; return !!e && /^(?:click|auxclick|mouseup)$/.test(e.type) && (e.button === 1 || e.ctrlKey || e.metaKey); };
+  // Firefox turns a Ctrl-click on a bookmark into a command that carries the key.
+  const clickedOpen = () => {
+    const e = window.event;
+    return !!e && (/^(?:click|auxclick|mouseup)$/.test(e.type) ? e.button === 1 || e.ctrlKey || e.metaKey : e.type === "command" && (e.ctrlKey || e.metaKey));
+  };
   function switchIfOpen(url, ctx = 0, except = null) {
     if (!switchOn() || typeof url !== "string") return false;
     const key = pageKey(url);
@@ -2892,9 +2918,10 @@
       return plan;
     } catch (e) { note(`new tab plan failed: ${e}`); return null; }
   }
-  let placing = null, openInto = null;
+  let placing = null, openInto = null, passOpened = false;
   function placeOpened(event) {
     const tab = event.target, plan = placing;
+    if (passOpened) passedTabs.add(tab);
     if (!plan || plan.claimed || tab.pinned || tab.hasAttribute("zen-essential")) return;
     plan.claimed = true;
     // After the opener's call returns and before anything is drawn.
@@ -2906,7 +2933,7 @@
   const OPENERS = ["openLinkIn", "openTrustedLinkIn", "openWebLinkIn"];
   const nativeOpeners = new Map(OPENERS.map(name => [name, window[name]]));
   const wrapOpener = name => function (url, where, params = {}) {
-    let plan = null;
+    let plan = null, passing = false;
     try {
       if ((where === "tab" || where === "tabshifted") && !params?.private) {
         const opener = params?.openerBrowser ? gBrowser.getTabForBrowser(params.openerBrowser) : null;
@@ -2915,14 +2942,15 @@
         const ctx = Number.isInteger(params?.userContextId) && params.userContextId >= 0 ? params.userContextId
           : opener ? contextOf(opener) : gBrowser.selectedTab ? contextOf(gBrowser.selectedTab) : 0;
         if (pageLinkOpening || linkClicking || clickedOpen()) { if (switchIfOpen(href, ctx, opener)) return null; }
-        else if (switchOn() && typeof href === "string" && pageKey(href)) allowCopy(ctx, pageKey(href));  // the new tab's first load is let through
+        else passing = switchOn();          // a tab you asked for: its first load is let through, whatever container it lands in
         if (!copyNext && typeof href === "string") plan = planNewTab(href, ctx, opener);
         if (plan?.ctx != null) params = { ...params, userContextId: plan.ctx };
       }
     } catch (e) { note(`open check failed: ${e}`); }
     placing = plan?.group ? plan : openInto?.isConnected ? { group: openInto } : null;
+    passOpened = passing;
     try { return nativeOpeners.get(name).call(this, url, where, params); }
-    finally { placing = null; }
+    finally { placing = null; passOpened = false; }
   };
   const wrappedOpeners = new Map(OPENERS.map(name => [name, wrapOpener(name)]));
   const openLinkIn = wrappedOpeners.get("openLinkIn");
@@ -3305,6 +3333,9 @@
     lookupOwner().metadata.clear(); privateMetadata.clear();
     creatorCache = new Map(); iconCache = new Map(); learnedCache = new Map();
     saveCreators(); saveIcons(); saveLearned();
+    // Covers are keyed by page address: they go too.
+    covers.clear(); coverFailed.clear();
+    if (!privateWindow) persist("covers", {});
     stampIcons();
     refreshPictures(false);
     targetGen++;
@@ -3388,7 +3419,8 @@
   };
   function pruneOnClose() {
     if (retired || quitting || Services.startup.shuttingDown) return;
-    const others = [...Services.wm.getEnumerator("navigator:browser")].some(w => w !== window && !w.closed);
+    // A private window keeps nothing, so it is not one that still holds pictures.
+    const others = [...Services.wm.getEnumerator("navigator:browser")].some(w => w !== window && !w.closed && !windowPrivate(w));
     try { pruneCaches(!others); } catch (e) { console.error("[TabRouter] Pruning pictures failed:", e); }
   }
   const menuNodes = new Set();

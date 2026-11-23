@@ -1317,6 +1317,26 @@
     "operator": "AND"
   },
   {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.folder-rows",
+    "label": "Rows shown per folder *Most rows a top-level folder shows at once, tabs and subfolder headers alike, before it scrolls inside itself. Its header then counts the rows out of view above and below (click either to scroll a page), and the selected tab stays in view at the edge. Folder box height and the shared list can still make it shorter.*",
+    "defaultValue": 5,
+    "options": [
+      {"label": "No limit", "value": 0},
+      {"label": "3", "value": 3},
+      {"label": "4", "value": 4},
+      {"label": "5", "value": 5},
+      {"label": "6", "value": 6},
+      {"label": "8", "value": 8},
+      {"label": "10", "value": 10},
+      {"label": "12", "value": 12}
+    ],
+    "placeholder": false,
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "layout"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.connector-scroll", "value": true}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
     "type": "string",
     "property": "zzgroup.folder-height",
     "label": "Folder box height *Tallest a top-level folder grows before its contents scroll inside it, rounded down to whole rows. Any CSS length: 70vh is 70% of the window height; 600px is a fixed size; none removes this cap. Folders also share the visible list, so every header stays on screen.*",

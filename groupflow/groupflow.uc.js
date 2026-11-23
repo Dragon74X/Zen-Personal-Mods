@@ -70,7 +70,7 @@
       if (data === PREFIX + "icon-rules") iconRules = null;   // reparsed on the next refresh
       if (["favicons", "icon-rules", "section-icons", "icon-shape", "color-source", "subfolder.include-folders"].some(k => data === PREFIX + k)) schedule();
       if (data === PREFIX + "hover-count") countsDirty = true;
-      if (["folder-height", "connector-scroll", "hover-count", "scroll-glow", "glow-follows"].some(k => data === PREFIX + k)) fitSoon();
+      if (["folder-height", "folder-rows", "connector-scroll", "hover-count", "scroll-glow", "glow-follows"].some(k => data === PREFIX + k)) fitSoon();
       const name = "--" + data.replace(/\./g, "-");
       const value = readPrefValue(data);
       try {
@@ -84,7 +84,7 @@
   function hostOf(tab) {
     try {
       const uri = tab.linkedBrowser?.currentURI;
-      if (uri && /^https?$/.test(uri.scheme)) return uri.host;
+      if (uri && /^https?$/.test(uri.scheme)) { savedURLs.delete(tab); return uri.host; }
     } catch {}
     // An unloaded restored tab can report no address (Zen 1.24.1b's lazy
     // tabs do); its session still has it, as for Tab Router and folder pages.
@@ -94,7 +94,8 @@
       return /^https?:$/.test(url.protocol) ? url.host : null;
     } catch { return null; }
   }
-  // Read once per unloaded tab; a restore loads it, and pending tabs cannot navigate.
+  // Read once per unloaded tab, and forgotten when it loads (it may come back
+  // unloaded on another page); an address not there yet is asked for again.
   const savedURLs = new WeakMap();
   function savedURL(tab) {
     if (savedURLs.has(tab)) return savedURLs.get(tab);
@@ -106,7 +107,7 @@
         url = state.entries?.[(state.index || state.entries.length) - 1]?.url || "";
       } catch { url = ""; }
     }
-    savedURLs.set(tab, url);
+    if (url) savedURLs.set(tab, url);
     return url;
   }
 
@@ -1218,8 +1219,8 @@
     function closeFolder(group) {
       removing.add(group);
       try {
-        if (group.isZenFolder && typeof group.delete === "function") group.delete();
-        else gBrowser.removeTabGroup(group, { isUserTriggered: true });
+        const done = group.isZenFolder && typeof group.delete === "function" ? group.delete() : gBrowser.removeTabGroup(group, { isUserTriggered: true });
+        Promise.resolve(done).catch(error => { removing.delete(group); console.error("[Groupflow] Cannot close folder:", error); });
       } catch (error) { removing.delete(group); console.error("[Groupflow] Cannot close folder:", error); return false; }
       return true;
     }
@@ -1245,7 +1246,8 @@
       finally {
         bulk = outer;
         // A folder left with no tab at all (its subfolders emptied) goes too.
-        if (!bulk) for (const g of folders) if (live(g) && !removing.has(g) && !folderTabs(g).length) closeFolder(g);
+        // Plain groups only: Zen keeps its own folders, empty or not.
+        if (!bulk) for (const g of folders) if (live(g) && !g.isZenFolder && !removing.has(g) && !folderTabs(g).length) closeFolder(g);
       }
     };
     if (typeof nativeRemoveTabs === "function") gBrowser.removeTabs = removeTabs;
@@ -1328,9 +1330,12 @@
   // Folders made and filled by hand: Tab Router leaves them where you put them.
   const lockPlacement = scope => { try { window.TabRouter?.setPlacementLock?.(scope, true); } catch {} };
   function newSubfolder(tabs, parent) {
-    tabs = tabs.filter(t => t?.isConnected && !t.closing && !t.pinned && !t.hasAttribute("zen-essential") && !t.hasAttribute("zzgf-page-tab"));
+    tabs = tabs.filter(t => t?.isConnected && !t.closing && !t.pinned && !t.hasAttribute("zen-essential") && !t.hasAttribute("zzgf-page-tab") &&
+      !t.splitview && !t.group?.hasAttribute("split-view-group"));
     if (!tabs.length) return null;
-    const into = parent?.tagName === "tab-group" && !parent.hasAttribute("split-view-group") && parent.isConnected ? parent : null;
+    // Made where the first of them is, whichever folder was clicked in.
+    parent = tabs[0].group ?? parent;
+    const into = parent?.tagName === "tab-group" && !parent.isZenFolder && !parent.hasAttribute("split-view-group") && parent.isConnected ? parent : null;
     const box = into?.groupContainer, at = box ? [...box.children].indexOf(tabs[0]) : -1;
     let group = null;
     try { group = gBrowser.addTabGroup(tabs, { insertBefore: tabs[0], label: "New folder", color: into?.color }); }
@@ -1343,7 +1348,8 @@
     return group;
   }
   function moveToFolder(tabs, group) {
-    tabs = tabs.filter(t => t?.isConnected && !t.closing && !t.pinned && !t.hasAttribute("zen-essential") && !t.hasAttribute("zzgf-page-tab") && t.group !== group);
+    tabs = tabs.filter(t => t?.isConnected && !t.closing && !t.pinned && !t.hasAttribute("zen-essential") && !t.hasAttribute("zzgf-page-tab") && t.group !== group &&
+      !t.splitview && !t.group?.hasAttribute("split-view-group"));
     if (!tabs.length || !group?.isConnected) return;
     try { group.addTabs(tabs); } catch (error) { console.error("[Groupflow] Cannot move tabs:", error); return; }
     for (const tab of tabs) lockPlacement(tab);
@@ -1365,7 +1371,9 @@
     const rows = new Map();               // group -> its idle row
     function idle(tab, now, after) {
       const group = tab.group;
-      if (!group || isCopy(tab) || group.hasAttribute("split-view-group") || tab.closing || tab.hidden ||
+      // Plain groups only: Zen's own folders count every child of theirs as an
+      // item, and keep their pinned tabs unloaded as a matter of course.
+      if (!group || group.isZenFolder || group.tagName !== "tab-group" || isCopy(tab) || group.hasAttribute("split-view-group") || tab.closing || tab.hidden ||
           tab.selected || tab.multiselected || tab.hasAttribute("zen-empty-tab") || tab.hasAttribute("zzgf-page-tab")) return false;
       if (flag(tab, KEEP_VALUE)) return false;
       if (flag(tab, IDLE_VALUE)) return true;
@@ -1434,7 +1442,7 @@
     // Time alone makes a tab idle.
     const tick = setInterval(soon, 60000);
     sync();
-    const tabsOf = tabs => tabs.filter(t => t?.isConnected && !t.closing && t.group && !t.group.hasAttribute("split-view-group"));
+    const tabsOf = tabs => tabs.filter(t => t?.isConnected && !t.closing && t.group?.tagName === "tab-group" && !t.group.isZenFolder && !t.group.hasAttribute("split-view-group"));
     const api = {
       // Unloads them too; a selected tab hands the selection on first.
       sendToIdle(tabs) {
@@ -1474,8 +1482,9 @@
         el.addEventListener("command", () => { if (!retired) command(); });
         return parent ? parent.appendChild(el) : add(el);
       };
-      const inFolders = tabs.filter(t => t.group && !t.group.hasAttribute("split-view-group") && !t.hasAttribute("zzgf-page-tab"));
-      const movable = tabs.filter(t => !t.pinned && !t.hasAttribute("zen-essential") && !t.hasAttribute("zzgf-page-tab"));
+      const split = t => !!t.splitview || !!t.group?.hasAttribute("split-view-group");
+      const inFolders = tabsOf(tabs).filter(t => !t.hasAttribute("zzgf-page-tab"));
+      const movable = tabs.filter(t => !t.pinned && !t.hasAttribute("zen-essential") && !t.hasAttribute("zzgf-page-tab") && !split(t));
       if (!inFolders.length && !movable.length) return;
       add(document.createXULElement("menuseparator"));
       const many = tabs.length > 1 ? ` (${tabs.length})` : "";
@@ -1527,7 +1536,7 @@
     const affected = new Set();
     // A tab showing in a folded folder keeps showing when it unloads: only
     // folding the folder again by hand decides afresh which rows it keeps.
-    const refold = new Set();
+    const stayed = new WeakSet();          // shown when they unloaded
 
     // CSS cannot change Zen's keyboard-navigation visibility. Keep its guards
     // for hidden/closing tabs and collapsed pinned sections, replacing only
@@ -1585,8 +1594,7 @@
         (!tab.hasAttribute("zzgf-idle-hidden") || tab.selected || tab.multiselected) &&
         (retained.has(tab) || tab.selected || tab.multiselected ||
           (!tab.hasAttribute("pending") && !tab.hasAttribute("discarded")) ||
-          (tab.hasAttribute(marker) && !refold.has(tab)))));
-      refold.clear();
+          stayed.has(tab))));
       for (const tab of shown) {
         if (tab.group.hasAttribute("split-view-group")) {
           for (const peer of tab.group.tabs) if (open(peer) && !peer.hidden) shown.add(peer);
@@ -1619,7 +1627,7 @@
         }
       } else if (event?.type !== "rows") {
         // Folded (by hand, or by a parent header): its rows are decided afresh.
-        if (event?.type === "TabGroupCollapse" && event.target?.tabs) for (const tab of event.target.tabs) refold.add(tab);
+        if (event?.type === "TabGroupCollapse" && event.target?.tabs) for (const tab of event.target.tabs) stayed.delete(tab);
         allDirty = true;
         if (!event || ["TabOpen", "TabClose", "TabGrouped", "TabUngrouped", "FolderGrouped", "FolderUngrouped",
           "TabGroupRemovedFromDOM"].includes(event.type)) membershipDirty = true;
@@ -1634,7 +1642,7 @@
     for (const event of events) window.addEventListener(event, changed, true);
     const keepLastPref = PREFIX + "collapse-keep-last-used";
     // A changed setting decides every folder's rows afresh.
-    const keepLastChanged = () => { for (const tab of document.querySelectorAll(tabSelector)) refold.add(tab); changed(); };
+    const keepLastChanged = () => { for (const tab of document.querySelectorAll(tabSelector)) stayed.delete(tab); changed(); };
     Services.prefs.addObserver(keepLastPref, keepLastChanged);
     // Native restoration can clear pending without a TabAttrModified event.
     // Each of these attributes changes only its own row (sync adds a split
@@ -1643,7 +1651,15 @@
     const observer = new MutationObserver(records => {
       const relevant = records.filter(record => record.target.matches(tabSelector));
       if (!relevant.length) return;
-      for (const record of relevant) affected.add(record.target);
+      for (const record of relevant) {
+        const tab = record.target;
+        affected.add(tab);
+        // Unloaded while showing: it stays. Loaded again: an ordinary row.
+        if (!record.attributeName || record.attributeName === "pending" || record.attributeName === "discarded") {
+          const unloaded = tab.hasAttribute("pending") || tab.hasAttribute("discarded");
+          if (unloaded && tab.hasAttribute(marker)) stayed.add(tab); else if (!unloaded) stayed.delete(tab);
+        }
+      }
       changed({ type: "rows" });
     });
     observer.observe(gBrowser.tabContainer, { subtree: true, attributes: true,
@@ -1761,9 +1777,22 @@
     const stops = new Set([0]);
     for (const row of box.querySelectorAll(".tabbrowser-tab, .tab-group-label-container")) {
       const r = row.getBoundingClientRect();
-      if (r.height) stops.add(Math.round(r.top - top - (parseFloat(getComputedStyle(row).marginTop) || 0)));
+      if (r.height) stops.add(Math.round(restTop(row, r) - top - (parseFloat(getComputedStyle(row).marginTop) || 0)));
     }
     return [...stops].sort((a, b) => a - b);
+  }
+  // The selected tab is held in view at an edge of a scrolling folder
+  // (position: sticky, userChrome.css), away from its own place in the rows.
+  // Where it rests: after the row before it, or at the top of its folder.
+  function restTop(row, r) {
+    if (!row.matches?.(".tabbrowser-tab:is([selected], [visuallyselected])") || getComputedStyle(row).position !== "sticky") return r.top;
+    const px = (el, side) => parseFloat(getComputedStyle(el)[side]) || 0;
+    for (let prev = row.previousElementSibling; prev; prev = prev.previousElementSibling) {
+      const p = prev.getBoundingClientRect();
+      if (p.height) return p.bottom + px(prev, "marginBottom") + px(row, "marginTop");
+    }
+    const parent = row.parentElement;
+    return parent ? parent.getBoundingClientRect().top + px(parent, "paddingTop") + px(parent, "borderTopWidth") + px(row, "marginTop") : r.top;
   }
   // Top-level folders stay on screen: their bodies share the height the rest
   // of the list leaves (shareList), each also capped by zzgroup.folder-height,
@@ -1772,13 +1801,16 @@
   // below three rows. Returns the scroll positions and the height for each.
   const shares = new WeakMap();             // box -> height its list gives it
   const prefCap = box => parseFloat(getComputedStyle(box).getPropertyValue("--zzgf-box-cap")) || Infinity;
+  // **Rows shown per folder** (5; 0 for no limit): the height of that many
+  // rows, tabs and subfolder headers alike, from the top of the body.
+  const rowsCap = ends => { const n = num("folder-rows", 5); return n > 0 && ends.length > n ? ends[n] : Infinity; };
   // Reads only: null when the body fits (releaseBox then clears it).
   function measureBox(box) {
     const end = box.scrollHeight;
     const stops = rowStops(box), ends = [...stops, end];
     // A registered <length> | none, so it computes to pixels without touching
     // the box's own height (which would clamp its scroll position).
-    const cap = Math.max(shares.get(box) ?? prefCap(box), ends[Math.min(3, ends.length - 1)]);
+    const cap = Math.max(Math.min(shares.get(box) ?? prefCap(box), rowsCap(ends)), ends[Math.min(3, ends.length - 1)]);
     if (end <= cap) return null;
     const last = stops.find(y => end - y <= cap) ?? end - cap;
     const positions = stops.filter(y => y < last).concat(last);
@@ -1825,7 +1857,7 @@
     const strip = Services.prefs.getBoolPref("zen.view.draggable-sidebar", false)
       ? parseFloat(getComputedStyle(host).getPropertyValue("--tab-min-height")) || 36 : 0;
     let room = port.clientHeight + (empty?.getBoundingClientRect().height || 0) - pad - strip - 1 - (end - top - used);
-    const want = boxes.map(b => Math.min(b.scrollHeight, prefCap(b)));
+    const want = boxes.map(b => Math.min(b.scrollHeight, prefCap(b), rowsCap([...rowStops(b), b.scrollHeight])));
     const order = boxes.map((_, i) => i).sort((a, b) => want[a] - want[b]);
     order.forEach((i, k) => {
       const share = Math.max(0, Math.min(want[i], room / (order.length - k)));
@@ -1884,6 +1916,65 @@
     box.toggleAttribute("zzgf-more-below", scrolls && y < max - 0.5);
     box.toggleAttribute("zzgf-glow", scrolls);
     lightSoon();
+    outSoon(box);
+  }
+  // How many rows are out of view above and below, on the folder's header
+  // (each half scrolls a page that way), and whether the selected tab, which
+  // stays in view at an edge (userChrome.css), is lying over another row.
+  // Counted once the scrolling settles, not on every frame of a glide.
+  const outBoxes = new Set();
+  let outTimer = null;
+  function outSoon(box) {
+    outBoxes.add(box);
+    clearTimeout(outTimer);
+    outTimer = setTimeout(() => { outTimer = null; for (const b of outBoxes) markOut(b); outBoxes.clear(); }, 90);
+  }
+  function markOut(box) {
+    const header = box.parentElement?.querySelector?.(":scope > .tab-group-label-container");
+    if (!header?.matches?.(".tab-group-label-container")) return;
+    let chip = header.querySelector(":scope > .zzgf-out");
+    for (const tab of box.querySelectorAll(".tabbrowser-tab[zzgf-pinned]")) tab.removeAttribute?.("zzgf-pinned");
+    if (!box.isConnected || !header || !box.hasAttribute("zzgf-glow") || box.parentElement.collapsed) { chip?.remove(); return; }
+    const view = box.getBoundingClientRect();
+    let above = 0, below = 0;
+    const rows = [];
+    for (const row of box.querySelectorAll(".tabbrowser-tab, .tab-group-label-container")) {
+      const r = row.getBoundingClientRect();
+      if (!r.height) continue;
+      rows.push([row, r]);
+      if (row.matches(".tabbrowser-tab:is([selected], [visuallyselected])")) continue;   // held in view
+      if (r.bottom <= view.top + 1) above++; else if (r.top >= view.bottom - 1) below++;
+    }
+    const held = rows.find(([row]) => row.matches(".tabbrowser-tab[selected]"));
+    if (held && rows.some(([row, r]) => row !== held[0] && Math.min(r.bottom, held[1].bottom) - Math.max(r.top, held[1].top) > 4)) held[0].setAttribute("zzgf-pinned", "");
+    if (!above && !below) { chip?.remove(); return; }
+    if (!chip) {
+      chip = document.createElementNS(HTML, "span");
+      chip.className = "zzgf-out";
+      // The half pressed decides: its count changes, and it may move, before the click lands.
+      let pressed = null;
+      chip.addEventListener("mousedown", event => { event.stopPropagation(); pressed = event.target.closest?.("button")?.dataset.dir ?? null; });
+      chip.addEventListener("click", event => {
+        event.preventDefault(); event.stopPropagation();
+        const dir = pressed ?? event.target.closest?.("button")?.dataset.dir;
+        pressed = null;
+        if (dir) pageFolder(box, dir);
+      });
+      for (const dir of ["up", "down"]) {
+        const b = document.createElementNS(HTML, "button");
+        b.type = "button"; b.className = "zzgf-out-" + dir; b.dataset.dir = dir; b.tabIndex = -1;
+        chip.appendChild(b);
+      }
+      header.appendChild(chip);
+    }
+    const [up, down] = chip.children;
+    const set = (b, n, arrow, where) => {
+      const text = n ? arrow + n : "";
+      if (b.textContent !== text) b.textContent = text;
+      b.hidden = !n;
+      b.title = n ? `${n} more ${where}` : "";
+    };
+    set(up, above, "\u2191", "above"); set(down, below, "\u2193", "below");
   }
 
   function canScroll(box, dir) {
@@ -2246,7 +2337,7 @@
     const selected = box.querySelector(".tabbrowser-tab[selected]");
     const r = selected?.getBoundingClientRect();
     if (r?.height && !keep) {
-      const top = r.top - box.getBoundingClientRect().top + y, bottom = top + r.height;
+      const top = restTop(selected, r) - box.getBoundingClientRect().top + y, bottom = top + r.height;
       const showing = choices.filter(p => top >= p && bottom <= p + measured.fitAt(p));
       if (showing.length) choices = showing;
     }
@@ -2331,7 +2422,9 @@
     const box = event.target;
     if (box.classList?.contains("tab-group-container") && !glides.has(box)) {
       box.style.setProperty("--zzgf-box-scroll", box.scrollTop + "px");
-      if (box.scrollTop !== setTops.get(box)) fitSoon(true);   // then settle it on a row
+      // Then settle it on a row. The selected tab is held in view at the
+      // box's edge, so the body is not pulled back to where that tab rests.
+      if (box.scrollTop !== setTops.get(box)) fitSoon();
     }
   }
   // With toolkit.tabbox.switchByScrolling on, Firefox turns every wheel over
@@ -2481,7 +2574,8 @@
       tabArea.disconnect();
       window.removeEventListener("resize", resized);
       spaceShown.disconnect();
-      clearTimeout(fitTimer); clearTimeout(countTimer);
+      clearTimeout(fitTimer); clearTimeout(countTimer); clearTimeout(outTimer);
+      for (const tab of document.querySelectorAll(".tabbrowser-tab[zzgf-pinned]")) tab.removeAttribute("zzgf-pinned");
       try { Services.obs.removeObserver(identityChanged, "contextual-identity-updated"); } catch {}
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}
       clearTimeout(timer);
@@ -2497,7 +2591,7 @@
         for (const name of ["zzgf-shape", "zzgf-picture", "zzgf-saved-gradient"]) group.removeAttribute(name);
         const header = group.labelContainerElement;
         if (!header) continue;
-        for (const child of header.querySelectorAll(":scope > :is(.zzgf-count, .zzgf-rim, .zzgf-control)")) child.remove();
+        for (const child of header.querySelectorAll(":scope > :is(.zzgf-count, .zzgf-rim, .zzgf-control, .zzgf-out)")) child.remove();
         for (const name of ["tooltiptext", "aria-description"]) header.removeAttribute(name);
         for (const name of ["--zzgf-saved-tint-background", "--zzgf-saved-available"]) header.style.removeProperty(name);
       }

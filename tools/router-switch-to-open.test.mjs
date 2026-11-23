@@ -56,7 +56,7 @@ function opener({ open = new Map(), enabled = false, plan = null, native = null 
   const src = router.slice(router.indexOf("  let copyNext = false"), router.indexOf("  // One shared patch on Firefox's click handler"))
     + router.slice(router.indexOf("  function copyWhile(fn) {"), router.indexOf("  // A new tab whose first page is open elsewhere closes and switches there."))
     + router.slice(router.indexOf("  function allowCopy("), router.indexOf("  function takeCopy("));
-  const log = { native: [], switched: [], placed: [] }, copies = new Map(), microtasks = [];
+  const log = { native: [], switched: [], placed: [] }, copies = new Map(), microtasks = [], passed = new Set();
   const groups = { Local: { label: "Local", isConnected: true, addTabs(tabs) { for (const t of tabs) { t.group = this; log.placed.push(t.id); } } } };
   let ctx;
   ctx = vm.createContext({ URL, URLSearchParams, Services: { io: { newURI: url => { const u = new URL(url); return { spec: url, host: u.hostname }; } },
@@ -71,14 +71,15 @@ function opener({ open = new Map(), enabled = false, plan = null, native = null 
     switchTo: tab => log.switched.push(tab.id),
     hostOf: t => t.linkedBrowser.currentURI.host, targetPath: () => (plan ? ["Local"] : null),
     resolveDestination: () => ({ ws: "ws1", ctx: plan?.ctx ?? null }), findChild: name => groups[name] || null,
-    queueMicrotask: fn => microtasks.push(fn) });
+    queueMicrotask: fn => microtasks.push(fn), passedTabs: passed });
   vm.runInContext(src + "\nthis.openLinkIn = openLinkIn; this.copyWhile = copyWhile; this.contentClick = contentClick; this.placeOpened = placeOpened; this.fromPage = fn => { pageLinkOpening = true; try { return fn(); } finally { pageLinkOpening = false; } };", ctx);
-  return { ctx, log, copies, microtasks, groups };
+  return { ctx, log, copies, microtasks, groups, passed };
 }
 
 test("A new tab you ask for by a command opens even when its page is open; clicks switch to it", () => {
   const b = { id: "b" };
-  const { ctx, log, copies } = opener({ open: new Map([["example.com/b", b]]) });
+  const opened = { id: "opened", pinned: false, hasAttribute: () => false };
+  const { ctx, log, copies, passed } = opener({ open: new Map([["example.com/b", b]]), native: (log, ctx, ...a) => { log.native.push(a); ctx.placeOpened({ target: opened }); } });
   copies.set("0|example.com/never-loaded", Date.now() - 10000);
   ctx.contentClick({ button: 1 }, () => ctx.openLinkIn("https://example.com/b", "tab", { userContextId: 0 }));
   assert.deepEqual(log.switched, ["b"], "a middle- or Ctrl-click on a page's link switches before any tab exists");
@@ -91,10 +92,11 @@ test("A new tab you ask for by a command opens even when its page is open; click
   ctx.openLinkIn("https://example.com/b", "tab", { userContextId: NaN });
   assert.deepEqual(log.switched, [], "Open Link in New Tab opens a tab");
   assert.equal(log.native.length, 1);
-  assert.ok(copies.has("0|example.com/b"), "and its first page is not switched away afterwards");
-  assert.ok(!copies.has("0|example.com/never-loaded"), "a copy whose tab never loaded is let go");
+  assert.ok(passed.has(opened), "the tab itself is let through, whatever container it lands in");
+  assert.ok(!copies.has("0|example.com/b"), "and no allowance is left for some other tab to use");
   ctx.copyWhile(() => ctx.openLinkIn("https://example.com/b", "tab", {}));
   assert.equal(log.native.length, 2, "an Alt-click opens the copy");
+  assert.ok(passed.has(opened), "its tab is let through the same way");
   ctx.fromPage(() => ctx.openLinkIn("https://example.com/b", "tab", {}));
   assert.deepEqual(log.switched, ["b"], "a plain click in a folder's page switches to the open page");
   assert.equal(log.native.length, 2, "and Firefox never creates the tab");

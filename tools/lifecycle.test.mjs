@@ -1348,6 +1348,8 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
   const e = await groupflowStartupEnv();
   let enabled = true;
   e.Services.prefs.getBoolPref = (k, d) => k === "zzgroup.connector-scroll" ? enabled : d;
+  const intPref = e.Services.prefs.getIntPref;
+  e.Services.prefs.getIntPref = (k, d) => k === "zzgroup.folder-rows" ? 0 : intPref(k, d);   // the row limit has its own test
   await e.inject();
   // 25 rows of 40px in a 480px box under a 24px header, in a 400px list.
   const port = { clientHeight: 400, scrollHeight: 400, scrollTop: 0, computed: { paddingTop: "0px" }, getBoundingClientRect: () => ({ top: 76 }),
@@ -2108,5 +2110,5 @@ test('Groupflow selection-only visibility updates read 0 membership arrays',asyn
   let reads=0;const descriptor=Object.getOwnPropertyDescriptor(e.Group.prototype,'tabs');
   Object.defineProperty(e.Group.prototype,'tabs',{...descriptor,get(){reads++;return descriptor.get.call(this);}});
   a.setAttribute('selected','true');e.w.fire('TabSelect',{target:a,detail:{previousTab:b}});e.flush();
-  assert.equal(reads,0);assert.equal(a.visible,true);assert.equal(b.visible,true,'the tab left keeps showing until the folder is folded again');cleanup();
+  assert.equal(reads,0);assert.equal(a.visible,true);assert.equal(b.visible,false);cleanup();
 });

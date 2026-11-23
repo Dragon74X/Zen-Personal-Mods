@@ -86,7 +86,8 @@ Subfolder state labels can override that shared setting.
 A tab in a folder that has been unloaded and unused for **Idle after** (`1d`
 by default; days, hours and minutes, like `12h`, `1d 6h` or `30m`; `0` turns
 automatic idling off) goes behind a row at the bottom of its folder, "Show N
-idle tabs". Idle tabs stay hidden, folder unfolded or not, until you click that
+idle tabs". Plain groups only: Zen's own folders, which keep their pinned tabs
+unloaded, are left alone. Idle tabs stay hidden, folder unfolded or not, until you click that
 row (it then reads "Hide N idle tabs"); the selected tab is never hidden.
 Opening a tab brings it back out. **Idle tabs** (on) turns all of this off.
 
@@ -171,6 +172,20 @@ them. **Scroll what is under the pointer** (on by default) sends every wheel
 to the sidebar section under the pointer instead. The space below the tab
 list, down to the bottom buttons, scrolls the tab list. Hold a modifier key
 and Zen's own wheel shortcuts (zoom, switching spaces) work as before.
+
+## Rows shown per folder
+
+**Rows shown per folder** (5; **No limit** to turn off) is the most rows a
+top-level folder shows at once, tabs and subfolder headers alike, before it
+scrolls inside itself. **Folder box height** and the shared list can still make
+it shorter. While it scrolls:
+
+- its header counts the rows out of view, like `↑4 ↓2`; clicking either half
+  scrolls a page that way;
+- the selected tab stays in view, held at the edge it would leave by, with a
+  backing so the row beneath does not show through. A tab inside a subfolder is
+  held for as long as any of that subfolder is in view. Selecting a tab still
+  scrolls the folder to it.
 
 ## Scrolling inside folders
 

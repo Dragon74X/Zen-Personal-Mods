@@ -25,7 +25,7 @@ function env({ after = "1d", now = 1e12 } = {}) {
     removeAttribute: k => attrs.delete(k), toggleAttribute(k, on = !attrs.has(k)) { if (on) attrs.set(k, ""); else attrs.delete(k); return on; } }; };
   const box = { children: [], get lastElementChild() { return this.children.at(-1) ?? null; },
     appendChild(el) { this.children = this.children.filter(c => c !== el); this.children.push(el); el.parentElement = this; } };
-  const group = node({ isConnected: true, groupContainer: box, hasAttribute(k) { return this.attrs.has(k); } });
+  const group = node({ isConnected: true, tagName: "tab-group", groupContainer: box, hasAttribute(k) { return this.attrs.has(k); } });
   const tabs = [];
   const tab = (name, { pending = false, accessed = now, selected = false } = {}) => {
     const t = node({ name, group, isConnected: true, closing: false, hidden: false, selected, multiselected: false, lastAccessed: accessed });
@@ -96,5 +96,18 @@ test("Idle after 0 idles nothing by time; sending by hand still works", async ()
   assert.equal(old.hasAttribute("zzgf-idle"), false);
   idle.api.sendToIdle([other]); e.flush();
   assert.equal(other.hasAttribute("zzgf-idle"), true);
+  idle.cleanup();
+});
+
+test("Zen's own folders are left alone: their tabs never go idle and get no row", async () => {
+  const e = env();
+  e.group.tagName = "zen-folder"; e.group.isZenFolder = true;
+  const old = e.tab("old", { pending: true, accessed: 0 });
+  e.tab("current", { selected: true });
+  const { startIdleTabs } = await load("groupflow", "startIdleTabs", e.ctx);
+  const idle = startIdleTabs(); e.flush();
+  idle.api.sendToIdle([old]); e.flush();
+  assert.equal(old.hasAttribute("zzgf-idle"), false);
+  assert.equal(e.box.children.length, 0, "nothing added among a Zen folder's items");
   idle.cleanup();
 });

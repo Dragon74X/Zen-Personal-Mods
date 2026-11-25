@@ -70,7 +70,7 @@
       if (data === PREFIX + "icon-rules") iconRules = null;   // reparsed on the next refresh
       if (["favicons", "icon-rules", "section-icons", "icon-shape", "color-source", "subfolder.include-folders"].some(k => data === PREFIX + k)) schedule();
       if (data === PREFIX + "hover-count") countsDirty = true;
-      if (["folder-height", "folder-rows", "connector-scroll", "hover-count", "scroll-glow", "glow-follows"].some(k => data === PREFIX + k)) fitSoon();
+      if (["folder-height", "folder-rows", "parent-folder-rows", "connector-scroll", "hover-count", "scroll-glow", "glow-follows"].some(k => data === PREFIX + k)) fitSoon();
       const name = "--" + data.replace(/\./g, "-");
       const value = readPrefValue(data);
       try {
@@ -1801,16 +1801,18 @@
   // below three rows. Returns the scroll positions and the height for each.
   const shares = new WeakMap();             // box -> height its list gives it
   const prefCap = box => parseFloat(getComputedStyle(box).getPropertyValue("--zzgf-box-cap")) || Infinity;
-  // **Rows shown per folder** (5; 0 for no limit): the height of that many
-  // rows, tabs and subfolder headers alike, from the top of the body.
-  const rowsCap = ends => { const n = num("folder-rows", 5); return n > 0 && ends.length > n ? ends[n] : Infinity; };
+  function rowsCap(box, ends) {
+    const parent = box.querySelector(":scope > :is(tab-group, zen-folder):not([split-view-group])");
+    const limit = parent ? num("parent-folder-rows", 0) : num("folder-rows", 5);
+    return limit > 0 && limit < ends.length ? ends[limit] : Infinity;
+  }
   // Reads only: null when the body fits (releaseBox then clears it).
   function measureBox(box) {
     const end = box.scrollHeight;
     const stops = rowStops(box), ends = [...stops, end];
     // A registered <length> | none, so it computes to pixels without touching
     // the box's own height (which would clamp its scroll position).
-    const cap = Math.max(Math.min(shares.get(box) ?? prefCap(box), rowsCap(ends)), ends[Math.min(3, ends.length - 1)]);
+    const cap = Math.max(Math.min(shares.get(box) ?? prefCap(box), rowsCap(box, ends)), ends[Math.min(3, ends.length - 1)]);
     if (end <= cap) return null;
     const last = stops.find(y => end - y <= cap) ?? end - cap;
     const positions = stops.filter(y => y < last).concat(last);
@@ -1857,7 +1859,7 @@
     const strip = Services.prefs.getBoolPref("zen.view.draggable-sidebar", false)
       ? parseFloat(getComputedStyle(host).getPropertyValue("--tab-min-height")) || 36 : 0;
     let room = port.clientHeight + (empty?.getBoundingClientRect().height || 0) - pad - strip - 1 - (end - top - used);
-    const want = boxes.map(b => Math.min(b.scrollHeight, prefCap(b), rowsCap([...rowStops(b), b.scrollHeight])));
+    const want = boxes.map(b => Math.min(b.scrollHeight, prefCap(b), rowsCap(b, [...rowStops(b), b.scrollHeight])));
     const order = boxes.map((_, i) => i).sort((a, b) => want[a] - want[b]);
     order.forEach((i, k) => {
       const share = Math.max(0, Math.min(want[i], room / (order.length - k)));
@@ -1919,8 +1921,7 @@
     outSoon(box);
   }
   // How many rows are out of view above and below, on the folder's header
-  // (each half scrolls a page that way), and whether the selected tab, which
-  // stays in view at an edge (userChrome.css), is lying over another row.
+  // (each half scrolls a page that way).
   // Counted once the scrolling settles, not on every frame of a glide.
   const outBoxes = new Set();
   let outTimer = null;
@@ -1933,20 +1934,15 @@
     const header = box.parentElement?.querySelector?.(":scope > .tab-group-label-container");
     if (!header?.matches?.(".tab-group-label-container")) return;
     let chip = header.querySelector(":scope > .zzgf-out");
-    for (const tab of box.querySelectorAll(".tabbrowser-tab[zzgf-pinned]")) tab.removeAttribute?.("zzgf-pinned");
     if (!box.isConnected || !header || !box.hasAttribute("zzgf-glow") || box.parentElement.collapsed) { chip?.remove(); return; }
     const view = box.getBoundingClientRect();
     let above = 0, below = 0;
-    const rows = [];
     for (const row of box.querySelectorAll(".tabbrowser-tab, .tab-group-label-container")) {
       const r = row.getBoundingClientRect();
       if (!r.height) continue;
-      rows.push([row, r]);
       if (row.matches(".tabbrowser-tab:is([selected], [visuallyselected])")) continue;   // held in view
       if (r.bottom <= view.top + 1) above++; else if (r.top >= view.bottom - 1) below++;
     }
-    const held = rows.find(([row]) => row.matches(".tabbrowser-tab[selected]"));
-    if (held && rows.some(([row, r]) => row !== held[0] && Math.min(r.bottom, held[1].bottom) - Math.max(r.top, held[1].top) > 4)) held[0].setAttribute("zzgf-pinned", "");
     if (!above && !below) { chip?.remove(); return; }
     if (!chip) {
       chip = document.createElementNS(HTML, "span");
@@ -2575,7 +2571,6 @@
       window.removeEventListener("resize", resized);
       spaceShown.disconnect();
       clearTimeout(fitTimer); clearTimeout(countTimer); clearTimeout(outTimer);
-      for (const tab of document.querySelectorAll(".tabbrowser-tab[zzgf-pinned]")) tab.removeAttribute("zzgf-pinned");
       try { Services.obs.removeObserver(identityChanged, "contextual-identity-updated"); } catch {}
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}
       clearTimeout(timer);

@@ -175,10 +175,13 @@ and Zen's own wheel shortcuts (zoom, switching spaces) work as before.
 
 ## Rows shown per folder
 
-**Rows shown per folder** (5; **No limit** to turn off) is the most rows a
-top-level folder shows at once, tabs and subfolder headers alike, before it
-scrolls inside itself. **Folder box height** and the shared list can still make
-it shorter. While it scrolls:
+In **Groupflow → Show settings for → Layout and scrolling → Scrolling**, enable
+**Scroll inside folders** to see both row limits. **Visible rows in tab-only
+folders** defaults to 5 and keeps your existing tab limit. **Visible rows in
+folders with subfolders** defaults to **No limit** and includes mixed folders.
+Each visible tab and subfolder header counts as one row in the top-level
+folder's scrolling area. **Folder box height** and the available sidebar height
+can still make either folder shorter. While it scrolls:
 
 - its header counts the rows out of view, like `↑4 ↓2`; clicking either half
   scrolls a page that way;

@@ -1822,18 +1822,23 @@
 
 /* The selected tab stays in view while its folder scrolls: held at the edge
    it would leave by (a tab in a subfolder, for as long as any of that
-   subfolder is in view). Lying over another row it gets a backing
-   (zzgf-pinned, groupflow.uc.js), so the row beneath does not show through. */
+   subfolder is in view). The backing follows the sticky state from the first frame. */
 @media (-moz-pref("zzgroup.connector-scroll")) {
   #navigator-toolbox tab-group:not([split-view-group]):not(tab-group tab-group) > .tab-group-container[zzgf-glow] .tabbrowser-tab:is([selected], [visuallyselected]) {
     position: sticky !important;
     top: 0;
     bottom: 0;
     z-index: 2;
-  }
-  #navigator-toolbox .tabbrowser-tab[zzgf-pinned] {
-    background-color: var(--zzgf-pin-backing, color-mix(in srgb, var(--zen-themed-toolbar-bg-transparent, var(--zen-themed-toolbar-bg, Canvas)) 94%, CanvasText)) !important;
     border-radius: var(--border-radius-medium, 8px);
+    background-color: Canvas !important;
+    @supports (backdrop-filter: blur(1px)) {
+      background-color: color-mix(in srgb, Canvas 86%, transparent) !important;
+      backdrop-filter: blur(12px) !important;
+    }
+    @media (prefers-reduced-transparency: reduce), (forced-colors: active) {
+      background-color: Canvas !important;
+      backdrop-filter: none !important;
+    }
   }
 }
 /* Rows out of view, counted at the end of the folder's header row: each half scrolls a page. */

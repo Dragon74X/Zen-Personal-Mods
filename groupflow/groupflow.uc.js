@@ -1369,16 +1369,25 @@
     };
     let retired = false, queued = false;
     const rows = new Map();               // group -> its idle row
-    function idle(tab, now, after) {
-      const group = tab.group;
-      // Plain groups only: Zen's own folders count every child of theirs as an
-      // item, and keep their pinned tabs unloaded as a matter of course.
-      if (!group || group.isZenFolder || group.tagName !== "tab-group" || isCopy(tab) || group.hasAttribute("split-view-group") || tab.closing || tab.hidden ||
-          tab.selected || tab.multiselected || tab.hasAttribute("zen-empty-tab") || tab.hasAttribute("zzgf-page-tab")) return false;
-      if (flag(tab, KEEP_VALUE)) return false;
-      if (flag(tab, IDLE_VALUE)) return true;
-      if (!after || (!tab.hasAttribute("pending") && !tab.hasAttribute("discarded"))) return false;
-      return now - (tab.lastAccessed || 0) >= after;
+    function idleTabs(now, after, keep) {
+      const idle = new Set(), folders = new Map();
+      for (const tab of gBrowser.tabs) {
+        const group = tab.group;
+        if (!group || group.isZenFolder || group.tagName !== "tab-group" || isCopy(tab) || group.hasAttribute("split-view-group") ||
+            tab.closing || tab.hidden || tab.selected || tab.multiselected || tab.hasAttribute("zen-empty-tab") ||
+            tab.hasAttribute("zzgf-page-tab") || flag(tab, KEEP_VALUE)) continue;
+        if (flag(tab, IDLE_VALUE)) { idle.add(tab); continue; }
+        if (!after || !(tab.hasAttribute("pending") || tab.hasAttribute("discarded"))) continue;
+        if (!folders.has(group)) folders.set(group, []);
+        folders.get(group).push(tab);
+      }
+      for (const tabs of folders.values()) {
+        if (tabs.length <= keep) continue;
+        if (keep) tabs.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
+        for (let i = keep; i < tabs.length; i++)
+          if (now - (tabs[i].lastAccessed || 0) >= after) idle.add(tabs[i]);
+      }
+      return idle;
     }
     function row(group) {
       let el = rows.get(group);
@@ -1404,16 +1413,22 @@
       queued = false;
       if (retired) return;
       const on = enabled(), now = Date.now(), after = parseDuration(str("idle-after", "1d"));
+      const idle = on && idleTabs(now, after, Math.max(0, num("idle-keep-recent", 5)));
+      let layoutChanged = false;
       const counts = new Map();
       for (const tab of gBrowser.tabs) {
-        const isIdle = on && idle(tab, now, after);
+        const isIdle = on && idle.has(tab);
         const hide = isIdle && !tab.group.hasAttribute("zzgf-show-idle");
         if (tab.hasAttribute("zzgf-idle") !== isIdle) tab.toggleAttribute("zzgf-idle", isIdle);
-        if (tab.hasAttribute("zzgf-idle-hidden") !== hide) tab.toggleAttribute("zzgf-idle-hidden", hide);
+        if (tab.hasAttribute("zzgf-idle-hidden") !== hide) {
+          tab.toggleAttribute("zzgf-idle-hidden", hide);
+          layoutChanged = true;
+        }
         if (isIdle) counts.set(tab.group, (counts.get(tab.group) || 0) + 1);
       }
       for (const [group, el] of rows) {
         if (counts.has(group) && group.isConnected) continue;
+        layoutChanged = true;
         el.remove(); rows.delete(group); group.removeAttribute("zzgf-show-idle");
       }
       for (const [group, n] of counts) {
@@ -1421,12 +1436,21 @@
         if (!box) continue;
         const el = row(group), open = group.hasAttribute("zzgf-show-idle");
         const label = `${open ? "Hide" : "Show"} ${n} idle tab${n === 1 ? "" : "s"}`;
-        if (el.textContent !== label) el.textContent = label;
+        const summary = `Idle · ${n}`;
+        if (el.textContent !== summary) el.textContent = summary;
+        el.setAttribute("aria-label", label);
+        el.title = label;
         el.toggleAttribute("open", open);
         el.setAttribute("aria-expanded", String(open));
-        if (el.parentElement !== box || box.lastElementChild !== el) box.appendChild(el);
+        if (el.parentElement !== box || box.lastElementChild !== el) {
+          box.appendChild(el);
+          layoutChanged = true;
+        }
       }
-      gBrowser.tabContainer._invalidateCachedVisibleTabs?.();
+      if (layoutChanged) {
+        gBrowser.tabContainer._invalidateCachedVisibleTabs?.();
+        fitSoon();
+      }
     }
     const soon = () => { if (!queued && !retired) { queued = true; queueMicrotask(sync); } };
     // Opening a tab brings it out of the idle row.
@@ -1438,7 +1462,7 @@
     const watch = new MutationObserver(soon);
     watch.observe(gBrowser.tabContainer, { subtree: true, attributes: true, attributeFilter: ["pending", "discarded"] });
     const prefs = { observe: soon };
-    for (const k of ["idle-tabs", "idle-after"]) Services.prefs.addObserver(PREFIX + k, prefs);
+    for (const k of ["idle-tabs", "idle-after", "idle-keep-recent"]) Services.prefs.addObserver(PREFIX + k, prefs);
     // Time alone makes a tab idle.
     const tick = setInterval(soon, 60000);
     sync();
@@ -1515,7 +1539,7 @@
       for (const type of events) window.removeEventListener(type, soon, true);
       gBrowser.tabContainer.removeEventListener("TabSelect", selected);
       watch.disconnect();
-      for (const k of ["idle-tabs", "idle-after"]) { try { Services.prefs.removeObserver(PREFIX + k, prefs); } catch {} }
+      for (const k of ["idle-tabs", "idle-after", "idle-keep-recent"]) { try { Services.prefs.removeObserver(PREFIX + k, prefs); } catch {} }
       for (const el of rows.values()) el.remove();
       rows.clear();
       for (const el of document.querySelectorAll("[zzgf-idle], [zzgf-idle-hidden], [zzgf-show-idle]"))
@@ -1775,7 +1799,7 @@
   function rowStops(box) {
     const top = box.getBoundingClientRect().top - box.scrollTop;
     const stops = new Set([0]);
-    for (const row of box.querySelectorAll(".tabbrowser-tab, .tab-group-label-container")) {
+    for (const row of box.querySelectorAll(".tabbrowser-tab, .tab-group-label-container, .zzgf-idle-row")) {
       const r = row.getBoundingClientRect();
       if (r.height) stops.add(Math.round(restTop(row, r) - top - (parseFloat(getComputedStyle(row).marginTop) || 0)));
     }

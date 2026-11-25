@@ -18,7 +18,7 @@ test("Idle after reads days, hours and minutes; 0 turns automatic idling off", a
   assert.equal(parseDuration("soon"), 24 * H, "nonsense is the default");
 });
 
-function env({ after = "1d", now = 1e12 } = {}) {
+function env({ after = "1d", keep, now = 1e12 } = {}) {
   const values = new Map(), listeners = new Map(), micro = [];
   const node = (extra = {}) => { const attrs = new Map(); return { attrs, ...extra,
     hasAttribute: k => attrs.has(k), getAttribute: k => attrs.get(k) ?? null, setAttribute(k, v) { attrs.set(k, String(v)); },
@@ -37,20 +37,20 @@ function env({ after = "1d", now = 1e12 } = {}) {
     window: { addEventListener: (t, f) => listeners.set(t, f), removeEventListener() {}, Groupflow: {} },
     document: { createElementNS: () => { const el = node({ remove() { if (el.parentElement) el.parentElement.children = el.parentElement.children.filter(c => c !== el); el.parentElement = null; },
       addEventListener() {}, textContent: "", tabIndex: -1 }); return el; }, querySelectorAll: () => [] },
-    Services: { prefs: { getBoolPref: (k, d) => d, getStringPref: (k, d) => prefs[k] ?? d, getIntPref: (k, d) => d, addObserver() {}, removeObserver() {} } },
+    Services: { prefs: { getBoolPref: (k, d) => d, getStringPref: (k, d) => prefs[k] ?? d, getIntPref: (k, d) => k === "zzgroup.idle-keep-recent" ? keep ?? d : d, addObserver() {}, removeObserver() {} } },
     SessionStore: { getCustomTabValue: (t, k) => values.get(t)?.[k] ?? "", setCustomTabValue: (t, k, v) => values.set(t, { ...values.get(t), [k]: v }),
       deleteCustomTabValue: (t, k) => { if (values.has(t)) delete values.get(t)[k]; } },
     gBrowser: { tabs, get selectedTab() { return tabs.find(t => t.selected); }, set selectedTab(t) { for (const x of tabs) x.selected = x === t; },
       tabContainer: { addEventListener: (t, f) => listeners.set("tc:" + t, f), removeEventListener() {}, _invalidateCachedVisibleTabs() {} },
       _findTabToBlurTo: (t, ex) => tabs.find(x => x !== t && !ex.includes(x)), discardBrowser: t => t.attrs.set("pending", ""), visibleTabs: tabs },
-    MutationObserver: class { observe() {} disconnect() {} }, queueMicrotask: fn => micro.push(fn), setInterval: () => 1, clearInterval() {},
+    MutationObserver: class { observe() {} disconnect() {} }, queueMicrotask: fn => micro.push(fn), setInterval: () => 1, clearInterval() {}, setTimeout: () => 1, clearTimeout() {},
     Date: { now: () => now }, isCopy: () => false,
   };
   return { ctx, tabs, tab, group, box, listeners, values, flush() { while (micro.length) micro.shift()(); } };
 }
 
 test("A folder's tabs go idle after the set time unloaded, or when sent; idle ones sit behind one row", async () => {
-  const e = env({ now: 1e12 });
+  const e = env({ now: 1e12, keep: 0 });
   const day = 864e5;
   const fresh = e.tab("fresh", { pending: true, accessed: 1e12 - day / 2 });
   const old = e.tab("old", { pending: true, accessed: 1e12 - 2 * day });
@@ -65,16 +65,16 @@ test("A folder's tabs go idle after the set time unloaded, or when sent; idle on
   assert.deepEqual(state(loadedOld), [false, false], "a loaded tab never goes idle by time");
   assert.deepEqual(state(current), [false, false], "nor the selected one");
   assert.equal(e.box.children.length, 1, "one row at the bottom of the folder");
-  assert.equal(e.box.children[0].textContent, "Show 1 idle tab");
+  assert.equal(e.box.children[0].textContent, "Idle · 1");
   // Sent by hand: idle and unloaded at once.
   idle.api.sendToIdle([loadedOld]); e.flush();
   assert.deepEqual(state(loadedOld), [true, true]);
   assert.ok(loadedOld.hasAttribute("pending"), "unloaded too");
-  assert.equal(e.box.children[0].textContent, "Show 2 idle tabs");
+  assert.equal(e.box.children[0].textContent, "Idle · 2");
   // The row shows them, the folder unfolded or not.
   e.group.toggleAttribute("zzgf-show-idle", true); idle.api.keepVisible([], true); e.flush();
   assert.deepEqual(state(old), [true, false]);
-  assert.equal(e.box.children[0].textContent, "Hide 2 idle tabs");
+  assert.equal(e.box.children[0].textContent, "Idle · 2");
   // Keep visible exempts; opening a tab brings it out.
   idle.api.keepVisible([old], true); e.flush();
   assert.deepEqual(state(old), [false, false]);
@@ -109,5 +109,26 @@ test("Zen's own folders are left alone: their tabs never go idle and get no row"
   idle.api.sendToIdle([old]); e.flush();
   assert.equal(old.hasAttribute("zzgf-idle"), false);
   assert.equal(e.box.children.length, 0, "nothing added among a Zen folder's items");
+  idle.cleanup();
+});
+
+test("The recent floor ranks direct unloaded tabs by last use and yields to explicit choices", async () => {
+  const e = env();
+  const ages = [9, 8, 3, 1, 12, 6, 2];
+  const tabs = ages.map(days => e.tab(String(days), { pending: true, accessed: 1e12 - days * 864e5 }));
+  const { startIdleTabs } = await load("groupflow", "startIdleTabs", e.ctx);
+  const idle = startIdleTabs();
+  const hidden = () => tabs.filter(t => t.hasAttribute("zzgf-idle-hidden")).map(t => t.name);
+  assert.deepEqual(hidden(), ["9", "12"]);
+  assert.equal(e.box.children[0].getAttribute("aria-label"), "Show 2 idle tabs");
+  const sub = { ...e.group, groupContainer: { ...e.box, children: [] } };
+  tabs[0].group = sub;
+  e.listeners.get("TabGrouped")(); e.flush();
+  assert.deepEqual(hidden(), ["12"], "a subfolder has its own allowance");
+  idle.api.sendToIdle([tabs[3]]); e.flush();
+  assert.deepEqual(hidden(), ["1"], "manual idling releases a slot for the next newest tab");
+  idle.api.keepVisible([tabs[3]], true); e.flush();
+  assert.deepEqual(hidden(), []);
+  assert.equal(e.box.children.length, 0);
   idle.cleanup();
 });

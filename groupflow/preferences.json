@@ -506,7 +506,7 @@
   {
     "type": "checkbox",
     "property": "zzgroup.idle-tabs",
-    "label": "Idle tabs *A tab in a folder that has been unloaded and unused for the time below, or that you send there from its menu, goes behind a row at the bottom of its folder (\"N idle tabs\") and stays hidden until you click that row. Opening it brings it back out; Keep visible on its menu exempts it.*",
+    "label": "Idle tabs *Collect older unloaded tabs under a footer in each folder. Click it to show or hide them. Keep visible exempts a tab and Send to idle tabs adds it immediately.*",
     "defaultValue": true,
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
@@ -518,6 +518,26 @@
     "defaultValue": "1d",
     "placeholder": "1d",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.idle-keep-recent",
+    "label": "Recent unloaded tabs to keep *Per folder or subfolder. The most recently used unloaded tabs stay outside Idle regardless of age. Zero uses Idle after alone. Send to idle tabs still works immediately.*",
+    "defaultValue": 5,
+    "options": [
+      {"label": "0", "value": 0},
+      {"label": "1", "value": 1},
+      {"label": "3", "value": 3},
+      {"label": "5 (default)", "value": 5},
+      {"label": "8", "value": 8},
+      {"label": "10", "value": 10},
+      {"label": "15", "value": 15},
+      {"label": "20", "value": 20}
+    ],
+    "placeholder": false,
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"if": {"property": "zzgroup.idle-tabs", "value": true}}],
     "operator": "AND"
   },
   {

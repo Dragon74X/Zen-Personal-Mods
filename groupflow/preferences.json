@@ -506,7 +506,7 @@
   {
     "type": "checkbox",
     "property": "zzgroup.idle-tabs",
-    "label": "Idle tabs *A tab in a folder that has been unloaded and unused for the time below, or that you send there from its menu, goes behind a row at the bottom of its folder (\"N idle tabs\") and stays hidden until you click that row. Opening it brings it back out; Keep visible on its menu exempts it.*",
+    "label": "Idle tabs *Collect older unloaded tabs under a footer in each folder. Click it to show or hide them. Keep visible exempts a tab and Send to idle tabs adds it immediately.*",
     "defaultValue": true,
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
     "operator": "AND"
@@ -518,6 +518,27 @@
     "defaultValue": "1d",
     "placeholder": "1d",
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.idle-keep-recent",
+    "label": "Recent unloaded tabs to keep *Per folder or subfolder. The most recently used unloaded tabs stay outside Idle regardless of age. Unlimited removes the Idle section and shows its tabs in their original positions. Zero applies the idle duration alone.*",
+    "defaultValue": 5,
+    "options": [
+      {"label": "0", "value": 0},
+      {"label": "1", "value": 1},
+      {"label": "3", "value": 3},
+      {"label": "5 (default)", "value": 5},
+      {"label": "8", "value": 8},
+      {"label": "10", "value": 10},
+      {"label": "15", "value": 15},
+      {"label": "20", "value": 20},
+      {"label": "Unlimited", "value": -1}
+    ],
+    "placeholder": false,
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"if": {"property": "zzgroup.idle-tabs", "value": true}}],
     "operator": "AND"
   },
   {
@@ -1320,10 +1341,30 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.folder-rows",
-    "label": "Rows shown per folder *Most rows a top-level folder shows at once, tabs and subfolder headers alike, before it scrolls inside itself. Its header then counts the rows out of view above and below (click either to scroll a page), and the selected tab stays in view at the edge. Folder box height and the shared list can still make it shorter.*",
+    "label": "Visible rows in tab-only folders *Maximum visible rows in a top-level folder containing only tabs. Folder box height and available sidebar space still apply.*",
     "defaultValue": 5,
     "options": [
       {"label": "No limit", "value": 0},
+      {"label": "3", "value": 3},
+      {"label": "4", "value": 4},
+      {"label": "5 (default)", "value": 5},
+      {"label": "6", "value": 6},
+      {"label": "8", "value": 8},
+      {"label": "10", "value": 10},
+      {"label": "12", "value": 12}
+    ],
+    "placeholder": false,
+    "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "layout"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"conditions": [{"if": {"property": "zzgroup.connector-scroll", "value": true}}], "operator": "OR"}],
+    "operator": "AND"
+  },
+  {
+    "type": "dropdown",
+    "value": "number",
+    "property": "zzgroup.parent-folder-rows",
+    "label": "Visible rows in folders with subfolders *Applies as soon as a top-level folder contains a subfolder, including when it also holds tabs. Expanded tabs and subfolder headers each count as one row. Folder box height and available sidebar space still apply.*",
+    "defaultValue": 0,
+    "options": [
+      {"label": "No limit (default)", "value": 0},
       {"label": "3", "value": 3},
       {"label": "4", "value": 4},
       {"label": "5", "value": 5},

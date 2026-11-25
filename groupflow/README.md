@@ -83,13 +83,19 @@ Subfolder state labels can override that shared setting.
 
 ## Idle tabs
 
-A tab in a folder that has been unloaded and unused for **Idle after** (`1d`
-by default; days, hours and minutes, like `12h`, `1d 6h` or `30m`; `0` turns
-automatic idling off) goes behind a row at the bottom of its folder, "Show N
-idle tabs". Plain groups only: Zen's own folders, which keep their pinned tabs
-unloaded, are left alone. Idle tabs stay hidden, folder unfolded or not, until you click that
-row (it then reads "Hide N idle tabs"); the selected tab is never hidden.
-Opening a tab brings it back out. **Idle tabs** (on) turns all of this off.
+Under **States and profiles**, **Recent unloaded tabs to keep** defaults to 5
+per plain folder or subfolder, ranked by last use. Only unloaded tabs beyond
+that number and older than **Idle after** (default `1d`) go idle automatically.
+Choose **Unlimited** to remove the Idle footer and show all its tabs in their
+original positions. Choosing a finite count again restores manual idle choices.
+Set the count to 0 for age alone, or the duration to 0 for manual idling only.
+Selected, multiselected and explicitly kept tabs stay exempt. Zen's native
+folders retain their own behavior.
+
+The footer appears only when the folder has idle tabs. **Idle · 3** means
+three tabs. Click it or use Enter or Space to toggle their visibility in their
+original positions. The chevron shows whether they are revealed. Selecting
+an idle tab brings it back out. Folder collapse and scrolling still apply.
 
 From a tab's menu, for that tab or every tab selected with it (Shift- or
 Ctrl-click):
@@ -175,10 +181,13 @@ and Zen's own wheel shortcuts (zoom, switching spaces) work as before.
 
 ## Rows shown per folder
 
-**Rows shown per folder** (5; **No limit** to turn off) is the most rows a
-top-level folder shows at once, tabs and subfolder headers alike, before it
-scrolls inside itself. **Folder box height** and the shared list can still make
-it shorter. While it scrolls:
+In **Groupflow → Show settings for → Layout and scrolling → Scrolling**, enable
+**Scroll inside folders** to see both row limits. **Visible rows in tab-only
+folders** defaults to 5 and keeps your existing tab limit. **Visible rows in
+folders with subfolders** defaults to **No limit** and includes mixed folders.
+Each visible tab and subfolder header counts as one row in the top-level
+folder's scrolling area. **Folder box height** and the available sidebar height
+can still make either folder shorter. While it scrolls:
 
 - its header counts the rows out of view, like `↑4 ↓2`; clicking either half
   scrolls a page that way;

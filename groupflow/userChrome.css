@@ -1822,18 +1822,23 @@
 
 /* The selected tab stays in view while its folder scrolls: held at the edge
    it would leave by (a tab in a subfolder, for as long as any of that
-   subfolder is in view). Lying over another row it gets a backing
-   (zzgf-pinned, groupflow.uc.js), so the row beneath does not show through. */
+   subfolder is in view). The backing follows the sticky state from the first frame. */
 @media (-moz-pref("zzgroup.connector-scroll")) {
   #navigator-toolbox tab-group:not([split-view-group]):not(tab-group tab-group) > .tab-group-container[zzgf-glow] .tabbrowser-tab:is([selected], [visuallyselected]) {
     position: sticky !important;
     top: 0;
     bottom: 0;
     z-index: 2;
-  }
-  #navigator-toolbox .tabbrowser-tab[zzgf-pinned] {
-    background-color: var(--zzgf-pin-backing, color-mix(in srgb, var(--zen-themed-toolbar-bg-transparent, var(--zen-themed-toolbar-bg, Canvas)) 94%, CanvasText)) !important;
     border-radius: var(--border-radius-medium, 8px);
+    background-color: Canvas !important;
+    @supports (backdrop-filter: blur(1px)) {
+      background-color: color-mix(in srgb, Canvas 86%, transparent) !important;
+      backdrop-filter: blur(12px) !important;
+    }
+    @media (prefers-reduced-transparency: reduce), (forced-colors: active) {
+      background-color: Canvas !important;
+      backdrop-filter: none !important;
+    }
   }
 }
 /* Rows out of view, counted at the end of the folder's header row: each half scrolls a page. */
@@ -2081,30 +2086,30 @@
 .zzgf-idle-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  min-height: 26px;
-  margin-block: 2px;
+  align-self: flex-start;
+  gap: 5px;
+  min-height: 24px;
+  padding-inline: 8px;
   margin-inline-start: var(--zzgf-idle-indent, 6px);
-  padding-inline: 10px;
-  border-radius: 8px;
   font-size: 0.85em;
-  opacity: 0.65;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, currentColor 80%, transparent);
   cursor: default;
   -moz-window-dragging: no-drag;
 }
 .zzgf-idle-row::before {
   content: "";
-  width: 0; height: 0;
-  border-block: 4px solid transparent;
-  border-inline-start: 5px solid currentColor;
-  transition: rotate 120ms ease;
+  width: 5px;
+  height: 5px;
+  border-block-start: 1px solid;
+  border-inline-end: 1px solid;
+  transform: rotate(45deg);
 }
-.zzgf-idle-row[open]::before { rotate: 90deg; }
-.zzgf-idle-row:hover, .zzgf-idle-row:focus-visible {
-  opacity: 1;
-  background: color-mix(in srgb, currentColor 8%, transparent);
-}
-.tabbrowser-tab[zzgf-idle] { opacity: 0.8; }
+.zzgf-idle-row:dir(rtl)::before { transform: rotate(-45deg); }
+.zzgf-idle-row[open]::before { transform: rotate(135deg); }
+.zzgf-idle-row[open]:dir(rtl)::before { transform: rotate(-135deg); }
+.zzgf-idle-row:is(:hover, :focus-visible) { color: inherit; }
+.zzgf-idle-row:focus-visible { outline: 1px solid currentColor; outline-offset: -1px; }
 
 /* Folder pages (groupflow.uc.js): a folder can be a page itself. Its page
    tab's own row is hidden and the header stands for it with its usual look.

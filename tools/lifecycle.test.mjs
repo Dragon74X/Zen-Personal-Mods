@@ -1349,7 +1349,12 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
   let enabled = true;
   e.Services.prefs.getBoolPref = (k, d) => k === "zzgroup.connector-scroll" ? enabled : d;
   const intPref = e.Services.prefs.getIntPref;
-  e.Services.prefs.getIntPref = (k, d) => k === "zzgroup.folder-rows" ? 0 : intPref(k, d);   // the row limit has its own test
+  let tabRows = 0, parentRows = 0, hasSubfolder = true;
+  e.Services.prefs.getIntPref = (k, d) => {
+    if (k === "zzgroup.folder-rows") return tabRows;
+    if (k === "zzgroup.parent-folder-rows") return parentRows;
+    return intPref(k, d);
+  };
   await e.inject();
   // 25 rows of 40px in a 480px box under a 24px header, in a 400px list.
   const port = { clientHeight: 400, scrollHeight: 400, scrollTop: 0, computed: { paddingTop: "0px" }, getBoundingClientRect: () => ({ top: 76 }),
@@ -1366,7 +1371,8 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
     get scrollTop() { return this.top; },
     set scrollTop(v) { this.top = Math.max(0, Math.min(1000 - (parseFloat(this.style["--zzgf-box-fit"]) || 480), v)); },
     getBoundingClientRect() { const height = parseFloat(this.style["--zzgf-box-fit"]) || 480; return { top: 100, height, bottom: 100 + height }; },
-    querySelector: () => rows[0], querySelectorAll: selector => selector.includes("tab-group-container") ? [] : rows };
+    querySelector: selector => selector.startsWith(":scope > :is(tab-group, zen-folder)") ? (hasSubfolder ? sub : null) : rows[0],
+    querySelectorAll: selector => selector.includes("tab-group-container") ? [] : rows };
   let rowReads = 0;
   const rows = Array.from({ length: 25 }, (_, i) => ({ getBoundingClientRect: () => (rowReads++, { top: 100 + i * 40 - box.top, height: 40 }) }));
   const top = { tagName: "tab-group", hasAttribute: () => false, parentElement: { closest: () => null }, querySelector: () => box, querySelectorAll: () => [], contains: () => false };
@@ -1451,7 +1457,20 @@ test("Groupflow scrolls a top-level group's box from anywhere in its body and ke
   box.getBoundingClientRect = () => ({ top: 300, height: 480, bottom: 780 });   // a folder above it grew
   refit();
   assert.equal(box.style["--zzgf-glow"], rest, "a folder that fits goes by its own tabs, so other folders moving it leave its light alone");
-  box.scrollHeight = 1000; enabled = false;
+  box.scrollHeight = 1000;
+  box.getBoundingClientRect = () => ({ top: 100, bottom: 580, height: 480 });
+  tabRows = 5;
+  parentRows = 3;
+  refit();
+  assert.equal(box.style["--zzgf-box-fit"], "120px", "a parent uses its own three-row cap");
+  hasSubfolder = false;
+  refit();
+  assert.equal(box.style["--zzgf-box-fit"], "200px", "removing the last subfolder restores the five-tab cap");
+  hasSubfolder = true;
+  parentRows = 0;
+  refit();
+  assert.equal(box.style["--zzgf-box-fit"], "360px", "an unlimited parent uses the available sidebar height");
+  enabled = false;
   assert.equal(wheel(gutter), false, "the setting turns it off");
 });
 

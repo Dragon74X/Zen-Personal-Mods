@@ -70,7 +70,7 @@
       if (data === PREFIX + "icon-rules") iconRules = null;   // reparsed on the next refresh
       if (["favicons", "icon-rules", "section-icons", "icon-shape", "color-source", "subfolder.include-folders"].some(k => data === PREFIX + k)) schedule();
       if (data === PREFIX + "hover-count") countsDirty = true;
-      if (["folder-height", "folder-rows", "connector-scroll", "hover-count", "scroll-glow", "glow-follows"].some(k => data === PREFIX + k)) fitSoon();
+      if (["folder-height", "folder-rows", "parent-folder-rows", "connector-scroll", "hover-count", "scroll-glow", "glow-follows"].some(k => data === PREFIX + k)) fitSoon();
       const name = "--" + data.replace(/\./g, "-");
       const value = readPrefValue(data);
       try {
@@ -1362,23 +1362,33 @@
   }
 
   function startIdleTabs() {
-    const enabled = () => bool("idle-tabs", true);
+    const recentLimit = () => num("idle-keep-recent", 5);
+    const enabled = (limit = recentLimit()) => bool("idle-tabs", true) && limit !== -1;
     const flag = (tab, key) => { try { return SessionStore.getCustomTabValue(tab, key) === "1"; } catch { return false; } };
     const setFlag = (tab, key, on) => {
       try { if (on) SessionStore.setCustomTabValue(tab, key, "1"); else SessionStore.deleteCustomTabValue(tab, key); } catch {}
     };
     let retired = false, queued = false;
     const rows = new Map();               // group -> its idle row
-    function idle(tab, now, after) {
-      const group = tab.group;
-      // Plain groups only: Zen's own folders count every child of theirs as an
-      // item, and keep their pinned tabs unloaded as a matter of course.
-      if (!group || group.isZenFolder || group.tagName !== "tab-group" || isCopy(tab) || group.hasAttribute("split-view-group") || tab.closing || tab.hidden ||
-          tab.selected || tab.multiselected || tab.hasAttribute("zen-empty-tab") || tab.hasAttribute("zzgf-page-tab")) return false;
-      if (flag(tab, KEEP_VALUE)) return false;
-      if (flag(tab, IDLE_VALUE)) return true;
-      if (!after || (!tab.hasAttribute("pending") && !tab.hasAttribute("discarded"))) return false;
-      return now - (tab.lastAccessed || 0) >= after;
+    function idleTabs(now, after, keep) {
+      const idle = new Set(), folders = new Map();
+      for (const tab of gBrowser.tabs) {
+        const group = tab.group;
+        if (!group || group.isZenFolder || group.tagName !== "tab-group" || isCopy(tab) || group.hasAttribute("split-view-group") ||
+            tab.closing || tab.hidden || tab.selected || tab.multiselected || tab.hasAttribute("zen-empty-tab") ||
+            tab.hasAttribute("zzgf-page-tab") || flag(tab, KEEP_VALUE)) continue;
+        if (flag(tab, IDLE_VALUE)) { idle.add(tab); continue; }
+        if (!after || !(tab.hasAttribute("pending") || tab.hasAttribute("discarded"))) continue;
+        if (!folders.has(group)) folders.set(group, []);
+        folders.get(group).push(tab);
+      }
+      for (const tabs of folders.values()) {
+        if (tabs.length <= keep) continue;
+        if (keep) tabs.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
+        for (let i = keep; i < tabs.length; i++)
+          if (now - (tabs[i].lastAccessed || 0) >= after) idle.add(tabs[i]);
+      }
+      return idle;
     }
     function row(group) {
       let el = rows.get(group);
@@ -1403,17 +1413,23 @@
     function sync() {
       queued = false;
       if (retired) return;
-      const on = enabled(), now = Date.now(), after = parseDuration(str("idle-after", "1d"));
+      const limit = recentLimit(), on = enabled(limit);
+      const idle = on && idleTabs(Date.now(), parseDuration(str("idle-after", "1d")), Math.max(0, limit));
+      let layoutChanged = false;
       const counts = new Map();
       for (const tab of gBrowser.tabs) {
-        const isIdle = on && idle(tab, now, after);
+        const isIdle = on && idle.has(tab);
         const hide = isIdle && !tab.group.hasAttribute("zzgf-show-idle");
         if (tab.hasAttribute("zzgf-idle") !== isIdle) tab.toggleAttribute("zzgf-idle", isIdle);
-        if (tab.hasAttribute("zzgf-idle-hidden") !== hide) tab.toggleAttribute("zzgf-idle-hidden", hide);
+        if (tab.hasAttribute("zzgf-idle-hidden") !== hide) {
+          tab.toggleAttribute("zzgf-idle-hidden", hide);
+          layoutChanged = true;
+        }
         if (isIdle) counts.set(tab.group, (counts.get(tab.group) || 0) + 1);
       }
       for (const [group, el] of rows) {
         if (counts.has(group) && group.isConnected) continue;
+        layoutChanged = true;
         el.remove(); rows.delete(group); group.removeAttribute("zzgf-show-idle");
       }
       for (const [group, n] of counts) {
@@ -1421,12 +1437,21 @@
         if (!box) continue;
         const el = row(group), open = group.hasAttribute("zzgf-show-idle");
         const label = `${open ? "Hide" : "Show"} ${n} idle tab${n === 1 ? "" : "s"}`;
-        if (el.textContent !== label) el.textContent = label;
+        const summary = `Idle · ${n}`;
+        if (el.textContent !== summary) el.textContent = summary;
+        el.setAttribute("aria-label", label);
+        el.title = label;
         el.toggleAttribute("open", open);
         el.setAttribute("aria-expanded", String(open));
-        if (el.parentElement !== box || box.lastElementChild !== el) box.appendChild(el);
+        if (el.parentElement !== box || box.lastElementChild !== el) {
+          box.appendChild(el);
+          layoutChanged = true;
+        }
       }
-      gBrowser.tabContainer._invalidateCachedVisibleTabs?.();
+      if (layoutChanged) {
+        gBrowser.tabContainer._invalidateCachedVisibleTabs?.();
+        fitSoon();
+      }
     }
     const soon = () => { if (!queued && !retired) { queued = true; queueMicrotask(sync); } };
     // Opening a tab brings it out of the idle row.
@@ -1438,7 +1463,7 @@
     const watch = new MutationObserver(soon);
     watch.observe(gBrowser.tabContainer, { subtree: true, attributes: true, attributeFilter: ["pending", "discarded"] });
     const prefs = { observe: soon };
-    for (const k of ["idle-tabs", "idle-after"]) Services.prefs.addObserver(PREFIX + k, prefs);
+    for (const k of ["idle-tabs", "idle-after", "idle-keep-recent"]) Services.prefs.addObserver(PREFIX + k, prefs);
     // Time alone makes a tab idle.
     const tick = setInterval(soon, 60000);
     sync();
@@ -1446,6 +1471,7 @@
     const api = {
       // Unloads them too; a selected tab hands the selection on first.
       sendToIdle(tabs) {
+        if (!enabled()) return;
         tabs = tabsOf(tabs);
         if (!tabs.length) return;
         for (const tab of tabs) { setFlag(tab, KEEP_VALUE, false); setFlag(tab, IDLE_VALUE, true); }
@@ -1458,6 +1484,7 @@
         soon();
       },
       keepVisible(tabs, on) {
+        if (!enabled()) return;
         for (const tab of tabsOf(tabs)) { setFlag(tab, KEEP_VALUE, on); if (on) setFlag(tab, IDLE_VALUE, false); }
         soon();
       },
@@ -1485,7 +1512,7 @@
       const split = t => !!t.splitview || !!t.group?.hasAttribute("split-view-group");
       const inFolders = tabsOf(tabs).filter(t => !t.hasAttribute("zzgf-page-tab"));
       const movable = tabs.filter(t => !t.pinned && !t.hasAttribute("zen-essential") && !t.hasAttribute("zzgf-page-tab") && !split(t));
-      if (!inFolders.length && !movable.length) return;
+      if (!(enabled() && inFolders.length) && !movable.length) return;
       add(document.createXULElement("menuseparator"));
       const many = tabs.length > 1 ? ` (${tabs.length})` : "";
       if (enabled() && inFolders.length) {
@@ -1515,7 +1542,7 @@
       for (const type of events) window.removeEventListener(type, soon, true);
       gBrowser.tabContainer.removeEventListener("TabSelect", selected);
       watch.disconnect();
-      for (const k of ["idle-tabs", "idle-after"]) { try { Services.prefs.removeObserver(PREFIX + k, prefs); } catch {} }
+      for (const k of ["idle-tabs", "idle-after", "idle-keep-recent"]) { try { Services.prefs.removeObserver(PREFIX + k, prefs); } catch {} }
       for (const el of rows.values()) el.remove();
       rows.clear();
       for (const el of document.querySelectorAll("[zzgf-idle], [zzgf-idle-hidden], [zzgf-show-idle]"))
@@ -1775,7 +1802,7 @@
   function rowStops(box) {
     const top = box.getBoundingClientRect().top - box.scrollTop;
     const stops = new Set([0]);
-    for (const row of box.querySelectorAll(".tabbrowser-tab, .tab-group-label-container")) {
+    for (const row of box.querySelectorAll(".tabbrowser-tab, .tab-group-label-container, .zzgf-idle-row")) {
       const r = row.getBoundingClientRect();
       if (r.height) stops.add(Math.round(restTop(row, r) - top - (parseFloat(getComputedStyle(row).marginTop) || 0)));
     }
@@ -1801,16 +1828,18 @@
   // below three rows. Returns the scroll positions and the height for each.
   const shares = new WeakMap();             // box -> height its list gives it
   const prefCap = box => parseFloat(getComputedStyle(box).getPropertyValue("--zzgf-box-cap")) || Infinity;
-  // **Rows shown per folder** (5; 0 for no limit): the height of that many
-  // rows, tabs and subfolder headers alike, from the top of the body.
-  const rowsCap = ends => { const n = num("folder-rows", 5); return n > 0 && ends.length > n ? ends[n] : Infinity; };
+  function rowsCap(box, ends) {
+    const parent = box.querySelector(":scope > :is(tab-group, zen-folder):not([split-view-group])");
+    const limit = parent ? num("parent-folder-rows", 0) : num("folder-rows", 5);
+    return limit > 0 && limit < ends.length ? ends[limit] : Infinity;
+  }
   // Reads only: null when the body fits (releaseBox then clears it).
   function measureBox(box) {
     const end = box.scrollHeight;
     const stops = rowStops(box), ends = [...stops, end];
     // A registered <length> | none, so it computes to pixels without touching
     // the box's own height (which would clamp its scroll position).
-    const cap = Math.max(Math.min(shares.get(box) ?? prefCap(box), rowsCap(ends)), ends[Math.min(3, ends.length - 1)]);
+    const cap = Math.max(Math.min(shares.get(box) ?? prefCap(box), rowsCap(box, ends)), ends[Math.min(3, ends.length - 1)]);
     if (end <= cap) return null;
     const last = stops.find(y => end - y <= cap) ?? end - cap;
     const positions = stops.filter(y => y < last).concat(last);
@@ -1857,7 +1886,7 @@
     const strip = Services.prefs.getBoolPref("zen.view.draggable-sidebar", false)
       ? parseFloat(getComputedStyle(host).getPropertyValue("--tab-min-height")) || 36 : 0;
     let room = port.clientHeight + (empty?.getBoundingClientRect().height || 0) - pad - strip - 1 - (end - top - used);
-    const want = boxes.map(b => Math.min(b.scrollHeight, prefCap(b), rowsCap([...rowStops(b), b.scrollHeight])));
+    const want = boxes.map(b => Math.min(b.scrollHeight, prefCap(b), rowsCap(b, [...rowStops(b), b.scrollHeight])));
     const order = boxes.map((_, i) => i).sort((a, b) => want[a] - want[b]);
     order.forEach((i, k) => {
       const share = Math.max(0, Math.min(want[i], room / (order.length - k)));
@@ -1919,8 +1948,7 @@
     outSoon(box);
   }
   // How many rows are out of view above and below, on the folder's header
-  // (each half scrolls a page that way), and whether the selected tab, which
-  // stays in view at an edge (userChrome.css), is lying over another row.
+  // (each half scrolls a page that way).
   // Counted once the scrolling settles, not on every frame of a glide.
   const outBoxes = new Set();
   let outTimer = null;
@@ -1933,20 +1961,15 @@
     const header = box.parentElement?.querySelector?.(":scope > .tab-group-label-container");
     if (!header?.matches?.(".tab-group-label-container")) return;
     let chip = header.querySelector(":scope > .zzgf-out");
-    for (const tab of box.querySelectorAll(".tabbrowser-tab[zzgf-pinned]")) tab.removeAttribute?.("zzgf-pinned");
     if (!box.isConnected || !header || !box.hasAttribute("zzgf-glow") || box.parentElement.collapsed) { chip?.remove(); return; }
     const view = box.getBoundingClientRect();
     let above = 0, below = 0;
-    const rows = [];
     for (const row of box.querySelectorAll(".tabbrowser-tab, .tab-group-label-container")) {
       const r = row.getBoundingClientRect();
       if (!r.height) continue;
-      rows.push([row, r]);
       if (row.matches(".tabbrowser-tab:is([selected], [visuallyselected])")) continue;   // held in view
       if (r.bottom <= view.top + 1) above++; else if (r.top >= view.bottom - 1) below++;
     }
-    const held = rows.find(([row]) => row.matches(".tabbrowser-tab[selected]"));
-    if (held && rows.some(([row, r]) => row !== held[0] && Math.min(r.bottom, held[1].bottom) - Math.max(r.top, held[1].top) > 4)) held[0].setAttribute("zzgf-pinned", "");
     if (!above && !below) { chip?.remove(); return; }
     if (!chip) {
       chip = document.createElementNS(HTML, "span");
@@ -2575,7 +2598,6 @@
       window.removeEventListener("resize", resized);
       spaceShown.disconnect();
       clearTimeout(fitTimer); clearTimeout(countTimer); clearTimeout(outTimer);
-      for (const tab of document.querySelectorAll(".tabbrowser-tab[zzgf-pinned]")) tab.removeAttribute("zzgf-pinned");
       try { Services.obs.removeObserver(identityChanged, "contextual-identity-updated"); } catch {}
       try { Services.prefs.removeObserver(PREFIX, prefVarObserver); } catch {}
       clearTimeout(timer);

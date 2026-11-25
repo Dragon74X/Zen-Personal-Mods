@@ -32,6 +32,7 @@ the Zen 1.24.1b pass and the multi-window lag notes below.
 [URL-bar hover audit](docs/AUDIT-2026-10-29-URLBAR.md): confirmed hit-target and binding fixes; workspace smoothness remains open.
 [Zen 1.24.1b pass](docs/AUDIT-2026-11-09-ZEN1241.md): Library cards, Favorites hover, close X, Library button size, saved header gradients; Firefox 160 risks.
 [Multi-window lag](docs/PERF-2026-11-10-MULTIWINDOW.md): what closed windows leave behind (Zen, not the mods), Zen Turbo switch restyle, Groupflow rail glides, Glassflow redraw timing, Mediaflow caption clock.
+[Animated icon designs](resources/animated-icons/): 114 glyphs for every Zen and mod icon in 10 motion styles, with an eye test. Design resources only; no mod uses them yet.
 
 ## Regression checks
 

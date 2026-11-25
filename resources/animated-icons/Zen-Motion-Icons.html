@@ -1,0 +1,1483 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>Zen Motion Icons</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a sticky instrument bar over a dense specimen grid of toolbar-sized buttons;
+   the eye test is a two-up bench with one decision per screen. */
+:root {
+  --bg: #eceef3; --panel: #f8f9fb; --ink: #15171d; --muted: #5c6371; --line: #d4d8e0;
+  --accent: #5550d4; --accent-ink: #ffffff; --chip: #e2e4f6; --hover: rgba(21, 23, 29, .06); --press: rgba(21, 23, 29, .12);
+  --box: rgba(85, 80, 212, .42); --toolbar: #e1e4ea; --good: #2f7d4f; --shadow: 0 1px 2px rgba(21, 23, 29, .08), 0 8px 24px rgba(21, 23, 29, .08);
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1115; --panel: #171a20; --ink: #e8eaef; --muted: #9ba2af; --line: #2a2f39;
+  --accent: #a09cff; --accent-ink: #12131a; --chip: #262641; --hover: rgba(232, 234, 239, .07); --press: rgba(232, 234, 239, .14);
+  --box: rgba(160, 156, 255, .5); --toolbar: #1d2027; --good: #6fc794; --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 28px rgba(0, 0, 0, .35); color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f1115; --panel: #171a20; --ink: #e8eaef; --muted: #9ba2af; --line: #2a2f39;
+  --accent: #a09cff; --accent-ink: #12131a; --chip: #262641; --hover: rgba(232, 234, 239, .07); --press: rgba(232, 234, 239, .14);
+  --box: rgba(160, 156, 255, .5); --toolbar: #1d2027; --good: #6fc794; --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 28px rgba(0, 0, 0, .35); color-scheme: dark }
+
+* { box-sizing: border-box }
+[hidden] { display: none !important }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--f-body); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 48px }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg) }
+button, input, select { font: inherit; color: inherit }
+button { cursor: pointer }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; letter-spacing: -.01em }
+.wrap { max-width: 1240px; margin: 0 auto }
+.mono { font-family: var(--f-mono); font-size: 12px }
+.muted { color: var(--muted) }
+
+.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding-block: 20px 12px }
+.brand { display: flex; align-items: center; gap: 14px; min-width: 0 }
+.brand .mark { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; background: var(--toolbar); color: var(--accent) }
+.brand h1 { font-size: 26px; font-weight: 700; line-height: 1.1 }
+.brand p { margin: 2px 0 0; color: var(--muted); font-size: 13px }
+.tabs { display: flex; gap: 4px; background: var(--toolbar); padding: 4px; border-radius: 12px }
+.tabs a { text-decoration: none; color: var(--muted); font-weight: 600; font-size: 14px; padding: 7px 14px; border-radius: 9px }
+.tabs a[aria-current="page"] { background: var(--panel); color: var(--ink); box-shadow: var(--shadow) }
+
+.notice { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; background: var(--chip); border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; font-size: 14px }
+.notice button { border: 0; background: var(--accent); color: var(--accent-ink); border-radius: 8px; padding: 5px 12px; font-weight: 600 }
+
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 8px 10px; display: grid; gap: 10px; border-bottom: 1px solid var(--line) }
+.styles { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin }
+.styles button { flex: none; border: 1px solid var(--line); background: var(--panel); border-radius: 10px; padding: 6px 12px 7px; text-align: left; line-height: 1.2 }
+.styles button b { display: block; font-size: 14px }
+.styles button span { font-size: 11px; color: var(--muted); letter-spacing: .02em }
+.styles button[aria-checked="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink) }
+.styles button[aria-checked="true"] span { color: inherit; opacity: .8 }
+.controls { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; font-size: 13px }
+.controls input[type="search"] { width: 180px; max-width: 100%; border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 6px 10px }
+.controls select { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 5px 8px }
+.controls label { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap }
+.tune { position: relative }
+.tune summary { cursor: pointer; list-style: none; border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 5px 10px; font-weight: 600 }
+.tune summary::-webkit-details-marker { display: none }
+.tune[open] summary { background: var(--chip) }
+.tune .panel { position: absolute; z-index: 6; top: calc(100% + 6px); left: 0; width: min(320px, calc(100vw - 32px)); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 10px; box-shadow: var(--shadow) }
+.tune .panel label { display: grid; grid-template-columns: 88px 1fr 46px; gap: 8px; align-items: center }
+.tune .panel output { font-family: var(--f-mono); font-size: 12px; text-align: right }
+.tune .panel button { justify-self: start; border: 1px solid var(--line); background: transparent; border-radius: 8px; padding: 4px 10px }
+.desc { margin: 0; color: var(--muted); font-size: 14px; max-width: 80ch }
+.desc b { color: var(--ink) }
+
+.group { margin-top: 26px }
+.group h2 { font-size: 17px; font-weight: 700; display: flex; gap: 10px; align-items: baseline }
+.group h2 small { font: 500 12px var(--f-mono); color: var(--muted) }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; margin-top: 10px }
+.cell { display: grid; justify-items: center; gap: 4px; padding: 10px 4px 8px; border-radius: 12px; min-width: 0 }
+.cell:hover { background: var(--panel) }
+.btn { --s: 40px; width: var(--s); height: var(--s); border: 0; border-radius: 9px; background: transparent; display: grid; place-items: center; touch-action: manipulation; -webkit-tap-highlight-color: transparent }
+.btn:hover { background: var(--hover) }
+.btn:active { background: var(--press) }
+.btn svg { display: block; overflow: visible }
+.show-bounds .btn svg { outline: 1px dashed var(--box); outline-offset: 0 }
+.cell .name { border: 0; background: none; padding: 0 4px; font: 11.5px/1.3 var(--f-mono); color: var(--muted); text-align: center; overflow-wrap: anywhere; border-radius: 4px }
+.cell .name:hover { color: var(--accent); text-decoration: underline }
+.cell .tog { font: 10px var(--f-mono); color: var(--accent) }
+.empty { padding: 40px 0; color: var(--muted) }
+
+.sheet { position: fixed; z-index: 20; right: max(16px, env(safe-area-inset-right, 0px)); top: calc(env(safe-area-inset-top, 0px) + 16px); bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); width: min(400px, calc(100vw - 32px)); background: var(--panel); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); overflow: auto; padding: 18px; display: grid; gap: 16px; align-content: start }
+.sheet header { display: flex; justify-content: space-between; gap: 12px; align-items: start }
+.sheet h3 { font-size: 22px }
+.close { border: 0; background: var(--hover); border-radius: 8px; width: 32px; height: 32px; font-size: 18px; line-height: 1 }
+.stage { display: grid; place-items: center; height: 168px; background: var(--toolbar); border-radius: 12px; position: relative }
+.stage .btn { --s: 120px; border-radius: 22px }
+.phases { display: flex; flex-wrap: wrap; gap: 6px }
+.phases button, .pick, .ghost { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 5px 11px; font-size: 13px; font-weight: 600 }
+.pick { background: var(--accent); color: var(--accent-ink); border-color: var(--accent) }
+.pick[aria-pressed="true"]::after { content: " ✓" }
+.board { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px }
+.board figure { margin: 0; display: grid; justify-items: center; gap: 2px; background: var(--toolbar); border-radius: 8px; padding: 8px 2px 4px }
+.board figcaption { font: 10px/1.2 var(--f-mono); color: var(--muted); text-align: center }
+.compare { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px }
+.compare button { border: 1px solid transparent; background: var(--toolbar); border-radius: 10px; padding: 10px 2px 6px; display: grid; justify-items: center; gap: 4px; font-size: 11px }
+.compare button[aria-current="true"] { border-color: var(--accent) }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 13px; margin: 0 }
+.kv dt { color: var(--muted) }
+.kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere }
+
+/* Eye test */
+.et { max-width: 980px; margin: 0 auto; display: grid; gap: 16px; padding-top: 8px }
+.et-head { display: grid; gap: 6px }
+.et-head h2 { font-size: clamp(22px, 3.2vw, 30px) }
+.et-head p { margin: 0; color: var(--muted) }
+.progress { height: 6px; background: var(--toolbar); border-radius: 99px; overflow: hidden }
+.progress span { display: block; height: 100%; background: var(--accent); width: 0; transition: width .3s }
+.bench { display: grid; grid-template-columns: 1fr 1fr; gap: 14px }
+.side { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 16px; display: grid; gap: 14px; min-width: 0 }
+.side .tag { font: 600 12px var(--f-mono); letter-spacing: .08em; color: var(--muted) }
+.toolbar { display: flex; gap: 2px; justify-content: center; background: var(--toolbar); border-radius: 12px; padding: 6px; overflow: visible; flex-wrap: wrap }
+.toolbar .btn { --s: 34px }
+.hero { display: grid; place-items: center; height: 150px; border-radius: 12px; background: var(--toolbar) }
+.hero .btn { --s: 104px; border-radius: 20px }
+.choose { border: 0; border-radius: 12px; padding: 12px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 16px; display: flex; justify-content: center; gap: 10px; align-items: center }
+.choose kbd { font: 600 12px var(--f-mono); border: 1px solid currentColor; border-radius: 5px; padding: 1px 6px; opacity: .8 }
+.et-foot { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; font-size: 13px }
+.results { display: grid; gap: 16px }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: grid; gap: 8px; align-content: start; min-width: 0 }
+.card h3 { font-size: 15px }
+.card .big { font: 700 22px var(--f-display) }
+.rank { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px }
+.rank li { display: grid; grid-template-columns: 22px 34px 1fr auto; gap: 8px; align-items: center; font-size: 14px }
+.rank .btn { --s: 30px }
+.rank .n { font: 12px var(--f-mono); color: var(--muted) }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+.save { font-size: 13px; color: var(--good) }
+textarea.dump { width: 100%; min-height: 140px; font: 12px var(--f-mono); background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 10px }
+.picks { display: grid; gap: 6px }
+.picks .p { display: grid; grid-template-columns: 40px 1fr auto auto; gap: 10px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px }
+.picks .btn { --s: 34px }
+
+@media (max-width: 720px) {
+  .bar { position: static }
+  .bench { grid-template-columns: 1fr }
+  .hero { height: 120px }
+  .sheet { left: max(16px, env(safe-area-inset-left, 0px)); top: auto; width: auto; max-height: 78vh }
+}
+@media (prefers-reduced-motion: reduce) { .progress span { transition: none } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <span class="mark" id="mark" aria-hidden="true"></span>
+      <div>
+        <h1>Zen Motion Icons</h1>
+        <p id="meta">Every Zen and mod icon, in ten motion styles, with rest, hover, hold and release.</p>
+      </div>
+    </div>
+    <nav class="tabs" aria-label="Views">
+      <a href="#library" data-view="library">Library</a>
+      <a href="#eye-test" data-view="eye-test">Eye test</a>
+      <a href="#picks" data-view="picks">Picks</a>
+    </nav>
+  </header>
+
+  <div class="notice" id="rm-notice" hidden>
+    <span>Your system asks for reduced motion, so icons start still. This page exists to judge motion; you can turn it on here.</span>
+    <button type="button" id="rm-on">Play animations</button>
+  </div>
+
+  <section id="view-library" aria-label="Icon library">
+    <div class="bar">
+      <div class="styles" id="styles" role="radiogroup" aria-label="Motion style"></div>
+      <div class="controls">
+        <input type="search" id="q" placeholder="Filter icons or mods" aria-label="Filter icons">
+        <select id="group" aria-label="Group"></select>
+        <select id="size" aria-label="Icon size">
+          <option value="16">16 px</option><option value="18">18 px</option><option value="20">20 px</option><option value="24">24 px</option><option value="32">32 px</option>
+        </select>
+        <select id="speed" aria-label="Playback speed">
+          <option value="1">1× speed</option><option value="0.5">½× speed</option><option value="0.25">¼× speed</option>
+        </select>
+        <label><input type="checkbox" id="auto"> Auto-play</label>
+        <label><input type="checkbox" id="bounds"> Show 24-unit box</label>
+        <details class="tune" id="tune">
+          <summary>Tuning</summary>
+          <div class="panel">
+            <label for="t-tempo">Tempo <input type="range" id="t-tempo" min="0.5" max="1.8" step="0.05"><output for="t-tempo"></output></label>
+            <label for="t-bounce">Bounce <input type="range" id="t-bounce" min="0" max="2" step="0.05"><output for="t-bounce"></output></label>
+            <label for="t-amp">Intensity <input type="range" id="t-amp" min="0.4" max="1.8" step="0.05"><output for="t-amp"></output></label>
+            <label for="t-overflow">Overflow <input type="range" id="t-overflow" min="0.3" max="1.8" step="0.05"><output for="t-overflow"></output></label>
+            <label for="t-stroke">Line weight <input type="range" id="t-stroke" min="1.2" max="2.2" step="0.05"><output for="t-stroke"></output></label>
+            <button type="button" id="t-reset">Reset tuning</button>
+          </div>
+        </details>
+      </div>
+      <p class="desc" id="desc"></p>
+    </div>
+    <div id="groups"></div>
+  </section>
+
+  <section id="view-eye-test" class="et" aria-label="Eye test" hidden></section>
+  <section id="view-picks" class="et" aria-label="Picks" hidden></section>
+</div>
+
+<aside class="sheet" id="sheet" aria-label="Icon inspector" hidden></aside>
+
+<script>
+/* Zen animated icon glyphs. 24-unit grid, stroke artwork, M/C/Z paths only.
+   Each glyph is a function of k: 0 is rest; 1 is the action shape (or the other
+   state of a toggle). Every k yields the same path commands, so any two k values
+   interpolate point for point. Window close/minimize/maximize/restore are excluded. */
+(() => {
+  const PI = Math.PI, rad = a => a * PI / 180, cos = a => Math.cos(rad(a)), sin = a => Math.sin(rad(a));
+  const L = (a, b, k) => a + (b - a) * k;
+  const f = n => { const v = Math.round(n * 1000) / 1000; return Object.is(v, -0) ? '0' : String(v); };
+  const NUM = /-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi;
+
+  class Pen {
+    constructor(x, y) { this.s = `M${f(x)} ${f(y)}`; this.x = this.x0 = x; this.y = this.y0 = y; }
+    c(x1, y1, x2, y2, x, y) { this.s += `C${f(x1)} ${f(y1)} ${f(x2)} ${f(y2)} ${f(x)} ${f(y)}`; this.x = x; this.y = y; return this; }
+    l(x, y) { const a = this.x, b = this.y; return this.c(a + (x - a) / 3, b + (y - b) / 3, a + (x - a) * 2 / 3, b + (y - b) * 2 / 3, x, y); }
+    // Continue along an ellipse arc; degrees, clockwise positive. Pen must sit at the arc start.
+    a(cx, cy, rx, ry, a0, a1, n = Math.max(1, Math.ceil(Math.abs(a1 - a0) / 90 - 1e-9))) {
+      const s = rad(a1 - a0) / n, k = 4 / 3 * Math.tan(s / 4);
+      for (let i = 0; i < n; i++) {
+        const t0 = rad(a0) + s * i, t1 = t0 + s;
+        const x1 = cx + rx * Math.cos(t1), y1 = cy + ry * Math.sin(t1);
+        this.c(cx + rx * Math.cos(t0) - k * rx * Math.sin(t0), cy + ry * Math.sin(t0) + k * ry * Math.cos(t0),
+          x1 + k * rx * Math.sin(t1), y1 - k * ry * Math.cos(t1), x1, y1);
+      }
+      return this;
+    }
+    z() { this.l(this.x0, this.y0); this.s += 'Z'; return this; }
+    toString() { return this.s; }
+  }
+  const M = (x, y) => new Pen(x, y);
+  const line = (x1, y1, x2, y2) => M(x1, y1).l(x2, y2) + '';
+  const dot = (x, y) => line(x, y, x, y);
+  const poly = (pts, close = false) => { const p = M(...pts[0]); for (const q of pts.slice(1)) p.l(...q); return (close ? p.z() : p) + ''; };
+  const arc = (cx, cy, r, a0, a1, n, ry = r) => M(cx + r * cos(a0), cy + ry * sin(a0)).a(cx, cy, r, ry, a0, a1, n) + '';
+  const circle = (cx, cy, r, ry = r) => M(cx + r, cy).a(cx, cy, r, ry, 0, 360, 4).z() + '';
+  const rrect = (x, y, w, h, r) => M(x + r, y).l(x + w - r, y).a(x + w - r, y + r, r, r, -90, 0, 1).l(x + w, y + h - r)
+    .a(x + w - r, y + h - r, r, r, 0, 90, 1).l(x + r, y + h).a(x + r, y + h - r, r, r, 90, 180, 1).l(x, y + r)
+    .a(x + r, y + r, r, r, 180, 270, 1).z() + '';
+  // Chevron with its tip at (x, y), pointing along dir degrees.
+  const head = (x, y, dir, len = 3.6, spread = 42) => poly([[x - len * cos(dir - spread), y - len * sin(dir - spread)], [x, y], [x - len * cos(dir + spread), y - len * sin(dir + spread)]]);
+  const star = (cx, cy, R, r, n = 5, rot = -90) => poly(Array.from({ length: n * 2 }, (_, i) => { const a = rot + i * 180 / n, q = i % 2 ? r : R; return [cx + q * cos(a), cy + q * sin(a)]; }), true);
+  const xf = (d, fn) => { let i = 0, x = 0; return d.replace(NUM, m => { const v = +m; if (i++ % 2 === 0) { x = v; return '\u0000'; } const [a, b] = fn(x, v); return `${f(a)} ${f(b)}`; }).replace(/\u0000 ?/g, ''); };
+  const move = (d, dx, dy) => xf(d, (x, y) => [x + dx, y + dy]);
+  const rot = (d, deg, cx = 12, cy = 12) => xf(d, (x, y) => [cx + (x - cx) * cos(deg) - (y - cy) * sin(deg), cy + (x - cx) * sin(deg) + (y - cy) * cos(deg)]);
+  const scl = (d, s, cx = 12, cy = 12, sy = s) => xf(d, (x, y) => [cx + (x - cx) * s, cy + (y - cy) * sy]);
+  const mix = (a, b, k) => { const v = b.match(NUM); let i = 0; return a.replace(NUM, m => f(L(+m, +v[i++], k))); };
+  const mirror = parts => parts.map(p => typeof p === 'string' ? xf(p, (x, y) => [24 - x, y]) : { ...p, d: xf(p.d, (x, y) => [24 - x, y]) });
+  const flipY = parts => parts.map(p => typeof p === 'string' ? xf(p, (x, y) => [x, 24 - y]) : { ...p, d: xf(p.d, (x, y) => [x, 24 - y]) });
+  const xLines = (cx, cy, R, a) => [line(cx + R * cos(a + 180), cy + R * sin(a + 180), cx + R * cos(a), cy + R * sin(a)), line(cx + R * cos(a + 270), cy + R * sin(a + 270), cx + R * cos(a + 90), cy + R * sin(a + 90))];
+  const corners = (i, a = 3.5, b = 20.5, s = 4.5) => [
+    poly([[a + i, a + s + i], [a + i, a + i], [a + s + i, a + i]]), poly([[b - s - i, a + i], [b - i, a + i], [b - i, a + s + i]]),
+    poly([[b - i, b - s - i], [b - i, b - i], [b - s - i, b - i]]), poly([[a + s + i, b - i], [a + i, b - i], [a + i, b - s - i]])];
+  // Crescent: outer circle O minus circle C, as an outer arc and an inner arc.
+  const crescent = (ox, oy, R, cx, cy, r) => {
+    const dx = cx - ox, dy = cy - oy, d = Math.hypot(dx, dy), a = (R * R - r * r + d * d) / (2 * d), h = Math.sqrt(R * R - a * a);
+    const px = ox + a * dx / d, py = oy + a * dy / d, i1 = [px - h * dy / d, py + h * dx / d], i2 = [px + h * dy / d, py - h * dx / d];
+    const deg = (p, c) => Math.atan2(p[1] - c[1], p[0] - c[0]) * 180 / PI;
+    let o1 = deg(i1, [ox, oy]), o2 = deg(i2, [ox, oy]); if (o2 < o1) o2 += 360;
+    let c1 = deg(i2, [cx, cy]), c2 = deg(i1, [cx, cy]); if (c2 > c1) c2 -= 360;
+    return M(...i1).a(ox, oy, R, R, o1, o2, 4).a(cx, cy, r, r, c1, c2, 2).z() + '';
+  };
+  const tab = (x, y, w, h, r) => M(x, y + h).l(x, y + r).a(x + r, y + r, r, r, 180, 270, 1).l(x + w - r, y).a(x + w - r, y + r, r, r, 270, 360, 1).l(x + w, y + h).z() + '';
+
+  const list = [];
+  // meta: kind (motion intent), dir, pivot, toggle labels, used-in note
+  const g = (id, label, group, meta, fn) => list.push({ id, label, group, kind: 'pop', dir: [0, -1], ...meta, fn });
+
+  /* Navigation */
+  const back = k => [line(L(19, 16.5, k), 12, L(5, 4, k), 12), poly([[L(11, 9.6, k), L(6, 5, k)], [L(5, 4, k), 12], [L(11, 9.6, k), L(18, 19, k)]])];
+  g('back', 'Back', 'Navigation', { kind: 'dir', dir: [-1, 0], used: 'Toolbar, context menu' }, back);
+  g('forward', 'Forward', 'Navigation', { kind: 'dir', dir: [1, 0], used: 'Toolbar, context menu' }, k => mirror(back(k)));
+  const reload = k => { const r = 7.2, a0 = L(-40, 5, k), a1 = L(270, 300, k); return [arc(12, 12, r, a0, a1, 4), head(12 + r * cos(a1) + .3 * cos(a1 + 90), 12 + r * sin(a1) + .3 * sin(a1 + 90), a1 + 90, 3.5, 44)]; };
+  g('reload', 'Reload', 'Navigation', { kind: 'spin', spin: 1, used: 'Toolbar, context menu, Tab Router picture refresh' }, reload);
+  g('stop', 'Stop', 'Navigation', { kind: 'shake', used: 'Toolbar, context menu' }, k => xLines(12, 12, L(8.4, 6.4, k), L(45, 90, k)));
+  g('home', 'Home', 'Navigation', { kind: 'dir', dir: [0, -1], used: 'Toolbar' }, k => [
+    poly([[3.5, L(11.2, 10, k)], [12, L(3.8, 2.2, k)], [20.5, L(11.2, 10, k)]]),
+    { d: poly([[5.8, 9.4], [5.8, 20], [18.2, 20], [18.2, 9.4]]), a: 1 },
+    poly([[L(10, 10.7, k), 20], [L(10, 10.7, k), L(15, 16.2, k)], [L(14, 13.3, k), L(15, 16.2, k)], [L(14, 13.3, k), 20]])]);
+  g('new-tab', 'New tab', 'Navigation', { kind: 'spin', spin: 1, used: 'Toolbar, sidebar, app menu, context menu' }, k => [
+    ...xLines(12, 12, L(7, 4.4, k), L(0, 90, k)),
+    { d: rrect(L(9.5, 3.5, k), L(9.5, 3.5, k), L(5, 17, k), L(5, 17, k), L(2.5, 4.5, k)), o: k }]);
+  g('new-window', 'New window', 'Navigation', { kind: 'pop', used: 'App menu, context menu' }, k => [
+    { d: rrect(L(3.5, 2.5, k), L(5, 4, k), L(17, 19, k), L(14, 16, k), 2.5), a: 1 },
+    line(L(3.5, 2.5, k), L(9, 8.4, k), L(20.5, 21.5, k), L(9, 8.4, k)),
+    ...xLines(12, L(14.2, 14.4, k), L(2.6, 3.3, k), L(0, 90, k))]);
+  g('private', 'New private window', 'Navigation', { kind: 'dir', dir: [0, -1], used: 'App menu, context menu' }, k => {
+    const y = L(0, -1.2, k);
+    return [M(3.5, 8.6 + y).c(3.5, 6.2 + y, 8.8, 5.6 + y, 12, 7.4 + y).c(15.2, 5.6 + y, 20.5, 6.2 + y, 20.5, 8.6 + y).c(20.5, 13.2 + y, 18.2, 16.6 + y, 15.2, 16.6 + y)
+      .c(13.6, 16.6 + y, 13.1, 14.6 + y, 12, 14.6 + y).c(10.9, 14.6 + y, 10.4, 16.6 + y, 8.8, 16.6 + y).c(5.8, 16.6 + y, 3.5, 13.2 + y, 3.5, 8.6 + y).z() + '',
+    circle(8.3, 10.8 + y, 1.9, L(1.15, .3, k)), circle(15.7, 10.8 + y, 1.9, L(1.15, .3, k))];
+  });
+
+  /* Toolbar and app menu */
+  g('app-menu', 'Menu / Close', 'Toolbar & app menu', { kind: 'pulse', toggle: ['Open application menu', 'Close application menu'], used: 'Toolbar (state follows menu)' }, k => [
+    line(L(4.5, 6, k), 6, L(19.5, 18, k), L(6, 18, k)), { d: line(L(4.5, 12, k), 12, L(19.5, 12, k), 12), o: 1 - k }, line(L(4.5, 6, k), 18, L(19.5, 18, k), L(18, 6, k))]);
+  g('overflow', 'More tools', 'Toolbar & app menu', { kind: 'dir', dir: [1, 0], used: 'Toolbar overflow' }, k => [
+    poly([[L(6, 8, k), 6.5], [L(11.5, 13, k), 12], [L(6, 8, k), 17.5]]), poly([[L(12.5, 13.6, k), 6.5], [L(18, 19.1, k), 12], [L(12.5, 13.6, k), 17.5]])]);
+  g('chevron', 'Dropdown / bookmarks overflow', 'Toolbar & app menu', { kind: 'dir', dir: [0, 1], used: 'Bookmarks toolbar chevron, dropdowns' }, k => [poly([[6, L(9, 15, k)], [12, L(15, 9, k)], [18, L(9, 15, k)]])]);
+  g('downloads', 'Downloads', 'Toolbar & app menu', { kind: 'dir', dir: [0, 1], used: 'Toolbar, app menu, sidebar' }, k => [
+    line(12, L(3.5, 7, k), 12, L(15, 18, k)), poly([[L(7.5, 8, k), L(10.5, 13.5, k)], [12, L(15.5, 18.5, k)], [L(16.5, 16, k), L(10.5, 13.5, k)]]),
+    { d: poly([[4, 15.5], [4, L(20, 20.6, k)], [20, L(20, 20.6, k)], [20, 15.5]]), a: 1 }]);
+  g('extensions', 'Extensions', 'Toolbar & app menu', { kind: 'pop', used: 'Toolbar, app menu' }, k => {
+    const t = L(4.6, 3.4, k), r = L(19.9, 21, k);
+    return [M(4.5, 8.5).l(8.6, 8.5).c(7.4, 7.4, 8.4, t, 10.25, t).c(12.1, t, 13.1, 7.4, 11.9, 8.5).l(16, 8.5).l(16, 12.6)
+      .c(17.1, 11.4, r, 12.4, r, 14.25).c(r, 16.1, 17.1, 17.1, 16, 15.9).l(16, 20).l(4.5, 20).z() + ''];
+  });
+  g('bookmark', 'Bookmark / Saved', 'Toolbar & app menu', { kind: 'spin', spin: 1, toggle: ['Bookmark this page', 'Edit bookmark'], used: 'Address bar star, context menu' }, k => [
+    { d: star(12, 12.6, L(8.6, 8.9, k), L(3.9, 4.3, k)), f: k }]);
+  g('bookmarks', 'Bookmarks', 'Toolbar & app menu', { kind: 'dir', dir: [0, 1], used: 'Bookmarks menu, app menu' }, k => [
+    { d: poly([[6.5, 3.8], [17.5, 3.8], [17.5, L(20.5, 21.2, k)], [12, L(16.3, 15, k)], [6.5, L(20.5, 21.2, k)]], true), f: k * .2 },
+    line(L(9.5, 9, k), L(8, 9.4, k), L(14.5, 15, k), L(8, 9.4, k))]);
+  g('history', 'History', 'Toolbar & app menu', { kind: 'spin', spin: -1, used: 'Toolbar, app menu' }, k => {
+    const a0 = L(-170, -200, k), r = 8;
+    return [arc(12, 12, r, a0, L(140, 110, k), 4), head(12 + r * cos(a0), 12 + r * sin(a0), a0 - 90, 3, 44), rot(poly([[12, 7.4], [12, 12], [15.2, 14]]), L(0, -70, k))];
+  });
+  g('library', 'Library', 'Toolbar & app menu', { kind: 'pulse', used: 'Toolbar, Zen Library button' }, k => [
+    rrect(3.5, 4.5, 3.4, 15.5, 1), rrect(L(8.1, 7.6, k), 4.5, 3.4, 15.5, 1), rot(rrect(12.8, 5, 3.4, 15, 1), L(16, 4, k), 12.8, 20)]);
+  g('screenshot', 'Screenshot', 'Toolbar & app menu', { kind: 'pop', used: 'Toolbar, context menu' }, k => [...corners(L(0, 1.6, k)), circle(12, 12, L(2.6, 3.6, k))]);
+  g('open-file', 'Open file / folder', 'Toolbar & app menu', { kind: 'dir', dir: [0, -1], used: 'Toolbar, Groupflow convert to folder' }, k => [
+    { d: poly([[3.5, 19], [3.5, 5.5], [9, 5.5], [11, 7.5], [19, 7.5], [19, L(10.5, 9, k)]]), a: 1 },
+    poly([[3.5, 19], [L(6.5, 7.6, k), L(10.5, 9, k)], [L(21, 22.2, k), L(10.5, 9, k)], [18, 19]], true)]);
+  g('settings', 'Settings', 'Toolbar & app menu', { kind: 'spin', spin: 1, used: 'Toolbar, app menu' }, k => {
+    const R = L(8.8, 9.3, k), r = L(6.6, 6.4, k), o = L(0, 22.5, k), pts = [];
+    for (let i = 0; i < 8; i++) { const c = i * 45 + o; for (const [q, a] of [[r, -17], [R, -9], [R, 9], [r, 17]]) pts.push([12 + q * cos(c + a), 12 + q * sin(c + a)]); }
+    return [poly(pts, true), circle(12, 12, L(2.8, 3.3, k))];
+  });
+  g('find', 'Find / search', 'Toolbar & app menu', { kind: 'scan', used: 'App menu, context menu search, address bar' }, k => [
+    circle(L(10.5, 10, k), L(10.5, 10, k), L(6.2, 7.2, k)), { d: line(L(15, 15.3, k), L(15, 15.3, k), L(20, 19.4, k), L(20, 19.4, k)), a: 1 }]);
+  g('zoom-in', 'Zoom in', 'Toolbar & app menu', { kind: 'pop', used: 'Toolbar, app menu' }, k => [
+    circle(10.5, 10.5, L(6.8, 7.6, k)), { d: line(L(15.3, 15.9, k), L(15.3, 15.9, k), 20.3, 20.3), a: 1 }, ...xLines(10.5, 10.5, L(2.6, 3.4, k), L(0, 90, k))]);
+  g('zoom-out', 'Zoom out', 'Toolbar & app menu', { kind: 'pop', used: 'Toolbar, app menu' }, k => [
+    circle(10.5, 10.5, L(6.8, 5.8, k)), { d: line(L(15.3, 14.6, k), L(15.3, 14.6, k), 20.3, 20.3), a: 1 }, line(L(7.9, 8.8, k), 10.5, L(13.1, 12.2, k), 10.5)]);
+  g('zoom-reset', 'Reset zoom', 'Toolbar & app menu', { kind: 'pop', used: 'Address bar zoom indicator' }, k => [
+    { d: rrect(L(3.5, 2.5, k), 6.5, L(17, 19, k), 11, 3), a: 1 }, line(L(8.5, 7.6, k), 9.5, L(8.5, 7.6, k), 14.5),
+    dot(12, L(10.4, 10, k)) , dot(12, L(13.6, 14, k)), line(L(15.5, 16.4, k), 9.5, L(15.5, 16.4, k), 14.5)].map((d, i) => i === 2 || i === 3 ? { d, w: 1.3 } : d));
+  g('cut', 'Cut', 'Toolbar & app menu', { kind: 'swing', pivot: [12, 10.4], used: 'Toolbar, context menu' }, k => {
+    const o = L(0, 2.6, k);
+    return [{ d: circle(L(7, 6.2, k), 17.4, 2.6), s: 1 }, { d: line(8.4, 15.2, 16.6 + o, 4.4 + o * .3), s: 1 },
+      { d: circle(L(17, 17.8, k), 17.4, 2.6), s: -1 }, { d: line(15.6, 15.2, 7.4 - o, 4.4 + o * .3), s: -1 }];
+  });
+  g('copy', 'Copy', 'Toolbar & app menu', { kind: 'dir', dir: [.7, .7], used: 'Toolbar, context menu, Glassflow appearance, Library' }, k => {
+    const d = L(0, 1.2, k);
+    return [{ d: move(M(9, 15).l(6.2, 15).a(6.2, 12.8, 2.2, 2.2, 90, 180).l(4, 6.2).a(6.2, 6.2, 2.2, 2.2, 180, 270).l(12.8, 4).a(12.8, 6.2, 2.2, 2.2, 270, 360).l(15, 9) + '', -d, -d), s: -1 },
+      { d: rrect(9 + d, 9 + d, 11, 11, 2.2), s: 1 }];
+  });
+  g('paste', 'Paste', 'Toolbar & app menu', { kind: 'dir', dir: [0, 1], used: 'Toolbar, context menu' }, k => [
+    { d: rrect(5, 4.5, 14, 16.5, 2.2), a: 1 }, rrect(9, L(3, 1.4, k), 6, 3.4, 1.2),
+    line(8.5, L(11, 11.6, k), L(15.5, 16, k), L(11, 11.6, k)), line(8.5, L(15, 15.8, k), L(13.5, 15.5, k), L(15, 15.8, k))]);
+  g('print', 'Print', 'Toolbar & app menu', { kind: 'dir', dir: [0, 1], used: 'Toolbar, app menu, context menu' }, k => [
+    { d: poly([[7, 8], [7, 3.5], [17, 3.5], [17, 8]]), a: 1 },
+    { d: M(7, 16.5).l(5.5, 16.5).a(5.5, 14.5, 2, 2, 90, 180).l(3.5, 10).a(5.5, 10, 2, 2, 180, 270).l(18.5, 8).a(18.5, 10, 2, 2, 270, 360).l(20.5, 14.5).a(18.5, 14.5, 2, 2, 0, 90).l(17, 16.5) + '', a: 1 },
+    poly([[7, 13.5], [7, L(20.5, 22.2, k)], [17, L(20.5, 22.2, k)], [17, 13.5]])]);
+  g('save-page', 'Save', 'Toolbar & app menu', { kind: 'dir', dir: [0, 1], used: 'Toolbar, app menu, context menu, Glassflow/Groupflow save' }, k => [
+    { d: poly([[4, 4], [16.5, 4], [20, 7.5], [20, 20], [4, 20]], true), a: 1 },
+    poly([[L(8, 10, k), 4], [L(8, 10, k), 8.5], [L(15, 17, k), 8.5], [L(15, 17, k), 4]]), rrect(7.5, L(13, 12.2, k), 9, L(7, 7.8, k), 1.2)]);
+  g('encoding', 'Text encoding', 'Toolbar & app menu', { kind: 'pop', used: 'Toolbar' }, k => [
+    rot(poly([[3.5, 19], [8, 5], [12.5, 19]]) + line(5.2, 14, 10.8, 14), L(0, 10, k), 8, 19),
+    move(circle(17.2, 15.6, 2.6) + line(19.8, 13, 19.8, 19), 0, L(0, -2, k))]);
+  g('email', 'Email link', 'Toolbar & app menu', { kind: 'dir', dir: [.6, -.8], used: 'Toolbar' }, k => [
+    { d: rrect(3.5, 5.5, 17, 13, 2), a: 1 }, poly([[4.3, 7], [12, L(13, 1.8, k)], [19.7, 7]])]);
+  g('passwords', 'Passwords', 'Toolbar & app menu', { kind: 'swing', pivot: [7.5, 12], used: 'Toolbar, app menu' }, k => [
+    circle(7.5, 12, L(3.8, 4.3, k)), line(L(11.3, 11.8, k), 12, 20.5, 12), line(17.6, 12, 17.6, L(15, 16.2, k)), line(20.5, 12, 20.5, L(14.5, 15.6, k))]);
+  g('sync', 'Sync', 'Toolbar & app menu', { kind: 'spin', spin: 1, used: 'Toolbar' }, k => {
+    const t = L(0, 70, k), r = 7, end = a => [12 + r * cos(a), 12 + r * sin(a)];
+    return [arc(12, 12, r, 200 + t, 330 + t, 2), head(...end(330 + t), 420 + t, 3, 44), arc(12, 12, r, 20 + t, 150 + t, 2), head(...end(150 + t), 240 + t, 3, 44)];
+  });
+  g('send-tab', 'Send tab to device', 'Toolbar & app menu', { kind: 'dir', dir: [1, 0], used: 'Toolbar, context menu' }, k => [
+    { d: rrect(14.5, 5, 6, 14, 1.6) + line(16.6, 16.4, 18.4, 16.4), a: 1 },
+    line(L(3.5, 6.5, k), 12, L(11, 13, k), 12), head(L(11.2, 13.2, k), 12, 0, 3.6, 45)]);
+  g('import', 'Import', 'Toolbar & app menu', { kind: 'dir', dir: [-.6, .8], used: 'Toolbar, download prompt replace' }, k => {
+    const dx = L(0, -1.2, k), dy = L(0, 1.8, k);
+    return [{ d: poly([[4, 12.5], [4, 20], [20, 20], [20, 12.5]]), a: 1 }, move(line(19, 4, 10.6, 12.4), dx, dy), move(poly([[10.6, 7.2], [10.6, 12.4], [15.8, 12.4]]), dx, dy)];
+  });
+  g('forget', 'Forget / clear history', 'Toolbar & app menu', { kind: 'pulse', used: 'Toolbar, app menu, Library remove from history' }, k => {
+    const h = L(0, -1.8, k), n = L(0, .8, k), i = L(0, -1.4, k);
+    return [M(12, 3 + h).c(14.5, 6.5 + h, 18.5 - n, 9, 18.5 - n, 14).c(18.5 - n, 18, 15.5, 21, 12, 21).c(8.5, 21, 5.5 + n, 18, 5.5 + n, 14)
+      .c(5.5 + n, 10.8, 7.5, 9, 8.6, 7 + h * .5).c(9.2, 9.4, 10.4, 10.4, 11.3, 10.8).c(11.6, 8, 11.2, 5.2, 12, 3 + h).z() + '',
+    M(12, 14.5 + i).c(13.6, 16 + i, 14.4, 17, 14.4, 18.3).c(14.4, 19.6, 13.3, 20.5, 12, 20.5).c(10.7, 20.5, 9.6, 19.6, 9.6, 18.3).c(9.6, 17, 10.4, 16 + i, 12, 14.5 + i).z() + ''];
+  });
+  g('firefox-view', 'Firefox View', 'Toolbar & app menu', { kind: 'pop', used: 'Toolbar' }, k => [
+    { d: rrect(3.5, 5, 17, 14.5, 2.5), a: 1 }, line(3.5, 9, 20.5, 9), line(7, 13, L(17, 17.5, k), 13), line(7, 16, L(13, 15, k), 16)]);
+  g('developer', 'Developer tools', 'Toolbar & app menu', { kind: 'swing', pivot: [15.2, 8.8], used: 'Toolbar, context menu inspect' }, k => {
+    const gap = L(38, 56, k), r = L(4.2, 4.5, k);
+    return [arc(15.2, 8.8, r, -45 + gap, 315 - gap, 4), { d: line(15.2 + r * cos(135), 8.8 + r * sin(135), 4.6, 19.4), w: 1.15 }];
+  });
+  g('fullscreen', 'Fullscreen / Restore', 'Toolbar & app menu', { kind: 'pop', toggle: ['Enter fullscreen', 'Exit fullscreen'], used: 'Toolbar, app menu' }, k => {
+    const c = L(3.5, 9, k), e = L(20.5, 15, k);
+    return [poly([[3.5, 9], [c, c], [9, 3.5]]), poly([[15, 3.5], [e, c], [20.5, 9]]), poly([[20.5, 15], [e, e], [15, 20.5]]), poly([[9, 20.5], [c, e], [3.5, 15]])];
+  });
+  g('account', 'Account', 'Toolbar & app menu', { kind: 'dir', dir: [0, -1], used: 'Toolbar' }, k => [
+    circle(12, L(8.4, 7.2, k), 3.6), M(5, 20).c(5, L(15.8, 15.2, k), 8.2, L(13.6, 13, k), 12, L(13.6, 13, k)).c(15.8, L(13.6, 13, k), 19, L(15.8, 15.2, k), 19, 20) + '']);
+  g('reopen', 'Reopen closed tab', 'Toolbar & app menu', { kind: 'spin', spin: -1, pivot: [12, 14], used: 'App menu, context menu, Glassflow restore appearance' }, k => {
+    const t = L(0, -90, k), r = 3.7, a1 = 40 + t;
+    return [{ d: tab(3.5, 5.5, 17, 15, 2.5), a: 1 }, arc(12, 14, r, 300 + t, a1, 3), head(12 + r * cos(a1), 14 + r * sin(a1), a1 - 90, 2.4, 44)];
+  });
+  g('help', 'Help', 'Toolbar & app menu', { kind: 'tilt', used: 'App menu, Tab Router why here' }, k => [
+    { d: circle(12, 12, 8.6), a: 1 },
+    rot(M(9.4, 9.4).c(9.4, 7.9, 10.6, 6.9, 12, 6.9).c(13.5, 6.9, 14.6, 7.9, 14.6, 9.3).c(14.6, 11.2, 12, 11.4, 12, 13.4) + '', L(0, -14, k), 12, 13.4),
+    { d: dot(L(12, 11.6, k), L(16.6, 17.2, k)), w: 1.3 }]);
+  g('quit', 'Quit', 'Toolbar & app menu', { kind: 'dir', dir: [0, 1], used: 'App menu' }, k => [arc(12, 12.5, L(7.6, 7, k), L(-50, -62, k), L(230, 242, k), 4), line(12, L(3.5, 6.6, k), 12, L(11.5, 13, k))]);
+  g('minus', 'Reset pinned tab', 'Toolbar & app menu', { kind: 'shake', used: 'Pinned tab reset, unload' }, k => [M(6, 12).c(L(10, 9, k), L(12, 15, k), L(14, 15, k), L(12, 15, k), 18, 12) + '']);
+
+  /* Zen sidebar, workspaces and tabs */
+  g('sidebar', 'Show / hide sidebar', 'Zen sidebar & tabs', { kind: 'dir', dir: [-1, 0], toggle: ['Hide sidebar', 'Show sidebar'], used: 'Toolbar, expand sidebar' }, k => [
+    { d: rrect(3, 4, 18, 16, 3), a: 1 }, { d: line(L(9.5, 3.6, k), 4.4, L(9.5, 3.6, k), 19.6), o: 1 - k * .85 },
+    { d: line(L(5.4, 2, k), 8, L(7.4, 4, k), 8), o: 1 - k }, { d: line(L(5.4, 2, k), 11, L(7.4, 4, k), 11), o: 1 - k }]);
+  g('compact', 'Compact mode', 'Zen sidebar & tabs', { kind: 'pop', toggle: ['Enable compact mode', 'Disable compact mode'], used: 'Toolbar, context menu' }, k => [
+    { d: rrect(L(3, 2.4, k), L(4, 3.4, k), L(18, 19.2, k), L(16, 17.2, k), 3), a: 1 },
+    { d: line(L(3, 4.5, k), L(8.5, 4.6, k), L(21, 19.5, k), L(8.5, 4.6, k)), o: 1 - k },
+    { d: line(L(8.5, 3.6, k), L(8.5, 8, k), L(8.5, 3.6, k), L(20, 18.6, k)), o: 1 - k }]);
+  g('workspaces', 'Workspaces', 'Zen sidebar & tabs', { kind: 'pulse', used: 'Sidebar workspace switcher' }, k => {
+    const s = L(7, 5.6, k), r = L(2, 2.8, k), o = L(0, -.6, k);
+    return [[4, 4], [13, 4], [13, 13], [4, 13]].map(([x, y], i) => rrect(x + (x < 12 ? o : -o + 7 - s), y + (y < 12 ? o : -o + 7 - s), s, s, r));
+  });
+  g('workspace-actions', 'Workspace actions', 'Zen sidebar & tabs', { kind: 'pulse', dir: [0, -1], used: 'Workspace menu, Library more' }, k =>
+    [[12, 5.5], [12, 12], [12, 18.5]].map(([x, y], i) => ({ d: dot(L(x, 5.5 + i * 6.5, k), L(y, 12, k)), w: 1.5 })));
+  g('page-actions', 'Page actions', 'Zen sidebar & tabs', { kind: 'pulse', dir: [0, -1], used: 'Address bar actions, overflow menus' }, k =>
+    [[5.5, 12], [12, 12], [18.5, 12]].map(([x, y], i) => ({ d: dot(x, L(y, [9, 15, 9][i], k)), w: 1.5 })));
+  g('create-new', 'Create new', 'Zen sidebar & tabs', { kind: 'spin', spin: 1, used: 'Sidebar new button' }, k => [rrect(3.5, 3.5, 17, 17, L(5, 8.5, k)), ...xLines(12, 12, L(4, 4.6, k), L(0, 90, k))]);
+  g('essentials', 'Essentials', 'Zen sidebar & tabs', { kind: 'spin', spin: 1, used: 'Add to essentials, essentials grid' }, k => [
+    { d: rrect(3.5, 3.5, 17, 17, 4), a: 1 }, { d: star(12, 12.3, L(4.8, 5.6, k), L(2.1, 2.5, k), 5, L(-90, -18, k)), f: k * .9 }]);
+  g('pin', 'Pin / unpin tab', 'Zen sidebar & tabs', { kind: 'dir', dir: [0, 1], toggle: ['Pin tab', 'Unpin tab'], used: 'Tab context menu' }, k => [
+    rot(poly([[9, 3.5], [15, 3.5], [14, 8.6], [17.2, 12.2], [6.8, 12.2], [10, 8.6]], true), L(0, 18, k), 12, 12.2),
+    rot(line(12, 12.2, 12, 20.5), L(0, 18, k), 12, 12.2), { d: line(4.5, 4.5, L(4.5, 19.5, k), L(4.5, 19.5, k)), o: k }]);
+  g('split-view', 'Split view', 'Zen sidebar & tabs', { kind: 'dir', dir: [1, 0], used: 'Open in split view, share split view' }, k => [
+    { d: rrect(3, 4.5, L(8.2, 5.4, k), 15, 2.2), s: -1 }, { d: rrect(L(12.8, 10, k), 4.5, L(8.2, 11, k), 15, 2.2), s: 1 }]);
+  g('glance', 'Glance', 'Zen sidebar & tabs', { kind: 'scan', used: 'Glance preview' }, k => {
+    const o = L(0, 1.6, k);
+    return [{ d: M(2.8, 12).c(5, 7.6 - o, 8.3, 5.5 - o, 12, 5.5 - o).c(15.7, 5.5 - o, 19, 7.6 - o, 21.2, 12).c(19, 16.4 + o, 15.7, 18.5 + o, 12, 18.5 + o).c(8.3, 18.5 + o, 5, 16.4 + o, 2.8, 12).z() + '', a: 1 },
+      circle(12, 12, L(3, 2.2, k))];
+  });
+  g('close-unpinned', 'Clear unpinned tabs', 'Zen sidebar & tabs', { kind: 'swing', pivot: [18.5, 3.5], used: 'Workspace clear button' }, k => [
+    rot(line(18.5, 3.5, 13.4, 10.4) + poly([[10.4, 9.4], [16.2, 13], [14.2, 20.3], [3.8, 16.2]], true) + line(12.4, 10.6, 9.4, 18.4) + line(14.4, 11.8, 12, 19.4), L(0, -16, k), 18.5, 3.5)]);
+  g('folder', 'Folder', 'Zen sidebar & tabs', { kind: 'dir', dir: [0, -1], toggle: ['Expand folder', 'Collapse folder'], used: 'Zen folders, Groupflow' }, k => [
+    { d: poly([[3.5, 19], [3.5, 5.5], [9, 5.5], [11, 7.5], [20.5, 7.5], [20.5, L(19, 11, k)]], true), a: 1 },
+    poly([[3.5, 19], [L(3.5, 6.5, k), L(10.5, 11, k)], [L(20.5, 22, k), L(10.5, 11, k)], [L(20.5, 19, k), 19]], true)]);
+  g('unload', 'Unload / sleep', 'Zen sidebar & tabs', { kind: 'tilt', used: 'Tab Unloader, pinned reset' }, k => [
+    rot(crescent(10.5, 13, 7.6, 14.8, 9.4, 6.4), L(0, -18, k), 10.5, 13), { d: poly([[15, 4], [18.6, 4], [15, 7.6], [18.6, 7.6]]), w: .85, s: 1 }].map((p, i) => i ? { ...p, d: move(p.d, L(0, 1.6, k), L(0, -1.6, k)) } : p));
+  g('container', 'Container tab', 'Zen sidebar & tabs', { kind: 'pop', used: 'Open in container tab' }, k => {
+    const y = L(0, -1.6, k);
+    return [poly([[12, 3.2 + y], [19.8, 7.6 + y], [19.8, 16.4], [12, 20.8], [4.2, 16.4], [4.2, 7.6 + y]], true), poly([[4.2, 7.6 + y], [12, 12 + y * .4], [19.8, 7.6 + y]]), line(12, 12 + y * .4, 12, 20.8)];
+  });
+  g('close', 'Close (tab, media, group)', 'Zen sidebar & tabs', { kind: 'shake', used: 'Tab close, Mediaflow close, Groupflow close group' }, k => xLines(12, 12, L(5, 3, k), L(45, 135, k)));
+  g('audio', 'Sound / muted', 'Zen sidebar & tabs', { kind: 'pulse', dir: [1, 0], toggle: ['Mute', 'Unmute'], used: 'Tab audio, Mediaflow volume' }, k => [
+    { d: poly([[3.5, 9.4], [7, 9.4], [11.5, 5.4], [11.5, 18.6], [7, 14.6], [3.5, 14.6]], true), a: 1 },
+    mix(arc(11.5, 12, 3.8, -48, 48, 1), line(15, 9.5, 20, 14.5), k), mix(arc(11.5, 12, 7.4, -50, 50, 1), line(20, 9.5, 15, 14.5), k)]);
+  g('duplicate', 'Duplicate tab', 'Zen sidebar & tabs', { kind: 'dir', dir: [.7, -.7], used: 'Tab context menu' }, k => [
+    { d: tab(3.5, 9, 12, 11.5, 2.5), s: -1 }, { d: move(M(8.5, 9).l(8.5, 6.5).a(11, 6.5, 2.5, 2.5, 180, 270).l(18, 4).a(18, 6.5, 2.5, 2.5, 270, 360).l(20.5, 15.5).l(15.5, 15.5) + '', L(0, 1, k), L(0, -1, k)), s: 1 }]);
+  g('move-to-workspace', 'Move to workspace', 'Zen sidebar & tabs', { kind: 'dir', dir: [1, 0], used: 'Tab context menu' }, k => [
+    { d: rrect(3.5, L(6.5, 7.5, k), L(10, 8, k), L(11, 9, k), 2.5), a: 1 }, line(10, 12, L(20.5, 21.5, k), 12), head(L(20.5, 21.5, k), 12, 0, 3.6, 45)]);
+
+  /* Address bar and site */
+  g('site-settings', 'Site settings', 'Address bar & site', { kind: 'dir', dir: [1, 0], used: 'Zen site data button' }, k => [
+    { d: line(4, 7, 20, 7) + line(4, 12, 20, 12) + line(4, 17, 20, 17), a: 1 },
+    { d: line(L(15, 8, k), 4.6, L(15, 8, k), 9.4), s: -1 }, { d: line(L(9, 16, k), 9.6, L(9, 16, k), 14.4), s: 1 }, { d: line(L(13.5, 10, k), 14.6, L(13.5, 10, k), 19.4), s: -1 }]);
+  const shackle = (lift, leg) => M(8, 10.5).l(8, 7.6).a(12, 7.6, 4, 4, 180, 360, 2).l(16, leg) + '';
+  g('secure', 'Secure connection', 'Address bar & site', { kind: 'dir', dir: [0, -1], used: 'Address bar identity' }, k => [
+    { d: rrect(5, 10.5, 14, 10, 2.2) + line(12, 14.4, 12, 16.6), a: 1 }, move(shackle(0, L(10.5, 8.6, k)), 0, L(0, -2.2, k))]);
+  g('not-secure', 'Not secure', 'Address bar & site', { kind: 'shake', used: 'Address bar identity' }, k => [
+    { d: rrect(5, 10.5, 14, 10, 2.2), a: 1 }, move(shackle(0, 7.8), 0, L(-2, -3.2, k)), line(L(4.5, 3.5, k), L(4.5, 3.5, k), L(19.5, 20.5, k), L(19.5, 20.5, k))]);
+  g('shield', 'Tracking protection', 'Address bar & site', { kind: 'pop', used: 'Address bar tracking protection' }, k => {
+    const w = L(0, 1, k);
+    return [{ d: M(12, 3.5).c(14.5, 5, 17, 5.6, 19.5 + w, 5.6).c(19.5 + w, 13, 17, 18, 12, 20.5).c(7, 18, 4.5 - w, 13, 4.5 - w, 5.6).c(7, 5.6, 9.5, 5, 12, 3.5).z() + '', a: 1 },
+      scl(poly([[8.6, 12.2], [11, 14.6], [15.6, 9.8]]), L(1, 1.25, k), 12, 12)];
+  });
+  g('camera', 'Camera', 'Address bar & site', { kind: 'dir', dir: [1, 0], used: 'Permission indicator' }, k => [
+    { d: rrect(3, 7, 12.5, 10, 2.2), a: 1 }, poly([[15.5, L(10.4, 10.8, k)], [L(21, 21.8, k), L(7.5, 6.4, k)], [L(21, 21.8, k), L(16.5, 17.6, k)], [15.5, L(13.6, 13.2, k)]], true)]);
+  g('microphone', 'Microphone', 'Address bar & site', { kind: 'pulse', used: 'Permission indicator' }, k => [
+    rrect(9, L(3.5, 2.6, k), 6, 11, 3), { d: arc(12, 11, 6, 0, 180, 2) + line(12, 17, 12, 20.5) + line(8.5, 20.5, 15.5, 20.5), a: 1 }]);
+  g('location', 'Location', 'Address bar & site', { kind: 'dir', dir: [0, 1], used: 'Permission indicator' }, k => {
+    const t = L(3, 1.8, k);
+    return [M(12, 21).c(12, 21, 5, 14.6, 5, 9.7).c(5, 5.8, 8.1, t, 12, t).c(15.9, t, 19, 5.8, 19, 9.7).c(19, 14.6, 12, 21, 12, 21).z() + '', circle(12, L(9.6, 8.8, k), 2.5)];
+  });
+  g('notifications', 'Notifications', 'Address bar & site', { kind: 'swing', pivot: [12, 3.2], used: 'Permission indicator' }, k => [
+    rot(M(5, 17).l(6.2, 15.6).l(6.2, 10.8).c(6.2, 7.4, 8.8, 4.8, 12, 4.8).c(15.2, 4.8, 17.8, 7.4, 17.8, 10.8).l(17.8, 15.6).l(19, 17).z() + line(12, 3.2, 12, 4.8), L(0, 10, k), 12, 3.2),
+    { d: rot(M(10, 19.6).c(10.4, 20.7, 11.1, 21.2, 12, 21.2).c(12.9, 21.2, 13.6, 20.7, 14, 19.6) + '', L(0, -14, k), 12, 3.2), s: 1.8 }]);
+  g('autoplay', 'Autoplay', 'Address bar & site', { kind: 'pop', used: 'Permission indicator' }, k => [
+    { d: rrect(3.5, 5, 17, 14, 2.5), a: 1 }, scl(poly([[10, 8.8], [15.6, 12], [10, 15.2]], true), L(1, 1.3, k), 12.4, 12)]);
+  g('popup-blocked', 'Pop-up blocked', 'Address bar & site', { kind: 'dir', dir: [.7, -.7], used: 'Address bar notice' }, k => [
+    { d: rrect(3.5, 7.5, 12.5, 12.5, 2.2), a: 1 }, move(line(11, 13, 19.8, 4.2) + poly([[14.6, 4.2], [19.8, 4.2], [19.8, 9.4]]), L(0, -3, k), L(0, 3, k))]);
+  g('translate', 'Translate', 'Address bar & site', { kind: 'dir', dir: [1, 0], used: 'Address bar translations, context menu' }, k => [
+    { d: move(poly([[3.5, 17.5], [7, 7.5], [10.5, 17.5]]) + line(4.8, 14, 9.2, 14), L(0, 9.5, k), 0), s: 1 },
+    { d: move(line(16.5, 4.8, 16.5, 6.6) + line(12.8, 7.6, 20.2, 7.6) + M(14, 9).c(15, 13.5, 17.5, 16.5, 20.5, 18.5) + M(19, 9).c(18, 13.5, 15.5, 16.5, 12.5, 18.5), L(0, -9, k), 0), s: -1 }]);
+  g('reader', 'Reader view', 'Address bar & site', { kind: 'pop', used: 'Address bar, Zen site data, context menu' }, k => [
+    { d: M(12, 7).c(10.2, 5.6, 7.2, 5, 3.5, 5.4).l(3.5, 18.6).c(7.2, 18.2, 10.2, 18.8, 12, 20.2) + line(12, 7, 12, 20.2), a: 1 },
+    mix(M(12, 7).c(13.8, 5.6, 16.8, 5, 20.5, 5.4).l(20.5, 18.6).c(16.8, 18.2, 13.8, 18.8, 12, 20.2) + '', M(12, 7).c(12.8, 5, 14.6, 3.6, 16.4, 3.2).l(16.2, 16.4).c(14.6, 16.8, 12.8, 18.4, 12, 20.2) + '', k)]);
+  g('pip', 'Picture-in-Picture', 'Address bar & site', { kind: 'dir', dir: [-.7, -.7], used: 'Address bar PiP, Mediaflow popout' }, k => [
+    { d: rrect(3, 4.5, 18, 15, 2.5), a: 1 }, rrect(L(11.5, 5.5, k), L(11.5, 7, k), 7, 5.5, 1.2)]);
+  const link = (cx, cy) => rot(rrect(cx - 5, cy - 2.6, 10, 5.2, 2.6), -45, cx, cy);
+  g('copy-link', 'Copy link / share URL', 'Address bar & site', { kind: 'dir', dir: [.7, -.7], used: 'Zen copy URL, context menu share' }, k => [
+    { d: link(L(9.4, 8.2, k), L(14.6, 15.8, k)), s: -1 }, { d: link(L(14.6, 15.8, k), L(9.4, 8.2, k)), s: 1 }]);
+  g('share', 'Share', 'Address bar & site', { kind: 'dir', dir: [0, -1], used: 'Share tab, share workspace/folder' }, k => [
+    { d: poly([[8.2, 9.5], [5.5, 9.5], [5.5, 20.5], [18.5, 20.5], [18.5, 9.5], [15.8, 9.5]]), a: 1 },
+    line(12, L(3.5, 1.8, k), 12, 14.5), poly([[8.6, L(6.9, 5.2, k)], [12, L(3.5, 1.8, k)], [15.4, L(6.9, 5.2, k)]])]);
+
+  /* Context menu and editing */
+  const undo = k => [M(L(4.5, 3.5, k), 9.5).l(15, 9.5).c(17.8, 9.5, 20, 11.6, 20, 14.5).c(20, 17.4, 17.8, 19.5, 15, 19.5).l(L(11, 9, k), 19.5) + '', head(L(4.5, 3.5, k), 9.5, 180, 4.1, 45)];
+  g('undo', 'Undo', 'Context menu & editing', { kind: 'dir', dir: [-1, 0], used: 'Context menu, edit menu' }, undo);
+  g('redo', 'Redo', 'Context menu & editing', { kind: 'dir', dir: [1, 0], used: 'Context menu, edit menu' }, k => mirror(undo(k)));
+  g('select-all', 'Select all', 'Context menu & editing', { kind: 'pop', used: 'Context menu' }, k => [...corners(L(0, 1.4, k)), { d: rrect(8.5, 8.5, 7, 7, 1.5), f: k * .9 }]);
+  g('delete', 'Delete', 'Context menu & editing', { kind: 'dir', dir: [0, -1], used: 'Context menu, Library delete file' }, k => [
+    move(rot(line(4, 6.5, 20, 6.5) + poly([[9.2, 6.5], [9.7, 4], [14.3, 4], [14.8, 6.5]]), L(0, -12, k), 4.5, 6.5), 0, L(0, -1.8, k)),
+    { d: poly([[6, 6.5], [7.2, 20], [16.8, 20], [18, 6.5]]) + line(10, 10, 10, 16.5) + line(14, 10, 14, 16.5), a: 1 }]);
+  g('image', 'Image', 'Context menu & editing', { kind: 'pop', used: 'Context menu image items, Tab Router picture' }, k => [
+    { d: rrect(3.5, 4.5, 17, 15, 2.5), a: 1 }, poly([[4, 17.5], [9, L(12, 10.6, k)], [12.8, 16], [15.3, L(13.5, 12.6, k)], [20, 18.2]]), circle(15.8, L(9, 7.6, k), 1.6)]);
+  g('code', 'View source', 'Context menu & editing', { kind: 'dir', dir: [1, 0], used: 'Context menu view source' }, k => [
+    { d: poly([[L(8, 7, k), 7], [L(3.5, 2.5, k), 12], [L(8, 7, k), 17]]), s: -1 }, { d: poly([[L(16, 17, k), 7], [L(20.5, 21.5, k), 12], [L(16, 17, k), 17]]), s: 1 },
+    { d: line(L(13.5, 14.2, k), 5, L(10.5, 9.8, k), 19), a: 1 }]);
+  g('accessibility', 'Accessibility', 'Context menu & editing', { kind: 'dir', dir: [0, -1], used: 'Context menu inspect accessibility' }, k => [
+    { d: circle(12, 12, 8.6), a: 1 }, { d: dot(12, L(7.4, 6.8, k)), w: 1.5 }, line(7.6, L(10, 8.4, k), 16.4, L(10, 8.4, k)), line(12, 10, 12, 13), poly([[L(9.6, 9, k), 17.8], [12, 13], [L(14.4, 15, k), 17.8]])]);
+  g('spellcheck', 'Spell check', 'Context menu & editing', { kind: 'pop', used: 'Context menu' }, k => [
+    { d: poly([[3.5, 13], [7, 3.5], [10.5, 13]]) + line(4.8, 10, 9.2, 10), a: 1 }, scl(poly([[11, 16], [14.2, 19.2], [20.5, 11]]), L(1, 1.2, k), 15, 15)]);
+
+  /* Downloads */
+  const bars = [poly([[6.5, 5], [10, 5], [10, 19], [6.5, 19]], true), poly([[14, 5], [17.5, 5], [17.5, 19], [14, 19]], true)];
+  const tri = [poly([[7, 4.6], [13, 8.1], [13, 15.9], [7, 19.4]], true), poly([[13, 8.1], [19.6, 12], [19.6, 12], [13, 15.9]], true)];
+  g('pause-resume', 'Pause / resume download', 'Downloads', { kind: 'pulse', toggle: ['Pause download', 'Resume download'], used: 'Library download controls' }, k => [mix(bars[0], tri[0], k), mix(bars[1], tri[1], k)]);
+  g('cancel', 'Cancel', 'Downloads', { kind: 'shake', used: 'Library cancel, download prompt, Groupflow gradient' }, k => [{ d: circle(12, 12, L(8.6, 8, k)), a: 1 }, ...xLines(12, 12, L(4.2, 3, k), L(45, 135, k))]);
+  g('retry', 'Retry', 'Downloads', { kind: 'spin', spin: -1, used: 'Library retry download' }, k => mirror(reload(k)));
+  g('show-in-folder', 'Show in folder', 'Downloads', { kind: 'dir', dir: [0, -1], used: 'Library show file' }, k => [
+    { d: poly([[3.5, 19.5], [3.5, 5.5], [9, 5.5], [11, 7.5], [20.5, 7.5], [20.5, 19.5]], true), a: 1 },
+    line(12, L(17.5, 14.5, k), 12, L(11, 5.6, k)), poly([[9.6, L(13.4, 8, k)], [12, L(11, 5.6, k)], [14.4, L(13.4, 8, k)]])]);
+  g('delete-file', 'Delete file', 'Downloads', { kind: 'shake', used: 'Library delete file' }, k => [
+    { d: poly([[6, 3.5], [14, 3.5], [18.5, 8], [18.5, 20.5], [6, 20.5]], true) + poly([[14, 3.5], [14, 8], [18.5, 8]]), a: 1 }, ...xLines(12.2, 14.2, L(2.8, 3.6, k), L(45, 135, k))]);
+  g('remove-history', 'Remove from history', 'Downloads', { kind: 'shake', used: 'Library remove from history' }, k => [
+    { d: line(L(4, 3, k), 7, L(14, 13, k), 7) + line(L(4, 3, k), 12, L(14, 13, k), 12) + line(L(4, 3, k), 17, L(10.5, 9.5, k), 17), a: 1 }, ...xLines(17.2, 16.2, L(2.6, 3.3, k), L(45, 135, k))]);
+  g('keep-both', 'Keep both', 'Downloads', { kind: 'dir', dir: [1, 0], used: 'Download prompt keep both' }, k => [
+    { d: rot(rrect(3, 5, 8, 14, 1.6) + line(5.5, 9, 8.5, 9), L(0, -8, k), 7, 19), s: -1 }, { d: rot(rrect(13, 5, 8, 14, 1.6) + line(15.5, 9, 18.5, 9), L(0, 8, k), 17, 19), s: 1 }]);
+  g('replace', 'Replace', 'Downloads', { kind: 'dir', dir: [1, 0], used: 'Download prompt replace' }, k => [
+    { d: move(line(4.5, 8, 19, 8) + head(19, 8, 0, 3.6, 45), L(0, 1.4, k), 0), s: 1 }, { d: move(line(19.5, 16, 5, 16) + head(5, 16, 180, 3.6, 45), L(0, -1.4, k), 0), s: -1 }]);
+
+  /* Media (Mediaflow) */
+  g('play-pause', 'Play / pause', 'Media', { kind: 'pulse', toggle: ['Play', 'Pause'], used: 'Mediaflow play' }, k => [mix(tri[0], bars[0], k), mix(tri[1], bars[1], k)]);
+  const next = k => [poly([[L(5, 7, k), 5.5], [L(15, 16, k), 12], [L(5, 7, k), 18.5]], true), { d: line(18.5, 5.5, 18.5, 18.5), a: 1 }];
+  g('next', 'Next track', 'Media', { kind: 'dir', dir: [1, 0], used: 'Mediaflow next' }, next);
+  g('previous', 'Previous track', 'Media', { kind: 'dir', dir: [-1, 0], used: 'Mediaflow previous' }, k => mirror(next(k)));
+  const seek = k => { const t = L(0, -60, k), r = 7.6, a0 = -100 + t; return [arc(12, 12, r, a0, 200 + t, 4), head(12 + r * cos(a0), 12 + r * sin(a0), a0 - 90, 3, 44), { d: line(9.8, 9.6, 9.8, 14.4) + circle(13.8, 12, 1.6, 2.4), w: .85, a: 1 }]; };
+  g('seek-back', 'Back 10 seconds', 'Media', { kind: 'spin', spin: -1, used: 'Mediaflow seek back' }, seek);
+  g('seek-forward', 'Forward 10 seconds', 'Media', { kind: 'spin', spin: 1, used: 'Mediaflow seek forward' }, k => { const p = mirror(seek(k)); p[2] = seek(k)[2]; return p; });
+
+  /* Mods */
+  g('palette', 'Colours / appearance', 'Mods', { kind: 'tilt', used: 'Glassflow colours and appearance' }, k => [
+    M(12, 3.5).c(16.9, 3.5, 20.5, 7, 20.5, 11.4).c(20.5, 14.2, 18.4, 15.8, 16, 15.4).c(14.4, 15.1, 13.4, 16.3, 13.8, 17.6).c(14.3, 19.2, 13.4, 20.5, 12, 20.5)
+      .c(7.3, 20.5, 3.5, 16.7, 3.5, 12).c(3.5, 7.3, 7.3, 3.5, 12, 3.5).z() + '',
+    ...[[7.8, 11.6], [10.2, 7.6], [14.8, 7.4]].map(([x, y]) => ({ d: rot(dot(x, y), L(0, 40, k), 11.2, 12), w: 1.5 }))]);
+  g('report', 'Mods report', 'Mods', { kind: 'pop', used: 'Glassflow copy Zen Mods report' }, k => [
+    { d: rrect(5, 4.5, 14, 16.5, 2.2) + rrect(9, 3, 6, 3.4, 1.2), a: 1 }, scl(poly([[8.5, 13], [11, 15.5], [15.5, 10]]), L(1, 1.25, k), 12, 13)]);
+  const stripe = c => { const a = Math.max(4.1, c - 19.9), b = Math.min(19.9, c - 4.1); return line(a, c - a, b, c - b); };
+  g('gradient', 'Edit gradient', 'Mods', { kind: 'pop', used: 'Groupflow edit gradient' }, k => [{ d: rrect(3.5, 3.5, 17, 17, 4), a: 1 }, stripe(L(16, 19, k)), stripe(L(24, 27, k)), stripe(L(32, 35, k))]);
+  g('eyedropper', 'Resample colour', 'Mods', { kind: 'dir', dir: [0, 1], used: 'Groupflow resample favicon colour' }, k => [
+    rot(rrect(9.6, 2.6, 4.8, 5.6, 2.4) + line(8.4, 9, 15.6, 9) + poly([[10.4, 9], [10.4, 17.4], [12, 20], [13.6, 17.4], [13.6, 9]], true), L(45, 38, k)),
+    { d: dot(6.4, L(19.4, 22, k)), w: 1.5, o: k }]);
+  g('convert-group', 'Convert to tab group', 'Mods', { kind: 'pop', used: 'Groupflow convert to tab group' }, k => {
+    const i = L(0, 2, k);
+    return [poly([[7.5 + i, 4.5], [4.5 + i, 4.5], [4.5 + i, 19.5], [7.5 + i, 19.5]]), poly([[16.5 - i, 4.5], [19.5 - i, 4.5], [19.5 - i, 19.5], [16.5 - i, 19.5]]),
+      { d: line(8.5 + i * .5, 8, 15.5 - i * .5, 8) + line(8.5 + i * .5, 12, 15.5 - i * .5, 12) + line(8.5 + i * .5, 16, 15.5 - i * .5, 16), a: 1 }];
+  });
+  const scrollUp = k => [poly([[7, L(11.5, 10, k)], [12, L(6.5, 4.6, k)], [17, L(11.5, 10, k)]]), poly([[7, L(17.5, 15.4, k)], [12, L(12.5, 10.4, k)], [17, L(17.5, 15.4, k)]])];
+  g('scroll-up', 'Scroll folder up', 'Mods', { kind: 'dir', dir: [0, -1], used: 'Groupflow' }, scrollUp);
+  g('scroll-down', 'Scroll folder down', 'Mods', { kind: 'dir', dir: [0, 1], used: 'Groupflow' }, k => flipY(scrollUp(k)));
+  g('ungroup', 'Ungroup tabs', 'Mods', { kind: 'dir', dir: [1, 0], used: 'Groupflow native ungroup' }, k => [{ d: circle(L(9, 7.2, k), 12, L(5.5, 4.4, k)), s: -1 }, { d: circle(L(15, 16.8, k), 12, L(5.5, 4.4, k)), s: 1 }]);
+  g('swatches', 'Use these colours', 'Mods', { kind: 'pop', used: 'Groupflow use colours' }, k => [
+    { d: rot(rrect(5, 4.5, 7.5, 14, 2), L(-10, -20, k), 8.75, 19), s: -1 }, { d: rot(rrect(11.5, 4.5, 7.5, 14, 2), L(10, 20, k), 15.25, 19), s: 1 }]);
+  const spark = (cx, cy, R, a = 0) => rot(poly([[cx, cy - R], [cx + R * .26, cy - R * .26], [cx + R, cy], [cx + R * .26, cy + R * .26], [cx, cy + R], [cx - R * .26, cy + R * .26], [cx - R, cy], [cx - R * .26, cy - R * .26]], true), a, cx, cy);
+  g('wand', 'Generate routing rules', 'Mods', { kind: 'swing', pivot: [4, 20], used: 'Tab Router generate and resume' }, k => [
+    { d: rot(line(4, 20, 14.5, 9.5), L(0, -8, k), 4, 20), w: 1.1 }, spark(17.4, 6.4, L(2.8, 3.6, k), L(0, 45, k)), spark(10.8, 4.6, L(1.5, 2, k)), spark(19.4, 13.2, L(1.3, 1.8, k))]);
+  g('checklist', 'Validate routing rules', 'Mods', { kind: 'pulse', used: 'Tab Router validate' }, k =>
+    [7, 12, 17].flatMap(y => [scl(poly([[3.6, y], [5.1, y + 1.5], [7.8, y - 1.6]]), L(1, 1.3, k), 5.6, y), { d: line(10.5, y, L(20, 18.5, k), y), a: 1 }]));
+  g('pencil', 'Edit routing rules', 'Mods', { kind: 'scribble', used: 'Tab Router edit rules' }, k => [
+    rot(M(4, 20).l(5, 15.4).l(15.4, 5).c(16.2, 4.2, 17.6, 4.2, 18.4, 5).l(19, 5.6).c(19.8, 6.4, 19.8, 7.8, 19, 8.6).l(8.6, 19).z() + line(13.4, 7, 17, 10.6), L(0, -10, k), 12, 12)]);
+  g('sort', 'Preview sorting', 'Mods', { kind: 'pulse', dir: [1, 0], used: 'Tab Router preview sorting' }, k => [line(4, 7, L(11, 20, k), 7), line(4, 12, 15.5, 12), line(4, 17, L(20, 11, k), 17)]);
+  g('anchor', 'Keep here', 'Mods', { kind: 'swing', pivot: [12, 5.4], used: 'Tab Router keep here' }, k => [
+    circle(12, 5.4, 2.2), line(12, 7.6, 12, 20.5), line(8.4, 10.8, 15.6, 10.8), M(4.5, L(13.6, 12, k)).c(5, 17.8, 8.2, 20.5, 12, 20.5).c(15.8, 20.5, 19, 17.8, 19.5, L(13.6, 12, k)) + '']);
+  g('route', 'Resume routing', 'Mods', { kind: 'dir', dir: [.7, -.7], used: 'Tab Router resume routing' }, k => [
+    M(4.5, 19.5).c(4.5, L(14, 15.5, k), L(12, 9, k), L(16, 15, k), 12, 12).c(L(12, 15, k), L(8, 9, k), 18.5, L(10, 9, k), 18.5, L(5.5, 4.2, k)) + '', { d: dot(4.5, 19.5), w: 1.7, a: 1 }, head(18.5, L(5.5, 4.2, k), -90, 3.4, 45)]);
+  g('gauge', 'Folder status', 'Mods', { kind: 'swing', pivot: [12, 13.5], used: 'Tab Unloader folder status' }, k => [
+    { d: arc(12, 13.5, 8, 150, 390, 4) + dot(12, 13.5), a: 1 }, line(12, 13.5, 12 + 5.6 * cos(L(-130, -50, k)), 13.5 + 5.6 * sin(L(-130, -50, k)))]);
+
+  const norm = p => typeof p === 'string' ? { d: p } : p;
+  for (const gl of list) {
+    const cache = new Map();
+    gl.at = k => { k = Math.round(k * 1e4) / 1e4; if (!cache.has(k)) cache.set(k, gl.fn(k).map(norm)); return cache.get(k); };
+  }
+
+  // Existing Iconflow/Morph action IDs (iconflow/morph.json) and the glyph each one uses here.
+  const actions = {
+    back: 'back', forward: 'forward', reload: 'reload', stop: 'stop', 'new-tab': 'new-tab', 'app-menu': 'app-menu', compact: 'compact', sidebar: 'sidebar',
+    'site-data': 'site-settings', downloads: 'downloads', extensions: 'extensions', 'bookmark-toggle': 'bookmark', history: 'history', screenshot: 'screenshot',
+    'open-file': 'open-file', settings: 'settings', 'firefox-library': 'library', home: 'home', menu: 'workspace-actions', 'expand-sidebar': 'sidebar',
+    reader: 'reader', share: 'copy-link', overflow: 'overflow', chevron: 'chevron', 'close-unpinned': 'close-unpinned', 'save-page': 'save-page', print: 'print',
+    find: 'find', 'zoom-in': 'zoom-in', 'zoom-out': 'zoom-out', cut: 'cut', copy: 'copy', paste: 'paste', encoding: 'encoding', email: 'email', logins: 'passwords',
+    sync: 'sync', 'send-tab': 'send-tab', import: 'import', forget: 'forget', private: 'private', 'firefox-view': 'firefox-view', developer: 'developer',
+    'new-window': 'new-window', fullscreen: 'fullscreen', account: 'account', reopen: 'reopen', help: 'help', quit: 'quit', minus: 'minus',
+    'groupflow--edit-gradient': 'gradient', 'groupflow--resample-favicon-colour': 'eyedropper', 'groupflow--convert-to-folder': 'folder',
+    'groupflow--convert-to-tab-group': 'convert-group', 'groupflow--scroll-folder-up': 'scroll-up', 'groupflow--scroll-folder-down': 'scroll-down',
+    'tab-router--generate-routing-rules': 'wand', 'tab-router--validate-routing-rules': 'checklist', 'tab-router--edit-routing-rules': 'pencil',
+    'tab-router--why-here': 'help', 'tab-router--preview-sorting': 'sort', 'tab-router--keep-here': 'anchor', 'tab-router--resume-routing': 'route',
+    'tab-router--refresh-automatic-picture': 'reload', 'glassflow--appearance-save': 'save-page', 'glassflow--appearance-restore': 'reopen',
+    'glassflow--appearance-copy': 'copy', 'glassflow--mods-report-copy': 'report', 'tab-unloader--folder-status': 'gauge', 'tab-unloader--unload-folder': 'unload',
+    'groupflow--close-group': 'close', 'download-prompt--replace': 'replace', 'download-prompt--keep': 'keep-both', 'download-prompt--cancel': 'cancel',
+    'groupflow--use-colours': 'swatches', 'groupflow--save-gradient': 'save-page', 'groupflow--cancel-gradient': 'cancel',
+    'glassflow-library--cancel-download': 'cancel', 'glassflow-library--show-download': 'show-in-folder', 'groupflow--native-ungroup': 'ungroup',
+    'glassflow-library--show-file': 'show-in-folder', 'glassflow-library--delete-file': 'delete-file', 'glassflow-library--pause-download': 'pause-resume',
+    'glassflow-library--retry-download': 'retry', 'glassflow-library--remove-download-history': 'remove-history', 'glassflow--close-tab': 'close',
+    'context--back': 'back', 'context--forward': 'forward', 'context--reload': 'reload', 'context--stop': 'stop', 'context--bookmark': 'bookmark',
+    'context--save-page': 'save-page', 'context--copy': 'copy', 'context--cut': 'cut', 'context--paste': 'paste', 'context--new-tab': 'new-tab',
+    'context--new-window': 'new-window', 'context--private': 'private', 'context--screenshot': 'screenshot', 'context--send-tab': 'send-tab',
+    'context--developer': 'developer', 'context--find': 'find', 'context--print': 'print', 'context--share': 'copy-link', 'context--reader': 'reader',
+    'context--reopen': 'reopen', 'context--compact': 'compact',
+    'mediaflow--play': 'play-pause', 'mediaflow--next': 'next', 'mediaflow--previous': 'previous', 'mediaflow--seek-back': 'seek-back',
+    'mediaflow--seek-forward': 'seek-forward', 'mediaflow--mute': 'audio', 'mediaflow--pip': 'pip', 'mediaflow--close': 'close'
+  };
+
+  globalThis.ZenGlyphs = { list, byId: Object.fromEntries(list.map(g => [g.id, g])), actions, groups: [...new Set(list.map(g => g.group))] };
+})();
+</script>
+<script>
+/* Zen animated icon motion: exact spring engine, ten motion styles, pointer driver.
+   Spring stepping follows resources/iconflow/motion-engine.js (Iconflow design studies):
+   position and velocity both survive every retarget, so interrupted motion never jumps.
+   This version adds damping ratio (overshoot), a held press state, loops and spin drives. */
+(() => {
+  const NUM = /-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi;
+  const CH = ['tx', 'ty', 'r', 'sx', 'sy', 'o', 'draw', 'dash', 'w', 'f'], NC = CH.length;
+  const DEF = { tx: 0, ty: 0, r: 0, sx: 1, sy: 1, o: 1, draw: 1, dash: 0, w: 1, f: 0 };
+  const EVENTS = ['hover', 'press', 'release', 'leave'];
+  const fmt = n => { const v = Math.round(n * 1000) / 1000; return Object.is(v, -0) ? '0' : String(v); };
+  const parse = d => ({ v: (d.match(NUM) || []).map(Number), chunks: d.split(NUM) });
+  const pathOf = (chunks, a, n) => { let s = chunks[0]; for (let i = 0; i < n; i++) s += fmt(a[i]) + chunks[i + 1]; return s; };
+  const cos = a => Math.cos(a * Math.PI / 180), sin = a => Math.sin(a * Math.PI / 180);
+  const line = (x1, y1, x2, y2) => `M${fmt(x1)} ${fmt(y1)}C${fmt(x1 + (x2 - x1) / 3)} ${fmt(y1 + (y2 - y1) / 3)} ${fmt(x1 + (x2 - x1) * 2 / 3)} ${fmt(y1 + (y2 - y1) * 2 / 3)} ${fmt(x2)} ${fmt(y2)}`;
+  const circle = (cx, cy, r) => { const k = .5522847 * r; return `M${cx + r} ${cy}C${cx + r} ${cy + k} ${cx + k} ${cy + r} ${cx} ${cy + r}C${cx - k} ${cy + r} ${cx - r} ${cy + k} ${cx - r} ${cy}C${cx - r} ${cy - k} ${cx - k} ${cy - r} ${cx} ${cy - r}C${cx + k} ${cy - r} ${cx + r} ${cy - k} ${cx + r} ${cy}Z`; };
+
+  /* Point deformers. Paths hold only M/C/Z, so coordinates are x,y pairs. */
+  const hash = (x, y, s) => { const h = Math.sin(x * 127.1 + y * 311.7 + s * 74.7) * 43758.5453; return h - Math.floor(h); };
+  const D = {
+    map(c, fn) { const o = c.slice(); for (let i = 0; i < o.length; i += 2) [o[i], o[i + 1]] = fn(o[i], o[i + 1]); return o; },
+    twist: (c, deg, cx = 12, cy = 12) => D.map(c, (x, y) => { const dx = x - cx, dy = y - cy, a = deg * Math.min(1, Math.hypot(dx, dy) / 10); return [cx + dx * cos(a) - dy * sin(a), cy + dx * sin(a) + dy * cos(a)]; }),
+    wave: (c, amp, ph = 0, fr = .62) => D.map(c, (x, y) => [x + amp * .4 * Math.sin(y * fr + ph * 1.7), y + amp * Math.sin(x * fr + ph)]),
+    // Hashing by position keeps coincident points together: closed shapes stay closed, dots stay dots.
+    jitter: (c, amp, seed) => D.map(c, (x, y) => { const qx = Math.round(x * 20), qy = Math.round(y * 20); return [x + amp * (hash(qx, qy, seed) * 2 - 1), y + amp * (hash(qy, qx, seed + 9) * 2 - 1)]; }),
+    snap: (c, g) => c.map(v => Math.round(v / g) * g),
+    grow: (c, s, cx = 12, cy = 12) => D.map(c, (x, y) => [cx + (x - cx) * s, cy + (y - cy) * s])
+  };
+
+  // Exact damped spring. z < 1 overshoots; z >= 1 is critically damped; w <= 0 snaps.
+  function spring(x, v, to, w, z, dt) {
+    if (!(w > 0)) return [to, 0];
+    const d = x - to;
+    if (z >= 1) { const e = Math.exp(-w * dt), k = v + w * d; return [to + (d + k * dt) * e, (v - w * k * dt) * e]; }
+    const wd = w * Math.sqrt(1 - z * z), e = Math.exp(-z * w * dt), c = Math.cos(wd * dt), s = Math.sin(wd * dt), B = (v + z * w * d) / wd, p = d * c + B * s;
+    return [to + e * p, e * (-z * w * p + wd * (B * c - d * s))];
+  }
+
+  const STYLES = {};
+  const style = (id, name, tier, desc, build) => { STYLES[id] = { id, name, tier, desc, build }; };
+
+  // Semantic motion: each glyph's kind decides how its parts travel.
+  const KINDS = {
+    dir(c, i, p, nxt) {
+      const [dx, dy] = c.meta.dir, sg = p.s ?? 1, ux = dx * sg, uy = dy * sg, f = p.a ? .25 : 1;
+      c.pose(i, 'wind', { tx: -ux * c.A(.8) * f, ty: -uy * c.A(.8) * f });
+      c.pose(i, 'hover', { tx: ux * c.A(1.3) * f, ty: uy * c.A(1.3) * f });
+      c.pose(i, 'press', { tx: ux * c.A(2) * f, ty: uy * c.A(2) * f, sx: 1 - Math.abs(dx) * c.A(.1) * f, sy: 1 - Math.abs(dy) * c.A(.1) * f });
+      c.beat('hover', i, 0, 'wind', 22, 1); c.beat('hover', i, 70, 'hover', 16, .6);
+      c.beat('press', i, 0, 'press', 30, .9);
+      if (p.a) { c.pose(i, 'out', { k: c.next, sx: 1 + c.A(.05), sy: 1 + c.A(.05) }); c.beat('release', i, 0, 'out', 30, .9); c.beat('release', i, 110, nxt, 14, .5); }
+      else {
+        c.pose(i, 'out', { tx: ux * c.OV(9), ty: uy * c.OV(9), o: 0 }); c.pose(i, 'in', { k: c.next, tx: -ux * c.OV(7), ty: -uy * c.OV(7), o: 0 });
+        c.beat('release', i, 0, 'out', 24, 1); c.beat('release', i, 130, 'in', 0); c.beat('release', i, 140, nxt, 15, .62);
+      }
+      c.beat('leave', i, 0, 'rest', 13, .85);
+    },
+    spin(c, i, p, nxt) {
+      const sp = (c.meta.spin || 1) * (p.a ? 0 : 1);
+      c.origin(i, c.meta.pivot || [12, 12]);
+      c.pose(i, 'wind', { r: -12 * sp * c.A(1) });
+      c.pose(i, 'hover', { r: 30 * sp * c.A(1) });
+      c.pose(i, 'press', { r: -35 * sp * c.A(1), sx: 1 - c.A(.08), sy: 1 - c.A(.08) });
+      c.pose(i, 'turn', { k: c.next, r: (360 + 30 * c.A(1)) * sp, sx: 1 + c.A(.04), sy: 1 + c.A(.04) });
+      c.beat('hover', i, 0, 'wind', 20, 1); c.beat('hover', i, 80, 'hover', 14, .6);
+      c.beat('press', i, 0, 'press', 24, .85);
+      c.beat('release', i, 0, 'turn', 11, .72, 1); c.beat('release', i, 380, nxt, 12, .6);
+      c.beat('leave', i, 0, 'rest', 12, .8);
+    },
+    swing(c, i, p, nxt) {
+      const a = (p.s ?? 1) * c.A(1) * (p.a ? .3 : 1);
+      c.origin(i, c.meta.pivot || [12, 12]);
+      c.pose(i, 'hover', { r: 9 * a }); c.pose(i, 'press', { r: -12 * a, sx: .95, sy: .95 }); c.pose(i, 'kick', { k: c.next, r: 24 * a });
+      c.beat('hover', i, 0, 'hover', 11, .35); c.beat('press', i, 0, 'press', 22, .8);
+      c.beat('release', i, 0, 'kick', 26, .9); c.beat('release', i, 90, nxt, 8, .16);
+      c.beat('leave', i, 0, 'rest', 9, .3);
+    },
+    shake(c, i, p, nxt) {
+      const f = p.a ? .5 : 1, sg = p.s ?? 1;
+      c.pose(i, 'hover', { r: 7 * sg * c.A(1) * f }); c.pose(i, 'press', { sx: 1 - c.A(.12), sy: 1 - c.A(.12), r: -4 * sg * f });
+      [1.8, -1.5, 1.1, -.6].forEach((x, j) => { c.pose(i, 's' + j, { k: j > 1 ? c.next : c.s, tx: c.A(x) * f }); c.beat('release', i, j * 55, 's' + j, 42, 1); });
+      c.beat('hover', i, 0, 'hover', 16, .5); c.beat('press', i, 0, 'press', 30, .9);
+      c.beat('release', i, 220, nxt, 16, .7); c.beat('leave', i, 0, 'rest', 14, .8);
+    },
+    pop(c, i, p, nxt) {
+      const f = p.a ? .5 : 1;
+      c.pose(i, 'hover', { ty: -c.A(.6) * f, sx: 1 + c.A(.07) * f, sy: 1 + c.A(.07) * f });
+      c.pose(i, 'press', { sx: 1 - c.A(.15), sy: 1 - c.A(.15) });
+      c.pose(i, 'big', { k: c.next, ty: -c.A(.8) * f, sx: 1 + c.A(.16) * f, sy: 1 + c.A(.16) * f });
+      c.beat('hover', i, 0, 'hover', 16, .6); c.beat('press', i, 0, 'press', 30, .9);
+      c.beat('release', i, 0, 'big', 30, .9); c.beat('release', i, 90, nxt, 13, .45); c.beat('leave', i, 0, 'rest', 13, .85);
+    },
+    pulse(c, i, p, nxt) {
+      const [dx, dy] = c.meta.dir, f = p.a ? .3 : 1, d = i * 45;
+      c.pose(i, 'up', { tx: dx * c.A(1.6) * f, ty: dy * c.A(1.6) * f });
+      c.pose(i, 'hover', { tx: dx * c.A(.4) * f, ty: dy * c.A(.4) * f });
+      c.pose(i, 'press', { sx: 1 - c.A(.12), sy: 1 - c.A(.12) });
+      c.pose(i, 'up2', { k: c.next, tx: dx * c.A(2.6) * f, ty: dy * c.A(2.6) * f, sx: 1 + c.A(.08), sy: 1 + c.A(.08) });
+      c.beat('hover', i, d, 'up', 24, 1); c.beat('hover', i, d + 90, 'hover', 15, .55);
+      c.beat('press', i, i * 20, 'press', 28, .9);
+      c.beat('release', i, d, 'up2', 28, 1); c.beat('release', i, d + 110, nxt, 14, .5);
+      c.beat('leave', i, i * 25, 'rest', 13, .8);
+    },
+    scan(c, i, p, nxt) {
+      if (p.a) {
+        c.pose(i, 'hover', { sx: 1.03, sy: 1.03 }); c.pose(i, 'press', { sx: .96, sy: .96 });
+        c.beat('hover', i, 0, 'hover', 14, .7);
+      } else {
+        c.origin(i, 'c');
+        const R = c.A(1.2);
+        [[R, 0], [0, R], [-R, 0], [0, -R]].forEach(([x, y], j) => { c.pose(i, 's' + j, { tx: x, ty: y, sx: 1.05, sy: 1.05 }); c.beat('hover', i, j * 80, 's' + j, 26, 1); });
+        c.pose(i, 'hover', { sx: 1.05, sy: 1.05 }); c.beat('hover', i, 320, 'hover', 14, .6);
+        c.pose(i, 'press', { sx: .86, sy: .86 });
+      }
+      c.pose(i, 'zoom', { k: c.next, sx: 1 + c.A(.18), sy: 1 + c.A(.18) });
+      c.beat('press', i, 0, 'press', 28, .9); c.beat('release', i, 0, 'zoom', 30, .9); c.beat('release', i, 90, nxt, 13, .45); c.beat('leave', i, 0, 'rest', 13, .85);
+    },
+    scribble(c, i, p, nxt) {
+      [[1.2, 1.2], [-1, .5], [1, -.4], [-.6, -.8]].forEach(([x, y], j) => { c.pose(i, 'z' + j, { tx: c.A(x), ty: c.A(y) }); c.beat('hover', i, j * 70, 'z' + j, 30, 1); });
+      c.pose(i, 'hover', { ty: -c.A(.4) }); c.beat('hover', i, 280, 'hover', 14, .6);
+      c.pose(i, 'press', { tx: c.A(.8), ty: c.A(.8), sx: .94, sy: .94 }); c.pose(i, 'dash', { k: c.next, tx: c.A(3), ty: -c.A(3), r: -8 });
+      c.beat('press', i, 0, 'press', 26, .9); c.beat('release', i, 0, 'dash', 30, 1); c.beat('release', i, 100, nxt, 13, .5); c.beat('leave', i, 0, 'rest', 13, .8);
+    },
+    tilt(c, i, p, nxt) {
+      const f = p.a ? .3 : 1;
+      c.origin(i, c.meta.pivot || [12, 12]);
+      c.pose(i, 'hover', { r: -10 * f * c.A(1) }); c.pose(i, 'press', { r: 6 * f, sx: .92, sy: .92 }); c.pose(i, 'tip', { k: c.next, r: 18 * f * c.A(1) });
+      c.beat('hover', i, 0, 'hover', 13, .45); c.beat('press', i, 0, 'press', 26, .85);
+      c.beat('release', i, 0, 'tip', 26, .9); c.beat('release', i, 90, nxt, 10, .3); c.beat('leave', i, 0, 'rest', 10, .45);
+    }
+  };
+
+  style('clean', 'Clean', 'Simple', 'One soft lift on hover, a firm press, a single spring back. The whole icon moves as one piece.', c => c.each(i => {
+    const [dx, dy] = c.meta.dir;
+    c.pose(i, 'hover', { tx: c.A(dx * .5), ty: c.A(dy * .5), sx: 1 + c.A(.06), sy: 1 + c.A(.06) });
+    c.pose(i, 'press', { sx: 1 - c.A(.14), sy: 1 - c.A(.14) });
+    c.pose(i, 'pop', { k: c.next, sx: 1 + c.A(.12), sy: 1 + c.A(.12) });
+    c.beat('hover', i, 0, 'hover', 16, .75); c.beat('press', i, 0, 'press', 30, .9);
+    c.beat('release', i, 0, 'pop', 30, .9); c.beat('release', i, 90, c.nxt, 14, .5); c.beat('leave', i, 0, 'rest', 13, .9);
+  }));
+
+  style('glide', 'Glide', 'Simple', 'Each icon moves the way its action does: arrows travel and re-enter, refresh spins, bells swing, warnings shake.',
+    c => c.each(i => (KINDS[c.meta.kind] || KINDS.pop)(c, i, c.part(i), c.nxt)));
+
+  style('morph', 'Morph', 'Medium', 'The outline itself reshapes: hover leans toward the action shape, holding commits to it, release springs past and settles.', c => {
+    const K = c.k1, s = c.s, lean = s + (K - s) * (c.tog ? .12 : .22) * c.A(1), over = c.tog ? K + (K - s) * .14 : 1 + .16 * c.A(1);
+    c.each(i => {
+      c.pose(i, 'hover', { k: lean, sx: 1 + c.A(.03), sy: 1 + c.A(.03) });
+      c.pose(i, 'press', { k: K, sx: 1 - c.A(.05), sy: 1 - c.A(.05) });
+      c.pose(i, 'over', { k: over });
+      c.beat('hover', i, 0, 'hover', 15, .7); c.beat('press', i, 0, 'press', 20, .75);
+      c.beat('release', i, 0, 'over', 30, 1); c.beat('release', i, 85, c.nxt, 11, .42); c.beat('leave', i, 0, 'rest', 12, .8);
+    });
+  });
+
+  style('draw', 'Line draw', 'Medium', 'Strokes retract and redraw along their own paths; release erases forward and draws the next shape in.', c => c.each(i => {
+    const d = i * 40;
+    c.pose(i, 'tail', { draw: .3, dash: .7 });
+    c.pose(i, 'hover', { sx: 1 + c.A(.03), sy: 1 + c.A(.03) });
+    c.pose(i, 'press', { draw: .6, dash: .2, w: w => w * (1 + c.A(.35)), sx: 1 - c.A(.06), sy: 1 - c.A(.06) });
+    c.pose(i, 'gone', { draw: 0, dash: 1 });
+    c.pose(i, 'reset', { k: c.next, draw: 0, dash: 0 });
+    c.beat('hover', i, d, 'tail', 30, 1); c.beat('hover', i, d + 120, 'hover', 15, .85);
+    c.beat('press', i, 0, 'press', 24, .9);
+    c.beat('release', i, d * .8, 'gone', 34, 1); c.beat('release', i, d * .8 + 120, 'reset', 0); c.beat('release', i, d * .8 + 130, c.nxt, 13, .85);
+    c.beat('leave', i, 0, 'rest', 14, 1);
+  }));
+
+  style('jelly', 'Jelly', 'Medium', 'Soft-body squash and stretch with a rippling outline; release wobbles back to rest.', c => c.each(i => {
+    const d = i * 18;
+    c.origin(i, [12, 20.5]);
+    c.pose(i, 'hover', { d: v => D.wave(v, c.A(.35), 0), sx: 1 + c.A(.05), sy: 1 - c.A(.04) });
+    c.pose(i, 'press', { d: v => D.wave(v, c.A(.6), 1.4), sx: 1 + c.A(.14), sy: 1 - c.A(.18) });
+    c.pose(i, 'stretch', { k: c.next, d: v => D.wave(v, c.A(.45), 2.6), sx: 1 - c.A(.12), sy: 1 + c.A(.16) });
+    c.beat('hover', i, d, 'hover', 14, .38); c.beat('press', i, d, 'press', 20, .5);
+    c.beat('release', i, d, 'stretch', 34, .6); c.beat('release', i, d + 70, c.nxt, 11, .22); c.beat('leave', i, d, 'rest', 12, .3);
+  }));
+
+  style('halo', 'Halo', 'Medium · overflows', 'Rings gather around the icon while it is held and ripple outward past its box on release.', c => {
+    [0, 1, 2].forEach(j => {
+      const r = c.fx('ring' + j, circle(12, 12, 10.5), { w: .55, z: -1 }), sc = s => ({ d: v => D.grow(v, s) });
+      c.pose(r, 'rest', { o: 0, ...sc(.6) });
+      c.pose(r, 'hover', { o: j ? 0 : .4, ...sc(j ? .6 : 1) });
+      c.pose(r, 'press', { o: [.8, .5, .3][j], ...sc([.78, .62, .5][j]) });
+      c.pose(r, 'start', { o: .9, ...sc(.7) });
+      c.pose(r, 'wave', { o: 0, ...sc(c.OV(2.3) + j * .25) });
+      c.beat('hover', r, 0, 'hover', 12, .7); c.beat('press', r, j * 40, 'press', 22, .7);
+      c.beat('release', r, j * 85, 'start', 0); c.beat('release', r, j * 85 + 16, 'wave', 5.5, 1);
+      c.beat('release', r, 700 + j * 85, 'rest', 0); c.beat('release', r, 720 + j * 85, 'hover', 12, .8);
+      c.beat('leave', r, 0, 'rest', 14, .9);
+    });
+    c.each(i => {
+      c.pose(i, 'hover', { sx: 1 - c.A(.06), sy: 1 - c.A(.06) }); c.pose(i, 'press', { sx: 1 - c.A(.14), sy: 1 - c.A(.14) });
+      c.pose(i, 'pop', { k: c.next, sx: 1 + c.A(.1), sy: 1 + c.A(.1) });
+      c.beat('hover', i, 0, 'hover', 14, .7); c.beat('press', i, 0, 'press', 26, .8);
+      c.beat('release', i, 0, 'pop', 30, .9); c.beat('release', i, 90, c.nxt, 12, .5); c.beat('leave', i, 0, 'rest', 13, .85);
+    });
+  });
+
+  style('sketch', 'Sketch', 'Medium', 'Hand-drawn boil: lines wobble like pencil animation while hovered, scribble harder while held, redraw on release.', c => c.each(i => {
+    for (let j = 0; j < 3; j++) {
+      const r = [-1.2, .8, -.4][j];
+      c.pose(i, 'h' + j, { d: v => D.jitter(v, c.A(.32), j + 1), r, sx: 1.03, sy: 1.03 });
+      c.pose(i, 'p' + j, { d: v => D.jitter(v, c.A(.6), j + 5), r: -r * 1.4, sx: .93, sy: .93 });
+      c.pose(i, 'n' + j, { k: c.next, d: v => D.jitter(v, c.A(.32), j + 1), r, sx: 1.03, sy: 1.03 });
+    }
+    c.pose(i, 'blank', { k: c.next, d: v => D.jitter(v, c.A(.32), 1), draw: 0, dash: 0 });
+    c.beat('hover', i, 0, 'h0', 0); c.loop('hover', i, 0, 330, [[0, 'h0', 0], [110, 'h1', 0], [220, 'h2', 0]]);
+    c.beat('press', i, 0, 'p0', 0); c.loop('press', i, 0, 180, [[0, 'p0', 0], [60, 'p1', 0], [120, 'p2', 0]]);
+    c.beat('release', i, 0, 'blank', 0); c.beat('release', i, 10, 'n0', 22, 1);
+    c.loop('release', i, 300, 330, [[0, 'n0', 0], [110, 'n1', 0], [220, 'n2', 0]]);
+    c.beat('leave', i, 0, 'rest', 20, 1);
+  }));
+
+  style('glitch', 'Glitch', 'Complex', 'Digital split: offset ghost copies flicker on stepped timing, the outline snaps to a pixel grid, release tears and resolves.', c => c.each(i => {
+    c.pose(i, 'hover', { d: v => D.snap(v, .75), sx: 1.02, sy: 1.02 });
+    c.pose(i, 'press', { d: v => D.snap(v, 1.5), sx: 1.05, sy: .93 });
+    c.pose(i, 't1', { d: v => D.snap(v, 2), tx: c.A(2.4), sx: 1.22, sy: .82 });
+    c.pose(i, 't2', { k: c.next, d: v => D.snap(v, 1.5), tx: -c.A(1.6), sx: .9, sy: 1.14 });
+    c.pose(i, 't3', { k: c.next, d: v => D.snap(v, .75), tx: c.A(.6) });
+    c.beat('hover', i, 0, 'hover', 30, 1); c.beat('press', i, 0, 'press', 36, 1);
+    c.beat('release', i, 0, 't1', 0); c.beat('release', i, 55, 't2', 0); c.beat('release', i, 110, 't3', 0); c.beat('release', i, 150, c.nxt, 30, 1);
+    c.beat('leave', i, 0, 'rest', 30, 1);
+    [1, -1].forEach((sg, gi) => {
+      const g = c.fx(`ghost${gi}-${i}`, null, { src: i, z: -1, w: .85 });
+      const offs = [[1.1, 0, .38], [-.6, .5, .5], [.7, -.5, .28], [-1, -.2, .42]];
+      offs.forEach(([x, y, o], j) => {
+        const q = (j + gi * 2) % 4;
+        c.pose(g, 'h' + j, { d: v => D.snap(v, .75), tx: sg * c.A(offs[q][0]), ty: sg * c.A(offs[q][1]), o: offs[q][2] });
+        c.pose(g, 'p' + j, { d: v => D.snap(v, 1.5), tx: sg * c.A(offs[q][0] * 1.7), ty: sg * c.A(offs[q][1] * 1.7), o: offs[q][2] + .15 });
+      });
+      c.pose(g, 'b0', { k: c.next, tx: sg * c.OV(5), o: .6 }); c.pose(g, 'b1', { k: c.next, tx: -sg * c.OV(3.5), ty: sg * 1.2, o: .35 }); c.pose(g, 'gone', { k: c.next, o: 0 });
+      c.loop('hover', g, 0, 240, [0, 1, 2, 3].map(j => [j * 60, 'h' + j, 0]));
+      c.loop('press', g, 0, 120, [0, 1, 2, 3].map(j => [j * 30, 'p' + j, 0]));
+      c.beat('release', g, 0, 'b0', 0); c.beat('release', g, 60, 'b1', 0); c.beat('release', g, 130, 'gone', 0);
+      c.beat('leave', g, 0, 'rest', 30, 1);
+    });
+  }));
+
+  style('orbit', 'Orbit', 'Complex · overflows', 'Satellites fade in on a tilted orbit wider than the icon, tighten and speed up while held, and fling outward on release.', c => {
+    const frame = 'translate(12 12) rotate(-18) scale(1 .42) translate(-12 -12)';
+    const ring = c.fx('ring', circle(12, 12, 12.5), { w: .5, z: -1, frame });
+    c.pose(ring, 'rest', { o: 0, d: v => D.grow(v, .5), draw: 0 });
+    c.pose(ring, 'hover', { o: .32 }); c.pose(ring, 'press', { o: .55, d: v => D.grow(v, .62) }); c.pose(ring, 'fling', { o: 0, d: v => D.grow(v, c.OV(1.9)) });
+    c.beat('hover', ring, 0, 'hover', 9, .9); c.beat('press', ring, 0, 'press', 18, .8);
+    c.beat('release', ring, 0, 'fling', 6, 1); c.beat('release', ring, 620, 'rest', 0); c.beat('release', ring, 640, 'hover', 9, .9);
+    c.beat('leave', ring, 0, 'rest', 12, 1);
+    [0, 1, 2].forEach(j => {
+      const s = c.fx('sat' + j, `M24.5 12C24.5 12 24.5 12 24.5 12`, { w: 1.25, z: 1, frame }), r = j * 120;
+      c.pose(s, 'rest', { r, o: 0, sx: .35, sy: .35 }); c.pose(s, 'hover', { r }); c.pose(s, 'press', { r, sx: .6, sy: .6 });
+      c.pose(s, 'fling', { r, sx: c.OV(2.3), sy: c.OV(2.3), o: 0 }); c.pose(s, 'tuck', { r, sx: .35, sy: .35, o: 0 });
+      c.beat('hover', s, j * 70, 'hover', 8, .8); c.spin('hover', s, 150);
+      c.beat('press', s, 0, 'press', 16, .75); c.spin('press', s, 560);
+      c.beat('release', s, 0, 'fling', 6.5, 1); c.spin('release', s, 300); c.beat('release', s, 620, 'tuck', 0); c.beat('release', s, 640 + j * 70, 'hover', 8, .8);
+      c.beat('leave', s, 0, 'rest', 10, 1);
+    });
+    c.each(i => {
+      c.pose(i, 'hover', { d: v => D.twist(v, c.A(7)), sx: .9, sy: .9 });
+      c.pose(i, 'press', { d: v => D.twist(v, -c.A(12)), sx: .8, sy: .8 });
+      c.pose(i, 'pop', { k: c.next, sx: 1.14, sy: 1.14 });
+      c.beat('hover', i, 0, 'hover', 13, .6); c.beat('press', i, 0, 'press', 18, .7);
+      c.beat('release', i, 0, 'pop', 28, .9); c.beat('release', i, 90, c.nxt, 12, .5); c.beat('leave', i, 0, 'rest', 12, .75);
+    });
+  });
+
+  style('burst', 'Burst', 'Complex · overflows', 'Pieces part on hover, gather and tremble while held, then blast past the box with a shockwave and sparks before reassembling.', c => {
+    const wave = c.fx('wave', circle(12, 12, 6), { w: .7, z: -1 });
+    c.pose(wave, 'rest', { o: 0, d: v => D.grow(v, .4) }); c.pose(wave, 's', { o: .9, d: v => D.grow(v, .4) }); c.pose(wave, 'wave', { o: 0, d: v => D.grow(v, c.OV(2.7)) });
+    c.beat('release', wave, 0, 's', 0); c.beat('release', wave, 16, 'wave', 5.5, 1); c.beat('release', wave, 760, 'rest', 0); c.beat('leave', wave, 0, 'rest', 20, 1);
+    for (let j = 0; j < 8; j++) {
+      const a = 22.5 + j * 45, s = c.fx('spark' + j, line(12 + 8.5 * cos(a), 12 + 8.5 * sin(a), 12 + 11.5 * cos(a), 12 + 11.5 * sin(a)), { w: .8, z: 1 });
+      c.pose(s, 'rest', { o: 0, draw: 0, sx: .6, sy: .6 }); c.pose(s, 's', { o: 1, draw: 0, sx: .6, sy: .6 });
+      c.pose(s, 'fly', { o: 1, draw: .5, dash: .5, sx: c.OV(1.75), sy: c.OV(1.75) }); c.pose(s, 'fade', { o: 0, draw: .05, dash: .95, sx: c.OV(2.2), sy: c.OV(2.2) });
+      c.beat('release', s, 0, 's', 0); c.beat('release', s, 20, 'fly', 12, 1); c.beat('release', s, 200, 'fade', 9, 1); c.beat('release', s, 760, 'rest', 0);
+      c.beat('leave', s, 0, 'rest', 20, 1);
+    }
+    c.each(i => {
+      const [ox, oy] = c.out(i), alt = i % 2 ? -1 : 1, px = -ox * c.A(.4), py = -oy * c.A(.4);
+      c.origin(i, 'c');
+      c.pose(i, 'hover', { tx: ox * c.A(1.1), ty: oy * c.A(1.1), r: 5 * alt * c.A(1) });
+      c.pose(i, 'press', { tx: px, ty: py, r: -4 * alt, sx: .84, sy: .84 });
+      c.pose(i, 'ta', { tx: px + .22, ty: py - .18, r: -4 * alt, sx: .84, sy: .84 }); c.pose(i, 'tb', { tx: px - .22, ty: py + .18, r: -4 * alt, sx: .84, sy: .84 });
+      c.pose(i, 'blast', { k: c.next, tx: ox * c.OV(8.5), ty: oy * c.OV(8.5), r: 110 * alt * c.A(1), sx: .72, sy: .72, o: .85 });
+      c.beat('hover', i, 0, 'hover', 16, .55);
+      c.beat('press', i, 0, 'press', 26, .9); c.loop('press', i, 120, 70, [[0, 'ta', 60, 1], [35, 'tb', 60, 1]]);
+      c.beat('release', i, 0, 'blast', 19, 1, 1); c.beat('release', i, 190 + i * 30, c.nxt, 15, .5);
+      c.beat('leave', i, 0, 'rest', 13, .75);
+    });
+  });
+
+  /* Compile a glyph + style into poses and timed beats. opts: tempo, bounce, amp, overflow. */
+  function compile(glyph, styleId, opts = {}) {
+    const o = { tempo: 1, bounce: 1, amp: 1, overflow: 1, ...opts }, st = STYLES[styleId];
+    if (!st) throw Error('Unknown style ' + styleId);
+    const tog = !!glyph.toggle, states = tog ? [0, 1] : [0], g0 = glyph.at(0), g1 = glyph.at(1);
+    const parts = g0.map((p, i) => { const q = parse(p.d); return { chunks: q.chunks, n: q.v.length, o: [12, 12], glyph: true, z: 0, s: p.s, a: !!p.a, fill: (p.f ?? 0) > 0 || (g1[i].f ?? 0) > 0 }; });
+    const sets = states.map(() => ({ P: parts.map(() => ({})), E: parts.map(() => ({})) }));
+    const fxKeys = new Map();
+    const T = ms => ms * o.tempo, W = w => w > 0 ? w / o.tempo : 0, Z = z => Math.min(1, Math.max(.08, 1 - (1 - z) * o.bounce));
+    const baseOf = (i, k) => {
+      const p = parts[i];
+      if (p.glyph || p.src !== undefined) {
+        const gp = glyph.at(k)[p.glyph ? i : p.src], v = parse(gp.d).v;
+        if (v.length !== p.n) throw Error(`${glyph.id}: part ${i} changes topology at k=${k}`);
+        return { d: v, ...DEF, o: p.glyph ? (gp.o ?? 1) : 0, f: gp.f ?? 0, w: (gp.w ?? 1) * (p.wm ?? 1) };
+      }
+      return { d: p.v0.slice(), ...DEF, o: 0, w: p.wm ?? 1 };
+    };
+    const baseVec = (i, k) => { const b = baseOf(i, k), v = new Float64Array(parts[i].n + NC); v.set(b.d); CH.forEach((x, j) => v[parts[i].n + j] = b[x]); return v; };
+    for (const [si, s] of states.entries()) {
+      const set = sets[si], ev = (e, i) => set.E[i][e] ||= { b: [], l: null, sp: 0 };
+      const c = {
+        s, k1: tog ? 1 - s : 1, next: tog ? 1 - s : s, tog, nxt: tog ? '>hover' : 'hover', meta: glyph, opts: o,
+        A: x => x * o.amp, OV: x => x * o.overflow,
+        part: i => parts[i],
+        each(fn) { for (let i = 0; i < g0.length; i++) fn(i); },
+        origin(i, xy) { parts[i].o = xy === 'c' ? c.cent(i) : xy; },
+        cent(i) { const v = baseOf(i, s).d; let x = 0, y = 0; for (let j = 0; j < v.length; j += 2) { x += v[j]; y += v[j + 1]; } return [x * 2 / v.length, y * 2 / v.length]; },
+        out(i) {
+          const [x, y] = c.cent(i), dx = x - 12, dy = y - 12, m = Math.hypot(dx, dy);
+          if (m >= 1.2) return [dx / m, dy / m];
+          if (g0.length === 1) return glyph.dir;
+          return [cos(i * 137.5 - 90), sin(i * 137.5 - 90)];
+        },
+        pose(i, name, over = {}) {
+          const b = baseOf(i, over.k ?? s), p = parts[i], v = new Float64Array(p.n + NC);
+          v.set(typeof over.d === 'function' ? over.d(b.d) : over.d || b.d);
+          CH.forEach((k, j) => { const x = over[k]; v[p.n + j] = typeof x === 'function' ? x(b[k]) : x ?? b[k]; });
+          if (!v.every(Number.isFinite)) throw Error(`${glyph.id}/${styleId}: nonfinite pose ${name}`);
+          set.P[i][name] = v;
+        },
+        beat(e, i, ms, name, w = 16, z = .8, keep = 0) { ev(e, i).b.push([T(ms), name, W(w), Z(z), keep]); },
+        loop(e, i, start, period, beats) { ev(e, i).l = { start: T(start), period: T(period), b: beats.map(([ms, n, w = 0, z = 1]) => [T(ms), n, W(w), Z(z), 0]) }; },
+        spin(e, i, rate) { ev(e, i).sp = rate / o.tempo; },
+        fx(key, d, { o: origin = [12, 12], z = 1, w = 1, frame = null, src } = {}) {
+          if (fxKeys.has(key)) return fxKeys.get(key);
+          const i = parts.length;
+          if (src !== undefined) parts.push({ chunks: parts[src].chunks, n: parts[src].n, src, o: origin, z, frame, wm: w, fill: false });
+          else { const q = parse(d); parts.push({ chunks: q.chunks, n: q.v.length, v0: q.v, o: origin, z, frame, wm: w, fill: false }); }
+          fxKeys.set(key, i);
+          sets.forEach((st2, sj) => { st2.P[i] = { rest: baseVec(i, states[sj]) }; st2.E[i] = {}; });
+          return i;
+        }
+      };
+      for (let i = 0; i < parts.length; i++) if (!set.P[i].rest) set.P[i].rest = baseVec(i, s);
+      st.build(c);
+    }
+    // Defaults, cross-state references, and index resolution.
+    return {
+      id: glyph.id, style: styleId, toggle: tog,
+      parts: parts.map(p => ({ chunks: p.chunks, n: p.n, o: p.o, z: p.glyph ? 0 : p.z, frame: p.frame || null, fill: p.fill })),
+      sets: sets.map((set, si) => {
+        const other = sets[1 - si] || set;
+        let end = 0;
+        const out = parts.map((p, i) => {
+          const P = set.P[i], E = set.E[i];
+          for (const e of EVENTS) if (!E[e] || !E[e].b.length) {
+            const has = n => !!P[n];
+            const b = e === 'hover' ? [0, has('hover') ? 'hover' : 'rest', W(16), Z(.8), 0] : e === 'press' ? [0, has('press') ? 'press' : has('hover') ? 'hover' : 'rest', W(26), Z(.9), 0]
+              : e === 'leave' ? [0, 'rest', W(14), Z(.9), 0] : [0, tog ? (other.P[i].hover ? '>hover' : '>rest') : has('hover') ? 'hover' : 'rest', W(16), Z(.6), 0];
+            E[e] = { ...(E[e] || { l: null, sp: 0 }), b: [b] };
+          }
+          const names = Object.keys(P), idx = n => {
+            if (n[0] === '>') { if (!other.P[i][n.slice(1)]) throw Error(`${glyph.id}/${styleId}: missing pose ${n}`); P[n] = other.P[i][n.slice(1)]; }
+            if (!P[n]) throw Error(`${glyph.id}/${styleId}: missing pose ${n}`);
+            if (!names.includes(n)) names.push(n);
+            return names.indexOf(n);
+          };
+          const map = bs => bs.map(([ms, n, w, z, k]) => [ms, idx(n), w, z, k]);
+          const Ev = Object.fromEntries(EVENTS.map(e => [e, { b: map(E[e].b), l: E[e].l && { ...E[e].l, b: map(E[e].l.b) }, sp: E[e].sp || 0 }]));
+          const r = Ev.release; end = Math.max(end, r.b.at(-1)[0], r.l ? r.l.start : 0);
+          return { P: names.map(n => P[n]), E: Ev };
+        });
+        return { end: end + T(160), parts: out };
+      })
+    };
+  }
+
+  function attrs(part, a, stroke) {
+    const n = part.n, [tx, ty, r, sx, sy, o, draw, dash, w, f] = a.subarray ? a.subarray(n) : a.slice(n), [ox, oy] = part.o;
+    const op = Math.min(1, Math.max(0, o)), dr = Math.min(1, Math.max(0, draw));
+    return {
+      d: pathOf(part.chunks, a, n),
+      t: `translate(${fmt(tx + ox)} ${fmt(ty + oy)}) rotate(${fmt(r)}) scale(${fmt(sx)} ${fmt(sy)}) translate(${fmt(-ox)} ${fmt(-oy)})`,
+      o: fmt(op), vis: op > .002 && dr > .002, da: dr >= .999 ? 'none' : `${fmt(dr)} 2`, do: fmt(-dash), w: fmt(Math.max(0, w) * stroke), f: fmt(Math.min(1, Math.max(0, f)))
+    };
+  }
+
+  function markup(ch, { size = 24, stroke = 1.6, set = 0, cls = '', attrs: extra = '', vecs } = {}) {
+    const order = ch.parts.map((_, i) => i).sort((a, b) => ch.parts[a].z - ch.parts[b].z || a - b);
+    const body = order.map(i => {
+      const p = ch.parts[i], at = attrs(p, vecs ? vecs[i] : ch.sets[set].parts[i].P[0], stroke);
+      const g = `<g data-p="${i}" transform="${at.t}" opacity="${at.o}"${at.vis ? '' : ' visibility="hidden"'}><path d="${at.d}" pathLength="1" stroke-width="${at.w}"${at.da === 'none' ? '' : ` stroke-dasharray="${at.da}" stroke-dashoffset="${at.do}"`}${p.fill ? ` fill="currentColor" fill-opacity="${at.f}"` : ''}/></g>`;
+      return p.frame ? `<g transform="${p.frame}">${g}</g>` : g;
+    }).join('');
+    return `<svg xmlns="http://www.w3.org/2000/svg"${cls ? ` class="${cls}"` : ''} viewBox="0 0 24 24" width="${size}" height="${size}" overflow="visible" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"${extra}>${body}</svg>`;
+  }
+
+  /* Driver: one animation-frame loop for every active icon; idle icons cost nothing. */
+  const Z = { speed: 1, motion: true };
+  const live = new Set(); let raf = 0, last = 0;
+  const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  function frame(t) {
+    raf = 0; const dt = Math.min(.05, Math.max(0, (t - last) / 1000)) * Z.speed; last = t;
+    for (const it of live) if (!step(it, dt)) live.delete(it);
+    if (live.size) raf = requestAnimationFrame(frame);
+  }
+  function wake(it) { live.add(it); if (!raf && typeof requestAnimationFrame !== 'undefined') { last = now(); raf = requestAnimationFrame(frame); } }
+
+  function apply(it, q, i, b) {
+    const part = it.ch.parts[i], sp = it.ch.sets[it.set].parts[i], tgt = sp.P[b[1]], ri = part.n + 2, prev = q.to[ri];
+    q.to.set(tgt);
+    if (sp.E[it.ev].sp) q.to[ri] = prev;                    // a spin drive owns rotation
+    else if (!b[4]) {                                        // nearest equivalent turn; a fast spin keeps its direction
+      const x = q.x[ri], v = q.v[ri], R = tgt[ri];
+      let to = R + 360 * Math.round((x - R) / 360);
+      if (Math.abs(v) > 360 && (to - x) * v < 0 && Math.abs(to - x) > 30) to += 360 * Math.sign(v);
+      q.to[ri] = to;
+    }
+    q.w = b[2]; q.z = b[3];
+    if (!(q.w > 0)) { q.x.set(q.to); q.v.fill(0); }
+  }
+
+  function start(it, ev, skip = false) {
+    if (it.pending !== null && ev !== 'release') { it.set = it.pending; it.pending = null; }
+    if (ev === 'release' && it.ch.toggle) it.pending = 1 - it.set;
+    it.ev = ev; it.t = 0;
+    const S = it.ch.sets[it.set].parts;
+    it.q.forEach((q, i) => {
+      const ri = it.ch.parts[i].n + 2, turns = Math.round(q.x[ri] / 360);
+      if (turns) { q.x[ri] -= 360 * turns; q.to[ri] -= 360 * turns; }
+      q.c = 0; q.lc = 0; q.lk = -1;
+    });
+    if (skip) it.t = Math.max(...S.map(p => p.E[ev].b.at(-1)[0]));
+    if (!Z.motion) {
+      it.q.forEach((q, i) => { const E = S[i].E[ev]; for (const b of E.b) apply(it, q, i, b); q.c = E.b.length; q.x.set(q.to); q.v.fill(0); if (it.dom) paint(it, i); });
+      if (ev === 'release') { it.set = it.pending ?? it.set; it.pending = null; it.ev = 'hover'; }
+      return;
+    }
+    if (it.dom) wake(it);
+    step(it, 0);
+  }
+
+  function step(it, dt) {
+    if (!it.ev) return false;
+    it.t += dt * 1000;
+    const S = it.ch.sets[it.set];
+    let busy = false;
+    it.q.forEach((q, i) => {
+      const part = it.ch.parts[i], E = S.parts[i].E[it.ev];
+      while (q.c < E.b.length && E.b[q.c][0] <= it.t) apply(it, q, i, E.b[q.c++]);
+      if (q.c < E.b.length) busy = true;
+      if (E.l) {
+        busy = true;
+        if (it.t >= E.l.start) {
+          const lt = it.t - E.l.start, k = Math.floor(lt / E.l.period), u = lt - k * E.l.period;
+          if (k !== q.lk) { q.lk = k; q.lc = 0; }
+          while (q.lc < E.l.b.length && E.l.b[q.lc][0] <= u) apply(it, q, i, E.l.b[q.lc++]);
+        }
+      }
+      if (E.sp) { q.to[part.n + 2] += E.sp * dt; busy = true; }
+      for (let j = 0; j < q.x.length; j++) {
+        if (q.x[j] === q.to[j] && q.v[j] === 0) continue;
+        const [x, v] = spring(q.x[j], q.v[j], q.to[j], q.w, q.z, dt);
+        if (Math.abs(x - q.to[j]) < 2e-4 && Math.abs(v) < 2e-3) { q.x[j] = q.to[j]; q.v[j] = 0; } else { q.x[j] = x; q.v[j] = v; busy = true; }
+      }
+      if (it.dom) paint(it, i);
+    });
+    if (it.ev === 'release' && it.t >= S.end) { if (it.pending !== null) { it.set = it.pending; it.pending = null; } start(it, it.hover ? 'hover' : 'leave', it.hover); return true; }
+    return busy;
+  }
+
+  function paint(it, i) {
+    const q = it.q[i], at = attrs(it.ch.parts[i], q.x, it.stroke), c = q.cache, g = q.g, p = q.path;
+    if (at.d !== c.d) p.setAttribute('d', c.d = at.d);
+    if (at.t !== c.t) g.setAttribute('transform', c.t = at.t);
+    if (at.o !== c.o) g.setAttribute('opacity', c.o = at.o);
+    if (at.vis !== c.vis) { c.vis = at.vis; at.vis ? g.removeAttribute('visibility') : g.setAttribute('visibility', 'hidden'); }
+    if (at.da !== c.da) { c.da = at.da; at.da === 'none' ? p.removeAttribute('stroke-dasharray') : p.setAttribute('stroke-dasharray', at.da); }
+    if (at.do !== c.do) p.setAttribute('stroke-dashoffset', c.do = at.do);
+    if (at.w !== c.w) p.setAttribute('stroke-width', c.w = at.w);
+    if (it.ch.parts[i].fill && at.f !== c.f) p.setAttribute('fill-opacity', c.f = at.f);
+  }
+
+  function attach(svg, ch, { host = svg, set = 0, interactive = true } = {}) {
+    const nodes = []; for (const g of svg.querySelectorAll('[data-p]')) nodes[+g.getAttribute('data-p')] = g;
+    const it = { ch, svg, set, pending: null, ev: null, t: 0, hover: false, press: false, dom: true, stroke: +svg.getAttribute('stroke-width') || 1.6 };
+    it.q = ch.parts.map((p, i) => ({ g: nodes[i], path: nodes[i].firstElementChild, x: Float64Array.from(ch.sets[set].parts[i].P[0]), v: new Float64Array(p.n + NC), to: Float64Array.from(ch.sets[set].parts[i].P[0]), w: 16, z: 1, c: 0, lc: 0, lk: -1, cache: {} }));
+    it.trigger = ev => start(it, ev);
+    it.stop = () => { live.delete(it); it.ev = null; };
+    if (interactive) {
+      const on = (t, f) => host.addEventListener(t, f), key = e => e.key === 'Enter' || e.key === ' ';
+      on('pointerenter', () => { it.hover = true; if (!it.press) start(it, 'hover'); });
+      on('pointerleave', () => { it.hover = false; it.press = false; start(it, 'leave'); });
+      on('pointerdown', e => { if (e.button) return; it.press = true; start(it, 'press'); });
+      on('pointerup', () => { if (it.press) { it.press = false; start(it, 'release'); } });
+      on('pointercancel', () => { it.press = false; start(it, 'leave'); });
+      on('focus', () => { if (!it.hover) start(it, 'hover'); });
+      on('blur', () => { it.press = false; if (!it.hover) start(it, 'leave'); });
+      on('keydown', e => { if (key(e) && !e.repeat) { e.preventDefault(); it.press = true; start(it, 'press'); } });
+      on('keyup', e => { if (key(e) && it.press) { it.press = false; start(it, 'release'); } });
+    }
+    return it;
+  }
+
+  // Headless clock: events [[ms, 'hover'|'press'|'release'|'leave']], returns part vectors at each sample time.
+  function sample(ch, events, times, set = 0) {
+    const it = { ch, set, pending: null, ev: null, t: 0, hover: false, press: false, dom: false };
+    it.q = ch.parts.map((p, i) => ({ x: Float64Array.from(ch.sets[set].parts[i].P[0]), v: new Float64Array(p.n + NC), to: Float64Array.from(ch.sets[set].parts[i].P[0]), w: 16, z: 1, c: 0, lc: 0, lk: -1 }));
+    const evs = events.slice().sort((a, b) => a[0] - b[0]), out = [], dt = 1000 / 240;
+    let t = 0, e = 0;
+    for (const at of times.slice().sort((a, b) => a - b)) {
+      while (t < at - 1e-9) {
+        while (e < evs.length && evs[e][0] <= t + 1e-9) { const ev = evs[e++][1]; it.hover = ev !== 'leave'; start(it, ev); }
+        const h = Math.min(dt, at - t); step(it, h / 1000); t += h;
+      }
+      while (e < evs.length && evs[e][0] <= t + 1e-9) { const ev = evs[e++][1]; it.hover = ev !== 'leave'; start(it, ev); }
+      out.push(it.q.map(q => Float64Array.from(q.x)));
+    }
+    return out;
+  }
+
+  // Standalone asset files: <svg data-icon data-style> plus this script and glyphs.js.
+  function autoAttach(svg = document.documentElement) {
+    const g = globalThis.ZenGlyphs.byId[svg.getAttribute('data-icon')];
+    return attach(svg, compile(g, svg.getAttribute('data-style')));
+  }
+
+  globalThis.ZenMotion = { compile, markup, attach, autoAttach, attrs, sample, spring, D, STYLES, settings: Z, EVENTS, styles: Object.values(STYLES).map(({ id, name, tier, desc }) => ({ id, name, tier, desc })) };
+})();
+</script>
+<script>
+(() => {
+  const G = globalThis.ZenGlyphs, M = globalThis.ZenMotion, STY = M.styles;
+  const $ = (s, r = document) => r.querySelector(s);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const local = {
+    get(k, d) { try { const v = localStorage.getItem('zmi:' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem('zmi:' + k, JSON.stringify(v)); } catch { } }
+  };
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const DEF = { tempo: 1, bounce: 1, amp: 1, overflow: 1 };
+  const S = { style: local.get('style', 'glide'), size: local.get('size', 20), speed: 1, auto: local.get('auto', !reduced), bounds: false, q: '', group: '', tune: { ...DEF, ...local.get('tune', {}) }, stroke: local.get('stroke', 1.6) };
+  if (!M.STYLES[S.style]) S.style = 'glide';
+  M.settings.motion = !reduced;
+  let saved = { picks: {}, eyeTest: null, ...local.get('saved', {}) };
+
+  /* Shared demo clock: hover, hold, release, return. Every auto-played icon follows it. */
+  const CYCLE = [[0, 'hover'], [900, 'press'], [1500, 'release'], [2800, 'leave']], LEN = 3900;
+  const players = new Set();
+  const drive = (it, ev) => { it.hover = ev !== 'leave'; it.press = ev === 'press'; it.trigger(ev); };
+  setInterval(() => {
+    const now = performance.now();
+    for (const p of players) {
+      if (!p.on() || p.user) { p.last = -1; continue; }
+      const t = ((now - p.t0) % LEN + LEN) % LEN;
+      let i = CYCLE.length - 1; while (CYCLE[i][0] > t) i--;
+      if (i !== p.last) { p.last = i; drive(p.it, CYCLE[i][1]); }
+    }
+  }, 30);
+
+  function mount(btn, glyph, style, { size = S.size, tune = S.tune, stroke = S.stroke, auto = null, t0 = 0 } = {}) {
+    const ch = M.compile(glyph, style, tune);
+    btn.innerHTML = M.markup(ch, { size, stroke });
+    const it = M.attach(btn.firstElementChild, ch, { host: btn });
+    if (auto) {
+      const p = { it, t0, last: -1, user: false, on: auto };
+      btn.addEventListener('pointerenter', () => { p.user = true; });
+      btn.addEventListener('pointerleave', () => { p.user = false; });
+      players.add(p); it.player = p;
+    }
+    return it;
+  }
+  const unmount = root => { for (const p of [...players]) if (root.contains(p.it.svg)) { p.it.stop(); players.delete(p); } };
+  const button = (label, cls = 'btn') => { const b = document.createElement('button'); b.type = 'button'; b.className = cls; b.setAttribute('aria-label', label); return b; };
+
+  /* Saving: the page's db when published with it; this browser otherwise. */
+  let docRef = null, chain = Promise.resolve();
+  const note = msg => document.querySelectorAll('.save').forEach(n => { n.textContent = msg; });
+  function persist() {
+    saved.updated = new Date().toISOString();
+    local.set('saved', saved);
+    if (!docRef) { note('Saved in this browser.'); return; }
+    const body = JSON.parse(JSON.stringify(saved));
+    chain = chain.then(() => docRef.set(body)).then(() => note('Saved to this page. Claude can read these answers.'), e => note(`Saved in this browser only; the page store refused it (${e && e.code || 'error'}).`));
+  }
+  (async () => {
+    if (!globalThis.claude || !claude.use) return;
+    const [db, user] = await Promise.all([claude.use('db'), claude.use('user')]);
+    if (!db) return;
+    const id = (user && await user.id()) || 'viewer';
+    docRef = db.doc('eyetest/' + id);
+    try {
+      const snap = await docRef.get();
+      if (snap.exists) { const d = snap.data(); saved = { ...saved, ...JSON.parse(JSON.stringify(d)), picks: { ...(d.picks || {}), ...saved.picks } }; route(); }
+    } catch { }
+  })();
+
+  /* ---------------- Library ---------------- */
+  const groupsEl = $('#groups'), sheet = $('#sheet');
+  $('#styles').innerHTML = STY.map(s => `<button type="button" role="radio" data-style="${s.id}" aria-checked="false"><b>${esc(s.name)}</b><span>${esc(s.tier)}</span></button>`).join('');
+  $('#group').innerHTML = '<option value="">All groups</option>' + G.groups.map(g => `<option>${esc(g)}</option>`).join('');
+  $('#meta').textContent = `${G.list.length} glyphs for every Zen and mod action · ${STY.length} motion styles · rest, hover, hold, release`;
+  const markIt = mount($('#mark').appendChild(button('Zen Motion Icons', 'btn')), G.byId.settings, 'orbit', { size: 26, tune: DEF, auto: () => M.settings.motion, t0: 0 });
+  markIt.svg.parentElement.style.setProperty('--s', '44px');
+
+  const actionsFor = id => Object.entries(G.actions).filter(([, g]) => g === id).map(([a]) => a);
+  function renderLibrary() {
+    unmount(groupsEl);
+    document.querySelectorAll('#styles button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.style === S.style)));
+    const st = M.STYLES[S.style];
+    $('#desc').innerHTML = `<b>${esc(st.name)}.</b> ${esc(st.desc)} Hover, press and hold any icon; select a name to inspect it.`;
+    groupsEl.classList.toggle('show-bounds', S.bounds);
+    const q = S.q.trim().toLowerCase();
+    const match = g => (!S.group || g.group === S.group) && (!q || [g.id, g.label, g.used || '', ...actionsFor(g.id)].join(' ').toLowerCase().includes(q));
+    let n = 0, html = '';
+    for (const grp of G.groups) {
+      const items = G.list.filter(g => g.group === grp && match(g));
+      if (!items.length) continue;
+      n += items.length;
+      html += `<section class="group"><h2>${esc(grp)} <small>${items.length}</small></h2><div class="grid">${items.map(g =>
+        `<div class="cell" data-id="${g.id}"><span class="slot"></span><button type="button" class="name" data-inspect="${g.id}">${g.id}</button>${g.toggle ? '<span class="tog">toggle</span>' : ''}</div>`).join('')}</div></section>`;
+    }
+    groupsEl.innerHTML = html || '<p class="empty">No icons match. Clear the filter to see all of them.</p>';
+    let k = 0;
+    for (const cell of groupsEl.querySelectorAll('.cell')) {
+      const g = G.byId[cell.dataset.id], b = button(`${g.label}, ${st.name} motion`);
+      cell.querySelector('.slot').replaceWith(b);
+      const it = mount(b, g, S.style, { auto: () => S.auto && M.settings.motion && cell.isConnected && visible.has(cell), t0: -(k++ % 24) * 150 });
+      io.observe(cell);
+    }
+  }
+  const visible = new Set();
+  const io = new IntersectionObserver(es => es.forEach(e => e.isIntersecting ? visible.add(e.target) : visible.delete(e.target)), { rootMargin: '120px' });
+
+  /* Inspector */
+  let inspected = null;
+  function inspect(id) {
+    inspected = id; unmount(sheet);
+    const g = G.byId[id], st = M.STYLES[S.style], acts = actionsFor(id), picked = saved.picks[id];
+    sheet.innerHTML = `<header><div><h3>${esc(g.label)}</h3><div class="mono muted">${id} · ${esc(g.group)}${g.toggle ? ' · toggle' : ''}</div></div><button type="button" class="close" aria-label="Close inspector">×</button></header>
+      <div class="stage"><span class="slot"></span></div>
+      <div class="phases" role="group" aria-label="Play a state">${['hover', 'press', 'release', 'leave'].map(e => `<button type="button" data-ev="${e}">${{ hover: 'Hover', press: 'Hold', release: 'Release', leave: 'Rest' }[e]}</button>`).join('')}<button type="button" data-ev="cycle">Play all</button></div>
+      <div><div class="mono muted" style="margin-bottom:6px">${esc(st.name)} · sampled frames</div><div class="board">${board(g, S.style)}</div></div>
+      <div><div class="mono muted" style="margin-bottom:6px">Same icon, every style</div><div class="compare">${STY.map(s => `<button type="button" data-style="${s.id}" aria-current="${s.id === S.style}"><span class="slot"></span>${esc(s.name)}</button>`).join('')}</div></div>
+      <div class="row"><button type="button" class="pick" aria-pressed="${picked === S.style}">Use ${esc(st.name)} for this icon</button><span class="muted" style="font-size:13px">${picked ? 'Picked: ' + esc(M.STYLES[picked].name) : 'No pick yet'}</span></div>
+      <dl class="kv"><dt>Used in</dt><dd>${esc(g.used || '')}</dd><dt>Motion intent</dt><dd>${esc(g.kind)}</dd><dt>Iconflow IDs</dt><dd class="mono">${acts.length ? acts.map(esc).join(', ') : 'new in this set'}</dd><dt>Asset file</dt><dd class="mono">svg/${S.style}/${id}.svg</dd></dl>`;
+    sheet.hidden = false;
+    const big = button(`${g.label} preview`); sheet.querySelector('.stage .slot').replaceWith(big);
+    const it = mount(big, g, S.style, { size: 72 });
+    sheet.querySelectorAll('.compare button').forEach((b, i) => {
+      const s = document.createElement('span'); b.querySelector('.slot').replaceWith(s);
+      mount(s, g, b.dataset.style, { size: 22, auto: () => M.settings.motion && !sheet.hidden, t0: 0 });
+    });
+    sheet.querySelectorAll('[data-ev]').forEach(b => b.addEventListener('click', () => {
+      const ev = b.dataset.ev;
+      if (ev !== 'cycle') return drive(it, ev);
+      CYCLE.forEach(([ms, e]) => setTimeout(() => drive(it, e), ms / M.settings.speed));
+    }));
+    sheet.querySelector('.close').addEventListener('click', () => { sheet.hidden = true; unmount(sheet); inspected = null; });
+    sheet.querySelector('.compare').addEventListener('click', e => { const b = e.target.closest('[data-style]'); if (b) setStyle(b.dataset.style, true); });
+    sheet.querySelector('.pick').addEventListener('click', () => { if (saved.picks[id] === S.style) delete saved.picks[id]; else saved.picks[id] = S.style; persist(); inspect(id); });
+  }
+  function board(g, style) {
+    const ch = M.compile(g, style, S.tune), ev = CYCLE, times = [0, 120, 600, 1100, 1500, 1580, 1720, 2050, 2900, 3700];
+    const label = ['rest', 'hover', 'hover', 'hold', 'hold', 'release', 'release', 'release', 'return', 'rest'];
+    return M.sample(ch, ev, times).map((v, i) => `<figure>${M.markup(ch, { size: 30, stroke: S.stroke, vecs: v })}<figcaption>${label[i]}<br>${times[i]} ms</figcaption></figure>`).join('');
+  }
+  function setStyle(id, keepSheet) { S.style = id; local.set('style', id); renderLibrary(); if (inspected && keepSheet !== false) inspect(inspected); }
+
+  $('#styles').addEventListener('click', e => { const b = e.target.closest('[data-style]'); if (b) setStyle(b.dataset.style); });
+  $('#styles').addEventListener('keydown', e => {
+    if (!['ArrowRight', 'ArrowLeft'].includes(e.key)) return;
+    const i = STY.findIndex(s => s.id === S.style), n = STY[(i + (e.key === 'ArrowRight' ? 1 : STY.length - 1)) % STY.length].id;
+    setStyle(n); $(`#styles [data-style="${n}"]`).focus();
+  });
+  groupsEl.addEventListener('click', e => { const b = e.target.closest('[data-inspect]'); if (b) inspect(b.dataset.inspect); });
+  let qTimer; $('#q').addEventListener('input', e => { clearTimeout(qTimer); qTimer = setTimeout(() => { S.q = e.target.value; renderLibrary(); }, 150); });
+  $('#group').addEventListener('change', e => { S.group = e.target.value; renderLibrary(); });
+  $('#size').value = S.size; $('#size').addEventListener('change', e => { S.size = +e.target.value; local.set('size', S.size); renderLibrary(); });
+  $('#speed').addEventListener('change', e => { M.settings.speed = +e.target.value; });
+  $('#auto').checked = S.auto; $('#auto').addEventListener('change', e => { S.auto = e.target.checked; local.set('auto', S.auto); });
+  $('#bounds').addEventListener('change', e => { S.bounds = e.target.checked; groupsEl.classList.toggle('show-bounds', S.bounds); });
+  const knobs = ['tempo', 'bounce', 'amp', 'overflow'];
+  function syncTune() {
+    for (const k of knobs) { $('#t-' + k).value = S.tune[k]; $('#t-' + k).nextElementSibling.textContent = (+S.tune[k]).toFixed(2); }
+    $('#t-stroke').value = S.stroke; $('#t-stroke').nextElementSibling.textContent = (+S.stroke).toFixed(2);
+  }
+  let tTimer;
+  $('#tune').addEventListener('input', e => {
+    const k = e.target.id.slice(2); if (!e.target.id.startsWith('t-')) return;
+    if (k === 'stroke') S.stroke = +e.target.value; else S.tune[k] = +e.target.value;
+    syncTune(); local.set('tune', S.tune); local.set('stroke', S.stroke);
+    clearTimeout(tTimer); tTimer = setTimeout(() => { renderLibrary(); if (inspected) inspect(inspected); }, 120);
+  });
+  $('#t-reset').addEventListener('click', () => { S.tune = { ...DEF }; S.stroke = 1.6; syncTune(); local.set('tune', S.tune); local.set('stroke', S.stroke); renderLibrary(); });
+  if (reduced) { $('#rm-notice').hidden = false; $('#rm-on').addEventListener('click', () => { M.settings.motion = true; S.auto = true; $('#auto').checked = true; $('#rm-notice').hidden = true; }); }
+
+  /* ---------------- Eye test ---------------- */
+  const etEl = $('#view-eye-test');
+  const TOOLBAR = ['back', 'forward', 'reload', 'bookmark', 'downloads', 'app-menu'];
+  const KNOBS = [
+    { key: 'tempo', q: 'Which pace feels better?', values: [.7, .85, 1, 1.2, 1.45], hero: 'reload' },
+    { key: 'bounce', q: 'Which amount of spring feels better?', values: [.3, .6, 1, 1.4, 1.8], hero: 'bookmark' },
+    { key: 'amp', q: 'Which strength of movement feels better?', values: [.6, .8, 1, 1.25, 1.5], hero: 'downloads' },
+    { key: 'overflow', q: 'How far should effects spill past the button?', values: [.5, .75, 1, 1.3, 1.6], hero: 'settings', overflow: true },
+    { key: 'stroke', q: 'Which line weight reads better?', values: [1.35, 1.45, 1.6, 1.8, 2], hero: 'history' }
+  ];
+  const CONTEXTS = [
+    { key: 'menu', q: 'Which suits right-click menu items?', icons: ['copy', 'paste', 'cut', 'undo', 'delete', 'find'], hero: 'copy', rival: s => s === 'clean' ? 'morph' : 'clean' },
+    { key: 'media', q: 'Which suits media controls?', icons: ['previous', 'play-pause', 'next', 'audio', 'pip', 'close'], hero: 'play-pause', rival: s => s === 'morph' ? 'glide' : 'morph' },
+    { key: 'mods', q: 'Which suits mod panels and Tab Router?', icons: ['wand', 'checklist', 'pencil', 'gauge', 'folder', 'gradient'], hero: 'wand', rival: (s, r) => r[1] || 'draw' }
+  ];
+  let T = null;   // running test
+  const rnd = seed => () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
+
+  function newTest() {
+    const r = rnd(Date.now() % 100000), order = STY.map(s => s.id).sort(() => r() - .5);
+    T = { r, order, champ: order[0], next: 1, wins: Object.fromEntries(order.map(s => [s, 0])), out: [], phase: 'style', knob: 0, kState: null, ctx: 0, answers: [], tune: { ...DEF }, stroke: 1.6, contexts: {}, total: 9 + KNOBS.length * 2.6 + CONTEXTS.length };
+    nextRound();
+  }
+  function ranking() { return [...T.order].sort((a, b) => T.wins[b] - T.wins[a] || (b === T.champ) - (a === T.champ) || T.out.indexOf(b) - T.out.indexOf(a)); }
+  function testStyle() { return T.champ; }
+  function nextRound() {
+    const champ = T.champ, base = { style: champ, tune: { ...T.tune }, stroke: T.stroke };
+    if (T.phase === 'style') {
+      if (T.next >= T.order.length) { T.phase = 'knob'; return nextRound(); }
+      const ch = T.order[T.next];
+      return show({ kind: 'style', q: 'Which motion feels better on toolbar buttons?', sub: 'Both play hover, hold, release and return on a loop. Hover or press the icons to try them yourself.', icons: TOOLBAR, hero: 'reload', a: { ...base, style: champ }, b: { ...base, style: ch }, id: [champ, ch] });
+    }
+    if (T.phase === 'knob') {
+      const K = KNOBS[T.knob];
+      if (!K) { T.phase = 'ctx'; return nextRound(); }
+      const v = K.values, st = T.kState ||= { step: 0, w: null };
+      let pair;
+      if (st.step === 0) pair = [v[1], v[3]];
+      else if (st.step === 1) pair = [st.w, st.w === v[1] ? v[0] : st.w === v[3] ? v[4] : null];
+      else if (st.step === 2 && (st.w === v[1] || st.w === v[3])) pair = [st.w, v[2]];
+      if (!pair || pair[1] == null) { set(K.key, st.w); T.knob++; T.kState = null; return nextRound(); }
+      const style = K.overflow && !/overflow/.test(M.STYLES[champ].tier) ? 'burst' : champ;
+      const cfg = x => K.key === 'stroke' ? { ...base, style, stroke: x } : { ...base, style, tune: { ...base.tune, [K.key]: x } };
+      return show({ kind: K.key, q: K.q, sub: `Style: ${M.STYLES[style].name}. Only one setting differs between the two.`, icons: TOOLBAR, hero: K.hero, a: cfg(pair[0]), b: cfg(pair[1]), id: pair });
+    }
+    if (T.phase === 'ctx') {
+      const C = CONTEXTS[T.ctx];
+      if (!C) return finish();
+      const rival = C.rival(champ, ranking());
+      return show({ kind: 'ctx:' + C.key, q: C.q, sub: 'Real icons from that part of Zen, same tuning on both sides.', icons: C.icons, hero: C.hero, a: { ...base, style: champ }, b: { ...base, style: rival }, id: [champ, rival] });
+    }
+  }
+  function set(key, v) { if (key === 'stroke') T.stroke = v; else T.tune[key] = v; }
+  function answer(side) {
+    const R = T.round; if (!R) return;
+    const chosen = side == null ? null : R.id[R.flip ? 1 - side : side], other = side == null ? null : R.id[R.flip ? side : 1 - side];
+    T.answers.push({ kind: R.kind, a: R.id[0], b: R.id[1], chosen, ms: Math.round(performance.now() - R.at) });
+    if (R.kind === 'style') { if (chosen) { T.wins[chosen]++; if (chosen !== T.champ) T.out.push(T.champ); else T.out.push(other); T.champ = chosen; } else T.out.push(R.id[1]); T.next++; }
+    else if (R.kind.startsWith('ctx:')) { T.contexts[R.kind.slice(4)] = chosen || R.id[0]; T.ctx++; }
+    else { const st = T.kState; st.w = chosen ?? (st.w ?? R.id[0]); st.step++; }
+    saved.eyeTest = { done: false, ...summary() }; persist();
+    nextRound();
+  }
+  function summary() {
+    return { style: T.champ, ranking: ranking(), tempo: T.tune.tempo, bounce: T.tune.bounce, intensity: T.tune.amp, overflow: T.tune.overflow, stroke: T.stroke, contexts: T.contexts, answers: T.answers };
+  }
+  function show(R) {
+    R.flip = T.r() < .5; R.at = performance.now(); T.round = R;
+    const sides = R.flip ? [R.b, R.a] : [R.a, R.b], n = T.answers.length + 1, total = Math.round(T.total);
+    unmount(etEl);
+    etEl.innerHTML = `<div class="et-head"><span class="mono muted">Round ${n} of about ${total}</span><h2>${esc(R.q)}</h2><p>${esc(R.sub)}</p><div class="progress"><span style="width:${Math.min(100, (n - 1) / total * 100)}%"></span></div></div>
+      <div class="bench">${sides.map((c, i) => `<div class="side"><span class="tag">${i ? 'THAT' : 'THIS'}</span><div class="toolbar">${R.icons.map(() => '<span class="slot"></span>').join('')}</div><div class="hero"><span class="slot"></span></div><button type="button" class="choose" data-side="${i}">${i ? 'That one <kbd>→</kbd>' : '<kbd>←</kbd> This one'}</button></div>`).join('')}</div>
+      <div class="et-foot"><button type="button" class="ghost" data-side="skip">Can't tell</button><span class="save"></span><button type="button" class="ghost" id="et-restart">Start over</button></div>`;
+    const t0 = performance.now();
+    etEl.querySelectorAll('.side').forEach((side, i) => {
+      const c = sides[i], slots = side.querySelectorAll('.toolbar .slot');
+      R.icons.forEach((id, j) => { const b = button(G.byId[id].label); slots[j].replaceWith(b); mount(b, G.byId[id], c.style, { size: 18, tune: c.tune, stroke: c.stroke, auto: () => M.settings.motion && !etEl.hidden, t0: t0 + j * 90 }); });
+      const h = button(G.byId[R.hero].label); side.querySelector('.hero .slot').replaceWith(h);
+      mount(h, G.byId[R.hero], c.style, { size: 64, tune: c.tune, stroke: c.stroke, auto: () => M.settings.motion && !etEl.hidden, t0 });
+    });
+    etEl.querySelectorAll('[data-side]').forEach(b => b.addEventListener('click', () => answer(b.dataset.side === 'skip' ? null : +b.dataset.side)));
+    $('#et-restart').addEventListener('click', newTest);
+    note(docRef ? 'Answers save to this page as you go.' : 'Answers save in this browser as you go.');
+  }
+  function finish() {
+    T.round = null; saved.eyeTest = { done: true, finished: new Date().toISOString(), ...summary() }; persist();
+    renderResults();
+  }
+  const word = (k, v) => ({ tempo: v < 1 ? `${(1 / v).toFixed(2)}× faster` : v > 1 ? `${v.toFixed(2)}× slower` : 'default pace', bounce: v < 1 ? 'tighter springs' : v > 1 ? 'bouncier springs' : 'default spring', intensity: v < 1 ? 'subtler movement' : v > 1 ? 'stronger movement' : 'default strength', overflow: v < 1 ? 'effects stay closer' : v > 1 ? 'effects spill further' : 'default reach', stroke: `${v} unit lines` }[k]);
+  function renderResults() {
+    const E = saved.eyeTest;
+    unmount(etEl);
+    if (!E || !E.ranking) {
+      etEl.innerHTML = `<div class="et-head"><h2>Pick between two versions, about 25 times.</h2><p>Each round shows the same icons animated two ways. Choose the one that feels better with a tap, or with the ← and → keys. Rounds cover the motion style, pace, spring, strength, how far effects spill past the button, line weight, and which style suits menus, media controls and mod panels.</p></div><div class="row"><button type="button" class="choose" id="et-start">Start the eye test</button><span class="save"></span></div>`;
+      $('#et-start').addEventListener('click', newTest);
+      return;
+    }
+    const ctxRows = Object.entries(E.contexts || {}).map(([k, s]) => `<li><span class="n">${esc(k)}</span><span class="slot" data-style="${s}" data-icon="${{ menu: 'copy', media: 'play-pause', mods: 'wand' }[k]}"></span><span>${esc(M.STYLES[s].name)}</span><span></span></li>`).join('');
+    etEl.innerHTML = `<div class="et-head"><span class="mono muted">${E.done ? 'Eye test complete' : 'Eye test in progress'} · ${E.answers.length} answers</span><h2>You prefer ${esc(M.STYLES[E.style].name)}, ${esc(word('tempo', E.tempo))}, with ${esc(word('bounce', E.bounce))}.</h2></div>
+      <div class="results">
+        <div class="cards">
+          <div class="card"><h3>Style ranking</h3><ol class="rank">${E.ranking.map((s, i) => `<li><span class="n">${i + 1}</span><span class="slot" data-style="${s}" data-icon="reload"></span><span>${esc(M.STYLES[s].name)}</span><span class="mono muted">${esc(M.STYLES[s].tier)}</span></li>`).join('')}</ol></div>
+          <div class="card"><h3>Tuning</h3><dl class="kv"><dt>Pace</dt><dd>${esc(word('tempo', E.tempo))}</dd><dt>Spring</dt><dd>${esc(word('bounce', E.bounce))}</dd><dt>Strength</dt><dd>${esc(word('intensity', E.intensity))}</dd><dt>Overflow</dt><dd>${esc(word('overflow', E.overflow))}</dd><dt>Line weight</dt><dd>${esc(word('stroke', E.stroke))}</dd></dl></div>
+          <div class="card"><h3>By context</h3><ol class="rank">${ctxRows || '<li>Not reached yet</li>'}</ol></div>
+        </div>
+        <div class="row"><button type="button" class="pick" id="et-apply">Use these results in the library</button><button type="button" class="ghost" id="et-copy">Copy results</button><button type="button" class="ghost" id="et-again">Take it again</button><span class="save"></span></div>
+        <textarea class="dump" id="et-dump" readonly hidden></textarea>
+      </div>`;
+    etEl.querySelectorAll('.slot[data-style]').forEach(s => { const b = button(M.STYLES[s.dataset.style].name); s.replaceWith(b); mount(b, G.byId[s.dataset.icon], s.dataset.style, { size: 18, tune: { tempo: E.tempo, bounce: E.bounce, amp: E.intensity, overflow: E.overflow }, stroke: E.stroke, auto: () => M.settings.motion && !etEl.hidden, t0: 0 }); });
+    $('#et-apply').addEventListener('click', () => { S.tune = { tempo: E.tempo, bounce: E.bounce, amp: E.intensity, overflow: E.overflow }; S.stroke = E.stroke; local.set('tune', S.tune); local.set('stroke', S.stroke); syncTune(); S.style = E.style; local.set('style', S.style); location.hash = 'library'; });
+    $('#et-copy').addEventListener('click', () => copy(JSON.stringify(E, null, 2), $('#et-dump')));
+    $('#et-again').addEventListener('click', newTest);
+    note(docRef ? 'Saved to this page. Claude can read these answers.' : 'Saved in this browser.');
+  }
+  function copy(text, area) {
+    area.value = text; area.hidden = false;
+    const fallback = () => { area.focus(); area.select(); note('Selected. Copy with your keyboard.'); };
+    try { navigator.clipboard.writeText(text).then(() => note('Copied.'), fallback); } catch { fallback(); }
+  }
+  document.addEventListener('keydown', e => {
+    if (etEl.hidden || !T || !T.round || e.target.closest('input, select, textarea')) return;
+    if (e.key === 'ArrowLeft') { e.preventDefault(); answer(0); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); answer(1); }
+  });
+
+  /* ---------------- Picks ---------------- */
+  const picksEl = $('#view-picks');
+  function renderPicks() {
+    unmount(picksEl);
+    const rows = Object.entries(saved.picks).filter(([id, s]) => G.byId[id] && M.STYLES[s]);
+    picksEl.innerHTML = `<div class="et-head"><h2>Your picks</h2><p>Icons you assigned a style to from the inspector. Select an icon name in the library, then use the pick button.</p></div>
+      <div class="picks">${rows.map(([id, s]) => `<div class="p"><span class="slot" data-id="${id}" data-style="${s}"></span><span><b>${esc(G.byId[id].label)}</b> <span class="mono muted">${id}</span></span><span>${esc(M.STYLES[s].name)}</span><button type="button" class="ghost" data-remove="${id}">Remove</button></div>`).join('') || '<p class="empty">No picks yet.</p>'}</div>
+      <div class="row"><button type="button" class="ghost" id="p-copy">Copy picks</button><span class="save"></span></div><textarea class="dump" id="p-dump" readonly hidden></textarea>`;
+    picksEl.querySelectorAll('.slot[data-id]').forEach(s => { const b = button(G.byId[s.dataset.id].label); s.replaceWith(b); mount(b, G.byId[s.dataset.id], s.dataset.style, { size: 20, auto: () => M.settings.motion && !picksEl.hidden, t0: 0 }); });
+    picksEl.querySelectorAll('[data-remove]').forEach(b => b.addEventListener('click', () => { delete saved.picks[b.dataset.remove]; persist(); renderPicks(); }));
+    $('#p-copy').addEventListener('click', () => copy(JSON.stringify(saved.picks, null, 2), $('#p-dump')));
+  }
+
+  /* ---------------- Views ---------------- */
+  function route() {
+    const v = ['library', 'eye-test', 'picks'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'library';
+    document.querySelectorAll('.tabs a').forEach(a => a.dataset.view === v ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
+    for (const id of ['library', 'eye-test', 'picks']) $('#view-' + id).hidden = id !== v;
+    if (v !== 'library') { sheet.hidden = true; inspected = null; unmount(sheet); }
+    if (v === 'library') renderLibrary();
+    else unmount(groupsEl);
+    if (v === 'eye-test' && !(T && T.round)) renderResults();
+    if (v === 'picks') renderPicks();
+  }
+  addEventListener('hashchange', route);
+  syncTune(); route();
+})();
+</script>
+</body>
+</html>

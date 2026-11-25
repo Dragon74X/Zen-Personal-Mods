@@ -1,0 +1,529 @@
+<title>Zen Motion Icons</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a sticky instrument bar over a dense specimen grid of toolbar-sized buttons;
+   the eye test is a two-up bench with one decision per screen. */
+:root {
+  --bg: #eceef3; --panel: #f8f9fb; --ink: #15171d; --muted: #5c6371; --line: #d4d8e0;
+  --accent: #5550d4; --accent-ink: #ffffff; --chip: #e2e4f6; --hover: rgba(21, 23, 29, .06); --press: rgba(21, 23, 29, .12);
+  --box: rgba(85, 80, 212, .42); --toolbar: #e1e4ea; --good: #2f7d4f; --shadow: 0 1px 2px rgba(21, 23, 29, .08), 0 8px 24px rgba(21, 23, 29, .08);
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1115; --panel: #171a20; --ink: #e8eaef; --muted: #9ba2af; --line: #2a2f39;
+  --accent: #a09cff; --accent-ink: #12131a; --chip: #262641; --hover: rgba(232, 234, 239, .07); --press: rgba(232, 234, 239, .14);
+  --box: rgba(160, 156, 255, .5); --toolbar: #1d2027; --good: #6fc794; --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 28px rgba(0, 0, 0, .35); color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f1115; --panel: #171a20; --ink: #e8eaef; --muted: #9ba2af; --line: #2a2f39;
+  --accent: #a09cff; --accent-ink: #12131a; --chip: #262641; --hover: rgba(232, 234, 239, .07); --press: rgba(232, 234, 239, .14);
+  --box: rgba(160, 156, 255, .5); --toolbar: #1d2027; --good: #6fc794; --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 28px rgba(0, 0, 0, .35); color-scheme: dark }
+
+* { box-sizing: border-box }
+[hidden] { display: none !important }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--f-body); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 48px }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg) }
+button, input, select { font: inherit; color: inherit }
+button { cursor: pointer }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; letter-spacing: -.01em }
+.wrap { max-width: 1240px; margin: 0 auto }
+.mono { font-family: var(--f-mono); font-size: 12px }
+.muted { color: var(--muted) }
+
+.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding-block: 20px 12px }
+.brand { display: flex; align-items: center; gap: 14px; min-width: 0 }
+.brand .mark { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; background: var(--toolbar); color: var(--accent) }
+.brand h1 { font-size: 26px; font-weight: 700; line-height: 1.1 }
+.brand p { margin: 2px 0 0; color: var(--muted); font-size: 13px }
+.tabs { display: flex; gap: 4px; background: var(--toolbar); padding: 4px; border-radius: 12px }
+.tabs a { text-decoration: none; color: var(--muted); font-weight: 600; font-size: 14px; padding: 7px 14px; border-radius: 9px }
+.tabs a[aria-current="page"] { background: var(--panel); color: var(--ink); box-shadow: var(--shadow) }
+
+.notice { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; background: var(--chip); border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; font-size: 14px }
+.notice button { border: 0; background: var(--accent); color: var(--accent-ink); border-radius: 8px; padding: 5px 12px; font-weight: 600 }
+
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 8px 10px; display: grid; gap: 10px; border-bottom: 1px solid var(--line) }
+.styles { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin }
+.styles button { flex: none; border: 1px solid var(--line); background: var(--panel); border-radius: 10px; padding: 6px 12px 7px; text-align: left; line-height: 1.2 }
+.styles button b { display: block; font-size: 14px }
+.styles button span { font-size: 11px; color: var(--muted); letter-spacing: .02em }
+.styles button[aria-checked="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink) }
+.styles button[aria-checked="true"] span { color: inherit; opacity: .8 }
+.controls { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; font-size: 13px }
+.controls input[type="search"] { width: 180px; max-width: 100%; border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 6px 10px }
+.controls select { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 5px 8px }
+.controls label { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap }
+.tune { position: relative }
+.tune summary { cursor: pointer; list-style: none; border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 5px 10px; font-weight: 600 }
+.tune summary::-webkit-details-marker { display: none }
+.tune[open] summary { background: var(--chip) }
+.tune .panel { position: absolute; z-index: 6; top: calc(100% + 6px); left: 0; width: min(320px, calc(100vw - 32px)); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 10px; box-shadow: var(--shadow) }
+.tune .panel label { display: grid; grid-template-columns: 88px 1fr 46px; gap: 8px; align-items: center }
+.tune .panel output { font-family: var(--f-mono); font-size: 12px; text-align: right }
+.tune .panel button { justify-self: start; border: 1px solid var(--line); background: transparent; border-radius: 8px; padding: 4px 10px }
+.desc { margin: 0; color: var(--muted); font-size: 14px; max-width: 80ch }
+.desc b { color: var(--ink) }
+
+.group { margin-top: 26px }
+.group h2 { font-size: 17px; font-weight: 700; display: flex; gap: 10px; align-items: baseline }
+.group h2 small { font: 500 12px var(--f-mono); color: var(--muted) }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; margin-top: 10px }
+.cell { display: grid; justify-items: center; gap: 4px; padding: 10px 4px 8px; border-radius: 12px; min-width: 0 }
+.cell:hover { background: var(--panel) }
+.btn { --s: 40px; width: var(--s); height: var(--s); border: 0; border-radius: 9px; background: transparent; display: grid; place-items: center; touch-action: manipulation; -webkit-tap-highlight-color: transparent }
+.btn:hover { background: var(--hover) }
+.btn:active { background: var(--press) }
+.btn svg { display: block; overflow: visible }
+.show-bounds .btn svg { outline: 1px dashed var(--box); outline-offset: 0 }
+.cell .name { border: 0; background: none; padding: 0 4px; font: 11.5px/1.3 var(--f-mono); color: var(--muted); text-align: center; overflow-wrap: anywhere; border-radius: 4px }
+.cell .name:hover { color: var(--accent); text-decoration: underline }
+.cell .tog { font: 10px var(--f-mono); color: var(--accent) }
+.empty { padding: 40px 0; color: var(--muted) }
+
+.sheet { position: fixed; z-index: 20; right: max(16px, env(safe-area-inset-right, 0px)); top: calc(env(safe-area-inset-top, 0px) + 16px); bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); width: min(400px, calc(100vw - 32px)); background: var(--panel); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); overflow: auto; padding: 18px; display: grid; gap: 16px; align-content: start }
+.sheet header { display: flex; justify-content: space-between; gap: 12px; align-items: start }
+.sheet h3 { font-size: 22px }
+.close { border: 0; background: var(--hover); border-radius: 8px; width: 32px; height: 32px; font-size: 18px; line-height: 1 }
+.stage { display: grid; place-items: center; height: 168px; background: var(--toolbar); border-radius: 12px; position: relative }
+.stage .btn { --s: 120px; border-radius: 22px }
+.phases { display: flex; flex-wrap: wrap; gap: 6px }
+.phases button, .pick, .ghost { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 5px 11px; font-size: 13px; font-weight: 600 }
+.pick { background: var(--accent); color: var(--accent-ink); border-color: var(--accent) }
+.pick[aria-pressed="true"]::after { content: " ✓" }
+.board { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px }
+.board figure { margin: 0; display: grid; justify-items: center; gap: 2px; background: var(--toolbar); border-radius: 8px; padding: 8px 2px 4px }
+.board figcaption { font: 10px/1.2 var(--f-mono); color: var(--muted); text-align: center }
+.compare { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px }
+.compare button { border: 1px solid transparent; background: var(--toolbar); border-radius: 10px; padding: 10px 2px 6px; display: grid; justify-items: center; gap: 4px; font-size: 11px }
+.compare button[aria-current="true"] { border-color: var(--accent) }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 13px; margin: 0 }
+.kv dt { color: var(--muted) }
+.kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere }
+
+/* Eye test */
+.et { max-width: 980px; margin: 0 auto; display: grid; gap: 16px; padding-top: 8px }
+.et-head { display: grid; gap: 6px }
+.et-head h2 { font-size: clamp(22px, 3.2vw, 30px) }
+.et-head p { margin: 0; color: var(--muted) }
+.progress { height: 6px; background: var(--toolbar); border-radius: 99px; overflow: hidden }
+.progress span { display: block; height: 100%; background: var(--accent); width: 0; transition: width .3s }
+.bench { display: grid; grid-template-columns: 1fr 1fr; gap: 14px }
+.side { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 16px; display: grid; gap: 14px; min-width: 0 }
+.side .tag { font: 600 12px var(--f-mono); letter-spacing: .08em; color: var(--muted) }
+.toolbar { display: flex; gap: 2px; justify-content: center; background: var(--toolbar); border-radius: 12px; padding: 6px; overflow: visible; flex-wrap: wrap }
+.toolbar .btn { --s: 34px }
+.hero { display: grid; place-items: center; height: 150px; border-radius: 12px; background: var(--toolbar) }
+.hero .btn { --s: 104px; border-radius: 20px }
+.choose { border: 0; border-radius: 12px; padding: 12px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 16px; display: flex; justify-content: center; gap: 10px; align-items: center }
+.choose kbd { font: 600 12px var(--f-mono); border: 1px solid currentColor; border-radius: 5px; padding: 1px 6px; opacity: .8 }
+.et-foot { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; font-size: 13px }
+.results { display: grid; gap: 16px }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: grid; gap: 8px; align-content: start; min-width: 0 }
+.card h3 { font-size: 15px }
+.card .big { font: 700 22px var(--f-display) }
+.rank { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px }
+.rank li { display: grid; grid-template-columns: 22px 34px 1fr auto; gap: 8px; align-items: center; font-size: 14px }
+.rank .btn { --s: 30px }
+.rank .n { font: 12px var(--f-mono); color: var(--muted) }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+.save { font-size: 13px; color: var(--good) }
+textarea.dump { width: 100%; min-height: 140px; font: 12px var(--f-mono); background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 10px }
+.picks { display: grid; gap: 6px }
+.picks .p { display: grid; grid-template-columns: 40px 1fr auto auto; gap: 10px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px }
+.picks .btn { --s: 34px }
+
+@media (max-width: 720px) {
+  .bar { position: static }
+  .bench { grid-template-columns: 1fr }
+  .hero { height: 120px }
+  .sheet { left: max(16px, env(safe-area-inset-left, 0px)); top: auto; width: auto; max-height: 78vh }
+}
+@media (prefers-reduced-motion: reduce) { .progress span { transition: none } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <span class="mark" id="mark" aria-hidden="true"></span>
+      <div>
+        <h1>Zen Motion Icons</h1>
+        <p id="meta">Every Zen and mod icon, in ten motion styles, with rest, hover, hold and release.</p>
+      </div>
+    </div>
+    <nav class="tabs" aria-label="Views">
+      <a href="#library" data-view="library">Library</a>
+      <a href="#eye-test" data-view="eye-test">Eye test</a>
+      <a href="#picks" data-view="picks">Picks</a>
+    </nav>
+  </header>
+
+  <div class="notice" id="rm-notice" hidden>
+    <span>Your system asks for reduced motion, so icons start still. This page exists to judge motion; you can turn it on here.</span>
+    <button type="button" id="rm-on">Play animations</button>
+  </div>
+
+  <section id="view-library" aria-label="Icon library">
+    <div class="bar">
+      <div class="styles" id="styles" role="radiogroup" aria-label="Motion style"></div>
+      <div class="controls">
+        <input type="search" id="q" placeholder="Filter icons or mods" aria-label="Filter icons">
+        <select id="group" aria-label="Group"></select>
+        <select id="size" aria-label="Icon size">
+          <option value="16">16 px</option><option value="18">18 px</option><option value="20">20 px</option><option value="24">24 px</option><option value="32">32 px</option>
+        </select>
+        <select id="speed" aria-label="Playback speed">
+          <option value="1">1× speed</option><option value="0.5">½× speed</option><option value="0.25">¼× speed</option>
+        </select>
+        <label><input type="checkbox" id="auto"> Auto-play</label>
+        <label><input type="checkbox" id="bounds"> Show 24-unit box</label>
+        <details class="tune" id="tune">
+          <summary>Tuning</summary>
+          <div class="panel">
+            <label for="t-tempo">Tempo <input type="range" id="t-tempo" min="0.5" max="1.8" step="0.05"><output for="t-tempo"></output></label>
+            <label for="t-bounce">Bounce <input type="range" id="t-bounce" min="0" max="2" step="0.05"><output for="t-bounce"></output></label>
+            <label for="t-amp">Intensity <input type="range" id="t-amp" min="0.4" max="1.8" step="0.05"><output for="t-amp"></output></label>
+            <label for="t-overflow">Overflow <input type="range" id="t-overflow" min="0.3" max="1.8" step="0.05"><output for="t-overflow"></output></label>
+            <label for="t-stroke">Line weight <input type="range" id="t-stroke" min="1.2" max="2.2" step="0.05"><output for="t-stroke"></output></label>
+            <button type="button" id="t-reset">Reset tuning</button>
+          </div>
+        </details>
+      </div>
+      <p class="desc" id="desc"></p>
+    </div>
+    <div id="groups"></div>
+  </section>
+
+  <section id="view-eye-test" class="et" aria-label="Eye test" hidden></section>
+  <section id="view-picks" class="et" aria-label="Picks" hidden></section>
+</div>
+
+<aside class="sheet" id="sheet" aria-label="Icon inspector" hidden></aside>
+
+<script src="glyphs.js"></script>
+<script src="motion.js"></script>
+<script>
+(() => {
+  const G = globalThis.ZenGlyphs, M = globalThis.ZenMotion, STY = M.styles;
+  const $ = (s, r = document) => r.querySelector(s);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const local = {
+    get(k, d) { try { const v = localStorage.getItem('zmi:' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem('zmi:' + k, JSON.stringify(v)); } catch { } }
+  };
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const DEF = { tempo: 1, bounce: 1, amp: 1, overflow: 1 };
+  const S = { style: local.get('style', 'glide'), size: local.get('size', 20), speed: 1, auto: local.get('auto', !reduced), bounds: false, q: '', group: '', tune: { ...DEF, ...local.get('tune', {}) }, stroke: local.get('stroke', 1.6) };
+  if (!M.STYLES[S.style]) S.style = 'glide';
+  M.settings.motion = !reduced;
+  let saved = { picks: {}, eyeTest: null, ...local.get('saved', {}) };
+
+  /* Shared demo clock: hover, hold, release, return. Every auto-played icon follows it. */
+  const CYCLE = [[0, 'hover'], [900, 'press'], [1500, 'release'], [2800, 'leave']], LEN = 3900;
+  const players = new Set();
+  const drive = (it, ev) => { it.hover = ev !== 'leave'; it.press = ev === 'press'; it.trigger(ev); };
+  setInterval(() => {
+    const now = performance.now();
+    for (const p of players) {
+      if (!p.on() || p.user) { p.last = -1; continue; }
+      const t = ((now - p.t0) % LEN + LEN) % LEN;
+      let i = CYCLE.length - 1; while (CYCLE[i][0] > t) i--;
+      if (i !== p.last) { p.last = i; drive(p.it, CYCLE[i][1]); }
+    }
+  }, 30);
+
+  function mount(btn, glyph, style, { size = S.size, tune = S.tune, stroke = S.stroke, auto = null, t0 = 0 } = {}) {
+    const ch = M.compile(glyph, style, tune);
+    btn.innerHTML = M.markup(ch, { size, stroke });
+    const it = M.attach(btn.firstElementChild, ch, { host: btn });
+    if (auto) {
+      const p = { it, t0, last: -1, user: false, on: auto };
+      btn.addEventListener('pointerenter', () => { p.user = true; });
+      btn.addEventListener('pointerleave', () => { p.user = false; });
+      players.add(p); it.player = p;
+    }
+    return it;
+  }
+  const unmount = root => { for (const p of [...players]) if (root.contains(p.it.svg)) { p.it.stop(); players.delete(p); } };
+  const button = (label, cls = 'btn') => { const b = document.createElement('button'); b.type = 'button'; b.className = cls; b.setAttribute('aria-label', label); return b; };
+
+  /* Saving: the page's db when published with it; this browser otherwise. */
+  let docRef = null, chain = Promise.resolve();
+  const note = msg => document.querySelectorAll('.save').forEach(n => { n.textContent = msg; });
+  function persist() {
+    saved.updated = new Date().toISOString();
+    local.set('saved', saved);
+    if (!docRef) { note('Saved in this browser.'); return; }
+    const body = JSON.parse(JSON.stringify(saved));
+    chain = chain.then(() => docRef.set(body)).then(() => note('Saved to this page. Claude can read these answers.'), e => note(`Saved in this browser only; the page store refused it (${e && e.code || 'error'}).`));
+  }
+  (async () => {
+    if (!globalThis.claude || !claude.use) return;
+    const [db, user] = await Promise.all([claude.use('db'), claude.use('user')]);
+    if (!db) return;
+    const id = (user && await user.id()) || 'viewer';
+    docRef = db.doc('eyetest/' + id);
+    try {
+      const snap = await docRef.get();
+      if (snap.exists) { const d = snap.data(); saved = { ...saved, ...JSON.parse(JSON.stringify(d)), picks: { ...(d.picks || {}), ...saved.picks } }; route(); }
+    } catch { }
+  })();
+
+  /* ---------------- Library ---------------- */
+  const groupsEl = $('#groups'), sheet = $('#sheet');
+  $('#styles').innerHTML = STY.map(s => `<button type="button" role="radio" data-style="${s.id}" aria-checked="false"><b>${esc(s.name)}</b><span>${esc(s.tier)}</span></button>`).join('');
+  $('#group').innerHTML = '<option value="">All groups</option>' + G.groups.map(g => `<option>${esc(g)}</option>`).join('');
+  $('#meta').textContent = `${G.list.length} glyphs for every Zen and mod action · ${STY.length} motion styles · rest, hover, hold, release`;
+  const markIt = mount($('#mark').appendChild(button('Zen Motion Icons', 'btn')), G.byId.settings, 'orbit', { size: 26, tune: DEF, auto: () => M.settings.motion, t0: 0 });
+  markIt.svg.parentElement.style.setProperty('--s', '44px');
+
+  const actionsFor = id => Object.entries(G.actions).filter(([, g]) => g === id).map(([a]) => a);
+  function renderLibrary() {
+    unmount(groupsEl);
+    document.querySelectorAll('#styles button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.style === S.style)));
+    const st = M.STYLES[S.style];
+    $('#desc').innerHTML = `<b>${esc(st.name)}.</b> ${esc(st.desc)} Hover, press and hold any icon; select a name to inspect it.`;
+    groupsEl.classList.toggle('show-bounds', S.bounds);
+    const q = S.q.trim().toLowerCase();
+    const match = g => (!S.group || g.group === S.group) && (!q || [g.id, g.label, g.used || '', ...actionsFor(g.id)].join(' ').toLowerCase().includes(q));
+    let n = 0, html = '';
+    for (const grp of G.groups) {
+      const items = G.list.filter(g => g.group === grp && match(g));
+      if (!items.length) continue;
+      n += items.length;
+      html += `<section class="group"><h2>${esc(grp)} <small>${items.length}</small></h2><div class="grid">${items.map(g =>
+        `<div class="cell" data-id="${g.id}"><span class="slot"></span><button type="button" class="name" data-inspect="${g.id}">${g.id}</button>${g.toggle ? '<span class="tog">toggle</span>' : ''}</div>`).join('')}</div></section>`;
+    }
+    groupsEl.innerHTML = html || '<p class="empty">No icons match. Clear the filter to see all of them.</p>';
+    let k = 0;
+    for (const cell of groupsEl.querySelectorAll('.cell')) {
+      const g = G.byId[cell.dataset.id], b = button(`${g.label}, ${st.name} motion`);
+      cell.querySelector('.slot').replaceWith(b);
+      const it = mount(b, g, S.style, { auto: () => S.auto && M.settings.motion && cell.isConnected && visible.has(cell), t0: -(k++ % 24) * 150 });
+      io.observe(cell);
+    }
+  }
+  const visible = new Set();
+  const io = new IntersectionObserver(es => es.forEach(e => e.isIntersecting ? visible.add(e.target) : visible.delete(e.target)), { rootMargin: '120px' });
+
+  /* Inspector */
+  let inspected = null;
+  function inspect(id) {
+    inspected = id; unmount(sheet);
+    const g = G.byId[id], st = M.STYLES[S.style], acts = actionsFor(id), picked = saved.picks[id];
+    sheet.innerHTML = `<header><div><h3>${esc(g.label)}</h3><div class="mono muted">${id} · ${esc(g.group)}${g.toggle ? ' · toggle' : ''}</div></div><button type="button" class="close" aria-label="Close inspector">×</button></header>
+      <div class="stage"><span class="slot"></span></div>
+      <div class="phases" role="group" aria-label="Play a state">${['hover', 'press', 'release', 'leave'].map(e => `<button type="button" data-ev="${e}">${{ hover: 'Hover', press: 'Hold', release: 'Release', leave: 'Rest' }[e]}</button>`).join('')}<button type="button" data-ev="cycle">Play all</button></div>
+      <div><div class="mono muted" style="margin-bottom:6px">${esc(st.name)} · sampled frames</div><div class="board">${board(g, S.style)}</div></div>
+      <div><div class="mono muted" style="margin-bottom:6px">Same icon, every style</div><div class="compare">${STY.map(s => `<button type="button" data-style="${s.id}" aria-current="${s.id === S.style}"><span class="slot"></span>${esc(s.name)}</button>`).join('')}</div></div>
+      <div class="row"><button type="button" class="pick" aria-pressed="${picked === S.style}">Use ${esc(st.name)} for this icon</button><span class="muted" style="font-size:13px">${picked ? 'Picked: ' + esc(M.STYLES[picked].name) : 'No pick yet'}</span></div>
+      <dl class="kv"><dt>Used in</dt><dd>${esc(g.used || '')}</dd><dt>Motion intent</dt><dd>${esc(g.kind)}</dd><dt>Iconflow IDs</dt><dd class="mono">${acts.length ? acts.map(esc).join(', ') : 'new in this set'}</dd><dt>Asset file</dt><dd class="mono">svg/${S.style}/${id}.svg</dd></dl>`;
+    sheet.hidden = false;
+    const big = button(`${g.label} preview`); sheet.querySelector('.stage .slot').replaceWith(big);
+    const it = mount(big, g, S.style, { size: 72 });
+    sheet.querySelectorAll('.compare button').forEach((b, i) => {
+      const s = document.createElement('span'); b.querySelector('.slot').replaceWith(s);
+      mount(s, g, b.dataset.style, { size: 22, auto: () => M.settings.motion && !sheet.hidden, t0: 0 });
+    });
+    sheet.querySelectorAll('[data-ev]').forEach(b => b.addEventListener('click', () => {
+      const ev = b.dataset.ev;
+      if (ev !== 'cycle') return drive(it, ev);
+      CYCLE.forEach(([ms, e]) => setTimeout(() => drive(it, e), ms / M.settings.speed));
+    }));
+    sheet.querySelector('.close').addEventListener('click', () => { sheet.hidden = true; unmount(sheet); inspected = null; });
+    sheet.querySelector('.compare').addEventListener('click', e => { const b = e.target.closest('[data-style]'); if (b) setStyle(b.dataset.style, true); });
+    sheet.querySelector('.pick').addEventListener('click', () => { if (saved.picks[id] === S.style) delete saved.picks[id]; else saved.picks[id] = S.style; persist(); inspect(id); });
+  }
+  function board(g, style) {
+    const ch = M.compile(g, style, S.tune), ev = CYCLE, times = [0, 120, 600, 1100, 1500, 1580, 1720, 2050, 2900, 3700];
+    const label = ['rest', 'hover', 'hover', 'hold', 'hold', 'release', 'release', 'release', 'return', 'rest'];
+    return M.sample(ch, ev, times).map((v, i) => `<figure>${M.markup(ch, { size: 30, stroke: S.stroke, vecs: v })}<figcaption>${label[i]}<br>${times[i]} ms</figcaption></figure>`).join('');
+  }
+  function setStyle(id, keepSheet) { S.style = id; local.set('style', id); renderLibrary(); if (inspected && keepSheet !== false) inspect(inspected); }
+
+  $('#styles').addEventListener('click', e => { const b = e.target.closest('[data-style]'); if (b) setStyle(b.dataset.style); });
+  $('#styles').addEventListener('keydown', e => {
+    if (!['ArrowRight', 'ArrowLeft'].includes(e.key)) return;
+    const i = STY.findIndex(s => s.id === S.style), n = STY[(i + (e.key === 'ArrowRight' ? 1 : STY.length - 1)) % STY.length].id;
+    setStyle(n); $(`#styles [data-style="${n}"]`).focus();
+  });
+  groupsEl.addEventListener('click', e => { const b = e.target.closest('[data-inspect]'); if (b) inspect(b.dataset.inspect); });
+  let qTimer; $('#q').addEventListener('input', e => { clearTimeout(qTimer); qTimer = setTimeout(() => { S.q = e.target.value; renderLibrary(); }, 150); });
+  $('#group').addEventListener('change', e => { S.group = e.target.value; renderLibrary(); });
+  $('#size').value = S.size; $('#size').addEventListener('change', e => { S.size = +e.target.value; local.set('size', S.size); renderLibrary(); });
+  $('#speed').addEventListener('change', e => { M.settings.speed = +e.target.value; });
+  $('#auto').checked = S.auto; $('#auto').addEventListener('change', e => { S.auto = e.target.checked; local.set('auto', S.auto); });
+  $('#bounds').addEventListener('change', e => { S.bounds = e.target.checked; groupsEl.classList.toggle('show-bounds', S.bounds); });
+  const knobs = ['tempo', 'bounce', 'amp', 'overflow'];
+  function syncTune() {
+    for (const k of knobs) { $('#t-' + k).value = S.tune[k]; $('#t-' + k).nextElementSibling.textContent = (+S.tune[k]).toFixed(2); }
+    $('#t-stroke').value = S.stroke; $('#t-stroke').nextElementSibling.textContent = (+S.stroke).toFixed(2);
+  }
+  let tTimer;
+  $('#tune').addEventListener('input', e => {
+    const k = e.target.id.slice(2); if (!e.target.id.startsWith('t-')) return;
+    if (k === 'stroke') S.stroke = +e.target.value; else S.tune[k] = +e.target.value;
+    syncTune(); local.set('tune', S.tune); local.set('stroke', S.stroke);
+    clearTimeout(tTimer); tTimer = setTimeout(() => { renderLibrary(); if (inspected) inspect(inspected); }, 120);
+  });
+  $('#t-reset').addEventListener('click', () => { S.tune = { ...DEF }; S.stroke = 1.6; syncTune(); local.set('tune', S.tune); local.set('stroke', S.stroke); renderLibrary(); });
+  if (reduced) { $('#rm-notice').hidden = false; $('#rm-on').addEventListener('click', () => { M.settings.motion = true; S.auto = true; $('#auto').checked = true; $('#rm-notice').hidden = true; }); }
+
+  /* ---------------- Eye test ---------------- */
+  const etEl = $('#view-eye-test');
+  const TOOLBAR = ['back', 'forward', 'reload', 'bookmark', 'downloads', 'app-menu'];
+  const KNOBS = [
+    { key: 'tempo', q: 'Which pace feels better?', values: [.7, .85, 1, 1.2, 1.45], hero: 'reload' },
+    { key: 'bounce', q: 'Which amount of spring feels better?', values: [.3, .6, 1, 1.4, 1.8], hero: 'bookmark' },
+    { key: 'amp', q: 'Which strength of movement feels better?', values: [.6, .8, 1, 1.25, 1.5], hero: 'downloads' },
+    { key: 'overflow', q: 'How far should effects spill past the button?', values: [.5, .75, 1, 1.3, 1.6], hero: 'settings', overflow: true },
+    { key: 'stroke', q: 'Which line weight reads better?', values: [1.35, 1.45, 1.6, 1.8, 2], hero: 'history' }
+  ];
+  const CONTEXTS = [
+    { key: 'menu', q: 'Which suits right-click menu items?', icons: ['copy', 'paste', 'cut', 'undo', 'delete', 'find'], hero: 'copy', rival: s => s === 'clean' ? 'morph' : 'clean' },
+    { key: 'media', q: 'Which suits media controls?', icons: ['previous', 'play-pause', 'next', 'audio', 'pip', 'close'], hero: 'play-pause', rival: s => s === 'morph' ? 'glide' : 'morph' },
+    { key: 'mods', q: 'Which suits mod panels and Tab Router?', icons: ['wand', 'checklist', 'pencil', 'gauge', 'folder', 'gradient'], hero: 'wand', rival: (s, r) => r[1] || 'draw' }
+  ];
+  let T = null;   // running test
+  const rnd = seed => () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
+
+  function newTest() {
+    const r = rnd(Date.now() % 100000), order = STY.map(s => s.id).sort(() => r() - .5);
+    T = { r, order, champ: order[0], next: 1, wins: Object.fromEntries(order.map(s => [s, 0])), out: [], phase: 'style', knob: 0, kState: null, ctx: 0, answers: [], tune: { ...DEF }, stroke: 1.6, contexts: {}, total: 9 + KNOBS.length * 2.6 + CONTEXTS.length };
+    nextRound();
+  }
+  function ranking() { return [...T.order].sort((a, b) => T.wins[b] - T.wins[a] || (b === T.champ) - (a === T.champ) || T.out.indexOf(b) - T.out.indexOf(a)); }
+  function testStyle() { return T.champ; }
+  function nextRound() {
+    const champ = T.champ, base = { style: champ, tune: { ...T.tune }, stroke: T.stroke };
+    if (T.phase === 'style') {
+      if (T.next >= T.order.length) { T.phase = 'knob'; return nextRound(); }
+      const ch = T.order[T.next];
+      return show({ kind: 'style', q: 'Which motion feels better on toolbar buttons?', sub: 'Both play hover, hold, release and return on a loop. Hover or press the icons to try them yourself.', icons: TOOLBAR, hero: 'reload', a: { ...base, style: champ }, b: { ...base, style: ch }, id: [champ, ch] });
+    }
+    if (T.phase === 'knob') {
+      const K = KNOBS[T.knob];
+      if (!K) { T.phase = 'ctx'; return nextRound(); }
+      const v = K.values, st = T.kState ||= { step: 0, w: null };
+      let pair;
+      if (st.step === 0) pair = [v[1], v[3]];
+      else if (st.step === 1) pair = [st.w, st.w === v[1] ? v[0] : st.w === v[3] ? v[4] : null];
+      else if (st.step === 2 && (st.w === v[1] || st.w === v[3])) pair = [st.w, v[2]];
+      if (!pair || pair[1] == null) { set(K.key, st.w); T.knob++; T.kState = null; return nextRound(); }
+      const style = K.overflow && !/overflow/.test(M.STYLES[champ].tier) ? 'burst' : champ;
+      const cfg = x => K.key === 'stroke' ? { ...base, style, stroke: x } : { ...base, style, tune: { ...base.tune, [K.key]: x } };
+      return show({ kind: K.key, q: K.q, sub: `Style: ${M.STYLES[style].name}. Only one setting differs between the two.`, icons: TOOLBAR, hero: K.hero, a: cfg(pair[0]), b: cfg(pair[1]), id: pair });
+    }
+    if (T.phase === 'ctx') {
+      const C = CONTEXTS[T.ctx];
+      if (!C) return finish();
+      const rival = C.rival(champ, ranking());
+      return show({ kind: 'ctx:' + C.key, q: C.q, sub: 'Real icons from that part of Zen, same tuning on both sides.', icons: C.icons, hero: C.hero, a: { ...base, style: champ }, b: { ...base, style: rival }, id: [champ, rival] });
+    }
+  }
+  function set(key, v) { if (key === 'stroke') T.stroke = v; else T.tune[key] = v; }
+  function answer(side) {
+    const R = T.round; if (!R) return;
+    const chosen = side == null ? null : R.id[R.flip ? 1 - side : side], other = side == null ? null : R.id[R.flip ? side : 1 - side];
+    T.answers.push({ kind: R.kind, a: R.id[0], b: R.id[1], chosen, ms: Math.round(performance.now() - R.at) });
+    if (R.kind === 'style') { if (chosen) { T.wins[chosen]++; if (chosen !== T.champ) T.out.push(T.champ); else T.out.push(other); T.champ = chosen; } else T.out.push(R.id[1]); T.next++; }
+    else if (R.kind.startsWith('ctx:')) { T.contexts[R.kind.slice(4)] = chosen || R.id[0]; T.ctx++; }
+    else { const st = T.kState; st.w = chosen ?? (st.w ?? R.id[0]); st.step++; }
+    saved.eyeTest = { done: false, ...summary() }; persist();
+    nextRound();
+  }
+  function summary() {
+    return { style: T.champ, ranking: ranking(), tempo: T.tune.tempo, bounce: T.tune.bounce, intensity: T.tune.amp, overflow: T.tune.overflow, stroke: T.stroke, contexts: T.contexts, answers: T.answers };
+  }
+  function show(R) {
+    R.flip = T.r() < .5; R.at = performance.now(); T.round = R;
+    const sides = R.flip ? [R.b, R.a] : [R.a, R.b], n = T.answers.length + 1, total = Math.round(T.total);
+    unmount(etEl);
+    etEl.innerHTML = `<div class="et-head"><span class="mono muted">Round ${n} of about ${total}</span><h2>${esc(R.q)}</h2><p>${esc(R.sub)}</p><div class="progress"><span style="width:${Math.min(100, (n - 1) / total * 100)}%"></span></div></div>
+      <div class="bench">${sides.map((c, i) => `<div class="side"><span class="tag">${i ? 'THAT' : 'THIS'}</span><div class="toolbar">${R.icons.map(() => '<span class="slot"></span>').join('')}</div><div class="hero"><span class="slot"></span></div><button type="button" class="choose" data-side="${i}">${i ? 'That one <kbd>→</kbd>' : '<kbd>←</kbd> This one'}</button></div>`).join('')}</div>
+      <div class="et-foot"><button type="button" class="ghost" data-side="skip">Can't tell</button><span class="save"></span><button type="button" class="ghost" id="et-restart">Start over</button></div>`;
+    const t0 = performance.now();
+    etEl.querySelectorAll('.side').forEach((side, i) => {
+      const c = sides[i], slots = side.querySelectorAll('.toolbar .slot');
+      R.icons.forEach((id, j) => { const b = button(G.byId[id].label); slots[j].replaceWith(b); mount(b, G.byId[id], c.style, { size: 18, tune: c.tune, stroke: c.stroke, auto: () => M.settings.motion && !etEl.hidden, t0: t0 + j * 90 }); });
+      const h = button(G.byId[R.hero].label); side.querySelector('.hero .slot').replaceWith(h);
+      mount(h, G.byId[R.hero], c.style, { size: 64, tune: c.tune, stroke: c.stroke, auto: () => M.settings.motion && !etEl.hidden, t0 });
+    });
+    etEl.querySelectorAll('[data-side]').forEach(b => b.addEventListener('click', () => answer(b.dataset.side === 'skip' ? null : +b.dataset.side)));
+    $('#et-restart').addEventListener('click', newTest);
+    note(docRef ? 'Answers save to this page as you go.' : 'Answers save in this browser as you go.');
+  }
+  function finish() {
+    T.round = null; saved.eyeTest = { done: true, finished: new Date().toISOString(), ...summary() }; persist();
+    renderResults();
+  }
+  const word = (k, v) => ({ tempo: v < 1 ? `${(1 / v).toFixed(2)}× faster` : v > 1 ? `${v.toFixed(2)}× slower` : 'default pace', bounce: v < 1 ? 'tighter springs' : v > 1 ? 'bouncier springs' : 'default spring', intensity: v < 1 ? 'subtler movement' : v > 1 ? 'stronger movement' : 'default strength', overflow: v < 1 ? 'effects stay closer' : v > 1 ? 'effects spill further' : 'default reach', stroke: `${v} unit lines` }[k]);
+  function renderResults() {
+    const E = saved.eyeTest;
+    unmount(etEl);
+    if (!E || !E.ranking) {
+      etEl.innerHTML = `<div class="et-head"><h2>Pick between two versions, about 25 times.</h2><p>Each round shows the same icons animated two ways. Choose the one that feels better with a tap, or with the ← and → keys. Rounds cover the motion style, pace, spring, strength, how far effects spill past the button, line weight, and which style suits menus, media controls and mod panels.</p></div><div class="row"><button type="button" class="choose" id="et-start">Start the eye test</button><span class="save"></span></div>`;
+      $('#et-start').addEventListener('click', newTest);
+      return;
+    }
+    const ctxRows = Object.entries(E.contexts || {}).map(([k, s]) => `<li><span class="n">${esc(k)}</span><span class="slot" data-style="${s}" data-icon="${{ menu: 'copy', media: 'play-pause', mods: 'wand' }[k]}"></span><span>${esc(M.STYLES[s].name)}</span><span></span></li>`).join('');
+    etEl.innerHTML = `<div class="et-head"><span class="mono muted">${E.done ? 'Eye test complete' : 'Eye test in progress'} · ${E.answers.length} answers</span><h2>You prefer ${esc(M.STYLES[E.style].name)}, ${esc(word('tempo', E.tempo))}, with ${esc(word('bounce', E.bounce))}.</h2></div>
+      <div class="results">
+        <div class="cards">
+          <div class="card"><h3>Style ranking</h3><ol class="rank">${E.ranking.map((s, i) => `<li><span class="n">${i + 1}</span><span class="slot" data-style="${s}" data-icon="reload"></span><span>${esc(M.STYLES[s].name)}</span><span class="mono muted">${esc(M.STYLES[s].tier)}</span></li>`).join('')}</ol></div>
+          <div class="card"><h3>Tuning</h3><dl class="kv"><dt>Pace</dt><dd>${esc(word('tempo', E.tempo))}</dd><dt>Spring</dt><dd>${esc(word('bounce', E.bounce))}</dd><dt>Strength</dt><dd>${esc(word('intensity', E.intensity))}</dd><dt>Overflow</dt><dd>${esc(word('overflow', E.overflow))}</dd><dt>Line weight</dt><dd>${esc(word('stroke', E.stroke))}</dd></dl></div>
+          <div class="card"><h3>By context</h3><ol class="rank">${ctxRows || '<li>Not reached yet</li>'}</ol></div>
+        </div>
+        <div class="row"><button type="button" class="pick" id="et-apply">Use these results in the library</button><button type="button" class="ghost" id="et-copy">Copy results</button><button type="button" class="ghost" id="et-again">Take it again</button><span class="save"></span></div>
+        <textarea class="dump" id="et-dump" readonly hidden></textarea>
+      </div>`;
+    etEl.querySelectorAll('.slot[data-style]').forEach(s => { const b = button(M.STYLES[s.dataset.style].name); s.replaceWith(b); mount(b, G.byId[s.dataset.icon], s.dataset.style, { size: 18, tune: { tempo: E.tempo, bounce: E.bounce, amp: E.intensity, overflow: E.overflow }, stroke: E.stroke, auto: () => M.settings.motion && !etEl.hidden, t0: 0 }); });
+    $('#et-apply').addEventListener('click', () => { S.tune = { tempo: E.tempo, bounce: E.bounce, amp: E.intensity, overflow: E.overflow }; S.stroke = E.stroke; local.set('tune', S.tune); local.set('stroke', S.stroke); syncTune(); S.style = E.style; local.set('style', S.style); location.hash = 'library'; });
+    $('#et-copy').addEventListener('click', () => copy(JSON.stringify(E, null, 2), $('#et-dump')));
+    $('#et-again').addEventListener('click', newTest);
+    note(docRef ? 'Saved to this page. Claude can read these answers.' : 'Saved in this browser.');
+  }
+  function copy(text, area) {
+    area.value = text; area.hidden = false;
+    const fallback = () => { area.focus(); area.select(); note('Selected. Copy with your keyboard.'); };
+    try { navigator.clipboard.writeText(text).then(() => note('Copied.'), fallback); } catch { fallback(); }
+  }
+  document.addEventListener('keydown', e => {
+    if (etEl.hidden || !T || !T.round || e.target.closest('input, select, textarea')) return;
+    if (e.key === 'ArrowLeft') { e.preventDefault(); answer(0); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); answer(1); }
+  });
+
+  /* ---------------- Picks ---------------- */
+  const picksEl = $('#view-picks');
+  function renderPicks() {
+    unmount(picksEl);
+    const rows = Object.entries(saved.picks).filter(([id, s]) => G.byId[id] && M.STYLES[s]);
+    picksEl.innerHTML = `<div class="et-head"><h2>Your picks</h2><p>Icons you assigned a style to from the inspector. Select an icon name in the library, then use the pick button.</p></div>
+      <div class="picks">${rows.map(([id, s]) => `<div class="p"><span class="slot" data-id="${id}" data-style="${s}"></span><span><b>${esc(G.byId[id].label)}</b> <span class="mono muted">${id}</span></span><span>${esc(M.STYLES[s].name)}</span><button type="button" class="ghost" data-remove="${id}">Remove</button></div>`).join('') || '<p class="empty">No picks yet.</p>'}</div>
+      <div class="row"><button type="button" class="ghost" id="p-copy">Copy picks</button><span class="save"></span></div><textarea class="dump" id="p-dump" readonly hidden></textarea>`;
+    picksEl.querySelectorAll('.slot[data-id]').forEach(s => { const b = button(G.byId[s.dataset.id].label); s.replaceWith(b); mount(b, G.byId[s.dataset.id], s.dataset.style, { size: 20, auto: () => M.settings.motion && !picksEl.hidden, t0: 0 }); });
+    picksEl.querySelectorAll('[data-remove]').forEach(b => b.addEventListener('click', () => { delete saved.picks[b.dataset.remove]; persist(); renderPicks(); }));
+    $('#p-copy').addEventListener('click', () => copy(JSON.stringify(saved.picks, null, 2), $('#p-dump')));
+  }
+
+  /* ---------------- Views ---------------- */
+  function route() {
+    const v = ['library', 'eye-test', 'picks'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'library';
+    document.querySelectorAll('.tabs a').forEach(a => a.dataset.view === v ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
+    for (const id of ['library', 'eye-test', 'picks']) $('#view-' + id).hidden = id !== v;
+    if (v !== 'library') { sheet.hidden = true; inspected = null; unmount(sheet); }
+    if (v === 'library') renderLibrary();
+    else unmount(groupsEl);
+    if (v === 'eye-test' && !(T && T.round)) renderResults();
+    if (v === 'picks') renderPicks();
+  }
+  addEventListener('hashchange', route);
+  syncTune(); route();
+})();
+</script>

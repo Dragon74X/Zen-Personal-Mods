@@ -524,7 +524,7 @@
     "type": "dropdown",
     "value": "number",
     "property": "zzgroup.idle-keep-recent",
-    "label": "Recent unloaded tabs to keep *Per folder or subfolder. The most recently used unloaded tabs stay outside Idle regardless of age. Zero uses Idle after alone. Send to idle tabs still works immediately.*",
+    "label": "Recent unloaded tabs to keep *Per folder or subfolder. The most recently used unloaded tabs stay outside Idle regardless of age. Unlimited removes the Idle section and shows its tabs in their original positions. Zero applies the idle duration alone.*",
     "defaultValue": 5,
     "options": [
       {"label": "0", "value": 0},
@@ -534,7 +534,8 @@
       {"label": "8", "value": 8},
       {"label": "10", "value": 10},
       {"label": "15", "value": 15},
-      {"label": "20", "value": 20}
+      {"label": "20", "value": 20},
+      {"label": "Unlimited", "value": -1}
     ],
     "placeholder": false,
     "conditions": [{"conditions": [{"if": {"property": "zzgroup.ui.page", "value": "states"}}, {"if": {"property": "zzgroup.ui.page", "value": "all"}}, {"if": {"property": "zzgroup.ui.page", "value": ""}}], "operator": "OR"}, {"if": {"property": "zzgroup.idle-tabs", "value": true}}],

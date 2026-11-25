@@ -46,7 +46,7 @@ function env({ after = "1d", keep, now = 1e12 } = {}) {
     MutationObserver: class { observe() {} disconnect() {} }, queueMicrotask: fn => micro.push(fn), setInterval: () => 1, clearInterval() {}, setTimeout: () => 1, clearTimeout() {},
     Date: { now: () => now }, isCopy: () => false,
   };
-  return { ctx, tabs, tab, group, box, listeners, values, flush() { while (micro.length) micro.shift()(); } };
+  return { ctx, tabs, tab, group, box, listeners, values, setLimit(value) { keep = value; }, flush() { while (micro.length) micro.shift()(); } };
 }
 
 test("A folder's tabs go idle after the set time unloaded, or when sent; idle ones sit behind one row", async () => {
@@ -130,5 +130,28 @@ test("The recent floor ranks direct unloaded tabs by last use and yields to expl
   idle.api.keepVisible([tabs[3]], true); e.flush();
   assert.deepEqual(hidden(), []);
   assert.equal(e.box.children.length, 0);
+  idle.cleanup();
+});
+
+test("Unlimited removes existing idle rows and suspends manual idling until a finite limit returns", async () => {
+  const e = env({ keep: 0 });
+  const old = e.tab("old", { pending: true, accessed: 0 });
+  const manual = e.tab("manual"), active = e.tab("active", { selected: true });
+  const { startIdleTabs } = await load("groupflow", "startIdleTabs", e.ctx);
+  const idle = startIdleTabs();
+  idle.api.sendToIdle([manual]); e.flush();
+  assert.equal(e.box.children[0].textContent, "Idle · 2");
+  for (const limit of [-1, 5]) {
+    e.setLimit(limit);
+    e.listeners.get("TabGrouped")(); e.flush();
+    assert.equal(old.hasAttribute("zzgf-idle-hidden"), false);
+    assert.equal(manual.hasAttribute("zzgf-idle-hidden"), limit === 5);
+    assert.equal(e.box.children.length, limit === 5 ? 1 : 0);
+    if (limit === -1) {
+      idle.api.sendToIdle([active]); e.flush();
+      assert.equal(e.ctx.gBrowser.selectedTab, active);
+      assert.equal(e.values.get(active)?.zzgfIdle, undefined);
+    }
+  }
   idle.cleanup();
 });

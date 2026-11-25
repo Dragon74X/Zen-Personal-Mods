@@ -46,7 +46,7 @@ test("stored settings keep their keys, types, defaults and options", async () =>
   const rows = (await Promise.all(mods.map(async mod => (await read(mod)).filter(p => p.property && !/\.ui\./.test(p.property))
     .map(p => [mod, p.property, p.type, p.value ?? null, p.defaultValue ?? null, p.options?.map(o => o.value) ?? null]))))
     .flat().sort((a, b) => a[1].localeCompare(b[1], "en"));
-  assert.equal(createHash("sha256").update(JSON.stringify(rows)).digest("hex"), "e41cd27fdd0fb66a24b14ce8c8ef2f0c8cd77efa987a5adbaa563ba83941d5e7");
+  assert.equal(createHash("sha256").update(JSON.stringify(rows)).digest("hex"), "2cd58d4bff019818a4e44d96985de1a0a9234709b721c8467223894ef3a7592c");
 });
 
 test('opacity presentation preserves fraction, percentage and numeric-percent contracts', async () => {

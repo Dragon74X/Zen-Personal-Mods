@@ -1362,7 +1362,8 @@
   }
 
   function startIdleTabs() {
-    const enabled = () => bool("idle-tabs", true);
+    const recentLimit = () => num("idle-keep-recent", 5);
+    const enabled = (limit = recentLimit()) => bool("idle-tabs", true) && limit !== -1;
     const flag = (tab, key) => { try { return SessionStore.getCustomTabValue(tab, key) === "1"; } catch { return false; } };
     const setFlag = (tab, key, on) => {
       try { if (on) SessionStore.setCustomTabValue(tab, key, "1"); else SessionStore.deleteCustomTabValue(tab, key); } catch {}
@@ -1412,8 +1413,8 @@
     function sync() {
       queued = false;
       if (retired) return;
-      const on = enabled(), now = Date.now(), after = parseDuration(str("idle-after", "1d"));
-      const idle = on && idleTabs(now, after, Math.max(0, num("idle-keep-recent", 5)));
+      const limit = recentLimit(), on = enabled(limit);
+      const idle = on && idleTabs(Date.now(), parseDuration(str("idle-after", "1d")), Math.max(0, limit));
       let layoutChanged = false;
       const counts = new Map();
       for (const tab of gBrowser.tabs) {
@@ -1470,6 +1471,7 @@
     const api = {
       // Unloads them too; a selected tab hands the selection on first.
       sendToIdle(tabs) {
+        if (!enabled()) return;
         tabs = tabsOf(tabs);
         if (!tabs.length) return;
         for (const tab of tabs) { setFlag(tab, KEEP_VALUE, false); setFlag(tab, IDLE_VALUE, true); }
@@ -1482,6 +1484,7 @@
         soon();
       },
       keepVisible(tabs, on) {
+        if (!enabled()) return;
         for (const tab of tabsOf(tabs)) { setFlag(tab, KEEP_VALUE, on); if (on) setFlag(tab, IDLE_VALUE, false); }
         soon();
       },
@@ -1509,7 +1512,7 @@
       const split = t => !!t.splitview || !!t.group?.hasAttribute("split-view-group");
       const inFolders = tabsOf(tabs).filter(t => !t.hasAttribute("zzgf-page-tab"));
       const movable = tabs.filter(t => !t.pinned && !t.hasAttribute("zen-essential") && !t.hasAttribute("zzgf-page-tab") && !split(t));
-      if (!inFolders.length && !movable.length) return;
+      if (!(enabled() && inFolders.length) && !movable.length) return;
       add(document.createXULElement("menuseparator"));
       const many = tabs.length > 1 ? ` (${tabs.length})` : "";
       if (enabled() && inFolders.length) {

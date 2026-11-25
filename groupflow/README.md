@@ -86,6 +86,8 @@ Subfolder state labels can override that shared setting.
 Under **States and profiles**, **Recent unloaded tabs to keep** defaults to 5
 per plain folder or subfolder, ranked by last use. Only unloaded tabs beyond
 that number and older than **Idle after** (default `1d`) go idle automatically.
+Choose **Unlimited** to remove the Idle footer and show all its tabs in their
+original positions. Choosing a finite count again restores manual idle choices.
 Set the count to 0 for age alone, or the duration to 0 for manual idling only.
 Selected, multiselected and explicitly kept tabs stay exempt. Zen's native
 folders retain their own behavior.
